@@ -1,0 +1,21 @@
+{
+  "productVersion": "0.546.0",
+  "parentArchive": "Cluster-v0.546.0-TD3-Pass5-Selectable-Taskbar-Layouts-Source.zip",
+  "checkpoint": "TD3-pass6-floating-shell-appearance32",
+  "sourceOnly": true,
+  "nativeExecutableUnchanged": true,
+  "migrationsAdded": [],
+  "validation": {
+    "inheritedRegressions": "45/45",
+    "pass6Contracts": "19/19",
+    "staticChromiumScenarios": "10/10",
+    "rendererSyntax": "529 TS/TSX, 0 diagnostics",
+    "relativeImports": "3061 checked, 0 missing",
+    "rendererCss": "109 parsed, 0 errors",
+    "reactAppCertified": false,
+    "nativeQtCertified": false,
+    "windowsDpiCertified": false,
+    "postgresCertified": false,
+    "dependencyBackedBuildCertified": false
+  }
+}

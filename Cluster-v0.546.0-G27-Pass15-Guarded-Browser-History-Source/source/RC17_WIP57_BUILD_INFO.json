@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "clusterVersion": "0.506.0",
+  "releaseCandidate": "RC17",
+  "iteration": "WIP57",
+  "sourceMode": "reconstructed-master",
+  "pass": "Library Explorer + Projects Readiness Polish Pass 13",
+  "runtimeCertified": false,
+  "nativeSourceStatus": "forward-port-in-progress-desktop-version-hold-0.482.0",
+  "integrationStatus": {
+    "desktopSourceControl": "workstation-helper-integrity-version-fencing-private-git-runtime-source-implemented-official-windows-runtime-certification-required",
+    "unreal": "isourcecontrolprovider-async-operations-revision-history-materialization-source-implemented-ue58-compile-runtime-certification-required",
+    "discord": "server-authorized-runtime-lifecycle-expiry-route-hardening-relay-secret-rotation-live-discord-certification-required"
+  },
+  "visualFoundationStatus": "visual-master-instance-shell2-live-preview-canonical-sidebar-taskbar-transfer-center-source-implemented-runtime-dpi-certification-required",
+  "libraryStatus": "explorer-document-scroll-persistent-folder-expansion-expand-collapse-all-collections-manual-order-search-scope-four-layouts-grouping-viewer-derivative-pipeline-plus-global-transfer-projection-source-implemented-runtime-certification-required",
+  "projectsStatus": "project-overview-state-separation-at-risk-snapshot-plan-readiness-integrations-naming-source-implemented-runtime-certification-required",
+  "status": "historical-P13-build-info; not current release certification"
+}

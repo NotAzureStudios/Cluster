@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Cluster
+Comment=Native Cluster studio workspace
+Exec=Cluster %u
+Icon=cluster
+Terminal=false
+Categories=Development;ProjectManagement;Office;
+MimeType=x-scheme-handler/cluster;application/x-clusterlink;
+StartupNotify=true
+StartupWMClass=Cluster

@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../../../'+p,import.meta.url),'utf8');
+test('v0.411 Phase 7 distribution foundation contract',()=>{ const pkg=JSON.parse(read('package.json')); const c=read('packages/shared/src/api-contracts.ts'); assert.equal(pkg.version,'0.422.0'); assert.ok(c.includes('version: "2026-08-02.62"')); assert.ok(c.includes('"production-distribution-foundation-v1"')); for(const p of ['deployment/server/Dockerfile','deployment/server/docker-compose.yml','tools/scripts/release-security-scan.mjs','tools/scripts/release-lifecycle-audit.mjs']) assert.ok(read(p).length>40,p); });

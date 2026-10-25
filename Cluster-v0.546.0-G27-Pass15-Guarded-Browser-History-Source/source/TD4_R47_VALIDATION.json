@@ -1,0 +1,137 @@
+{
+  "checkpoint": "TD4 R47",
+  "sourceOnly": true,
+  "runtime": "Node v22.16.0 development runtime, not Node 24 certified",
+  "selectedSuites": 24,
+  "passedSuites": 24,
+  "newFocusedTests": 22,
+  "newRouteIntegrationTests": 6,
+  "suites": [
+    {
+      "suite": "cluster-0506-access-rebuild-assertions.mjs",
+      "status": "passed",
+      "result": "13/13 access/search stability tests passed"
+    },
+    {
+      "suite": "cluster-0506-cross-engine-assertions.mjs",
+      "status": "passed",
+      "result": "9/9 cross-engine assertions passed"
+    },
+    {
+      "suite": "cluster-0506-resource-identity-assertions.mjs",
+      "status": "passed",
+      "result": "14/14 resource identity/graph checks passed"
+    },
+    {
+      "suite": "cluster-0506-search-policy-assertions.mjs",
+      "status": "passed",
+      "result": "13/13 search/privacy assertions passed"
+    },
+    {
+      "suite": "cluster-0507-authorized-discovery-assertions.mjs",
+      "status": "passed",
+      "result": "7/7 project target discovery assertions passed"
+    },
+    {
+      "suite": "cluster-0507-resource-graph-filters-assertions.mjs",
+      "status": "passed",
+      "result": "Exited 0; see test output for individual assertions",
+      "environmentNote": "Test needed a temporary symlink to globally installed TypeScript; removed before packaging."
+    },
+    {
+      "suite": "cluster-0507-resource-picker-assertions.mjs",
+      "status": "passed",
+      "result": "10/10 resource picker assertions passed"
+    },
+    {
+      "suite": "cluster-0533-library-closeout-tests.mjs",
+      "status": "passed",
+      "result": "Cluster 0.533 Library closeout checks: 30/30 passed"
+    },
+    {
+      "suite": "cluster-0536-source-review-workflow-tests.mjs",
+      "status": "passed",
+      "result": "Cluster 0.536 source review workflow: 17/17 passed"
+    },
+    {
+      "suite": "cluster-td2-worker-ownership-inventory-tests.mjs",
+      "status": "passed",
+      "result": "Exited 0; see test output for individual assertions"
+    },
+    {
+      "suite": "cluster-td4-r35-collection-bulk-tests.mjs",
+      "status": "passed",
+      "result": "12/12 TD4 R36 collection-aware durable bulk tests passed",
+      "environmentNote": "Test needed a temporary symlink to globally installed TypeScript; removed before packaging."
+    },
+    {
+      "suite": "cluster-td4-r37-hierarchy-transaction-tests.mjs",
+      "status": "passed",
+      "result": "18/18 TD4 R37 hierarchy transaction guards passed"
+    },
+    {
+      "suite": "cluster-td4-r38-storage-reconciliation-tests.mjs",
+      "status": "passed",
+      "result": "16/16 R38 storage reconciliation checks passed"
+    },
+    {
+      "suite": "cluster-td4-r39-storage-queue-integration-tests.mjs",
+      "status": "passed",
+      "result": "11/11 TD4 R39 queue integration checks passed"
+    },
+    {
+      "suite": "cluster-td4-r40-orphan-audit-tests.mjs",
+      "status": "passed",
+      "result": "9/9 TD4 R40 orphan-audit checks passed"
+    },
+    {
+      "suite": "cluster-td4-r41-disposition-review-tests.mjs",
+      "status": "passed",
+      "result": "10/10 R41 disposition-review checks passed"
+    },
+    {
+      "suite": "cluster-td4-r42-resource-feed-visibility-tests.mjs",
+      "status": "passed",
+      "result": "15/15 resource feed visibility checks passed"
+    },
+    {
+      "suite": "cluster-td4-r43-provider-registration-tests.mjs",
+      "status": "passed",
+      "result": "26/26 resource feed visibility checks passed"
+    },
+    {
+      "suite": "cluster-td4-r44-delivery-provider-tests.mjs",
+      "status": "passed",
+      "result": "46/46 resource feed visibility checks passed"
+    },
+    {
+      "suite": "cluster-td4-r45-studio-provider-visibility-tests.mjs",
+      "status": "passed",
+      "result": "18/18 R45 studio provider checks passed"
+    },
+    {
+      "suite": "cluster-td4-r46-source-feed-integration-tests.mjs",
+      "status": "passed",
+      "result": "12/12 R46 HTTP feed integration checks passed"
+    },
+    {
+      "suite": "cluster-td4-r46-source-provider-tests.mjs",
+      "status": "passed",
+      "result": "19/19 R46 source provider checks passed"
+    },
+    {
+      "suite": "cluster-td4-r47-search-domain-visibility-tests.mjs",
+      "status": "passed",
+      "result": "22/22 R47 Search domain visibility checks passed"
+    },
+    {
+      "suite": "cluster-td4-r47-search-route-integration-tests.mjs",
+      "status": "passed",
+      "result": "6/6 R47 real Search route integration checks passed"
+    }
+  ],
+  "limitations": [
+    "Lean source lacks generated Prisma client and local project dependencies.",
+    "No Node 24 full build, PostgreSQL, authenticated multiuser or Windows/Qt acceptance."
+  ]
+}

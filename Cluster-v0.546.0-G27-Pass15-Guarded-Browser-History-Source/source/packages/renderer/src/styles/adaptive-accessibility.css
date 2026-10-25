@@ -1,0 +1,163 @@
+/* UI Foundation 2.0 Block 1E: shared responsive + accessibility runtime contract. */
+:root {
+  --cluster-touch-target: 40px;
+  --cluster-touch-target-comfortable: 44px;
+  --cluster-safe-top: env(safe-area-inset-top, 0px);
+  --cluster-safe-right: env(safe-area-inset-right, 0px);
+  --cluster-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --cluster-safe-left: env(safe-area-inset-left, 0px);
+}
+
+:root[data-renderer-pointer="coarse"],
+:root[data-renderer-pointer="mixed"] { --cluster-touch-target: var(--cluster-touch-target-comfortable); }
+
+:root[data-renderer-pointer="coarse"] :where(button, summary, [role="tab"], [role="option"], [role="menuitem"], input:not([type="checkbox"]):not([type="radio"]), select) {
+  min-block-size: var(--cluster-touch-target);
+}
+:root[data-renderer-pointer="coarse"] :where(button, summary, [role="tab"], [role="menuitem"]) { touch-action: manipulation; }
+
+/* Density may tighten information, never the usable touch target. */
+:root[data-density="dense"][data-renderer-pointer="coarse"] :where(button, summary, [role="tab"], [role="option"], [role="menuitem"]) {
+  min-block-size: var(--cluster-touch-target-comfortable);
+}
+
+/* Canonical phone/tablet sheet behavior for modal dialogs. */
+:root[data-renderer-viewport="phone"] .cluster-dialog-backdrop-v389,
+:root[data-renderer-viewport="phone"] .modal-backdrop {
+  align-items: end;
+  padding: var(--cluster-safe-top) var(--cluster-safe-right) var(--cluster-safe-bottom) var(--cluster-safe-left);
+}
+:root[data-renderer-viewport="phone"] .cluster-dialog-v389 {
+  width: 100%; max-width: none; max-height: min(88dvh, calc(var(--cluster-viewport-height) - var(--cluster-safe-top)));
+  border-radius: var(--cluster-radius-panel) var(--cluster-radius-panel) 0 0;
+  padding-bottom: var(--cluster-safe-bottom);
+}
+:root[data-renderer-viewport="tablet"] :where(.cluster-master-detail-v429, .master-detail-layout, .split-layout) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Large canvases grow line length deliberately instead of stretching controls into oblivion. */
+:root[data-renderer-viewport="wide"] .content-shell > :where(.page, [class*="workspace"], [class*="-page-"]),
+:root[data-renderer-viewport="ultrawide"] .content-shell > :where(.page, [class*="workspace"], [class*="-page-"]) {
+}
+:root[data-renderer-viewport="ultrawide"] :where(.cluster-master-detail-v429, .master-detail-layout, .split-layout) {
+  column-gap: clamp(12px, 1vw, 24px);
+}
+
+/* Forced colors remains useful even when a Studio theme is aggressively decorative. */
+@media (forced-colors: active) {
+  :where(button, a[href], input, textarea, select, summary, [role="tab"], [role="option"], [role="menuitem"]):focus-visible {
+    outline: 2px solid Highlight ; outline-offset: 2px ;
+  }
+  :where(.panel, [role="dialog"], [role="menu"], [role="listbox"], .cluster-floating-surface-v504) {
+    border: 1px solid CanvasText ; box-shadow: none ;
+  }
+  :where([data-tone], [data-state], [class*="status"], [class*="health"]) { forced-color-adjust: auto; }
+}
+
+@media (max-width: 767px) {
+  :where(.table-wrap, .table-shell, .data-table-shell) { -webkit-overflow-scrolling: touch; }
+  :where(.cluster-tool-actions-v228, .cluster-workspace-actions-v391, .page-header-actions) { scroll-snap-type: inline proximity; }
+  :where(.cluster-tool-actions-v228, .cluster-workspace-actions-v391, .page-header-actions) > * { scroll-snap-align: start; }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  :root[data-renderer-viewport="phone"] .cluster-dialog-v389 { max-height: 100dvh; border-radius: 0; }
+}
+
+
+/* Adaptive data tables keep semantics while becoming readable row cards on phones. */
+:root[data-renderer-viewport="phone"] .data-table-shell { overflow: visible; }
+:root[data-renderer-viewport="phone"] .data-table-shell table { display: block; inline-size: 100%; }
+:root[data-renderer-viewport="phone"] .data-table-shell thead {
+  position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+:root[data-renderer-viewport="phone"] .data-table-shell tbody { display: grid; gap: var(--cluster-space-2, 8px); }
+:root[data-renderer-viewport="phone"] .data-table-shell tr {
+  display: grid; grid-template-columns: minmax(7.5rem, .7fr) minmax(0, 1fr);
+  border: 1px solid var(--border); border-radius: var(--cluster-radius-control, 10px); overflow: clip;
+}
+:root[data-renderer-viewport="phone"] .data-table-shell td {
+  display: grid; grid-column: 1 / -1; grid-template-columns: minmax(7.5rem, .7fr) minmax(0, 1fr);
+  min-width: 0 ; width: auto ; position: static ; padding: 0 ;
+}
+:root[data-renderer-viewport="phone"] .data-table-shell td::before {
+  content: attr(data-label); padding: 10px 8px; font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--border);
+}
+:root[data-renderer-viewport="phone"] .data-table-shell td > * { min-width: 0; }
+:root[data-renderer-viewport="phone"] .data-table-shell td:not([data-cluster-table-selection="true"]) { border-bottom: 1px solid var(--border); }
+:root[data-renderer-viewport="phone"] .data-table-shell td:not([data-cluster-table-selection="true"]) > * { padding: 10px 8px; }
+:root[data-renderer-viewport="phone"] .data-table-shell td[data-cluster-table-selection="true"] > * { padding: 8px; }
+:root[data-renderer-viewport="phone"] .data-table-shell tr > :last-child,
+:root[data-renderer-viewport="phone"] .data-table-shell tr > :nth-last-child(2)::before { border-bottom: 0; }
+:root[data-renderer-viewport="phone"] .data-table-shell tr[data-activatable="true"] { cursor: pointer; }
+
+/* iPad/tablet: preserve information density without requiring hover or precision pointers. */
+:root[data-renderer-viewport="tablet"] .data-table-shell { overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable; }
+:root[data-renderer-viewport="tablet"] .data-table-shell th,
+:root[data-renderer-viewport="tablet"] .data-table-shell td { max-inline-size: min(42vw, 420px); }
+:root[data-renderer-viewport="tablet"][data-renderer-pointer="coarse"] :where(.cluster-floating-surface-v504, [role="menu"], [role="listbox"]) {
+  max-inline-size: min(calc(100vw - 32px), 520px); max-block-size: min(70dvh, calc(var(--cluster-viewport-height) - 32px)); overflow: auto;
+}
+
+/* Text enlargement must reflow rather than forcing fixed-height chrome. */
+:root[data-text-scale="largest"] :where(.page-header, .cluster-toolbar-v428, .cluster-workspace-actions-v391) { block-size: auto; min-block-size: var(--cluster-touch-target); flex-wrap: wrap; }
+:root[data-text-scale="largest"] :where(.panel, [role="dialog"], .cluster-floating-surface-v504) { overflow-wrap: anywhere; }
+
+/* Desktop WebView and high-density displays keep focus geometry crisp and bounded. */
+@media (min-resolution: 1.5dppx) {
+  :where(button, a[href], input, textarea, select, summary, [tabindex]):focus-visible { outline-offset: 2px; }
+  :where(.panel, .cluster-floating-surface-v504, [role="dialog"]) { background-clip: padding-box; }
+}
+
+/* Block 1E closeout: dense workspaces remain operable on touch, phone, and tablet. */
+:root[data-renderer-pointer="coarse"] :where(.board-columns-v257, .whiteboard-canvas-wrap, .timeline-workspace) {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+:root[data-renderer-pointer="coarse"] :where(.whiteboard-toolbar, .whiteboard-commandbar-v299, .whiteboard-view-actions-v299) :where(button, [role="button"], [role="tab"]) {
+  min-block-size: var(--cluster-touch-target-comfortable);
+  min-inline-size: var(--cluster-touch-target-comfortable);
+}
+:root[data-renderer-viewport="phone"] .whiteboard-outline-v299 {
+  max-block-size: min(42dvh, 420px);
+  border-inline-start: 0;
+  border-block-start: 1px solid var(--border-subtle);
+}
+:root[data-renderer-viewport="phone"] .whiteboard-navigator-v299 {
+  inset-inline: max(8px, var(--cluster-safe-left)) max(8px, var(--cluster-safe-right));
+  inset-block-end: max(8px, var(--cluster-safe-bottom));
+  width: auto;
+  max-block-size: min(32dvh, 220px);
+}
+:root[data-renderer-viewport="phone"] .whiteboard-canvas-wrap {
+  min-block-size: max(52dvh, 360px);
+  touch-action: pan-x pan-y;
+}
+:root[data-renderer-viewport="tablet"] .whiteboard-outline-v299 {
+  max-block-size: min(48dvh, 520px);
+}
+:root[data-renderer-viewport="phone"] .board-workspace-v257.board-fullscreen-v254,
+:root[data-renderer-viewport="tablet"] .board-workspace-v257.board-fullscreen-v254 {
+  padding-inline: max(8px, var(--cluster-safe-left)) max(8px, var(--cluster-safe-right));
+  padding-block-end: max(8px, var(--cluster-safe-bottom));
+}
+:root[data-renderer-viewport="phone"] .board-workspace-v257 .board-columns-v257 {
+  grid-auto-columns: minmax(272px, calc(100dvw - 28px));
+  scroll-padding-inline: 4px;
+  scroll-snap-type: inline mandatory;
+}
+:root[data-renderer-viewport="phone"] .board-workspace-v257 .board-columns-v257 .board-list { scroll-snap-stop: always; }
+:root[data-renderer-viewport="tablet"][data-renderer-pointer="coarse"] .board-workspace-v257 .board-columns-v257 {
+  grid-auto-columns: minmax(300px, min(62dvw, 430px));
+  scroll-snap-type: inline proximity;
+}
+@media (hover: none) {
+  :where(.task-card, .board-list, .whiteboard-outline-list-v299 > button, .whiteboard-component-list-v495 > div) {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :where(.task-card, .whiteboard-outline-list-v299 > button, .whiteboard-component-list-v495 button):active {
+    filter: brightness(.98);
+  }
+}

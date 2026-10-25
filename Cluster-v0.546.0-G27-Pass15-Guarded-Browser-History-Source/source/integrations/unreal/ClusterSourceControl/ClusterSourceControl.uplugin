@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 3,
+  "VersionName": "0.3.0",
+  "FriendlyName": "Cluster Source Control",
+  "Description": "Cluster Desktop Workstation-backed Git/Git LFS source control provider for Unreal Engine.",
+  "Category": "Source Control",
+  "CreatedBy": "Cluster Studio",
+  "CanContainContent": false,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "ClusterSourceControl",
+      "Type": "EditorNoCommandlet",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

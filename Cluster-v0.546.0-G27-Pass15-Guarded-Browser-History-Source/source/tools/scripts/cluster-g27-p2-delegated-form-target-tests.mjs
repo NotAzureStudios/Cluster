@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import {execFileSync} from 'node:child_process';
+import vm from 'node:vm';
+import path from 'node:path';
+const require=createRequire(import.meta.url);
+const ts=(()=>{try{return require('typescript')}catch{return require(path.join(execFileSync('npm',['root','-g'],{encoding:'utf8'}).trim(),'typescript/lib/typescript.js'))}})();
+const file='apps/server/src/domains/studio-systems/studio-form-target-admission.ts';
+const source=readFileSync(file,'utf8');
+const output=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const mod={exports:{}};vm.runInNewContext(output,{module:mod,exports:mod.exports});
+const {resolveAuthorizedStudioFormTarget:resolve}=mod.exports;
+let checks=0;
+async function test(label,fn){await fn();checks++;console.log('PASS '+label)}
+const row={formId:'studio-form-1',form:{purpose:'training'}};
+async function attempt({submissionId='submission-1',data=row,allowed=true,dbError=false,grantError=false}={}){
+  const calls=[];
+  const result=resolve({submissionId,lookup:async(id)=>{calls.push('lookup:'+id);if(dbError)throw Error('db');return data},mayReview:async(id)=>{calls.push('grant:'+id);if(grantError)throw Error('grant');return allowed}});
+  return {result,calls};
+}
+await test('active scoped reviewer can resolve non-application submission',async()=>{const c=await attempt();assert.equal((await c.result)?.formId,'studio-form-1');assert.deepEqual(c.calls,['lookup:submission-1','grant:studio-form-1'])});
+await test('admin routed through same review policy',async()=>{const c=await attempt({allowed:true});assert.equal((await c.result)?.formId,'studio-form-1')});
+await test('revoked Form grant returns no Form ID',async()=>{const c=await attempt({allowed:false});assert.equal(await c.result,null)});
+await test('other Form grant cannot substitute for current Form ID',async()=>{const c=await attempt({data:{formId:'other-form',form:{purpose:'training'}},allowed:false});assert.equal(await c.result,null);assert.deepEqual(c.calls,['lookup:submission-1','grant:other-form'])});
+await test('nonexistent submission does not perform grant lookup',async()=>{const c=await attempt({data:null});assert.equal(await c.result,null);assert.deepEqual(c.calls,['lookup:submission-1'])});
+await test('orphaned Form does not perform grant lookup',async()=>{const c=await attempt({data:{formId:'studio-form-1',form:null}});assert.equal(await c.result,null);assert.deepEqual(c.calls,['lookup:submission-1'])});
+await test('application submissions cannot expose target',async()=>{const c=await attempt({data:{formId:'application-form',form:{purpose:'application'}}});assert.equal(await c.result,null);assert.deepEqual(c.calls,['lookup:submission-1'])});
+await test('missing Form ID cannot expose target',async()=>{const c=await attempt({data:{form:{purpose:'training'}}});assert.equal(await c.result,null);assert.deepEqual(c.calls,['lookup:submission-1'])});
+await test('unsupported empty IDs skip queries',async()=>{const c=await attempt({submissionId:''});assert.equal(await c.result,null);assert.deepEqual(c.calls,[])});
+await test('oversize IDs skip queries',async()=>{const c=await attempt({submissionId:'x'.repeat(161)});assert.equal(await c.result,null);assert.deepEqual(c.calls,[])});
+await test('server errors propagate instead of authorizing',async()=>{const c=await attempt({dbError:true});await assert.rejects(c.result,/db/)});
+await test('grant store failures propagate instead of authorizing',async()=>{const c=await attempt({grantError:true});await assert.rejects(c.result,/grant/)});
+const routes=readFileSync('apps/server/src/domains/studio-systems/studio-systems-routes.ts','utf8');
+const target=routes.slice(routes.indexOf('app.get("/api/studio-systems/submissions/:submissionId/target"'),routes.indexOf('app.get("/api/studio-systems/forms/:formId/deadline-status"'));
+await test('target route calls the canonical scoped review authority',()=>{assert.match(target,/mayReview: \(formId\) => canReviewForm\(request, formId\)/)});
+await test('target route never responds with private answer or respondent data',()=>{for(const secret of ['answersJson','respondentEmail','respondentName','reviewNote','schemaJson'])assert.ok(!target.includes(secret),secret)});
+await test('missing, application, revoked and hidden records share generic not-found',()=>{assert.match(target,/if \(!target\) return reply.code\(404\)/);assert.match(target,/FORM_RESPONSE_NOT_FOUND/)});
+await test('target response disables HTTP response caching',()=>assert.match(target,/Cache-Control", "private, no-store/));
+await test('admin and scoped delegated reviewer use the same canonical Form gate',()=>{assert.match(routes,/async function canReviewForm\(request: any, formId: string\)/);assert.match(routes,/hasStudioSettingsEdit\(request\)/);assert.match(routes,/eligibleFormReviewerUser\(user\) && await formReviewGrant\(user.id, formId\)/);assert.match(routes,/if \(await canReviewForm\(request, formId\)\) return true/)});
+await test('private form Search index still restricts public Search to admins',()=>{const s=readFileSync('apps/server/src/domains/search/search-routes.ts','utf8');assert.match(s,/item.kind === "studio_form" \|\| item.kind === "form_submission"/);assert.match(s,/if \(!decorated\?\.isAdmin\) return false/)});
+console.log(`${checks}/${checks} delegated Form deep-link admission tests passed`);assert.equal(checks,18);

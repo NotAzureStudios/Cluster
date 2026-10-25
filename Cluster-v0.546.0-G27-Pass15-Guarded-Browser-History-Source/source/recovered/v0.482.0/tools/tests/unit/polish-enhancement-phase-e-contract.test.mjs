@@ -1,0 +1,3 @@
+import test from "node:test"; import assert from "node:assert/strict"; import fs from "node:fs"; import path from "node:path";
+const root=path.resolve(import.meta.dirname,"../../.."); const read=(p)=>fs.readFileSync(path.join(root,p),"utf8");
+test("v0.416 Phase E notifications and activity contract",()=>{const pkg=JSON.parse(read("package.json")); const c=read("packages/shared/src/api-contracts.ts"); const a=read("tools/scripts/polish-enhancement-phase-e-audit.mjs"); assert.equal(pkg.version,"0.422.0"); assert.ok(c.includes('version: "2026-08-02.62"')); assert.ok(c.includes('"polish-enhancement-phase-e-v1"')); assert.ok(a.includes("project notification modes editable in inbox")); assert.ok(a.includes("activity source classifier exists"));});

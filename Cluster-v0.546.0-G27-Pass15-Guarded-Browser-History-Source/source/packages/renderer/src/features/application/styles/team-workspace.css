@@ -1,0 +1,313 @@
+/* Block 21: Team owns its route navigation and responsive geometry. */
+.team-page-v064 .team-subnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:var(--space-3) 0 var(--space-4);padding:6px}.team-page-v064 .team-subnav button{display:grid;gap:4px;min-height:42px;padding:8px 11px;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--muted);text-align:left;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease}.team-page-v064 .team-subnav button strong{color:var(--text);font-size:.92rem}.team-page-v064 .team-subnav button span{display:none;font-size:.76rem}.team-page-v064 .team-subnav button:is(:hover,.active){transform:translateY(-1px);color:var(--text);border-color:color-mix(in srgb,var(--accent) 28%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+
+/* Block 14: canonical Team workspace presentation migrated from the legacy application workspace registry. */
+.team-page-v062 {
+  gap: clamp(18px, 2vw, 30px);
+}
+.team-hero-v062 {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  background:
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--cluster-white) 6%, transparent), color-mix(in srgb, var(--cluster-white) 1.2%, transparent)),
+    var(--cluster-surface-1, var(--panel));
+}
+.team-hero-v062 h1 {
+  font-size: clamp(2.35rem, 5vw, 4.55rem);
+  letter-spacing: -.065em;
+}
+.team-hero-meta-v062 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.team-hero-meta-v062 span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line) 66%, transparent);
+  background: color-mix(in srgb, var(--panel) 52%, color-mix(in srgb, var(--cluster-white) 3.5%, transparent));
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.team-stat-strip-v062 .stat-card {
+  min-height: 118px;
+  display: grid;
+  gap: 4px;
+  align-content: center;
+  text-align: left;
+}
+.team-stat-strip-v062 .stat-card em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: .76rem;
+  font-weight: 800;
+}
+.team-command-bar-v062 {
+  display: grid;
+  gap: 14px;
+  align-items: end;
+}
+.team-archive-toggle-v062 {
+  min-height: 44px;
+  align-self: end;
+}
+.team-selection-pill-v062 {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--line) 68%, transparent);
+  background: color-mix(in srgb, var(--panel) 58%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+.team-selection-pill-v062 strong {
+  color: var(--text);
+  font-size: 1.3rem;
+}
+.team-selection-pill-v062 span {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bulk-bar-v062 {
+  align-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+  background: color-mix(in srgb, var(--panel) 52%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+.team-card-v032 {
+  border-color: color-mix(in srgb, var(--line) 68%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cluster-white) 4.5%, transparent), color-mix(in srgb, var(--cluster-white) 1.2%, transparent)),
+    color-mix(in srgb, var(--panel) 62%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+.team-card-v032:hover,
+.team-card-v032.active {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  box-shadow: 0 16px 42px color-mix(in srgb, var(--cluster-black) 14%, transparent);
+  transform: translateY(-1px);
+}
+.user-profile-panel-v032 {
+  border-radius: 24px;
+}
+.profile-actions-v062 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.profile-command-grid-v062 {
+  display: grid;
+
+  gap: 12px;
+}
+.profile-command-grid-v062 div,
+.team-coverage-grid-v062 div {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--line) 66%, transparent);
+  background:
+    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 36%),
+    color-mix(in srgb, var(--panel) 58%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+.profile-command-grid-v062 span,
+.team-coverage-grid-v062 span {
+  display: block;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.profile-command-grid-v062 strong,
+.team-coverage-grid-v062 strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+  font-size: clamp(1.25rem, 2.8vw, 1.8rem);
+  line-height: 1;
+}
+.profile-command-grid-v062 em,
+.team-coverage-grid-v062 em {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .78rem;
+  font-style: normal;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-info-grid-v062 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.team-capacity-panel-v062,
+.communication-panel-v062 {
+  display: grid;
+  gap: 18px;
+  border-radius: 24px;
+}
+.team-coverage-grid-v062 {
+  display: grid;
+}
+.capacity-layout-v062 {
+  align-items: start;
+}
+.capacity-row {
+  border-color: color-mix(in srgb, var(--line) 68%, transparent);
+  background: color-mix(in srgb, var(--panel) 58%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+
+
+.selection-preview-v062 {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
+  background: color-mix(in srgb, var(--panel) 62%, color-mix(in srgb, var(--cluster-white) 2.5%, transparent));
+}
+@media  (max-width: 1280px) {
+  .team-stat-strip-v062,
+  .team-command-bar-v062,
+  .team-coverage-grid-v062 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media  (max-width: 780px) {
+  .team-stat-strip-v062,
+  .team-command-bar-v062,
+  .profile-command-grid-v062,
+  .profile-actions-v062,
+  .team-coverage-grid-v062 {
+    grid-template-columns: 1fr;
+  }
+}
+.profile-info-grid-v063 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.profile-info-grid-v063 div {
+  min-width: 0;
+}
+.profile-info-grid-v063 strong {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+
+
+.profile-command-grid-v062 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+
+@media  (max-width: 1280px) {
+  .profile-command-grid-v062,
+  .team-coverage-grid-v062 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .profile-info-grid-v063 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media  (max-width: 760px) {
+  .profile-command-grid-v062,
+  .team-coverage-grid-v062,
+  .profile-info-grid-v063 {
+    grid-template-columns: 1fr;
+  }
+
+
+}
+
+
+.team-page-v064 .team-command-bar-v062 {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  padding: clamp(18px, 1.8vw, 28px);
+}
+.team-readonly-bar-v064 {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 58%, color-mix(in srgb, var(--cluster-white) 2%, transparent));
+}
+.profile-readonly-actions-v064 {
+  align-items: center;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
+  background: color-mix(in srgb, var(--panel) 56%, color-mix(in srgb, var(--cluster-white) 2%, transparent));
+}
+.team-communication-clean-v064 {
+  max-width: 980px;
+}
+
+
+/* v0.393 keyboard-first team profile selection */
+.team-member-profile-trigger-v393{max-width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:800;text-align:left;box-shadow:none}.team-member-profile-trigger-v393:hover{color:var(--accent)}.team-member-profile-trigger-v393:focus-visible{outline:1px solid var(--cluster-focus-color,var(--cluster-cyan-500));outline-offset:2px;border-radius:4px}
+
+/* Block 14: presentation migrated from the retired global application-workspaces registry. */
+.presence-pill.active,
+.presence-pill.recent,
+.presence-pill.focus,
+.presence-pill.away,
+.presence-pill.offline {
+  border-color: color-mix(in srgb, currentColor 22%, var(--line));
+}
+
+/* Block 14: presentation migrated from the retired global application-tools registry. */
+.content-shell .team-hero-v062 { margin-bottom: 0; }
+
+.team-selection-pill-v062 { align-self: stretch; min-height: 42px; }
+
+/* Block 14: final application-workspace registry decomposition. */
+.member-main-v032 strong {
+  overflow-wrap: anywhere;
+}
+
+
+
+/* Block 21: Team owns its filter-grid and handset contracts. */
+.team-filter-grid-v0102 .search-field { grid-column: span 2; }
+.team-layout-v032 { gap: 14px; }
+@media (max-width: 1320px) { .team-page-v064 .team-subnav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1280px) { .team-page-v064 .team-command-bar-v062 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) {
+  .team-page-v064 .team-command-bar-v062 .search-field { grid-column: auto; }
+  .team-page-v064 .team-hero-v062 { border-radius: 22px; }
+}
+@media (max-width: 860px) { .team-page-v064 .team-subnav { grid-template-columns: 1fr; } }
+@media (max-width: 820px) { .team-filter-grid-v0102 .search-field { grid-column: 1 / -1; } }
+@media (max-width: 780px) { .team-page-v064 .team-command-bar-v062 { grid-template-columns: 1fr; } }
+
+/* TD3 P16: People filter presentation belongs to its body, never the disclosure shell.
+   The previous desktop grid rule targeted <details> and divided the summary from its
+   controls. The shared disclosure retains that structure while keeping one header row. */
+.team-page-v064 details.team-command-bar-v062.cluster-field-v425 {
+  grid-template-columns: minmax(0,1fr);
+}
+.team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 14px;
+  min-width: 0;
+}
+@media (max-width: 1280px) {
+  .team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 780px) {
+  .team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 { grid-template-columns: minmax(0,1fr); }
+  .team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 .search-field { grid-column: auto; }
+}

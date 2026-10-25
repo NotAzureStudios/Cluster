@@ -1,0 +1,93 @@
+{
+  "conflict_resolutions": [
+    {
+      "path": "CURRENT_RELEASE_REFERENCE.json",
+      "resolution": "keep_current_release_metadata; historical Pass15 evidence retained independently"
+    },
+    {
+      "path": "RC17_RUNTIME_TEST_CHECKLIST.md",
+      "resolution": "keep_current_release_metadata; historical Pass15 evidence retained independently"
+    },
+    {
+      "path": "RC17_WIP57_BUILD_INFO.json",
+      "resolution": "keep_current_release_metadata; historical Pass15 evidence retained independently"
+    },
+    {
+      "path": "RC17_WIP57_RELEASE_NOTES.md",
+      "resolution": "keep_current_release_metadata; historical Pass15 evidence retained independently"
+    },
+    {
+      "path": "SOURCE_FILE_MANIFEST.sha256",
+      "resolution": "regenerate_manifest"
+    },
+    {
+      "path": "package.json",
+      "resolution": "keep_current_release_metadata; historical Pass15 evidence retained independently"
+    },
+    {
+      "path": "packages/renderer/src/features/admin/AdminWorkspacePage.tsx",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    },
+    {
+      "path": "packages/renderer/src/features/admin/admin-workspace-state.ts",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    },
+    {
+      "path": "packages/renderer/src/features/admin/admin-workspace.css",
+      "resolution": "Pass13 CSS + complete Pass14/15 additive CSS + newer P16/0.512 CSS (newer last)"
+    },
+    {
+      "path": "packages/renderer/src/features/create/SharedCreateDrawer.tsx",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    },
+    {
+      "path": "packages/renderer/src/features/library/library-workspace.css",
+      "resolution": "Pass13 CSS + complete Pass14/15 additive CSS + newer P16/0.512 CSS (newer last)"
+    },
+    {
+      "path": "packages/renderer/src/features/projects/project-operations.css",
+      "resolution": "Pass13 CSS + complete Pass14/15 additive CSS + newer P16/0.512 CSS (newer last)"
+    },
+    {
+      "path": "packages/renderer/src/features/settings/StudioSettingsPage.tsx",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    },
+    {
+      "path": "packages/renderer/src/features/settings/settings-workspace.css",
+      "resolution": "Pass13 CSS + complete Pass14/15 additive CSS + newer P16/0.512 CSS (newer last)"
+    },
+    {
+      "path": "packages/renderer/src/features/settings/studio-settings-state.ts",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    },
+    {
+      "path": "packages/shared/src/project-types.ts",
+      "resolution": "git diff3: candidate overlap + uncontested Pass15 edits; explicitly restored historic panels/UX where applicable"
+    }
+  ],
+  "inputs": {
+    "candidate_recovery_preview_sha256": "4f6a09006ec79b33f2503927cd639d7889943352fa030317d203955b8748dc82",
+    "pass13_sha256": "efc618c7b6282f7e36423382272276f538c7e56a9868749aa1f5c859e24cc5eb",
+    "pass15_sha256": "c758d4edfa38e8bde538b89c1c200a7cf7fbd2fbe08295bc43d5d1e1b0616c1f"
+  },
+  "legacy_runtime_certified": false,
+  "merge_counts": {
+    "authoritative_only": 11,
+    "candidate_only": 283,
+    "merged": 7,
+    "overlap_conflict": 16,
+    "unchanged": 1489
+  },
+  "notes": [
+    "No historical Pass15 archive file was blindly copied over newer domain implementations.",
+    "Both sides of 16 overlapping conflicts were reviewed and resolved; original release metadata preserved on current lineage.",
+    "Source-only reconciliation is not dependency-backed compilation or Windows runtime certification."
+  ],
+  "retained_current_new_paths": 158,
+  "reviewed_both_edited": [
+    "packages/renderer/src/features/library/LibraryWorkspacePage.tsx",
+    "packages/renderer/src/features/projects/CloseoutPortalPanel.tsx"
+  ],
+  "schema": 1,
+  "status": "authoritative_pass15_integrated_source_unverified_runtime"
+}

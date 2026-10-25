@@ -1,0 +1,23 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const read = (path) => fs.readFileSync(path, "utf8");
+test("v0.405 Phase 5 scalability contract", () => {
+  const pkg = JSON.parse(read("package.json"));
+  const contracts = read("packages/shared/src/api-contracts.ts");
+  const api = read("packages/renderer/src/core/api.ts");
+  const delta = read("packages/renderer/src/core/delta-sync.ts");
+  const collaboration = read("packages/renderer/src/features/collaboration/index.tsx");
+  const projects = read("packages/renderer/src/features/projects/ProjectsPage.tsx");
+  assert.equal(pkg.version, "0.422.0");
+  assert.match(contracts, /2026-08-02\.62/);
+  assert.match(contracts, /renderer-scalability-v1/);
+  assert.match(contracts, /realtime-frame-batching-v1/);
+  assert.match(contracts, /tagged-query-invalidation-v1/);
+  assert.match(api, /invalidateApiQueryTags/);
+  assert.match(api, /cached\?\.promise/);
+  assert.match(delta, /requestAnimationFrame\(flushDeltaDispatch\)/);
+  assert.match(collaboration, /pendingStateRef/);
+  assert.match(projects, /useDeferredValue/);
+  assert.match(projects, /const sortedFacts = useMemo/);
+});

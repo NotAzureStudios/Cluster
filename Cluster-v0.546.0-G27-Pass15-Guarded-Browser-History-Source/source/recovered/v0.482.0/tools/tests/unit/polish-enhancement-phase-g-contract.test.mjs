@@ -1,0 +1,3 @@
+import test from "node:test"; import assert from "node:assert/strict"; import fs from "node:fs";
+const read=(p)=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),"utf8");
+test("v0.418 Phase G Scheduler and Time contract",()=>{ const pkg=JSON.parse(read("package.json")); const c=read("packages/shared/src/api-contracts.ts"); const a=read("tools/scripts/polish-enhancement-phase-g-audit.mjs"); assert.equal(pkg.version,"0.422.0"); assert.ok(c.includes('version: "2026-08-02.62"')); assert.ok(c.includes('"polish-enhancement-phase-g-v1"')); assert.ok(a.includes("manager drag scheduling exists")); assert.ok(a.includes("recurring daily and weekly blocks supported")); });

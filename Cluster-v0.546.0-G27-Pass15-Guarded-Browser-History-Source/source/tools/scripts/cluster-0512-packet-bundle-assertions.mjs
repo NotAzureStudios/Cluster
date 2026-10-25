@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+const ts=require('typescript');
+let checks=0;
+const check=(name,fn)=>{fn();checks++;console.log('PASS',name);};
+function load(file, mocks={}) {
+ const js=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+ const module={exports:{}};
+ vm.runInNewContext(js,{module,exports:module.exports,require:(name)=>name in mocks?mocks[name]:require(name),Buffer,Date,Uint32Array,Set,Map,JSON,String,Number,Math},{filename:file});
+ return module.exports;
+}
+const publication=load('apps/server/src/domains/library/packet-publication.ts');
+const bundle=load('apps/server/src/domains/library/packet-bundle.ts',{'./packet-publication.js':publication});
+const note=(id)=>({id, parentId:'p',title:id,type:'note',body:'Approved '+id,classification:'internal',revision:1,status:'active'});
+const sources=[note('a'),note('b'),{id:'c',type:'file',title:'private.pdf',fileName:'secret.pdf',checksumSha256:'a'.repeat(64),revision:1, status:'active',parentId:'p'}];
+const snapshot=publication.buildPacketReleaseManifest({id:'p'},{id:'d',versionLabel:'1.5',kind:'training',audienceJson:'{"mode":"all","targets":[]}',completionMode:'none'},sources);
+const release={id:'r',versionLabel:'1.5',...snapshot};
+const artifacts=publication.buildPacketTextDerivatives(snapshot.manifestJson,sources);
+const output=bundle.buildPacketDerivativeBundle(release,artifacts);
+check('ZIP begins with correct local header',()=>assert.equal(output.bytes.readUInt32LE(0),0x04034b50));
+check('ZIP ends with central-directory footer',()=>assert.equal(output.bytes.readUInt32LE(output.bytes.length-22),0x06054b50));
+check('exactly two detached notes delivered',()=>assert.equal(output.count,2));
+check('source IDs and private filenames not present in ZIP',()=>{const content=output.bytes.toString('utf8');assert.ok(!content.includes('secret.pdf'));assert.ok(!content.includes('"sourceId"'));});
+check('output deterministic across artifact input order',()=>assert.equal(bundle.buildPacketDerivativeBundle(release,[...artifacts].reverse()).sha256,output.sha256));
+check('corrupt artifact bytes reject entire ZIP',()=>assert.throws(()=>bundle.buildPacketDerivativeBundle(release,[{...artifacts[0],content:Buffer.from('modified')},artifacts[1]]),/INTEGRITY/));
+check('duplicates reject',()=>assert.throws(()=>bundle.buildPacketDerivativeBundle(release,[artifacts[0],artifacts[0]]),/INVALID/));
+check('out of range positions reject',()=>assert.throws(()=>bundle.buildPacketDerivativeBundle(release,[{...artifacts[0],position:99}]),/INVALID/));
+check('manifest tampering rejects',()=>assert.throws(()=>bundle.buildPacketDerivativeBundle({...release,manifestJson:'{}'},artifacts),/INTEGRITY/));
+check('empty available derivatives never falls back to Library',()=>assert.throws(()=>bundle.buildPacketDerivativeBundle(release,[]),/NOT_FOUND/));
+check('server route enforces frozen audience and integrity',()=>{const src=fs.readFileSync('apps/server/src/domains/library/packet-routes.ts','utf8');const area=src.split('app.get("/api/packets/:packetId/deliveries/:releaseId/bundle"')[1].split('app.post("/api/packets/:packetId/complete"')[0];assert.match(area,/packetRecipientCatalog\(release\)/);assert.match(area,/studioAudienceMatchesUser/);assert.match(area,/buildPacketDerivativeBundle/);assert.doesNotMatch(area,/libraryFilesRoot/);});
+console.log(`${checks}/${checks} Packet bundle tests passed`);

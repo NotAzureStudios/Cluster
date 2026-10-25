@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "renderer": "shared-web-renderer",
+  "desktopEntry": "apps/desktop-qt/qml/pages/SharedRendererPage.qml",
+  "queryFlag": "clusterDesktop=1",
+  "surfaces": [
+    { "screen": "dashboard", "label": "Home" },
+    { "screen": "notifications", "label": "Inbox" },
+    { "screen": "projects", "label": "Projects" },
+    { "screen": "project", "label": "Project workspace" },
+    { "screen": "board", "label": "Board" },
+    { "screen": "whiteboard", "label": "Whiteboard" },
+    { "screen": "calendar", "label": "Calendar" },
+    { "screen": "timeline", "label": "Timeline" },
+    { "screen": "tickets", "label": "Tickets" },
+    { "screen": "time", "label": "Scheduler" },
+    { "screen": "knowledge", "label": "Library" },
+    { "screen": "settings", "label": "Account settings" },
+    { "screen": "studioSettings", "label": "Studio settings", "admin": true },
+    { "screen": "admin", "label": "Operations", "admin": true },
+    { "screen": "serverConfig", "label": "Server configuration", "admin": true }
+  ]
+}

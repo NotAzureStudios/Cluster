@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (path) => readFileSync(new URL('../../'+path,import.meta.url),'utf8');
+const go = read('tools/native/package-stager-go/transfer_diagnostic.go');
+const cli = read('tools/native/package-stager-go/main.go');
+const qt = read('apps/desktop-qt/src/NativeCapabilityBroker.cpp');
+const desktop = read('packages/renderer/src/core/desktop.ts');
+const ui = read('packages/renderer/src/features/settings/DesktopDevicePackagesPanel.tsx');
+let n=0;
+function test(name, check){check();n++;console.log('PASS',name)}
+test('diagnostic constrained to lowercase exact SHA-256',()=>assert.match(go,/\^\[0-9a-f\]\{64\}\$/));
+test('diagnostic refuses an unsafe or missing root',()=>assert.match(go,/directoryNoLinks\(root\)/));
+test('diagnostic avoids transferPaths directory creation',()=>assert.doesNotMatch(go,/transferPaths\(/));
+test('diagnostic does not mutate transfer files',()=>assert.doesNotMatch(go,/os\.Rename|os\.Remove|os\.Mkdir|os\.Create|writeTransferCheckpoint|recoverTransfer\(/));
+test('diagnostic identifies existing process lock',()=>assert.match(go,/lock_present_manual_review/));
+test('diagnostic labels interrupted rename unverified',()=>assert.match(go,/renamed_commit_candidate_unverified/));
+test('diagnostic labels uncheckpointed bytes unverified',()=>assert.match(go,/append_checkpoint_gap_candidate_unverified/));
+test('diagnostic refuses to call corrupt committed archive valid',()=>assert.match(go,/committed_payload_invalid/));
+test('diagnostic verifies healthy committed bytes',()=>assert.match(go,/readTransferCheckpoint\(meta, part, archive\)/));
+test('Go CLI exposes read-only diagnostic prefix',()=>assert.match(cli,/CLUSTER_TRANSFER_DIAGNOSTIC /));
+test('Qt diagnostic capability is allowlisted',()=>assert.match(qt,/QStringLiteral\("package.transfer.diagnose"\)/));
+test('Qt limits diagnostic request identity to digest',()=>assert.match(qt,/\{QStringLiteral\("package.transfer.diagnose"\), \{QStringLiteral\("artifactSha256"\)\}\}/));
+test('Qt independently parses bounded evidence',()=>assert.match(qt,/if \(diagnose\) \{[\s\S]*?output.size\(\) < 8192/));
+test('Qt requires diagnostic readOnly true',()=>assert.match(qt,/evidence.value\(QStringLiteral\("readOnly"\)\).toBool\(false\)/));
+test('renderer diagnostic never auto-runs recovery',()=>{
+ const fn=desktop.slice(desktop.indexOf('export async function diagnoseNativePackageArchive('),desktop.indexOf('/** Operator-confirmed native crash reconciliation.'));
+ assert.doesNotMatch(fn,/recoverNativePackageArchive/);
+});
+test('UI rechecks server access before diagnostic',()=>assert.match(ui,/async function diagnoseArchive\([\s\S]*?const fresh = await api[\s\S]*?diagnoseNativePackageArchive\(/));
+test('UI labels diagnosis as read-only',()=>assert.match(ui,/This read-only check did not recover bytes/));
+test('UI exposes on-demand operator diagnostic',()=>assert.match(ui,/Diagnose interrupted native transfer…/));
+console.log(`${n}/${n} native transfer diagnostic source assertions passed`);

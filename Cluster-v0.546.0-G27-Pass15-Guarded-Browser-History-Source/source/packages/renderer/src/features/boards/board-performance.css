@@ -1,0 +1,23 @@
+/* Board rendering performance ownership, v0.296. */
+
+
+
+@media (max-width: 760px) {
+  
+}
+.board-load-more-v303 {
+  width: 100%;
+  min-height: 36px;
+  border: 1px dashed color-mix(in srgb, var(--line) 86%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+  color: var(--muted);
+  font: inherit;
+  font-size: .73rem;
+  cursor: pointer;
+}
+.board-load-more-v303:hover,
+.board-load-more-v303:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  color: var(--text);
+}

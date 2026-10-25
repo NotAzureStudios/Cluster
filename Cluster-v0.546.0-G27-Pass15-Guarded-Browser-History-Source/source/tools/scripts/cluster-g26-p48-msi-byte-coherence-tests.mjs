@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+const read=p=>readFileSync(new URL('../../'+p,import.meta.url),'utf8');
+const code=read('tools/native/package-stager-go/msi_profile_status.go');
+const tests=read('tools/native/package-stager-go/msi_profile_byte_fence_test.go');
+const registry=read('tools/native/package-stager-go/msi_lifecycle_inventory.go');
+const qt=read('apps/desktop-qt/src/NativeCapabilityBroker.cpp');
+let checks=0;function check(value,label){assert.ok(value,label);checks++;}
+const run=spawnSync('go',['test','-run','^(TestMSIProfileRefusesAttemptByteRewriteDespiteUnchangedMetadata|TestMSIProfileRefusesLifecycleJournalByteRewriteDespiteUnchangedMetadata|TestMSIProfileReceiptHashSeparatesNamespacesAndRejectsSourceDrift)$','-count=1','./...'],{cwd:new URL('../../tools/native/package-stager-go/',import.meta.url),encoding:'utf8',timeout:60000});
+check(run.status===0,`real native byte-coherence Go tests: ${run.stdout} ${run.stderr}`);
+for(const token of ['hashMSIProfileReceiptSnapshot','sameMSIProfileReceiptDigests','crypto/sha256','readStableMSIAttemptReceipt','sha256.Sum256(payload)','result[prefix+name]','"attempt:"','"lifecycle:"','snapshot.lifecycleNames','snapshot.names','sameMSIProfileSnapshot(start, terminal)','baselineReceipts','terminalReceipts','MSI receipt bytes changed during profile inspection'])check(code.includes(token),`missing native byte fence ${token}`);
+check(code.indexOf('baselineReceipts, e :=')<code.indexOf('out.LifecycleRecords, e ='),'receipt baseline is captured before journal inspection');
+check(code.indexOf('terminalReceipts, e :=')>code.indexOf('sameMSIProfileSnapshot(start, terminal)'),'final content digest is checked after metadata coherence');
+check(code.indexOf('sameMSIProfileReceiptDigests(baselineReceipts, terminalReceipts)')<code.indexOf('graph, graphErr := knownMSIDependencyEdges'),'byte check precedes graph generation');
+for(const test of ['TestMSIProfileRefusesAttemptByteRewriteDespiteUnchangedMetadata','TestMSIProfileRefusesLifecycleJournalByteRewriteDespiteUnchangedMetadata','TestMSIProfileReceiptHashSeparatesNamespacesAndRejectsSourceDrift','os.Chtimes(path','os.SameFile(info, now)','unchangedMetadata','sameMSIProfileReceiptDigests'])check(tests.includes(test) || (test==='unchangedMetadata'&&tests.includes('UnchangedMetadata')),`missing actual native fault test ${test}`);
+check(!code.includes('consumeGrant('),'profile observation cannot consume a grant');
+check(!code.includes('runWindowsUserMSI'),'profile observation cannot launch Windows Installer');
+check(registry.includes('readStableMSIAttemptReceipt')&&qt.includes('package.msiProfileStatus'),'existing lifecycle/Qt contracts retained');
+console.log(`${checks}/${checks} Pass48 executable native same-metadata byte-tamper and source-boundary checks passed`);

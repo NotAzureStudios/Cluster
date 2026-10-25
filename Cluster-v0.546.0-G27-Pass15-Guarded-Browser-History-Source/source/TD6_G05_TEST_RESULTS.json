@@ -1,0 +1,127 @@
+{
+  "checkpoint": "v0.546.0 TD6 G05",
+  "mode": "implementation-first-source-checkpoint",
+  "newSignedDependencyChecks": "9/9 passed",
+  "nativeGoTestFunctions": 59,
+  "nativeGoSuite": "passed",
+  "goVet": "passed",
+  "crossLanguageOfflineSignerToGoVerifier": "passed",
+  "managedPackagePublicationPolicy": "40/40 passed",
+  "devicePackageDownloadAndAuthorization": "45/45 passed",
+  "reconciliation": "22/22 passed",
+  "deviceReceipts": "34/34 passed",
+  "signedDeploymentGrants": "10/10 passed",
+  "preexistingTypeScriptToNativeManagedDeploymentE2E": "passed",
+  "selectedInheritedRegressions": [
+    {
+      "name": "techdebt:td6:forms:branching",
+      "passed": true,
+      "durationSeconds": 0.35,
+      "tail": "20/20 conditional form source checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:forms:deadlines",
+      "passed": true,
+      "durationSeconds": 0.47,
+      "tail": "36/36 TD6 F02 Forms deadline and reminder assertions passed\n"
+    },
+    {
+      "name": "techdebt:td6:card-history",
+      "passed": true,
+      "durationSeconds": 0.09,
+      "tail": "TD6 F03 saved Card history: 22/22 checks passed\n\n(node:14456) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)"
+    },
+    {
+      "name": "techdebt:td6:whiteboard-history",
+      "passed": true,
+      "durationSeconds": 0.36,
+      "tail": "PASS renderer uses online server-owned saved Undo, not queued snapshot inverses\nPASS normal batch schema does not admit private history.restore kind\n27/27 TD6 F04 source and transaction-harness checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:packet-audio",
+      "passed": true,
+      "durationSeconds": 0.73,
+      "tail": "PASS real endpoints deny missing Packet permission or visibility\nPASS real endpoints reject corrupted artifacts without activity evidence\n21/21 TD6 F05 Packet audio preview checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:package-plan",
+      "passed": true,
+      "durationSeconds": 0.03,
+      "tail": "PASS Desktop names conflict categories\nPASS no installer attestation claimed\n15/15 TD6 F06 Package plan source integration assertions passed\n"
+    },
+    {
+      "name": "techdebt:td6:package-audit",
+      "passed": true,
+      "durationSeconds": 0.03,
+      "tail": "PASS no OS installation attestation represented\nPASS native Go test cases\n18/18 F07 audit integration assertions passed\n"
+    },
+    {
+      "name": "techdebt:td6:people-return",
+      "passed": true,
+      "durationSeconds": 0.37,
+      "tail": "PASS profile editor and auth endpoints no longer bypass archived identity lifecycle\nPASS return is wired through Forms-independent shared schema, reviewer UI and immutable offboarding case\n18/18 TD6 F08 return-to-studio checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:access-renewal",
+      "passed": true,
+      "durationSeconds": 0.28,
+      "tail": "PASS expiry worker rechecks changed access and skips renewed or disabled identities\nPASS source integration wires manager gates, native job and interface, blocks ordinary edits\n17/17 F09 access governance checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:scoped-grants",
+      "passed": true,
+      "durationSeconds": 0.48,
+      "tail": "PASS legacy AccessRule handlers reject direct individual issuance and extension\nPASS direct REST creation and elevation paths are blocked, admin panel and migration registered\n21/21 F10 scoped grant assertions passed\n"
+    },
+    {
+      "name": "techdebt:td6:package-entitlements",
+      "passed": true,
+      "durationSeconds": 0.33,
+      "tail": "PASS download, deployment grants and positive receipts consume the same entitlement-aware read\nPASS schema, migration and admin control wired\n24/24 TD6 F11 package entitlement assertions passed\n"
+    },
+    {
+      "name": "techdebt:td6:inventory-lifecycle",
+      "passed": true,
+      "durationSeconds": 0.37,
+      "tail": "PASS Inventory provides on-demand, secret-free deadline and custody summary\nPASS Prisma migration and editor panels expose new lease/custody contracts\n10/10 TD6 grouped Inventory/People/Key lifecycle checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:inventory-approvals",
+      "passed": true,
+      "durationSeconds": 0.33,
+      "tail": "PASS Direct seat, key and renewal endpoints fail closed\nPASS UI requests reviewed inventory mutations, not direct key/seat writes\nTD6 G02 Inventory approvals: 21/21 checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:packet-evidence",
+      "passed": true,
+      "durationSeconds": 0.41,
+      "tail": "PASS recipient UI renders detached releases without fetching Library sources\nPASS schema and UI have a real reporting contract\nTD6 G03 Packet delivery evidence: 14/14 executable checks passed\n"
+    },
+    {
+      "name": "techdebt:td6:project-release-gates",
+      "passed": true,
+      "durationSeconds": 0.86,
+      "tail": "PASS contradictory QA go/failed cases are rejected before DB writes\nPASS publish and QA UI expose the same authoritative release requirements\n15/15 G04 Project / QA / release checks passed\n"
+    }
+  ],
+  "sourceScan": {
+    "typeScriptTSX": 1059,
+    "syntaxErrors": 0,
+    "relativeRendererImports": 3177,
+    "missingImports": 0,
+    "cssFiles": 110,
+    "cssBraceErrors": 0
+  },
+  "deferred": [
+    "Node24 full dependency-backed tsc",
+    "live PostgreSQL migrations and race tests",
+    "compiled Windows Qt",
+    "OS package installer and native workstation acceptance"
+  ],
+  "notImplemented": [
+    "MSI/EXE/PKG installer supervision",
+    "OS elevation/uninstall",
+    "cross-package atomic activation and rollback",
+    "OS-level dependency attestation"
+  ]
+}

@@ -1,0 +1,510 @@
+/* Tool Infrastructure owns its browser/detail geometry here. Keep page-shell geometry in the shared design system. */
+.tool-infrastructure-page {
+  width: min(var(--cluster-page-max), 100%);
+  max-width: var(--cluster-page-max);
+  margin-inline: auto;
+}
+
+.tool-infrastructure-browser {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.tool-infrastructure-browser.is-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.tool-infrastructure-browser.is-list .tool-infrastructure-detail {
+  display: none;
+}
+
+.tool-infrastructure-browser.is-subpage {
+  grid-template-columns: minmax(240px, 292px) minmax(0, 1fr);
+}
+
+.tool-infrastructure-catalog {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-surface-1);
+  box-shadow: none;
+}
+
+.tool-infrastructure-browser.is-subpage .tool-infrastructure-catalog {
+  position: sticky;
+  top: calc(var(--cluster-page-gutter) + 4px);
+  max-height: calc(100dvh - 132px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.tool-infrastructure-catalog > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--cluster-border);
+}
+
+.tool-infrastructure-catalog > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.tool-infrastructure-catalog > header strong {
+  font-size: var(--cluster-font-size-sm);
+}
+
+.tool-infrastructure-catalog > header span {
+  color: var(--muted);
+  font-size: var(--cluster-font-size-xs);
+}
+
+.tool-infrastructure-catalog-list {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 8px;
+}
+
+.tool-infrastructure-browser.is-subpage .tool-infrastructure-catalog-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.tool-infrastructure-catalog-list section {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.tool-infrastructure-catalog-list section h2 {
+  margin: 5px 5px 1px;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.tool-infrastructure-catalog-list button {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+.tool-infrastructure-catalog-list button:hover,
+.tool-infrastructure-catalog-list button.active {
+  border-color: var(--cluster-border);
+  background: var(--cluster-surface-2);
+}
+
+.tool-infrastructure-catalog-list button.active {
+  border-color: var(--cluster-border-strong);
+}
+
+.tool-infrastructure-catalog-list button > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--warning);
+}
+
+.tool-infrastructure-catalog-list button.operational > i { background: var(--good); }
+.tool-infrastructure-catalog-list button.disabled > i { background: var(--muted); }
+
+.tool-infrastructure-catalog-list button > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.tool-infrastructure-catalog-list button strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .76rem;
+}
+
+.tool-infrastructure-catalog-list button em {
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--muted);
+  font-size: .64rem;
+  font-style: normal;
+  line-height: 1.3;
+}
+
+.tool-infrastructure-catalog-list button b {
+  justify-self: end;
+  color: var(--muted);
+  font-size: .64rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tool-infrastructure-detail {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.tool-infrastructure-detail > :where(.panel, .management-panel, .admin-tool-backend-v235) {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-surface-1);
+  box-shadow: none;
+}
+
+.tool-infrastructure-detail-header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px;
+}
+
+.tool-infrastructure-detail-header > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.tool-infrastructure-detail-header > div > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: .65rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.tool-infrastructure-detail-header h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--cluster-font-size-md);
+  line-height: 1.2;
+}
+
+.tool-infrastructure-detail-header p {
+  max-width: 72ch;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--cluster-font-size-xs);
+  line-height: 1.4;
+}
+
+.tool-infrastructure-detail-header dl {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, auto));
+  margin: 0;
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius-control);
+  overflow: clip;
+  background: var(--cluster-surface-2);
+}
+
+.tool-infrastructure-detail-header dl > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px;
+  border-left: 1px solid var(--cluster-border);
+}
+
+.tool-infrastructure-detail-header dl > div:first-child { border-left: 0; }
+.tool-infrastructure-detail-header dt { color: var(--muted); font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; }
+.tool-infrastructure-detail-header dd { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; font-size: .72rem; font-weight: 700; }
+
+.tool-infrastructure-back {
+  display: none;
+}
+
+.tool-infrastructure-hours {
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .tool-infrastructure-browser.is-subpage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-infrastructure-browser.is-subpage .tool-infrastructure-catalog {
+    display: none;
+  }
+
+  .tool-infrastructure-back {
+    display: inline-flex;
+    justify-self: start;
+    grid-column: 1 / -1;
+  }
+
+  .tool-infrastructure-detail-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-infrastructure-detail-header dl {
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .tool-infrastructure-catalog-list {
+    padding: 6px;
+  }
+
+  .tool-infrastructure-catalog-list button {
+    min-height: 58px;
+  }
+
+  .tool-infrastructure-detail-header {
+    padding: 10px;
+  }
+
+  .tool-infrastructure-detail-header dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-infrastructure-detail-header dl > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    border-left: 0;
+    border-top: 1px solid var(--cluster-border);
+  }
+
+  .tool-infrastructure-detail-header dl > div:first-child { border-top: 0; }
+}
+
+/* The selected tool backend is a dense form workspace. Normalize its old local controls inside the current browser. */
+.tool-infrastructure-detail .admin-tool-console-v232 {
+  overflow: visible;
+  border-color: var(--cluster-border);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-surface-1);
+}
+
+.tool-infrastructure-detail .admin-tool-console-head-v232 {
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  gap: 10px;
+  border-bottom-color: var(--cluster-border);
+}
+
+.tool-infrastructure-detail .admin-tool-console-head-v232 > div {
+  min-width: 0;
+}
+
+.tool-infrastructure-detail .admin-tool-console-head-v232 .button-row {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tool-infrastructure-detail .admin-tool-metrics-v235 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom-color: var(--cluster-border);
+  background: var(--cluster-surface-2);
+}
+
+.tool-infrastructure-detail .admin-tool-metrics-v235 span {
+  min-width: 0;
+  padding: 8px 10px;
+  border-right: 1px solid var(--cluster-border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-infrastructure-detail .admin-tool-metrics-v235 span:last-child {
+  border-right: 0;
+  text-align: left;
+}
+
+.tool-infrastructure-detail .admin-tool-mode-nav-v235 {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  border-bottom-color: var(--cluster-border);
+  background: var(--cluster-surface-1);
+}
+
+.tool-infrastructure-detail .admin-tool-mode-nav-v235::-webkit-scrollbar { display: none; }
+
+.tool-infrastructure-detail .admin-tool-mode-nav-v235 button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.tool-infrastructure-detail .admin-tool-mode-panel-v235 {
+  min-width: 0;
+  min-height: 0;
+}
+
+.tool-infrastructure-detail .admin-tool-editor-v232 {
+  min-width: 0;
+  padding: 12px;
+}
+
+.tool-infrastructure-detail .admin-tool-editor-title-v232 {
+  min-width: 0;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom-color: var(--cluster-border);
+}
+
+.tool-infrastructure-detail .admin-tool-editor-title-v232 > div {
+  min-width: 0;
+}
+
+.tool-infrastructure-detail .admin-tool-editor-title-v232 p {
+  max-width: 72ch;
+  line-height: 1.4;
+}
+
+.tool-infrastructure-detail .admin-tool-field-grid-v232 {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 9px;
+}
+
+.tool-infrastructure-detail .admin-tool-option-grid-v232 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 7px;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.tool-infrastructure-detail .admin-tool-option-grid-v232 .admin-tool-toggle-v232,
+.tool-infrastructure-detail .admin-tool-console-v232 .admin-option-block-v231 .admin-tool-toggle-v232 {
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius-control);
+  background: var(--cluster-surface-2);
+}
+
+.tool-infrastructure-detail .admin-tool-console-v232 .admin-option-block-v231 > div {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px;
+  border: 0;
+  overflow: visible;
+}
+
+.tool-infrastructure-detail .admin-tool-number-v232 > div {
+  min-width: 0;
+  overflow: visible;
+  border-color: var(--cluster-border);
+  border-radius: var(--cluster-radius-control);
+}
+
+.tool-infrastructure-detail .admin-tool-access-list-v235 article {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom-color: var(--cluster-border);
+}
+
+.tool-infrastructure-detail .admin-tool-access-list-v235 article > div {
+  min-width: 0;
+}
+
+.tool-infrastructure-detail .admin-tool-operation-grid-v235 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 9px;
+  padding: 12px;
+}
+
+.tool-infrastructure-detail .admin-tool-operation-grid-v235 article {
+  min-width: 0;
+  gap: 10px;
+  padding: 11px;
+  border-color: var(--cluster-border);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-surface-2);
+}
+
+@media (max-width: 700px) {
+  .tool-infrastructure-detail .admin-tool-console-head-v232,
+  .tool-infrastructure-detail .admin-tool-editor-title-v232 {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tool-infrastructure-detail .admin-tool-console-head-v232 .button-row {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tool-infrastructure-detail .admin-tool-metrics-v235 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tool-infrastructure-detail .admin-tool-metrics-v235 span:nth-child(2n) { border-right: 0; }
+  .tool-infrastructure-detail .admin-tool-metrics-v235 span:nth-child(n + 3) { border-top: 1px solid var(--cluster-border); }
+  .tool-infrastructure-detail .admin-tool-access-list-v235 article { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 430px) {
+  .tool-infrastructure-detail .admin-tool-metrics-v235 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-infrastructure-detail .admin-tool-metrics-v235 span {
+    border-right: 0;
+    border-top: 1px solid var(--cluster-border);
+  }
+
+  .tool-infrastructure-detail .admin-tool-metrics-v235 span:first-child { border-top: 0; }
+}
+
+/* Built-in tool directory: configuration coverage is distinct from operation. */
+.cluster-tool-directory { padding: 20px; display: grid; gap: 16px; }
+.cluster-tool-directory__header { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.cluster-tool-directory__header p { color: var(--text-muted, #999); max-width: 65ch; }
+.cluster-tool-directory__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 285px), 1fr)); gap: 12px; }
+.cluster-tool-directory__item { border: 1px solid var(--border-color, #444); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-width: 0; }
+.cluster-tool-directory__item h3 { margin: 0 0 6px; }
+.cluster-tool-directory__item p { margin: 0; overflow-wrap: anywhere; }
+.cluster-tool-directory__footer { display: grid; gap: 12px; }
+.cluster-tool-directory__footer small { opacity: .75; }
+.cluster-tool-directory__footer .button-row { display: flex; flex-wrap: wrap; gap: 6px; }

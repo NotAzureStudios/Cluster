@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "checkpoint": "v0.546.0 TD5 Source Closeout + TD6 G21",
+  "baseline": "TD6 G20 source",
+  "td5": {
+    "status": "source-closed; platform-certification-not-performed",
+    "regressionScriptsPassed": 14,
+    "regressionScriptsTotal": 14,
+    "regressionCasesPassed": 167
+  },
+  "td6_g21": {
+    "status": "source-implemented; runtime-uncertified",
+    "newChecksPassed": 13,
+    "inheritedChecksPassed": 41,
+    "newMigrationAppliedToLivePostgreSQL": false
+  },
+  "scanner": {
+    "typescriptFiles": 1066,
+    "syntaxErrors": 0,
+    "rendererImports": 3180,
+    "missingImports": 0,
+    "cssFiles": 110,
+    "cssBraceErrors": 0
+  },
+  "environment": {
+    "node": "22.16.0",
+    "pinnedNode24Build": false,
+    "livePostgreSQL18": false,
+    "nativeWindowsQt": false,
+    "unsafePhysicalDeletion": false
+  },
+  "limitations": [
+    "Original Calendar Scheduler reservations unchanged",
+    "Detached occurrence rescheduling not implemented",
+    "Real transactional race tests not run",
+    "No release certification"
+  ],
+  "createdAt": "2026-10-19"
+}

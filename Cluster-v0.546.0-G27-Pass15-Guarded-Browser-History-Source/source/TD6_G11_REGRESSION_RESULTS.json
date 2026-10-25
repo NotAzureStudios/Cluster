@@ -1,0 +1,151 @@
+{
+  "checkpoint": "TD6 G11",
+  "kind": "source and local Go tests, not Windows runtime certification",
+  "scripts": [
+    {
+      "name": "g11-install",
+      "file": "tools/scripts/cluster-td6-g11-supervised-msi-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "9/9 TD6 G11 signed installer checks passed",
+      "passMessages": 9
+    },
+    {
+      "name": "g05-dependencies",
+      "file": "tools/scripts/cluster-td6-g05-package-dependencies-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "9/9 TD6 G05 signed dependency integration checks passed",
+      "passMessages": 9
+    },
+    {
+      "name": "legacy-package-routes",
+      "file": "tools/scripts/cluster-0513-managed-packages-assertions.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "40/40 total managed Package checks passed",
+      "passMessages": 40
+    },
+    {
+      "name": "package-entitlements",
+      "file": "tools/scripts/cluster-td6-package-entitlement-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "24/24 TD6 F11 package entitlement assertions passed",
+      "passMessages": 24
+    },
+    {
+      "name": "desktop-package-plan",
+      "file": "tools/scripts/cluster-td6-package-plan-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "15/15 TD6 F06 Package plan source integration assertions passed",
+      "passMessages": 15
+    },
+    {
+      "name": "desktop-package-audit",
+      "file": "tools/scripts/cluster-td6-package-destination-audit-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "18/18 F07 audit integration assertions passed",
+      "passMessages": 18
+    },
+    {
+      "name": "g10-watermark",
+      "file": "tools/scripts/cluster-td6-g10-packet-watermark-transfer-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "9/9 G10 source-level checks passed; image decoder/encoder mocked, actual Sharp output and browser downloads not runtime-certified",
+      "passMessages": 9
+    },
+    {
+      "name": "g09-setup",
+      "file": "tools/scripts/cluster-td6-g09-setup-guidance-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "G09 first-run & configuration integration: 14/14 passed",
+      "passMessages": 14
+    },
+    {
+      "name": "g08-calendar",
+      "file": "tools/scripts/cluster-td6-g08-calendar-participant-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "G08 participant-safe Calendar reminders: 16/16 passed",
+      "passMessages": 16
+    },
+    {
+      "name": "g07-ux",
+      "file": "tools/scripts/cluster-td6-g07-cross-tool-ux-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "G07 cross-tool UX: 12/12 checks passed",
+      "passMessages": 12
+    },
+    {
+      "name": "g06-announcements",
+      "file": "tools/scripts/cluster-td6-g06-announcement-schedule-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "G06 announcement schedule: 10/10 checks passed",
+      "passMessages": 10
+    },
+    {
+      "name": "g04-release-gates",
+      "file": "tools/scripts/cluster-td6-g04-project-release-gates-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "15/15 G04 Project / QA / release checks passed",
+      "passMessages": 15
+    },
+    {
+      "name": "g03-library-packet",
+      "file": "tools/scripts/cluster-td6-g03-library-packet-delivery-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "TD6 G03 Packet delivery evidence: 14/14 executable checks passed",
+      "passMessages": 14
+    },
+    {
+      "name": "f04-whiteboard",
+      "file": "tools/scripts/cluster-td6-whiteboard-saved-history-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "27/27 TD6 F04 source and transaction-harness checks passed",
+      "passMessages": 27
+    },
+    {
+      "name": "f03-card",
+      "file": "tools/scripts/cluster-td6-card-saved-history-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "TD6 F03 saved Card history: 22/22 checks passed",
+      "passMessages": 22,
+      "nodeFlags": [
+        "--experimental-strip-types"
+      ]
+    },
+    {
+      "name": "f01-forms",
+      "file": "tools/scripts/cluster-td6-form-branching-tests.mjs",
+      "result": "passed",
+      "returncode": 0,
+      "lastLine": "20/20 conditional form source checks passed",
+      "passMessages": 0
+    }
+  ],
+  "sourceScan": {
+    "tsTsxFiles": 1063,
+    "cssFiles": 110,
+    "relativeImportsChecked": 4354,
+    "syntaxDiagnostics": 0,
+    "missingAuthoredImports": 0
+  },
+  "nativeGo": {
+    "testSuite": "passed",
+    "goVet": "passed",
+    "windowsAmd64CrossCompile": "passed",
+    "sourceOnlyNoRuntimeInstallationTest": true
+  },
+  "packageReleaseLimit": "Existing 4 MiB archive cap; real-world MSI packages often exceed it."
+}

@@ -1,0 +1,67 @@
+/* Canonical object-scoped discussion presentation. */
+.collaboration-panel-v227 { padding: 0 !important; overflow: hidden; background: var(--cluster-surface-1) !important; }
+.collaboration-header-v227 { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 11px; border-bottom: 1px solid var(--cluster-border); }
+.collaboration-header-v227 > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.collaboration-header-v227 > div > div { display: grid; min-width: 0; }
+.collaboration-header-v227 strong { font-size: 13px; }
+.collaboration-header-v227 span { color: var(--muted); font-size: 11px; }
+.collaboration-title-icon-v227 { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; background: var(--cluster-surface-2) !important; }
+.collaboration-title-icon-v227 svg { width: 17px; height: 17px; }
+.collaboration-compose-v227 { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; align-items: end; padding: 10px 11px 5px; }
+.comment-avatar-v227 { width: 32px; height: 32px; border-radius: 6px; align-self: start; }
+.collaboration-compose-v227 textarea { min-height: 58px; max-height: 160px; }
+.collaboration-list-v227 { display: grid; max-height: 330px; overflow: auto; border-top: 1px solid var(--cluster-border); }
+.collaboration-list-v227 article { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 9px; padding: 10px 11px; border-bottom: 1px solid var(--cluster-border); }
+.collaboration-list-v227 article:last-child { border-bottom: 0; }
+.collaboration-list-v227 article.pinned { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.collaboration-list-v227 header { display: flex; align-items: baseline; gap: 7px; }
+.collaboration-list-v227 header strong { font-size: 12px; }
+.collaboration-list-v227 header span { color: var(--muted); font-size: 10px; }
+.collaboration-list-v227 p { margin: 4px 0 0; color: var(--soft-text); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-actions-v227 { display: flex; gap: 3px; opacity: 0; transition: opacity .12s ease; }
+.collaboration-list-v227 article:hover .comment-actions-v227,
+.comment-actions-v227:focus-within { opacity: 1; }
+.comment-actions-v227 button { width: 28px; height: 28px; display: grid; place-items: center; padding: 5px; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.comment-actions-v227 button:hover { color: white; background: var(--cluster-surface-3); }
+.comment-actions-v227 svg { width: 15px; height: 15px; }
+.collaboration-panel-v227.compact .collaboration-list-v227 { max-height: 250px; }
+.collaboration-header-actions-v495 { display: flex; align-items: center; gap: 6px; }
+.collaboration-anchor-v495 { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); background: var(--surface-muted); font-size: 11px; }
+.collaboration-anchor-v495 svg { width: 13px; height: 13px; }
+.collaboration-anchor-v495 span { color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.collaboration-anchor-v495 strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comment-anchor-chip-v495 { width: fit-content; max-width: 100%; margin-top: 4px; padding: 2px 6px; border: 1px solid var(--border-subtle); border-radius: 999px; background: var(--surface-muted); color: var(--text-muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collaboration-list-v227 article.resolved-v495 { opacity: .68; }
+@media (max-width: 820px) { .collaboration-compose-v227 { grid-template-columns: 28px minmax(0, 1fr); } }
+@media (pointer: coarse) {
+  .comment-actions-v227 button { min-width: 44px; min-height: 44px; }
+  .comment-actions-v227 { opacity: 1; }
+}
+
+/* Phase 9I unified thread depth. */
+.comment-thread-v9i { display: grid; border-bottom: 1px solid var(--cluster-border); }
+.comment-thread-v9i:last-child { border-bottom: 0; }
+.collaboration-list-v227 .comment-thread-v9i article { border-bottom: 0; }
+.comment-thread-entry-v9i.reply-v9i { margin-left: 38px; border-left: 2px solid color-mix(in srgb, var(--accent) 24%, var(--cluster-border)); }
+.comment-thread-entry-v9i.reply-v9i article { padding-left: 9px; background: color-mix(in srgb, var(--cluster-surface-2) 38%, transparent); }
+.comment-main-v9i { min-width: 0; }
+.comment-thread-meta-v9i { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px; }
+.comment-thread-meta-v9i .cluster-select { min-width: 132px; max-width: 210px; }
+.comment-reply-composer-v9i { display: grid; gap: 7px; margin: 0 10px 9px 49px; padding: 8px; border: 1px solid var(--cluster-border); border-radius: 8px; background: var(--cluster-surface-2); }
+.comment-reply-composer-v9i > div:last-child { display: flex; justify-content: flex-end; gap: 6px; }
+.comment-reply-composer-v9i textarea { min-height: 48px; }
+@media (max-width: 820px) {
+  .comment-thread-entry-v9i.reply-v9i { margin-left: 18px; }
+  .comment-reply-composer-v9i { margin-left: 18px; }
+  .comment-thread-meta-v9i .cluster-select { min-width: 100%; max-width: none; }
+}
+
+.comment-evidence-v9i { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; }
+.comment-evidence-v9i > span:first-child { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.comment-evidence-chip-v9i { max-width: 220px; padding: 2px 6px; border: 1px solid var(--cluster-border); border-radius: 999px; background: var(--cluster-surface-2); color: var(--soft-text); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collaboration-header-actions-v495 > .cluster-field-v425 { margin: 0; }
+
+/* TD6 G24: scoped draft and unread evidence, not a second notification feed. */
+.comment-draft-status-vg24 { color: var(--text-muted, #929ba8); font-size: .78rem; line-height: 1.6; padding: .2rem .65rem; }
+.comment-draft-status-vg24 [role="alert"] { color: var(--danger-color, #e67b72); }
+.comment-unread-vg24 { font-size: .78rem; font-weight: 600; color: var(--text-primary, currentColor); white-space: nowrap; }

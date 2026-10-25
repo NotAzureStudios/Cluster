@@ -1,0 +1,631 @@
+{
+  "version": 1,
+  "generatedFor": "0.425.0",
+  "summary": {
+    "important": 6534,
+    "boxShadow": 688,
+    "textShadow": 7,
+    "gradient": 509,
+    "backdropFilter": 146,
+    "rawColor": 1538
+  },
+  "files": {
+    "packages/renderer/src/components/reauthentication.css": {
+      "important": 0,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 1,
+      "rawColor": 9
+    },
+    "packages/renderer/src/components/saved-views-toolbar.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/components/security-pin.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 1,
+      "rawColor": 24
+    },
+    "packages/renderer/src/features/activity/activity.css": {
+      "important": 1,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 1,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/admin/admin-workflows.css": {
+      "important": 13,
+      "boxShadow": 4,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/admin/admin-workspace.css": {
+      "important": 20,
+      "boxShadow": 3,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 1,
+      "rawColor": 1
+    },
+    "packages/renderer/src/features/admin/background-jobs.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/admin/server-admin-experience.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/application/admin-control-center.css": {
+      "important": 169,
+      "boxShadow": 14,
+      "textShadow": 1,
+      "gradient": 14,
+      "backdropFilter": 7,
+      "rawColor": 84
+    },
+    "packages/renderer/src/features/application/application-refinements.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/application/smart-interface.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/application/styles/home-dashboard.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/application/styles/refinements-controls.css": {
+      "important": 400,
+      "boxShadow": 20,
+      "textShadow": 1,
+      "gradient": 24,
+      "backdropFilter": 9,
+      "rawColor": 125
+    },
+    "packages/renderer/src/features/application/styles/refinements-shell.css": {
+      "important": 775,
+      "boxShadow": 34,
+      "textShadow": 4,
+      "gradient": 28,
+      "backdropFilter": 16,
+      "rawColor": 300
+    },
+    "packages/renderer/src/features/application/styles/refinements-sync.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 2,
+      "rawColor": 21
+    },
+    "packages/renderer/src/features/application/styles/refinements-workspaces.css": {
+      "important": 864,
+      "boxShadow": 22,
+      "textShadow": 0,
+      "gradient": 29,
+      "backdropFilter": 18,
+      "rawColor": 131
+    },
+    "packages/renderer/src/features/auth/auth.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 17
+    },
+    "packages/renderer/src/features/boards/board-performance.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/boards/board-workspace.css": {
+      "important": 274,
+      "boxShadow": 40,
+      "textShadow": 0,
+      "gradient": 41,
+      "backdropFilter": 9,
+      "rawColor": 27
+    },
+    "packages/renderer/src/features/calendar/calendar.css": {
+      "important": 2,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/create/shared-create-drawer.css": {
+      "important": 21,
+      "boxShadow": 4,
+      "textShadow": 0,
+      "gradient": 6,
+      "backdropFilter": 5,
+      "rawColor": 4
+    },
+    "packages/renderer/src/features/desktop/desktop-native-services.css": {
+      "important": 0,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 14
+    },
+    "packages/renderer/src/features/legal/legal-compliance-center.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 1
+    },
+    "packages/renderer/src/features/legal/policy-acceptance.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 12
+    },
+    "packages/renderer/src/features/legal/privacy-consent.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 1,
+      "rawColor": 2
+    },
+    "packages/renderer/src/features/legal/privacy-policy.css": {
+      "important": 1,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 12
+    },
+    "packages/renderer/src/features/legal/third-party-disclosure.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/library/cluster-pdf-viewer.css": {
+      "important": 26,
+      "boxShadow": 8,
+      "textShadow": 0,
+      "gradient": 2,
+      "backdropFilter": 1,
+      "rawColor": 25
+    },
+    "packages/renderer/src/features/library/library-workspace.css": {
+      "important": 30,
+      "boxShadow": 32,
+      "textShadow": 0,
+      "gradient": 22,
+      "backdropFilter": 5,
+      "rawColor": 155
+    },
+    "packages/renderer/src/features/notifications/notifications.css": {
+      "important": 25,
+      "boxShadow": 7,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 1,
+      "rawColor": 13
+    },
+    "packages/renderer/src/features/operations/client-performance.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/operations/server-performance.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/packets/packets.css": {
+      "important": 15,
+      "boxShadow": 3,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 3
+    },
+    "packages/renderer/src/features/people/people.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/projects/project-detail-workspace.css": {
+      "important": 38,
+      "boxShadow": 16,
+      "textShadow": 0,
+      "gradient": 13,
+      "backdropFilter": 7,
+      "rawColor": 7
+    },
+    "packages/renderer/src/features/projects/project-detail.css": {
+      "important": 0,
+      "boxShadow": 5,
+      "textShadow": 0,
+      "gradient": 4,
+      "backdropFilter": 1,
+      "rawColor": 3
+    },
+    "packages/renderer/src/features/projects/project-issues.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/projects/project-operations.css": {
+      "important": 32,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 0,
+      "rawColor": 5
+    },
+    "packages/renderer/src/features/projects/project-portfolio.css": {
+      "important": 2,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 2,
+      "backdropFilter": 0,
+      "rawColor": 9
+    },
+    "packages/renderer/src/features/projects/project-quality.css": {
+      "important": 2,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/features/projects/projects.css": {
+      "important": 478,
+      "boxShadow": 41,
+      "textShadow": 0,
+      "gradient": 14,
+      "backdropFilter": 7,
+      "rawColor": 36
+    },
+    "packages/renderer/src/features/search/search.css": {
+      "important": 7,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 2,
+      "rawColor": 4
+    },
+    "packages/renderer/src/features/settings/settings-workspace.css": {
+      "important": 906,
+      "boxShadow": 39,
+      "textShadow": 0,
+      "gradient": 9,
+      "backdropFilter": 2,
+      "rawColor": 11
+    },
+    "packages/renderer/src/features/shell/shell.css": {
+      "important": 389,
+      "boxShadow": 29,
+      "textShadow": 0,
+      "gradient": 22,
+      "backdropFilter": 5,
+      "rawColor": 22
+    },
+    "packages/renderer/src/features/tickets/tickets.css": {
+      "important": 14,
+      "boxShadow": 5,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 2
+    },
+    "packages/renderer/src/features/time/time-workspace.css": {
+      "important": 46,
+      "boxShadow": 10,
+      "textShadow": 0,
+      "gradient": 7,
+      "backdropFilter": 3,
+      "rawColor": 13
+    },
+    "packages/renderer/src/features/timeline/timeline-workspace.css": {
+      "important": 112,
+      "boxShadow": 27,
+      "textShadow": 0,
+      "gradient": 21,
+      "backdropFilter": 3,
+      "rawColor": 7
+    },
+    "packages/renderer/src/features/whiteboards/whiteboard-workspace.css": {
+      "important": 60,
+      "boxShadow": 9,
+      "textShadow": 0,
+      "gradient": 2,
+      "backdropFilter": 2,
+      "rawColor": 2
+    },
+    "packages/renderer/src/features/work/my-work.css": {
+      "important": 13,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 1
+    },
+    "packages/renderer/src/styles/accessibility.css": {
+      "important": 52,
+      "boxShadow": 8,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 3,
+      "rawColor": 14
+    },
+    "packages/renderer/src/styles/application.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/consistency.css": {
+      "important": 253,
+      "boxShadow": 11,
+      "textShadow": 0,
+      "gradient": 5,
+      "backdropFilter": 3,
+      "rawColor": 7
+    },
+    "packages/renderer/src/styles/controls.css": {
+      "important": 2,
+      "boxShadow": 6,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/phase-a-polish.css": {
+      "important": 0,
+      "boxShadow": 3,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 4,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/phase-k-polish.css": {
+      "important": 6,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/primitives.css": {
+      "important": 0,
+      "boxShadow": 11,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/production-ui.css": {
+      "important": 0,
+      "boxShadow": 56,
+      "textShadow": 0,
+      "gradient": 2,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/skeletons.css": {
+      "important": 0,
+      "boxShadow": 1,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/design-system/tokens.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 0,
+      "rawColor": 75
+    },
+    "packages/renderer/src/styles/design-system/workspace-polish.css": {
+      "important": 9,
+      "boxShadow": 3,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/glass-polish-v311.css": {
+      "important": 0,
+      "boxShadow": 3,
+      "textShadow": 0,
+      "gradient": 3,
+      "backdropFilter": 2,
+      "rawColor": 2
+    },
+    "packages/renderer/src/styles/layers/application-adaptive.css": {
+      "important": 97,
+      "boxShadow": 10,
+      "textShadow": 0,
+      "gradient": 2,
+      "backdropFilter": 1,
+      "rawColor": 5
+    },
+    "packages/renderer/src/styles/layers/application-base.css": {
+      "important": 8,
+      "boxShadow": 24,
+      "textShadow": 0,
+      "gradient": 52,
+      "backdropFilter": 4,
+      "rawColor": 72
+    },
+    "packages/renderer/src/styles/layers/application-components.css": {
+      "important": 13,
+      "boxShadow": 25,
+      "textShadow": 0,
+      "gradient": 52,
+      "backdropFilter": 1,
+      "rawColor": 32
+    },
+    "packages/renderer/src/styles/layers/application-overrides.css": {
+      "important": 95,
+      "boxShadow": 21,
+      "textShadow": 0,
+      "gradient": 1,
+      "backdropFilter": 1,
+      "rawColor": 8
+    },
+    "packages/renderer/src/styles/layers/application-tools.css": {
+      "important": 306,
+      "boxShadow": 19,
+      "textShadow": 0,
+      "gradient": 43,
+      "backdropFilter": 0,
+      "rawColor": 111
+    },
+    "packages/renderer/src/styles/layers/application-workspaces.css": {
+      "important": 246,
+      "boxShadow": 25,
+      "textShadow": 0,
+      "gradient": 58,
+      "backdropFilter": 2,
+      "rawColor": 68
+    },
+    "packages/renderer/src/styles/liquid-glass.css": {
+      "important": 86,
+      "boxShadow": 10,
+      "textShadow": 0,
+      "gradient": 8,
+      "backdropFilter": 7,
+      "rawColor": 3
+    },
+    "packages/renderer/src/styles/parity-v344.css": {
+      "important": 384,
+      "boxShadow": 19,
+      "textShadow": 1,
+      "gradient": 8,
+      "backdropFilter": 2,
+      "rawColor": 38
+    },
+    "packages/renderer/src/styles/polish-phase-a.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/responsive-v455.css": {
+      "important": 0,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/responsive-v456.css": {
+      "important": 0,
+      "boxShadow": 2,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/responsive-v457.css": {
+      "important": 0,
+      "boxShadow": 5,
+      "textShadow": 0,
+      "gradient": 3,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/responsive-v460.css": {
+      "important": 0,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/shell-unification.css": {
+      "important": 190,
+      "boxShadow": 9,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 1,
+      "rawColor": 0
+    },
+    "packages/renderer/src/styles/visual-polish.css": {
+      "important": 51,
+      "boxShadow": 26,
+      "textShadow": 0,
+      "gradient": 7,
+      "backdropFilter": 5,
+      "rawColor": 1
+    },
+    "packages/renderer/src/styles.css": {
+      "important": 1,
+      "boxShadow": 0,
+      "textShadow": 0,
+      "gradient": 0,
+      "backdropFilter": 0,
+      "rawColor": 0
+    }
+  },
+  "ratchetedFor": "0.461.0"
+}

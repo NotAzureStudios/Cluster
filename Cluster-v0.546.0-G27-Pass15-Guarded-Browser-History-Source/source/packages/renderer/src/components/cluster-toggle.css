@@ -1,0 +1,46 @@
+.cluster-toggle-v533 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  min-width: 52px;
+  padding: 4px 6px;
+  border: 1px solid var(--cluster-border);
+  border-radius: var(--cluster-radius-control, 8px);
+  background: var(--cluster-surface-1, var(--panel));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+}
+.cluster-toggle-v533:hover:not(:disabled) { border-color: var(--cluster-border-strong); background: var(--cluster-surface-2, var(--panel-2)); }
+.cluster-toggle-v533:focus-visible { outline: var(--cluster-focus-outline-width, 2px) solid var(--cluster-focus-outline, #9BE7FF); outline-offset: 2px; }
+.cluster-toggle-v533:disabled { cursor: not-allowed; opacity: .5; }
+.cluster-toggle-copy-v533 { display: grid; gap: 1px; min-width: 0; }
+.cluster-toggle-copy-v533 strong { font-size: .72rem; }
+.cluster-toggle-copy-v533 small { color: var(--muted); font-size: .64rem; font-weight: 500; }
+.cluster-toggle-track-v533 {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  border: 1px solid var(--cluster-border-strong);
+  border-radius: 999px;
+  background: var(--cluster-surface-3, color-mix(in srgb, var(--text) 10%, transparent));
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.cluster-toggle-track-v533 > span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 120ms ease, background 120ms ease;
+}
+.cluster-toggle-v533[data-checked="true"] .cluster-toggle-track-v533 { border-color: color-mix(in srgb, var(--studio-primary, var(--accent)) 68%, var(--cluster-border)); background: color-mix(in srgb, var(--studio-primary, var(--accent)) 34%, var(--cluster-surface-2)); }
+.cluster-toggle-v533[data-checked="true"] .cluster-toggle-track-v533 > span { transform: translateX(14px); background: var(--studio-primary, var(--accent)); }
+@media (prefers-reduced-motion: reduce) { .cluster-toggle-track-v533, .cluster-toggle-track-v533 > span { transition: none; } }

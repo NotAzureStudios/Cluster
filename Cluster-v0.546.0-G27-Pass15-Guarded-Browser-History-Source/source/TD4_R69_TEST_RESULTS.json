@@ -1,0 +1,517 @@
+{
+  "environment": "Node v22.16.0 with --experimental-strip-types and temporary local TypeScript symlink for inherited lean-source fixture; no Node24, PostgreSQL or Windows runtime testing",
+  "total": 51,
+  "passed": 51,
+  "results": [
+    {
+      "script": "tools/scripts/cluster-td4-r54-typed-consumer-retry-tests.mjs",
+      "passed": true,
+      "seconds": 1.37,
+      "lastOutput": [
+        "PASS shared registry owns concrete known payload validation contracts",
+        "15/15 TD4 R54 typed-consumer retry checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r51-typed-change-feed-tests.mjs",
+      "passed": true,
+      "seconds": 1.79,
+      "lastOutput": [
+        "PASS known producer event rejects incompatible schema before insert or lock",
+        "13/13 TD4 R51 typed change-feed checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r52-live-cursor-reset-tests.mjs",
+      "passed": true,
+      "seconds": 1.18,
+      "lastOutput": [
+        "PASS SSE restore reset ends response and immediately cleans up subscription",
+        "9/9 TD4 R52 live restore checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r53-client-cursor-proof-tests.mjs",
+      "passed": true,
+      "seconds": 1.55,
+      "lastOutput": [
+        "PASS renderer persists cursor and proof atomically and sends proof on reconnect",
+        "7/7 TD4 R53 client continuity tests passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r53-outbox-continuity-tests.mjs",
+      "passed": true,
+      "seconds": 1.25,
+      "lastOutput": [
+        "PASS anchor validation after live cursor progress catches replacement of earlier committed row",
+        "8/8 TD4 R53 anchored-continuity tests passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r50-governance-feed-tests.mjs",
+      "passed": true,
+      "seconds": 2.27,
+      "lastOutput": [
+        "PASS assignment database outage never turns into a grant",
+        "34/34 R50 governance change-feed checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r49-provider-lifecycle-tests.mjs",
+      "passed": true,
+      "seconds": 1.32,
+      "lastOutput": [
+        "PASS SSE reset invalidates cached and mounted resources through existing refresh hooks",
+        "11/11 TD4 R49 provider-lifecycle assertions passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r47-search-domain-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 1.14,
+      "lastOutput": [
+        "PASS Library search index includes owner/source for canonical access evaluation",
+        "22/22 R47 Search domain visibility checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r47-search-route-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.84,
+      "lastOutput": [
+        "PASS disabling the Packets tool suppresses policy and Packet search for admin",
+        "6/6 R47 real Search route integration checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r46-source-provider-tests.mjs",
+      "passed": true,
+      "seconds": 0.86,
+      "lastOutput": [
+        "19/19 R46 source provider checks passed",
+        "PASS Source Review queue fails closed when Access Rule lookup rejects"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r46-source-feed-integration-tests.mjs",
+      "passed": true,
+      "seconds": 1.27,
+      "lastOutput": [
+        "PASS admin cannot bypass fabricated source record or Project binding",
+        "12/12 R46 HTTP feed integration checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r45-studio-provider-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 1.09,
+      "lastOutput": [
+        "PASS failed membership lookup must not invert exclusion into a grant",
+        "18/18 R45 studio provider checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r43-provider-registration-tests.mjs",
+      "passed": true,
+      "seconds": 1.04,
+      "lastOutput": [
+        "PASS live provider failure closes stream with a reset instead of swallowing authorization errors",
+        "26/26 resource feed visibility checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r44-delivery-provider-tests.mjs",
+      "passed": true,
+      "seconds": 1.57,
+      "lastOutput": [
+        "PASS provider reads happen once per kind and batch",
+        "46/46 resource feed visibility checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r42-resource-feed-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 1.13,
+      "lastOutput": [
+        "PASS strict Library access context refuses failed folder or Access Rule reads",
+        "15/15 resource feed visibility checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r48-search-action-integration-tests.mjs",
+      "passed": true,
+      "seconds": 1.57,
+      "lastOutput": [
+        "PASS all Command Search consumers and palette invalidations use fresh results",
+        "9/9 R48 live Search and resource action integration checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r38-storage-reconciliation-tests.mjs",
+      "passed": true,
+      "seconds": 1.09,
+      "lastOutput": [
+        "PASS Job registered in tool-disable ownership and no synchronous bulk-move repair",
+        "16/16 R38 storage reconciliation checks passed"
+      ],
+      "stderr": "(node:5399) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r39-storage-queue-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.87,
+      "lastOutput": [
+        "PASS No remaining synchronous repair call in request-side Library edits",
+        "11/11 TD4 R39 queue integration checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r40-orphan-audit-tests.mjs",
+      "passed": true,
+      "seconds": 1.29,
+      "lastOutput": [
+        "PASS Registered as Library-owned durable job, wired into existing Worker, and surfaced to admins",
+        "9/9 TD4 R40 orphan-audit checks passed"
+      ],
+      "stderr": "(node:5411) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r41-disposition-review-tests.mjs",
+      "passed": true,
+      "seconds": 0.76,
+      "lastOutput": [
+        "PASS Library UI exposes candidate recheck, never destructive controls",
+        "10/10 R41 disposition-review checks passed"
+      ],
+      "stderr": "(node:5432) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r35-collection-bulk-tests.mjs",
+      "passed": true,
+      "seconds": 1.13,
+      "lastOutput": [
+        "PASS archive and unarchive select only lifecycle-eligible Collection members",
+        "12/12 TD4 R36 collection-aware durable bulk tests passed"
+      ],
+      "stderr": "(node:5443) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r37-hierarchy-transaction-tests.mjs",
+      "passed": true,
+      "seconds": 1.11,
+      "lastOutput": [
+        "PASS UI explicitly distinguishes committed move with unfinished reconciliation",
+        "18/18 TD4 R37 hierarchy transaction guards passed"
+      ],
+      "stderr": "(node:5454) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r55-webhook-outbox-replay-tests.mjs",
+      "passed": true,
+      "seconds": 0.79,
+      "lastOutput": [
+        "PASS stopping integration subscription leaves no active outbox consumer",
+        "R55 webhook outbox replay: 9/9 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r56-outbox-lease-fencing-tests.mjs",
+      "passed": true,
+      "seconds": 4.83,
+      "lastOutput": [
+        "PASS actual pump reports an owned consumer error through durable retry",
+        "R56 outbox lease fencing: 10/10 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-0506-resource-identity-assertions.mjs",
+      "passed": true,
+      "seconds": 1.14,
+      "lastOutput": [
+        "PASS graph scan budget applies across all depth levels",
+        "14/14 resource identity/graph checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r57-resource-deep-link-tests.mjs",
+      "passed": true,
+      "seconds": 1.31,
+      "lastOutput": [
+        "PASS Qt shell sends canonical URI intact with origin guard",
+        "16/16 TD4 R57 resource/deep-link integration checks passed (R58 source-review extension)"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r58-source-commit-navigation-tests.mjs",
+      "passed": true,
+      "seconds": 1.14,
+      "lastOutput": [
+        "PASS authoritative integration and protected deep-link dispatch wired across server and renderer",
+        "19/19 TD4 R58 source-review/commit authorization, resolution and navigation checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r59-event-ordering-tests.mjs",
+      "passed": true,
+      "seconds": 0.96,
+      "lastOutput": [
+        "PASS unknown assignment resource prevents a partial durable Activity/assignment transaction",
+        "21/21 TD4 R59 resource-ordering and typed-replay checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r60-consumer-lifecycle-tests.mjs",
+      "passed": true,
+      "seconds": 1.07,
+      "lastOutput": [
+        "PASS server drains the outbox before removing the webhook fanout owner",
+        "R60 durable-consumer lifecycle: 8/8 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r60-webhook-revocation-tests.mjs",
+      "passed": true,
+      "seconds": 0.75,
+      "lastOutput": [
+        "PASS tampered stored event identity cannot be dispatched even with matching content checksum",
+        "R60 webhook endpoint revocation: 13/13 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r61-hierarchy-move-tests.mjs",
+      "passed": true,
+      "seconds": 0.8,
+      "lastOutput": [
+        "PASS same-parent move records skip without scheduling storage repair",
+        "R61 hierarchy move: 15/15 focused checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td2-library-ownership-tests.mjs",
+      "passed": true,
+      "seconds": 0.93,
+      "lastOutput": [
+        "PASS re-enabled Library claims and executes preserved work, independent work remains runnable",
+        "12/12 TD2 Library ownership checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td2-worker-ownership-inventory-tests.mjs",
+      "passed": true,
+      "seconds": 0.26,
+      "lastOutput": [
+        "26 durable handlers classified: 16 shared, 2 contextual, 8 tool-owned",
+        "Shared maintenance remains independent of tool disable; new handlers require explicit ownership review."
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r61-hierarchy-ui-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.07,
+      "lastOutput": [
+        "PASS visible job progress and cancelled partial outcome are not falsely rolled back",
+        "R61 route/UI integration: 7/7 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r62-hierarchy-lifecycle-tests.mjs",
+      "passed": true,
+      "seconds": 0.75,
+      "lastOutput": [
+        "PASS cancelled operations do not create marks",
+        "R62 hierarchy lifecycle: 17/17 executable checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r62-hierarchy-ui-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.04,
+      "lastOutput": [
+        "PASS lifecycle job status persists across navigation and handles cancel vs committed roots",
+        "R62 integration: 9/9 checks passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r63-disposition-tests.mjs",
+      "passed": true,
+      "seconds": 0.68,
+      "lastOutput": [
+        "PASS cancellation of absent pending request does nothing",
+        "R63 disposition executable checks 24/24"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-0510-planning-hardening-assertions.mjs",
+      "passed": true,
+      "seconds": 1.15,
+      "lastOutput": [
+        "PASS Governed disposition uses revision, reason, and request identity",
+        "15/15 v0.510 planning hardening assertions passed"
+      ],
+      "stderr": "(node:5626) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "script": "tools/scripts/cluster-0511-distribution-notification-assertions.mjs",
+      "passed": true,
+      "seconds": 1.0,
+      "lastOutput": [
+        "PASS Legacy Library destruction cannot bypass published Packet source protections",
+        "14/14 Cluster v0.511 publication and notification assertions passed"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/wip57-p16a-capability-exposure-assertions.mjs",
+      "passed": true,
+      "seconds": 0.07,
+      "lastOutput": [
+        "",
+        "12/12 WIP57 P16A capability exposure assertions passed."
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r64-storage-ownership-tests.mjs",
+      "passed": true,
+      "seconds": 0.89,
+      "lastOutput": [
+        "PASS R65 root content checksum mutation invalidates evidence",
+        "R64 ownership focused checks 28/28"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r64-route-ui-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.1,
+      "lastOutput": [
+        "PASS ownership UI does not offer a storage mutation operation",
+        "R64 route/UI integration 12/12"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r65-related-authority-tests.mjs",
+      "passed": true,
+      "seconds": 0.7,
+      "lastOutput": [
+        "PASS fingerprint remains deterministic and changes with related evidence",
+        "R65 correlated ownership executable checks 12/12"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r65-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.34,
+      "lastOutput": [
+        "PASS renderer shows related evidence separately and never offers execution",
+        "R65 integration assertions 10/10"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r66-independent-disposition-tests.mjs",
+      "passed": true,
+      "seconds": 0.62,
+      "lastOutput": [
+        "PASS invalid or missing review justification is rejected",
+        "R66 independent disposition governance 21/21"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r66-route-schema-tests.mjs",
+      "passed": true,
+      "seconds": 0.07,
+      "lastOutput": [
+        "PASS rejected requests and cancellation are distinct auditable endings",
+        "R66 routes, UI and schema checks 12/12"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r67-quarantine-simulation-tests.mjs",
+      "passed": true,
+      "seconds": 0.59,
+      "lastOutput": [
+        "PASS blank reason cannot withdraw a plan",
+        "R67 executable quarantine simulations 20/20"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r67-quarantine-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.1,
+      "lastOutput": [
+        "PASS quarantine has no environment enable/disable bypass",
+        "R67 integration checks 10/10"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r67-storage-lifecycle-safety-tests.mjs",
+      "passed": true,
+      "seconds": 0.48,
+      "lastOutput": [
+        "PASS failed-copy fixture is not invoked by the deferred runtime",
+        "R68/R67 managed storage lifecycle 4/4"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r68-storage-safety-tests.mjs",
+      "passed": true,
+      "seconds": 0.52,
+      "lastOutput": [
+        "PASS S3 copy and multipart completion validate XML before stat success",
+        "R68 provider and storage safety 20/20"
+      ],
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r69-consumer-contract-tests.mjs",
+      "passed": true,
+      "seconds": 0.5,
+      "lastOutput": [
+        "PASS all seven subscriber declarations retain their intended owners",
+        "R69 consumer contract: 11/11 checks passed"
+      ],
+      "stderr": ""
+    }
+  ]
+}

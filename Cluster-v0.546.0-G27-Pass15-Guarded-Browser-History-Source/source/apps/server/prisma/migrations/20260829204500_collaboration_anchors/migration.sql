@@ -1,0 +1,1 @@
+ALTER TABLE "EntityComment" ADD COLUMN "anchor" TEXT NOT NULL DEFAULT '{}';

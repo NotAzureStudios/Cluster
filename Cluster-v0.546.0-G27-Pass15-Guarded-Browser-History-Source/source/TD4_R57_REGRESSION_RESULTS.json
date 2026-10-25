@@ -1,0 +1,215 @@
+{
+  "runtime": "Node 22 development toolchain; 5 legacy TS-import suites rerun with --experimental-strip-types and --experimental-transform-types; temporary test-only TypeScript symlink",
+  "selectedInheritedSuitesPassed": 25,
+  "selectedInheritedSuitesTotal": 25,
+  "focusedR57ChecksPassed": 15,
+  "focusedR57ChecksTotal": 15,
+  "inheritedScripts": [
+    "tools/scripts/cluster-td4-r54-typed-consumer-retry-tests.mjs",
+    "tools/scripts/cluster-td4-r51-typed-change-feed-tests.mjs",
+    "tools/scripts/cluster-td4-r52-live-cursor-reset-tests.mjs",
+    "tools/scripts/cluster-td4-r53-client-cursor-proof-tests.mjs",
+    "tools/scripts/cluster-td4-r53-outbox-continuity-tests.mjs",
+    "tools/scripts/cluster-td4-r50-governance-feed-tests.mjs",
+    "tools/scripts/cluster-td4-r49-provider-lifecycle-tests.mjs",
+    "tools/scripts/cluster-td4-r47-search-domain-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r47-search-route-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r46-source-provider-tests.mjs",
+    "tools/scripts/cluster-td4-r46-source-feed-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r45-studio-provider-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r43-provider-registration-tests.mjs",
+    "tools/scripts/cluster-td4-r44-delivery-provider-tests.mjs",
+    "tools/scripts/cluster-td4-r42-resource-feed-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r48-search-action-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r38-storage-reconciliation-tests.mjs",
+    "tools/scripts/cluster-td4-r39-storage-queue-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r40-orphan-audit-tests.mjs",
+    "tools/scripts/cluster-td4-r41-disposition-review-tests.mjs",
+    "tools/scripts/cluster-td4-r35-collection-bulk-tests.mjs",
+    "tools/scripts/cluster-td4-r37-hierarchy-transaction-tests.mjs",
+    "tools/scripts/cluster-td4-r55-webhook-outbox-replay-tests.mjs",
+    "tools/scripts/cluster-td4-r56-outbox-lease-fencing-tests.mjs",
+    "tools/scripts/cluster-0506-resource-identity-assertions.mjs"
+  ],
+  "results": [
+    {
+      "script": "tools/scripts/cluster-td4-r54-typed-consumer-retry-tests.mjs",
+      "passed": true,
+      "seconds": 1.29,
+      "lastOutput": "PASS shared registry owns concrete known payload validation contracts | 15/15 TD4 R54 typed-consumer retry checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r51-typed-change-feed-tests.mjs",
+      "passed": true,
+      "seconds": 1.31,
+      "lastOutput": "PASS known producer event rejects incompatible schema before insert or lock | 13/13 TD4 R51 typed change-feed checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r52-live-cursor-reset-tests.mjs",
+      "passed": true,
+      "seconds": 0.99,
+      "lastOutput": "PASS SSE restore reset ends response and immediately cleans up subscription | 9/9 TD4 R52 live restore checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r53-client-cursor-proof-tests.mjs",
+      "passed": true,
+      "seconds": 0.78,
+      "lastOutput": "PASS renderer persists cursor and proof atomically and sends proof on reconnect | 7/7 TD4 R53 client continuity tests passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r53-outbox-continuity-tests.mjs",
+      "passed": true,
+      "seconds": 0.73,
+      "lastOutput": "PASS anchor validation after live cursor progress catches replacement of earlier committed row | 8/8 TD4 R53 anchored-continuity tests passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r50-governance-feed-tests.mjs",
+      "passed": true,
+      "seconds": 1.1,
+      "lastOutput": "PASS assignment database outage never turns into a grant | 34/34 R50 governance change-feed checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r49-provider-lifecycle-tests.mjs",
+      "passed": true,
+      "seconds": 0.91,
+      "lastOutput": "PASS SSE reset invalidates cached and mounted resources through existing refresh hooks | 11/11 TD4 R49 provider-lifecycle assertions passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r47-search-domain-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 0.67,
+      "lastOutput": "PASS Library search index includes owner/source for canonical access evaluation | 22/22 R47 Search domain visibility checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r47-search-route-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.8,
+      "lastOutput": "PASS disabling the Packets tool suppresses policy and Packet search for admin | 6/6 R47 real Search route integration checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r46-source-provider-tests.mjs",
+      "passed": true,
+      "seconds": 0.59,
+      "lastOutput": "19/19 R46 source provider checks passed | PASS Source Review queue fails closed when Access Rule lookup rejects",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r46-source-feed-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.8,
+      "lastOutput": "PASS admin cannot bypass fabricated source record or Project binding | 12/12 R46 HTTP feed integration checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r45-studio-provider-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 0.93,
+      "lastOutput": "PASS failed membership lookup must not invert exclusion into a grant | 18/18 R45 studio provider checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r43-provider-registration-tests.mjs",
+      "passed": true,
+      "seconds": 1.05,
+      "lastOutput": "PASS live provider failure closes stream with a reset instead of swallowing authorization errors | 26/26 resource feed visibility checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r44-delivery-provider-tests.mjs",
+      "passed": true,
+      "seconds": 1.34,
+      "lastOutput": "PASS provider reads happen once per kind and batch | 46/46 resource feed visibility checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r42-resource-feed-visibility-tests.mjs",
+      "passed": true,
+      "seconds": 0.99,
+      "lastOutput": "PASS strict Library access context refuses failed folder or Access Rule reads | 15/15 resource feed visibility checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r48-search-action-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.77,
+      "lastOutput": "PASS all Command Search consumers and palette invalidations use fresh results | 9/9 R48 live Search and resource action integration checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r38-storage-reconciliation-tests.mjs",
+      "passed": true,
+      "seconds": 0.56,
+      "lastOutput": "PASS Job registered in tool-disable ownership and no synchronous bulk-move repair | 16/16 R38 storage reconciliation checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r39-storage-queue-integration-tests.mjs",
+      "passed": true,
+      "seconds": 0.34,
+      "lastOutput": "PASS No remaining synchronous repair call in request-side Library edits | 11/11 TD4 R39 queue integration checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r40-orphan-audit-tests.mjs",
+      "passed": true,
+      "seconds": 0.55,
+      "lastOutput": "PASS Registered as Library-owned durable job, wired into existing Worker, and surfaced to admins | 9/9 TD4 R40 orphan-audit checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r41-disposition-review-tests.mjs",
+      "passed": true,
+      "seconds": 0.44,
+      "lastOutput": "PASS Library UI exposes candidate recheck, never destructive controls | 10/10 R41 disposition-review checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r35-collection-bulk-tests.mjs",
+      "passed": true,
+      "seconds": 0.78,
+      "lastOutput": "PASS archive and unarchive select only lifecycle-eligible Collection members | 12/12 TD4 R36 collection-aware durable bulk tests passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r37-hierarchy-transaction-tests.mjs",
+      "passed": true,
+      "seconds": 0.47,
+      "lastOutput": "PASS UI explicitly distinguishes committed move with unfinished reconciliation | 18/18 TD4 R37 hierarchy transaction guards passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r55-webhook-outbox-replay-tests.mjs",
+      "passed": true,
+      "seconds": 0.48,
+      "lastOutput": "PASS stopping integration subscription leaves no active outbox consumer | R55 webhook outbox replay: 9/9 checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-td4-r56-outbox-lease-fencing-tests.mjs",
+      "passed": true,
+      "seconds": 4.12,
+      "lastOutput": "PASS actual pump reports an owned consumer error through durable retry | R56 outbox lease fencing: 10/10 checks passed",
+      "stderr": ""
+    },
+    {
+      "script": "tools/scripts/cluster-0506-resource-identity-assertions.mjs",
+      "passed": true,
+      "seconds": 0.75,
+      "lastOutput": "PASS graph scan budget applies across all depth levels | 14/14 resource identity/graph checks passed",
+      "stderr": ""
+    }
+  ],
+  "notes": [
+    "Initial 20/25 suites passed; the five legacy TS-import suites initially failed to load without Node TypeScript flags, and were rerun separately.",
+    "This is source-test evidence, not Qt/Node24/PostgreSQL release certification."
+  ]
+}

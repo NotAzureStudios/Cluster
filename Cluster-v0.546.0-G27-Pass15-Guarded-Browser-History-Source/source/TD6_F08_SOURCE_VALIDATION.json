@@ -1,0 +1,32 @@
+{
+  "checkpoint": "v0.546.0 TD6 F08",
+  "sourceLevelOnly": true,
+  "validationRunDate": "2026-10-18",
+  "tests": {
+    "F08ReturnTransactionAndRoutes": "18/18",
+    "InheritedPeopleLifecycle": "17/17",
+    "F01Branching": "20/20",
+    "F02Deadlines": "36/36",
+    "F03CardHistory": "22/22",
+    "F04WhiteboardHistory": "27/27",
+    "F05PacketAudio": "21/21",
+    "F06ManagedUpdatePlan": "15/15",
+    "F07ManagedDestinationAudit": "18/18"
+  },
+  "selectedChecksPassed": 194,
+  "sourceScan": {
+    "tsTsx": 1048,
+    "syntaxErrors": 0,
+    "rendererRelativeImports": 3161,
+    "missingImports": 0,
+    "css": 110,
+    "cssBraceErrors": 0
+  },
+  "newMigration": "20261018180000_td6_f08_return_to_studio",
+  "deferred": [
+    "Node24 dependency-backed build",
+    "PostgreSQL migration/concurrency",
+    "Windows Qt/Desktop browser runtime",
+    "release certification"
+  ]
+}

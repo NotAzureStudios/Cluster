@@ -1,0 +1,8 @@
+Cluster v0.521.0 | Packet publication/distribution development-source regression results
+
+55/55 source assertion suites passed (54 inherited and one new text-file-PDF suite; the first new image suite is also counted).
+Go native package staging tests passed (`go test ./... -count=1`); native helper source unchanged from v0.520.
+TypeScript 22 test harness used a temporary symlink to locally installed TypeScript, removed from deliverable.
+Full source scan: 964 TS/TSX, zero syntax errors; 4,148 relative imports, only absent generated Prisma client; 108 CSS, zero delimiter errors.
+The source regression scripts that run image/PDF conversions use MOCK decoders/renderers. No real sharp or pdf-lib production runtime is certified.
+No PostgreSQL live database, Windows Qt/MSVC, authenticated OS installation or device OS attestation was tested.

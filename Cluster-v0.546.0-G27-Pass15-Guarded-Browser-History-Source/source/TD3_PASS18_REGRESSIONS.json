@@ -1,0 +1,97 @@
+[
+  {
+    "script": "cluster-td1-td2-implementation-closeout-tests.mjs",
+    "ok": true,
+    "message": "s\nPASS non-configurable shared Project/Build event is not blocked by Ticket policy\n15/15 TD1/TD2 implementation closeout checks passed"
+  },
+  {
+    "script": "cluster-td3-appearance-foundation-tests.mjs",
+    "ok": true,
+    "message": "system mode\nPASS draft preview owns background pattern, surface and radius independently\n\n33/33 TD3 appearance foundation tests passed"
+  },
+  {
+    "script": "cluster-td3-taskbar-layout-tests.mjs",
+    "ok": true,
+    "message": "safe areas\nPASS No duplicated taskbar component created\nPASS No database migration needed\n12/12 taskbar layout source contracts passed"
+  },
+  {
+    "script": "cluster-td3-ui-primitives-tests.mjs",
+    "ok": true,
+    "message": "controls do not use 11px labels at normal text scale\nPASS Qt buttons use a moderate label weight\n33/33 TD3 UI primitive checks passed"
+  },
+  {
+    "script": "cluster-td3-css-contract-tests.mjs",
+    "ok": true,
+    "message": "ic palette with accessible light fallback\nPASS known select !important debt has been retired\n9/9 CSS ownership and focus checks passed"
+  },
+  {
+    "script": "cluster-td3-material-portal-tests.mjs",
+    "ok": true,
+    "message": "lation delegates floating surfaces to dynamic owner-aware isolation\n12/12 TD3 material, shell, modal and popup source contracts passed"
+  },
+  {
+    "script": "cluster-td3-inspector-surface-tests.mjs",
+    "ok": true,
+    "message": "heen\nPASS inspector high contrast suppresses texture\nPASS no new image texture imports\n22/22 TD3 P4 surface contract assertions passed"
+  },
+  {
+    "script": "cluster-td3-pass7-preference-menu-tests.mjs",
+    "ok": true,
+    "message": "per\nPASS destructive separators avoid duplicates and leading separators\n22/22 TD3 Pass 7 preferences and menu source assertions passed"
+  },
+  {
+    "script": "cluster-td3-pass8-responsive-resize-tests.mjs",
+    "ok": true,
+    "message": "orage failure is nonfatal\nPASS CSS rail reserves main width\nPASS rail divider has visible keyboard focus\n27/27 TD3 Pass8 checks passed"
+  },
+  {
+    "script": "cluster-td3-pass9-overlay-tests.mjs",
+    "ok": true,
+    "message": "ing retains mobile sheet behavior\nPASS dialog focus trap remains centralized\n21/21 TD3 Pass9 overlay and modal source contracts passed"
+  },
+  {
+    "script": "cluster-td3-pass10-picker-shell-tests.mjs",
+    "ok": true,
+    "message": "inert background\nPASS sidebar disclosures expose expansion state and owned panel ID\n31/31 TD3 Pass 10 picker and drawer checks passed"
+  },
+  {
+    "script": "cluster-td3-pass11-interaction-tests.mjs",
+    "ok": true,
+    "message": "rance preferences unaffected\nPASS rapid double-action coalesces synchronously\nPASS new action permitted after settlement\nTOTAL 21 / 21"
+  },
+  {
+    "script": "cluster-td3-pass12-taskbar-search-tests.mjs",
+    "ok": true,
+    "message": "he transition\nPASS People avatar still supports per-user identity treatment\n30/30 TD3 Pass 12 search/identity/utility contracts passed"
+  },
+  {
+    "script": "cluster-td3-pass13-action-integrity-tests.mjs",
+    "ok": true,
+    "message": "sible to screen readers\nPASS History execution itself owns a synchronous pending lock\n13/13 TD3 Pass 13 action-integrity checks passed"
+  },
+  {
+    "script": "cluster-td3-pass14-interaction-regressions.mjs",
+    "ok": true,
+    "message": "height\nPASS native Qt high-contrast surface suppresses decorative gradient and sheen\n13/13 TD3 Pass 14 interaction regressions passed"
+  },
+  {
+    "script": "cluster-td3-pass15-workspace-convergence-tests.mjs",
+    "ok": true,
+    "message": "d separate presence dot preserved\nPASS Qt native controls explicitly expose focus and accessible labels\n14/14 TD3 Pass 15 tests passed"
+  },
+  {
+    "script": "cluster-td3-pass16-workspace-disclosure-tests.mjs",
+    "ok": true,
+    "message": "ly tab search transition still present\nPASS People identity retains independent user color and presence\n26/26 TD3 Pass 16 tests passed"
+  },
+  {
+    "script": "cluster-td3-pass17-convergence-tests.mjs",
+    "ok": true,
+    "message": "parate activity dot\nPASS Project tabs preserve Taskbar dedicated owner\n23/23 TD3 Pass17 preservation and convergence assertions passed"
+  },
+  {
+    "script": "cluster-td3-pass18-cross-workspace-convergence-tests.mjs",
+    "ok": true,
+    "message": "ets\nPASS Taskbar preserves Transfer Center\nPASS Person user-color borders and separate dot preserved\n47/47 TD3 Pass18 contracts passed"
+  }
+]

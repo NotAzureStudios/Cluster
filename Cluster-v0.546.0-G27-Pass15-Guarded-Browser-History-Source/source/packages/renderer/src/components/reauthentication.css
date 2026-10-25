@@ -1,0 +1,15 @@
+.reauth-backdrop-v349 { position: fixed; inset: 0; z-index: 10020; display: grid; place-items: center; padding: 20px; background: rgb(4 7 10 / 56%); }
+.reauth-dialog-v349 { width: min(420px, calc(100vw - 28px)); border: 1px solid var(--border, color-mix(in srgb, var(--cluster-white) 14%, transparent)); border-radius: 14px; background: var(--panel, rgb(24 27 31 / 94%)); box-shadow: 0 24px 80px color-mix(in srgb, var(--cluster-black) 35%, transparent); color: var(--text, #f4f6f8); overflow: hidden; }
+.reauth-dialog-v349 > header { display: flex; justify-content: space-between; gap: 16px; padding: 18px 18px 12px; }
+.reauth-dialog-v349 > header span { color: var(--muted, #9aa3ab); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+.reauth-dialog-v349 h2 { margin: 4px 0 3px; font-size: 1.2rem; }
+.reauth-dialog-v349 p { margin: 0; color: var(--muted, #9aa3ab); font-size: .86rem; line-height: 1.45; }
+.reauth-dialog-v349 > header button { width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: inherit; font-size: 1.2rem; }
+.reauth-dialog-v349 > label { display: grid; gap: 7px; padding: 10px 18px 14px; font-size: .78rem; font-weight: 650; }
+.reauth-dialog-v349 input { min-height: 42px; width: 100%; border: 1px solid var(--border, color-mix(in srgb, var(--cluster-white) 14%, transparent)); border-radius: 9px; padding: 0 12px; background: var(--input, color-mix(in srgb, var(--cluster-black) 16%, transparent)); color: inherit; outline: none; }
+.reauth-dialog-v349 input:focus { border-color: var(--accent, #5da9ff); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #5da9ff) 20%, transparent); }
+.reauth-error-v349 { margin: 0 18px 12px; padding: 9px 11px; border-radius: 8px; background: var(--cluster-state-error-surface); color: color-mix(in srgb, var(--danger) 58%, var(--text)); font-size: .8rem; }
+.reauth-dialog-v349 > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 18px; }
+.reauth-methods-v495 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 2px 18px 4px; padding: 4px; border: 1px solid var(--border, color-mix(in srgb, var(--cluster-white) 14%, transparent)); border-radius: 9px; background: color-mix(in srgb, var(--cluster-black) 10%, transparent); }
+.reauth-methods-v495 button { min-height: 34px; border: 0; border-radius: 6px; background: transparent; color: var(--muted, #9aa3ab); font: inherit; font-size: .78rem; font-weight: 650; }
+.reauth-methods-v495 button.active { background: var(--panel-raised, color-mix(in srgb, var(--cluster-white) 8%, transparent)); color: var(--text, #f4f6f8); }

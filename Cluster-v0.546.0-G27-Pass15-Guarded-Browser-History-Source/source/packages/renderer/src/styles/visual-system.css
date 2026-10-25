@@ -1,0 +1,408 @@
+/*
+ * Cluster Visual System 3.0
+ * Canonical visual tokens and resolved appearance layers.
+ * Workspace/component CSS consumes these tokens instead of owning theme logic.
+ */
+:root {
+  --cluster-visual-bg-color: var(--cluster-workbench-canvas, #101214);
+  --cluster-visual-bg-base: linear-gradient(145deg, #111315, #0d0f10 65%, #17191b);
+  --cluster-visual-pattern-image: none;
+  --cluster-visual-pattern-size: auto;
+  --cluster-visual-pattern-position: 0 0;
+  --cluster-pattern-opacity: .04;
+  --cluster-pattern-percent: 4%;
+  --cluster-pattern-scale: 32px;
+  --cluster-pattern-color: color-mix(in srgb, var(--cluster-workbench-text, #fff) var(--cluster-pattern-percent, 4%), transparent);
+
+  --cluster-visual-surface: var(--cluster-workbench-panel, #16181a);
+  --cluster-visual-surface-raised: var(--cluster-workbench-panel-raised, #1e2023);
+  --cluster-visual-surface-muted: var(--cluster-workbench-panel-muted, #1a1c1e);
+  --cluster-visual-control: var(--cluster-workbench-control, #1d1f21);
+  --cluster-visual-border: var(--cluster-workbench-border, rgb(255 255 255 / 13%));
+  --cluster-visual-border-strong: var(--cluster-workbench-border-strong, rgb(255 255 255 / 24%));
+  --cluster-visual-text: var(--cluster-workbench-text, #fff);
+  --cluster-visual-text-muted: var(--cluster-workbench-muted, #abb1b5);
+  --cluster-visual-hover: var(--cluster-workbench-hover, #33373a);
+  --cluster-visual-selected: var(--cluster-workbench-selected, #25292c);
+
+  --cluster-shell-sidebar-surface: var(--cluster-visual-surface);
+  --cluster-shell-taskbar-surface: var(--cluster-visual-surface);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+  --cluster-taskbar-surface: var(--cluster-shell-taskbar-surface);
+}
+
+:root[data-theme="light"],
+.appearance-shell-preview-v10[data-theme="light"] {
+  --cluster-visual-bg-color: #f7fafb;
+  /* Light needs a safe first-paint default before Appearance applies its base attribute. */
+  --cluster-visual-bg-base: linear-gradient(145deg, #fff 0%, #f6f7f8 58%, #eef1f3 100%);
+}
+
+:root[data-theme="dark"][data-background-base="clean"],
+.appearance-shell-preview-v10[data-theme="dark"][data-background-base="clean"] {
+  --cluster-visual-bg-base: linear-gradient(145deg, #111315, #0d0f10 65%, #17191b);
+}
+:root[data-theme="dark"][data-background-base="gradient"],
+.appearance-shell-preview-v10[data-theme="dark"][data-background-base="gradient"] {
+  --cluster-visual-bg-base: linear-gradient(135deg, #0a0b0c 0%, #15181a 48%, #202327 100%);
+}
+:root[data-theme="dark"][data-background-base="aurora"],
+.appearance-shell-preview-v10[data-theme="dark"][data-background-base="aurora"] {
+  --cluster-visual-bg-base: radial-gradient(circle at 12% 4%, color-mix(in srgb, var(--studio-primary) 14%, transparent), transparent 34%), radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--studio-secondary) 10%, transparent), transparent 31%), linear-gradient(145deg, #121416, #0c0e0f 62%, #181a1c);
+}
+:root[data-theme="dark"][data-background-base="midnight"],
+.appearance-shell-preview-v10[data-theme="dark"][data-background-base="midnight"] {
+  --cluster-visual-bg-base: radial-gradient(circle at 16% 0%, color-mix(in srgb, white 5%, transparent), transparent 32%), linear-gradient(145deg, #070809, #0c0e0f 62%, #141618);
+}
+
+:root[data-theme="light"][data-background-base="clean"],
+.appearance-shell-preview-v10[data-theme="light"][data-background-base="clean"] {
+  --cluster-visual-bg-base: linear-gradient(145deg, #fff 0%, #f6f7f8 58%, #eef1f3 100%);
+}
+:root[data-theme="light"][data-background-base="gradient"],
+.appearance-shell-preview-v10[data-theme="light"][data-background-base="gradient"] {
+  --cluster-visual-bg-base: linear-gradient(135deg, #fff 0%, #f1f4f7 48%, #e4e9ee 100%);
+}
+:root[data-theme="light"][data-background-base="aurora"],
+.appearance-shell-preview-v10[data-theme="light"][data-background-base="aurora"] {
+  --cluster-visual-bg-base: radial-gradient(circle at 14% 4%, color-mix(in srgb, var(--studio-primary) 20%, transparent), transparent 34%), radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--studio-secondary) 17%, transparent), transparent 32%), linear-gradient(145deg, #fff 0%, #f8f9fa 62%, #eff2f4 100%);
+}
+:root[data-theme="light"][data-background-base="midnight"],
+.appearance-shell-preview-v10[data-theme="light"][data-background-base="midnight"] {
+  --cluster-visual-bg-base: radial-gradient(circle at 16% 0%, rgb(0 0 0 / 8%), transparent 34%), linear-gradient(145deg, #f8f9fa 0%, #eef1f3 64%, #e6eaed 100%);
+}
+
+:root[data-background-pattern="none"],
+.appearance-shell-preview-v10[data-background-pattern="none"] {
+  --cluster-visual-pattern-image: none;
+  --cluster-visual-pattern-size: auto;
+  --cluster-visual-pattern-position: 0 0;
+}
+
+:root[data-background-pattern="grid"],
+.appearance-shell-preview-v10[data-background-pattern="grid"] {
+  --cluster-visual-pattern-image: linear-gradient(var(--cluster-pattern-color) 1px, transparent 1px), linear-gradient(90deg, var(--cluster-pattern-color) 1px, transparent 1px);
+  --cluster-visual-pattern-size: var(--cluster-pattern-scale) var(--cluster-pattern-scale), var(--cluster-pattern-scale) var(--cluster-pattern-scale);
+  --cluster-visual-pattern-position: 0 0, 0 0;
+}
+
+:root[data-background-pattern="dots"],
+.appearance-shell-preview-v10[data-background-pattern="dots"] {
+  --cluster-visual-pattern-image: radial-gradient(circle, var(--cluster-pattern-color) 1px, transparent 1.25px);
+  --cluster-visual-pattern-size: var(--cluster-pattern-scale) var(--cluster-pattern-scale);
+  --cluster-visual-pattern-position: 0 0;
+}
+
+:root[data-background-pattern="hex"],
+.appearance-shell-preview-v10[data-background-pattern="hex"] {
+  --cluster-visual-pattern-image:
+    linear-gradient(30deg, var(--cluster-pattern-color) 12%, transparent 12.5%, transparent 87%, var(--cluster-pattern-color) 87.5%, var(--cluster-pattern-color)),
+    linear-gradient(150deg, var(--cluster-pattern-color) 12%, transparent 12.5%, transparent 87%, var(--cluster-pattern-color) 87.5%, var(--cluster-pattern-color)),
+    linear-gradient(30deg, var(--cluster-pattern-color) 12%, transparent 12.5%, transparent 87%, var(--cluster-pattern-color) 87.5%, var(--cluster-pattern-color)),
+    linear-gradient(150deg, var(--cluster-pattern-color) 12%, transparent 12.5%, transparent 87%, var(--cluster-pattern-color) 87.5%, var(--cluster-pattern-color)),
+    linear-gradient(60deg, color-mix(in srgb, var(--cluster-pattern-color) 72%, transparent) 25%, transparent 25.5%, transparent 75%, color-mix(in srgb, var(--cluster-pattern-color) 72%, transparent) 75%, color-mix(in srgb, var(--cluster-pattern-color) 72%, transparent));
+  --cluster-visual-pattern-size:
+    calc(var(--cluster-pattern-scale) * 1.732) calc(var(--cluster-pattern-scale) * 3),
+    calc(var(--cluster-pattern-scale) * 1.732) calc(var(--cluster-pattern-scale) * 3),
+    calc(var(--cluster-pattern-scale) * 1.732) calc(var(--cluster-pattern-scale) * 3),
+    calc(var(--cluster-pattern-scale) * 1.732) calc(var(--cluster-pattern-scale) * 3),
+    calc(var(--cluster-pattern-scale) * 1.732) calc(var(--cluster-pattern-scale) * 3);
+  --cluster-visual-pattern-position: 0 0, 0 0, calc(var(--cluster-pattern-scale) * .866) calc(var(--cluster-pattern-scale) * 1.5), calc(var(--cluster-pattern-scale) * .866) calc(var(--cluster-pattern-scale) * 1.5), 0 0;
+}
+
+/* Feed the resolved visual authority into the current workbench contract. */
+:root {
+  --cluster-workbench-background: var(--cluster-visual-pattern-image), var(--cluster-visual-bg-base);
+  --cluster-workbench-background-size: var(--cluster-visual-pattern-size), cover;
+  --cluster-workbench-background-position: var(--cluster-visual-pattern-position), center top;
+}
+
+:root[data-surface-style="flat"],
+.appearance-shell-preview-v10[data-surface-style="flat"] {
+  --cluster-visual-surface-raised: var(--cluster-visual-surface);
+}
+
+:root[data-sidebar-surface="solid"],
+.appearance-shell-preview-v10[data-sidebar-surface="solid"] {
+  --cluster-shell-sidebar-surface: var(--cluster-visual-surface);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+}
+:root[data-sidebar-surface="glass"],
+.appearance-shell-preview-v10[data-sidebar-surface="glass"] {
+  --cluster-shell-sidebar-surface: color-mix(in srgb, var(--cluster-visual-surface) var(--glass-percent, 58%), transparent);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+}
+:root[data-sidebar-surface="match"],
+.appearance-shell-preview-v10[data-sidebar-surface="match"] {
+  --cluster-shell-sidebar-surface: var(--cluster-visual-surface);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+}
+
+:root[data-taskbar-surface="solid"],
+.appearance-shell-preview-v10[data-taskbar-surface="solid"] {
+  --cluster-shell-taskbar-surface: var(--cluster-visual-surface);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+  --cluster-taskbar-surface: var(--cluster-shell-taskbar-surface);
+}
+:root[data-taskbar-surface="glass"],
+.appearance-shell-preview-v10[data-taskbar-surface="glass"] {
+  --cluster-shell-taskbar-surface: color-mix(in srgb, var(--cluster-visual-surface) var(--glass-percent, 58%), transparent);
+}
+:root[data-taskbar-surface="match"],
+.appearance-shell-preview-v10[data-taskbar-surface="match"] {
+  --cluster-shell-taskbar-surface: var(--cluster-visual-surface);
+  --cluster-sidebar-surface: var(--cluster-shell-sidebar-surface);
+  --cluster-taskbar-surface: var(--cluster-shell-taskbar-surface);
+}
+
+/* Taskbar labels are now resolved appearance, not a dead preference. */
+:root[data-taskbar-labels="icons"] .cluster-taskbar-action__label,
+:root[data-taskbar-labels="icons"] .cluster-taskbar-action__hotkey,
+:root[data-taskbar-labels="icons"] .taskbar-profile-copy-v546,
+:root[data-taskbar-labels="icons"] .taskbar-chevron-v227 {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  :root[data-taskbar-labels="auto"] .cluster-taskbar-action__label,
+  :root[data-taskbar-labels="auto"] .cluster-taskbar-action__hotkey,
+  :root[data-taskbar-labels="auto"] .taskbar-profile-copy-v546,
+  :root[data-taskbar-labels="auto"] .taskbar-chevron-v227 {
+    display: none !important;
+  }
+}
+
+:root[data-project-tab-style="compact"] .taskbar-project-chip-v073 > em {
+  display: none !important;
+}
+
+
+html, body, #root, .visual-overhaul-v139 {
+  background-color: var(--cluster-visual-bg-color) !important;
+  background-image: var(--cluster-visual-pattern-image), var(--cluster-visual-bg-base) !important;
+  background-size: var(--cluster-visual-pattern-size), cover !important;
+  background-position: var(--cluster-visual-pattern-position), center top !important;
+  background-attachment: fixed !important;
+}
+
+:is(:root, .appearance-shell-preview-v10)[data-sidebar-surface="glass"] #cluster-sidebar.cluster-sidebar,
+:is(:root, .appearance-shell-preview-v10)[data-taskbar-surface="glass"] .taskbar-unified-v3430 {
+  -webkit-backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.04) !important;
+  backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.04) !important;
+}
+
+/* Shell 2.0 first slice: compact navigation history and workspace recovery live in the taskbar. */
+.taskbar-history-v3,
+.taskbar-resume-v3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.taskbar-resume-v3 {
+  max-width: 190px;
+  padding-left: 3px;
+  border-left: 1px solid color-mix(in srgb, var(--cluster-taskbar-border, var(--cluster-visual-border)) 76%, transparent);
+}
+.taskbar-resume-main-v3 {
+  min-width: 0 !important;
+  max-width: 152px;
+}
+.taskbar-resume-main-v3 .taskbar-label-v3 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskbar-resume-clear-v3 {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cluster-visual-text-muted);
+}
+.taskbar-resume-clear-v3:hover,
+.taskbar-resume-clear-v3:focus-visible {
+  background: var(--cluster-taskbar-surface-hover, var(--cluster-visual-hover));
+  color: var(--cluster-visual-text);
+}
+.taskbar-resume-clear-v3 .cluster-icon-svg { width: 14px !important; height: 14px !important; }
+
+@media (max-width: 900px) {
+  .taskbar-resume-v3 { display: none; }
+}
+
+/* TD3 semantic contracts: both renderer and native chrome derive from the same palette. */
+:root {
+  --cluster-focus-outline: var(--cluster-semantic-focus-ring, #9BE7FF);
+  --cluster-focus-outline-width: 2px;
+}
+:root[data-focus-indicator="strong"],
+:root[data-focus-indicator="always"] { --cluster-focus-outline-width: 3px; }
+:root[data-high-contrast="true"] {
+  --cluster-focus-outline-width: 3px;
+  --cluster-focus-outline: var(--cluster-semantic-border);
+}
+:root :where(.appearance-shell-preview-v10) {
+  --cluster-preview-background: var(--cluster-semantic-background);
+  --cluster-preview-surface: var(--cluster-semantic-surface-strong);
+  --cluster-preview-text: var(--cluster-semantic-text);
+  --cluster-preview-muted: var(--cluster-semantic-text-muted);
+  --cluster-preview-border: var(--cluster-semantic-border);
+}
+:root :where(.appearance-shell-preview-v10) :where(button):focus-visible {
+  outline: var(--cluster-focus-outline-width) solid var(--cluster-focus-outline);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root :where(.appearance-shell-preview-v10) *,
+  :root :where(.appearance-shell-preview-v10) *::before,
+  :root :where(.appearance-shell-preview-v10) *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+:root[data-motion="none"] :where(.appearance-shell-preview-v10) *,
+:root[data-motion="none"] :where(.appearance-shell-preview-v10) *::before,
+:root[data-motion="none"] :where(.appearance-shell-preview-v10) *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Native/Web semantic parity is opt-in for preview chrome while legacy workspace styles converge. */
+.appearance-shell-preview-v10 .appearance-shell-preview__head strong { color: var(--cluster-preview-text); }
+.appearance-shell-preview-v10 .appearance-shell-preview__head span,
+.appearance-shell-preview-v10 .appearance-shell-preview__head small { color: var(--cluster-preview-muted); }
+.appearance-shell-preview-v10 .appearance-shell-preview__frame { border-color: var(--cluster-preview-border); }
+.appearance-shell-preview-v10 .appearance-shell-preview__taskbar {
+  color: var(--cluster-preview-text);
+  border-bottom-color: var(--cluster-preview-border);
+}
+.appearance-shell-preview-v10 .appearance-shell-preview__title button:focus-visible,
+.appearance-shell-preview-v10 .appearance-shell-preview__control-row button:focus-visible {
+  outline: var(--cluster-focus-outline-width) solid var(--cluster-focus-outline);
+  outline-offset: 2px;
+}
+
+.appearance-shell-preview-v10 .appearance-shell-preview__frame {
+  background-color: var(--cluster-preview-background);
+}
+.appearance-shell-preview-v10 .appearance-shell-preview__content {
+  color: var(--cluster-preview-text);
+}
+.appearance-shell-preview-v10 .appearance-shell-preview__content small {
+  color: var(--cluster-preview-muted);
+}
+.appearance-shell-preview-v10 .appearance-shell-preview__cards article {
+  border-color: var(--cluster-preview-border);
+}
+
+:root[data-motion="reduced"] :where(.appearance-shell-preview-v10) *,
+:root[data-motion="reduced"] :where(.appearance-shell-preview-v10) *::before,
+:root[data-motion="reduced"] :where(.appearance-shell-preview-v10) *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* TD3 Pass 3 | Material depth, owned by the resolved Appearance surface style.
+   Pure CSS, no textures/assets/requests. Preserve text contrast and the user's
+   background pattern. Each material is a *surface*, not an overlay on content. */
+:root, .appearance-shell-preview-v10 {
+  --cluster-material-sheen: linear-gradient(155deg, color-mix(in srgb, var(--cluster-visual-text) 3%, transparent), transparent 42%),
+    radial-gradient(circle at 8px 8px, color-mix(in srgb, var(--cluster-visual-text) 2%, transparent) 0.5px, transparent 0.9px);
+  --cluster-material-sheen-size: auto, 18px 18px;
+  --cluster-material-stroke: color-mix(in srgb, var(--cluster-visual-text) 4%, transparent);
+  --cluster-material-elevation: inset 0 1px 0 var(--cluster-material-stroke), 0 3px 12px rgb(0 0 0 / 9%);
+  --cluster-material-inset: inset 0 1px 2px rgb(0 0 0 / 9%);
+}
+:root[data-theme="light"], .appearance-shell-preview-v10[data-theme="light"] {
+  --cluster-material-elevation: inset 0 1px 0 rgb(255 255 255 / 72%), 0 3px 12px rgb(30 42 54 / 7%);
+  --cluster-material-inset: inset 0 1px 2px rgb(30 42 54 / 8%);
+}
+/* Outlined is the default; add a restrained edge highlight and tactile depth. */
+:is(:root[data-theme], .appearance-shell-preview-v10[data-theme])[data-surface-style="outlined"] :where(
+  .cluster-taskbar, .cluster-sidebar-shell, .panel, .settings-card-v092,
+  .project-card, .management-panel, .tool-page-header, .cluster-toolbar-v425,
+  .cluster-dialog-v389, .cluster-floating-surface-v504,
+  .appearance-shell-preview__cards article, .appearance-shell-preview__taskbar,
+  .appearance-shell-preview__sidebar) {
+  background-image: var(--cluster-material-sheen);
+  background-size: var(--cluster-material-sheen-size);
+  box-shadow: var(--cluster-material-elevation);
+}
+:is(:root[data-theme], .appearance-shell-preview-v10[data-theme])[data-surface-style="outlined"] :where(
+  .cluster-button-v425:not(.quiet):not(.primary):not(.danger),
+  .cluster-select-trigger-v227, .cluster-taskbar-action.is-active,
+  .cluster-sidebar-nav-item.is-active) {
+  background-image: linear-gradient(165deg, color-mix(in srgb, var(--cluster-visual-text) 3%, transparent), transparent 68%);
+  box-shadow: inset 0 1px 0 var(--cluster-material-stroke);
+}
+:is(:root[data-theme], .appearance-shell-preview-v10[data-theme])[data-surface-style="outlined"] :where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) {
+  box-shadow: var(--cluster-material-inset);
+}
+/* Glass stays airy; its texture remains subtle and is never forced in an accessibility-reduced setting. */
+:is(:root[data-theme], .appearance-shell-preview-v10[data-theme])[data-surface-style="glass"] :where(
+  .cluster-taskbar, .cluster-sidebar-shell, .panel, .settings-card-v092,
+  .cluster-dialog-v389, .cluster-floating-surface-v504,
+  .appearance-shell-preview__cards article, .appearance-shell-preview__taskbar,
+  .appearance-shell-preview__sidebar) {
+  background-image: var(--cluster-material-sheen);
+  background-size: var(--cluster-material-sheen-size);
+  box-shadow: var(--cluster-material-elevation);
+}
+:root[data-surface-style="glass"] :where(.cluster-taskbar, .cluster-sidebar-shell) {
+  backdrop-filter: blur(var(--glass-blur, 16px));
+}
+/* TD3 Pass 4: inspectors and docked detail surfaces share the same material
+   contract as cards. Preserve content scroll, focus, and narrow viewport sizing. */
+:is(:root[data-theme], .appearance-shell-preview-v10[data-theme]):is([data-surface-style="outlined"], [data-surface-style="glass"]) :where(
+  .cluster-master-detail-v429 .cluster-detail-pane-v429,
+  .cluster-resizable-split-v498 > .cluster-viewer-drawer,
+  .cluster-viewer-drawer[data-motion-purpose="surface"],
+  .cluster-floating-surface-v504) {
+  background-image: var(--cluster-material-sheen);
+  background-size: var(--cluster-material-sheen-size);
+  box-shadow: var(--cluster-material-elevation);
+}
+.cluster-master-detail-v429.detail-open .cluster-detail-pane-v429 {
+  border-inline-start: 1px solid var(--cluster-visual-border);
+  scrollbar-gutter: stable;
+}
+.cluster-viewer-drawer-header {
+  align-items: flex-start;
+  min-width: 0;
+}
+.cluster-viewer-drawer-header > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.cluster-viewer-drawer-header :where(.cluster-action-group-v425, .cluster-button-v425) { flex-shrink: 0; }
+@media (max-width: 900px) {
+  .cluster-master-detail-v429.detail-open .cluster-detail-pane-v429 {
+    border: 1px solid var(--cluster-visual-border-strong);
+    overscroll-behavior: contain;
+    box-shadow: var(--cluster-shadow-float);
+  }
+}
+
+/* Flat really is flat; no decorative texture is drawn. High contrast likewise. */
+:is(:root, .appearance-shell-preview-v10):is([data-surface-style="flat"], [data-high-contrast="true"]) {
+  --cluster-material-sheen: none;
+  --cluster-material-elevation: none;
+  --cluster-material-inset: none;
+}
+:root[data-high-contrast="true"] :where(.cluster-taskbar,.cluster-sidebar-shell,.panel,.settings-card-v092,.cluster-floating-surface-v504,.cluster-detail-pane-v429,.cluster-viewer-drawer),
+:root[data-transparency="off"] :where(.cluster-taskbar,.cluster-sidebar-shell) {
+  background-image: none;
+  backdrop-filter: none;
+}
+@media (forced-colors: active) {
+  :root :where(.cluster-taskbar,.cluster-sidebar-shell,.panel,.settings-card-v092,.cluster-floating-surface-v504,.cluster-dialog-v389,.cluster-detail-pane-v429,.cluster-viewer-drawer) {
+    background-image: none;
+    box-shadow: none;
+    border-color: CanvasText;
+  }
+}

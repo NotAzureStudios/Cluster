@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Inherited Forms workflow",
+    "command": "node tools/scripts/cluster-0544-forms-closeout-tests.mjs",
+    "exit": 0,
+    "elapsedSeconds": 1.04,
+    "tail": "PASS Form authoring UI contains Publish new version\nPASS Form authoring UI contains Move up\nPASS Form authoring UI contains Move down\nPASS Form authoring UI contains Save details & audience\nPASS Member form UI contains My forms\nPASS Member form UI contains StudioFormRunner\nPASS Member form UI contains lastSubmission\nPASS Member form UI contains canSubmit\nPASS Review UI binds reviewed revision and decision\nPASS Form runner guards repeated intent before state update\n38/38 Forms workflow checks passed\n"
+  },
+  {
+    "name": "New respondent draft workflow",
+    "command": "node tools/scripts/cluster-td6-respondent-drafts-tests.mjs",
+    "exit": 0,
+    "elapsedSeconds": 0.95,
+    "tail": "PASS Member form UI contains canSubmit\nPASS Review UI binds reviewed revision and decision\nPASS Form runner guards repeated intent before state update\n56/56 Forms workflow checks passed\nPASS Partial drafts allow incomplete acknowledgement\nPASS Partial drafts omit required fields safely\nPASS Partially typed email may be saved before submission\nPASS Partial drafts still validate entered field types\nPASS Partial drafts reject unauthorized option values\nPASS Final submission still requires true acknowledgement\nPASS Final submissions cannot bypass required checkbox by sending false\n"
+  },
+  {
+    "name": "TD3 shared action execution",
+    "command": "node --experimental-strip-types tools/scripts/cluster-td3-deep-shared-action-closeout-tests.mjs",
+    "exit": 0,
+    "elapsedSeconds": 0.17,
+    "tail": "PASS Both sync exceptions and async rejections release command lock\nPASS Feedback reset may not clear a still-running mutation lock\nPASS Feedback distinguishes uncertain commit from safe retry and rollback failure\nPASS Taskbar search command input uses an immediate single-flight command runner\nPASS Detached workspace commands report failed native open instead of closing search\nPASS Clipboard results feed through command runner instead of fire-and-forget\nPASS Project restricted share links report actual clipboard result\nPASS Preserves shell features and People identity treatment\nTD3 deep shared actions: 16/16 passed\n\n(node:1003) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)"
+  },
+  {
+    "name": "TD3 native QML source",
+    "command": "python tools/scripts/cluster-td3-native-ui-deep-audit.py",
+    "exit": 0,
+    "elapsedSeconds": 1.03,
+    "tail": "PASS SharedRendererPage.qml braces balanced\nPASS ClusterSwitch.qml braces balanced\nPASS ClusterTextField.qml braces balanced\nPASS ClusterChevron.qml braces balanced\nPASS ClusterLogo.qml braces balanced\nPASS ClusterComboBox.qml braces balanced\nPASS UpdateDialog.qml braces balanced\nPASS Surface.qml braces balanced\nPASS ClusterButton.qml braces balanced\n\n89/89 native source contracts passed\n"
+  },
+  {
+    "name": "TD3 source action regression",
+    "command": "node tools/scripts/cluster-td3-pass27-data-builder-integrity-tests.mjs",
+    "exit": 1,
+    "elapsedSeconds": 0.05,
+    "tail": "  throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);\n        ^\n\nTypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension \".ts\" for /mnt/data/cluster_dev/source/packages/renderer/src/components/cluster-action-flight.ts\n    at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:219:9)\n    at defaultGetFormat (node:internal/modules/esm/get_format:245:36)\n    at defaultLoad (node:internal/modules/esm/load:120:22)\n    at async ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:580:32) {\n  code: 'ERR_UNKNOWN_FILE_EXTENSION'\n}\n\nNode.js v22.16.0"
+  },
+  {
+    "name": "TD3 picker shell",
+    "command": "node --experimental-strip-types tools/scripts/cluster-td3-pass10-picker-shell-tests.mjs",
+    "exit": 0,
+    "elapsedSeconds": 0.15,
+    "tail": "PASS mobile sidebar is a modal only at drawer breakpoint\nPASS mobile sidebar implements Escape and focus-return path\nPASS mobile drawer closes after transition to persistent navigation\nPASS drawer launcher is preserved for focus restoration\nPASS drawer backdrop stays pointer-interactive but absent from accessibility tree\nPASS dialog background isolation scans dynamically added siblings\nPASS only matching active drawer backdrop bypasses inert background\nPASS sidebar disclosures expose expansion state and owned panel ID\n31/31 TD3 Pass 10 picker and drawer checks passed\n\n(node:1038) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)"
+  },
+  {
+    "name": "TD1 / TD2 implementation closeout",
+    "command": "node tools/scripts/cluster-td1-td2-implementation-closeout-tests.mjs",
+    "exit": 0,
+    "elapsedSeconds": 0.54,
+    "tail": "PASS stale rule writers cannot overwrite newer versions\nPASS racing revision compare-and-swap rejects lost update\nPASS valid Studio rules advance revision on a successful acknowledged write\nPASS Ticket activation checks tool permission before Card permission\nPASS direct service Ticket activation defers before loading Card data\nPASS disable between admission and execution defers without a fake failure record\nPASS enabled action passes both fences and emits exactly one result\nPASS disabled source Calendar automation creates no receipt or queued actions\nPASS disabled source Ticket automation creates no receipt or queued actions\nPASS non-configurable shared Project/Build event is not blocked by Ticket policy\n15/15 TD1/TD2 implementation closeout checks passed\n"
+  }
+]

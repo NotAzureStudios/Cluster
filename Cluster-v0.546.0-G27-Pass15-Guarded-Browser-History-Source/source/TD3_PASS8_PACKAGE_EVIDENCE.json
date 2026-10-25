@@ -1,0 +1,22 @@
+{
+  "productVersion": "0.546.0",
+  "checkpoint": "TD3-pass8-responsive-workspace-interaction",
+  "parentArchive": "Cluster-v0.546.0-TD4-Pass1-Create-Command-Search-Reliability-Source.zip",
+  "sourceOnly": true,
+  "nativeExecutableUnchanged": true,
+  "migrationsAdded": [],
+  "validation": {
+    "inheritedRegressions": "45/45 (historical P4 assertions updated for adaptive separator range)",
+    "td4Preservation": "21/21",
+    "pass8TargetedChecks": "27/27",
+    "staticChromiumScenarios": "6/6, 4 nested 520px stress cases",
+    "tsParser": "1001 files, 0 syntax errors",
+    "cssParser": "109 files, 0 errors",
+    "rendererRelativeImports": "3014, zero missing",
+    "dependencyBackedBuildCertified": false,
+    "reactAppCertified": false,
+    "nativeQtCertified": false,
+    "windowsDpiCertified": false,
+    "postgresCertified": false
+  }
+}

@@ -1,0 +1,20 @@
+# Cluster v0.546.0 | F2 P5 Network & Ports Draft Review
+
+**Exact parent:** `Cluster-v0.546.0-F2-P4-Native-Emergency-Reconciliation-Source.zip`. **Scope:** connected server code, native launcher, renderer and tests. Not production-certified.
+
+## Implemented
+
+1. `apps/server/src/core/server-network-change-review.ts` is one pure bounded network review for the managed API and web listeners; it checks literal binding addresses, port ranges, API/web conflicts, managed private PostgreSQL port 54321, private API exposure, HTTPS session cookie requirements, unsafe proxy-header trust, malformed origin/CORS settings, exposure risk and restart notices. It emits *no* false firewall/TLS verification claims. The defaults agree with native service API 4000 / web 3000.
+2. `POST /api/server-config/network/preview` is an on-demand, administrator/Server Config-manage-only, private/no-store read of an explicit strict-network-fields draft. It never connects to arbitrary addresses, probes ports, changes Windows Firewall, installs a proxy, or performs a restart. It also performs a bounded lookup of up to 26 G27 domain profiles verified and bound to *this server instance*; 25 are compared and any overflow is explicitly flagged. Port drift is a warning, not a fabricated installed-gateway failure.
+3. The existing `PUT /api/server-config` uses **the same evaluator** against the effective merged draft, rejecting unsafe bind/port/origin/CORS/cookie combinations before publication. Its existing one Security PIN per save, optimistic per-field preconditions and transactional publication remain authoritative. For introduced public exposure the existing typed-confirmation workflow requests `CONFIRM NETWORK EXPOSURE` rather than demanding a second PIN; the previously existing insecure-security confirmation remains available for other edits.
+4. Server Config → Network offers an explicit **Review network changes** control with draft-fingerprint invalidation, blocker/warning listing, configured domain mismatch count, and an honest "not checked" record for Windows Firewall, outside reachability and TLS. Any change after review invalidates the displayed results. The renderer now displays the native default API port 4000 rather than incorrect 4100.
+5. The Go Windows launcher passes configured `serverPort` to the Host's existing `--api-port` flag. Removed the hardcoded port-4100 web ban, because the private API port is configurable and equality checks already protect collisions. Non-loopback web binds are forwarded with `--allow-remote`; the Host still enforces its own TLS/insecure-LAN gate. Dynamic port configuration is source-tested and Windows x64 cross-compiled, not tested on an actual Windows Service.
+
+## Validation and hard limits
+
+- Focused TS network review: 69 assertions, behavioral evaluator with additional route/UI/native contract checks.
+- Inherited F2 native, F3 incident/alert/API, domain and config regressions selected green. Source scan: 1,124 TypeScript/TSX syntax files, 3,258 renderer relative imports, 110 CSS files, no structural errors.
+- Native launcher tests, race tests and Windows x64 cross-compilation used *temporary copies* with the installed Go 1.23 toolchain, **not** the committed Go 1.27.1 production pin. No live Windows service, firewall, router, reverse proxy, TLS, real PostgreSQL 18, Node 24 or Qt release certification performed.
+- **No automatic connectivity rollback, no staged service-wide configuration lease, no automatic firewall adjustment.** Existing server config stores restart-required values; service restart/remote verification and rollback must be completed in F2 P6 and release testing. Do not tell operators to enable potentially unreachable network changes automatically.
+- Named bind addresses, external certificates, actual port PID ownership, dynamic managed PostgreSQL and optional Garnet listeners need coherent native/Node frontend runtime reconciliation; review covers the known managed private PostgreSQL default and flags anything it cannot verify.
+- Existing TD6/F3/F2 Prisma migrations remain unapplied. No database migration added in this pass.

@@ -1,0 +1,15 @@
+{
+  "checkpoint": "TD3 Pass 23",
+  "parent": "TD3 Pass 22",
+  "inheritedTestsPassed": 22,
+  "inheritedTestsTotal": 22,
+  "newTargetedAssertions": 15,
+  "newTargetedAssertionsPassed": 15,
+  "typescriptFiles": 1005,
+  "cssFiles": 109,
+  "relativeImports": 3115,
+  "previewLayouts": 8,
+  "nativeBinaryChanged": false,
+  "dbMigrationAdded": false,
+  "runtimeCertification": "separate roadmap"
+}

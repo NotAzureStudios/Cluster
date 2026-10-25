@@ -1,0 +1,182 @@
+.security-pin-backdrop-v262 {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(12 14 16 / 48%);
+}
+.security-pin-dialog-v262 {
+  overflow: hidden;
+  border: 1px solid var(--line, #c6cbd0);
+  border-radius: max(14px, var(--radius, 10px));
+  background: var(--panel, var(--cluster-white));
+  color: var(--text, #0b0d0f);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--cluster-black) 28%, transparent);
+}
+.security-pin-dialog-v262 > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line, #d4d8dc);
+}
+.security-pin-eyebrow-v262 {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted, #555d64);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.security-pin-dialog-v262 h2,
+.security-pin-dialog-v262 p {
+  margin: 0;
+}
+.security-pin-dialog-v262 h2 {
+  line-height: 1.2;
+}
+.security-pin-dialog-v262 header p {
+  color: var(--soft-text, #343a40);
+  line-height: 1.45;
+}
+.security-pin-close-v262 {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line, #cbd0d4);
+  border-radius: 8px;
+  background: var(--panel-2, #f1f3f4);
+  color: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.security-pin-display-v262 {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+.security-pin-display-v262 input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.security-pin-dots-v262 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.security-pin-dots-v262 span {
+  border: 2px solid var(--muted, #687078);
+  border-radius: 50%;
+  background: transparent;
+}
+.security-pin-dots-v262 span.filled {
+  border-color: var(--accent, var(--cluster-cyan-400));
+  background: var(--accent, var(--cluster-cyan-400));
+}
+.security-pin-display-v262 small {
+  color: var(--muted, #5a6269);
+}
+.security-pin-keypad-v262 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.security-pin-keypad-v262 button {
+  border: 1px solid var(--line, #c8cdd1);
+  background: var(--panel-2, #eef0f2);
+  color: var(--text, #0b0d0f);
+  cursor: pointer;
+}
+.security-pin-keypad-v262 button:hover {
+  border-color: var(--line-strong, #aeb5bb);
+  background: var(--panel-3, #e2e5e7);
+}
+.security-pin-keypad-v262 .secondary-action {
+  color: var(--soft-text, #343a40);
+  font-size: 12px;
+  font-weight: 700;
+}
+.security-pin-error-v262 {
+  margin: 0 22px 16px;
+  padding: 10px 12px;
+  border: 1px solid
+    color-mix(in srgb, var(--danger, #c34242) 55%, var(--line, #c8cdd1));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger, #c34242) 9%, var(--panel, var(--cluster-white)));
+  color: var(--text, #0b0d0f);
+  line-height: 1.4;
+}
+.security-pin-dialog-v262 > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--line, #d4d8dc);
+  background: var(--panel-2, #f3f4f5);
+}
+@media (max-width: 520px) {
+  .security-pin-backdrop-v262 {
+    padding: 12px;
+  }
+  .security-pin-dialog-v262 > header,
+  .security-pin-display-v262,
+  .security-pin-keypad-v262,
+  .security-pin-dialog-v262 > footer {
+    padding-inline: 16px;
+  }
+}
+.security-pin-dialog-v267 {
+  width: min(438px, 100%);
+  background: var(--cluster-workbench-panel, var(--panel, #f2f4f5));
+  color: var(--cluster-workbench-text, var(--text, #080a0c));
+}
+.security-pin-step-v267 {
+  display: grid;
+  gap: 3px;
+  padding: 14px 22px 0;
+}
+.security-pin-step-v267 > span {
+  color: var(--cluster-workbench-muted, var(--muted));
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.security-pin-step-v267 > strong { font-size: 1rem; }
+.security-pin-step-v267 > small { color: var(--cluster-workbench-muted, var(--muted)); }
+.security-pin-dialog-v267 .security-pin-keypad-v262 button {
+  background: var(--cluster-workbench-control, var(--panel-2));
+  border-color: var(--cluster-workbench-border, var(--line));
+  color: var(--cluster-workbench-text, var(--text));
+}
+.security-pin-dialog-v267 .security-pin-keypad-v262 button:hover {
+  background: var(--cluster-workbench-hover, var(--panel-3));
+  border-color: var(--cluster-workbench-border-strong, var(--line-strong));
+}
+.security-pin-dialog-v267 > footer {
+  background: var(--cluster-workbench-panel-muted, var(--panel-2));
+}
+.security-pin-dialog-v262 { width: min(390px, calc(100vw - 28px)) !important; }
+.security-pin-keypad-v262 button {  border-radius: 7px !important; }
+.security-pin-step-v267 > small { display: none !important; }
+.security-pin-backdrop-v262 { }
+.security-pin-dialog-v262.security-pin-dialog-v267 { width: min(356px, calc(100vw - 24px)) !important; border-radius: 10px !important; }
+.security-pin-dialog-v267[data-mode="verify"] .security-pin-eyebrow-v262,.security-pin-dialog-v267[data-mode="verify"] .security-pin-step-v267 > span,.security-pin-dialog-v267[data-mode="verify"] .security-pin-step-v267 > small,.security-pin-dialog-v267[data-mode="verify"] .security-pin-display-v262 > small { display: none !important; }
+.security-pin-dialog-v267[data-mode="verify"] .security-pin-step-v267 { padding-top: 10px !important; }
+.security-pin-dialog-v262 > header { padding: 14px 16px 10px !important; }
+.security-pin-dialog-v262 h2 { font-size: 1.22rem !important; }
+.security-pin-dialog-v262 header p { margin-top: 4px !important; font-size: .82rem !important; }
+.security-pin-step-v267 { padding-inline: 16px !important; }
+.security-pin-display-v262 { gap: 6px !important; padding: 10px 16px 8px !important; }
+.security-pin-dots-v262 { gap: 7px !important; min-height: 22px !important; }
+.security-pin-dots-v262 span { width: 11px !important; height: 11px !important; }
+.security-pin-keypad-v262 { gap: 5px !important; padding: 6px 16px 10px !important; }
+.security-pin-keypad-v262 button { min-height: 38px !important; font-size: 1rem !important; font-weight: 650 !important; }
+.security-pin-dialog-v262 > footer { padding: 10px 16px 14px !important; }
+.security-pin-close-v262 { width: 30px !important; height: 30px !important; }

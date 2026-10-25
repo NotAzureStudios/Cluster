@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "generatedFor": "0.425.0",
+  "rendererTsx": {
+    "rawButtonTags": 1298,
+    "rawInputTags": 590,
+    "rawSelectTags": 297,
+    "microButtonClassRefs": 252,
+    "legacyPrimaryButtonClassRefs": 164,
+    "legacySecondaryButtonClassRefs": 261,
+    "legacyDangerButtonClassRefs": 38
+  }
+}

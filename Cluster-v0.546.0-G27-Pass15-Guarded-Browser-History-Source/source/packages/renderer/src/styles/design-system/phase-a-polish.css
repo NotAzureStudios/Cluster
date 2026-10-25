@@ -1,0 +1,63 @@
+:where(html, body, #root) { min-width: 320px; min-height: 100%; }
+:where(.content-shell, main, section, article, aside, nav, header, footer, form, fieldset, .panel, .settings-card-v092) > * { min-width: 0; }
+:where(img, video, canvas, svg) { max-width: 100%; }
+:where(pre, code, .mono, [data-monospace]) { overflow-wrap: anywhere; }
+:where(button, input, textarea, select, summary, [role="button"], [role="option"], [role="tab"]):disabled,
+:where([aria-disabled="true"]) { opacity: var(--cluster-disabled-opacity); cursor: not-allowed; }
+.content-shell :where(button, .cluster-icon-button-v227, input, textarea, select, .cluster-select-trigger-v227) {
+  border-radius: var(--cluster-radius-control);
+}
+.content-shell :where(input, select, .cluster-select-trigger-v227) { min-height: var(--cluster-control-height); }
+.content-shell :where(textarea) { min-height: 92px; resize: vertical; }
+.content-shell :where(input, textarea, select, .cluster-select-trigger-v227) {
+  border-color: var(--cluster-border);
+  background: var(--cluster-surface-1);
+  color: var(--text);
+  transition: border-color var(--cluster-motion-fast) var(--cluster-ease-standard), background-color var(--cluster-motion-fast) var(--cluster-ease-standard), box-shadow var(--cluster-motion-fast) var(--cluster-ease-standard);
+}
+.content-shell :where(input, textarea, select, .cluster-select-trigger-v227):hover:not(:disabled) { border-color: var(--cluster-border-strong); }
+.content-shell :where(input, textarea, select, .cluster-select-trigger-v227):focus-visible { border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 58%, var(--cluster-border)); }
+.content-shell :where(button, .cluster-icon-button-v227):active:not(:disabled) { transform: translateY(1px); }
+.modal-backdrop { background: var(--cluster-overlay); }
+:where(.modal, .dialog, [role="dialog"]) :where(.modal-header, .dialog-header) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--cluster-surface-glass-strong);
+  backdrop-filter: blur(var(--cluster-backdrop-blur));
+}
+:where(.modal, .dialog, [role="dialog"]) :where(.modal-actions, .dialog-actions) {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--cluster-surface-glass-strong);
+  backdrop-filter: blur(var(--cluster-backdrop-blur));
+}
+:where(.empty-state, .empty-state-v085, .cluster-empty-state-v391, .cluster-request-state-v394.empty) {
+  min-height: 128px;
+  padding: var(--space-4);
+  border: 1px dashed var(--cluster-border-strong);
+  border-radius: var(--cluster-radius-panel);
+  background: color-mix(in srgb, var(--cluster-surface-2) 74%, transparent);
+}
+:where(.cluster-loading-state-v289, .cluster-request-state-v394, .lazy-page-loading-v200) {
+  border-radius: var(--cluster-radius-panel);
+}
+:where(.error-box, .status-box.danger, .cluster-request-state-v394.error) { overflow-wrap: anywhere; }
+:where(.table-shell, .data-table-shell, .table-wrap, .settings-table, .admin-table, .tickets-table, .library-table, .project-table) {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+}
+:where(table) { max-width: 100%; }
+:where(td, th) { overflow-wrap: anywhere; }
+:root[data-theme="light"] .content-shell :where(.panel, .settings-card-v092, .project-card, .management-panel, .admin-resource-panel) {
+  background: color-mix(in srgb, var(--cluster-white) 98%, var(--cluster-slate-50));
+}
+@media  (max-width: 1100px) {
+}
+@media  (max-width: 760px) {
+  :where(.modal-backdrop, .workspace-detail-backdrop-v254) { padding: 6px; }
+  :where(.header-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391) { width: 100%; justify-content: flex-start; }
+  :where(.header-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391) > :where(button) { max-width: 100%; }
+}

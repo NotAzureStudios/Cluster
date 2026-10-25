@@ -1,0 +1,357 @@
+/* v0.495 runtime closeout: phone/tablet geometry and touch behavior.
+   This feature-owned layer loads with ClusterApplication after legacy shell CSS so it can
+   neutralize old mobile geometry without adding specificity debt or new visual tokens. */
+.mobile-primary-nav-v495 { display: none; }
+@media  (max-width: 767px) {
+html, body, #root { min-height: var(--cluster-mobile-viewport-height, 100dvh); }
+.mobile-primary-nav-v495 {
+position: fixed;
+inset: auto 0 0;
+z-index: 155;
+display: grid;
+grid-template-columns: repeat(5, minmax(0, 1fr));
+align-items: start;
+min-height: calc(62px + env(safe-area-inset-bottom));
+padding: 5px max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+border-top: 1px solid var(--cluster-border-strong);
+background: var(--cluster-surface-1);
+box-shadow: var(--cluster-shadow-panel);
+}
+.mobile-primary-nav-v495 > button,
+.mobile-primary-nav-v495 > .mobile-primary-nav-spacer-v495 {
+min-width: 0;
+min-height: 52px;
+}
+.mobile-primary-nav-v495 > button {
+position: relative;
+display: grid;
+grid-template-rows: 26px auto;
+place-items: center;
+align-content: center;
+gap: 2px;
+padding: 3px 2px 2px;
+border: 0;
+border-radius: 6px;
+background: transparent;
+color: var(--muted);
+font: inherit;
+touch-action: manipulation;
+}
+.mobile-primary-nav-v495 > button.active {
+background: var(--surface-selected);
+color: var(--text);
+}
+.mobile-primary-nav-v495 > button > svg,
+.mobile-primary-nav-icon-v495 > svg {
+width: 21px;
+height: 21px;
+color: var(--cluster-mobile-nav-icon, currentColor);
+}
+.mobile-primary-nav-v495 [data-nav-icon="home"] { --cluster-mobile-nav-icon: var(--cluster-icon-home); }
+.mobile-primary-nav-v495 [data-nav-icon="project"] { --cluster-mobile-nav-icon: var(--cluster-icon-project); }
+.mobile-primary-nav-v495 [data-nav-icon="work"] { --cluster-mobile-nav-icon: var(--cluster-icon-work); }
+.mobile-primary-nav-v495 [data-nav-icon="search"] { --cluster-mobile-nav-icon: var(--cluster-icon-search); }
+.mobile-primary-nav-v495 [data-nav-icon="menu"] { --cluster-mobile-nav-icon: var(--cluster-icon-neutral); }
+.mobile-primary-nav-v495 > button > span:last-child {
+max-width: 100%;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+font-size: .62rem;
+font-weight: 700;
+line-height: 1;
+}
+.mobile-primary-create-v495 {
+color: var(--text);
+}
+.mobile-primary-create-icon-v495 {
+display: grid;
+width: 39px;
+height: 39px;
+place-items: center;
+margin-top: -9px;
+border: 1px solid color-mix(in srgb, var(--accent) 78%, var(--cluster-border-strong));
+border-radius: 8px;
+background: var(--accent);
+color: var(--accent-contrast);
+box-shadow: none;
+}
+.mobile-primary-create-icon-v495 > svg { width: 20px; height: 20px; }
+.mobile-primary-nav-icon-v495 { position: relative; display: grid; place-items: center; }
+.mobile-primary-nav-icon-v495 > em {
+position: absolute;
+top: -7px;
+right: -12px;
+display: grid;
+min-width: 17px;
+height: 17px;
+place-items: center;
+padding-inline: 4px;
+border: 2px solid var(--cluster-surface-1);
+border-radius: 999px;
+background: var(--accent);
+color: var(--accent-contrast);
+font-size: .55rem;
+font-style: normal;
+font-weight: 800;
+line-height: 1;
+}
+html[data-cluster-kiosk-hide-navigation="true"] .mobile-primary-nav-v495 { display: none; }
+/* Search stays thumb-reachable; unread notification count rides on the permanent More action. Profile remains in the top context bar. */
+.notification-toast-v473,
+.notification-popover-v473 {
+bottom: max(74px, calc(env(safe-area-inset-bottom) + 66px));
+}
+.chat-dock { bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px)); }
+/* Mobile Safari must not zoom the viewport just because a production form uses compact typography. */
+.content-shell :where(input, textarea, select) { font-size: 16px; }
+.content-shell :where(input, textarea, select, .cluster-select-trigger-v227) { max-width: 100%; }
+.content-shell :where(input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="week"]) { width: 100%; }
+/* Generic modals become bottom sheets/full-height work surfaces instead of tiny desktop cards. */
+.modal-backdrop {
+place-items: end center;
+padding: max(12px, env(safe-area-inset-top)) 0 0;
+overscroll-behavior: contain;
+}
+.modal-backdrop > :where(.modal, .modal-card):not(.card-editor-fullscreen-v254) {
+width: 100%;
+max-width: 100%;
+max-height: calc(var(--cluster-mobile-viewport-height, 100dvh) - max(12px, env(safe-area-inset-top)));
+margin: 0;
+overflow: auto;
+overscroll-behavior: contain;
+border-radius: 16px 16px 0 0;
+padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+.modal-backdrop > :where(.modal, .modal-card):not(.card-editor-fullscreen-v254) > .modal-header {
+position: sticky;
+top: 0;
+z-index: 4;
+background: var(--cluster-surface-1);
+}
+.modal-backdrop > :where(.modal, .modal-card):not(.card-editor-fullscreen-v254) > .modal-actions {
+position: sticky;
+bottom: calc(-1 * max(14px, env(safe-area-inset-bottom)));
+z-index: 4;
+padding-bottom: max(14px, env(safe-area-inset-bottom));
+background: var(--cluster-surface-1);
+}
+.content-shell :where([role="tablist"], .cluster-section-nav-v391) {
+scroll-padding-inline: max(8px, env(safe-area-inset-left));
+scroll-snap-type: x proximity;
+}
+.content-shell :where([role="tablist"] > button, .cluster-section-nav-v391 > button) {
+min-height: 44px;
+scroll-snap-align: start;
+touch-action: manipulation;
+}
+.content-shell :where(.cluster-data-actions-v289, .cluster-tool-actions-v228, .cluster-workspace-actions-v391, .button-row) {
+scroll-padding-inline: 8px;
+overscroll-behavior-inline: contain;
+}
+.content-shell :where(.cluster-data-actions-v289, .cluster-tool-actions-v228, .cluster-workspace-actions-v391, .button-row) > :where(button, a) {
+min-height: 42px;
+touch-action: manipulation;
+}
+/* Reclaim the bottom edge while a software keyboard is active. */
+body:has(:where(input, textarea, [contenteditable="true"]):focus) .mobile-primary-nav-v495 {
+visibility: hidden;
+pointer-events: none;
+}
+html[data-cluster-mobile-keyboard="true"] .mobile-primary-nav-v495 {
+visibility: hidden;
+pointer-events: none;
+}
+}
+@media (any-pointer: coarse) {
+.content-shell :where(button, a, summary, [role="button"], [role="tab"]) { touch-action: manipulation; }
+.content-shell :where(input[type="checkbox"], input[type="radio"]) {
+min-width: 20px;
+min-height: 20px;
+}
+}
+@media (max-width: 900px) and (max-height: 520px) and (orientation: landscape) {
+.mobile-primary-nav-v495 {
+min-height: calc(48px + env(safe-area-inset-bottom));
+padding-top: 2px;
+}
+.mobile-primary-nav-v495 > button { min-height: 43px; grid-template-rows: 1fr; }
+.mobile-primary-nav-v495 > button > span:last-child { display: none; }
+.mobile-primary-create-icon-v495 { width: 34px; height: 34px; margin-top: 0; }
+.notification-toast-v473,
+.notification-popover-v473,
+.chat-dock { bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px)); }
+}
+/* Dense production workspaces: phones review and act without pretending to be tiny desktops. */
+.board-card-touch-move-v495 { display: none; }
+@media (max-width: 767px) {
+/* Project detail keeps section navigation readable and the primary action area reachable. */
+.project-page-v312 {
+padding-inline: max(10px, env(safe-area-inset-left)) max(10px, env(safe-area-inset-right));
+padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 76px));
+}
+.project-page-v312 .project-hero-v312 {
+position: relative;
+padding: 10px;
+}
+.project-page-v312 .project-header-top-v148,
+.project-section-shell-head-v312 {
+grid-template-columns: minmax(0, 1fr);
+}
+.project-page-v312 .project-header-summary-v148 { padding: 9px; }
+.project-page-v312 .project-hero-actions-v310,
+.project-section-shell-actions-v312 {
+justify-content: stretch;
+}
+.project-page-v312 .project-hero-actions-v310 > *,
+.project-section-shell-actions-v312 > * {
+flex: 1 1 132px;
+min-width: 0;
+}
+.project-workspace-nav-v312 {
+margin-inline: -10px;
+padding-inline: 10px;
+scroll-padding-inline: 10px;
+scroll-snap-type: x proximity;
+overscroll-behavior-inline: contain;
+scrollbar-width: none;
+}
+.project-workspace-nav-v312::-webkit-scrollbar { display: none; }
+.project-workspace-nav-group-v312 { scroll-snap-align: start; }
+.project-workspace-nav-group-v312 > span { display: none; }
+.project-workspace-nav-group-v312 button { min-height: 44px; }
+.project-section-metrics-v312 {
+display: flex;
+overflow-x: auto;
+scroll-snap-type: x proximity;
+overscroll-behavior-inline: contain;
+scrollbar-width: none;
+}
+.project-section-metrics-v312::-webkit-scrollbar { display: none; }
+.project-section-metrics-v312 > div,
+.project-section-metrics-v312 > button {
+flex: 0 0 min(72vw, 230px);
+scroll-snap-align: start;
+}
+.project-form-layout-v312,
+.project-connection-grid-v312,
+.project-form-grid-v312,
+.project-issue-form-v312 {
+grid-template-columns: minmax(0, 1fr);
+}
+.project-form-layout-v312 .span-2,
+.project-form-grid-v312 .span-2,
+.project-issue-form-v312 .span-2 { grid-column: auto; }
+.project-inline-create-v312 { display: grid; grid-template-columns: minmax(0, 1fr); }
+.project-inline-create-v312 input { min-width: 0; width: 100%; }
+/* Video review favors the player and comments in portrait; dense comparison data stacks. */
+.project-page-v312 :where(.video-production-grid-v052, .video-production-ops-v495, .video-session-composer-v495) {
+grid-template-columns: minmax(0, 1fr);
+}
+.project-page-v312 .video-session-composer-v495 > .people-multi-picker { grid-column: auto; }
+.project-page-v312 :where(.video-review-cockpit-v495, .video-review-history-row-v495) {
+grid-template-columns: minmax(0, 1fr);
+}
+.project-page-v312 .video-review-history-row-v495 {
+align-items: start;
+padding-block: 8px;
+}
+.project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495) {
+max-width: 100%;
+overflow-x: auto;
+flex-wrap: nowrap;
+overscroll-behavior-inline: contain;
+scrollbar-width: none;
+}
+.project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495)::-webkit-scrollbar { display: none; }
+.project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495) > * { flex: 0 0 auto; }
+/* Board controls become a compact touch console while Kanban lanes keep snap navigation. */
+.board-fullscreen-v254 {
+padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+}
+.board-workspace-v257 .board-workspace-search-v256 {
+position: sticky;
+top: 0;
+z-index: 22;
+}
+.board-workspace-v257 :where(.board-view-mode-v489, .board-view-presets-v299, .board-layout-controls-v299, .board-saved-views-v489) {
+min-width: 0;
+max-width: 100%;
+}
+.board-workspace-v257 .board-columns-v257 {
+scroll-snap-type: x mandatory;
+scroll-padding-inline: 0;
+touch-action: pan-x pan-y;
+}
+.board-workspace-v257 .board-list { scroll-snap-stop: always; }
+.board-workspace-v257 .task-card { scroll-margin-top: 58px; }
+.board-card-touch-move-v495 {
+grid-column: 2;
+display: grid;
+grid-template-columns: repeat(2,minmax(0,1fr));
+gap: 6px;
+padding: 0 9px 9px;
+}
+.board-card-touch-move-v495 > button {
+min-height: 38px;
+padding: 5px 9px;
+border: 1px solid var(--border-subtle);
+border-radius: 9px;
+background: var(--surface-soft);
+color: var(--text);
+font: inherit;
+font-size: .72rem;
+touch-action: manipulation;
+}
+.board-card-touch-move-v495 > button:disabled { opacity: .4; }
+.board-card-touch-move-v495 > button span { font-weight: 700; }
+/* Whiteboard's fixed tool rail must live above Cluster's mobile navigation, not underneath it. */
+.whiteboard-page-v069 {
+padding-bottom: calc(146px + env(safe-area-inset-bottom));
+}
+.whiteboard-page-v069 .whiteboard-toolbar.expanded {
+bottom: max(74px, calc(env(safe-area-inset-bottom) + 66px));
+max-height: min(38dvh, 240px);
+}
+.whiteboard-page-v069 :where(.whiteboard-manager-v194, .whiteboard-outline-v299, .whiteboard-navigator-v299) {
+bottom: max(146px, calc(env(safe-area-inset-bottom) + 138px));
+}
+.whiteboard-page-v069 .whiteboard-canvas-wrap {
+min-height: min(68dvh, 680px);
+overscroll-behavior: contain;
+}
+.whiteboard-page-v069 .whiteboard-sections-v495 > div {
+scroll-snap-type: x proximity;
+overscroll-behavior-inline: contain;
+}
+.whiteboard-page-v069 .whiteboard-sections-v495 button {
+min-height: 42px;
+scroll-snap-align: start;
+}
+/* Library/media already has a full-screen phone viewer; keep controls out of the home-indicator zone. */
+.library-viewer-v270 {
+padding-bottom: env(safe-area-inset-bottom);
+}
+.library-viewer-toolbar-v217,
+.library-viewer-status-v270 {
+padding-left: max(8px, env(safe-area-inset-left));
+padding-right: max(8px, env(safe-area-inset-right));
+}
+}
+@media (any-pointer: coarse) {
+.comment-actions-v227 { opacity: 1; }
+.library-media-center-v218 { opacity: 1; }
+.whiteboard-page-v069 .whiteboard-canvas { touch-action: none; }
+.board-card-touch-move-v495 { display: grid; }
+.board-workspace-v257 .drag-handle { min-width: 30px; min-height: 44px; }
+.whiteboard-page-v069 :where(.whiteboard-toolbar.expanded, .whiteboard-commandbar-v299, .whiteboard-style-topbar-v069) button { min-height: 42px; }
+}
+@media (min-width: 768px) and (max-width: 1180px) and (any-pointer: coarse) {
+/* Tablets retain desktop density, but inspector/action surfaces get comfortable touch geometry. */
+.project-page-v312 .project-workspace-nav-group-v312 button,
+.board-workspace-v257 :where(.board-view-presets-v299, .board-layout-controls-v299) button,
+.whiteboard-page-v069 :where(.whiteboard-commandbar-v299, .whiteboard-style-topbar-v069) button {
+min-height: 42px;
+}
+.project-page-v312 .project-section-shell-actions-v312 { flex-wrap: wrap; }
+}

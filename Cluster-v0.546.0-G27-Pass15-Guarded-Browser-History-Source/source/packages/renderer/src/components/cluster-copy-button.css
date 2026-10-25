@@ -1,0 +1,5 @@
+.cluster-copy-control-v546 { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; max-width: 100%; }
+.cluster-copy-feedback-v546 { font-size: .79rem; line-height: 1.35; max-width: 26rem; color: var(--text-secondary, var(--muted, inherit)); }
+.cluster-copy-feedback-v546.copied { color: var(--success-text, var(--text-secondary, inherit)); }
+.cluster-copy-feedback-v546.failed { color: var(--danger-text, var(--error, #c34c4c)); }
+@media (prefers-reduced-motion: reduce) { .cluster-copy-control-v546 * { transition: none !important; } }

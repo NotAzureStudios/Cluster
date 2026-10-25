@@ -1,0 +1,113 @@
+{
+  "checkpoint": "TD4 R44",
+  "sourceOnly": true,
+  "nodeTestVersion": "v22.16.0 (Node 24 certification unverified)",
+  "suitesPassed": 13,
+  "suitesTotal": 13,
+  "newFocusedChecks": 46,
+  "suites": [
+    {
+      "suite": "cluster-td4-r44-delivery-provider-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "46/46 resource feed visibility checks passed",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r43-provider-registration-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "26/26 resource feed visibility checks passed",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r42-resource-feed-visibility-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "15/15 resource feed visibility checks passed",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r41-disposition-review-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r40-orphan-audit-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r39-storage-queue-integration-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "11/11 TD4 R39 queue integration checks passed",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r38-storage-reconciliation-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r37-hierarchy-transaction-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td4-r35-collection-bulk-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td2-worker-ownership-inventory-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "Shared maintenance remains independent of tool disable; new handlers require explicit ownership review.",
+      "error": null
+    },
+    {
+      "suite": "cluster-0533-library-closeout-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-td3-deep-shared-action-closeout-tests.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    },
+    {
+      "suite": "cluster-0507-authorized-discovery-assertions.mjs",
+      "passed": true,
+      "status": 0,
+      "lastLine": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "error": null
+    }
+  ],
+  "activeCodeFilesParsed": 1029,
+  "parseDiagnostics": 0,
+  "relativeImports": 4372,
+  "unresolvedRelativeImports": [
+    "apps/server/src/core/prisma-client.ts: ../generated/prisma/client.js"
+  ],
+  "cssFiles": 110,
+  "cssBraceIssues": [],
+  "generatedPrismaClient": "omitted from lean archive",
+  "nativeBinaryChanged": false,
+  "databaseMigrationChanged": false,
+  "runtimeCertification": "not performed; Node24/PostgreSQL/Windows/Qt remains separate"
+}

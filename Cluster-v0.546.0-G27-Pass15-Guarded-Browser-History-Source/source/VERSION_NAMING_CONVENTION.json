@@ -1,0 +1,9 @@
+{
+  "schema": 3,
+  "displayVersion": "0.546",
+  "internalSemver": "0.546.0",
+  "publicPackage": "Cluster-v0.546.zip",
+  "nextVersion": "0.547",
+  "rule": "Increment the middle number after each completed, verified package. No RC/WIP/Pass in new package names.",
+  "historicalArtifactNamesRemainUnchanged": true
+}

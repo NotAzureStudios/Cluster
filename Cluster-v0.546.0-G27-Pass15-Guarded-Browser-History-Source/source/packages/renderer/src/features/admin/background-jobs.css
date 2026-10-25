@@ -1,0 +1,38 @@
+.background-jobs-v384 { display: grid; gap: 12px; }
+.background-jobs-v384 > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.background-jobs-v384 > header > div:first-child { display: grid; gap: 3px; }
+.background-jobs-v384 > header span,
+.background-jobs-footer-v384,
+.background-job-footer-v384,
+.background-job-main-v384 em { color: var(--muted); }
+.background-jobs-v384 > header > div:first-child > span,
+.background-job-main-v384 em,
+.background-jobs-footer-v384 { font-size: .76rem; font-style: normal; }
+.background-jobs-summary-v384 { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.background-jobs-summary-v384 > span { display: grid; gap: 3px; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-soft); }
+.background-jobs-summary-v384 b { color: var(--muted); font-size: .7rem; font-weight: 600; }
+.background-jobs-summary-v384 strong { font-size: 1rem; }
+.background-jobs-list-v384 { display: grid; gap: 7px; }
+.background-jobs-list-v384 article { display: grid; gap: 7px; padding: 10px 11px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-soft); }
+.background-job-main-v384,
+.background-job-footer-v384,
+.background-jobs-footer-v384 { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.background-job-main-v384 > span:first-child { min-width: 0; display: grid; gap: 2px; }
+.background-job-main-v384 strong,
+.background-job-main-v384 em,
+.background-job-footer-v384 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.background-job-progress-v384 { height: 4px; overflow: hidden; border-radius: var(--radius-pill); background: var(--border); }
+.background-job-progress-v384 > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.background-job-footer-v384 > span { min-width: 0; font-size: .74rem; }
+.background-jobs-footer-v384 { border-top: 1px solid var(--border); padding-top: 9px; }
+@media (max-width: 900px) {
+  .background-jobs-summary-v384 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .background-jobs-v384 > header,
+  .background-job-main-v384,
+  .background-job-footer-v384,
+  .background-jobs-footer-v384 { align-items: flex-start; flex-direction: column; }
+}
+
+/* v0.495 Block G: operator-grade job inspection. */
+.background-jobs-toolbar-v495{display:flex;align-items:flex-end;flex-wrap:wrap;gap:8px;padding:8px 9px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--panel-soft)}.background-jobs-toolbar-v495 label{display:grid;gap:3px;min-width:150px;color:var(--muted);font-size:.68rem}.background-jobs-toolbar-v495 select{min-height:32px}.background-jobs-toolbar-v495>span{margin-left:auto;color:var(--muted);font-size:.7rem}.background-job-title-v495{appearance:none;border:0;background:transparent;color:inherit;padding:0;text-align:left;display:grid;gap:2px;min-width:0;cursor:pointer}.background-job-title-v495:hover strong{text-decoration:underline}.background-jobs-list-v384 article[data-expanded="true"]{border-color:var(--border-strong,var(--border))}.background-job-detail-v495{display:grid;gap:8px;padding-top:8px;border-top:1px solid var(--border)}.background-job-detail-kpis-v495{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.background-job-detail-kpis-v495>span{display:grid;gap:2px;padding:7px;border-radius:var(--radius-sm);background:var(--panel)}.background-job-detail-kpis-v495 b{font-size:.65rem;color:var(--muted)}.background-job-detail-kpis-v495 strong{font-size:.72rem;font-weight:600}.background-job-attempts-v495{display:grid;gap:5px}.background-job-attempts-v495>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:7px 8px;border-radius:var(--radius-sm);background:var(--panel)}.background-job-attempts-v495>div>span{display:grid;gap:2px}.background-job-attempts-v495>div>span:last-of-type{text-align:right}.background-job-attempts-v495 b,.background-job-attempts-v495 strong{font-size:.7rem}.background-job-attempts-v495 small{font-size:.64rem;color:var(--muted)}.background-job-attempts-v495 p{grid-column:1/-1;margin:0;color:var(--danger);font-size:.68rem;line-height:1.35}
+@media(max-width:700px){.background-jobs-toolbar-v495{align-items:stretch;display:grid;grid-template-columns:1fr 1fr}.background-jobs-toolbar-v495>span{margin-left:0;grid-column:1/-1}.background-job-detail-kpis-v495{grid-template-columns:1fr}.background-job-attempts-v495>div{grid-template-columns:1fr}.background-job-attempts-v495>div>span:last-of-type{text-align:left}}

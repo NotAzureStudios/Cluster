@@ -1,0 +1,20 @@
+{
+  "productVersion": "0.546.0",
+  "checkpoint": "TD4-pass1-create-command-search-reliability",
+  "parentArchive": "Cluster-v0.546.0-TD3-Pass7-Material-Controls-Menu-Refinement-Source.zip",
+  "sourceOnly": true,
+  "nativeExecutableUnchanged": true,
+  "migrationsAdded": [],
+  "validation": {
+    "targetedChecks": "21/21",
+    "inheritedRegressions": "45/45 (39 + 6 split after runner timeout)",
+    "tsParser": "1000 files, 0 syntax errors",
+    "cssParser": "109 files, 0 syntax errors",
+    "rendererRelativeImports": "3011, zero missing",
+    "dependencyBackedBuildCertified": false,
+    "reactAppCertified": false,
+    "nativeQtCertified": false,
+    "windowsDpiCertified": false,
+    "postgresCertified": false
+  }
+}

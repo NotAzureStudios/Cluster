@@ -1,0 +1,820 @@
+/* Canonical persistent navigation. Sidebar geometry and responsive presentation live here. */
+
+:root {
+  --cluster-sidebar-expanded-width: 264px;
+  --cluster-sidebar-compact-width: 72px;
+  --cluster-sidebar-item-height: 38px;
+  --cluster-sidebar-icon-slot: 26px;
+  --cluster-sidebar-icon-size: 18px;
+}
+
+#cluster-sidebar.cluster-sidebar {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  width: var(--cluster-sidebar-current-width, var(--cluster-sidebar-expanded-width)) !important;
+  min-width: var(--cluster-sidebar-current-width, var(--cluster-sidebar-expanded-width)) !important;
+  max-width: var(--cluster-sidebar-current-width, var(--cluster-sidebar-expanded-width)) !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  padding: 8px !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-right: 1px solid var(--cluster-sidebar-border) !important;
+  border-radius: 0 !important;
+  background: var(--cluster-sidebar-surface) !important;
+  box-shadow: 4px 0 18px rgb(12 18 22 / 7%) !important;
+  color: var(--cluster-shell-text) !important;
+  contain: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__header {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: 36px minmax(0, 1fr) 32px !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 50px !important;
+  margin: 0 !important;
+  padding: 6px !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--cluster-sidebar-border) 78%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__logo {
+  display: block !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__brand {
+  display: grid !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  line-height: 1.15 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__brand strong,
+#cluster-sidebar .cluster-sidebar__brand span {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__brand strong {
+  color: var(--cluster-shell-text) !important;
+  font-size: .88rem !important;
+  font-weight: 650 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__brand span {
+  color: var(--cluster-shell-muted) !important;
+  font-size: .68rem !important;
+  font-weight: 500 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__mode-toggle,
+#cluster-sidebar .cluster-sidebar__mobile-close {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--cluster-shell-muted) !important;
+  box-shadow: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__mode-toggle:hover,
+#cluster-sidebar .cluster-sidebar__mobile-close:hover {
+  border-color: var(--cluster-sidebar-border) !important;
+  background: var(--cluster-sidebar-surface-hover) !important;
+  color: var(--cluster-shell-text) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__mode-toggle:focus-visible,
+#cluster-sidebar .cluster-sidebar__mobile-close:focus-visible,
+#cluster-sidebar .cluster-sidebar__link:focus-visible,
+#cluster-sidebar .cluster-sidebar__project-main:focus-visible,
+#cluster-sidebar .cluster-sidebar__project-pin:focus-visible,
+#cluster-sidebar .app-version-footer-v201:focus-visible {
+  outline: 2px solid var(--cluster-focus-color, var(--accent)) !important;
+  outline-offset: 2px !important;
+}
+
+#cluster-sidebar .cluster-sidebar__mobile-close {
+  display: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__nav {
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 2px 2px 8px !important;
+  overflow-x: visible !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable !important;
+}
+
+#cluster-sidebar .cluster-sidebar__section {
+  box-sizing: border-box !important;
+  display: grid !important;
+  gap: 2px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 7px 0 5px !important;
+  border: 0 !important;
+  border-top: 1px solid color-mix(in srgb, var(--cluster-sidebar-border) 72%, transparent) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__section--primary {
+  padding-top: 2px !important;
+  border-top: 0 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__section > span,
+#cluster-sidebar .cluster-sidebar__subhead {
+  display: block !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 5px 10px 4px !important;
+  overflow: hidden !important;
+  color: var(--cluster-shell-muted) !important;
+  font-size: .63rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .075em !important;
+  line-height: 1.2 !important;
+  text-overflow: ellipsis !important;
+  text-transform: uppercase !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link {
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: var(--cluster-sidebar-icon-slot) minmax(0, 1fr) !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: var(--cluster-sidebar-item-height) !important;
+  margin: 0 !important;
+  padding: 5px 8px !important;
+  overflow: visible !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--cluster-shell-text) !important;
+  box-shadow: none !important;
+  font-size: .78rem !important;
+  font-weight: 580 !important;
+  line-height: 1.2 !important;
+  text-align: left !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link:hover {
+  border-color: color-mix(in srgb, var(--cluster-sidebar-border) 82%, transparent) !important;
+  background: var(--cluster-sidebar-surface-hover) !important;
+  color: var(--cluster-shell-text) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link.active,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--studio-primary, var(--accent)) 26%, var(--cluster-sidebar-border)) !important;
+  background: color-mix(in srgb, var(--studio-primary, var(--accent)) 10%, var(--cluster-sidebar-surface-raised)) !important;
+  color: var(--cluster-shell-text) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link.active::after,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"]::after {
+  display: block !important;
+  position: absolute !important;
+  inset: 8px auto 8px -1px !important;
+  width: 2px !important;
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: var(--studio-primary, var(--accent)) !important;
+  content: "" !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon) {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: inherit !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__icon {
+  box-sizing: border-box !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: var(--cluster-sidebar-icon-slot) !important;
+  min-width: var(--cluster-sidebar-icon-slot) !important;
+  height: var(--cluster-sidebar-icon-slot) !important;
+  min-height: var(--cluster-sidebar-icon-slot) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--cluster-sidebar-icon-accent, var(--cluster-shell-muted)) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__icon-svg {
+  display: block !important;
+  width: var(--cluster-sidebar-icon-size) !important;
+  min-width: var(--cluster-sidebar-icon-size) !important;
+  height: var(--cluster-sidebar-icon-size) !important;
+  min-height: var(--cluster-sidebar-icon-size) !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+  color: currentColor !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__link.active .cluster-sidebar__icon,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"] .cluster-sidebar__icon {
+  background: color-mix(in srgb, currentColor 10%, transparent) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__projects-toggle {
+  grid-template-columns: var(--cluster-sidebar-icon-slot) minmax(0, 1fr) auto 16px !important;
+}
+
+#cluster-sidebar .cluster-sidebar__projects-toggle > em {
+  min-width: 22px !important;
+  margin: 0 !important;
+  padding: 2px 6px !important;
+  border: 1px solid color-mix(in srgb, var(--cluster-sidebar-border) 76%, transparent) !important;
+  border-radius: 999px !important;
+  background: var(--cluster-sidebar-surface-raised) !important;
+  color: var(--cluster-shell-muted) !important;
+  font-size: .64rem !important;
+  font-style: normal !important;
+  font-weight: 650 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+}
+
+#cluster-sidebar .cluster-sidebar__projects-toggle > .sidebar-chevron-v289 {
+  display: block !important;
+  width: 14px !important;
+  min-width: 14px !important;
+  height: 14px !important;
+  min-height: 14px !important;
+  overflow: visible !important;
+  color: var(--cluster-shell-muted) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-list {
+  box-sizing: border-box !important;
+  display: grid !important;
+  gap: 2px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 3px 0 1px 17px !important;
+  padding: 3px 0 2px 9px !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-left: 1px solid color-mix(in srgb, var(--cluster-sidebar-border) 76%, transparent) !important;
+  background: transparent !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-link {
+  min-height: 34px !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-row {
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 30px !important;
+  align-items: center !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-main {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 32px !important;
+  margin: 0 !important;
+  padding: 5px 7px !important;
+  overflow: visible !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--cluster-shell-text) !important;
+  font-size: .72rem !important;
+  text-align: left !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-main:hover,
+#cluster-sidebar .cluster-sidebar__project-main.active,
+#cluster-sidebar .cluster-sidebar__project-main[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--cluster-sidebar-border) 78%, transparent) !important;
+  background: var(--cluster-sidebar-surface-hover) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-main > span {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-main > em {
+  max-width: 72px !important;
+  overflow: hidden !important;
+  color: var(--cluster-shell-muted) !important;
+  font-size: .58rem !important;
+  font-style: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-pin {
+  position: static !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  transform: none !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: var(--cluster-shell-muted) !important;
+  opacity: .25 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-row:hover .cluster-sidebar__project-pin,
+#cluster-sidebar .cluster-sidebar__project-row.pinned-project-v111 .cluster-sidebar__project-pin,
+#cluster-sidebar .cluster-sidebar__project-pin:focus-visible {
+  opacity: 1 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__project-pin:hover {
+  border-color: var(--cluster-sidebar-border) !important;
+  background: var(--cluster-sidebar-surface-hover) !important;
+  color: var(--cluster-shell-text) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__empty {
+  display: block !important;
+  margin: 0 !important;
+  padding: 6px 9px !important;
+  overflow: hidden !important;
+  color: var(--cluster-shell-muted) !important;
+  font-size: .7rem !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#cluster-sidebar .cluster-sidebar__more {
+  grid-template-columns: minmax(0, 1fr) !important;
+  min-height: 32px !important;
+  color: var(--cluster-shell-muted) !important;
+  font-size: .7rem !important;
+}
+
+#cluster-sidebar .cluster-sidebar__footer {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  padding-top: 6px !important;
+  border-top: 1px solid color-mix(in srgb, var(--cluster-sidebar-border) 78%, transparent) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__footer .app-version-status-v390 {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 {
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: 9px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 7px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 36px !important;
+  margin: 0 !important;
+  padding: 6px 8px !important;
+  overflow: visible !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--cluster-shell-muted) !important;
+  box-shadow: none !important;
+}
+
+#cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201:hover,
+#cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201[aria-expanded="true"] {
+  border-color: var(--cluster-sidebar-border) !important;
+  background: var(--cluster-sidebar-surface-hover) !important;
+}
+
+#cluster-sidebar .cluster-sidebar__footer .app-version-name-v201,
+#cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 strong {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: inherit !important;
+  font-size: .66rem !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Compact persistent navigation. */
+:root[data-sidebar-collapsed="true"] #cluster-sidebar.cluster-sidebar {
+  padding-inline: 8px !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__header {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  gap: 5px !important;
+  min-height: 82px !important;
+  padding-inline: 0 !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__brand,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section > span,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__subhead,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon),
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle > em,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle > .sidebar-chevron-v289,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__project-list,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-name-v201,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 strong {
+  display: none !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__nav {
+  align-items: center !important;
+  padding-inline: 0 !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section {
+  justify-items: center !important;
+  width: 100% !important;
+  padding: 5px 0 !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle {
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link.active::after,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link[aria-current="page"]::after {
+  inset: 10px auto 10px -1px !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer {
+  display: grid !important;
+  justify-items: center !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+}
+
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-dot-v201 {
+  margin: 0 !important;
+}
+
+/* Drawer mode. Persistent collapse state does not leak into tablet/phone presentation. */
+@media (max-width: 899px) {
+  #cluster-sidebar.cluster-sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 1002 !important;
+    width: min(320px, calc(100vw - 24px)) !important;
+    min-width: 0 !important;
+    max-width: min(320px, calc(100vw - 24px)) !important;
+    height: 100dvh !important;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
+    transform: translateX(calc(-100% - 16px)) !important;
+    transition: transform 180ms ease !important;
+    pointer-events: none !important;
+    box-shadow: 14px 0 40px rgb(7 11 14 / 24%) !important;
+  }
+
+  #cluster-sidebar.cluster-sidebar.open {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+  }
+
+  #cluster-sidebar .cluster-sidebar__header {
+    grid-template-columns: 36px minmax(0, 1fr) 36px !important;
+    min-height: 54px !important;
+  }
+
+  #cluster-sidebar .cluster-sidebar__mode-toggle {
+    display: none !important;
+  }
+
+  #cluster-sidebar .cluster-sidebar__mobile-close {
+    display: inline-grid !important;
+  }
+
+  #cluster-sidebar .cluster-sidebar__nav {
+    padding-bottom: 18px !important;
+  }
+
+  #cluster-sidebar .cluster-sidebar__link {
+    min-height: 44px !important;
+    font-size: .82rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #cluster-sidebar.cluster-sidebar {
+    transition: none !important;
+  }
+}
+
+/* WIP21 navigation cleanup: one readable hierarchy, no decorative heading fragments. */
+#cluster-sidebar .cluster-sidebar__section > span::after,
+#cluster-sidebar .cluster-sidebar__subhead::after { display:none !important; content:none !important; }
+#cluster-sidebar .cluster-sidebar__section > span {
+  padding: 7px 9px 3px !important;
+  font-size: .59rem !important;
+  letter-spacing: .085em !important;
+  opacity: .78 !important;
+}
+#cluster-sidebar .cluster-sidebar__section { padding-block: 5px 4px !important; }
+#cluster-sidebar .cluster-sidebar__admin-toggle { grid-template-columns:var(--cluster-sidebar-icon-slot) minmax(0,1fr) 14px !important; }
+#cluster-sidebar .cluster-sidebar__admin-toggle.active-child { color:var(--cluster-shell-text) !important; }
+#cluster-sidebar .cluster-sidebar__admin-chevron { width:13px !important; height:13px !important; color:var(--cluster-shell-muted) !important; overflow:visible !important; }
+#cluster-sidebar .cluster-sidebar__admin-list {
+  display:grid !important;
+  gap:1px !important;
+  min-width:0 !important;
+  margin:2px 0 2px 17px !important;
+  padding:3px 0 3px 9px !important;
+  border-left:1px solid color-mix(in srgb,var(--cluster-sidebar-border) 76%,transparent) !important;
+}
+#cluster-sidebar .cluster-sidebar__link--nested {
+  min-height:32px !important;
+  padding-block:3px !important;
+  font-size:.71rem !important;
+}
+#cluster-sidebar .cluster-sidebar__link--nested .cluster-sidebar__icon {
+  width:22px !important; min-width:22px !important; height:22px !important; min-height:22px !important;
+}
+#cluster-sidebar .cluster-sidebar__link--nested .cluster-sidebar__icon-svg { width:15px !important; min-width:15px !important; height:15px !important; min-height:15px !important; }
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__admin-list { display:none !important; }
+#cluster-sidebar .cluster-sidebar__icon,
+#cluster-sidebar .cluster-sidebar__icon-svg,
+#cluster-sidebar .cluster-sidebar__mode-toggle svg,
+#cluster-sidebar .cluster-sidebar__mobile-close svg { line-height:0 !important; overflow:visible !important; flex-shrink:0 !important; }
+#cluster-sidebar .cluster-sidebar__icon-svg { transform:translateZ(0); }
+#cluster-sidebar .cluster-sidebar__section { border-top:0 !important; }
+#cluster-sidebar .cluster-sidebar__section + .cluster-sidebar__section { margin-top:2px !important; }
+
+
+/* WIP28: compact sidebar must remain an icon rail, not an empty strip. This block intentionally
+   owns the final cascade after legacy shell rules. */
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__header .cluster-sidebar__logo {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__header {
+  grid-template-columns: 1fr !important;
+  grid-auto-rows: 34px !important;
+  align-content: start !important;
+  justify-items: center !important;
+  gap: 6px !important;
+  min-height: 82px !important;
+  padding: 6px 0 !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .sidebar-icon-slot-v344 {
+  display: inline-grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  place-items: center !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon > svg,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .sidebar-icon-slot-v344 > svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  translate: none !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__nav {
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 2px 0 8px !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section {
+  display: grid !important;
+  justify-items: center !important;
+  width: 100% !important;
+  gap: 2px !important;
+  padding: 5px 0 !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__admin-toggle {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  place-items: center !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+}
+/* The earlier WIP24 rule hid every direct span, including the icon wrapper. Only label spans belong hidden. */
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon):not(.sidebar-icon-slot-v344) {
+  display: none !important;
+}
+#cluster-sidebar .cluster-sidebar__icon,
+#cluster-sidebar .sidebar-icon-slot-v344 {
+  line-height: 0 !important;
+  vertical-align: middle !important;
+}
+#cluster-sidebar .cluster-sidebar__icon > svg,
+#cluster-sidebar .sidebar-icon-slot-v344 > svg,
+#cluster-sidebar .cluster-sidebar__mode-toggle > svg,
+#cluster-sidebar .cluster-sidebar__mobile-close > svg {
+  display: block !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  vertical-align: middle !important;
+}
+
+
+/* WIP29: flattened navigation, subtler selection, and optical icon alignment. */
+#cluster-sidebar .cluster-sidebar__section > span,
+#cluster-sidebar .cluster-sidebar__subhead {
+  display: none !important;
+}
+#cluster-sidebar .cluster-sidebar__section {
+  gap: 1px !important;
+  padding: 1px 0 !important;
+  margin: 0 !important;
+}
+#cluster-sidebar .cluster-sidebar__section + .cluster-sidebar__section {
+  margin-top: 0 !important;
+}
+#cluster-sidebar .cluster-sidebar__nav {
+  gap: 1px !important;
+  padding-top: 2px !important;
+}
+#cluster-sidebar .cluster-sidebar__link {
+  /* Height belongs to the base/mobile sidebar contract, not to visual polish. */
+  border-color: transparent !important;
+  border-radius: 7px !important;
+}
+#cluster-sidebar .cluster-sidebar__link.active,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"] {
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--studio-primary, var(--accent)) 4.5%, var(--cluster-sidebar-surface-raised)) !important;
+}
+#cluster-sidebar .cluster-sidebar__link.active::after,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"]::after {
+  inset: 10px auto 10px 0 !important;
+  width: 2px !important;
+}
+#cluster-sidebar .cluster-sidebar__link.active .cluster-sidebar__icon,
+#cluster-sidebar .cluster-sidebar__link[aria-current="page"] .cluster-sidebar__icon {
+  background: transparent !important;
+}
+#cluster-sidebar .cluster-sidebar__icon,
+#cluster-sidebar .sidebar-icon-slot-v344 {
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  place-items: center !important;
+}
+#cluster-sidebar .cluster-sidebar__icon-svg,
+#cluster-sidebar .sidebar-icon-slot-v344 > svg {
+  width: 18px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  translate: none !important;
+  transform-origin: center !important;
+}
+#cluster-sidebar .cluster-sidebar__projects-toggle {
+  grid-template-columns: 24px minmax(0, 1fr) auto 14px !important;
+}
+#cluster-sidebar .cluster-sidebar__admin-toggle {
+  grid-template-columns: 24px minmax(0,1fr) 14px !important;
+}
+#cluster-sidebar .cluster-sidebar__admin-list,
+#cluster-sidebar .cluster-sidebar__project-list {
+  margin-top: 1px !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section {
+  padding: 1px 0 !important;
+}
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle,
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__admin-toggle {
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+}

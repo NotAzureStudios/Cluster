@@ -1,0 +1,38 @@
+{
+  "runtime": "Node 22.16.0 development toolchain (not Node 24 certification)",
+  "testing": "23 inherited selected R55 suites executed in bounded batches; collection bulk initially lacked local TypeScript and passed after temporary test-only symlink, removed before packaging",
+  "selectedInheritedSuitesPassed": 23,
+  "selectedInheritedSuitesTotal": 23,
+  "focusedR56ChecksPassed": 10,
+  "focusedR56ChecksTotal": 10,
+  "inheritedScripts": [
+    "tools/scripts/cluster-td4-r54-typed-consumer-retry-tests.mjs",
+    "tools/scripts/cluster-td4-r51-typed-change-feed-tests.mjs",
+    "tools/scripts/cluster-td4-r52-live-cursor-reset-tests.mjs",
+    "tools/scripts/cluster-td4-r53-client-cursor-proof-tests.mjs",
+    "tools/scripts/cluster-td4-r53-outbox-continuity-tests.mjs",
+    "tools/scripts/cluster-td4-r50-governance-feed-tests.mjs",
+    "tools/scripts/cluster-td4-r49-provider-lifecycle-tests.mjs",
+    "tools/scripts/cluster-td4-r47-search-domain-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r47-search-route-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r46-source-provider-tests.mjs",
+    "tools/scripts/cluster-td4-r46-source-feed-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r45-studio-provider-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r43-provider-registration-tests.mjs",
+    "tools/scripts/cluster-td4-r44-delivery-provider-tests.mjs",
+    "tools/scripts/cluster-td4-r42-resource-feed-visibility-tests.mjs",
+    "tools/scripts/cluster-td4-r48-search-action-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r38-storage-reconciliation-tests.mjs",
+    "tools/scripts/cluster-td4-r39-storage-queue-integration-tests.mjs",
+    "tools/scripts/cluster-td4-r40-orphan-audit-tests.mjs",
+    "tools/scripts/cluster-td4-r41-disposition-review-tests.mjs",
+    "tools/scripts/cluster-td4-r35-collection-bulk-tests.mjs",
+    "tools/scripts/cluster-td4-r37-hierarchy-transaction-tests.mjs",
+    "tools/scripts/cluster-td4-r55-webhook-outbox-replay-tests.mjs"
+  ],
+  "notes": [
+    "First all-suite subprocess batch timed out after 15 passing suites; test 16 was rerun individually; tests 17\u201323 were run separately.",
+    "Inherited collection-bulk test 21 passed after linking installed TypeScript for that test only.",
+    "This is executed source-test evidence, not a Node 24/PostgreSQL certification result."
+  ]
+}

@@ -1,0 +1,16 @@
+# Cluster v0.525 | Managed copy integrity, Qt contract and rollback reporting
+
+## Implemented
+
+1. **Cross-language contract bugfix:** Go `CLUSTER_MANAGED_CONTENT_RESULT` has `artifactSha256`, not `archiveSha256`. Qt now evaluates the correct digest property on `deploy-content` and `rollback-content`. The prior mismatch caused valid native successful operations to appear failed to Desktop, blocking the expected nonattested follow-up reporting and confusing the operator.
+2. **Read-only signed managed integrity audit:** `--action audit-managed` now validates a downloaded, independently pinned signed kit, the matching recorded active or previous managed pointer, staged source bytes, and every managed-copy file. Checksums, target identity, extra/missing files and symlink protection remain fail-closed. After verification the generation and pointer are checked again to avoid presenting stale success during a concurrent state change. Returns `CLUSTER_MANAGED_AUDIT_RESULT` with active/previous slot, generation, and explicitly false execution/OS attestation. It cannot consume deployment grants or mutate state.
+3. **Desktop workflow:** Qt exposes `package.auditManaged` with the same native picker, profile-pinned signing trust, target identity constraints, confirmation and single-flight process management as staging. The renderer has an **Audit managed copy…** action. Audits cannot create a deployment receipt or automatically authorize installation. Managed audit results are a distinct status from native deployment/rollback.
+4. **Rollback reporting:** After a successful native managed selection and acknowledged `content_selected` device receipt, the next challenge and revision are retained **in memory only**. If a fresh server-authorized native rollback succeeds within the existing lease lifetime, Desktop can report `rolled_back` against the *original* deployment digest and revision chain. No prior receipt, logout, tab reset, expiry or reporting failure results in invented server success. This is a device report, never OS attestation.
+5. **Tests:** Native Go tests cover active/previous audit, missing/extra/tampered bytes, wrong target/pin, unselected release and absence of state mutation. Cross-language TypeScript signer to Go deployment smoke now audits actual copied bytes, rejects mismatches/tampering and demonstrates read-only recovery. Targeted TS runtime and Qt source contract checks added.
+
+## Not completed or certified
+
+- **Not an OS installer:** No executable invocation, application directory installation, privileged service operation, process handover, OS health attestation or machine-wide trust.
+- Server-side receipts describe device observations. Rollback reporting is best-effort and ephemeral: a missing/expired receipt lease leaves local-only status. A rollback still requires a fresh server grant for the exact previous target, so an unentitled previous release cannot be restored through the normal authorized flow.
+- Grants remain 60-second local bearer capabilities; local clock and user-profile trust are not hardware attestation. Native helper is not tested under Windows/NTFS/Qt6; Node24/Prisma/PostgreSQL runtime certification remains open.
+- The 1.0 collaboration, Library/Admin/UX, integration and remaining Packet media feature ledger has not been discarded or marked complete.

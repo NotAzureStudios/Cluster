@@ -1,0 +1,37 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD6 F03",
+  "validation_kind": "source-level targeted/mocked tests, not release certification",
+  "focused_saved_card_history": "22/22 passed",
+  "card_conflict_review": "21/21 passed",
+  "board_workflow": "26/26 passed",
+  "conditional_forms_F01": "20/20 passed",
+  "form_deadlines_F02": "36/36 passed",
+  "respondent_drafts_forms": "68/68 passed (temporary external TypeScript symlink removed)",
+  "td5_p13_committed_outcomes": "18/18 passed",
+  "source_syntax_scan": {
+    "typescriptFiles": 1045,
+    "syntaxErrors": [],
+    "rendererImports": 3161,
+    "missingImports": [],
+    "cssFiles": 110,
+    "cssBraceErrors": []
+  },
+  "complete_source_scan": {
+    "typeScriptFiles": 1045,
+    "cssFiles": 110,
+    "relativeImports": 4508,
+    "syntaxAndCssErrors": [],
+    "missingImports": [],
+    "expectedGeneratedImports": [
+      "apps/server/src/core/prisma-client.ts -> ../generated/prisma/client.js"
+    ],
+    "scope": "Active apps/packages/integrations source, excludes recovered historical snapshots and build outputs"
+  },
+  "deferred": [
+    "installed Node 24 full compilation",
+    "generated Prisma client and live migration",
+    "multi-editor authenticated browser runtime",
+    "Windows Qt runtime and release acceptance"
+  ],
+  "scope_limit": "Cards only, saved metadata PATCH history, Undo/Redo latest own uninterrupted revision; Whiteboard and broader CD-03 remain open"
+}

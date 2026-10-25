@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = p => readFileSync(new URL('../../'+p,import.meta.url), 'utf8');
+const go = read('tools/native/package-stager-go/msi_windows.go');
+const receipts = read('tools/native/package-stager-go/msi_installer.go');
+const qt = read('apps/desktop-qt/src/NativeCapabilityBroker.cpp');
+let n=0;
+function check(label, fn) { fn(); console.log('PASS',label); n++; }
+check('Windows-only helper',()=>assert.match(go,/\/\/go:build windows/));
+check('fixed native system msiexec executable',()=>assert.match(go,/GetSystemDirectoryW[\s\S]*?"msiexec\.exe"/));
+check('no PATH-based process resolution',()=>assert.doesNotMatch(go,/exec\.Command\(/));
+check('MSI child created suspended',()=>assert.match(go,/createSuspendedMSI\|createNoWindowMSI/));
+check('job created before child process',()=>assert.ok(go.indexOf('job, err := createInstallerJob()') < go.indexOf('err = syscall.CreateProcess(')));
+check('job gets kill-on-close limit',()=>assert.match(go,/limits\.basic\.limitFlags = msiJobKillOnClose/));
+check('job configuration fails closed',()=>assert.match(go,/if ok == 0 \{[\s\S]*?CloseHandle\(job\)/));
+check('process assigned before resuming thread',()=>assert.ok(go.indexOf('msiAssignJob.Call') < go.indexOf('msiResumeThread.Call')));
+check('failed job assignment refuses install',()=>assert.match(go,/installer Job Object assignment refused/));
+check('failed resume refuses install',()=>assert.match(go,/resume supervised installer refused/));
+check('failed initialization terminates suspended process',()=>assert.match(go,/if !started \{[\s\S]*?TerminateProcess\(pi.Process/));
+check('kernel job handle closed even on error',()=>assert.match(go,/defer syscall\.CloseHandle\(job\)/));
+check('MSI execution has bounded deadline',()=>assert.match(go,/maxMSIExecutionDuration = 15 \* time\.Minute/));
+check('deadline does not certify success',()=>assert.match(go,/outcome unknown and manual review required/));
+check('fixed per-user MSI args with no automatic reboot',()=>assert.match(go,/\/qn \/norestart ALLUSERS=2 MSIINSTALLPERUSER=1/));
+check('existing launch receipt persisted before native invocation',()=>assert.ok(receipts.indexOf('out.LaunchCommittedAt =') < receipts.indexOf('exit, execErr := runVerifiedMSI')));
+check('MSI exit evidence not equated to OS attestation',()=>assert.match(receipts,/msi_exit_zero_not_os_attested/));
+check('Qt no longer arbitrarily kills MSI after 30 seconds',()=>assert.match(qt,/if \(!installerInstall\) \{\s*QTimer::singleShot\(managedOperation/));
+check('Qt retains typed explicit MSI confirmation',()=>assert.match(qt,/type INSTALL %1/));
+console.log(`${n}/${n} MSI suspended Job Object source contracts passed`);

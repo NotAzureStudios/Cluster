@@ -1,0 +1,38 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD6 F02",
+  "development_date": "2026-10-17",
+  "baseline": "Cluster-v0.546.0-TD6-F01-Forms-Conditional-Branching-Source.zip",
+  "priority": "User-directed completion of unfinished TD6 feature code; release/runtime certification deferred",
+  "implemented": [
+    "Per-published-version Form due dates with local-time authoring and ISO serialization",
+    "Optional configurable due-soon and overdue one-time reminders",
+    "Durable unique form/version/user/stage notification claims with lease and retry",
+    "Periodic maintenance job integration and activation-time account/audience/completion checks",
+    "Strict membership reads fail closed",
+    "Member Forms deadline and overdue/completed statuses",
+    "Admin aggregate reminder evidence endpoint and renderer",
+    "New Prisma schema model and PostgreSQL migration"
+  ],
+  "checks": {
+    "td6_f02_reminder_assertions": "36/36 passed",
+    "td6_f01_branching": "20/20 passed",
+    "forms_workflow": "38/38 passed",
+    "respondent_draft_and_workflow": "68/68 passed",
+    "td5_p13_committed_outcomes": "18/18 passed",
+    "typescript_tsx_source_parse": "1044 files, 0 errors",
+    "authored_relative_imports": "3161 checked, 0 missing",
+    "css_scan": "110 files, 0 delimiter errors"
+  },
+  "not_claimed": [
+    "full dependency-backed TypeScript build",
+    "generated Prisma client or live PostgreSQL migration",
+    "authenticated end-to-end browser/Qt/Windows",
+    "independent multi-process crash/notification delivery certification",
+    "native or release certification"
+  ],
+  "safety": [
+    "No physical Library deletion or automatic storage cleanup enabled",
+    "Reminders never include respondent answers and skip public applications",
+    "Audience and user eligibility rechecked after claiming; delivery uses stable group key"
+  ]
+}

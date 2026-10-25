@@ -1,0 +1,8 @@
+Cluster v0.525.0 | Managed audit, corrected Qt/Go contract and rollback reporting
+
+PASS: 74/79 source assertion scripts with temporary local TypeScript test dependency. Baseline has five inherited WIP57 structural failures (pass2, pass3, pass4, pass8, pass15-admin-project-types).
+PASS: New focused assertions 6/6; inherited managed content grant assertions 10/10.
+PASS: Go native security/audit tests and TypeScript→Go real signed-package smoke; wrong-target/tamper/replay fail closed.
+PASS: TypeScript/TSX syntax 966 files, CSS delimiter scan 108 files; unresolved generated Prisma import 1 from intentionally lean source.
+PASS: Windows x64 native Go helper cross-compiles, not tested on Windows.
+NOT CERTIFIED: Qt6 Windows runtime, full Node24 dependency-backed TypeScript/Prisma build, live PostgreSQL, OS executable installation, service-owned trust and real OS health.

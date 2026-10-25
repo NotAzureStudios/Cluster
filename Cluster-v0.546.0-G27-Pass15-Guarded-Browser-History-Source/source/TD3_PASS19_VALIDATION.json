@@ -1,0 +1,24 @@
+{
+  "checkpoint": "TD3 Pass 19",
+  "parent": "TD3 Pass 18",
+  "developmentTests": {
+    "passed": 20,
+    "total": 20,
+    "firstRunNote": "One inherited Qt assertion was updated to check the new accessibleName fallback; rerun passed."
+  },
+  "targeted": 32,
+  "sourceScan": {
+    "tsTsxFiles": 1004,
+    "cssFiles": 109,
+    "rendererRelativeImports": 3217,
+    "cssUnbalanced": 0,
+    "errors": []
+  },
+  "illustrativeChromium": {
+    "captures": 16,
+    "horizontalOverflow": 0,
+    "missingUtilityPlaceholder": 0
+  },
+  "nativeQt": "Source-only accessibility additions; binaries preserved",
+  "releaseCertification": "separate roadmap"
+}

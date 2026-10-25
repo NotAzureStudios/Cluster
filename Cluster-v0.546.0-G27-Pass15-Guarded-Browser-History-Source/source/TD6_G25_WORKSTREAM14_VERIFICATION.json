@@ -1,0 +1,36 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD6 G25 Workstream 14 (source only; G25 OPEN)",
+  "parent": "Workstream 13",
+  "changes": [
+    "Whiteboard feed page completeness and reload",
+    "cross-tab offline mutation preflight",
+    "Board saved move Undo/Redo online gate",
+    "honest UI sync/history state"
+  ],
+  "focused_tests": {
+    "new_feed_integrity": "15/15 passed",
+    "new_board_online_history": "6/6 passed",
+    "extended_ws13_conflict": "21/21 passed"
+  },
+  "inherited_tests": {
+    "whiteboard_saved_history": "27/27 passed",
+    "board_keyboard": "17/17 passed",
+    "g25_source_suite": "passed",
+    "td5_source_closeout": "14/14 scripts; 167/167 cases passed"
+  },
+  "source_scan": {
+    "typescript_tsx_files": 1076,
+    "relative_renderer_imports": 3204,
+    "css_files": 110,
+    "errors": 0
+  },
+  "not_certified": [
+    "generated Prisma Node24 typecheck/build",
+    "live PostgreSQL migrations and contention",
+    "authenticated multiuser/multitab browsers",
+    "Windows/Qt",
+    "NAS/real storage safety",
+    "full Board move durable history"
+  ],
+  "g25_source_closed": false
+}

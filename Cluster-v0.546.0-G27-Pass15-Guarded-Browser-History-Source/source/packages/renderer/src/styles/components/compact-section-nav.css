@@ -1,0 +1,81 @@
+/* Canonical CompactSectionNav presentation. */
+.compact-section-nav-v204 {align-items:center;border:1px solid var(--border);border-radius:9px;background:color-mix(in srgb,var(--panel) 82%,transparent);box-shadow:none;}
+.compact-section-primary-v204 > button,.compact-section-more-v204 > button {position:relative;padding:6px 9px;border:1px solid transparent;border-radius:6px;box-shadow:none;color:var(--muted);}
+.compact-section-primary-v204 > button::after,.compact-section-more-v204 > button::after{display:none;}
+.compact-section-primary-v204 > button:hover,.compact-section-primary-v204 > button.active,.compact-section-primary-v204 > button[aria-current="page"],.compact-section-more-v204 > button:hover,.compact-section-more-v204 > button.active {border-color:var(--border);background:var(--surface-hover);color:var(--text);box-shadow:none;}
+.compact-section-primary-v204 > button strong,.compact-section-more-v204 > button > span {font-weight:650;}
+.compact-section-primary-v204 > button span,.compact-section-more-v204 > button em {font-size:.68rem;}
+
+/* Block 30B: grouped compact navigation + adaptive primary navigation. */
+.compact-section-menu-group-v495 {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.compact-section-menu-group-v495 + .compact-section-menu-group-v495 {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--cluster-border, var(--border));
+}
+.compact-section-menu-group-label-v495 {
+  padding: 4px 8px 2px;
+  color: var(--muted);
+  font-size: .62rem;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.compact-section-menu-group-v495 > button {
+  min-width: 0;
+}
+@media (min-width: 640px) and (max-width: 899px) {
+.cluster-page-shell > .cluster-section-nav {
+    min-height: 46px;
+  }
+.cluster-page-shell > .cluster-section-nav .compact-section-primary-v204 {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+.cluster-page-shell > .cluster-section-nav .compact-section-primary-v204::-webkit-scrollbar {
+    display: none;
+  }
+.cluster-page-shell > .cluster-section-nav :where(button, summary) {
+    min-height: 44px;
+  }
+}
+@media (max-width: 639px) {
+.cluster-page-shell > .cluster-section-nav :where(button, summary) {
+    min-height: 44px;
+  }
+.cluster-page-shell > .cluster-section-nav .compact-section-primary-v204 > button span {
+    display: none;
+  }
+.compact-section-menu-v204 {
+    max-width: calc(100vw - 16px);
+    max-height: min(60dvh, 520px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* TD3 Pass 22: the section overflow is a body-portaled floating surface.
+   It must remain usable outside scrolling Project, Admin and Settings navigation. */
+.compact-section-more-v204 > button { cursor: pointer; }
+.compact-section-more-v204 > button:focus-visible { outline: 2px solid var(--cluster-focus-ring, var(--text)); outline-offset: 2px; }
+.compact-section-menu-v204.cluster-floating-surface-v504 {
+  display: grid;
+  width: min(330px, calc(100dvw - 16px));
+  max-height: min(64dvh, 520px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: var(--cluster-radius-card, 10px);
+  background: var(--cluster-surface-1, var(--panel));
+  box-shadow: var(--cluster-shadow-float, 0 14px 35px rgb(0 0 0 / .18));
+  overscroll-behavior: contain;
+}
+.compact-section-menu-v204.cluster-floating-surface-v504 [role="menuitemradio"]:focus-visible {
+  outline: 2px solid var(--cluster-focus-ring, var(--text));
+  outline-offset: -2px;
+}

@@ -1,0 +1,45 @@
+@import "./styles/design-system/tokens.css";
+@import "./styles/application-theme-contract.css";
+@import "./styles/typography-contract.css";
+
+/* Cluster renderer stylesheet entrypoint.
+   Import order is deliberate. See styles/ARCHITECTURE.md before adding or moving a layer. */
+
+/* 1. Canonical semantic tokens and current application layers. */
+@import "./styles/layers/application-base.css";
+@import "./styles/layers/application-components.css";
+@import "./styles/layers/application-adaptive.css";
+@import "./styles/layers/application-overrides.css";
+
+/* 2. Current cross-application shell, workspace, and control contracts. Their order is explicit and release-audited. */
+@import "./styles/card-style-glass.css";
+@import "./styles/shell-contract.css";
+@import "./styles/workspace-contract.css";
+@import "./styles/controls.css";
+
+/* 3. Cross-application behavior and consistency. */
+@import "./styles/accessibility.css";
+@import "./styles/consistency.css";
+@import "./styles/components/presence-avatar.css";
+@import "./styles/components/collaboration-panel.css";
+@import "./styles/components/cluster-select.css";
+@import "./styles/components/tool-page-header.css";
+@import "./styles/components/compact-section-nav.css";
+@import "./styles/components/filter-menu.css";
+@import "./styles/components/number-stepper.css";
+@import "./styles/visual-polish.css";
+
+/* 4. Shared design-system primitives. */
+@import "./styles/design-system/skeletons.css";
+@import "./styles/design-system/workspace-polish.css";
+@import "./styles/design-system/primitives.css";
+@import "./styles/design-system/phase-a-polish.css";
+@import "./styles/design-system/phase-k-polish.css";
+
+/* 5. Responsive contract. Phone/tablet layout owns geometry without owning visual tokens. */
+@import "./styles/adaptive-accessibility.css";
+@import "./styles/responsive.css";
+
+/* 6. Production contract intentionally loads last and must stay free of !important. */
+@import "./styles/design-system/production-ui.css";
+

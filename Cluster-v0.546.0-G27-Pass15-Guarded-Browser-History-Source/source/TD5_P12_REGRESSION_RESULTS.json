@@ -1,0 +1,304 @@
+{
+  "selected": 74,
+  "passed": 74,
+  "failed": 0,
+  "failures": [],
+  "results": [
+    {
+      "script": "cluster-td2-authoritative-job-gate-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td2-claim-fencing-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td2-shutdown-claim-drain-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td2-worker-fault-isolation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r35-collection-bulk-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r37-hierarchy-transaction-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r38-storage-reconciliation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r39-storage-queue-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r40-orphan-audit-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r41-disposition-review-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r42-resource-feed-visibility-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r43-provider-registration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r44-delivery-provider-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r45-studio-provider-visibility-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r46-source-feed-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r46-source-provider-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r47-search-domain-visibility-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r47-search-route-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r48-search-action-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r49-provider-lifecycle-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r50-governance-feed-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r51-typed-change-feed-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r52-live-cursor-reset-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r53-client-cursor-proof-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r53-outbox-continuity-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r54-typed-consumer-retry-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r55-webhook-outbox-replay-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r56-outbox-lease-fencing-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r57-resource-deep-link-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r58-source-commit-navigation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r59-event-ordering-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r60-consumer-lifecycle-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r60-webhook-revocation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r61-hierarchy-move-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r61-hierarchy-ui-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r62-hierarchy-lifecycle-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r62-hierarchy-ui-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r63-disposition-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r63-route-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r64-route-ui-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r64-storage-ownership-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r65-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r65-related-authority-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r66-independent-disposition-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r66-route-schema-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r67-quarantine-integration-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r67-quarantine-simulation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r67-storage-lifecycle-safety-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r68-storage-safety-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r69-consumer-contract-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r70-live-search-admission-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r71-source-review-search-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r72-source-commit-search-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r73-studio-form-search-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r74-approval-search-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r75-discord-delivery-revocation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r75-git-job-revocation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r76-1-library-transfer-atomic-version-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r76-1-library-version-commit-boundary-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r76-2-library-postcommit-activity-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td4-r76-final-outbox-closure-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p1-lifecycle-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p10-job-commit-boundary-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p11-worker-telemetry-isolation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p12-runtime-scheduler-isolation-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p2-local-storage-integrity-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p3-path-and-integrity-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p4-backup-mirror-safety-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p5-direct-upload-retention-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p6-build-database-gate-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p7-acceptance-process-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p7-runtime-budget-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p8-acceptance-output-tests.mjs",
+      "passed": true
+    },
+    {
+      "script": "cluster-td5-p9-output-budget-tests.mjs",
+      "passed": true
+    }
+  ]
+}

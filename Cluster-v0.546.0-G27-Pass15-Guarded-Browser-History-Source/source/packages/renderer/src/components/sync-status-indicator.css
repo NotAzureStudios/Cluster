@@ -1,0 +1,8 @@
+
+
+/* v0.495 Visual Foundation Block 7: live selector ownership migration. */
+.sync-status-v273.embedded { display: block; width: 100%; }
+
+.sync-status-popover-v273.embedded { position: relative; inset: auto; z-index: 1; width: 100%; margin-top: 10px; border-radius: 12px; box-shadow: none; background: color-mix(in srgb, var(--cluster-surface-1, var(--surface)) 72%, transparent); }
+
+.sync-status-popover-v273.embedded .sync-status-list-v273 { max-height: 320px; }

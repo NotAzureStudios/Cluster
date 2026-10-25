@@ -1,0 +1,206 @@
+[
+  {
+    "test": "cluster-td3-appearance-foundation-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.43,
+    "tail": [
+      "PASS preview resolves palette using its selected theme rather than only global CSS",
+      "PASS changing theme updates semantic variables immediately, including system mode",
+      "PASS draft preview owns background pattern, surface and radius independently",
+      "",
+      "33/33 TD3 appearance foundation tests passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-ui-primitives-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.43,
+    "tail": [
+      "PASS reduced motion disables control movement",
+      "PASS stylesheet keeps one import for each canonical primitive owner",
+      "PASS Qt native controls do not use 11px labels at normal text scale",
+      "PASS Qt buttons use a moderate label weight",
+      "33/33 TD3 UI primitive checks passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-material-portal-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS floating panel identifies modal owner and refuses to close when obscured",
+      "PASS Escape closes open owned menu ahead of its modal",
+      "PASS modal keyboard trap sees body-portaled surface",
+      "PASS modal isolation delegates floating surfaces to dynamic owner-aware isolation",
+      "12/12 TD3 material, shell, modal and popup source contracts passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-css-contract-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.05,
+    "tail": [
+      "PASS global application focus no longer hard-overrides primitive focus",
+      "PASS canonical focus uses a readable two-pixel ring",
+      "PASS focus colors use semantic palette with accessible light fallback",
+      "PASS known select !important debt has been retired",
+      "9/9 CSS ownership and focus checks passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-sidebar-material-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS mobile keeps drawer and prevents floating override",
+      "PASS high contrast suppresses decorative texture",
+      "PASS live preview mirrors floating silhouette",
+      "PASS only one taskbar component retained",
+      "19/19 TD3 Pass 6 source contract checks passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-taskbar-layout-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS Full width preserves interior workspace padding",
+      "PASS Full width respects mobile safe areas",
+      "PASS No duplicated taskbar component created",
+      "PASS No database migration needed",
+      "12/12 taskbar layout source contracts passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass7-preference-menu-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS appearance headings occur in category-nav order",
+      "PASS menu uses shared keyboard navigation helper",
+      "PASS context and overflow use same destructive action separator helper",
+      "PASS destructive separators avoid duplicates and leading separators",
+      "22/22 TD3 Pass 7 preferences and menu source assertions passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-inspector-surface-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS outside dismiss respects active modal ownership",
+      "PASS inspector material uses Appearance sheen",
+      "PASS inspector high contrast suppresses texture",
+      "PASS no new image texture imports",
+      "22/22 TD3 P4 surface contract assertions passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass8-responsive-resize-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.11,
+    "tail": [
+      "PASS rail divider has visible keyboard focus",
+      "27/27 TD3 Pass8 checks passed",
+      "",
+      "(node:2716) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time",
+      "(Use `node --trace-warnings ...` to show where the warning was created)"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass9-overlay-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.08,
+    "tail": [
+      "PASS backdrop checks modal floating stack before dismiss",
+      "PASS modal continues to support optional backdrop dismiss",
+      "PASS floating retains mobile sheet behavior",
+      "PASS dialog focus trap remains centralized",
+      "21/21 TD3 Pass9 overlay and modal source contracts passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass10-picker-shell-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.12,
+    "tail": [
+      "PASS sidebar disclosures expose expansion state and owned panel ID",
+      "31/31 TD3 Pass 10 picker and drawer checks passed",
+      "",
+      "(node:2738) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time",
+      "(Use `node --trace-warnings ...` to show where the warning was created)"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass11-interaction-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.52,
+    "tail": [
+      "PASS undo errors accessible",
+      "PASS icon/appearance preferences unaffected",
+      "PASS rapid double-action coalesces synchronously",
+      "PASS new action permitted after settlement",
+      "TOTAL 21 / 21"
+    ]
+  },
+  {
+    "test": "cluster-td3-shell-regression-fidelity.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS preview generator no longer substitutes current workspace for project tabs",
+      "PASS preview People avatar includes colored border and dot",
+      "PASS real user border retained",
+      "PASS real search background and focus present",
+      "PASS 18/18 shell/preview regression assertions"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass12-taskbar-search-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.05,
+    "tail": [
+      "PASS Search panel uses separate presentation without modal backdrop",
+      "PASS Mobile layout preserves a search slot",
+      "PASS Reduced motion eliminates the transition",
+      "PASS People avatar still supports per-user identity treatment",
+      "30/30 TD3 Pass 12 search/identity/utility contracts passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass13-action-integrity-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.04,
+    "tail": [
+      "PASS Recovery action is not directly fired",
+      "PASS Recovery action is disabled during mutation",
+      "PASS Recovery errors are visible to screen readers",
+      "PASS History execution itself owns a synchronous pending lock",
+      "13/13 TD3 Pass 13 action-integrity checks passed"
+    ]
+  },
+  {
+    "test": "cluster-td3-pass14-interaction-regressions.mjs",
+    "ok": true,
+    "duration_seconds": 0.39,
+    "tail": [
+      "PASS quick profile restores keyboard focus and ignores stale unmounted lookups",
+      "PASS taskbar shell fidelity and animated replacement search are retained",
+      "PASS native Qt combo delegates have stable index authority and accessible tap height",
+      "PASS native Qt high-contrast surface suppresses decorative gradient and sheen",
+      "13/13 TD3 Pass 14 interaction regressions passed"
+    ]
+  },
+  {
+    "test": "cluster-td1-td2-implementation-closeout-tests.mjs",
+    "ok": true,
+    "duration_seconds": 0.47,
+    "tail": [
+      "PASS enabled action passes both fences and emits exactly one result",
+      "PASS disabled source Calendar automation creates no receipt or queued actions",
+      "PASS disabled source Ticket automation creates no receipt or queued actions",
+      "PASS non-configurable shared Project/Build event is not blocked by Ticket policy",
+      "15/15 TD1/TD2 implementation closeout checks passed"
+    ]
+  }
+]

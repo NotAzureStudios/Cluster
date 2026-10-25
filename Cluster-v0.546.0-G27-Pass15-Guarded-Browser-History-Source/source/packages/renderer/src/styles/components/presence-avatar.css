@@ -1,0 +1,69 @@
+/* Canonical shared presence/avatar presentation. One component, one CSS owner. */
+.cluster-presence-indicator-v227.online,
+.cluster-presence-indicator-v227.active,
+.cluster-presence-indicator-v227.available { background: var(--cluster-green-500); }
+.cluster-presence-indicator-v227.away,
+.cluster-presence-indicator-v227.idle { background: var(--cluster-amber-500); }
+.cluster-presence-indicator-v227.busy,
+.cluster-presence-indicator-v227.focus { background: var(--cluster-red-500); }
+
+.cluster-presence-avatar-v227 {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  --avatar-size: 34px;
+  --presence-size: 10px;
+  inline-size: var(--avatar-size) !important;
+  block-size: var(--avatar-size) !important;
+  min-inline-size: var(--avatar-size) !important;
+  min-block-size: var(--avatar-size) !important;
+  max-inline-size: var(--avatar-size) !important;
+  max-block-size: var(--avatar-size) !important;
+  aspect-ratio: 1;
+  line-height: 1;
+  overflow: visible !important;
+  isolation: isolate;
+  box-sizing: border-box;
+}
+.cluster-presence-avatar-v227 > img,
+.cluster-presence-avatar-fallback-v227 {
+  inline-size: 100% !important;
+  block-size: 100% !important;
+  min-inline-size: 0 !important;
+  min-block-size: 0 !important;
+  border-radius: inherit;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+  font-weight: 850;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.cluster-presence-avatar-v227 > img { display: block; object-fit: cover; object-position: center; }
+.cluster-presence-indicator-v227 {
+  position: absolute !important;
+  z-index: 3;
+  inset-inline-end: -2px !important;
+  inset-block-end: -2px !important;
+  inline-size: var(--presence-size) !important;
+  block-size: var(--presence-size) !important;
+  min-inline-size: var(--presence-size) !important;
+  min-block-size: var(--presence-size) !important;
+  border-radius: 999px;
+  background: var(--cluster-slate-500);
+  box-sizing: border-box;
+  pointer-events: none;
+  clip-path: none !important;
+  overflow: visible !important;
+}
+.profile-avatar-presence-v227 { --avatar-size: 64px; --presence-size: 14px; }
+.member-avatar-presence-v227 { --avatar-size: 44px; --presence-size: 11px; }
+.users-status-avatar-v193.cluster-presence-avatar-v227 { --avatar-size: 38px; --presence-size: 10px; }
+.users-work-avatar-v227 { --avatar-size: 34px; --presence-size: 10px; }
+.comment-avatar-v227 { --avatar-size: 32px; --presence-size: 9px; }
+
+/* Block 13: final application presence chrome consolidated into the shared presence owner. */
+.cluster-presence-avatar-v227 {box-shadow: 0 0 0 1px var(--user-avatar-accent, var(--accent)), 0 1px 4px color-mix(in srgb, var(--cluster-black) 16%, transparent) !important;border-width: 0 !important;}
+.cluster-presence-indicator-v227 {right: -2px !important;bottom: -2px !important;width: 9px !important;height: 9px !important;border: 2px solid var(--surface-strong, var(--panel)) !important;box-shadow: none !important;}

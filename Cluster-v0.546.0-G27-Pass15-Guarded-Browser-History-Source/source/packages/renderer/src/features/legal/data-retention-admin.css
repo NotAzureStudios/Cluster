@@ -1,0 +1,54 @@
+
+
+/* v0.495 Visual Foundation Block 7: live selector ownership migration. */
+.data-retention-admin-v365 {display:grid;gap:14px;margin-top:14px}
+
+.retention-summary-v365 {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+
+.retention-summary-v365>div {display:grid;gap:4px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+
+.retention-summary-v365 span,
+.retention-policy-controls-v365 small,
+.retention-inventory-list-v365 small,
+.retention-run-list-v365 small {color:var(--muted);font-size:.72rem}
+
+.retention-summary-v365 strong {font-size:1.15rem}
+
+.retention-policy-list-v365 {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+.retention-policy-card-v365 {display:grid;gap:9px}
+
+.retention-policy-card-v365 .settings-card-head-v092>div {display:grid;gap:3px}
+
+.retention-toggle-v365 {display:flex;align-items:center;gap:7px;font-size:.76rem;color:var(--muted)}
+
+.retention-policy-controls-v365 {display:grid;gap:4px}
+
+.retention-policy-controls-v365 label {display:flex;align-items:center;gap:8px;font-size:.78rem}
+
+.retention-policy-controls-v365 input[type="number"] {width:92px}
+
+.retention-inventory-grid-v365 {grid-template-columns:repeat(2,minmax(0,1fr))}
+
+.retention-inventory-list-v365,
+.retention-run-list-v365 {display:grid;gap:8px}
+
+.retention-inventory-list-v365>div,
+.retention-run-list-v365>div {display:grid;gap:2px;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface-subtle)}
+
+.retention-inventory-list-v365 span,
+.retention-run-list-v365 span {font-size:.75rem;color:var(--muted)}
+
+.retention-apply-card-v365 {display:grid;gap:10px}
+
+@media (max-width:900px) {
+.retention-summary-v365,
+.retention-policy-list-v365,
+.retention-inventory-grid-v365 {grid-template-columns:1fr 1fr}
+}
+
+@media (max-width:640px) {
+.retention-summary-v365,
+.retention-policy-list-v365,
+.retention-inventory-grid-v365 {grid-template-columns:1fr}
+}

@@ -1,0 +1,63 @@
+.smart-resume-v276 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel, var(--surface)) 90%, var(--accent) 10%);
+}
+.smart-resume-v276 > div { min-width: 0; }
+.smart-resume-v276 strong { display: block; }
+.smart-resume-v276 span { display: block; margin-top: 4px; color: var(--text-muted); }
+.smart-resume-actions-v276 { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+
+
+
+
+
+
+
+.smart-create-recovery-v276,
+.smart-create-warning-v276,
+.smart-create-context-v276 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-soft, var(--panel));
+}
+.smart-create-warning-v276 { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.smart-create-warning-v276 strong,
+.smart-create-warning-v276 span,
+.smart-create-recovery-v276 strong,
+.smart-create-recovery-v276 span { display: block; }
+.smart-create-warning-v276 span,
+.smart-create-recovery-v276 span { margin-top: 3px; color: var(--text-muted); }
+.smart-create-warning-list-v276 { display: grid; gap: 6px; margin-top: 8px; }
+.smart-create-warning-list-v276 button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; width: 100%; text-align: left; }
+.smart-create-warning-list-v276 button span { margin: 0; }
+.smart-create-workload-v276 {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-soft, var(--panel));
+}
+.smart-create-workload-v276.warn { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.smart-create-workload-v276.danger { border-color: color-mix(in srgb, var(--danger) 50%, var(--border)); }
+.smart-create-draft-actions-v276 { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) {
+.smart-resume-v276, .smart-create-recovery-v276, .smart-create-warning-v276, .smart-create-context-v276 { grid-template-columns: 1fr; }
+.smart-resume-actions-v276, .smart-create-draft-actions-v276 { justify-content: flex-start; }
+
+}

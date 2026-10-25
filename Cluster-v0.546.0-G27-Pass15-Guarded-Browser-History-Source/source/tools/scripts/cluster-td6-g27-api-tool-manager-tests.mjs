@@ -1,0 +1,87 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const root = new URL('../../', import.meta.url);
+const read = (name) => fs.readFileSync(new URL(name, root), 'utf8');
+function load(name, mods = {}) {
+  const js = ts.transpileModule(read(name), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports = {};
+  vm.runInNewContext(js, { exports, require: (id) => { if (!(id in mods)) throw Error(`Unexpected import: ${id}`); return mods[id]; }, Date, Math, Number, String, JSON, Set, Map, Error, process }, { filename: name });
+  return exports;
+}
+const { buildApiToolHealthSnapshot: project } = load('apps/server/src/core/api-tool-health.ts');
+let checks = 0;
+const check = (test, label) => { assert.ok(test, label); checks++; };
+const eq = (a, b, label) => { assert.equal(a, b, label); checks++; };
+const catalog = [
+  { key: 'admin', label: 'Administration', ownerModules: ['domains/admin'], routeRoots: ['/api/admin'], asyncWork: true },
+  { key: 'jobs', label: 'Background jobs', ownerModules: ['domains/jobs'], routeRoots: ['/api/admin/operations/jobs'], asyncWork: true },
+  { key: 'projects', label: 'Projects', ownerModules: ['domains/projects'], routeRoots: ['/api/projects'], asyncWork: false },
+];
+const sample = (route, count, errors = 0, p95Ms = 200) => ({ route, count, errors, p95Ms, p99Ms: p95Ms * 1.5, averageMs: p95Ms / 2 });
+let result = project(catalog, []);
+eq(result.tools.length, 3, 'retains all canonical registered domains even with no traffic');
+eq(result.counts['no-observations'], 3, 'no traffic is not misrepresented as healthy');
+eq(result.livenessChecked, false, 'no active liveness claimed');
+check(result.diagnosticOnly === true, 'read-only diagnostic evidence');
+result = project(catalog, [sample('/api/projects', 19)]);
+eq(result.tools[2].posture, 'insufficient-data', 'insufficient data distinct from healthy');
+result = project(catalog, [sample('/api/projects', 20)]);
+eq(result.tools[2].posture, 'observed-healthy', 'traffic metrics normal at adequate sample count');
+result = project(catalog, [sample('/api/projects', 39, 1)]);
+eq(result.tools[2].posture, 'warning', 'observed 5xx warning');
+result = project(catalog, [sample('/api/projects', 20, 2)]);
+eq(result.tools[2].posture, 'degraded', 'elevated observed 5xx degraded');
+result = project(catalog, [sample('/api/projects', 25, 0, 750)]);
+eq(result.tools[2].posture, 'warning', 'p95 warning threshold');
+result = project(catalog, [sample('/api/projects', 25, 0, 2000)]);
+eq(result.tools[2].posture, 'degraded', 'p95 degraded threshold');
+result = project(catalog, [sample('/api/projects', 29), sample('/api/projects/:id', 1, 0, 3500)]);
+eq(result.tools[2].posture, 'observed-healthy', 'one outlying request cannot claim entire tool degraded');
+const realCatalog = load('apps/server/src/app/server-domain-catalog.ts').SERVER_DOMAIN_CATALOG;
+check(realCatalog.length >= 25, 'uses current canonical Cluster domain inventory');
+const realSnapshot = project(realCatalog, [sample('/api/admin/operations/jobs/metrics', 30)]);
+eq(realSnapshot.tools.reduce((sum, tool) => sum + tool.requests, 0), 30, 'real catalog route assigned exactly once');
+eq(realSnapshot.tools.find((tool) => tool.key === 'jobs').requests, 30, 'jobs route associated with actual jobs owner');
+result = project(catalog, [sample('/api/projects/abc', 23), sample('/api/admin/operations/jobs/metrics', 25)]);
+eq(result.tools[0].requests, 0, 'specific job route not charged to generic admin domain');
+eq(result.tools[1].requests, 25, 'most specific root matches jobs');
+eq(result.tools[2].requests, 23, 'path boundary matches projects route');
+result = project(catalog, [sample('/api/projects-other', 90)]);
+eq(result.tools[2].requests, 0, 'prefix confusion rejected');
+eq(result.unclassified.requests, 90, 'unclassified traffic aggregated');
+result = project(catalog, [sample('/api/projects?token=secret', 90), sample('/api/projects#fragment', 90), sample('/health', 90)]);
+eq(result.unclassified.routes, 0, 'raw query, fragment, non-API paths not included');
+result = project(catalog, [sample('/api/projects', 10, 999), sample('/api/projects/:id', 15, -5)]);
+eq(result.tools[2].requests, 25, 'request totals combined');
+eq(result.tools[2].serverErrors, 10, '5xx errors clamped to request count');
+eq(result.tools[2].serverErrorRate, 0.4, 'error rate correct');
+result = project(catalog, [sample('/api/projects', Number.NaN, -1, Number.NaN)]);
+eq(result.tools[2].posture, 'no-observations', 'invalid numeric data cannot assert healthy');
+result = project(catalog, [sample('/api/admin/operations/jobs/metrics', 20)]);
+check(result.tools[1].ownerModules.join(',') === 'domains/jobs', 'canonical domain ownership retained');
+check(result.tools[0].routes.length === 0, 'unobserved domains have empty route evidence');
+const operationRoutes = read('apps/server/src/app/server-routes-health-operations.ts');
+const operationLocation = operationRoutes.indexOf('app.get("/api/admin/operations/api-tools"');
+check(operationLocation !== -1, 'real API endpoint registered in Operations');
+const handler = operationRoutes.slice(operationLocation, operationRoutes.indexOf('app.get(', operationLocation + 10));
+check(handler.includes('requireAdminUserForRequest(request, reply)'), 'server-side admin authorization required');
+check(handler.includes('if (!admin) return;'), 'admin auth fail-closed');
+check(handler.includes('no-store'), 'private no-store cache');
+check(handler.includes('runtimeTelemetry.routeMetricsSnapshot()'), 'feeds canonical existing telemetry rather than fresh polling');
+check(!handler.includes('fetch(') && !handler.includes('prisma.'), 'request handler has no hidden probe or database fanout');
+check(read('apps/server/src/core/runtime-telemetry.ts').includes('routeMetricsSnapshot()'), 'bounded route telemetry published');
+check(read('apps/server/src/core/openapi.ts').includes('"/api/admin/operations/api-tools"'), 'route inventoried in OpenAPI');
+const frontend = read('packages/renderer/src/features/admin/OperationsSystemsPanel.tsx');
+check(frontend.includes('/api/admin/operations/api-tools'), 'actual Operations Systems interface wired');
+check(frontend.includes('liveness') || frontend.includes('not proof'), 'UI explicitly distinguishes traffic from liveness');
+check(frontend.includes('apiToolPosture') && frontend.includes('apiToolQuery'), 'search and posture filter wired');
+const requestInfra = read('apps/server/src/app/server-request-infrastructure.ts');
+check(requestInfra.includes('runtimeTelemetry.complete(startedAt, request.routeOptions.url || "/unmatched"'), 'unmatched paths cannot leak raw user URLs through request telemetry');
+check(requestInfra.includes('runtimeTelemetry.abandon(startedAt, request.routeOptions.url || "/unmatched"'), 'aborted unmatched requests cannot leak raw URLs');
+// Assert existing public readiness boundary still intact.
+check(!operationRoutes.slice(operationLocation, operationLocation + 950).includes('/health/ready'), 'API tool diagnostics not public health route');
+console.log(`G27 Cluster API Tool Manager: ${checks}/${checks} focused checks passed`);

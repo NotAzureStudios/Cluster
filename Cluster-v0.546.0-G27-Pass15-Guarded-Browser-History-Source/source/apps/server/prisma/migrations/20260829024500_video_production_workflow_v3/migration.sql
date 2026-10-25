@@ -1,0 +1,12 @@
+ALTER TABLE "VideoAsset" ADD COLUMN "derivedFromId" TEXT;
+ALTER TABLE "VideoAsset" ADD COLUMN "supersededById" TEXT;
+ALTER TABLE "VideoAsset" ADD COLUMN "processingState" TEXT NOT NULL DEFAULT 'idle';
+ALTER TABLE "VideoComment" ADD COLUMN "carriedFromCommentId" TEXT;
+ALTER TABLE "VideoComment" ADD COLUMN "carriedFromVideoId" TEXT;
+ALTER TABLE "VideoComment" ADD COLUMN "workEntityType" TEXT;
+ALTER TABLE "VideoComment" ADD COLUMN "workEntityId" TEXT;
+CREATE INDEX "VideoAsset_projectId_derivedFromId_idx" ON "VideoAsset"("projectId", "derivedFromId");
+CREATE INDEX "VideoAsset_projectId_supersededById_idx" ON "VideoAsset"("projectId", "supersededById");
+CREATE INDEX "VideoAsset_projectId_processingState_updatedAt_idx" ON "VideoAsset"("projectId", "processingState", "updatedAt");
+CREATE INDEX "VideoComment_videoAssetId_workEntityType_workEntityId_idx" ON "VideoComment"("videoAssetId", "workEntityType", "workEntityId");
+CREATE INDEX "VideoComment_carriedFromVideoId_carriedFromCommentId_idx" ON "VideoComment"("carriedFromVideoId", "carriedFromCommentId");

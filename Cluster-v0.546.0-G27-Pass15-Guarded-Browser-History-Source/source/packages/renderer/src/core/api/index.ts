@@ -1,0 +1,14 @@
+export { API_URL, API_TIMEOUT_MS, API_READ_RETRIES, API_RETRY_BASE_MS, API_RETRY_MAX_MS, syncDeviceId, resetSyncDeviceId, installationDeviceId } from "./config";
+export type { ApiRequestOptions } from "./config";
+export { createDeviceProofRotationPayload, currentDeviceProofKeyFingerprint, promotePendingDeviceProofKey, recoverPendingDeviceProofKey } from "./device-proof";
+export { CLUSTER_SESSION_INVALIDATED_EVENT, invalidateApiQueries, setApiQueryData, invalidateApiQueryTags, invalidateAuthenticatedClientState } from "./cache";
+export type { QueryApiOptions } from "./cache";
+export { ApiError, apiErrorPresentation, formatApiError, formatApiErrorPresentationDiagnostics, formatApiErrorDiagnostics, isApiNetworkFailure } from "./errors";
+export type { ApiErrorIssue, ApiErrorRecoveryKind, ApiErrorPresentation } from "./errors";
+export { api } from "./transport";
+export { queryApi } from "./query";
+export { mutateApi } from "./mutation";
+export type { QueueableMutationOptions, QueueableMutationResult } from "./mutation";
+export { uploadApi, flushApiUploads, discardUploadSession } from "./uploads";
+export type { QueueableUploadOptions, QueueableUploadResult } from "./uploads";
+export { flushApiOutbox, getLastApiOutboxFlushStats, type ApiOutboxFlushStats } from "./outbox";

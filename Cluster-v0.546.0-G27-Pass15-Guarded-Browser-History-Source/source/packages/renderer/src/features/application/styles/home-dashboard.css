@@ -1,0 +1,47 @@
+/* Home page shell spacing stays always-loaded; the widget subsystem owns its own feature stylesheet. */
+.home-page-v091 {
+  --cluster-home-gap: clamp(10px, 1vw, 14px);
+  gap: var(--cluster-home-gap);
+}
+.home-page-v091.home-card-diet-v141 { max-width: 1680px; margin: 0 auto; }
+
+/* Block 20: Home owns its dashboard/card-diet presentation. */
+.home-card-diet-v141 { --cluster-compact-line: color-mix(in srgb, var(--cluster-slate-400) 18%, transparent); --cluster-compact-muted: var(--cluster-workspace-muted, var(--cluster-slate-400)); display: grid; gap: 14px; }
+
+.home-status-v141 { margin: 0; }
+.command-brief-v141 { display: grid; grid-template-columns: minmax(320px, 1.25fr) minmax(280px, 1fr) auto; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--cluster-amber-500) 28%, transparent); border-radius: 20px; background: linear-gradient(135deg, color-mix(in srgb, var(--cluster-amber-500) 10%, transparent), color-mix(in srgb, var(--cluster-slate-400) 3.5%, transparent)); }
+.command-brief-v141.clear, .command-brief-v141.low { border-color: rgba(16, 185, 129, .2); background: linear-gradient(135deg, rgba(16, 185, 129, .07), color-mix(in srgb, var(--cluster-slate-400) 3.5%, transparent)); }
+.command-brief-main-v141 h2 { margin: 2px 0 4px; font-size: clamp(1.35rem, 2vw, 2rem); }
+.command-brief-main-v141 p:last-child { margin: 0; color: var(--cluster-compact-muted); }
+.command-brief-stats-v141 { display: grid; grid-template-columns: repeat(4, minmax(66px, 1fr)); gap: 8px; }
+.command-brief-stats-v141 button { border: 0; border-left: 0; background: transparent; color: inherit; padding: 4px 8px; text-align: left; cursor: pointer; }
+.command-brief-stats-v141 button.quiet { opacity: .55; }
+.command-brief-stats-v141 strong { display: block; font-size: 1.2rem; }
+.command-brief-actions-v141 { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+
+.home-section-title-v141 { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.home-section-title-v141 h2, .home-section-title-v141 h3, .home-section-title-v141 p { margin: 0; }
+.home-section-title-v141 h2 { font-size: clamp(1.35rem, 2vw, 2rem); }
+.home-section-title-v141.compact { align-items: center; padding: 14px 14px 0; }
+.home-section-title-v141 > span { color: var(--cluster-compact-muted); font-size: .86rem; }
+.home-card-diet-v141 :where(.muted.tight, .section-heading p.muted) { display: none; }
+
+
+/* TD3 Pass 11: Command Brief must not force a 3-column layout on tablets/phones.
+   The older breakpoint stubs above were empty while each column kept a desktop minimum. */
+@media (max-width: 1240px) {
+  .command-brief-v141 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .command-brief-actions-v141 { grid-column: 1 / -1; justify-content: flex-start; }
+}
+@media (max-width: 820px) {
+  .command-brief-v141 { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 13px 14px; }
+  .command-brief-stats-v141 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .command-brief-actions-v141 { grid-column: auto; }
+}
+@media (max-width: 520px) {
+  .command-brief-stats-v141 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .command-brief-stats-v141 button { min-width: 0; }
+  .command-brief-main-v141 h2 { overflow-wrap: anywhere; }
+  .command-brief-actions-v141 > * { min-height: 42px; }
+}

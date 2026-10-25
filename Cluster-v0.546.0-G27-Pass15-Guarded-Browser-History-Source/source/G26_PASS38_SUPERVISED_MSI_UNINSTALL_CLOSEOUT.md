@@ -1,0 +1,17 @@
+# G26 Pass 38: Separately signed per-user MSI uninstall
+
+**Cluster v0.546.0, G26 Pass 38, 2026-10-24.** Direct source follow-on from the executable MSI repair path in Pass 37. Windows execution is explicitly **NOT certified**.
+
+## Implemented
+
+- Added `uninstall` as a fourth separately signed deployment-control operation, never interchangeable with `install`, `repair` or managed content. A default-off server setting `CLUSTER_ALLOW_SUPERVISED_MSI_UNINSTALL=true` enables admin-only, authorized-device, live-entitled, short-lived one-use grants bound to the original SHA-256 installation receipt and the exact signed MSI release.
+- Native helper's `uninstall-msi` verifies signed source bytes, immutable staged MSI properties, ProductCode, user scope, full coherent profile/receipt/registered ProductVersion, signed prerequisites, unexpired one-use grant and **absence of known dependent Packages**. Profile-wide and per-Package admission locks serialize operations. Previously interrupted or completed repair/uninstall evidence in the **shared** `msi-lifecycle/<key>.json` blocks another lifecycle operation. The initial journal is exclusive-created and fsynced before the grant is consumed.
+- Windows per-user executor reuses the suspended, Job-assigned `msiexec.exe`, but calls only fixed `/x {SIGNED_PRODUCT_CODE} /qn /norestart ALLUSERS=2 MSIINSTALLPERUSER=1`, never a renderer-supplied command, ProductCode, path or elevation option. Protected signed MSI bytes, exact product registration and selected prerequisite receipts are rechecked immediately before resume. Durable states distinguish prepared/not-launched, launched/outcome unknown, exit-zero/not-OS-attested, restart-requested/not-OS-attested and failed/unknown. No automatic retry, deletion of original installation evidence or rollback is implemented.
+- `msi-uninstall-status` exposes separate strictly read-only journal evidence. Qt validates the evidence independently, requires typed `UNINSTALL <packageKey>` and separate confirmation, and keeps native MSI supervision free of the ordinary 30-second staging kill timer. Desktop requires a matching, blocker-free **read-only** lifecycle plan and exact original receipt, inspects the uninstall journal *before minting* the grant, and rejects stale profile/release/session responses.
+- Production JS/TSX tamper, stale-grant and prior-operation tests plus native Go Ed25519 operation isolation, journal O_EXCL, wrong-operation and replay checks run on source. The Pass14–37 regression suite remains green; Windows cross-compiled Go executable and Go unit/race/vet pass.
+
+## Safety and remaining work
+
+The operation is **off by default**, separately administrator-controlled, and must remain off in real deployments pending on-Windows execution review. Windows Installer service/custom actions may outlive the supervised child. Observing process exit or registry registration/absence does not prove application health, uninstall completeness or system dependency safety. Known Cluster prerequisites/dependents are not a global OS dependency inventory. No automatic rollback or destructive journal-clear endpoint exists.
+
+G26-10 and G26-11 remain **open** for approved upgrade planning/execution, rollback, deeper post-reboot health verification and real Windows/Qt/PostgreSQL integration. CERT-12 remains open. Development intentionally continues without waiting for a runtime certification slot.

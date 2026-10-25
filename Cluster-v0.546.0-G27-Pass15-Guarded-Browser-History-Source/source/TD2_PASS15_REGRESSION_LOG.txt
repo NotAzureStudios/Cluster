@@ -1,0 +1,362 @@
+=== techdebt:td0:check exit 0 duration 1.0s ===
+PASS Appearance resolves on startup without a temporal-dead-zone error
+PASS Legacy grid selection and canonical background settings both resolve
+PASS Contrast chooses dark text for canonical blue rather than inaccessible white
+PASS Applying resolved context sets actual CSS variables and layout preferences
+PASS OS reduced-motion preference cannot be overridden by Full user motion
+PASS Typography maps Inter to a distinct stack without changing Comfortaa default
+PASS Request policy and availability guard use the same six canonical tool identities
+PASS Configurable tool map tracks the canonical admin-configurable manifest IDs
+PASS Server middleware enforces availability through centralized helper, not stale time alias
+9/9 Cluster TD0 executable and contract checks passed.
+
+
+=== techdebt:td1:account-version exit 0 duration 0.9s ===
+PASS GET returns a 64-character DB-truth revision and fresh preferences despite stale session
+PASS a stale Account Settings editor cannot overwrite an intervening edit made after load
+PASS successful save returns a new revision usable for a second save
+PASS concurrent writes remain protected after correct read version
+PASS accent-only changes invalidate stale editor revision
+PASS accent-only race after fresh read cannot overwrite a newer accent
+PASS small accent-only client also respects commit-time compare-and-swap
+PASS small PATCH clients can safely change individual preferences without full-form revision
+PASS database CAS rejects an in-flight concurrent write
+PASS Account Settings passes original read fingerprint, refreshes after save and preserves draft on failure
+10/10 TD1 Account Settings read-version checks passed
+
+
+=== techdebt:td1:check exit 0 duration 0.9s ===
+PASS one shared map covers the six manifest-declared configurable tools
+PASS unknown fields cannot fabricate persisted setting identities
+PASS server and renderer consume the same field map
+PASS server validates full config but writes only CAS-selected fields
+PASS tool snapshot baselines come from DB truth and effective view is reconciled
+PASS editor keeps drafts and changes only touched keys
+PASS People profile definitions also require CAS and return useful conflicts
+PASS database preconditions preserve absent versus null versus present
+PASS stale same-key settings edit conflicts; independent writes succeed
+9/9 Cluster TD1 Settings Authority tests passed.
+
+
+=== techdebt:td1:definitions exit 0 duration 0.7s ===
+PASS all six configurable tools have exactly matching storage, field and resolved-default keys
+PASS every declared default satisfies its value constraints
+PASS numeric ranges are identical to the field contracts
+PASS all explicit enum choices are unique and nonempty
+PASS scheduler Studio-linked keys remain explicitly Studio-owned
+PASS stored false and zero have preserved projection semantics
+PASS legacy library upload-limit fallback is retained without a persisted alias
+PASS server builds its schemas once using shared constraints and still validates every write
+PASS renderer fallback uses the canonical projection for all six tools
+PASS renderer numeric fields consume constraints instead of hard-coded copies
+PASS shared descriptor remains independent of Zod and cannot create new setting identities
+11/11 TD1 canonical Tool Config definition checks passed
+
+
+=== techdebt:td1:distributed exit 0 duration 0.9s ===
+PASS a committed write immediately applies local tool state
+PASS coordination payload exposes no setting values or secret metadata
+PASS a remote hint always refreshes from DB truth, never from event payload
+PASS multiple hints while a refresh runs coalesce to one subsequent read
+PASS refresh failure does not make an infinite retry loop
+PASS failed coordination publication never makes a committed local write fail
+PASS undelivered coordination hints fall back safely
+PASS no-op commits do not publish and shutdown stops pending work
+PASS source uses existing coordination bus and retains periodic DB fallback
+PASS valid zero-day Scheduler policy values remain effective rather than reverting to defaults
+10 distributed Settings tests passed
+
+
+=== techdebt:td1:project-inheritance exit 0 duration 1.0s ===
+PASS Studio default resolves when Project has no record
+PASS Explicit Project view wins and supplies revision/provenance
+PASS CAS update advances revision and retains Project precedence
+PASS Stale admin cannot overwrite newer Project choice
+PASS Parallel create collision permits only one committed winner
+PASS Reset with stale expected revision fails closed
+PASS Reset deletes Project row and follows future Studio default
+PASS Resetting nonexistent Project override does not invent a Studio setting
+PASS Corrupted Project values fail closed instead of silently becoming defaults
+PASS Only a non-security field is exposed by scoped implementation
+PASS Calendar reader requires authenticated Project access
+PASS Renderer loads effective Project view without overwriting manual changes
+PASS Migration uses scoped Project FK and an atomic composite identity
+PASS Service rejects unsupported view values even if called without HTTP validation
+PASS Admin route enforces authorization, Project existence, CAS conflicts and reset
+15/15 TD1 Project Calendar inheritance checks passed
+
+
+=== techdebt:td1:project-lock exit 0 duration 1.0s ===
+PASS Studio fallback is never locked and personal preference wins
+PASS New Project override can lock out personal default on initial load
+PASS Lock cannot shadow Project default with an invalid personal value
+PASS Lock update CAS prevents stale admin from reverting policy
+PASS Re-locking is revisioned and takes effect without changing view value
+PASS Reset deletes both the Project override and lock, restoring Studio and User precedence
+PASS Boolean false is preserved and invalid stored policy is rejected
+PASS Service rejects non-boolean lock even if HTTP validation is bypassed
+PASS Multiple Projects retain separate lock policy and do not alter Studio defaults
+PASS Schema, SQL, API and admin editor all carry the same lock policy
+10/10 TD1 Project Calendar parent-lock checks passed
+
+
+=== techdebt:td1:provenance exit 0 duration 0.7s ===
+PASS all six configurable tools expose exactly one origin per registered setting
+PASS stored JSON null, empty string and zero are saved values, not resolved defaults
+PASS studio-linked configuration keeps Studio provenance and true persisted identity
+PASS incomplete database-truth baseline fails closed instead of presenting invented provenance
+PASS server returns the DB-derived provenance for GET and PUT without a second settings read
+PASS editor shows origins, displays ownership and refreshes provenance after both save and quick toggle
+6/6 TD1 setting provenance checks passed
+
+
+=== techdebt:td1:reset exit 0 duration 1.0s ===
+PASS reset removes a saved value instead of pinning a literal default
+PASS reset clears explicitly stored null rather than interpreting it as absent
+PASS stale reset cannot erase a concurrent admin update
+PASS missing row, incomplete expectation and server-managed setting all fail closed
+PASS reset changes only selected rows and sends runtime propagation when committed
+PASS reset endpoint rejects non-admin access
+PASS unknown tool setting field is rejected before changing DB
+PASS Studio-owned setting reset requires explicit impact acknowledgement
+PASS route rejects outdated expected value after another administrator saves
+PASS tool-owned field reset returns refreshed config, preconditions and provenance
+PASS absent DB row cannot resurrect from stale five-second Settings projection
+PASS resetting a disabled tool availability field restores its default and emits runtime notification
+PASS renderer retains other unsaved fields, confirms resets and updates tool listeners
+13/13 TD1 Tool Config atomic reset checks passed
+
+
+=== techdebt:td1:user-inheritance exit 0 duration 1.0s ===
+PASS no explicit user preference retains Studio default and provenance
+PASS no explicit user preference retains Project default and its revision
+PASS explicit user preference overrides Project and Studio but preserves Project provenance
+PASS null, empty or unrecognized user values cannot shadow inherited defaults
+PASS account PATCH persists an explicit user view without altering unrelated preferences
+PASS null reset deletes user override instead of saving a null sentinel
+PASS normal unrelated preference patch retains an explicit user view
+PASS two concurrent preference writers cannot silently overwrite each other
+PASS unsigned-in user cannot modify personal view
+PASS server validates optional nullable personal Calendar preference
+PASS normal Calendar API revalidates Project before resolving personal override
+PASS Account Settings exposes inherit + explicit views and does not pin a Week fallback
+12/12 TD1 user Calendar inheritance checks passed
+
+
+=== techdebt:td1:writers exit 0 duration 0.4s ===
+PASS Studio setting writer inventory has no unreviewed new source locations
+PASS regular Studio Settings API requires per-field loaded-value preconditions
+PASS Tool Config and People settings reject unversioned shared writes
+PASS configuration import serializes with Studio writes and checks preview under DB lock
+PASS normal Account Settings sends original server fingerprint; narrow clients use field patches
+PASS Project inheritance remains allowlisted and version-checked, not a second Studio settings table
+6/6 TD1 writer inventory checks passed
+
+
+=== techdebt:td1p2:check exit 0 duration 1.3s ===
+PASS linked Studio settings explicitly name owner and saved key
+PASS Tool Configuration warns about settings shared across the Studio
+PASS database changes notify owned runtime regardless of tool or Studio settings writer
+PASS suspending an adaptive owner clears its pending timer and prevents wakes
+PASS other owners and system tasks remain active while one owner is off
+PASS in-flight work is not claimed cancellable; stale continuations never rearm a disabled timer
+PASS a stopped generation cannot resurrect after the same task name is registered again
+PASS stopAll is final and cannot resurrect timers through owner toggles
+8/8 TD1 Pass2 + TD2 ownership foundation tests passed
+
+
+=== techdebt:td1td2:closeout exit 0 duration 1.2s ===
+PASS Studio-impact resolution tracks persisted identities, excludes private fields and does not duplicate keys
+PASS Tool Config API requires explicit acknowledgement for changed Studio-owned keys
+PASS suspending a running owner sends its callback an abort signal
+PASS adaptive callbacks aborted midflight do not wake while disabled; resume schedules exactly one timer
+PASS interval owner reenable while one callback is running restores normal interval
+PASS stopAll aborts an executing callback without rescheduling it
+PASS Calendar enqueue callback observes signal and availability before queueing
+7/7 TD1/TD2 closeout checks passed
+
+
+=== techdebt:td2:admission exit 0 duration 0.8s ===
+PASS overlapping runBatch callers do not exceed concurrency while a claim is pending
+PASS a completed claim cycle permits a fresh cycle to fill available slots
+PASS failed claim releases admission state and allows retry
+PASS shutdown waits for pending admission; duplicate callers cannot start a handler
+4/4 TD2 claim-admission checks passed
+
+
+=== techdebt:td2:calendar exit 0 duration 0.9s ===
+PASS Calendar scan fails closed before querying when its owner is disabled
+PASS Calendar scan checks the owner during a long batch instead of processing everything
+PASS healthy scan processes all events, with bounded checkpoints and final check
+PASS disabled Calendar activity avoids Calendar DB reads and automation work
+PASS enabled Calendar events keep their normal event-driven automation behavior
+PASS Calendar disable does not suspend independent Project-created automation
+PASS Calendar availability failure is not silently interpreted as enabled
+PASS job handler passes the guarded scan callback through to the shared scanner
+8/8 TD2 Calendar runtime ownership checks passed
+
+
+=== techdebt:td2:check exit 0 duration 1.1s ===
+PASS all six Studio availability switches reconcile from one policy; unrelated changes are ignored
+PASS repeating unchanged tool state does not reset timers during reconciliation
+PASS SQL claim excludes disabled-owned job types before attempts or leases are changed
+PASS lease-fenced defer returns a disabled-owned job to queue without burning attempts
+PASS a cancelled claimed job remains cancelled instead of silently reappearing
+PASS deferral refuses a missing or stolen lease
+PASS worker defers a job if its tool gets disabled after SQL claim
+PASS handler-side disable race defers instead of succeeding or consuming a retry
+PASS Calendar durable handler uses deferral rather than false success; protected Settings reconcile flags
+9/9 TD2 durable ownership checks passed
+
+
+=== techdebt:td2:collaboration exit 0 duration 0.9s ===
+PASS Only directly owned collaboration rooms map to kill switches
+PASS Disabling Library closes its own streams without disconnecting shared rooms
+PASS Disable removes heartbeat-only presence and stale authorization cache
+PASS Disabled Calendar returns TOOL_DISABLED even with previously cached allow
+PASS Re-enable restores access and disabled state revokes stream reauthorization
+PASS Project rooms keep their separate permissions when Calendar disabled
+PASS Application reconciles enabled-to-disabled transitions and wires the request gate
+PASS Stream closes during initial state loading without leaked telemetry or duplicate cleanup
+8/8 TD2 collaboration ownership checks passed
+
+
+=== techdebt:td2:execution-gate exit 0 duration 0.9s ===
+PASS policy uses canonical tool availability keys and only enrolled job types
+PASS stale process-local enabled state defers freshly disabled automation.calendar-scan
+PASS stale process-local enabled state defers freshly disabled library.transfer.finalize
+PASS stale process-local enabled state defers freshly disabled library.derivative.build
+PASS fresh available tool runs a preserved job successfully
+PASS async authorization runs before the fresh availability gate
+PASS runtime receives DB-backed read callback instead of reading stale cached settings
+PASS server runtime gate reads authoritative DB truth and fails closed without blocking shared maintenance
+PASS non-tool jobs remain unowned and are not blocked by tool availability
+9/9 TD2 authoritative execution gate checks passed
+
+
+=== techdebt:td2:fencing exit 0 duration 0.8s ===
+PASS each queue claim uses a new opaque lease token, retaining process worker identity for attempts
+PASS expired claims cannot resurrect themselves via heartbeat or progress
+PASS a newer claim rejects the previous worker even with the same worker ID and attempt
+PASS a valid claim can renew and write progress while an expired one cannot
+PASS valid finalization completes only the current claim
+PASS valid deferral restores attempt budget, while stale claim cannot defer a reclaimed job
+PASS worker fences the handler before entry when its lease cannot be renewed
+PASS worker does not report success if the completion fence rejects it
+PASS worker stops after fenced progress write fails
+9/9 TD2 claim fencing checks passed
+
+
+=== techdebt:td2:inflight exit 0 duration 0.8s ===
+PASS in-flight remote disable at a retryable checkpoint defers without failure or success
+PASS process-local disable defers even if stale authoritative read says enabled
+PASS authoritative Settings lookup failure after starting optional work defers safely
+PASS healthy owned work can pass repeated checkpoints and succeed
+PASS unowned maintenance remains runnable and uses no additional checks unless requested
+PASS actual user cancellation is not incorrectly converted into availability deferral
+PASS Library derivatives recheck between units and before publishing result
+PASS Library transfer has pre-commit boundary and does not check tool availability after storage commit
+8/8 TD2 in-flight availability checks passed
+
+
+=== techdebt:td2:library exit 0 duration 0.7s ===
+PASS only explicitly owned Calendar and Library durable jobs are paused
+PASS both Library job type handlers actually exist and use the registered ownership names
+PASS disabled Library jobs are excluded by queue claim before any attempt is started
+PASS library.transfer.finalize claimed just before disable is deferred without running its handler
+PASS library.derivative.build claimed just before disable is deferred without running its handler
+PASS disable during async pre-handler authorization defers Library job without executing handler
+PASS re-enabled Library claims and executes preserved work, independent work remains runnable
+7/7 TD2 Library ownership checks passed
+
+
+=== techdebt:td2:queued-tickets exit 0 duration 1.0s ===
+PASS only Ticket-origin generic jobs require Ticket availability
+PASS Ticket creation is detected across branch and delayed rule actions
+PASS queued Studio Ticket action defers without executing or failing
+PASS queued Project Ticket rule defers without burning retry attempts
+PASS ordinary Project Card automation is unaffected while Tickets disabled
+PASS Ticket-dependent job resumes when tool enabled
+PASS remote disable during work defers at the next safe checkpoint
+PASS failed authoritative availability check fails closed for Ticket jobs
+PASS Project rule fetching detects Ticket-producing actions even for ordinary Board origin
+PASS Project executor ignores Ticket availability for unrelated rule actions
+10/10 TD2 queued Ticket automation checks passed
+
+
+=== techdebt:td2:retention exit 0 duration 1.0s ===
+PASS queued transfer keeps completed staged upload beyond TTL
+PASS running transfer holds bytes until terminal state
+PASS completed/failed/cancelled transfers release their retention hold
+PASS unowned completed direct upload is removed, held direct upload is not
+PASS non-completed uploads need no background-job lookup
+PASS database failure fails closed without deleting staged files
+PASS pagination skips 100 protected uploads and still cleans later expired sessions
+PASS job types unrelated to Library never protect uploads
+PASS producer and cleanup agree on Library job dedupe key and statuses
+PASS 9/9 TD2 upload-retention checks
+
+
+=== techdebt:td2:shutdown exit 0 duration 0.9s ===
+PASS stop during a pending claim releases the unstarted lease rather than executing
+PASS drain waits for release transaction before returning
+PASS failed release cannot start the handler and leaves the claim for lease recovery
+PASS superseded lease cannot be released during shutdown
+PASS drain still waits for existing handler to finish safely
+PASS failed pending database claim settles drain without launching work
+6/6 TD2 shutdown claim drain checks passed
+
+
+=== techdebt:td2:subscriptions exit 0 duration 0.7s ===
+PASS Tool-owned listener subscribes, disconnects, and reconnects once
+PASS Registration while owner already disabled does not connect and can later rearm
+PASS Other owners and unowned maintenance timers remain unaffected
+PASS Disposer identity is protected after unregister/re-register
+PASS Duplicate resource names, invalid disposers and post-shutdown registration are rejected
+PASS Failed restart records diagnostics and retries on later disable/enable transition
+PASS Library route uses owner-managed subscriber and resets cache on both lifecycle edges
+7/7 TD2 owned subscription checks passed
+
+
+=== techdebt:td2:tickets exit 0 duration 1.0s ===
+PASS Explicit Ticket event does no DB lookup or automation when disabled
+PASS Card event classified as Ticket is suppressed before automation
+PASS Healthy enabled Ticket automation remains operational
+PASS Non-Ticket cards remain outside Ticket automation without a Settings read
+PASS Disabled Ticket policy does not suppress Project-created automation
+PASS Ticket Settings failures do not fail open
+PASS Project automation skips explicit disabled Ticket events before DB read
+PASS Project automation does not enqueue work for a disabled Ticket card
+PASS Project automation still handles enabled Ticket events
+PASS Unrelated Project/Board activity does not read Ticket Settings
+PASS Project Ticket automation fails closed when authoritative Settings unavailable
+PASS Both bridges use the same fresh Settings gate and local kill switch
+12/12 TD2 Ticket automation ownership checks passed
+
+
+=== tool:check exit 0 duration 0.5s ===
+Tool registry OK: 28 routes, 22 permission identities, 3 standalone modules (inventory, vault, integrations).
+
+
+=== tool:registry:tests exit 0 duration 3.0s ===
+PASS Canonical route, permission and standalone registry are consistent
+PASS Existing tool routes require no individual app rendering branches
+PASS Tool directory lists canonical permission definitions and opens through authorized navigation
+PASS Missing module is rejected
+PASS Unregistered module is rejected
+PASS Unknown permission key fails closed
+PASS Tool scaffold writes safe unregistered source and does not overwrite
+PASS Tool scaffold rejects unsafe or unsupported identifiers
+PASS Current edited TS/TSX files parse cleanly
+Cluster tool registry: 9 checks passed
+
+--- STATIC AUDIT ---
+{
+  "activeTypeScriptFiles": 993,
+  "syntaxDiagnostics": 0,
+  "relativeImports": 4209,
+  "unresolvedRelativeImports": [
+    "apps/server/src/core/prisma-client.ts : ../generated/prisma/client.js"
+  ]
+}
+

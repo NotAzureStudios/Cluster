@@ -1,0 +1,6 @@
+/* Block 13: template-management presentation owned beside the application foundation module. */
+.template-form-v122 .full { grid-column: 1 / -1; }
+.template-stats-v122 { display: flex; flex-wrap: wrap; gap: 10px; }
+.template-stats-v122 span { display: inline-flex; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 999px; border: 1px solid var(--border-soft, color-mix(in srgb, var(--cluster-slate-400) 22%, transparent)); background: color-mix(in srgb, var(--panel, var(--cluster-white)) 88%, transparent); color: var(--text-muted, var(--cluster-slate-500)); font-size: 0.86rem; }
+.template-list-v122 article { grid-template-columns: minmax(0, 1fr) auto auto; }
+@media (max-width: 760px) { .template-list-v122 article { grid-template-columns: 1fr; } }

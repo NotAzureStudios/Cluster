@@ -1,0 +1,26 @@
+{
+  "checkpoint": "TD3 Pass 18",
+  "parent": "TD3 Pass 17",
+  "migratedLegacyDisclosureSections": 12,
+  "inheritedAndNewRegressions": {
+    "passed": 19,
+    "total": 19
+  },
+  "newSourceAssertions": {
+    "passed": 47,
+    "total": 47
+  },
+  "staticScan": {
+    "tsTsxFiles": 1003,
+    "cssFiles": 109,
+    "rendererRelativeImports": 3211,
+    "errors": []
+  },
+  "illustrativeChromium": {
+    "captures": 16,
+    "documentOverflow": 0,
+    "missingTaskbarUtilities": 0
+  },
+  "nativeQt": "QML source only; binaries unchanged",
+  "releaseCertification": "separate; not performed"
+}

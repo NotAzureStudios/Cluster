@@ -1,0 +1,39 @@
+:where(html) { scroll-padding-top: calc(var(--cluster-control-height) + var(--space-4)); }
+:where([id], [tabindex]) { scroll-margin-block: calc(var(--cluster-control-height) + var(--space-3)); }
+:where(.content-shell, .table-shell, .data-table-shell, .table-wrap, .settings-table, .admin-table, .tickets-table, .library-table, .project-table, [role="dialog"], [role="menu"], [role="listbox"]) {
+  scrollbar-gutter: stable;
+}
+:where(.table-shell, .data-table-shell, .table-wrap, .settings-table, .admin-table, .tickets-table, .library-table, .project-table) {
+  overscroll-behavior: contain;
+}
+:where(.header-actions, .modal-actions, .dialog-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391, .settings-panel-actions, .toolbar-actions, .management-actions) {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+:where(.header-actions, .modal-actions, .dialog-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391, .settings-panel-actions, .toolbar-actions, .management-actions) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+:where(button, a[href], summary, [role="button"], [role="menuitem"], [role="option"], [role="tab"]):focus-visible {
+  position: relative;
+  z-index: 3;
+}
+:where(.modal, .dialog, [role="dialog"]) :where(.modal-header, .dialog-header, .modal-actions, .dialog-actions) {
+  isolation: isolate;
+}
+:where(summary, [role="menuitem"], [role="option"], [role="tab"]):not([aria-disabled="true"]) { cursor: pointer; }
+::selection {
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+  color: var(--text);
+}
+@media  (max-width: 760px) {
+  :where(.header-actions, .modal-actions, .dialog-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391, .settings-panel-actions, .toolbar-actions, .management-actions) {
+    width: 100%;
+  }
+  :where(.header-actions, .modal-actions, .dialog-actions, .cluster-workspace-actions-v391, .cluster-context-actions-v391, .settings-panel-actions, .toolbar-actions, .management-actions) > :where(button, a) {
+    flex: 0 1 auto;
+  }
+  :where(.table-shell, .data-table-shell, .table-wrap, .settings-table, .admin-table, .tickets-table, .library-table, .project-table) {
+    scrollbar-gutter: auto;
+  }
+}

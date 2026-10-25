@@ -1,0 +1,38 @@
+[
+  {
+    "file": "Cluster-TD3-Pass26-copy-dark-1440.png",
+    "theme": "dark",
+    "width": 1440,
+    "overflow": false,
+    "copies": 2,
+    "presence": true,
+    "error": true
+  },
+  {
+    "file": "Cluster-TD3-Pass26-copy-dark-390.png",
+    "theme": "dark",
+    "width": 390,
+    "overflow": false,
+    "copies": 2,
+    "presence": true,
+    "error": true
+  },
+  {
+    "file": "Cluster-TD3-Pass26-copy-light-1440.png",
+    "theme": "light",
+    "width": 1440,
+    "overflow": false,
+    "copies": 2,
+    "presence": true,
+    "error": true
+  },
+  {
+    "file": "Cluster-TD3-Pass26-copy-light-390.png",
+    "theme": "light",
+    "width": 390,
+    "overflow": false,
+    "copies": 2,
+    "presence": true,
+    "error": true
+  }
+]

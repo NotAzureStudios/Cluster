@@ -1,0 +1,11 @@
+{
+  "typeScriptFiles": 1029,
+  "cssFiles": 110,
+  "relativeImports": 4377,
+  "syntaxAndCssErrors": [],
+  "missingImports": [
+    "apps/server/src/core/prisma-client.ts -> ../generated/prisma/client.js"
+  ],
+  "checkedAt": "2026-10-15",
+  "scope": "Active source excluding recovered and runtime binaries"
+}

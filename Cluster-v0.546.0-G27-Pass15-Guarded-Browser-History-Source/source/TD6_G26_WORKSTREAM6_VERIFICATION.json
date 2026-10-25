@@ -1,0 +1,29 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD6 G26 Workstream 6",
+  "status": "source implemented; G26 OPEN",
+  "new_tests": {
+    "required_packet_delivery": "14/14",
+    "read_only_operator_recovery": "8/8"
+  },
+  "inherited": {
+    "G26_WS1_to_WS5": "pass",
+    "G24_discussion_and_privacy": "12/12",
+    "TD5_source_closeout": "14/14 scripts; 167/167 cases",
+    "Library_bulk": "16/16",
+    "Packet_WS3_ack_and_privacy_v10": "19/19"
+  },
+  "source_scan": {
+    "typescript_tsx": 1084,
+    "relative_imports": 3214,
+    "css_files": 110,
+    "issues": 0
+  },
+  "not_run": [
+    "Node24 full build",
+    "Prisma generate",
+    "PostgreSQL migration/locks",
+    "live object storage contention",
+    "real authenticated multiuser browser",
+    "Windows/Qt certification"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "project": "Cluster",
+  "version": "0.546.0",
+  "track": "TD6",
+  "pass": "F05",
+  "feature": "Packet PCM WAV metadata-free preview derivative delivery",
+  "sourceStatus": "implemented; full runtime and release certification deferred",
+  "sourceChecks": {
+    "typescriptTsxFiles": 1047,
+    "syntaxDiagnostics": 0,
+    "rendererImports": 3161,
+    "missingRendererImports": 0,
+    "cssFiles": 110,
+    "cssDelimiterErrors": 0
+  },
+  "selectedRegressions": {
+    "F05_audio_decoder_archive_and_real_recipient_handlers": 21,
+    "F04_whiteboard": 27,
+    "F03_card_history": 22,
+    "F02_forms_deadline": 36,
+    "F01_forms_branching": 20,
+    "respondent_drafts": 68,
+    "publication_and_notification_0511": 14,
+    "text_delivery_route_0512": 7,
+    "bundle_0512": 11,
+    "revocation_0512": 10,
+    "PDF_0513": 14,
+    "text_file_0520": 1,
+    "image_0521": 1
+  },
+  "selectedAssertionsTotal": 252,
+  "noDatabaseMigration": true,
+  "certificationDeferred": [
+    "dependency-backed full Node 24 compile and generated Prisma",
+    "live PostgreSQL",
+    "multi-user authenticated browser and native Windows/Qt",
+    "NAS/S3 external storage",
+    "native codec/media isolation and release acceptance"
+  ],
+  "scopeLimitations": [
+    "PCM WAV source only, max 1 MiB",
+    "preview excerpt only, up to 8s at 12kHz 8bit mono",
+    "at most eight previews and 1MiB shared derivative budget",
+    "no MP3, AAC, FLAC, video transcoding or full fidelity audio",
+    "no source File entitlement or raw fallback",
+    "unsafe physical disposal remains disabled"
+  ]
+}

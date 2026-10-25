@@ -1,0 +1,239 @@
+[
+  {
+    "name": "cluster-td3-return-action-native-profile-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "12",
+      "12"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-deep-shared-action-closeout-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "16",
+      "16"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass23-taskbar-action-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "15",
+      "15"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass25-transfer-integrity-tests.mjs",
+    "status": "pass",
+    "counts": [],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass26-copy-reliability-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "11",
+      "11"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass22-navigation-evidence-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "15",
+      "15"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass21-viewer-command-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "14",
+      "14"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass20-resource-builds-qa-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "20",
+      "20"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass19-convergence-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "32",
+      "32"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass18-cross-workspace-convergence-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "47",
+      "47"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass17-convergence-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "23",
+      "23"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass16-workspace-disclosure-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "26",
+      "26"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass15-workspace-convergence-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "14",
+      "14"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass13-action-integrity-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "13",
+      "13"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass12-taskbar-search-tests.mjs",
+    "status": "pass",
+    "counts": [],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass11-interaction-tests.mjs",
+    "status": "pass",
+    "counts": [],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass10-picker-shell-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "31",
+      "31"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass9-overlay-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "21",
+      "21"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass8-responsive-resize-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "27",
+      "27"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-pass7-preference-menu-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "22",
+      "22"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-ui-primitives-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "33",
+      "33"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-css-contract-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "9",
+      "9"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-material-portal-tests.mjs",
+    "status": "pass",
+    "counts": [],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-taskbar-layout-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "12",
+      "12"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-shell-regression-fidelity.mjs",
+    "status": "pass",
+    "counts": [],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-r28-viewer-native-css-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "11",
+      "11"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td6-respondent-drafts-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "60",
+      "60"
+    ],
+    "diagnostic": ""
+  },
+  {
+    "name": "cluster-td3-r29-action-outcomes-tests.mjs",
+    "status": "pass",
+    "counts": [
+      "12",
+      "12"
+    ],
+    "diagnostic": ""
+  }
+]

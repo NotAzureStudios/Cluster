@@ -1,0 +1,21 @@
+{
+  "checkpoint": "TD3 Pass 15",
+  "base": "TD3 Pass 14",
+  "sourceOnly": true,
+  "selectedRegressionCommandsPassed": 13,
+  "selectedRegressionCommandsAttempted": 13,
+  "newAssertionsPassed": 14,
+  "newAssertionsAttempted": 14,
+  "sourceScan": {
+    "tsTsxFiles": 1002,
+    "cssFiles": 109,
+    "rendererRelativeImports": 3191,
+    "cssUnbalanced": 0,
+    "errors": []
+  },
+  "previewCount": 8,
+  "previewDocumentOverflowCount": 0,
+  "nativeExecutablesChanged": false,
+  "databaseMigrationAdded": false,
+  "releaseCertification": "separate roadmap, not performed"
+}

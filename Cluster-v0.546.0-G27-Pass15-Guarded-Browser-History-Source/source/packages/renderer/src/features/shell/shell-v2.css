@@ -1,0 +1,251 @@
+/* Shell 2.0 canonical composition layer. Old version-stamped selectors remain only
+   for unmigrated popovers/content until their owners move to these primitives. */
+.cluster-taskbar {
+  min-width: 0;
+  min-height: var(--cluster-taskbar-height, 48px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--cluster-visual-border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--cluster-taskbar-surface);
+  color: var(--cluster-visual-text);
+}
+.cluster-taskbar__left,.cluster-taskbar__utilities{min-width:0;display:flex;align-items:center;gap:5px}
+.cluster-taskbar__tabs{min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden}
+.cluster-taskbar-action{min-width:34px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted);white-space:nowrap}
+.cluster-taskbar-action:hover,.cluster-taskbar-action:focus-visible,.cluster-taskbar-action.is-active{background:var(--cluster-visual-hover);color:var(--cluster-visual-text);border-color:var(--cluster-visual-border)}
+.cluster-taskbar-action__icon{width:17px;height:17px;flex:0 0 auto}
+.cluster-taskbar-action__label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+:root[data-taskbar-labels="icons"] .cluster-taskbar-action__label{display:none}
+@media(max-width:1180px){:root[data-taskbar-labels="auto"] .cluster-taskbar-action__label{display:none}}
+
+.cluster-sidebar-shell{width:var(--cluster-sidebar-current-width,264px);min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--cluster-sidebar-surface);color:var(--cluster-visual-text);border-right:1px solid var(--cluster-visual-border);transition:width 150ms ease,transform 150ms ease}
+.cluster-sidebar-section{min-width:0;display:grid;gap:3px}
+.cluster-sidebar-nav-item{position:relative;width:100%;min-width:0;min-height:38px;display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;align-items:center;gap:7px;padding:6px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted);text-align:left}
+.cluster-sidebar-nav-item:hover,.cluster-sidebar-nav-item:focus-visible{background:var(--cluster-visual-hover);color:var(--cluster-visual-text)}
+.cluster-sidebar-nav-item.is-active{background:var(--cluster-visual-selected);border-color:var(--cluster-visual-border);color:var(--cluster-visual-text)}
+.cluster-sidebar-nav-item.is-active::before{content:"";position:absolute;inset-inline-start:-1px;top:8px;bottom:8px;width:2px;border-radius:999px;background:var(--studio-primary,var(--accent))}
+.cluster-sidebar-nav-item.is-nested{padding-inline-start:17px}
+.cluster-sidebar-nav-item__icon{width:28px;height:28px;display:grid;place-items:center;flex:0 0 auto}
+.cluster-sidebar-nav-item__icon svg{width:19px;height:19px;overflow:visible}
+.cluster-sidebar-nav-item__label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cluster-sidebar-nav-item__badge{min-width:20px;min-height:20px;display:grid;place-items:center;padding:0 5px;border-radius:999px;background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text-muted);font-size:.65rem}
+.cluster-sidebar-nav-item__trailing{display:grid;place-items:center;color:var(--cluster-visual-text-muted)}
+.cluster-sidebar-shell.is-collapsed .cluster-sidebar-nav-item{grid-template-columns:1fr;padding-inline:7px;justify-items:center}
+.cluster-sidebar-shell.is-collapsed :where(.cluster-sidebar-nav-item__label,.cluster-sidebar-nav-item__badge,.cluster-sidebar-nav-item__trailing){display:none}
+.cluster-sidebar-shell.is-collapsed .cluster-sidebar-nav-item__icon{width:34px;height:34px}
+@media(max-width:899px){.cluster-sidebar-shell{position:fixed;z-index:200;inset:0 auto 0 0;width:min(86vw,320px);transform:translateX(-102%);box-shadow:0 20px 60px rgb(0 0 0 / 38%)}.cluster-sidebar-shell.is-open{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.cluster-sidebar-shell{transition:none}}
+
+.cluster-sidebar-project{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 32px;align-items:center;gap:3px;border-radius:8px}
+.cluster-sidebar-project:hover,.cluster-sidebar-project.is-active{background:var(--cluster-visual-hover)}
+.cluster-sidebar-project.is-active{box-shadow:inset 2px 0 0 var(--studio-primary,var(--accent))}
+.cluster-sidebar-project__main{min-width:0;min-height:38px;display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;gap:7px;padding:5px 3px 5px 10px;border:0;background:transparent;color:var(--cluster-visual-text);text-align:left}
+.cluster-sidebar-project__marker{width:7px;height:7px;border-radius:50%;background:var(--cluster-visual-text-muted)}
+.cluster-sidebar-project.is-active .cluster-sidebar-project__marker{background:var(--studio-primary,var(--accent));box-shadow:0 0 0 3px color-mix(in srgb,var(--studio-primary,var(--accent)) 16%,transparent)}
+.cluster-sidebar-project__copy{min-width:0;display:grid;gap:1px}
+.cluster-sidebar-project__copy strong,.cluster-sidebar-project__copy small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cluster-sidebar-project__copy strong{font-size:.74rem;font-weight:700}.cluster-sidebar-project__copy small{color:var(--cluster-visual-text-muted);font-size:.61rem}
+.cluster-sidebar-project__pin{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:7px;background:transparent;color:var(--cluster-visual-text-muted)}
+.cluster-sidebar-project__pin:hover,.cluster-sidebar-project__pin:focus-visible{background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text)}
+.cluster-sidebar-project__pin svg{width:16px;height:16px}
+.cluster-sidebar-shell.is-collapsed .cluster-sidebar-project{display:none}
+.cluster-taskbar-history{display:inline-flex;align-items:center;gap:3px}.cluster-taskbar-history__button,.cluster-taskbar-resume__clear{width:32px;height:32px;display:grid;place-items:center;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted)}.cluster-taskbar-history__button:hover,.cluster-taskbar-history__button:focus-visible,.cluster-taskbar-resume__clear:hover,.cluster-taskbar-resume__clear:focus-visible{background:var(--cluster-visual-hover);border-color:var(--cluster-visual-border);color:var(--cluster-visual-text)}.cluster-taskbar-history svg,.cluster-taskbar-resume svg{width:16px;height:16px}
+.cluster-taskbar-resume{min-width:0;max-width:190px;display:inline-flex;align-items:center;gap:3px;padding-left:4px;border-left:1px solid var(--cluster-visual-border)}.cluster-taskbar-resume__main{min-width:0;max-width:154px;min-height:32px;display:inline-flex;align-items:center;gap:6px;padding:4px 7px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted)}.cluster-taskbar-resume__main:hover,.cluster-taskbar-resume__main:focus-visible{background:var(--cluster-visual-hover);color:var(--cluster-visual-text)}.cluster-taskbar-resume__main span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cluster-taskbar-resume__clear{width:28px;height:28px}
+.cluster-taskbar-projects{min-width:0;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px}.cluster-taskbar-projects__scroll{min-width:0;display:flex;align-items:center;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.cluster-taskbar-projects__scroll::-webkit-scrollbar{display:none}.cluster-taskbar-project{min-width:0;max-width:260px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border:1px solid transparent;border-radius:8px;background:transparent}.cluster-taskbar-project:hover,.cluster-taskbar-project.is-active{background:var(--cluster-visual-hover);border-color:var(--cluster-visual-border)}.cluster-taskbar-project.is-active{background:var(--cluster-visual-selected)}.cluster-taskbar-project__main{min-width:86px;max-width:220px;min-height:32px;display:grid;grid-template-columns:8px auto minmax(0,1fr) auto;align-items:center;gap:5px;padding:4px 6px;border:0;background:transparent;color:var(--cluster-visual-text);text-align:left}.cluster-taskbar-project__status{width:7px;height:7px;border-radius:50%;background:var(--cluster-visual-text-muted)}.cluster-taskbar-project__status[data-tone="good"],.cluster-taskbar-project__status[data-tone="healthy"]{background:var(--success,#43c786)}.cluster-taskbar-project__status[data-tone="warn"],.cluster-taskbar-project__status[data-tone="warning"]{background:var(--warning,#d7a83d)}.cluster-taskbar-project__status[data-tone="bad"],.cluster-taskbar-project__status[data-tone="danger"]{background:var(--danger,#e36969)}.cluster-taskbar-project__pin{width:13px;height:13px;color:var(--cluster-visual-text-muted)}.cluster-taskbar-project__title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.cluster-taskbar-project__main em{overflow:hidden;max-width:90px;color:var(--cluster-visual-text-muted);font-size:.59rem;font-style:normal;text-overflow:ellipsis;white-space:nowrap}.cluster-taskbar-project__actions{display:flex;align-items:center;gap:1px;padding-right:2px;opacity:0;transition:opacity 100ms ease}.cluster-taskbar-project:hover .cluster-taskbar-project__actions,.cluster-taskbar-project:focus-within .cluster-taskbar-project__actions,.cluster-taskbar-project.is-active .cluster-taskbar-project__actions{opacity:1}.cluster-taskbar-project__close{width:26px;height:26px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:transparent;color:var(--cluster-visual-text-muted)}.cluster-taskbar-project__close:hover{background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text)}.cluster-taskbar-project__close svg{width:14px;height:14px}.cluster-taskbar-projects__empty{width:100%;min-height:32px;border:1px dashed var(--cluster-visual-border);border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted)}
+:root[data-project-tab-style="compact"] .cluster-taskbar-project__main em{display:none}:root[data-project-tab-style="compact"] .cluster-taskbar-project__main{grid-template-columns:8px auto minmax(0,1fr)}
+@media(max-width:900px){.cluster-taskbar-resume{display:none}.cluster-taskbar-project{max-width:190px}.cluster-taskbar-project__main em{display:none}}
+
+/* Pass 11: canonical active shell chrome. Legacy generation classes are no longer required by Sidebar or primary Taskbar actions. */
+.cluster-sidebar__header{min-height:58px;display:grid;grid-template-columns:34px minmax(0,1fr) 32px 32px;align-items:center;gap:7px;padding:8px 9px;border-bottom:1px solid var(--cluster-visual-border)}
+.cluster-sidebar__logo{width:30px;height:30px;object-fit:contain;border-radius:8px}.cluster-sidebar__brand{min-width:0;display:grid;line-height:1.15}.cluster-sidebar__brand strong,.cluster-sidebar__brand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cluster-sidebar__brand strong{font-size:.78rem}.cluster-sidebar__brand span{color:var(--cluster-visual-text-muted);font-size:.62rem}.cluster-sidebar__mode-toggle,.cluster-sidebar__mobile-close{width:32px;height:32px;display:grid;place-items:center;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted)}.cluster-sidebar__mode-toggle:hover,.cluster-sidebar__mobile-close:hover{background:var(--cluster-visual-hover);border-color:var(--cluster-visual-border);color:var(--cluster-visual-text)}.cluster-sidebar__mode-toggle svg,.cluster-sidebar__mobile-close svg{width:17px;height:17px}.cluster-sidebar__mobile-close{display:none}.cluster-sidebar__nav{min-height:0;display:flex;flex:1 1 auto;flex-direction:column;gap:8px;padding:8px;overflow-y:auto;overscroll-behavior:contain}.cluster-sidebar__project-list,.cluster-sidebar__admin-list{display:grid;gap:2px;padding:2px 0 0 7px}.cluster-sidebar__empty{padding:7px 10px;color:var(--cluster-visual-text-muted);font-size:.67rem}.cluster-sidebar__link{width:100%;min-height:32px;padding:5px 9px;border:0;border-radius:7px;background:transparent;color:var(--cluster-visual-text-muted);text-align:left}.cluster-sidebar__link:hover{background:var(--cluster-visual-hover);color:var(--cluster-visual-text)}.cluster-sidebar__footer{padding:7px 8px;border-top:1px solid var(--cluster-visual-border)}.cluster-sidebar-shell.is-collapsed .cluster-sidebar__header{grid-template-columns:1fr;padding-inline:8px}.cluster-sidebar-shell.is-collapsed :where(.cluster-sidebar__brand,.cluster-sidebar__mode-toggle,.cluster-sidebar__mobile-close){display:none}
+@media(max-width:899px){.cluster-sidebar__mobile-close{display:grid}.cluster-sidebar__mode-toggle{display:none}}
+.cluster-taskbar-action--icon{width:34px;min-width:34px;padding-inline:0}.cluster-taskbar-action__badge{min-width:18px;height:18px;display:grid;place-items:center;margin:0 0 0 1px;padding:0 5px;border-radius:999px;background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text-muted);font-size:.61rem;font-style:normal;font-variant-numeric:tabular-nums}.cluster-taskbar-action__hotkey{margin-left:3px;padding:2px 5px;border:1px solid var(--cluster-visual-border);border-radius:5px;background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text-muted);font:inherit;font-size:.58rem}.cluster-taskbar-create{color:var(--cluster-visual-text)}:root[data-taskbar-labels="icons"] .cluster-taskbar-action__hotkey{display:none}@media(max-width:1180px){:root[data-taskbar-labels="auto"] .cluster-taskbar-action__hotkey{display:none}}
+
+/* Transfer Center: canonical taskbar projection for browser + native queues. */
+.cluster-transfer-center{position:relative;display:flex;align-items:center;min-width:0}.cluster-transfer-trigger{position:relative;min-width:38px}.cluster-transfer-trigger.has-error{color:var(--danger)}.cluster-transfer-trigger__counts{position:absolute;right:2px;bottom:1px;display:inline-flex;gap:2px;padding:1px 3px;border:1px solid var(--cluster-visual-border);border-radius:999px;background:var(--cluster-visual-surface-raised);color:var(--cluster-visual-text-muted);font-size:8px;font-weight:800;line-height:1.1}.cluster-transfer-trigger__progress{position:absolute;left:5px;right:5px;bottom:0;height:2px;overflow:hidden;border-radius:999px;background:color-mix(in srgb,var(--cluster-visual-border) 75%,transparent)}.cluster-transfer-trigger__progress i{display:block;height:100%;border-radius:inherit;background:var(--studio-primary,var(--accent))}.cluster-transfer-popover{width:min(520px,calc(100vw - 24px));max-height:min(70vh,620px);overflow:hidden}.cluster-transfer-popover__header,.cluster-transfer-popover__footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--cluster-visual-border);background:var(--cluster-visual-surface-raised)}.cluster-transfer-popover__header>div{min-width:0;display:grid;gap:2px}.cluster-transfer-popover__header strong{font-size:.82rem}.cluster-transfer-popover__header span,.cluster-transfer-popover__footer span{color:var(--cluster-visual-text-muted);font-size:.68rem}.cluster-transfer-list{max-height:460px;overflow:auto;display:grid}.cluster-transfer-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--cluster-visual-border);background:var(--cluster-visual-surface)}.cluster-transfer-list article[data-state="failed"]{background:color-mix(in srgb,var(--danger) 6%,var(--cluster-visual-surface))}.cluster-transfer-list article[data-state="paused"]{background:color-mix(in srgb,var(--warning) 6%,var(--cluster-visual-surface))}.cluster-transfer-list__body{min-width:0;display:grid;gap:3px}.cluster-transfer-list__body strong,.cluster-transfer-list__body span,.cluster-transfer-list__body small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cluster-transfer-list__body strong{font-size:.76rem}.cluster-transfer-list__body span,.cluster-transfer-list__body small{color:var(--cluster-visual-text-muted);font-size:.66rem}.cluster-transfer-list__body small{color:var(--danger)}.cluster-transfer-list__body progress{width:100%;height:5px;accent-color:var(--studio-primary,var(--accent))}.cluster-transfer-list__actions{display:flex;align-items:center;justify-content:flex-end;gap:5px}.cluster-transfer-empty{min-height:150px;display:grid;place-items:center;align-content:center;gap:6px;padding:24px;color:var(--cluster-visual-text-muted);text-align:center}.cluster-transfer-empty strong{color:var(--cluster-visual-text);font-size:.78rem}.cluster-transfer-empty span{font-size:.68rem}.cluster-transfer-popover__footer{border-top:1px solid var(--cluster-visual-border);border-bottom:0}@media(max-width:720px){.cluster-transfer-list article{grid-template-columns:minmax(0,1fr)}.cluster-transfer-list__actions{justify-content:flex-start;flex-wrap:wrap}.cluster-transfer-popover__footer{align-items:flex-start;flex-direction:column}}
+
+.cluster-transfer-list__body small.cluster-transfer-list__note{color:var(--cluster-visual-text-muted)}
+
+/* TD3 Pass 3 | shell hit targets, legibility and DPI-safe icon slots. */
+.cluster-taskbar-action__label, .cluster-sidebar-nav-item__label,
+.cluster-sidebar-project__copy strong, .cluster-taskbar-project__title {
+  font-size: max(13px, .8125rem); line-height: 1.35; font-weight: 600;
+}
+.cluster-sidebar-project__copy small, .cluster-taskbar-project__main em {
+  font-size: max(12px, .75rem); line-height: 1.3;
+}
+.cluster-sidebar-nav-item__badge { font-size: max(11px, .6875rem); }
+.cluster-sidebar-nav-item__icon, .cluster-taskbar-action__icon { overflow: visible; }
+.cluster-taskbar-action__icon.cluster-icon-svg, .cluster-sidebar-nav-item__icon .cluster-icon-svg { flex-shrink: 0; overflow: visible; }
+@media (pointer: coarse) {
+  .cluster-taskbar-action, .cluster-taskbar-history__button, .cluster-taskbar-resume__main,
+  .cluster-taskbar-resume__clear, .cluster-taskbar-project__close,
+  .cluster-sidebar-nav-item, .cluster-sidebar-project__main, .cluster-sidebar-project__pin {
+    min-height: 44px;
+  }
+  .cluster-taskbar-history__button, .cluster-taskbar-resume__clear,
+  .cluster-taskbar-project__close, .cluster-sidebar-project__pin { min-width: 44px; }
+  .cluster-sidebar-project { grid-template-columns: minmax(0,1fr) 44px; }
+}
+@media (forced-colors: active) {
+  .cluster-sidebar-nav-item.is-active, .cluster-taskbar-action.is-active { outline: 1px solid Highlight; outline-offset: -1px; }
+}
+
+/* TD3 Pass 5: user-selectable sticky taskbar silhouette. One component, two placements.
+   Runtime preference is applied to <html> by the canonical visual system. */
+:root[data-taskbar-layout="floating"] .shell-unified-v3430 .taskbar-unified-v3430 {
+  border-radius: var(--radius-lg, 16px) !important;
+  border: 1px solid var(--cluster-taskbar-border, var(--cluster-visual-border)) !important;
+  box-shadow: 0 10px 32px rgb(0 0 0 / 14%), inset 0 1px 0 rgb(255 255 255 / 6%) !important;
+}
+:root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
+  /* Keep workspace padding for everything except the edge-to-edge taskbar. */
+  --cluster-taskbar-gutter-left: 12px;
+  --cluster-taskbar-gutter-right: 12px;
+  padding-top: 0 !important;
+}
+:root[data-taskbar-layout="full-width"] .shell-unified-v3430 .taskbar-unified-v3430 {
+  position: sticky !important;
+  top: 0 !important;
+  width: calc(100% + var(--cluster-taskbar-gutter-left) + var(--cluster-taskbar-gutter-right)) !important;
+  max-width: none !important;
+  margin-left: calc(-1 * var(--cluster-taskbar-gutter-left)) !important;
+  margin-right: calc(-1 * var(--cluster-taskbar-gutter-right)) !important;
+  margin-top: 0 !important;
+  margin-bottom: 16px !important;
+  border-radius: 0 !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--cluster-taskbar-border, var(--cluster-visual-border)) !important;
+  box-shadow: 0 5px 20px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 5%) !important;
+}
+@media (max-width: 767px) {
+  :root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
+    --cluster-taskbar-gutter-left: max(10px, env(safe-area-inset-left));
+    --cluster-taskbar-gutter-right: max(10px, env(safe-area-inset-right));
+  }
+  :root[data-taskbar-layout="floating"] .shell-unified-v3430 .taskbar-unified-v3430 {
+    border-radius: 12px !important;
+  }
+}
+:root[data-high-contrast="true"] .shell-unified-v3430 .taskbar-unified-v3430,
+:root[data-surface-style="flat"] .shell-unified-v3430 .taskbar-unified-v3430 {
+  box-shadow: none !important;
+}
+
+/* TD3 Pass 6: Sidebar placement is a shell preference, not a second navigation tree. */
+@media (min-width: 900px) {
+  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 {
+    grid-template-columns: calc(var(--cluster-sidebar-current-width, 264px) + 24px) minmax(0, 1fr) !important;
+  }
+  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .shell-sidebar-v3430 {
+    width: var(--cluster-sidebar-current-width, 264px) !important;
+    min-width: var(--cluster-sidebar-current-width, 264px) !important;
+    max-width: var(--cluster-sidebar-current-width, 264px) !important;
+    height: calc(100dvh - 24px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    margin: 12px !important;
+    border: 1px solid var(--cluster-visual-border, var(--border)) !important;
+    border-radius: var(--radius-lg, 16px) !important;
+    box-shadow: var(--cluster-appearance-elevation, 0 12px 30px rgb(0 0 0 / 12%)) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+  }
+  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .content-shell {
+    padding-left: 4px !important;
+  }
+}
+/* Preferences supply a consistent material treatment for persistent chrome. */
+:root[data-surface-depth="flat"] { --cluster-appearance-elevation: none; }
+:root[data-surface-depth="soft"] { --cluster-appearance-elevation: 0 8px 22px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 4%); }
+:root[data-surface-depth="elevated"] { --cluster-appearance-elevation: 0 16px 42px rgb(0 0 0 / 20%), 0 3px 10px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 7%); }
+:root[data-surface-texture="fine"] { --cluster-shell-texture-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text) var(--cluster-texture-percent, 6%), transparent) .65px, transparent .9px); --cluster-shell-texture-size: 7px 7px; }
+:root[data-surface-texture="brushed"] { --cluster-shell-texture-image: repeating-linear-gradient(95deg, transparent 0 2px, color-mix(in srgb, var(--text) var(--cluster-texture-percent, 6%), transparent) 3px 3.5px, transparent 4px 7px); --cluster-shell-texture-size: auto; }
+:root[data-surface-texture="none"] { --cluster-shell-texture-image: none; --cluster-shell-texture-size: auto; }
+:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 .taskbar-unified-v3430,
+:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 > .shell-sidebar-v3430 { background-image: var(--cluster-shell-texture-image, none) !important; background-size: var(--cluster-shell-texture-size, auto) !important; }
+:root:not([data-high-contrast="true"]):not([data-surface-style="flat"])[data-surface-depth="elevated"] .shell-unified-v3430 .taskbar-unified-v3430,
+:root:not([data-high-contrast="true"]):not([data-surface-style="flat"])[data-surface-depth="soft"] .shell-unified-v3430 .taskbar-unified-v3430 { box-shadow: var(--cluster-appearance-elevation) !important; }
+:root[data-high-contrast="true"], :root[data-surface-style="flat"] { --cluster-shell-texture-image: none; --cluster-appearance-elevation: none; }
+@media (max-width: 899px) {
+  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .shell-sidebar-v3430 { margin: 0 !important; border-radius: 0 !important; height: 100dvh !important; max-height: 100dvh !important; }
+}
+
+/* TD3 Pass 7: independent personalization of chrome artwork, borders, and scrollbars.
+   The icon scale does not shrink or expand click targets or replace intrinsic sizing. */
+.shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) .cluster-icon-svg {
+  scale: var(--cluster-icon-scale, 1);
+  transform-origin: center;
+  overflow: visible;
+}
+:root:not([data-high-contrast="true"]) .shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) {
+  border-color: color-mix(in srgb, var(--cluster-visual-border, var(--border)) calc(var(--cluster-panel-border-opacity, .72) * 100%), transparent) !important;
+}
+/* Keep visible scrollbars; user preference adjusts prominence only on desktop.
+   The project tab strip remains intentionally scrollable without showing a bar. */
+@media (min-width: 900px) and (pointer: fine) {
+  :root[data-scrollbar-style="minimal"] :is(.content-shell,.shell-sidebar-v3430,.cluster-floating-surface-v504) { scrollbar-width: thin; scrollbar-color: color-mix(in srgb,var(--cluster-visual-text-muted) 35%,transparent) transparent; }
+  :root[data-scrollbar-style="standard"] :is(.content-shell,.shell-sidebar-v3430,.cluster-floating-surface-v504) { scrollbar-width: thin; scrollbar-color: color-mix(in srgb,var(--cluster-visual-text-muted) 62%,transparent) transparent; }
+  :root[data-scrollbar-style="prominent"] :is(.content-shell,.shell-sidebar-v3430,.cluster-floating-surface-v504) { scrollbar-width: auto; scrollbar-color: color-mix(in srgb,var(--cluster-visual-text-muted) 88%,transparent) var(--cluster-visual-surface-raised); }
+}
+:root[data-high-contrast="true"] :is(.content-shell,.shell-sidebar-v3430,.cluster-floating-surface-v504) { scrollbar-width: auto !important; scrollbar-color: auto !important; }
+
+/* TD3 Pass 12: Search replaces Project Tabs, not taskbar utilities. */
+.cluster-taskbar-search-switch-v546 {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  align-items: center;
+  overflow: hidden !important;
+  isolation: isolate;
+}
+.cluster-taskbar-search-switch__projects,
+.cluster-taskbar-search-switch__input {
+  grid-area: 1 / 1;
+  min-width: 0;
+  width: 100%;
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(.2,.75,.2,1), visibility 220ms;
+}
+.cluster-taskbar-search-switch__projects { opacity: 1; transform: translateX(0); visibility: visible; }
+.cluster-taskbar-search-switch__input { opacity: 0; transform: translateX(28px) scaleX(.93); transform-origin: right center; visibility: hidden; pointer-events: none; }
+.cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-switch__projects { opacity: 0; transform: translateX(-36px) scale(.97); visibility: hidden; pointer-events: none; }
+.cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-switch__input { opacity: 1; transform: translateX(0) scaleX(1); visibility: visible; pointer-events: auto; }
+.cluster-taskbar-search-field-v546 {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 4px 7px 4px 11px !important;
+  border: 1px solid color-mix(in srgb, var(--cluster-visual-border) 70%, var(--studio-primary, var(--accent)) 30%) !important;
+  border-radius: 10px;
+  background: var(--cluster-visual-surface-raised, var(--panel)) !important;
+  box-shadow: inset 0 1px 1px color-mix(in srgb, white 5%, transparent), 0 2px 10px rgb(0 0 0 / 7%);
+}
+.cluster-taskbar-search-field-v546 > svg { flex: 0 0 auto; }
+.cluster-taskbar-search-field-v546 input { flex: 1 1 0; width: 0 !important; min-width: 0; min-height: 32px !important; font-size: .85rem; border: 0 !important; background: transparent !important; box-shadow: none !important; outline-offset: -2px; }
+.cluster-taskbar-search-field-v546 > button { flex: 0 0 auto; }
+.cluster-taskbar-search-results-v546 { width: min(820px, calc(100vw - 24px)) !important; min-width: min(430px, calc(100vw - 24px)); height: auto; max-height: min(740px, calc(100dvh - 70px)); z-index: 2000; }
+@media (max-width: 767px) {
+  /* The mobile shell normally hides project tabs. Search temporarily occupies that slot. */
+  .shell-unified-v3430 .taskbar-unified-v3430 .cluster-taskbar-search-switch-v546[data-search-open="true"] { display: grid !important; grid-column: 1 / -1 !important; grid-row: 2 !important; min-height: 42px; }
+  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) { height: auto !important; min-height: 96px !important; grid-template-rows: auto auto; }
+  .cluster-taskbar-search-field-v546 > button:not(.cluster-taskbar-search-field__close) { display: none; }
+  .cluster-taskbar-search-results-v546 { min-width: 0; width: calc(100vw - 16px) !important; max-height: min(72dvh, 650px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cluster-taskbar-search-switch__projects,.cluster-taskbar-search-switch__input { transition: none !important; transform: none !important; }
+}
+:root[data-motion-level="none"] .cluster-taskbar-search-switch__projects,
+:root[data-motion-level="none"] .cluster-taskbar-search-switch__input { transition: none !important; transform: none !important; }
+
+/* TD3 Pass 25: persistent, readable Transfer Center failure feedback. */
+.cluster-transfer-action-error{margin:0;padding:10px 14px;border-bottom:1px solid color-mix(in srgb,var(--danger) 30%,var(--cluster-visual-border));background:color-mix(in srgb,var(--danger) 9%,var(--cluster-visual-surface-raised));color:var(--cluster-visual-text);font-size:.76rem;line-height:1.5;overflow-wrap:anywhere}
+.cluster-transfer-popover[aria-busy="true"] .cluster-transfer-list__actions{opacity:.75}
+@media (prefers-contrast:more){.cluster-transfer-action-error{border:2px solid var(--danger)}}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-font="comfortaa" data-motion="full" data-surface-style="outlined" data-high-contrast="false">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cluster TD3 shared controls, static layout fixture (not running app)</title>
+<link rel="stylesheet" href="../../packages/renderer/src/styles.css"/>
+<style>
+  body { background: var(--cluster-theme-bg,#101214); color: var(--text,#f5f5f5); padding:0; margin:0; }
+  #td3-smoke-root { box-sizing:border-box; padding: clamp(18px,4vw,54px); max-width:1100px; margin:auto; min-width:0; }
+  .fixture-heading { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap; margin-bottom:28px;}
+  .fixture-heading h1 { font-size: clamp(23px,2.8vw,34px);letter-spacing:-.035em;margin:0 0 4px;line-height:1.2;font-weight:600; }
+  .fixture-heading p {font-size:13px;color:var(--soft-text); margin:0;line-height:1.6}
+  .fixture-tag {font-size:11px; padding:7px 10px;border:1px solid var(--cluster-border-strong);border-radius:999px;color:var(--soft-text)}
+  .fixture-grid { display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:16px;align-items:start; }
+  .fixture-card {min-width:0; padding:24px; background:var(--cluster-app-surface-strong,var(--panel)); border:1px solid var(--cluster-border-strong);border-radius:16px;box-shadow:0 7px 26px rgba(0,0,0,.08); }
+  .fixture-card h2 {font-size:16px;font-weight:600;margin:0 0 7px;line-height:1.3;}
+  .fixture-card p {font-size:13px;line-height:1.55;color:var(--soft-text);margin:0 0 20px}
+  .fixture-stack {display:grid;gap:12px;max-width:100%;}
+  .fixture-actions {display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .fixture-label {font-size:12px;font-weight:600;color:var(--text);display:block;margin-bottom:7px;}
+  .fixture-surface {position:relative!important;left:auto!important;top:auto!important;bottom:auto!important;z-index:1;max-height:none!important;visibility:visible!important;width:100%;min-width:0;box-sizing:border-box;}
+  .fixture-note {margin-top:24px; font-size:12px;line-height:1.6;color:var(--soft-text);}
+  .fixture-divider {height:1px;background:var(--cluster-border);margin:8px 0}
+  @media(max-width:760px){.fixture-grid{grid-template-columns:1fr}.fixture-card{padding:18px}.fixture-heading{margin-bottom:18px}}
+</style>
+</head>
+<body><main id="td3-smoke-root">
+  <header class="fixture-heading"><div><h1>Appearance 3.1 <span style="color:var(--accent)">/</span> Controls</h1><p>Shared primitive readability, keyboard states and compact density.</p></div><span class="fixture-tag">TD3 P2 · static fixture</span></header>
+  <div class="fixture-grid">
+    <section class="fixture-card panel"><h2>Primary actions</h2><p>Clear hierarchy. Controls remain compact without squeezing labels or icons.</p>
+      <div class="fixture-stack"><div class="fixture-actions"><button class="cluster-button-v425 primary" id="primary-action">Create project</button><button class="cluster-button-v425 secondary">Edit details</button><button class="cluster-button-v425 quiet">Cancel</button></div>
+      <div class="fixture-actions"><button class="cluster-button-v425 danger">Delete</button><button class="cluster-button-v425 compact">Compact button</button><button class="cluster-button-v425 cluster-icon-button-v425" aria-label="More options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg></button></div><div class="fixture-divider"></div><div class="fixture-actions"><button class="cluster-button-v425" aria-pressed="true">Selected</button><button class="cluster-button-v425" disabled>Unavailable</button><button class="cluster-button-v425" aria-busy="true" data-cluster-state="loading">Working…</button></div></div>
+    </section>
+    <section class="fixture-card panel"><h2>Fields & selections</h2><p>Readable labels, predictable focus and resilient long names.</p>
+      <div class="fixture-stack"><div><label class="fixture-label" for="project-name">Project name</label><input class="cluster-text-input-v491" id="project-name" value="Cluster Interface Overhaul" /></div><div><label class="fixture-label">Assigned workflow</label><div class="cluster-select-v227 open"><button class="cluster-select-trigger-v227" id="select-trigger" aria-expanded="true"><span>Visual Foundation and Design Systems</span><em>Team</em><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div></div>
+      <div class="fixture-actions"><a class="cluster-button-v425 secondary" href="#td3-smoke-root" aria-current="page">Current page</a><a class="cluster-button-v425 quiet" href="#" aria-disabled="true" tabindex="-1">Disabled link</a></div></div>
+    </section>
+    <section class="fixture-card panel"><h2>Contextual menu</h2><p>Legible secondary descriptions, full-size hit targets and visible focus.</p>
+      <div class="cluster-floating-surface-v504 cluster-action-menu-panel-v428 fixture-surface" role="menu" aria-label="Actions"><div class="cluster-action-menu-entry-v428"><button role="menuitem" id="menu-first"><span><strong>Open workspace</strong><small>See the current project and its tools</small></span></button></div><div class="cluster-action-menu-entry-v428"><button role="menuitem"><span><strong>Move to another project</strong><small>Keep all existing comments and attachments</small></span></button></div><div class="cluster-action-menu-entry-v428"><button role="menuitem" class="danger"><span><strong>Archive</strong><small>Remove from active work without deleting history</small></span></button></div></div>
+    </section>
+    <section class="fixture-card panel"><h2>Select options</h2><p>One menu style, without conflicting priority overrides.</p>
+      <div class="cluster-floating-surface-v504 cluster-select-menu-v227 fixture-surface" role="listbox" aria-label="Project workflows"><div class="cluster-select-option-v370 active" role="option" aria-selected="true"><span>UI Foundation and Accessibility</span><em>Selected</em></div><div class="cluster-select-option-v370 highlighted" role="option" aria-selected="false"><span>Desktop & Native Client Integration</span><em>In review</em></div><div class="cluster-select-option-v370" role="option" aria-selected="false"><span>Project / Board / Timeline Collaboration</span></div><div class="cluster-select-option-v370 disabled" role="option" aria-selected="false" aria-disabled="true"><span>Locked option</span></div></div>
+    </section>
+  </div><p class="fixture-note">Visual smoke fixture using production shared CSS. It does not represent a running Cluster session or completed application-wide visual certification.</p>
+</main></body>
+</html>

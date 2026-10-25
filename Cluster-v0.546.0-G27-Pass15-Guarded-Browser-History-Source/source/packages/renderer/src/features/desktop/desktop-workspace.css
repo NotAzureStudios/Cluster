@@ -1,0 +1,59 @@
+.desktop-workspace-v481 { display: grid; gap: 14px; }
+.desktop-mount-card-v481,.desktop-clipboard-widget-v481 { border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-panel); background: var(--cluster-surface-1); }
+.desktop-mount-card-v481 { padding: 14px; display: grid; gap: 14px; }
+.desktop-mount-card-v481 > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.desktop-mount-card-v481 h2,.desktop-mount-card-v481 p { margin: 0; }
+.desktop-mount-card-v481 header > div { display: grid; gap: 4px; }
+.desktop-mount-card-v481 header > div > p:last-child { color: var(--muted); font-size: .78rem; }
+.desktop-mount-state-v481 { border: 1px solid var(--cluster-border); border-radius: 999px; padding: 5px 8px; color: var(--muted); font-size: .66rem; white-space: nowrap; }
+.desktop-mount-state-v481.ready { color: var(--cluster-green-500); }
+.desktop-mount-policy-v481 { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); overflow: hidden; }
+.desktop-mount-policy-v481 > div { min-width: 0; display: grid; gap: 3px; padding: 10px 11px; }
+.desktop-mount-policy-v481 span,.desktop-mount-footer-v481 span { color: var(--muted); font-size: .66rem; }
+.desktop-mount-policy-v481 strong { overflow: hidden; text-overflow: ellipsis; font-size: .78rem; }
+.desktop-mount-grid-v481 { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.desktop-mount-grid-v481 label { display: grid; gap: 6px; min-width: 0; }
+.desktop-mount-grid-v481 label > span { color: var(--muted); font-size: .68rem; }
+.desktop-mount-grid-v481 label:has(input[type="checkbox"]) { grid-template-columns: 1fr auto; align-items: center; padding: 10px 11px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); }
+.desktop-mount-footer-v481 { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.desktop-mount-footer-v481 > div { display: grid; gap: 2px; }
+.desktop-clipboard-widget-v481 { padding: 11px; display: grid; gap: 9px; }
+.desktop-clipboard-title-v481 { display: flex; align-items: center; gap: 6px; }
+.desktop-clipboard-title-v481 svg { width: 15px; height: 15px; }
+.desktop-clipboard-title-v481 h3 { margin: 0; }
+.desktop-clipboard-empty-v481 { margin: 0; font-size: .7rem; line-height: 1.45; }
+.desktop-clipboard-preview-v481 { max-height: 116px; overflow: auto; padding: 8px 9px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); background: var(--cluster-surface-2); }
+.desktop-clipboard-preview-v481 textarea { width: 100%; min-height: 72px; resize: vertical; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; font-size: .7rem; line-height: 1.45; }
+.desktop-clipboard-actions-v481 { display: flex; flex-wrap: wrap; gap: 6px; }
+.desktop-clipboard-message-v481 { color: var(--muted); font-size: .63rem; line-height: 1.4; }
+@media (max-width: 900px) { .desktop-mount-policy-v481 { grid-template-columns: repeat(2,minmax(0,1fr)); } .desktop-mount-grid-v481 { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .desktop-mount-card-v481 > header,.desktop-mount-footer-v481 { align-items: stretch; flex-direction: column; } .desktop-mount-policy-v481 { grid-template-columns: 1fr; } }
+.desktop-local-preview-v481 { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); background: var(--cluster-surface-2); }
+.desktop-local-preview-v481 > div { display: grid; gap: 2px; }
+.desktop-local-preview-v481 span,.desktop-local-preview-v481 small { color: var(--muted); font-size: .66rem; }
+.desktop-local-preview-v481 pre { max-height: 220px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .7rem; line-height: 1.45; }
+
+
+/* v0.482 native workspace: primary native tools get first-class space rather than a settings afterthought. */
+.desktop-feature-grid-v482 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr); gap: 14px; align-items: start; }
+.desktop-feature-primary-v482 { min-width: 0; }
+.desktop-mount-state-v481.available { color: var(--cluster-blue-500); }
+.desktop-mount-runtime-v482 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); overflow: hidden; }
+.desktop-mount-runtime-v482 > div { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; }
+.desktop-mount-runtime-v482 span { color: var(--muted); font-size: .64rem; }
+.desktop-mount-runtime-v482 strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; }
+.desktop-native-action-row-v482 { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.desktop-required-mount-v482 { display: inline-flex; align-items: center; min-height: 30px; padding: 5px 8px; border: 1px solid var(--cluster-border-strong); border-radius: var(--cluster-radius-control); background: var(--cluster-surface-2); color: var(--cluster-text); font-size: .66rem; font-weight: 650; white-space: nowrap; }
+.desktop-shortcuts-card-v482 { display: grid; gap: 11px; padding: 14px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-panel); background: var(--cluster-surface-1); }
+.desktop-shortcuts-card-v482 > header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.desktop-shortcuts-card-v482 h2,.desktop-shortcuts-card-v482 p { margin: 0; }
+.desktop-shortcuts-card-v482 > p { color: var(--muted); font-size: .74rem; line-height: 1.45; }
+.desktop-shortcut-toggle-v482 { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); background: var(--cluster-surface-2); }
+.desktop-shortcut-toggle-v482 > span { display: grid; gap: 2px; }
+.desktop-shortcut-toggle-v482 small,.desktop-shortcut-note-v482 { color: var(--muted); font-size: .64rem; line-height: 1.4; }
+.desktop-shortcut-list-v482 { display: grid; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control); overflow: hidden; }
+.desktop-shortcut-list-v482 > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border-bottom: 1px solid var(--cluster-border); font-size: .72rem; }
+.desktop-shortcut-list-v482 > div:last-child { border-bottom: 0; }
+.desktop-shortcut-key-v482 { padding: 3px 6px; border: 1px solid var(--cluster-border-strong); border-radius: 5px; background: var(--cluster-surface-2); color: var(--cluster-text); font: inherit; font-size: .62rem; white-space: nowrap; }
+@media (max-width: 1100px) { .desktop-feature-grid-v482 { grid-template-columns: 1fr; } .desktop-mount-runtime-v482 { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .desktop-native-action-row-v482 { justify-content: stretch; }  }

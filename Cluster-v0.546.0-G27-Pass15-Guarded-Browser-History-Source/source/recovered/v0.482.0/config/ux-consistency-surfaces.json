@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "policy": "representative-high-use-surfaces",
+  "surfaces": [
+    {
+      "id": "shell",
+      "file": "packages/renderer/src/features/application/modules/application-shell.tsx",
+      "marker": "Home"
+    },
+    {
+      "id": "root-app",
+      "file": "packages/renderer/src/App.tsx",
+      "marker": "skip-link-v204"
+    },
+    {
+      "id": "projects",
+      "file": "packages/renderer/src/features/projects/ProjectsPage.tsx",
+      "marker": "Projects"
+    },
+    {
+      "id": "project-detail",
+      "file": "packages/renderer/src/features/projects/ProjectDetailPage.tsx",
+      "marker": "Project"
+    },
+    {
+      "id": "boards",
+      "file": "packages/renderer/src/features/boards/BoardWorkspacePage.tsx",
+      "marker": "board"
+    },
+    {
+      "id": "timeline",
+      "file": "packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx",
+      "marker": "timeline"
+    },
+    {
+      "id": "library",
+      "file": "packages/renderer/src/features/library/LibraryWorkspacePage.tsx",
+      "marker": "Library"
+    },
+    {
+      "id": "notifications",
+      "file": "packages/renderer/src/features/notifications/NotificationInboxPage.tsx",
+      "marker": "notification"
+    },
+    {
+      "id": "search",
+      "file": "packages/renderer/src/features/search/CommandPalette.tsx",
+      "marker": "dialog"
+    },
+    {
+      "id": "account-settings",
+      "file": "packages/renderer/src/features/settings/AccountSettingsPage.tsx",
+      "marker": "Account"
+    },
+    {
+      "id": "studio-settings",
+      "file": "packages/renderer/src/features/settings/StudioSettingsPage.tsx",
+      "marker": "Studio"
+    },
+    {
+      "id": "server-config",
+      "file": "packages/renderer/src/features/settings/ServerConfigPage.tsx",
+      "marker": "Server"
+    },
+    {
+      "id": "admin",
+      "file": "packages/renderer/src/features/admin/AdminWorkspacePage.tsx",
+      "marker": "Admin"
+    },
+    {
+      "id": "operations-performance",
+      "file": "packages/renderer/src/features/operations/ServerPerformancePanel.tsx",
+      "marker": "Server performance"
+    },
+    {
+      "id": "integration-providers",
+      "file": "packages/renderer/src/features/admin/IntegrationProvidersPanel.tsx",
+      "marker": "Integration providers"
+    }
+  ]
+}

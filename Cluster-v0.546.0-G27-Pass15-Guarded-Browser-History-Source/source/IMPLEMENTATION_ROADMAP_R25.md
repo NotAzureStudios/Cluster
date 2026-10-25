@@ -1,0 +1,65 @@
+# Cluster implementation roadmap | active summary | revision 25
+
+**Baseline:** v0.546.0 TD3 Deep Native UI + deep shared action/Appearance ownership review. The comprehensive historical/source ledger is `TECH_DEBT_MASTER_ROADMAP.md`. This file is the shorter, current execution view. All release acceptance lives in `CLUSTER_RELEASE_CERTIFICATION_ROADMAP.md`.
+
+## Phase execution
+
+| Phase | Implementation status | Exit scope |
+| --- | --- | --- |
+| TD0 | Core complete | Fix new confirmed defects only |
+| TD1 | Closed | Settings Authority source contracts preserved |
+| TD2 | Core closed | Six configurable tools and registered job/event ownership preserved |
+| TD3 | Advanced, remaining source work | Shared feedback + palette action owners corrected; background cascade corrected; source-level conflict/action inventory still requires finite follow-up |
+| TD4 | Partly built | Real resource/action/search adapters, provider lifecycles and typed events |
+| TD5 | Partly built | Missing native/diagnostic/background **implementation**, not runtime proof |
+| TD6 | Major unfinished code workload | Required CD-01 to CD-20 workflows, with optional provider extensions deferred explicitly |
+| TD7 | Not started | Delete obsolete implementations after canonical replacements; code freeze |
+
+## TD6 implementation backlog (not certification)
+
+| Work group | CD owners | Next substantive code slice |
+| --- | --- | --- |
+| Workflow authoring and collaboration | 01, 03, 18 | Forms respondent drafts; collaboration-safe Board/Whiteboard history; type-aware QA/build context |
+| Library, files and delivery | 02, 07, 13 | Collection sharing; server-side bulk selection; missing permitted media derivatives; unified transfer operations |
+| People and permissions | 04, 06, 17 | Timed access delegation, identity lifecycle, safe Vault scopes, Access Explorer |
+| Packages and integrations | 05, 08, 09 | Native managed Package apply/rollback authority, entitlement reconciliation, required Git/UE/Discord integration code; vendor/provider extras may be deferred |
+| Project and schedule | 10, 11 | External-safe identity and closeout, Calendar layer/recurrence integration |
+| Shared studio UX and communications | 12, 14, 16, 19 | Shared commands and navigation, notification grouping/preferences, actionable error/empty states |
+| Setup, operations and governance | 15, 20 | Safe config import/diff, setup recovery, cross-domain archive and privacy boundaries |
+
+**CD-21 is NOT in this table.** Live target build, device, performance, external provider and production acceptance tests belong only to the separate release-certification roadmap. Some existing CD prose still carries historical runtime acceptance examples; those examples are not implementation gates.
+
+## Deep, methodical subsystem execution discipline
+
+- **Inventory the whole subsystem before coding:** identify code owners, data flow, dependencies, all user entry points, and regression-sensitive details. Record evidence and reproducible defects; avoid mechanical migrations for their own sake.
+- **Define finite completion gates:** every required path is present and wired, duplicate authorities are removed, error/permission/disabled/offline states are handled, and source-level regression checks cover important contracts.
+- **Implement end to end:** keep working through connected codepaths until the subsystem's defined scope is complete. Never split a cohesive workflow to reach an arbitrary pass count; do not expand scope just to keep a phase open.
+- **Validate development continuously:** executable targeted tests, inherited regressions, static/source checks, code/package integrity. Track failing and unavailable checks separately; no optimistic checkmarks.
+- **Track outcomes, not milestones:** record fixed issues, uncovered issues, deferred optional features with explicit reasons, and remaining work owners. Close a phase only after a source implementation closeout audit; reopen only for a demonstrable defect.
+- **Keep release certification on its own roadmap:** Windows/Qt installed build, live PostgreSQL, multi-user and production acceptance testing are separate gates, never reasons to label source implementation unfinished.
+- **Preserve Cluster identity:** floating shell options, Project Tabs search replacement, My Work/Tickets/Transfer Center, People avatar accents/presence, layered textures and accessibility. No appearance flattening during consolidation.
+- **Prioritize completed user journeys over abstraction counts.** TD4/TD5 work should be integrated with the TD6 workflows that consume it. CD-01–CD-20 are complete only when mandatory server/UI interactions exist or optional work is explicitly deferred.
+
+## Current deep-pass execution order and implementation exit checks
+
+1. **TD3 native/shared UI closeout:** inventory all QML components in the compiled module; correct missing component refs, responsive typography, high-contrast opacity, focus and accessibility; audit CSS conflicts with concrete selectors, and shared action owners with demonstrated failure paths. Close only when the enumerated implementation gaps are fixed or assigned elsewhere.
+2. **TD4 + TD6 resource workflows:** pick a complete user journey (starting with Library selection/collections or Forms draft recovery), trace server authorization → contracts → renderer actions → status/rollback; deliver a usable workflow, not detached helpers.
+3. **TD5 implementation alongside consumers:** native transfers, background ownership, diagnostics and durability are completed as needed for the above workflows, not as vague standalone cleanups.
+4. **TD7 fossil removal:** remove obsolete code only after canonical implementations exist; preserve the original preservation matrix and ensure no required controls disappear.
+
+### TD3 native UI issues found in the source review
+
+- `ClusterComboBox.qml` referenced an unregistered `ClusterGlyph` in a module whose CMake list did not contain that type. Use a registered native chevron instead.
+- Native Qt pages still used 9–11 px hard-coded caption text, bypassing the desktop text-scale preference. Route page labels through one shared scaled native type resolver.
+- `Surface.qml` suppressed gradients for high contrast but retained a translucent background, weakening legibility. Force opaque materials when contrast or transparency settings demand it.
+- Full installed Qt build and Windows behavior remain on the separate release-certification roadmap. A missing `qmllint` in the source runtime is not an implementation failure or proof of QML build success.
+
+### Current deep subsystem work: action outcomes + Appearance backgrounds
+
+- Added a pure three-stage optimistic/server/commit transaction executor. A local commit failure after server success is an uncertain outcome, not a green light for a duplicate create/update. Rollback exceptions no longer strand the feedback control.
+- Taskbar Search commands, clipboard copy, and Desktop detached-window actions now share immediate execution, confirmed-outcome feedback, and no premature search dismissal.
+- Fixed false-positive Project share URL clipboard success.
+- Removed six demonstrated competing background declarations from the original CSS owners; the Light background presets now have independent output again. Appearance 3.2 surfaces and People/taskbar identity preserved.
+- Executable focused, inherited, source/strict-type, and computed-style CSS checks are recorded in `TD3_DEEP_SHARED_ACTION_CSS_AUDIT.md`; these are development evidence, not release certification.
+
+**Next TD3 exit work:** source-grounded inventory of still-independent action owners and proven CSS conflicts, plus remaining concrete Qt references, then an implementation-only closeout. No pass quota.

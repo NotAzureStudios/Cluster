@@ -1,0 +1,36 @@
+{
+  "cluster": "0.482.0",
+  "node": {
+    "channel": "lts",
+    "version": "24.19.0"
+  },
+  "postgresql": {
+    "major": 17,
+    "version": "17.10",
+    "installerRevision": 2
+  },
+  "prisma": {
+    "version": "7.9.1"
+  },
+  "qt": {
+    "majorMinor": "6.11",
+    "version": "6.11.1"
+  },
+  "go": {
+    "minimum": "1.23.0",
+    "recommended": "1.26.5"
+  },
+  "cmake": {
+    "minimum": "3.31.0",
+    "recommended": "4.4.1"
+  },
+  "three": {
+    "version": "0.185.1"
+  },
+  "updatePolicy": {
+    "security": "immediate-ci-automerge",
+    "patch": "weekly-ci-automerge",
+    "minor": "weekly-manual-approval",
+    "major": "manual-migration-review"
+  }
+}

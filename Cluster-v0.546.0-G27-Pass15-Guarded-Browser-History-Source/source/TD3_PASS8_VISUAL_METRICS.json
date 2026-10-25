@@ -1,0 +1,125 @@
+{
+  "fixtureOnly": true,
+  "scenarios": [
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-dark-floating-1440.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "dark",
+        "floating",
+        "floating",
+        1440,
+        900
+      ],
+      "metrics": {
+        "documentWidth": 1440,
+        "viewport": 1440,
+        "hostWidth": 1082,
+        "railWidth": 268,
+        "mainWidth": 805,
+        "railColumns": "268px 7px 805px",
+        "taskbar": "sticky"
+      }
+    },
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-light-floating-1440.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "light",
+        "floating",
+        "floating",
+        1440,
+        900
+      ],
+      "metrics": {
+        "documentWidth": 1440,
+        "viewport": 1440,
+        "hostWidth": 1082,
+        "railWidth": 268,
+        "mainWidth": 805,
+        "railColumns": "268px 7px 805px",
+        "taskbar": "sticky"
+      }
+    },
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-dark-docked-1120.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "dark",
+        "docked",
+        "full-width",
+        1120,
+        850
+      ],
+      "metrics": {
+        "documentWidth": 1120,
+        "viewport": 1120,
+        "hostWidth": 782.8125,
+        "railWidth": 268,
+        "mainWidth": 505.8125,
+        "railColumns": "268px 7px 505.812px",
+        "taskbar": "sticky"
+      }
+    },
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-light-docked-1120.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "light",
+        "docked",
+        "full-width",
+        1120,
+        850
+      ],
+      "metrics": {
+        "documentWidth": 1120,
+        "viewport": 1120,
+        "hostWidth": 782.8125,
+        "railWidth": 268,
+        "mainWidth": 505.8125,
+        "railColumns": "268px 7px 505.812px",
+        "taskbar": "sticky"
+      }
+    },
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-dark-floating-390.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "dark",
+        "floating",
+        "floating",
+        390,
+        844
+      ],
+      "metrics": {
+        "documentWidth": 390,
+        "viewport": 390,
+        "hostWidth": 344,
+        "railWidth": 342,
+        "mainWidth": 342,
+        "railColumns": "342px",
+        "taskbar": "sticky"
+      }
+    },
+    {
+      "name": "Cluster-v0.546-TD3-Pass8-Library-light-floating-390.png",
+      "type": "static Chromium fixture",
+      "settings": [
+        "light",
+        "floating",
+        "floating",
+        390,
+        844
+      ],
+      "metrics": {
+        "documentWidth": 390,
+        "viewport": 390,
+        "hostWidth": 344,
+        "railWidth": 342,
+        "mainWidth": 342,
+        "railColumns": "342px",
+        "taskbar": "sticky"
+      }
+    }
+  ]
+}

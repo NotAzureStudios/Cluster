@@ -1,0 +1,166 @@
+{
+  "staticFixturesOnly": true,
+  "cases": [
+    {
+      "name": "Workspace-dark-floating",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1165,
+        "mainScrollWidth": 1165,
+        "taskbarTop": 16,
+        "taskbarLeft": 264,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1.1",
+        "sidebarBorder": "rgba(161, 181, 207, 0.17)",
+        "scrollbarWidth": "auto",
+        "canvasBackground": "rgb(23, 28, 36)"
+      }
+    },
+    {
+      "name": "Workspace-light-floating",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1165,
+        "mainScrollWidth": 1165,
+        "taskbarTop": 16,
+        "taskbarLeft": 264,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1.1",
+        "sidebarBorder": "rgba(72, 95, 128, 0.17)",
+        "scrollbarWidth": "auto",
+        "canvasBackground": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "Workspace-dark-integrated",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1194,
+        "mainScrollWidth": 1194,
+        "taskbarTop": 0,
+        "taskbarLeft": 236,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1",
+        "sidebarBorder": "color(srgb 0.631373 0.709804 0.811765 / 0.121412)",
+        "scrollbarWidth": "thin",
+        "canvasBackground": "rgb(23, 28, 36)"
+      }
+    },
+    {
+      "name": "Workspace-light-integrated",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1194,
+        "mainScrollWidth": 1194,
+        "taskbarTop": 0,
+        "taskbarLeft": 236,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1",
+        "sidebarBorder": "color(srgb 0.282353 0.372549 0.501961 / 0.121412)",
+        "scrollbarWidth": "thin",
+        "canvasBackground": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "Appearance-dark",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1165,
+        "mainScrollWidth": 1165,
+        "taskbarTop": 16,
+        "taskbarLeft": 264,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1.1",
+        "sidebarBorder": "rgba(161, 181, 207, 0.17)",
+        "scrollbarWidth": "auto",
+        "canvasBackground": "rgb(23, 28, 36)"
+      }
+    },
+    {
+      "name": "Appearance-light",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 1440,
+        "documentWidth": 1440,
+        "bodyWidth": 1440,
+        "mainWidth": 1165,
+        "mainScrollWidth": 1165,
+        "taskbarTop": 16,
+        "taskbarLeft": 264,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "flex",
+        "iconScale": "1.1",
+        "sidebarBorder": "rgba(72, 95, 128, 0.17)",
+        "scrollbarWidth": "auto",
+        "canvasBackground": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "Workspace-dark-phone",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 390,
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "mainWidth": 390,
+        "mainScrollWidth": 390,
+        "taskbarTop": 14,
+        "taskbarLeft": 10,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "none",
+        "iconScale": "1.1",
+        "sidebarBorder": "color(srgb 0.631373 0.709804 0.811765 / 0.168627)",
+        "scrollbarWidth": "thin",
+        "canvasBackground": "rgb(23, 28, 36)"
+      }
+    },
+    {
+      "name": "Workspace-light-phone",
+      "fixtureOnly": true,
+      "metrics": {
+        "windowWidth": 390,
+        "documentWidth": 390,
+        "bodyWidth": 390,
+        "mainWidth": 390,
+        "mainScrollWidth": 390,
+        "taskbarTop": 14,
+        "taskbarLeft": 10,
+        "taskbarPosition": "sticky",
+        "sidebarDisplay": "none",
+        "iconScale": "1.1",
+        "sidebarBorder": "color(srgb 0.282353 0.372549 0.501961 / 0.168627)",
+        "scrollbarWidth": "thin",
+        "canvasBackground": "rgba(0, 0, 0, 0)"
+      }
+    },
+    {
+      "name": "Computed style preference transitions",
+      "metrics": {
+        "small": "0.9",
+        "large": "1.1",
+        "minimal": "color(srgb 0.631373 0.709804 0.811765 / 0.0708235)",
+        "defined": "color(srgb 0.631373 0.709804 0.811765 / 0.168627)"
+      }
+    }
+  ]
+}

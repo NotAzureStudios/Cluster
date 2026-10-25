@@ -1,0 +1,47 @@
+/* Canonical select and multi-select presentation. Geometry is responsive; source tokens control paint. */
+.cluster-select-v227 { min-width: 0; width: 100%; }
+.cluster-select-trigger-v227 {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: var(--cluster-control-height);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2);
+  padding: 8px 12px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-control);
+  color: var(--text); background: var(--cluster-surface-2); text-align: left;
+  font: inherit; font-size: max(.8125rem, var(--cluster-font-size-sm)); line-height: 1.4; cursor: pointer;
+  transition: border-color var(--cluster-motion-feedback) var(--cluster-ease-standard), background-color var(--cluster-motion-feedback) var(--cluster-ease-standard);
+}
+.cluster-select-trigger-v227 > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cluster-select-trigger-v227 > em { max-width: 14ch; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--soft-text); font-size: max(.75rem, var(--cluster-font-size-xs)); font-style: normal; }
+.cluster-select-trigger-v227 > svg { width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; color: var(--soft-text); transition: transform var(--cluster-motion-feedback) var(--cluster-ease-standard); }
+.cluster-select-v227.open .cluster-select-trigger-v227 { border-color: var(--cluster-focus-color, var(--accent)); }
+.cluster-select-v227.open .cluster-select-trigger-v227 > svg { transform: rotate(180deg); }
+.cluster-select-trigger-v227:disabled { cursor: not-allowed; opacity: var(--cluster-disabled-opacity); }
+.cluster-select-trigger-v227:focus-visible {
+  outline: 2px solid var(--cluster-focus-color, var(--cluster-semantic-focus-ring)); outline-offset: 2px;
+}
+.cluster-select-menu-v227 {
+  box-sizing: border-box; width: max(var(--cluster-floating-anchor-width, 180px), 220px);
+  max-width: min(420px, calc(100vw - 16px)); padding: var(--space-1);
+  border: 1px solid var(--cluster-border-strong, var(--line));
+  background: var(--cluster-surface-1, var(--panel)); box-shadow: var(--cluster-shadow-float);
+}
+.cluster-select-menu-v227 > [role="listbox"] { display: grid; gap: 2px; min-width: 0; max-height: min(320px, 45dvh); overflow: auto; padding: 2px 0; }
+.cluster-floating-surface-v504.cluster-select-menu-v227 > :is(button, .cluster-select-option-v370),
+.cluster-floating-surface-v504.cluster-select-menu-v227 > [role="listbox"] > .cluster-select-option-v370 {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: 40px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-2);
+  padding: 9px 11px; border: 0; border-radius: var(--cluster-radius-control);
+  color: var(--text); background: transparent; text-align: left;
+  font-size: max(.8125rem, var(--cluster-font-size-sm)); line-height: 1.35; cursor: pointer;
+}
+.cluster-select-menu-v227 .cluster-select-option-v370:is(.active, .highlighted, :hover:not(.disabled)) {
+  color: var(--text); background: var(--cluster-interactive-hover);
+}
+.cluster-select-menu-v227 .cluster-select-option-v370.disabled { cursor: not-allowed; opacity: var(--cluster-disabled-opacity); }
+.cluster-select-menu-v227 .cluster-select-option-v370 > span { min-width: 0; overflow-wrap: anywhere; }
+.cluster-select-menu-v227 .cluster-select-option-v370 > em { min-width: 0; color: var(--soft-text); font-size: max(.75rem, var(--cluster-font-size-xs)); font-style: normal; overflow-wrap: anywhere; }
+.cluster-select-menu-v227 .cluster-select-option-v370 > svg { width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; }
+.cluster-select-menu-v227 > :is(button, .cluster-select-option-v370):focus-visible { outline: 2px solid var(--cluster-focus-color, var(--cluster-semantic-focus-ring)); outline-offset: -2px; }
+@media (pointer: coarse) {
+  .cluster-select-trigger-v227, .cluster-select-menu-v227 .cluster-select-option-v370 { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .cluster-select-trigger-v227, .cluster-select-trigger-v227 > svg { transition: none; } }
+:root[data-motion="none"] .cluster-select-trigger-v227, :root[data-motion="none"] .cluster-select-trigger-v227 > svg { transition: none; }

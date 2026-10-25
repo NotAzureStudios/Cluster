@@ -1,0 +1,9 @@
+Cluster v0.522.0 | Packet PDF source, Go selection audit and Admin specialist navigation
+
+PASS: 58/58 source assertion suites with Node 22 --experimental-strip-types and temporary TypeScript test module (removed).
+PASS: Go native Package stager tests after new audit checks (go test ./... -count=1).
+PASS: 9/9 new source PDF negative/positive checks (PDF.js/canvas/sharp/pdf-lib mocked; not actual binary runtime).
+PASS: Pass15 specialist-section tests after correcting consolidated Admin rendering.
+PASS: Windows amd64 Go utility cross-compiled with CGO disabled. Not executed on Windows.
+PASS: 966 active TS/TSX files parsed with zero syntax errors; 4,246 relative imports inspected (one unresolved generated Prisma client missing from source bundle); 108 CSS files, zero delimiter failures.
+NOT TESTED: full semantic TypeScript/Prisma build, actual PDF decoding/canvas binaries, Windows Qt/Go runtime, PostgreSQL live, OS installation/rollback, device attestation.

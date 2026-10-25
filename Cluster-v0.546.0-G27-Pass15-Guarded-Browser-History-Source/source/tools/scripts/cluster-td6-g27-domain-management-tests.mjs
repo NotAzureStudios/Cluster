@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { createRequire } from 'node:module';
+const nodeRequire = createRequire(import.meta.url);
+const ts = nodeRequire((() => { try { return nodeRequire.resolve('typescript'); } catch { return '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js'; } })());
+const file = fs.readFileSync(new URL('../../apps/server/src/domains/domains/domain-management-routes.ts', import.meta.url), 'utf8');
+const cjs = ts.transpileModule(file, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const chain = new Proxy(function(){}, { get: (_target, field) => field === 'strict' || field === 'trim' || field === 'min' || field === 'max' || field === 'int' || field === 'positive' || field === 'optional' ? () => chain : field === 'extend' ? () => chain : field === 'safeParse' ? () => ({success:true}) : chain, apply: () => chain });
+const z = new Proxy({}, { get: () => chain });
+const exports = {};
+const context = { exports, require(id) { if (id === 'zod') return { z }; return requireMap[id]; }, Buffer, Date, Error };
+const requireMap = {
+  'node:crypto': await import('node:crypto'),
+  'node:url': await import('node:url'),
+  'node:dns/promises': await import('node:dns/promises'),
+};
+vm.runInNewContext(cjs, context);
+const { normalizeManagedDomain, verificationRecord } = exports;
+const valid = [['Example.COM.', 'example.com'], ['sub.EXAMPLE.com', 'sub.example.com'], ['bücher.example', 'xn--bcher-kva.example']];
+for (const [raw, expected] of valid) assert.equal(normalizeManagedDomain(raw), expected);
+const invalid = ['localhost','192.168.1.3','https://example.com','*.example.com','@example.com','foo..example.com','-bad.example.com','example.com:443','example.com/path',' a@b.example.com','com'];
+for (const raw of invalid) assert.throws(() => normalizeManagedDomain(raw), undefined, raw);
+const token='abc';
+assert.equal(verificationRecord(token, [['cluster-domain-verification=abc']]), true);
+assert.equal(verificationRecord(token, [['cluster-domain-', 'verification=abc']]), true);
+assert.equal(verificationRecord(token, [['untrusted=abc']]), false);
+assert.equal(verificationRecord(token, [['cluster-domain-verification=abcdef']]), false);
+const schema = fs.readFileSync(new URL('../../apps/server/prisma/schema.prisma', import.meta.url),'utf8');
+const migration = fs.readFileSync(new URL('../../apps/server/prisma/migrations/20261105000000_td6_g27_vault_domain_registry/migration.sql', import.meta.url),'utf8');
+const entry = fs.readFileSync(new URL('../../apps/server/src/app/cluster-server.ts', import.meta.url),'utf8');
+const ui = fs.readFileSync(new URL('../../packages/renderer/src/features/domains/DomainManagementPanel.tsx', import.meta.url),'utf8');
+assert.match(schema, /model StudioManagedDomain/);
+assert.match(migration, /CREATE UNIQUE INDEX "StudioManagedDomain_bindingHostname_key"/);
+assert.match(entry, /registerDomainManagementRoutes\(\{/);
+for (const path of ['domains', 'challenge', 'verify', 'bind', 'unbind']) assert.ok(file.includes(path));
+assert.match(file, /recordSecurityInTransaction/);
+assert.match(file, /verificationRecord\(preflight\.verificationToken/);
+assert.match(ui, /Verify ownership/);
+assert.match(ui, /bindingServerInstanceId/);
+assert.match(ui, /Rotate ownership proof/);
+assert.match(ui, /Check DNS status/);
+assert.match(file, /bindingServerInstanceId: instance.id/);
+assert.match(file, /readSettings\(true\)/);
+assert.match(file, /rotate-challenge/);
+assert.match(file, /dns-status/);
+assert.match(schema, /bindingServerInstanceId/);
+assert.ok(fs.existsSync(new URL('../../apps/server/prisma/migrations/20261106000000_td6_g27_domain_binding_lifecycle/migration.sql', import.meta.url)));
+assert.match(ui, /Save verified binding/);
+console.log(`Domain registry tests: ${valid.length + invalid.length + 4 + 9} checks passed`);

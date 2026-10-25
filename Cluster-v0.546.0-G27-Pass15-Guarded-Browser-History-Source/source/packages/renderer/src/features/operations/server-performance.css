@@ -1,0 +1,19 @@
+.server-performance-v387 { display: grid; gap: var(--ds-space-4, 16px); margin-top: var(--ds-space-4, 16px); border-top: 1px solid var(--border); padding-top: var(--ds-space-4, 16px); }
+.server-performance-v387 > header { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-3, 12px); }
+.server-performance-v387 > header > div:first-child { display: grid; gap: var(--ds-space-1, 4px); }
+.server-performance-v387 > header span { color: var(--muted); font-size: 12px; }
+.server-performance-kpis-v387, .server-performance-budgets-v387 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--ds-space-2, 8px); }
+.server-performance-kpis-v387 article, .server-performance-budgets-v387 article { display: grid; gap: var(--ds-space-1, 4px); padding: var(--ds-space-3, 12px); border: 1px solid var(--border); border-radius: var(--ds-radius-lg, 14px); background: var(--panel-2); }
+.server-performance-kpis-v387 span, .server-performance-budgets-v387 span, .server-performance-budgets-v387 small { color: var(--muted); font-size: 12px; }
+.server-performance-budgets-v387 article[data-status="warn"] { border-color: var(--warning); }
+.server-performance-budgets-v387 article[data-status="fail"] { border-color: var(--danger); }
+.server-performance-detail-v387 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-3, 12px); }
+.server-performance-detail-v387 section { min-width: 0; padding: var(--ds-space-3, 12px); border: 1px solid var(--border); border-radius: var(--ds-radius-lg, 14px); }
+.server-performance-detail-v387 section > header, .server-performance-detail-v387 p { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-2, 8px); }
+.server-performance-detail-v387 section > header span, .server-performance-detail-v387 p span, .server-performance-detail-v387 small { color: var(--muted); font-size: 11px; }
+.server-performance-detail-v387 p { margin: var(--ds-space-2, 8px) 0 0; }
+.server-performance-detail-v387 code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.server-performance-recommendations-v387 { display: grid; gap: var(--ds-space-2, 8px); padding: var(--ds-space-3, 12px); border: 1px solid var(--border); border-radius: var(--ds-radius-lg, 14px); }
+.server-performance-recommendations-v387 p { margin: 0; color: var(--muted); }
+.server-performance-v387.compact .server-performance-budgets-v387 { display: none; }
+@media (max-width: 1200px) { .server-performance-detail-v387 { grid-template-columns: 1fr; } }

@@ -1,0 +1,17 @@
+.cluster-person-summary-v493 { display:flex; align-items:center; gap:10px; min-width:0; }
+.cluster-person-summary-v493.compact { gap:8px; }
+.cluster-person-summary-copy-v493 { min-width:0; display:grid; gap:2px; }
+.cluster-person-summary-copy-v493 > strong,
+.cluster-person-summary-name-v493 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:inherit; font-weight:700; color:var(--text); text-align:left; }
+.cluster-person-summary-name-v493 { appearance:none; border:0; padding:0; background:transparent; cursor:pointer; }
+.cluster-person-summary-name-v493:hover { text-decoration:underline; }
+.cluster-person-summary-copy-v493 > span,
+.cluster-person-summary-copy-v493 > small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:max(.75rem, var(--cluster-font-size-xs)); }
+.cluster-person-summary-actions-v493 { margin-left:auto; display:flex; align-items:center; gap:6px; }
+.cluster-person-summary-actions-v493 > a,
+.cluster-person-summary-actions-v493 > button { border:1px solid var(--line); border-radius:var(--cluster-radius-control); background:var(--panel-2); color:var(--text); padding:5px 7px; font:inherit; font-size:max(.75rem, var(--cluster-font-size-xs)); text-decoration:none; cursor:pointer; }
+.cluster-person-summary-v493[data-availability="unavailable"] { opacity:.72; }
+.people-picker-summary-v493 { margin-top:6px; padding:7px 8px; border:1px solid var(--line); border-radius:var(--cluster-radius-control); background:var(--panel-2); }
+.people-multi-picker-selection-v493 { display:grid; gap:6px; margin-top:6px; }
+.people-multi-picker-person-v493 { display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid var(--line); border-radius:var(--cluster-radius-control); background:var(--panel-2); }
+.people-multi-picker-person-v493 > .cluster-person-summary-v493 { flex:1; min-width:0; }

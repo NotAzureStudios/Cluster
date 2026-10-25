@@ -1,0 +1,9 @@
+Cluster v0.524.0 | Server-authenticated grants, native managed content and rollback
+
+PASS: 73/78 source assertion scripts after correcting stale v0.523 naming metadata; 5 inherited historical WIP57 failures unchanged from v0.523 (pass 2/3/4/8/pass15).
+PASS: New managed-content grant assertions 10/10 including authentic Ed25519 signature, 60s TTL, two independent trust keys and nonattested report transition.
+PASS: Go native Package helper tests including authorized deployment/rollback, one-use replay ledger, expired/missing/tampered/wrong-key grants, copied-content tamper and symlink refusal.
+PASS: Real cross-language smoke: TypeScript server signer creates a grant verified by compiled Go helper; signed ZIP staged, verified, materialized, atomic pointer advanced, replay denied.
+PASS: Go Windows/amd64 helper cross-compiles. No Windows runtime certification.
+FAIL (INHERITED): wip57-pass2, wip57-pass3, wip57-pass4, wip57-pass8, wip57-pass15-admin-project-types; these structural assertions also failed in the verified 0.523 baseline.
+NOT CERTIFIED: Windows Qt6 build/run; PostgreSQL live authorization race tests; full semantic TypeScript+Prisma build with Node24; OS executable install and health attestation.

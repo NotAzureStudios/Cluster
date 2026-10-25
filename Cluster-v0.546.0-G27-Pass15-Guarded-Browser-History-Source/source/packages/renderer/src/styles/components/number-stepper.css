@@ -1,0 +1,15 @@
+/* Canonical NumberStepper presentation. */
+.number-stepper-v110 { --cluster-number-stepper-button-size: 24px; position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--cluster-number-stepper-button-size); align-items: stretch; min-height: 38px; width: 100%; border: 1px solid color-mix(in srgb, var(--border) 82%, var(--accent) 18%); border-radius: 12px; background: color-mix(in srgb, var(--panel) 72%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cluster-white) 4%, transparent); overflow: hidden; }
+.number-stepper-v110:focus-within { border-color: color-mix(in srgb, var(--studio-primary, var(--accent)) 72%, var(--border)); box-shadow: none; }
+.number-stepper-v110 input { min-width: 0; width: 100%; height: 100%; border: 0 !important; outline: 0; background: transparent !important; box-shadow: none !important; padding: 0 10px !important; color: var(--text); font: inherit; }
+.number-stepper-v110 input:focus { box-shadow: none !important; }
+.number-stepper-controls-v110 { display: grid; grid-template-rows: 1fr 1fr; border-left: 0; background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.number-stepper-controls-v110 button { display: grid; place-items: center; width: 100%; min-width: 0; min-height: 0; padding: 0; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.number-stepper-controls-v110 button:first-child { border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.number-stepper-controls-v110 button:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.number-stepper-controls-v110 button:active { transform: translateY(1px); }
+.number-stepper-controls-v110 button:disabled { cursor: not-allowed; opacity: 0.45; }
+.cluster-asset-icon-v110 { width: 13px; height: 13px; fill: currentColor; display: block; }
+.tool-field .number-stepper-v110, .mini-field .number-stepper-v110 { min-height: 34px; border-radius: 10px; }
+.tool-field .number-stepper-v110 input, .mini-field .number-stepper-v110 input { padding-inline: 8px !important; }
+@media  (max-width: 720px) { .number-stepper-v110 { --cluster-number-stepper-button-size: 30px; min-height: 42px; } }

@@ -1,0 +1,183 @@
+.collaboration-list-v227 article { border-left: 0; } 
+   .visual-overhaul-v139, .content-shell, .page, .panel, .modal, [role="dialog"], [role="menu"] { color: var(--text) ; } .visual-overhaul-v139 :where(h1, h2, h3, h4, h5, h6, strong, label, legend, summary, th, dt), .content-shell :where(h1, h2, h3, h4, h5, h6, strong, label, legend, summary, th, dt) { color: var(--text) ; opacity: 1 ; } .visual-overhaul-v139 :where(p, td, dd, li, span), .content-shell :where(p, td, dd, li, span) { opacity: 1; } .visual-overhaul-v139 :where(.muted, .soft, .caption, .subtitle, .eyebrow, small, em), .content-shell :where(.muted, .soft, .caption, .subtitle, .eyebrow, small, em) { color: var(--muted); opacity: 1; } .visual-overhaul-v139 :where(input, textarea, select), .content-shell :where(input, textarea, select) { color: var(--text) !important; background-color: var(--input-bg) ; opacity: 1 ; } .visual-overhaul-v139 :where(input, textarea)::placeholder, .content-shell :where(input, textarea)::placeholder { color: var(--muted) !important; opacity: 0.9 !important; }           :root[data-card-style="flat"] .visual-overhaul-v139 :where(.panel, .settings-card-v092, .card) { border-color: transparent !important; background: var(--panel) !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; } :root[data-card-style="outlined"] .visual-overhaul-v139 :where(.panel, .settings-card-v092, .card) { border-color: var(--line-strong, var(--border)) !important; background: color-mix(in srgb, var(--panel) 58%, transparent) !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; } :root[data-card-style="glass"] .visual-overhaul-v139 :where(.panel, .settings-card-v092, .card) { border-color: var(--border) !important; background: color-mix(in srgb, var(--panel) 78%, transparent) !important; -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(0.78) !important; backdrop-filter: blur(var(--glass-blur, 20px)) saturate(0.78) !important; } :root[data-density="comfortable"] .visual-overhaul-v139 :where(button, input, select, textarea) { min-height: 42px; } :root[data-density="comfortable"] .visual-overhaul-v139 :where(.panel, .settings-card-v092, .card) { padding-block: max(12px, 1em); } :root[data-density="compact"] .visual-overhaul-v139 :where(button, input, select) { min-height: 34px; }     :root[data-help-text="hidden"] .visual-overhaul-v139 :where( .field > small, .settings-card-v092 > p.muted, .settings-panel-head-v092 > p.muted ) { display: none !important; } .visual-overhaul-v139 :where( .panel, .card, .settings-card-v092, button, input, select, textarea, [role="dialog"], [role="menu"] ) { border-radius: var(--radius-md, 10px); }     .plain-number-input-v262 { width: 100%; min-height: 38px; padding: 7px 10px; font: inherit; appearance: textfield; } .plain-number-input-v262::-webkit-inner-spin-button, .plain-number-input-v262::-webkit-outer-spin-button { margin: 0 !important; appearance: none !important; }    
+html[data-runtime="desktop"] body{overscroll-behavior:none}   html,body,#root,.visual-overhaul-v139{color:var(--cluster-workbench-text) ;}  .content-shell{background:var(--cluster-workbench-veil) ;-webkit-backdrop-filter:blur(1.5px) saturate(.78);backdrop-filter:blur(1.5px) saturate(.78);}  .visual-overhaul-v139:where( .panel .panel,.panel .card,.settings-card-v092 section,.settings-card-v092 article,.dashboard-card section,.management-panel section,.admin-resource-panel section,.nested-panel,.subpanel,.tool-check,.metric-card,.summary-card ){border-color:var(--cluster-workbench-border) !important;background-color:var(--cluster-workbench-panel-muted) !important;background-image:none !important;} .visual-overhaul-v139:where(input,textarea,select,.cluster-select-trigger-v227){border-color:var(--cluster-workbench-border) !important;background-color:var(--cluster-workbench-control) !important;background-image:none !important;color:var(--cluster-workbench-text) !important;} .visual-overhaul-v139:where(input,textarea,select):hover{border-color:var(--cluster-workbench-border-strong) !important;background-color:var(--cluster-workbench-hover) !important;} .visual-overhaul-v139:where(h1,h2,h3,h4,h5,h6,strong,label,legend,summary,th,dt){color:var(--cluster-workbench-text) !important;opacity:1 !important;} .visual-overhaul-v139:where(.muted,.caption,.subtitle,small,em,.eyebrow){color:var(--cluster-workbench-muted) !important;opacity:1;} :root[data-card-style="flat"] .visual-overhaul-v139:where(.panel,.card,.settings-card-v092){border-color:transparent !important;background-color:var(--cluster-workbench-panel) !important;box-shadow:none !important;backdrop-filter:none !important;} :root[data-card-style="outlined"] .visual-overhaul-v139:where(.panel,.card,.settings-card-v092){border-color:var(--cluster-workbench-border-strong) !important;background-color:color-mix(in srgb,var(--cluster-workbench-panel) 72%,transparent) !important;box-shadow:none !important;backdrop-filter:none !important;} :root[data-card-style="glass"] .visual-overhaul-v139:where(.panel,.card,.settings-card-v092){border-color:var(--cluster-workbench-border) !important;background-color:color-mix(in srgb,var(--cluster-workbench-panel) 78%,transparent) !important;-webkit-backdrop-filter:blur(var(--glass-blur,18px)) saturate(.82) !important;backdrop-filter:blur(var(--glass-blur,18px)) saturate(.82) !important;}
+
+/* Block 12: application workspace owns its PIN-protected modal geometry. */
+.pin-protected-modal-v260 { max-width:640px; }
+
+/* Block 14: final application-workspace registry decomposition. */
+
+.visual-overhaul-v139,.visual-overhaul-v139 .app-main,.visual-overhaul-v139 .workspace-shell,.visual-overhaul-v139 .content-shell,.visual-overhaul-v139 .content-shell>.page{background-color:transparent !important;background-image:none;}
+
+html, body, #root { background: transparent ; }
+.visual-overhaul-v139 :where(.app-main, .workspace-shell, .content-shell, .content-shell > .page) { background: transparent; background-image: none; }
+:root[data-card-style="outlined"] .visual-overhaul-v139 :where(.panel, .settings-card-v092) { background-color: color-mix(in srgb, var(--cluster-workbench-panel) 76%, transparent) !important; }
+:root[data-card-style="flat"] .visual-overhaul-v139 :where(.panel, .settings-card-v092) { background-color: var(--cluster-workbench-panel-raised) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.visual-overhaul-v139 .content-shell,.visual-overhaul-v139 .app-main,.visual-overhaul-v139 .workspace-shell,.visual-overhaul-v139 .page {background-color: transparent;background-image: none;}
+html,body,#root,.visual-overhaul-v139 {min-height: 100%;background-color: transparent ;background-image: var(--cluster-workbench-background) ;background-size: var(--cluster-workbench-background-size, cover);background-position: center top;background-attachment: fixed;}
+body { background-color: var(--cluster-workbench-canvas); }
+.visual-overhaul-v139 .content-shell,.visual-overhaul-v139 .app-main,.visual-overhaul-v139 .workspace-shell,.visual-overhaul-v139 .content-shell > .page {background: transparent;}
+.visual-overhaul-v139 .content-shell {}
+
+
+/* Visual Runtime Block 22: generic compact help-text preference. */
+:root[data-help-text="hidden"] .muted.tight { display: none; }
+
+/* WIP22: translucent chrome stays translucent; text-bearing surfaces keep a readable backing layer. */
+:root[data-card-style="glass"] .visual-overhaul-v139 :where(.panel, .settings-card-v092) {
+  background-color: color-mix(in srgb, var(--cluster-workbench-panel) 84%, transparent) !important;
+}
+.visual-overhaul-v139 :where(.management-panel, .admin-resource-panel, .dashboard-card),
+:where([data-cluster-floating="true"], [role="dialog"], [role="menu"]) {
+  --cluster-readable-surface: color-mix(in srgb, var(--cluster-workbench-panel-raised) 94%, transparent);
+  background-color: var(--cluster-readable-surface) !important;
+}
+
+/* Close affordances use one geometry even when older surfaces still own their markup. */
+:where(
+  button[aria-label^="Close"]:not(.sidebar-backdrop-v289),
+  .modal-close-v19,
+  .library-viewer-close-v220,
+  .library-inspector-close-v220,
+  .project-tab-close-button-v370,
+  .notification-toast-close-v473,
+  .cluster-detail-close-v429,
+  .profile-peek-close-v473,
+  .security-pin-close-v262,
+  .shared-create-close-v448,
+  .sidebar-mobile-close-v289
+) {
+  border-radius: 999px !important;
+}
+:where(
+  .modal-close-v19,
+  .library-viewer-close-v220,
+  .library-inspector-close-v220,
+  .project-tab-close-button-v370,
+  .notification-toast-close-v473,
+  .cluster-detail-close-v429,
+  .profile-peek-close-v473,
+  .security-pin-close-v262,
+  .shared-create-close-v448,
+  .sidebar-mobile-close-v289
+) {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+:where(button[aria-label^="Close"]:has(svg), button[title^="Close"]:has(svg)) {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+}
+
+
+/* WIP28 footage pass: content may float over the canvas, text may not. */
+:root { --cluster-readable-content-surface: var(--cluster-workbench-panel-raised); }
+:root[data-theme="dark"] { --cluster-readable-content-surface: rgb(24 26 28 / 96%); }
+:root[data-theme="light"] { --cluster-readable-content-surface: rgb(248 249 250 / 96%); }
+.visual-overhaul-v139 :where(
+  .panel,
+  .card,
+  .management-panel,
+  .admin-resource-panel,
+  .project-resource-panel-v044,
+  .project-overview-panel-v147,
+  .flat-panel-v159,
+  .people-section-v244,
+  .people-private-v244,
+  .people-layout-v244,
+  .projects-intelligence-v30d,
+  .project-index-v146,
+  .operations-action-queue,
+  .operations-system-health,
+  .server-admin-experience-v420,
+  .cluster-data-projection-composer-v504,
+  .cluster-data-projections-v504,
+  .cluster-data-aggregation-strip-v504,
+  .cluster-data-facet-bar-v504
+) {
+  background-color: var(--cluster-readable-content-surface) !important;
+  background-image: none !important;
+}
+/* Nested cells can remain flatter, but should inherit a readable parent rather than the grid canvas. */
+.visual-overhaul-v139 :where(.people-profile-grid-v244, .people-work-metrics-v244, .profile-summary-grid-v250, .profile-access-grid-v250) {
+  background-color: var(--cluster-readable-content-surface) !important;
+}
+
+
+/* WIP28: icon geometry is owned by the slot/button, never by font baselines or inherited line-height. */
+.visual-overhaul-v139 :where(
+  .cluster-icon-button-v425,
+  .taskbar-icon-button-v081,
+  .project-tab-close-button-v370,
+  .notification-toast-close-v473,
+  .cluster-detail-close-v429,
+  .profile-peek-close-v473,
+  .security-pin-close-v262,
+  .shared-create-close-v448,
+  .home-widget-move-handle,
+  .home-widget-remove-control
+) {
+  display: inline-grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+}
+.visual-overhaul-v139 :where(button, a, summary) > svg.cluster-icon-svg,
+.visual-overhaul-v139 :where(.cluster-icon-button-v425, .taskbar-icon-button-v081) > svg {
+  display: block !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+}
+
+/* WIP28 final readability contract: card-style preferences may change border/blur treatment,
+   but any text-bearing surface still gets an actual backing layer. */
+:root[data-card-style="outlined"] .visual-overhaul-v139 :where(
+  .panel,
+  .card,
+  .settings-card-v092,
+  .management-panel,
+  .admin-resource-panel,
+  .dashboard-card,
+  .project-resource-panel-v044,
+  .project-overview-panel-v147,
+  .people-section-v244,
+  .people-private-v244,
+  .operations-action-queue,
+  .operations-system-health,
+  .server-admin-experience-v420
+),
+:root[data-card-style="glass"] .visual-overhaul-v139 :where(
+  .panel,
+  .card,
+  .settings-card-v092,
+  .management-panel,
+  .admin-resource-panel,
+  .dashboard-card,
+  .project-resource-panel-v044,
+  .project-overview-panel-v147,
+  .people-section-v244,
+  .people-private-v244,
+  .operations-action-queue,
+  .operations-system-health,
+  .server-admin-experience-v420
+) {
+  background-color: var(--cluster-readable-content-surface) !important;
+}

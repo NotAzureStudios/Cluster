@@ -1,0 +1,160 @@
+/* v0.227 application-wide visual and interaction consistency */
+/* Stop five workspaces from each inventing a slightly different dark blue. */
+.library-workspace-v217, .time-workspace-v212, .calendar-page-v189, .tickets-workspace-v186, .timeline-page-v156 { --panel: var(--cluster-surface-1); --surface: var(--cluster-surface-1); --surface-soft: var(--cluster-surface-2); --surface-strong: var(--cluster-surface-3); --border: var(--cluster-border); --line: var(--cluster-border); color: var(--text); }
+.panel, .modal, .dialog, [role="dialog"], .library-inspector-v217, .time-summary-card-v212, .calendar-workspace-v189, .tickets-queue-v184, .tickets-detail-v184, .timeline-map-panel-v153, .timeline-board-panel-v153, .timeline-list-panel-v153 { border-radius: var(--cluster-radius-panel) !important; border-color: var(--cluster-border) !important; }
+/* Profile identity and presence always travel together. */
+
+
+/* Object-scoped discussion. */
+
+
+/* Merge related dashboard boxes into coherent surfaces with dividers. */
+
+
+/* Let boxes use the room they are given rather than stopping halfway out of habit. */
+.timeline-workflow-actions-v155, .tickets-control-bar-v184, .calendar-toolbar-v189 { align-items: stretch; }
+.timeline-workflow-actions-v155 > *, .tickets-control-bar-v184 > .field, .calendar-toolbar-v189 > * { min-width: 0; }
+
+/* Time, Library, and Calendar page diet. */
+.time-workspace-v212, .library-workspace-v217, .calendar-page-v189 { padding-top: 15px !important; }
+
+.library-workspace-v217 h1, .calendar-page-v189 h1 { font-size: clamp(25px, 2.5vw, 34px) !important; }
+
+
+/* Library alignment and slightly denser chrome. */
+
+
+/* Modal and date-time editor alignment. */
+.modal { border-radius: var(--cluster-radius-panel) !important; }
+
+
+@media (pointer: coarse) {
+.cluster-icon-button-v227 { min-width: 44px; min-height: 44px; }
+}
+/* Custom select replaces unstyleable operating-system dropdown popups on core workspaces. */
+
+
+/* Card discussions use the same object-scoped pattern instead of the old loose comment pile. */
+
+
+/* The folder appearance editor is now composed from the same controls as the rest of Cluster. */
+
+
+/* Menus and editors align to the room available instead of preserving arbitrary half-widths. */
+.modal-card, .event-modal-v190 { width: min(760px, calc(100vw - 32px)); }
+
+
+/* Consistent section surfaces: one container, internal dividers, fewer floating rounded islands. */
+
+
+.section-heading + .metric-grid, .section-heading + .summary-grid { margin-top: 0; }
+/* Custom menus need to remain above modal content and inspector clipping. */
+
+
+/* v0.228 shared tool shell, creation workflow, presence, and admin navigation */
+
+
+.calendar-toolbar-v190, .time-clock-dock-v212, .library-browser-shell-v217, .tickets-control-bar-v184, .timeline-header-filters-v254 { border-radius: 7px !important; }
+
+
+/* Presence belongs to the identity control, so make it visible instead of technically existing. */
+
+
+/* The shared create drawer is a creation workspace, not a generic form dump. */
+
+
+/* Keep the five tool control bars aligned to the same owned-control rhythm. */
+.tickets-control-bar-v184, .timeline-header-filters-v254, .calendar-filter-row-v190, .library-filter-primary-v219 { align-items: end; }
+.tickets-control-bar-v184 > .field, .timeline-header-filters-v254 > .field { min-width: 0; }
+.tickets-control-bar-v184 .cluster-select-v227, .timeline-header-filters-v254 .cluster-select-v227 { width: 100%; }
+
+
+@media (max-width: 1100px) {
+.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 720px) {
+.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: 1fr !important; }
+}
+
+
+/* v0.229 administration, navigation, and configurable project types */
+/* Dropdowns need enough shape to read as controls, without turning into pills. */
+select, input, textarea, button { border-radius: var(--cluster-radius-control); }
+
+
+/* The sidebar is navigation, not a stack of bubbles. */
+
+
+ 
+
+
+/* The old separate Time filter bar is folded into the section switcher. */
+
+
+/* Administration uses one dense management shell instead of unrelated legacy boxes. */
+
+
+.admin-resource-panel, .management-panel { border-radius: var(--cluster-radius-panel) !important; }
+
+
+/* Project type configuration is editable data. Locked preset styling is intentionally gone. */
+
+
+/* v0.231 stabilization: one shell, less prose, tighter work surfaces. */
+
+
+.admin-hours-panel-v105 .time-context-bar { margin-bottom: 12px; }
+
+/* v0.234 zero-prose surfaces and viewport-owned Library viewer. */
+.muted.tight:not([role="status"]):not([role="alert"]), .eyebrow, .tool-subtitle, .page-header p.muted, .page-header > div > p, .section-heading p.muted, .section-heading > div > p.muted, .panel-header p.muted, .management-header-row p.muted, .admin-header p.muted, .settings-panel-head-v092 p.muted, .cluster-tool-title-v228 > p, .library-empty-v217 > p, .library-preview-empty-v217 > p, .library-document-note-v221, .project-header-progress-copy-v148 span, .compact-copy-v147, .hint-box.slim:not([role="alert"]):not(.error-box):not(.status-box):not(.toast), .hint-box:not([role="alert"]):not(.error-box):not(.status-box):not(.toast) { display: none !important; }
+.cluster-tool-title-v228, .page-header > div:first-child, .section-heading > div:first-child, .panel-header > div:first-child { gap: 0 !important; }
+
+
+/* v0.250 shared avatar and presence contract */
+
+
+/* v0.252 semantic theme contract: every shared surface follows the resolved appearance. */
+html, body, #root { color: var(--text); background-color: var(--cluster-surface-0); }
+.panel, .modal, .dialog, [role="dialog"], .settings-card-v092, .settings-content-v092, .management-panel, .page-header { color: var(--text); }
+
+
+input, textarea, select, button { caret-color: var(--accent); }
+
+* { scrollbar-color: color-mix(in srgb, var(--accent) 50%, var(--cluster-border)) var(--cluster-surface-1); }
+:focus-visible { outline-color: var(--cluster-focus-color, var(--cluster-cyan-500)); }
+/* v0.254 personal taskbar tickets */
+
+
+.priority-dot-v254 { grid-area: dot; align-self: center; width: 7px; height: 7px; border-radius: 999px; background: var(--info); }
+.priority-dot-v254.low { background: var(--success); }
+.priority-dot-v254.medium { background: var(--info); }
+.priority-dot-v254.high { background: var(--warning); }
+.priority-dot-v254.urgent { background: var(--danger); }
+
+
+/* v0.254 fullscreen workspaces and Timeline toolbar alignment */
+body.board-fullscreen-open-v254, body.card-editor-fullscreen-open-v254, body.timeline-detail-fullscreen-open-v254 { overflow: hidden !important; }
+.workspace-detail-backdrop-v254 { position: fixed; inset: 0; z-index: 420; display: grid; min-width: 0; min-height: 0; padding: 0; overflow: hidden; background: color-mix(in srgb, var(--cluster-surface-0) 60%, rgba(20, 24, 28, .82)); }
+
+
+/* v0.255 color ownership: cyan icon accents belong to the left navigation, not every control that owns an SVG. */
+
+
+ 
+
+
+/* v0.495 Block D2: anchored collaboration review threads. */
+
+/* Block 14: final application-workspace registry decomposition. */
+.visual-declutter-v140 .page-header .muted,
+.visual-declutter-v140 .section-heading .muted.tight,
+.visual-declutter-v140 .management-header-row .muted.tight,
+.visual-declutter-v140 .permission-section-v065 .section-heading p.muted.tight,
+.visual-declutter-v140 .role-home-panel-v126 .section-heading p.muted.tight,
+.visual-declutter-v140 .global-search-hub-v121 .section-heading p.muted.tight,
+.visual-declutter-v140 .saved-views-toolbar-v120 span,
+.visual-declutter-v140 .closeout-portal-v134 p.muted.tight { display: none !important; }
+.visual-declutter-v140 .tool-check em,
+.visual-declutter-v140 .saved-views-toolbar-v120 span,
+.visual-declutter-v140 .mini-list-row span { font-size: .76rem !important; }
+

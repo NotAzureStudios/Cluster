@@ -1,0 +1,50 @@
+{
+  "cluster": "0.546.0",
+  "node": {
+    "channel": "lts",
+    "version": "24.20.0"
+  },
+  "postgresql": {
+    "major": 18,
+    "version": "18.6",
+    "installerRevision": 1
+  },
+  "prisma": {
+    "version": "7.9.1"
+  },
+  "qt": {
+    "majorMinor": "6.11",
+    "version": "6.11.2"
+  },
+  "go": {
+    "minimum": "1.27.1",
+    "recommended": "1.27.1"
+  },
+  "cmake": {
+    "minimum": "3.31.0",
+    "policyMaximum": "4.4",
+    "recommended": "4.4.4"
+  },
+  "three": {
+    "version": "0.185.1"
+  },
+  "desktop": {
+    "parityVersionHold": "0.482.0",
+    "versionHoldReason": "Recovered Qt Desktop source remains on its historical version until WIP57 native parity and runtime certification are complete."
+  },
+  "updatePolicy": {
+    "security": "immediate-reviewed",
+    "patch": "weekly-reviewed",
+    "minor": "manual-compatibility-review",
+    "major": "explicit-migration-plan"
+  },
+  "git": {
+    "provider": "git-for-windows",
+    "version": "2.56.0",
+    "runtime": "private-preferred-system-fallback"
+  },
+  "gitLfs": {
+    "version": "3.8.0",
+    "runtime": "private-preferred-system-fallback"
+  }
+}

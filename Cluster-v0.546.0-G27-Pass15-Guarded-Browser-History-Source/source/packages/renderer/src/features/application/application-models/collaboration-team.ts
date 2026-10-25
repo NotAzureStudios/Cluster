@@ -1,0 +1,211 @@
+import type { ProjectPermissions, ToolPermissions } from "../../../core/permissions";
+import type { User } from "./identity";
+import type { BoardSummary, Priority, Project, WhiteboardSummary } from "./projects";
+import type { ClusterWorkflowRelationshipSummary } from "@cluster/shared";
+
+export type ScheduleBlock = {
+  id: string;
+  userId?: string | null;
+  user?: User | null;
+  projectId?: string | null;
+  project?: { id: string; name: string } | null;
+  boardId?: string | null;
+  board?: { id: string; name: string } | null;
+  cardId?: string | null;
+  card?: {
+    id: string;
+    title: string;
+    priority?: Priority;
+    dueDate?: string | null;
+  } | null;
+  title: string;
+  description?: string | null;
+  startsAt: string;
+  endsAt: string;
+  type: string;
+  color?: string | null;
+};
+
+export type ActivityEvent = {
+  id: string;
+  type: string;
+  entityType: string;
+  entityId?: string | null;
+  title: string;
+  message?: string | null;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  user?: User | null;
+  project?: Project | null;
+  board?: BoardSummary | null;
+  whiteboard?: WhiteboardSummary | null;
+  card?: { id: string; title: string } | null;
+};
+
+export type StabilizationDiagnostic = {
+  ok: boolean;
+  version: string;
+  generatedAt: string;
+  checks: Array<{
+    key: string;
+    label: string;
+    status: "pass" | "warn" | "fail";
+    detail: string;
+  }>;
+  counts: Record<string, number>;
+  persistence: Array<{
+    system: string;
+    storage: string;
+    status: "persistent" | "local" | "planned";
+    note: string;
+  }>;
+  localCommands: string[];
+  security: Array<{
+    label: string;
+    status: "pass" | "warn" | "fail";
+    detail: string;
+  }>;
+};
+
+export type TeamAssignment = {
+  user: User;
+  projects: Array<{ id: string; name: string }>;
+  boards: Array<{ id: string; name: string; projectName: string }>;
+  columns: Array<{
+    id: string;
+    title: string;
+    boardName: string;
+    projectName: string;
+  }>;
+  cards: Array<{
+    id: string;
+    title: string;
+    priority?: Priority;
+    dueDate?: string | null;
+    boardId: string;
+    projectId: string;
+    boardName: string;
+    projectName: string;
+    isTicket?: boolean;
+    relationshipSummary?: ClusterWorkflowRelationshipSummary;
+  }>;
+  calendarEvents: Array<{
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt?: string | null;
+    projectId?: string | null;
+    projectName?: string | null;
+    ownerId?: string | null;
+    attendeeIds: string[];
+    relationshipSummary?: ClusterWorkflowRelationshipSummary;
+  }>;
+  scheduleBlocks: Array<{
+    id: string;
+    title: string;
+    startsAt: string;
+    endsAt: string;
+    projectId?: string | null;
+    projectName?: string | null;
+    boardId?: string | null;
+    cardId?: string | null;
+    relationshipSummary?: ClusterWorkflowRelationshipSummary;
+  }>;
+};
+
+export type UserActivitySummary = {
+  id: string;
+  username: string;
+  employeeNumber?: string | null;
+  displayName?: string | null;
+  email?: string | null;
+  avatarUrl?: string | null;
+  discordUserId?: string | null;
+  discordUsername?: string | null;
+  discordDisplayName?: string | null;
+  discordLinked?: boolean;
+  accountState?: string | null;
+  nextAuthStep?: string | null;
+  pinConfigured?: boolean;
+  pinUpdatedAt?: string | null;
+  passwordConfigured?: boolean;
+  passwordChangedAt?: string | null;
+  title?: string | null;
+  department?: string | null;
+  teamName?: string | null;
+  legalName?: string | null;
+  preferredName?: string | null;
+  pronouns?: string | null;
+  phoneNumber?: string | null;
+  alternatePhoneNumber?: string | null;
+  alternateEmails?: string[];
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  stateProvince?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  emergencyContactRelation?: string | null;
+  managerName?: string | null;
+  employmentType?: string | null;
+  accountType?: "employee" | "contractor" | "client" | "guest" | string;
+  accessExpiresAt?: string | null;
+  invitedById?: string | null;
+  workLocation?: string | null;
+  timezone?: string | null;
+  status?: "available" | "away" | "focus" | "offline" | string;
+  statusMessage?: string | null;
+  skills?: string[];
+  expertise?: Array<{ name: string; level: "learning" | "working" | "advanced" | "expert"; years?: number | null; note?: string | null }>;
+  workingHours?: Record<string, Array<{ start: string; end: string }> | string | null>;
+  customProfileFields?: Record<string, unknown>;
+  managerUserId?: string | null;
+  studioTeams?: Array<{ id: string; name: string; department?: string | null; roleLabel?: string | null; allocationPercent?: number; primaryMembership?: boolean; leadUserId?: string | null }>;
+  capacityHours?: number | null;
+  minimumHours?: number | null;
+  notes?: string | null;
+  startDate?: string | null;
+  archived?: boolean;
+  lastSeenAt?: string | null;
+  workspaceRole?: string | null;
+  isAdmin?: boolean;
+  toolPermissions?: ToolPermissions | null;
+  projectPermissions?: ProjectPermissions | null;
+  privateProfile?: boolean;
+  sensitiveProfileHidden?: boolean;
+  hideLegalName?: boolean;
+  hideLocation?: boolean;
+  profileShowEmail?: boolean;
+  profileShowPhone?: boolean;
+  profileShowDiscord?: boolean;
+  profileShowTimezone?: boolean;
+  profileShowStatus?: boolean;
+  profileBio?: string;
+  profileWebsite?: string;
+  profileDiscordUsername?: string;
+  profilePreferredContact?: "cluster" | "discord" | "email" | "phone" | string;
+  profilePinnedProjectIds?: string[];
+  createdAt: string;
+  updatedAt: string;
+  counts: { activityEvents: number; comments: number; assignedCards: number };
+  lastActivityAt?: string | null;
+};
+
+export type AvatarAudit = {
+  id: string;
+  userId: string;
+  actorUserId?: string | null;
+  previousUrl?: string | null;
+  newUrl: string;
+  originalName?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  status: "pending" | "approved" | "rejected";
+  reviewNote?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  user?: UserActivitySummary;
+};

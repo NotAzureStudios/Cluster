@@ -1,0 +1,18 @@
+{
+  "checkpoint": "TD3 Pass 27",
+  "parent": "TD3 Pass 26",
+  "roadmapRevision": 23,
+  "focusedChecksPassed": 10,
+  "focusedChecksTotal": 10,
+  "inheritedScriptsPassed": 15,
+  "inheritedScriptsTotal": 15,
+  "typescriptFiles": 1009,
+  "syntaxErrors": 0,
+  "rendererRelativeImports": 3138,
+  "missingImports": 0,
+  "cssFiles": 110,
+  "cssDelimiterErrors": 0,
+  "nativeChanged": false,
+  "prismaMigrationAdded": false,
+  "releaseCertification": "separate roadmap"
+}

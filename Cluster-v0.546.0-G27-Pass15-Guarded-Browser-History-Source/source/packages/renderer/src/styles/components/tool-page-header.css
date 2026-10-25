@@ -1,0 +1,33 @@
+/* Canonical ToolPageHeader / WorkspacePageShell presentation. */
+.cluster-tool-page-v228 { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.cluster-tool-header-v228 { display: grid; gap: 10px; min-width: 0; padding: 14px 16px; border: 1px solid var(--cluster-border); border-radius: 7px; box-shadow: none; background: var(--cluster-surface-1) !important; color: var(--text) !important; border-color: var(--cluster-border) !important; }
+.cluster-tool-heading-v228,
+.cluster-tool-summary-v228 { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-width: 0; }
+.cluster-tool-title-v228 { min-width: 0; }
+.cluster-tool-title-v228 .eyebrow { margin: 0 0 3px; }
+.cluster-tool-title-v228 h1 { margin: 0; font-size: clamp(24px, 2vw, 34px); line-height: 1.05; }
+.cluster-tool-title-v228 > p:last-child { margin-top: 5px; max-width: 760px; }
+.cluster-tool-actions-v228 { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; flex: 0 0 auto; }
+.cluster-tool-summary-v228 { padding-top: 9px; border-top: 1px solid var(--cluster-border); }
+.cluster-tool-metrics-v228 { display: flex; align-items: stretch; flex-wrap: wrap; min-width: 0; }
+.cluster-tool-metrics-v228 > span { display: grid; grid-template-columns: auto auto; align-items: baseline; gap: 5px; min-width: 78px; padding: 2px 11px; border-right: 0; }
+.cluster-tool-metrics-v228 > span:first-child { padding-left: 0; }
+.cluster-tool-metrics-v228 > span:last-child { border-right: 0; }
+.cluster-tool-metrics-v228 strong { font-size: 15px; color: var(--text); }
+.cluster-tool-metrics-v228 em { font-size: 10px; color: var(--muted); font-style: normal; text-transform: uppercase; letter-spacing: .055em; }
+.cluster-tool-context-v228 { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.cluster-tool-metrics-v228 .good strong { color: var(--success) !important; }
+.cluster-tool-metrics-v228 .warning strong { color: var(--warning) !important; }
+.cluster-tool-metrics-v228 .danger strong { color: var(--danger) !important; }
+@media (max-width: 1100px) {
+  .cluster-tool-heading-v228,
+  .cluster-tool-summary-v228 { align-items: stretch; flex-direction: column; }
+  .cluster-tool-actions-v228,
+  .cluster-tool-context-v228 { justify-content: flex-start; }
+}
+@media (max-width: 720px) {
+  .cluster-tool-header-v228 { padding: 12px; }
+  .cluster-tool-actions-v228 > * { flex: 1 1 auto; }
+  .cluster-tool-metrics-v228 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .cluster-tool-metrics-v228 > span { border-right: 0; border-bottom: 1px solid var(--cluster-border); padding: 6px 0; }
+}

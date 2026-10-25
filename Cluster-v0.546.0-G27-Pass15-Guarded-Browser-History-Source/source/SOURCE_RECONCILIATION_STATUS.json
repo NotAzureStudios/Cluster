@@ -1,0 +1,28 @@
+{
+  "schema": 2,
+  "status": "original_pass15_sha256_verified_three_way_merged",
+  "runtime_certified": false,
+  "authoritative_pass15_sha256": "c758d4edfa38e8bde538b89c1c200a7cf7fbd2fbe08295bc43d5d1e1b0616c1f",
+  "merge_report": "PASS15_AUTHORITATIVE_MERGE_REPORT.json",
+  "total_conflicting_paths": 16,
+  "historic_pass15_string_assertions": {
+    "passed": 17,
+    "total": 23,
+    "reason": "current canonical implementations differ from historical representations"
+  },
+  "functional_integration_assertions": {
+    "passed": 20,
+    "total": 20
+  },
+  "source_regression_suites": {
+    "passed": 27,
+    "total": 27
+  },
+  "remaining_gates": [
+    "dependency-backed compile",
+    "Prisma migration",
+    "multi-user PostgreSQL",
+    "native Windows and Qt",
+    "integration, security and performance"
+  ]
+}

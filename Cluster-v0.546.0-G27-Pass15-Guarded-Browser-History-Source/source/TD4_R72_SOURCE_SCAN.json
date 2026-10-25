@@ -1,0 +1,16 @@
+{
+  "ts_tsx": 1040,
+  "syntaxErrors": [],
+  "relativeImportsChecked": 4389,
+  "cssFiles": 110,
+  "expectedGeneratedImports": [
+    {
+      "from": "apps/server/src/core/prisma-client.ts",
+      "target": "../generated/prisma/client.js"
+    }
+  ],
+  "missingAuthoredImports": [],
+  "scope": "Active apps/packages/integrations/tools; excludes historical recovered snapshots",
+  "node24DependencyBuild": "not run",
+  "css": "110 CSS authored files enumerated; no full browser CSS validation"
+}

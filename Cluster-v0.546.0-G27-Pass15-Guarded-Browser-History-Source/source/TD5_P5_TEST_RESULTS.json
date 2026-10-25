@@ -1,0 +1,112 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD5 P5",
+  "environment": {
+    "node": "22.16.0",
+    "go": "1.23.2",
+    "postgresqlServer": false,
+    "pinnedToolchains": false,
+    "workspaceDependencies": false
+  },
+  "checks": {
+    "inheritedTD4": "61/61",
+    "P2Filesystem": "12/12",
+    "P3Integrity": "20/20",
+    "P4BackupMirror": "19/19",
+    "P5DirectUpload": "16/16",
+    "sourceScan": {
+      "typeScriptFiles": 1042,
+      "cssFiles": 110,
+      "relativeImports": 4502,
+      "syntaxAndCssErrors": 0,
+      "missingImports": [],
+      "expectedGeneratedImports": [
+        "apps/server/src/core/prisma-client.ts -> ../generated/prisma/client.js"
+      ]
+    },
+    "newSemanticTypeScriptDiagnostics": "6 missing Node globals/modules for new source, entirely due to absent @types/node"
+  },
+  "certification": {
+    "node24Build": false,
+    "prismaGenerate": false,
+    "livePostgres": false,
+    "nativeWindows": false,
+    "SMB": false,
+    "S3": false,
+    "physicalDisposal": false
+  },
+  "preflight": {
+    "kind": "cluster-td5-preflight",
+    "productVersion": "0.546.0",
+    "certification": "not-performed",
+    "checks": [
+      {
+        "id": "node",
+        "status": "blocked",
+        "detail": {
+          "expected": ">=24.20.0 <25",
+          "observed": "22.16.0"
+        }
+      },
+      {
+        "id": "go",
+        "status": "blocked",
+        "detail": {
+          "expected": "1.27.1",
+          "observed": "1.23.2"
+        }
+      },
+      {
+        "id": "node-dependencies",
+        "status": "blocked",
+        "detail": {
+          "installed": false
+        }
+      },
+      {
+        "id": "prisma-client",
+        "status": "blocked",
+        "detail": {
+          "generated": false
+        }
+      },
+      {
+        "id": "postgresql-tools",
+        "status": "available-unverified",
+        "detail": {
+          "observed": "PostgreSQL 17.11 (Debian 17.11-0+deb13u1)"
+        }
+      },
+      {
+        "id": "qt",
+        "status": "blocked",
+        "detail": {
+          "expected": "6.11.2",
+          "observed": null
+        }
+      },
+      {
+        "id": "windows-native",
+        "status": "blocked",
+        "detail": {
+          "platform": "linux"
+        }
+      },
+      {
+        "id": "dependency-lock",
+        "status": "blocked",
+        "detail": {
+          "present": false
+        }
+      }
+    ],
+    "blockers": [
+      "node",
+      "go",
+      "node-dependencies",
+      "prisma-client",
+      "qt",
+      "windows-native",
+      "dependency-lock"
+    ]
+  }
+}

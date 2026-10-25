@@ -1,0 +1,273 @@
+/* v0.224 shared sliders, progress meters, and compact control feedback */
+input[type="range"] { appearance: none; -webkit-appearance: none; width: 100%; min-width: 72px; height: 24px; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer; accent-color: var(--accent); }
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border: 1px solid color-mix(in srgb, var(--border) 78%, transparent); border-radius: 999px; background: var(--control-track); box-shadow: none; }
+input[type="range"]::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 17px; height: 17px; margin-top: -6px; border: 2px solid var(--studio-primary, var(--accent)); border-radius: 50%; background: var(--surface); box-shadow: none; transition: border-color .12s ease, background-color .12s ease; }
+input[type="range"]::-moz-range-track { height: 6px; border: 1px solid color-mix(in srgb, var(--border) 78%, transparent); border-radius: 999px; background: var(--control-track); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--control-fill); }
+input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border: 2px solid var(--studio-primary, var(--accent)); border-radius: 50%; background: var(--surface); box-shadow: none; }
+input[type="range"]:hover::-webkit-slider-thumb, input[type="range"]:focus-visible::-webkit-slider-thumb { border-color: var(--cluster-focus-color, var(--cluster-cyan-500)); background: var(--surface-strong, var(--surface)); box-shadow: none; }
+input[type="range"]:focus-visible { outline: none; }
+progress, .ui-progress-v224 { appearance: none; -webkit-appearance: none; width: 100%; height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 75%, transparent); border-radius: 999px; background: var(--control-track); }
+progress::-webkit-progress-bar, .ui-progress-v224::-webkit-progress-bar { border-radius: inherit; background: var(--control-track); }
+progress::-webkit-progress-value, .ui-progress-v224::-webkit-progress-value { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
+progress::-moz-progress-bar, .ui-progress-v224::-moz-progress-bar { border-radius: inherit; background: var(--control-fill); }
+.progress-bar-v146, .completion-meter, .progress-rail { min-height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 72%, transparent); border-radius: 999px; background: var(--control-track); }
+.progress-bar-v146 > span, .completion-meter > span, .progress-rail > span { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
+@media (pointer: coarse) { input[type="range"] { height: 34px; } input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; } input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; } }
+/* Settings only needs a slightly taller hit area. Track/thumb visuals inherit the canonical range control above. */
+.settings-page-v092 input[type="range"], .server-config-page-v094 input[type="range"] { height: 28px; }
+
+/* v0.495 Visual Foundation Block 8: one shared checkbox/toggle hit-area contract. */
+label.tool-check,
+.tool-check,
+.compact-toggle-grid-v092 .tool-check,
+.create-form-v161 .tool-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  width: auto;
+  min-width: 0;
+  min-height: 34px;
+  max-height: none;
+  padding: 8px 10px;
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+}
+
+/* Block 11: canonical checkbox/radio geometry and paint contract. */
+:root {
+  --cluster-check-control-size: 16px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: var(--cluster-check-control-size);
+  min-width: var(--cluster-check-control-size);
+  max-width: var(--cluster-check-control-size);
+  height: var(--cluster-check-control-size);
+  min-height: var(--cluster-check-control-size);
+  max-height: var(--cluster-check-control-size);
+  padding: 0;
+  margin: 0;
+  flex: 0 0 var(--cluster-check-control-size);
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  border: 1px solid color-mix(in srgb, var(--border, #334155) 78%, var(--accent, var(--cluster-cyan-400)) 22%);
+  background: color-mix(in srgb, var(--input-bg, #070a11) 88%, transparent);
+  color: var(--cluster-white);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cluster-white) 5%, transparent);
+  cursor: pointer;
+}
+input[type="checkbox"] {
+  border-radius: 5px;
+}
+input[type="radio"] {
+  border-radius: 999px;
+}
+input[type="checkbox"]::before {
+  content: "" !important;
+  width: 8px !important;
+  height: 5px !important;
+  border-left: 0 !important;
+  border-bottom: 2px solid var(--cluster-white) !important;
+  transform: rotate(-45deg) scale(0) !important;
+  transform-origin: center !important;
+  transition: transform .12s ease !important;
+  margin-top: -1px !important;
+}
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background: linear-gradient(135deg, var(--accent, var(--cluster-cyan-400)), var(--accent-2, var(--cluster-blue-400))) !important;
+  border-color: color-mix(in srgb, var(--accent, var(--cluster-cyan-400)) 74%, white 12%) !important;
+}
+input[type="checkbox"]:checked::before {
+  transform: rotate(-45deg) scale(1) !important;
+}
+input[type="radio"]::before {
+  content: "" !important;
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 999px !important;
+  background: var(--cluster-white) !important;
+  transform: scale(0) !important;
+  transition: transform .12s ease !important;
+}
+input[type="radio"]:checked::before {
+  transform: scale(1) !important;
+}
+.tool-check input[type="checkbox"],
+.tool-check input[type="radio"] {
+  align-self: center;
+}
+
+/* Block 12: canonical shared text/select/icon control presentation. Moved from consistency.css so interaction primitives have one owner. */
+ input, textarea, select, summary, .segmented button, .cluster-icon-button-v227 { border-radius: var(--cluster-radius-control); }
+.project-card, .task-card, .time-schedule-block-v212, .tickets-row-v184 { border-radius: var(--cluster-radius-card); }
+/* Native selects had the visual charm of a firmware setup screen. */
+select { appearance: none; -webkit-appearance: none; min-height: var(--cluster-control-height); width: 100%; border: 1px solid var(--cluster-border); background-color: var(--cluster-surface-2); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: var(--text); line-height: 1.2; cursor: pointer; }
+select:hover { border-color: var(--cluster-border-strong) !important; background-color: var(--cluster-surface-3) !important; }
+select:focus-visible { border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 62%, var(--cluster-border-strong)) !important; box-shadow: none !important; outline-offset: 1px; }
+select:disabled { cursor: not-allowed; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea { min-height: var(--cluster-control-height); border-color: var(--cluster-border); background: var(--cluster-surface-2); }
+textarea { resize: vertical; }
+.field, .control-field { min-width: 0; }
+.field > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), .field > select, .field > textarea, .control-field > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), .control-field > select, .control-field > textarea { width: 100%; }
+/* Shared, non-native color field. */
+.cluster-color-field-v227 { min-width: 0; margin: 0; padding: 8px 10px 10px; border: 1px solid var(--cluster-border); border-radius: var(--cluster-radius-card); background: var(--cluster-surface-1); }
+.cluster-color-field-v227 legend { padding: 0 5px; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+.cluster-icon-button-v227 { min-width: 36px; min-height: 36px; display: inline-grid; place-items: center; padding: 7px; overflow: visible; border: 1px solid var(--cluster-border); color: var(--soft-text); background: var(--cluster-surface-2); cursor: pointer; }
+.cluster-icon-button-v227:hover { color: white; border-color: var(--cluster-border-strong); background: var(--cluster-surface-3); }
+.cluster-icon-button-v227 svg { width: 18px; height: 18px; overflow: visible; }
+
+
+/* Block 14: presentation migrated from the retired global application-workspaces registry. */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--cluster-focus-ring);
+}
+
+.field {
+  align-content: start;
+}
+
+.field label {
+  color: color-mix(in srgb, var(--text) 62%, var(--muted));
+  font-weight: 1000;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+select {
+  min-width: 0;
+}
+
+select[multiple] option {
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+select option,
+select optgroup {
+  color: var(--cluster-slate-900);
+  background-color: var(--cluster-white);
+}
+
+select option:checked,
+select option:hover,
+select option:focus {
+  color: var(--cluster-white);
+  background-color: var(--cluster-cyan-400);
+}
+
+select:disabled,
+select option:disabled {
+  color: var(--cluster-slate-400);
+  opacity: .72;
+}
+
+.control-field,
+.field,
+.tool-field {
+  gap: 8px;
+}
+
+input,
+textarea,
+select {
+  scroll-margin-top: 120px;
+}
+
+.field label,
+.control-field label,
+.tool-field label {
+  margin-bottom: 5px;
+  font-size: .68rem;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+select {
+  padding: 8px 12px;
+  font-size: .9rem;
+}
+
+textarea {
+  min-height: 84px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 86%, transparent) !important;
+}
+
+/* Block 14: presentation migrated from the retired global application-tools registry. */
+input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+
+.field { gap: 6px !important; }
+
+input, select, textarea{ scroll-margin: 80px; }
+
+:where(input, select, textarea) { width: 100%; min-height: var(--cluster-app-control-height); border-radius: var(--cluster-app-radius-sm); border: 1px solid var(--cluster-app-border); background: var(--cluster-app-field); color: var(--text); padding: 0 12px; outline: none; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cluster-white) 2.5%, transparent); }
+
+:where(textarea) { min-height: 96px; padding-block: 10px; resize: vertical; }
+
+:where(input:focus-visible, select:focus-visible, textarea:focus-visible) { border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 62%, var(--cluster-app-border)); box-shadow: none; }
+
+:where(.field, .control-field, .tool-field, .compact-field) { display: grid; align-content: start; gap: 6px; }
+
+:where(.field label, .control-field label, .tool-field label, .compact-field label) { margin: 0; font-size: 0.72rem; letter-spacing: 0.095em; text-transform: uppercase; font-weight: 800; }
+
+:root[data-theme="light"] :where(input, select, textarea) { background: var(--cluster-app-field) !important; color: var(--cluster-slate-900) !important; }
+
+/* Block 14: final application-workspace registry decomposition. */
+:root{--cluster-workspace-scroll-track:var(--cluster-white);--cluster-workspace-scroll-thumb:#16191c;--cluster-workspace-scroll-thumb-hover:var(--cluster-black);}
+:root[data-theme="dark"]{--cluster-workspace-scroll-track:#08090a;--cluster-workspace-scroll-thumb:#f2f3f4;--cluster-workspace-scroll-thumb-hover:var(--cluster-white);}
+:root[data-theme="light"]{--cluster-workspace-scroll-track:var(--cluster-white);--cluster-workspace-scroll-thumb:#111315;}
+*{scrollbar-color:var(--cluster-workspace-scroll-thumb) var(--cluster-workspace-scroll-track);scrollbar-width:thin;}
+*::-webkit-scrollbar{width:11px;height:11px;}
+*::-webkit-scrollbar-track{background:var(--cluster-workspace-scroll-track) ;}
+*::-webkit-scrollbar-corner{background:var(--cluster-workspace-scroll-track) !important;}
+*::-webkit-scrollbar-thumb{min-height:32px;border:3px solid var(--cluster-workspace-scroll-track);background:var(--cluster-workspace-scroll-thumb) !important;background-image:none !important;}
+*::-webkit-scrollbar-thumb:hover{background:var(--cluster-workspace-scroll-thumb-hover) !important;}
+:where( button.primary) { background: var(--accent); border-color: color-mix(in srgb, var(--accent) 75%, #0d667c 25%); color: var(--accent-contrast, #081114); }
+:where( button.primary):hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 82%, #0098c2 18%) !important; }
+:where(input, textarea, select, button, [role="button"]):focus-visible { outline-color: var(--accent) !important; }
+:root { --cluster-workspace-control-radius: 7px; }
+.visual-overhaul-v139 :where(button, input, textarea, select, .cluster-select-trigger-v227) { border-radius: var(--cluster-workspace-control-radius) !important; }
+.visual-overhaul-v139 :where( button.primary) { box-shadow: none; }
+.visual-overhaul-v139 .text-button,
+.visual-overhaul-v139 .add-card-button,
+.visual-overhaul-v139 button.button {
+  border-radius: var(--cluster-content-radius-control);
+}
+/* Shared DataView shortcut affordance. */
+.cluster-data-shortcut-v495{min-width:26px;padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--muted);background:var(--panel);font:600 10px/1.4 var(--cluster-font-mono);text-align:center}
+
+
+/* WIP24 shared resizable rail and boolean geometry. */
+.cluster-resizable-rail-v497{min-width:0;display:grid;grid-template-columns:minmax(0,min(var(--cluster-rail-width,230px),max(0px,calc(100% - 297px)))) 7px minmax(0,1fr);align-items:stretch}.cluster-resizable-rail-v497.rail-collapsed{grid-template-columns:minmax(0,1fr)}
+.cluster-resizable-rail-content-v497,.cluster-resizable-main-v497{min-width:0;min-height:0}
+.cluster-resizable-rail-handle-v497{width:7px;min-width:7px;min-height:100%;padding:0;margin:0;border:0;border-radius:0;background:transparent;cursor:col-resize;position:relative;z-index:3}
+.cluster-resizable-rail-handle-v497::after{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--border)}
+.cluster-resizable-rail-handle-v497:hover::after,.cluster-resizable-rail-handle-v497:focus-visible::after{background:var(--accent);width:2px;left:2px}
+@media(max-width:980px){.cluster-resizable-rail-v497{grid-template-columns:minmax(0,1fr)}.cluster-resizable-rail-handle-v497{display:none}.cluster-resizable-main-v497{border-top:1px solid var(--border)}}
+:where(.settings-inline-toggle-v469,.studio-inline-check-v272,.studio-setting-toggle-v272,.profile-visibility-toggle-v473,.records-check-v9e3,.packet-required-toggle-v34f,.tool-check,.library-scope-v217){display:flex !important;flex-direction:row !important;grid-template-columns:none !important;align-items:center !important;justify-content:flex-start !important;gap:9px !important;min-width:0 !important;width:auto !important}
+:where(.settings-inline-toggle-v469,.studio-inline-check-v272,.studio-setting-toggle-v272,.profile-visibility-toggle-v473,.records-check-v9e3,.packet-required-toggle-v34f,.tool-check,.library-scope-v217)>input[type="checkbox"]{flex:0 0 18px !important;width:18px !important;min-width:18px !important;height:18px !important;min-height:18px !important;margin:0 !important}
+.cluster-icon-button-v425,.cluster-detail-close-v429{line-height:0 !important;align-items:center !important;justify-items:center !important}.cluster-icon-button-v425>.cluster-icon-svg,.cluster-detail-close-v429>.cluster-icon-svg{display:block !important;align-self:center !important;justify-self:center !important;margin:auto !important;transform:none !important;translate:none !important}
+label:has(> input[type="checkbox"]),label:has(> input[type="radio"]){display:flex;flex-direction:row;align-items:center;gap:8px;min-width:0}
+label:has(> input[type="checkbox"]) > input[type="checkbox"],label:has(> input[type="radio"]) > input[type="radio"]{width:var(--cluster-check-control-size) !important;min-width:var(--cluster-check-control-size) !important;max-width:var(--cluster-check-control-size) !important;height:var(--cluster-check-control-size) !important;min-height:var(--cluster-check-control-size) !important;max-height:var(--cluster-check-control-size) !important;flex:0 0 var(--cluster-check-control-size) !important}
+
+/* TD3 P8: keyboard-visible rail separator without reducing its pointer hit area. */
+.cluster-resizable-rail-handle-v497:focus-visible { outline: 2px solid var(--cluster-focus-outline,var(--accent)); outline-offset: -2px; border-radius: 4px; }
+@media (pointer:coarse) and (min-width:981px) { .cluster-resizable-rail-handle-v497 { touch-action:none; } }

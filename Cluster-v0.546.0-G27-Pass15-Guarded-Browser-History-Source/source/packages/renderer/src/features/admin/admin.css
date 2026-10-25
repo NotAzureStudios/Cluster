@@ -1,0 +1,20 @@
+/* WIP24 Source Control: tables first, forms on demand. */
+.source-control-overview-v524{display:grid;grid-template-columns:repeat(2,minmax(150px,220px)) minmax(240px,1fr);gap:10px;align-items:stretch;margin-bottom:10px}.source-control-overview-actions-v524{align-self:center;justify-self:end}.source-control-editor-v524,.source-control-list-v524{box-shadow:none}.source-control-form-grid-v524{grid-template-columns:repeat(2,minmax(220px,1fr));gap:10px 12px}.source-control-boolean-v524{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;padding:6px 8px;border:1px solid var(--border);border-radius:9px;background:var(--surface-soft)}.source-control-form-actions-v524{grid-column:1/-1;justify-content:flex-end}@media(max-width:900px){.source-control-overview-v524{grid-template-columns:repeat(2,minmax(0,1fr))}.source-control-overview-actions-v524{grid-column:1/-1;justify-self:stretch}.source-control-form-grid-v524{grid-template-columns:1fr}}
+
+/* WIP32 versioning workspace: policy browser + focused creator, no free-floating form soup. */
+.versioning-workspace-v532 { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr); gap:10px; min-width:0; }
+.versioning-workspace-v532 > .admin-panel-v243 { min-width:0; margin:0; background:var(--cluster-surface-1,var(--panel)) !important; }
+.versioning-policies-v532 .data-table-shell { min-height:180px; }
+.versioning-policies-v532 .cluster-data-cell-value-v504 > div { display:flex; align-items:center; gap:7px; min-width:0; }
+.versioning-policies-v532 code { color:var(--soft-text); font-size:var(--cluster-font-size-xs); }
+.versioning-create-v532 { align-content:start; }
+.versioning-preview-v532 { display:grid; gap:4px; padding:12px; border:1px solid var(--cluster-border); border-radius:var(--cluster-radius-card); background:var(--cluster-surface-2); }
+.versioning-preview-v532 > span { color:var(--muted); font-size:var(--cluster-font-size-xs); font-weight:700; }
+.versioning-preview-v532 > strong { font-size:1.45rem; letter-spacing:-.02em; }
+.versioning-preview-v532 > code { color:var(--muted); overflow-wrap:anywhere; }
+.versioning-form-v532 { display:grid; gap:8px; }
+.versioning-form-v532 > label { display:grid; gap:4px; min-width:0; }
+.versioning-form-v532 > label > span { color:var(--muted); font-size:var(--cluster-font-size-xs); font-weight:700; }
+.versioning-empty-v532 { min-height:150px; display:grid; place-content:center; justify-items:center; gap:4px; color:var(--muted); }
+.versioning-empty-v532 strong { color:var(--text); }
+@media (max-width:980px){.versioning-workspace-v532{grid-template-columns:1fr}}

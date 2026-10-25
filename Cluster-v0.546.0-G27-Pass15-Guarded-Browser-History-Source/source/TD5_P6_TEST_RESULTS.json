@@ -1,0 +1,79 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD5 P6",
+  "baseline": "TD5 P5",
+  "runtimeGate": {
+    "phase": "TD5 P6",
+    "mode": "preflight",
+    "certification": "NOT_PERFORMED",
+    "productVersion": "0.546.0",
+    "checks": [
+      {
+        "name": "pinned-node",
+        "status": "blocked",
+        "detail": "required >=24.20.0 <25; observed 22.16.0"
+      },
+      {
+        "name": "dependency-lock",
+        "status": "blocked",
+        "detail": "missing or inconsistent package-lock.json"
+      },
+      {
+        "name": "workspace-dependencies",
+        "status": "blocked",
+        "detail": "npm workspace dependencies missing"
+      },
+      {
+        "name": "generated-prisma",
+        "status": "will-generate",
+        "detail": "Prisma generate will run before compilation"
+      },
+      {
+        "name": "disposable-database-name",
+        "status": "blocked",
+        "detail": "invalid PostgreSQL URL"
+      },
+      {
+        "name": "explicit-disposable-consent",
+        "status": "blocked",
+        "detail": "set TD5_CERT_DISPOSABLE=I_UNDERSTAND"
+      }
+    ],
+    "blockers": [
+      "pinned-node",
+      "dependency-lock",
+      "workspace-dependencies",
+      "disposable-database-name",
+      "explicit-disposable-consent"
+    ]
+  },
+  "inheritedRegressionScripts": {
+    "passed": 67,
+    "total": 67,
+    "failed": 0
+  },
+  "newP6Checks": {
+    "passed": 8,
+    "total": 8
+  },
+  "activeSourceScan": {
+    "typeScriptFiles": 1042,
+    "cssFiles": 110,
+    "relativeImports": 4502,
+    "syntaxAndCssErrors": [],
+    "missingImports": [],
+    "expectedGeneratedImports": [
+      "apps/server/src/core/prisma-client.ts -> ../generated/prisma/client.js"
+    ],
+    "scope": "Active apps/packages/integrations source, excludes recovered historical snapshots and build outputs"
+  },
+  "liveNode24Build": "NOT_EXECUTED",
+  "livePostgreSQL": "NOT_EXECUTED",
+  "WindowsNative": "NOT_EXECUTED",
+  "SMB_NAS_S3": "NOT_EXECUTED",
+  "physicalDestruction": "DISABLED",
+  "evidence": {
+    "focused": "tools/scripts/cluster-td5-p6-build-database-gate-tests.mjs",
+    "gate": "tools/scripts/cluster-td5-p6-runtime-gate.mjs",
+    "inheritedSelection": "all active cluster-td4-*-tests.mjs and cluster-td5-p*-tests.mjs"
+  }
+}

@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+const root = path.resolve(import.meta.dirname, '../..');
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+const hook = read('packages/renderer/src/components/useClusterMenuExecution.ts');
+const menus = ['ClusterContextActions.tsx', 'ClusterContextMenu.tsx', 'ClusterSplitButton.tsx'].map((name) => read(`packages/renderer/src/components/${name}`));
+const actions = menus[0];
+const history = read('packages/renderer/src/components/useClusterHistoryExecution.ts');
+let passed = 0;
+function test(name, assertion) { assertion(); console.log('PASS', name); passed++; }
+test('Global single-flight lock guards all IDs', () => assert.match(hook, /if \(activeRef\.current !== null\) return;/));
+test('Immediate lock precedes React pending state', () => assert.ok(hook.indexOf('activeRef.current = id') < hook.indexOf('setPendingId(id)')));
+test('Action begins synchronously in user gesture', () => assert.match(hook, /try \{ result = action\(\); \}/));
+test('Synchronous action errors report failure', () => assert.match(hook, /catch \{[\s\S]*?setError\("Could not confirm this action/));
+test('Async failures report failure', () => assert.match(hook, /\.catch\(\(\) => \{[\s\S]*?setError\("Could not confirm this action/));
+test('Unmounted surface does not update state', () => assert.match(hook, /mountedRef\.current = false/));
+test('Every shared menu uses the execution guard', () => menus.forEach((menu) => assert.match(menu, /useClusterMenuExecution\(\)/)));
+test('Every shared menu synchronously gates dismissal while mutation is pending', () => menus.forEach((menu) => { assert.match(menu, /canDismiss=\{\(\) => !actionExecution\.isExecuting\(\)\}/); assert.match(menu, /if \(!actionExecution\.busy && !actionExecution\.isExecuting\(\)\)/); }));
+test('Recovery notice uses shared guarded history', () => assert.match(actions, /export function ClusterRecoveryNotice[\s\S]*?const history = useClusterHistoryExecution\(\)/));
+test('Recovery action is not directly fired', () => assert.doesNotMatch(actions, /onClick=\{\(\) => void onAction\(\)\}/));
+test('Recovery action is disabled during mutation', () => assert.match(actions, /disabled=\{history\.busy\} onClick=\{\(\) => history\.execute\(onAction\)\}/));
+test('Recovery errors are visible to screen readers', () => assert.match(actions, /cluster-recovery-notice-v496[\s\S]*?role="alert" className="cluster-history-error-v547"/));
+test('History execution itself owns a synchronous pending lock', () => assert.match(history, /if \(pendingRef\.current\) return;/));
+console.log(`${passed}/${passed} TD3 Pass 13 action-integrity checks passed`);

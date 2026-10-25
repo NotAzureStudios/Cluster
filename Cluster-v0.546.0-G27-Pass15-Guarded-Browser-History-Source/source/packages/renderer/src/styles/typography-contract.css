@@ -1,0 +1,8 @@
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+/* Block 14: renderer typography SSOT. */
+:root{--cluster-font-stack:"Comfortaa","Segoe UI Variable","Segoe UI",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,sans-serif;--cluster-active-font:var(--cluster-font-stack);--font-display:var(--cluster-active-font);font-family: var(--cluster-active-font);}:root[data-font="comfortaa"]{--cluster-active-font:var(--cluster-font-stack);}:root[data-font="inter"]{--cluster-active-font:"Inter","Segoe UI Variable","Segoe UI",ui-sans-serif,system-ui,sans-serif;}:root[data-font="system"]{--cluster-active-font:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}:root[data-font="mono"]{--cluster-active-font:"Cascadia Code","Fira Code",Consolas,monospace;}html,body,#root,button,input,textarea,select,option{font-family: var(--cluster-active-font);}code,pre,kbd,samp{font-family:"Cascadia Code","Fira Code",Consolas,monospace;}
+
+html,body,#root{font-weight:400;}
+button,input,textarea,select,option{font-weight:400;}
+h1,h2,h3,h4,h5,h6,strong,b,.eyebrow{font-weight:500;}
+::selection{background:color-mix(in srgb,var(--accent,#57c1ff) 24%,transparent);color:inherit;}

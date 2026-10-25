@@ -1,0 +1,22 @@
+{
+  "productVersion": "0.546.0",
+  "checkpoint": "TD3-pass9-overlay-modal-focus-integration",
+  "parentArchive": "Cluster-v0.546.0-TD3-Pass8-Responsive-Workspace-Interaction-Source.zip",
+  "sourceOnly": true,
+  "nativeExecutableUnchanged": true,
+  "migrationsAdded": [],
+  "validation": {
+    "inheritedRegressions": "45/45",
+    "pass9TargetedSourceContracts": "21/21",
+    "pass9ProductionDOMHelpersChromium": "15/15",
+    "productionCSSIllustrativePreviews": "6/6",
+    "tsParser": "1001 files, 0 syntax errors",
+    "cssParser": "109 files, 0 errors",
+    "rendererRelativeImports": "3015, zero missing",
+    "dependencyBackedBuildCertified": false,
+    "reactAppCertified": false,
+    "nativeQtCertified": false,
+    "windowsDpiCertified": false,
+    "postgresCertified": false
+  }
+}

@@ -1,0 +1,141 @@
+
+
+/* v0.495 Visual Foundation Block 7: live selector ownership migration. */
+.project-tool-context-v194 {
+  display: grid;
+  grid-template-columns: minmax(220px, .85fr) minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.project-tool-context-main-v194 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.project-context-dot-v194 {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.project-context-dot-v194.good,
+.project-context-dot-v194.success { background: var(--cluster-green-500); }
+
+.project-context-dot-v194.warning { background: var(--cluster-amber-500); }
+
+.project-context-dot-v194.danger { background: var(--cluster-red-500); }
+
+.project-context-dot-v194.info { background: var(--accent); }
+
+.project-tool-context-main-v194 > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.project-tool-context-main-v194 span,
+.project-tool-context-main-v194 em {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.project-tool-context-main-v194 span {
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.project-tool-context-main-v194 strong,
+.project-tool-context-main-v194 em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-tool-context-selector-v194 select {
+  width: 100%;
+  min-height: 38px;
+}
+
+.project-tool-context-actions-v194 {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.project-tool-context-actions-v194 button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.project-tool-context-actions-v194 button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+.project-tool-context-actions-v194 button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.project-tool-context-live-v194 {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.project-tool-context-live-v194 .collaboration-strip-v193 {
+  min-height: 34px;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.project-tool-context-live-v194 .collaboration-avatar-v193 {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 1180px) {
+.project-tool-context-v194 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+.project-tool-context-actions-v194 {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1180px) {
+.project-tool-context-live-v194 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+.project-tool-context-actions-v194 {
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 760px) {
+.project-tool-context-actions-v194 button {
+    flex: 1 1 120px;
+  }
+}

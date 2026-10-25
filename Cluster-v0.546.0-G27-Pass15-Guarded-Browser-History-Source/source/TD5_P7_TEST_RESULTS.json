@@ -1,0 +1,42 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD5 P7",
+  "baseline": "TD5 P6",
+  "selected_inherited_regression_scripts": {
+    "passed": 54,
+    "total": 54
+  },
+  "new_runtime_budget_tests": {
+    "passed": 10,
+    "total": 10
+  },
+  "new_acceptance_runner_tests": {
+    "passed": 8,
+    "total": 8
+  },
+  "inherited_p6_gate_tests": {
+    "passed": 8,
+    "total": 8
+  },
+  "source_scan": {
+    "typeScriptFiles": 1042,
+    "cssFiles": 110,
+    "relativeImports": 4502,
+    "syntaxAndCssErrors": 0,
+    "missingImports": [],
+    "expectedGeneratedImports": [
+      "apps/server/src/core/prisma-client.ts -> ../generated/prisma/client.js"
+    ]
+  },
+  "ts_semantic_new_signatures": 0,
+  "pinned_node24_build": "NOT_EXECUTED",
+  "live_postgresql18": "NOT_EXECUTED",
+  "windows_native": "NOT_EXECUTED",
+  "smb_s3_provider": "NOT_EXECUTED",
+  "unsafe_storage_disposal": "DISABLED",
+  "environment_notes": [
+    "Node 22.16.0, Go 1.23.2",
+    "Dependency lockfile/node_modules/generated Prisma client absent",
+    "PostgreSQL server absent",
+    "Linux process-tree timeout tests only"
+  ]
+}

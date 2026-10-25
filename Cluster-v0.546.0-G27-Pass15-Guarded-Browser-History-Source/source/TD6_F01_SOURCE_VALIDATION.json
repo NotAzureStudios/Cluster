@@ -1,0 +1,27 @@
+{
+  "checkpoint": "Cluster v0.546.0 TD6 F01",
+  "development_date": "2026-10-17",
+  "source_parent": "Cluster-v0.546.0-TD5-P13-Committed-Job-Outcomes-Source(1).zip",
+  "priority": "Complete unfinished TD6 feature code first; runtime/release certification deferred by user direction",
+  "implemented": [
+    "Conditional Forms author rules",
+    "ordered nested visibility evaluator",
+    "respondent conditional renderer",
+    "server hidden-answer sanitization for authenticated/public submissions",
+    "saved form version schema validation"
+  ],
+  "checks": {
+    "new_focus": "20/20 passed",
+    "inherited_forms": "38/38 passed",
+    "inherited_respondent_drafts": "68/68 passed",
+    "inherited_foundation": "32/32 passed",
+    "typescript_tsx_ast_parse": "1043 files, 0 syntax errors"
+  },
+  "not_claimed": [
+    "installed dependency-backed full TypeScript build",
+    "live PostgreSQL migration/tests",
+    "Windows/Qt native runtime",
+    "authenticated browser end-to-end",
+    "release certification"
+  ]
+}

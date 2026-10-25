@@ -1,0 +1,265 @@
+import { createReadStream } from "node:fs";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
+import { safeFileName, untrustedFileResponseHeaders } from "../../core/uploads.js";
+import {
+  MAX_UPLOAD_CHUNK_BYTES,
+  acknowledgeDirectPart,
+  abortUploadSession,
+  appendClusterChunk,
+  authorizeDirectPart,
+  completeUploadSession,
+  createUploadSession,
+  expectedPartSize,
+  getUploadSession,
+  pauseUploadSession,
+  resumeUploadSession,
+  resolveCompletedUpload,
+  serializeUploadSession,
+  uploadPressureSnapshot,
+  uploadStagingTopology,
+  workspaceByteRateLimit,
+  type UploadRuntimeDependencies,
+} from "./upload-session-runtime.js";
+
+type UploadSessionDependencies = UploadRuntimeDependencies & {
+  app: FastifyInstance;
+  getCurrentUser: (request: FastifyRequest) => Promise<any | null>;
+  decorateUserForClient: (user: any) => Promise<any>;
+  byteRateLimiter: {
+    consumeCost: (key: string, limit: number, windowMs: number, cost: number) => Promise<{
+      allowed: boolean;
+      retryAfterSeconds: number;
+      remaining: number;
+      resetAt: number;
+    }>;
+  };
+};
+
+function statusFor(error: unknown, fallback = 400) {
+  const status = Number((error as any)?.statusCode || fallback);
+  return Number.isInteger(status) && status >= 400 && status <= 599 ? status : fallback;
+}
+
+function codeFor(error: unknown, fallback = "UPLOAD_ERROR") {
+  return String((error as any)?.code || fallback);
+}
+
+function sendUploadError(reply: FastifyReply, error: unknown, fallback = "Upload operation failed.") {
+  const body: Record<string, unknown> = {
+    code: codeFor(error),
+    message: error instanceof Error ? error.message : fallback,
+  };
+  if (Number.isFinite(Number((error as any)?.receivedBytes))) body.receivedBytes = Number((error as any).receivedBytes);
+  if ((error as any)?.browserUploadCapability) body.browserUploadCapability = (error as any).browserUploadCapability;
+  return reply.code(statusFor(error)).send(body);
+}
+
+async function requireOwner(request: FastifyRequest, reply: FastifyReply, deps: UploadSessionDependencies, id: string) {
+  const user = await deps.getCurrentUser(request);
+  if (!user) {
+    reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
+    return null;
+  }
+  const session = await getUploadSession(deps, id, user.id, Boolean(user.isAdmin));
+  if (!session) {
+    reply.code(404).send({ code: "UPLOAD_NOT_FOUND", message: "Upload session was not found." });
+    return null;
+  }
+  return { user, session };
+}
+
+async function consumeWorkspaceByteBudget(deps: UploadSessionDependencies, session: any, bytes: number, reply: FastifyReply) {
+  const scope = session.workspaceId || "unscoped";
+  const decision = await deps.byteRateLimiter.consumeCost(`upload-bytes:${scope}`, workspaceByteRateLimit(), 60_000, Math.max(1, bytes));
+  if (decision.allowed) return true;
+  reply.header("Retry-After", String(decision.retryAfterSeconds));
+  reply.code(429).send({
+    code: "UPLOAD_BYTE_RATE_LIMITED",
+    message: "Workspace upload throughput is temporarily at its safe limit.",
+    retryAfterSeconds: decision.retryAfterSeconds,
+  });
+  return false;
+}
+
+export {
+  resolveCompletedUpload,
+  uploadPressureSnapshot,
+  uploadStagingTopology,
+} from "./upload-session-runtime.js";
+
+export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
+  const { app } = deps;
+  if (!app.hasContentTypeParser("application/octet-stream")) {
+    app.addContentTypeParser(
+      "application/octet-stream",
+      { parseAs: "buffer", bodyLimit: MAX_UPLOAD_CHUNK_BYTES },
+      (_request, body, done) => done(null, body),
+    );
+  }
+
+  app.post("/api/uploads", async (request, reply) => {
+    const user = await deps.getCurrentUser(request);
+    if (!user) return reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
+    const body = z.object({
+      fileName: z.string().trim().min(1).max(500),
+      totalBytes: z.number().int().nonnegative().max(20 * 1024 * 1024 * 1024),
+      contentType: z.string().trim().min(1).max(200).optional().nullable(),
+      clientKey: z.string().trim().min(8).max(200).optional().nullable(),
+    }).parse(request.body || {});
+    try {
+      const decorated = await deps.decorateUserForClient(user);
+      const workspaceId = decorated?.workspaceId ? String(decorated.workspaceId) : null;
+      const created = await createUploadSession(deps, {
+        ownerId: user.id,
+        workspaceId,
+        fileName: body.fileName,
+        totalBytes: body.totalBytes,
+        contentType: body.contentType || null,
+        browserOrigin: String(request.headers.origin || "").trim() || null,
+        clientKey: body.clientKey || null,
+      });
+      reply.code(201);
+      return { ...created.response, staging: uploadStagingTopology(deps).mode };
+    } catch (error) {
+      return sendUploadError(reply, error, "Unable to create upload session.");
+    }
+  });
+
+  app.get("/api/uploads/:uploadId", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    return serializeUploadSession(resolved.session);
+  });
+
+  // Local/shared-filesystem fallback. Direct-object sessions never send bytes
+  // through this route.
+  app.put("/api/uploads/:uploadId/chunks", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    if (resolved.session.mode === "direct") {
+      return reply.code(409).send({
+        code: "UPLOAD_DIRECT_REQUIRED",
+        message: "This upload session uses direct object-storage parts.",
+      });
+    }
+    const contentRange = String(request.headers["content-range"] || "");
+    const match = /^bytes\s+(\d+)-(\d+)\/(\d+)$/.exec(contentRange);
+    if (!match) return reply.code(400).send({ code: "UPLOAD_RANGE_REQUIRED", message: "Content-Range is required." });
+    const start = Number(match[1]);
+    const end = Number(match[2]);
+    const total = Number(match[3]);
+    const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
+    if (!(await consumeWorkspaceByteBudget(deps, resolved.session, body.length, reply))) return;
+    try {
+      return await appendClusterChunk(deps, resolved.session, { start, end, total, body });
+    } catch (error) {
+      return sendUploadError(reply, error, "Unable to append upload chunk.");
+    }
+  });
+
+  // Direct multipart uses short-lived provider URLs. Cluster authorizes and
+  // budgets the part but never proxies the payload bytes.
+  app.get("/api/uploads/:uploadId/parts/:partNumber/url", async (request, reply) => {
+    const params = z.object({
+      uploadId: z.string().uuid(),
+      partNumber: z.coerce.number().int().min(1).max(10_000),
+    }).parse(request.params);
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    if (resolved.session.mode !== "direct") {
+      return reply.code(409).send({ code: "UPLOAD_CLUSTER_CHUNKS_REQUIRED", message: "This upload session uses Cluster chunk transport." });
+    }
+    const sizeBytes = expectedPartSize(resolved.session, params.partNumber);
+    if (sizeBytes == null) return reply.code(400).send({ code: "UPLOAD_PART_INVALID", message: "Upload part number is invalid." });
+    const existing = (resolved.session.parts || []).find((part: any) => Number(part.partNumber) === params.partNumber);
+    const recentlyAuthorized = existing?.authorizedAt && Date.now() - new Date(existing.authorizedAt).getTime() < 10 * 60_000;
+    if (!existing?.completedAt && !recentlyAuthorized) {
+      if (!(await consumeWorkspaceByteBudget(deps, resolved.session, sizeBytes, reply))) return;
+    }
+    try {
+      return { ok: true, ...(await authorizeDirectPart(deps, resolved.session, params.partNumber)) };
+    } catch (error) {
+      return sendUploadError(reply, error, "Unable to authorize direct upload part.");
+    }
+  });
+
+  app.post("/api/uploads/:uploadId/parts/:partNumber/complete", async (request, reply) => {
+    const params = z.object({
+      uploadId: z.string().uuid(),
+      partNumber: z.coerce.number().int().min(1).max(10_000),
+    }).parse(request.params);
+    const body = z.object({
+      etag: z.string().trim().min(1).max(256),
+      sizeBytes: z.number().int().nonnegative(),
+    }).parse(request.body || {});
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    try {
+      return await acknowledgeDirectPart(deps, resolved.session, {
+        partNumber: params.partNumber,
+        sizeBytes: body.sizeBytes,
+        etag: body.etag,
+      });
+    } catch (error) {
+      return sendUploadError(reply, error, "Unable to record direct upload part.");
+    }
+  });
+
+  app.post("/api/uploads/:uploadId/pause", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    try {
+      const session = await pauseUploadSession(deps, params.uploadId, resolved.user.id, Boolean(resolved.user.isAdmin));
+      return session ? serializeUploadSession(session) : reply.code(404).send({ code: "UPLOAD_NOT_FOUND", message: "Upload session was not found." });
+    } catch (error) { return sendUploadError(reply, error, "Unable to pause upload."); }
+  });
+
+  app.post("/api/uploads/:uploadId/resume", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    try {
+      const session = await resumeUploadSession(deps, params.uploadId, resolved.user.id, Boolean(resolved.user.isAdmin));
+      return session ? serializeUploadSession(session) : reply.code(404).send({ code: "UPLOAD_NOT_FOUND", message: "Upload session was not found." });
+    } catch (error) { return sendUploadError(reply, error, "Unable to resume upload."); }
+  });
+
+  app.post("/api/uploads/:uploadId/complete", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const body = z.object({ checksumSha256: z.string().regex(/^[a-f0-9]{64}$/i).optional() }).parse(request.body || {});
+    const resolved = await requireOwner(request, reply, deps, params.uploadId);
+    if (!resolved) return;
+    try {
+      return await completeUploadSession(deps, resolved.session, body.checksumSha256 || null);
+    } catch (error) {
+      return sendUploadError(reply, error, "Unable to complete upload.");
+    }
+  });
+
+  app.delete("/api/uploads/:uploadId", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const user = await deps.getCurrentUser(request);
+    if (!user) return reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
+    await abortUploadSession(deps, params.uploadId, user.id, Boolean(user.isAdmin));
+    reply.code(204).send();
+  });
+
+  app.get("/api/uploads/:uploadId/file", async (request, reply) => {
+    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+    const user = await deps.getCurrentUser(request);
+    if (!user) return reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
+    const upload = await resolveCompletedUpload(deps, params.uploadId, user.id, Boolean(user.isAdmin));
+    if (!upload) return reply.code(404).send({ code: "UPLOAD_FILE_MISSING", message: "Completed upload is unavailable." });
+    reply.header("Content-Type", "application/octet-stream");
+    reply.header("Content-Length", String(upload.metadata.totalBytes));
+    reply.header("Content-Disposition", `attachment; filename="${safeFileName(upload.metadata.fileName)}"`);
+    for (const [header, value] of Object.entries(untrustedFileResponseHeaders("application/octet-stream", upload.metadata.fileName))) reply.header(header, value);
+    if (upload.filePath) return reply.send(createReadStream(upload.filePath));
+    if (upload.storage) return reply.send(await deps.storageRuntime.openRead(upload.storage));
+    return reply.code(503).send({ code: "UPLOAD_STORAGE_UNAVAILABLE", message: "Completed upload storage is unavailable." });
+  });
+}
