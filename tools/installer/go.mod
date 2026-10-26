@@ -1,0 +1,3 @@
+module cluster.local/installer
+
+go 1.23

@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const dash=readFileSync(path.join(root,'packages/renderer/src/features/application/modules/ApplicationDashboard.tsx'),'utf8');
+const cat=readFileSync(path.join(root,'packages/renderer/src/features/home-widgets/use-widget2-catalog-insights.ts'),'utf8');
+let checks=0;
+function check(name, fn) {fn();console.log('PASS',name);checks++;}
+check('source still depends on enabled visible widgets',()=>assert.match(dash,/homeCanSourceControl && homeNeedsSourceControl/));
+check('integrations still require explicit permission and demand',()=>assert.match(dash,/homeCanIntegrations && homeNeedsIntegrations/));
+check('saved views data is gated by real UI demand',()=>assert.match(dash,/homeNeedsSavedViews = homeWidgetUses\("savedViews"\)/));
+check('opening Home editor makes view picker load',()=>assert.match(dash,/homeNeedsSavedViews = [^\n]+homeEditorOpen/));
+check('Home edit mode also requests saved views for resource pickers',()=>assert.match(dash,/homeNeedsSavedViews = [^\n]+homeEditMode/));
+check('widget with saved view configuration requests its referenced view',()=>assert.match(dash,/enabledHomeWidgets\.some\(\(placement\) => Boolean\(placement\.config\?\.savedViewId\)\)/));
+check('saved views flag contributes to owner signature',()=>assert.match(cat,/\|views:\$\{canSavedViews \? 1 : 0\}/));
+check('saved views reader checks enabled flag and current account',()=>assert.match(cat,/!authority\.isOwner\(owner\) \|\| !accountId \|\| !canSavedViews/));
+check('disabled views do not start a request',()=>assert.match(cat,/if \(canSavedViews\) void loadSavedViews\(true\)/));
+check('disabled views have a ready rather than infinite loading state',()=>assert.match(cat,/savedViewsStatus: \{ state: savedViewsEnabled \? "loading" : "ready" \}/));
+check('disabled views cannot render previous private view names',()=>assert.match(cat,/savedViews: canSavedViews \? current\.savedViews : \[\]/));
+check('switching demand reinitializes all account-scoped data',()=>assert.match(cat,/initialState\(owner, canSourceControl, canIntegrations, canSavedViews\)/));
+console.log(`G27 Pass 28 Home demand-loading: ${checks}/${checks} passed`);

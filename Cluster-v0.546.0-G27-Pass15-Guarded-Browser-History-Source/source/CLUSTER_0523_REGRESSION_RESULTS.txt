@@ -1,7 +1,0 @@
-Cluster v0.523.0 | Native trust enrollment, staged-file re-audit, honest deployment reports
-
-PASS: 72/77 all-history assertion scripts, including 23/23 new native audit/trust/state assertions.
-UNCHANGED BASELINE FAILURES: WIP57 pass 2, pass 3, pass 4, pass 8, and pass15 admin Project Types. All five also fail when executed against untouched v0.522 source.
-PASS: Go native Package stager unit/integrity tests, including new read-only kit audit cases.
-PASS: Windows/amd64 Go verifier cross-compiles (not executed on Windows).
-NOT TESTED: Qt desktop native compilation/runtime, OS-level install, current-rollout signed activation authorization, full Node24/Prisma compile, PostgreSQL live tests.

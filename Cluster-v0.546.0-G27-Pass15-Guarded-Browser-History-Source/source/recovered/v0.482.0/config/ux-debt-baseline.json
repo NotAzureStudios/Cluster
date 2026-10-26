@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "nativeDialogCallsMaximum": 0,
-  "inlineStyleObjectMaximum": 0,
-  "buttonWithoutExplicitTypeMaximum": 0,
-  "policy": "Native browser dialogs, ad-hoc JSX inline-style objects, and implicit button types are eliminated and may not return. Runtime-calculated geometry/color values must use the reviewed runtimeStyle contract; static styling belongs in design-system CSS."
-}

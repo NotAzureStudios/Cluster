@@ -1,9 +1,0 @@
-{
-  "tsFiles": 1018,
-  "cssFiles": 110,
-  "relativeImports": 4333,
-  "missingImports": [
-    "apps/server/src/core/prisma-client.ts=>../generated/prisma/client.js"
-  ],
-  "syntaxErrors": []
-}

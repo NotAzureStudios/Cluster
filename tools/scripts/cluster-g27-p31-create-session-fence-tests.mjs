@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+import { createClusterCreateIntentControl } from '../../packages/renderer/src/features/create/create-intent-control.ts';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const drawer=readFileSync(path.join(root,'packages/renderer/src/features/create/SharedCreateDrawer.tsx'),'utf8');
+const route=readFileSync(path.join(root,'packages/renderer/src/features/operations/modules/operations-admin.tsx'),'utf8');
+let checks=0;
+function check(title,fn){fn();checks++;console.log('PASS',title)}
+check('Create component unmounts when account identity changes',()=>assert.match(route,/<LazySharedCreateDrawerFeature key=\{props\.currentUser\.id\}/));
+check('Create active session owns an abort controller',()=>assert.match(drawer,/const createSessionController = useRef\(new AbortController\(\)\)/));
+check('unmount invalidates in-flight session requests',()=>assert.match(drawer,/useEffect\(\(\) => \(\) => \{ createSessionController\.current\.abort\(\); \}, \[\]\)/));
+check('server mutations reject dead sessions',()=>assert.match(drawer,/if \(createSessionController\.current\.signal\.aborted\) return Promise\.reject/));
+check('idempotent mutations bind abort signal',()=>assert.match(drawer,/return api<T>\(path, \{ \.\.\.options, headers, signal: createSessionController\.current\.signal \}\)/));
+check('provision preview is bound to same Create session',()=>assert.match(drawer,/"\/api\/projects\/provision\/preview"[^\n]+signal: createSessionController\.current\.signal/));
+check('provisioning poll rejects late old-account continuation',()=>assert.match(drawer,/if \(createSessionController\.current\.signal\.aborted\) throw new Error\("Create session has changed\."\)/));
+check('workflow links are not attempted in a superseded session',()=>assert.match(drawer,/createIntentRef\.current\.commit\(\);\s+if \(createSessionController\.current\.signal\.aborted\) return ""/));
+check('completion events do not fire on a superseded session',()=>assert.match(drawer,/if \(createSessionController\.current\.signal\.aborted\) return linkWarning;\s+emitSharedCreateCompleted/));
+check('navigation timers do not take over next-account workspace',()=>assert.match(drawer,/window\.setTimeout\(\(\) => \{ if \(!createSessionController\.current\.signal\.aborted\) openClusterWorkNavigation/));
+check('close timer cannot dismiss next account drawer',()=>assert.match(drawer,/window\.setTimeout\(\(\) => \{ if \(!createSessionController\.current\.signal\.aborted\) onClose\(\); \}, 650\)/));
+check('draft recovery ignores obsolete account or closed dialog',()=>assert.match(drawer,/if \(cancelled \|\| createSessionController\.current\.signal\.aborted\) return;\s+const value/));
+check('draft recovery failures finish without falsely showing a failed mutation',()=>assert.match(drawer,/\.catch\(\(\) => \{ \/\* Unavailable local drafts/));
+check('user directory requests are tied to session abort signal',()=>assert.match(drawer,/api<User\[\]>\("\/api\/users", \{ signal \}\)/));
+check('latest user directory responses reject closed or switched sessions',()=>assert.match(drawer,/if \(cancelled \|\| signal\.aborted\) return;\s+const assignmentByUserId/));
+check('same-intent duplicate prevention remains in place',()=>{const control=createClusterCreateIntentControl(()=>"deterministic");assert.equal(control.begin(),true);assert.equal(control.begin(),false);const a=control.requestKey('POST','/api/cards','{"title":"X"}');assert.equal(a,control.requestKey('POST','/api/cards','{"title":"X"}'));control.commit();control.finish();assert.equal(control.begin(),false);assert.equal(control.reset(),true);assert.equal(control.begin(),true);});
+console.log(`G27 P31 account-bound Create session: ${checks}/${checks} passed`);

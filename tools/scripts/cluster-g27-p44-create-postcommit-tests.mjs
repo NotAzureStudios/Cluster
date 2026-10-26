@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../../packages/renderer/src/features/create/SharedCreateDrawer.tsx',import.meta.url),'utf8');
+let count=0;
+const check=(label,fn)=>{fn();count++;console.log('PASS',label)};
+check('Project provisioning receipt committed before optional list refresh',()=>assert.match(src,/createIntentRef\.current\.commit\(\);\s*\/\/ A successful server create/));
+check('Project refresh failure does not block exact-record navigation',()=>assert.match(src,/try \{ await onReloadProjects\(\); \} catch \{\s*projectReloadWarning[\s\S]*?const createdProjectId = operation\.result\.projectId;\s*completionWarning = \(await finalizeCreatedEntity/));
+check('Project refresh warns accurately without proposing duplicate submission',()=>assert.match(src,/Project created; the Project list could not refresh yet/));
+check('Project follow-up work exits when creator session was disposed',()=>assert.match(src,/if \(createSessionController\.current\.signal\.aborted\) return;\s*const createdProjectId/));
+check('Whiteboard refresh is best effort after durable Create receipt',()=>assert.match(src,/finalizeCreatedEntity\(\{ kind: "whiteboard"[\s\S]*?try \{ await onReloadWhiteboards\(\); \} catch \{/));
+check('Whiteboard refresh reports partial completion as success',()=>assert.match(src,/Whiteboard created; the list could not refresh yet/));
+check('Native evidence loop refuses subsequent capture after session invalidation',()=>assert.match(src,/for \(const file of nativeFiles\) \{[\s\S]*?if \(createSessionController\.current\.signal\.aborted\) break;\s*try \{\s*await uploadNativeProjectFile/));
+check('Native evidence result checked after await before advancing progress',()=>assert.match(src,/if \(createSessionController\.current\.signal\.aborted\) break;\s*queued \+= 1/));
+check('Native evidence failure cannot resume after account switch',()=>assert.match(src,/catch \{\s*if \(createSessionController\.current\.signal\.aborted\) break;\s*linkWarning \+= ` \$\{file\.name\} could not be queued/));
+check('Native irreversible in-flight transfer limitation documented',()=>assert.match(src,/Native transfers are not abortable mid-flight/));
+console.log(`G27 P44 Create post-commit: ${count}/${count} checks passed`);

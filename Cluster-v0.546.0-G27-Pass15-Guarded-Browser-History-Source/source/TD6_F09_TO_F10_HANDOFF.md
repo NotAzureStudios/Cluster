@@ -1,9 +1,0 @@
-# Cluster TD6 F09 → F10 handoff
-
-1. **Canonical baseline:** `Cluster-v0.546.0-TD6-F09-Engagement-Access-Renewal-Source.zip`; parent F08 `Cluster-v0.546.0-TD6-F08-Return-To-Studio-Source.zip`. Treat F01–F09 source as present; don't recreate an existing feature.
-2. **Standing instruction:** maximize feature implementation. TD7 cleanup and release certification follow after TD6; focused development tests stay mandatory. Live PostgreSQL, Node24 install, Windows/Qt/build/SMB/NAS/S3/soak remain unverified.
-3. **F09:** governed two-person expiry extension, immutable approval record, per-window notices, session revocation, blocking direct profile expiry edit and invalid external account creation. Personnel Record is finalized and confidential. No historical grants restored.
-4. **Tests:** `npm run techdebt:td6:access-renewal`, `npm run techdebt:td6:people-return`, `npm run cluster:0538:people-lifecycle`, F01–F07 targeted tests, and `npm run techdebt:td6:source-scan`; Node22 F03 runner needs `--experimental-strip-types`. Inherited Go stager suite needs go1.27.1 (unavailable in the current offline container), no claim it ran in F09.
-5. **F10 target:** canonical grant/entitlement provisioning and renewal decisions, with explicit project/resource/package/inventory scope and expiration, separate from identity-level expiry. Confirm existing authority and UI before extending it.
-6. **Important:** Access expiry time is an authorization boundary independent of the hourly notice worker. The worker must not be treated as the primary gate. A duplicate or stale request cannot re-enable archived/disabled people; permission writes must remain permission-checked.
-7. **Roadmap authority:** `CURRENT_CHECKPOINT.md`, `CLUSTER_IMPLEMENTATION_FIRST_DIRECTIVE.md`, `IMPLEMENTATION_ROADMAP_TD6_F09.md`, `TECH_DEBT_MASTER_ROADMAP.md`, `CLUSTER_RELEASE_CERTIFICATION_ROADMAP.md`. Historical files retained as history only.

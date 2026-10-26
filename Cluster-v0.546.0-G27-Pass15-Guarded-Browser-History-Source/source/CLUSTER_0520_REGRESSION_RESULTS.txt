@@ -1,9 +1,0 @@
-Cluster v0.520.0 | Distribution and Deployment Regression Results
-
-52/52 source assertion scripts passed (all cluster-0*-*-assertions.mjs, including two new v0.520 suites).
-Go native package-stager tests passed with `go test ./... -count=1`.
-Node 22 --experimental-strip-types used with temporary local TypeScript symlink for inherited harnesses, not packaged.
-Native Go Windows amd64 helper cross-compilation succeeded, but no Windows runtime execution was performed.
-The full case-by-case output of regressions is in validation/regressions-final.log (work artifact; not part of production bundle).
-
-No real PostgreSQL, Qt/MSVC, native OS installation, attested health, or complete semantic TypeScript builds were performed.
