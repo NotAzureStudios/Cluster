@@ -73,6 +73,10 @@ export function downloadJsonFile(name: string, payload: unknown) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = name;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.append(anchor);
+  try { anchor.click(); } finally {
+    anchor.remove();
+    // Chromium may consume the Blob URL asynchronously after the click.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
 }

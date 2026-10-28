@@ -93,7 +93,7 @@ export function registerAdminToolRoutes(app: FastifyInstance, deps: AdminToolRou
       shape[field] = validator;
     }
     return [tool, z.object(shape)];
-  })) as Record<AdminToolKey, z.ZodTypeAny>;
+  })) as unknown as Record<AdminToolKey, z.ZodTypeAny>;
 
   function adminToolSettings(tool: AdminToolKey, settings: Record<string, any>) {
     return clusterResolveToolConfig(tool, settings);

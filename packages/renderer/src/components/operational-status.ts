@@ -15,6 +15,7 @@ export const CLUSTER_OPERATIONAL_STATES = [
   "recovery",
   "draining",
   "incompatible",
+  "compatibility_pending",
   "conflict",
 ] as const;
 
@@ -53,6 +54,9 @@ export function deriveSyncOperationalStatus(snapshot: OfflineOperationalSnapshot
     const reconnecting = snapshot.consecutiveFailures > 0 && snapshot.nextSyncAt != null;
     const state: ClusterOperationalState = reconnecting ? "reconnecting" : "server_unreachable";
     return { state, interactionState: operationalInteractionState(state), label: reconnecting ? "Reconnecting" : "Server unreachable", detail: snapshot.lastError || "Cluster cannot currently reach the configured server.", actionLabel: "Retry connection", pendingCount, conflictCount, lastCheckedAt: snapshot.lastCheckedAt };
+  }
+  if (snapshot.serverState === "compatibility-check-pending") {
+    return { state: "compatibility_pending", interactionState: "warning", label: "Checking server compatibility", detail: pendingCount ? `${pendingCount} local item${pendingCount === 1 ? " is" : "s are"} safely held until the server confirms compatibility.` : "Cluster can reach the server, but could not verify compatibility yet. Writes and queued sync remain paused while it retries.", actionLabel: "Review sync", pendingCount, conflictCount, lastCheckedAt: snapshot.lastCheckedAt };
   }
   if (snapshot.serverState === "incompatible") {
     return { state: "incompatible", interactionState: "conflict", label: "Client update required", detail: pendingCount ? `This client is incompatible with the server. ${pendingCount} local item${pendingCount === 1 ? " is" : "s are"} held and will not replay until compatibility is restored.` : "This client is incompatible with the server. Refresh or update Cluster before making changes.", actionLabel: "Review sync", pendingCount, conflictCount, lastCheckedAt: snapshot.lastCheckedAt };

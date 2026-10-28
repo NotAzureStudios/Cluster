@@ -2,13 +2,13 @@
 export const SETUP_GUIDES = {
   "owner-passkey": {
     group: "Security", title: "Secure every Owner with a passkey",
-    detail: "Each active Owner needs an active, uncompromised passkey. Passwords alone do not satisfy the Owner security baseline.",
+    detail: "Enroll a passkey for each Owner after first sign-in, before requiring MFA or granting remote administrative access. Local owner setup is permitted with a strong password until the studio security policy is activated.",
     nextStep: "Open People / Security and enroll a passkey for each Owner. Never share an administrator authenticator.",
     destination: "people",
   },
   "recovery-codes": {
     group: "Security", title: "Preserve independent Owner recovery",
-    detail: "Each active Owner needs unused recovery codes. These are a last-resort login recovery method, not a shared master password.",
+    detail: "Generate and securely store recovery codes when enabling an authenticator. Recovery codes are not required just to enter a freshly installed local workspace.",
     nextStep: "Have each Owner generate and securely store their own recovery codes offline. Do not paste codes into a support ticket.",
     destination: "people",
   },
@@ -38,7 +38,7 @@ export const SETUP_GUIDES = {
   },
   "domains": {
     group: "Infrastructure", title: "Verify a domain and configure member access",
-    detail: "Domain setup begins in OOBE. Completion here means a verified local-server binding and an access profile, not a proven live gateway, TLS or remote login.",
+    detail: "Custom domains and remote access are optional after local setup. A verified binding alone does not establish HTTPS or secure remote access.",
     nextStep: "Verify DNS proof under Studio Settings → Domains, then bind the hostname and deploy a gateway from Server Configuration → Domains & gateways.",
     destination: "server",
   },

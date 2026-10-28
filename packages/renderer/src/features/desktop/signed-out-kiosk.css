@@ -77,10 +77,13 @@
   background: color-mix(in srgb, var(--surface-deep) 94%, var(--surface));
 }
 .signed-out-kiosk-exit-dialog-v495 {
-  width: min(460px, 100%);
+  width: min(370px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
   display: grid;
-  gap: 18px;
-  padding: 24px;
+  gap: 12px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
@@ -95,3 +98,6 @@
 .signed-out-kiosk-credential-toggle-v495 button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-subtle); }
 .signed-out-kiosk-exit-error-v495 { color: var(--danger); font-size: .8rem; }
 .signed-out-kiosk-exit-actions-v495 { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Keep the PIN input hidden in the kiosk form while the visible shared keypad stays intact. */
+.signed-out-kiosk-exit-dialog-v495 .cluster-pin-physical-input-v124 { min-height: 0 !important; }

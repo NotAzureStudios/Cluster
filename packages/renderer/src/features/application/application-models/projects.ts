@@ -81,6 +81,7 @@ export type Project = {
   targetDate?: string | null;
   tags?: string[];
   color?: string | null;
+  iconId?: string | null;
   healthNote?: string | null;
   source?: string;
   sourceBindings?: ProjectSourceBinding[];

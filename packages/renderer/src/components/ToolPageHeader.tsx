@@ -55,7 +55,7 @@ export function ToolPageHeader({
     <header className={`cluster-tool-header-v228 cluster-workspace-header-v391 ${className}`.trim()}>
       <div className="cluster-tool-heading-v228 cluster-workspace-heading-v391">
         <div className="cluster-tool-title-shell-v448">
-          {resolvedIcon ? <span className="cluster-tool-title-icon-v448" data-tool-icon={resolvedIcon}><ClusterIcon name={resolvedIcon} /></span> : null}
+          {resolvedIcon ? <span className="cluster-tool-title-icon-v448" data-tool-icon={resolvedIcon}><ClusterIcon name={resolvedIcon} treatment="duotone" /></span> : null}
           <div className="cluster-tool-title-v228 cluster-workspace-title-v391">
             {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
             <h1>{title}</h1>

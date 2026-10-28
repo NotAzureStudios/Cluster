@@ -1376,3 +1376,59 @@
 .studio-form-review-detail > .settings-card-v092 { margin: 0; min-width: 0; }
 .studio-form-review-detail .field p { overflow-wrap: anywhere; }
 @container (max-width: 740px) { .studio-form-review-workbench { grid-template-columns: minmax(0, 1fr); } .studio-form-review-list .studio-entity-list-v272 { max-height: 260px; } }
+
+/* RC15: Studio Settings rail: make titles readable instead of clipping the
+   primary label and secondary description into the same narrow line. */
+.settings-workspace-v298 .settings-section-nav-v469 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.settings-workspace-v298 .settings-section-nav-v469 :is(button, a) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.settings-workspace-v298 .settings-section-nav-v469 :is(button, a) :is(strong, span, small) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 981px) {
+  .settings-workspace-v298 { --settings-rail-width: 254px; }
+}
+@media (max-width: 980px) {
+  .settings-workspace-v298 .settings-section-nav-v469 {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+}
+
+/* RC17 density: each setting has ONE navigation anchor, not a repeated 1–5 process diagram. */
+.studio-settings-console-v271 .cluster-sectioned-nav .compact-section-primary-v204 > button { display:flex; align-items:center; gap:9px; min-height:34px; padding:6px 9px; }
+.studio-settings-console-v271 .cluster-sectioned-nav .compact-section-primary-v204 > button strong { flex:1; font-size:.82rem; font-weight:600; }
+.studio-settings-console-v271 .cluster-sectioned-nav .compact-section-primary-v204 > button .cluster-section-nav-glyph { flex:0 0 17px; inline-size:17px; block-size:17px; color:var(--muted); }
+.studio-settings-console-v271 .cluster-sectioned-nav .compact-section-primary-v204 > button.active .cluster-section-nav-glyph { color:var(--accent); }
+.studio-settings-console-v271 .settings-content-v092 { padding:clamp(12px,1.4vw,18px) !important; }
+.studio-settings-console-v271 .settings-panel-head-v092 { min-height:0; margin-bottom:6px; }
+.studio-settings-console-v271 .settings-card-head-v092 > span { display:none; }
+.studio-settings-console-v271 .settings-section-v092 { gap:10px; }
+.studio-settings-console-v271 .settings-card-v092 { padding:11px 13px; }
+.studio-settings-console-v271 .settings-card-v092 > p.muted:not([role="alert"]):not([role="status"]) { font-size:.72rem; line-height:1.4; }
+
+/* RC46 department identity uses one local icon mark, no image requests per row. */
+.studio-entity-icon-rc46 { display:inline-flex; align-items:center; flex:0 0 32px; }
+.studio-entity-icon-rc46 .resource-identity-mark { width:32px; height:32px; }
+.studio-department-heading-rc46 { display:flex; align-items:center; gap:12px; min-width:0; }
+.studio-department-heading-rc46 > .resource-identity-mark { flex:0 0 42px; width:42px; height:42px; }
+.studio-department-heading-rc46 > div { min-width:0; }
+
+/* RC48: connected Discord identity follows the shared profile surface and density. */
+.cluster-discord-identity-v548 { display: grid; gap: 12px; margin-block: 12px; }
+.cluster-discord-identity-v548 .settings-card-head-v092 h3 { display: flex; align-items: center; gap: 8px; }
+.cluster-discord-identity-row-v548 { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cluster-discord-identity-row-v548 img { border-radius: 12px; flex: none; }
+.cluster-discord-identity-row-v548 > div { display: grid; gap: 3px; min-width: 0; }
+.cluster-discord-identity-row-v548 > div span { color: var(--cluster-text-muted, #a8b1bb); overflow-wrap: anywhere; font-size: .84rem; }
+.cluster-discord-identity-v548 .button-row { flex-wrap: wrap; }

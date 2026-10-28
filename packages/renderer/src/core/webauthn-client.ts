@@ -18,8 +18,22 @@ export function webAuthnAvailable() {
   return typeof window !== "undefined" && "PublicKeyCredential" in window && Boolean(navigator.credentials);
 }
 
+/** Block impossible registrations before making a rate-limited API request. */
+export function requireWebAuthnBrowserOrigin() {
+  if (typeof window === "undefined") return;
+  const hostname = window.location.hostname.toLowerCase();
+  if (hostname === "127.0.0.1" || /^127\.\d+\.\d+\.\d+$/.test(hostname) || hostname.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+    const port = window.location.port ? `:${window.location.port}` : "";
+    throw new Error(`Passkeys cannot enroll using an IP-address URL. Open Cluster at http://localhost${port} and try again.`);
+  }
+  if (window.location.protocol !== "https:" && !(window.location.protocol === "http:" && hostname === "localhost")) {
+    throw new Error("Passkeys require an HTTPS domain or a local http://localhost address.");
+  }
+}
+
 export async function createWebAuthnCredential(options: any) {
   if (!webAuthnAvailable()) throw new Error("Passkeys are not available in this browser or runtime.");
+  requireWebAuthnBrowserOrigin();
   const publicKey: PublicKeyCredentialCreationOptions = {
     ...options,
     challenge: bytesFromBase64Url(options.challenge),
@@ -45,6 +59,7 @@ export async function createWebAuthnCredential(options: any) {
 
 export async function getWebAuthnCredential(options: any) {
   if (!webAuthnAvailable()) throw new Error("Passkeys are not available in this browser or runtime.");
+  requireWebAuthnBrowserOrigin();
   const publicKey: PublicKeyCredentialRequestOptions = {
     ...options,
     challenge: bytesFromBase64Url(options.challenge),

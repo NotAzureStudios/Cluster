@@ -113,7 +113,7 @@ export function registerLibraryBulkJobHandler(input: {
             data.status = command.action === "archive" ? "archived" : "active";
           } else {
             const tags = parseJsonArray(row.tags);
-            const nextTags = applyLibraryBulkTagChange(tags, command.tag!, command.action);
+            const nextTags = applyLibraryBulkTagChange(tags, command.tag!, command.action as "tag" | "untag");
             if (JSON.stringify(nextTags) === JSON.stringify(tags)) { counts.skipped++; continue; }
             data.tags = JSON.stringify(nextTags);
           }

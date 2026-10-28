@@ -1,8 +1,8 @@
 import { libraryCollectionCan, libraryCollectionRole } from "./library-collection-access.js";
-import { collectLibraryMatchingSelection } from "./library-matching-selection.js";
+import { collectLibraryMatchingSelection, type LibraryMatchingItem } from "./library-matching-selection.js";
 import { librarySmartCollectionDescendantFolders, librarySmartCollectionWhere } from "./library-platform-9e2.js";
 import { libraryBulkSelectionDigest } from "./library-bulk-job-contract.js";
-import { filterLibraryBackgroundCandidates, type LibraryBackgroundAction } from "./library-bulk-lifecycle.js";
+import { filterLibraryBackgroundCandidates, type LibraryBackgroundAction, type LibraryLifecycleCandidate } from "./library-bulk-lifecycle.js";
 
 export class LibraryBulkCollectionError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 409) { super(message); }
@@ -55,7 +55,7 @@ export async function resolveLibraryBulkCollectionSelection(input: {
     throw new LibraryBulkCollectionError("LIBRARY_BULK_COLLECTION_INVALID", "Unknown collection type.");
   }
 
-  const targets = await collectLibraryMatchingSelection({
+  const targets = await collectLibraryMatchingSelection<LibraryMatchingItem & LibraryLifecycleCandidate>({
     maximumSelected: 1000,
     fetchPage: async (skip, take) => {
       if (collection.kind === "smart") return tx.libraryItem.findMany({

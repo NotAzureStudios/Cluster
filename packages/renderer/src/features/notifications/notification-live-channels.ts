@@ -52,9 +52,11 @@ export function notificationLiveChannels(
   // With no saved policy, current preferences are the fallback. With a valid
   // policy, require both current and recorded channel permission for routine
   // alerts. This avoids old native-only records becoming new toast alerts.
-  let allowedMode = chosenMode;
-  if (!mandatory && policy && modes.includes(String(policy.deliveryMode)))
-    allowedMode = String(policy.deliveryMode);
+  let allowedMode: "native" | "both" | "toast" | "off" | "silent" = chosenMode;
+  if (!mandatory && policy && modes.includes(String(policy.deliveryMode))) {
+    const recorded = policy.deliveryMode;
+    if (recorded === "toast" || recorded === "native" || recorded === "both" || recorded === "silent" || recorded === "off") allowedMode = recorded;
+  }
   return {
     toast: (chosenMode === "toast" || chosenMode === "both") && (allowedMode === "toast" || allowedMode === "both"),
     native: (chosenMode === "native" || chosenMode === "both") && (allowedMode === "native" || allowedMode === "both"),

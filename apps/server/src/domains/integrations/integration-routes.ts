@@ -7,6 +7,7 @@ import { createIntegrationProviderHealthService } from "./integration-provider-h
 import { createHttpError } from "../../core/http-errors.js";
 import { validateDiscordWebhookUrl } from "../../core/security.js";
 import type { SourceProviderService, SourceProviderId } from "../source-control/source-provider-service.js";
+import { validateRepositoryHosting } from "../source-control/repository-hosting-policy.js";
 
 const CONNECTION_CATEGORIES = ["source-control", "communication", "media", "automation", "calendar", "build", "storage"] as const;
 const VERSION_PRESETS = ["semantic", "game-development", "calendar", "film-vfx", "simple-revision", "custom"] as const;
@@ -203,6 +204,9 @@ export function registerIntegrationRoutes(input: {
         messagePrefix: settings.discordMessagePrefix || "Cluster",
         applicationId: settings.discordApplicationId || "",
         applicationPublicKeyConfigured: Boolean(settings.discordApplicationPublicKey),
+        oauthConfigured: Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET && (process.env.DISCORD_REDIRECT_URI || process.env.NODE_ENV !== "production")),
+        oauthRedirectUri: process.env.DISCORD_REDIRECT_URI || "",
+        oauthApplicationMatches: !settings.discordApplicationId || !process.env.DISCORD_CLIENT_ID || settings.discordApplicationId === process.env.DISCORD_CLIENT_ID,
         botTokenConfigured: Boolean(settings.discordBotToken),
         webhookConfigured: Boolean(settings.discordWebhookUrl),
       },
@@ -214,7 +218,7 @@ export function registerIntegrationRoutes(input: {
     if (!admin) return;
     const body = z.object({
       displayName: z.string().trim().min(1).max(120).default("Studio Discord"),
-      guildId: z.string().trim().max(120).default(""),
+      guildId: z.string().trim().max(120).refine((value) => !value || /^\d{8,24}$/.test(value), "Discord server ID must be numeric.").default(""),
       forumChannelId: z.string().trim().max(120).default(""),
       chatChannelId: z.string().trim().max(120).default(""),
       adminRoleId: z.string().trim().max(120).default(""),
@@ -261,20 +265,23 @@ export function registerIntegrationRoutes(input: {
       throw error;
     }
     const existing = await input.prisma.integrationConnection.findFirst({ where: { workspaceId: workspace.id, providerId: provider.id, archived: false }, orderBy: { createdAt: "asc" } });
+    let existingConfiguration: Record<string, unknown> = {};
+    try { existingConfiguration = JSON.parse(String(existing?.configuration || "{}")); } catch { /* legacy config */ }
     const connectionData = {
       displayName: body.displayName,
       status: "configured",
-      configuration: JSON.stringify({ configurationOwner: "discord", interactionEndpoint: "/api/integrations/discord/interactions" }),
+      configuration: JSON.stringify({ ...existingConfiguration, configurationOwner: "discord", interactionEndpoint: "/api/integrations/discord/interactions" }),
       secretRefs: JSON.stringify({ botToken: "settings:discordBotToken", webhook: "settings:discordWebhookUrl" }),
       capabilities: JSON.stringify(provider.capabilities),
       healthState: "unknown",
       healthMessage: null,
       lastCheckedAt: null,
     };
+    const committedSettings = await input.readSettings(true);
     const connection = existing
       ? await input.prisma.integrationConnection.update({ where: { id: existing.id }, data: connectionData })
       : await input.prisma.integrationConnection.create({ data: { workspaceId: workspace.id, providerId: provider.id, category: provider.category, ...connectionData } });
-    return { ok: true, connection: serializeConnection(connection), configuration: { guildId: body.guildId, forumChannelId: body.forumChannelId, chatChannelId: body.chatChannelId, adminRoleId: body.adminRoleId, messagePrefix: body.messagePrefix || "Cluster", applicationId: body.applicationId, applicationPublicKeyConfigured: Boolean(nextSettings.discordApplicationPublicKey), botTokenConfigured: Boolean(nextSettings.discordBotToken), webhookConfigured: Boolean(nextSettings.discordWebhookUrl), interactionEndpoint: "/api/integrations/discord/interactions" } };
+    return { ok: true, connection: serializeConnection(connection), configuration: { guildId: body.guildId, forumChannelId: body.forumChannelId, chatChannelId: body.chatChannelId, adminRoleId: body.adminRoleId, messagePrefix: body.messagePrefix || "Cluster", applicationId: body.applicationId, applicationPublicKeyConfigured: Boolean(committedSettings.discordApplicationPublicKey), botTokenConfigured: Boolean(committedSettings.discordBotToken), webhookConfigured: Boolean(committedSettings.discordWebhookUrl), interactionEndpoint: "/api/integrations/discord/interactions" } };
   });
 
   input.app.get("/api/admin/integrations/connections", async (request, reply) => {
@@ -378,6 +385,8 @@ export function registerIntegrationRoutes(input: {
       defaultBranch: z.string().trim().min(1).max(200).default("main"),
       providerRepositoryId: z.string().trim().max(240).optional().nullable(),
     }).parse(request.body);
+    const hostingError = validateRepositoryHosting(body);
+    if (hostingError) throw createHttpError("SOURCE_REPOSITORY_HOSTING_INVALID", hostingError, 400);
     const workspace = await activeWorkspace(input.prisma);
     if (body.connectionId) {
       const connection = await input.prisma.integrationConnection.findFirst({ where: { id: body.connectionId, workspaceId: workspace.id, category: "source-control", archived: false, status: { not: "disabled" } } });

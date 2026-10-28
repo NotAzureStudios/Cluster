@@ -91,6 +91,19 @@ export function registerTimelineRoutes({
     return !entry.project || authorization.requestCanTarget(request, "time", entry.id, entry.project, "view");
   }
 
+  // Authorization is evaluated per item, but serial awaits make large Timeline
+  // ranges wait on every database-backed permission check. Process eight at a
+  // time with deterministic order and no shared cross-user authorization cache.
+  async function filterAuthorized<T>(records: T[], check: (record: T) => Promise<boolean>): Promise<T[]> {
+    const visible: T[] = [];
+    for (let offset = 0; offset < records.length; offset += 8) {
+      const batch = records.slice(offset, offset + 8);
+      const allowed = await Promise.all(batch.map((record) => check(record)));
+      for (let index = 0; index < batch.length; index += 1) if (allowed[index]) visible.push(batch[index]);
+    }
+    return visible;
+  }
+
   async function requireTimelinePlacement(request: FastifyRequest, reply: FastifyReply, body: TimelineItemInput, targetId: string) {
     if (!body.projectId) return true;
     const project = await prisma.project.findUnique({ where: { id: body.projectId } });
@@ -110,7 +123,7 @@ export function registerTimelineRoutes({
 
     const timelineSettings = await readSettings();
     const [items, events, dueCards, scheduleBlocks, timeEntries] = await Promise.all([
-      prisma.timelineItem.findMany({ where: itemWhere, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true }, orderBy: { startsAt: "asc" } }),
+      prisma.timelineItem.findMany({ where: itemWhere, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }, orderBy: { startsAt: "asc" } }),
       timelineSettings.timelineIncludeCalendar === false ? Promise.resolve([]) : prisma.calendarEvent.findMany({
         where: { startsAt: { gte: start, lte: end }, ...(query.projectId ? { projectId: query.projectId } : {}) },
         include: { project: { include: { memberships: { where: { status: "active" } } } } },
@@ -123,27 +136,22 @@ export function registerTimelineRoutes({
       }),
       timelineSettings.timelineIncludeSchedule === false ? Promise.resolve([]) : prisma.scheduleBlock.findMany({
         where: { startsAt: { gte: start, lte: end }, ...(query.projectId ? { projectId: query.projectId } : {}) },
-        include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true },
+        include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
         orderBy: { startsAt: "asc" },
       }),
       prisma.timeEntry.findMany({
         where: { startedAt: { gte: start, lte: end }, ...(query.projectId ? { projectId: query.projectId } : {}) },
-        include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true },
+        include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
         orderBy: { startedAt: "asc" },
         take: SCHEDULING_CONTRACT.timeline.maximumTimeEntries,
       }),
     ]);
 
-    const visibleItems = [];
-    for (const item of items) if (await canViewTimelineItem(request, item)) visibleItems.push(item);
-    const visibleEvents = [];
-    for (const event of events) if (await canViewCalendarEvent(request, event)) visibleEvents.push(event);
-    const visibleDueCards = [];
-    for (const card of dueCards) if (await canViewCard(request, card)) visibleDueCards.push(card);
-    const visibleScheduleBlocks = [];
-    for (const block of scheduleBlocks) if (await canViewScheduleBlock(request, block)) visibleScheduleBlocks.push(block);
-    const visibleTimeEntries = [];
-    for (const entry of timeEntries) if (await canViewTimeEntry(request, entry)) visibleTimeEntries.push(entry);
+    const visibleItems = await filterAuthorized(items, (item) => canViewTimelineItem(request, item));
+    const visibleEvents = await filterAuthorized(events, (event) => canViewCalendarEvent(request, event));
+    const visibleDueCards = await filterAuthorized(dueCards, (card) => canViewCard(request, card));
+    const visibleScheduleBlocks = await filterAuthorized(scheduleBlocks, (block) => canViewScheduleBlock(request, block));
+    const visibleTimeEntries = await filterAuthorized(timeEntries, (entry) => canViewTimeEntry(request, entry));
 
     const entries = [
       ...visibleItems.map((item: any) => ({
@@ -183,7 +191,7 @@ export function registerTimelineRoutes({
   });
 
   app.get("/api/timeline/items", async (request) => {
-    const items = await prisma.timelineItem.findMany({ include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true }, orderBy: { startsAt: "asc" } });
+    const items = await prisma.timelineItem.findMany({ include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }, orderBy: { startsAt: "asc" } });
     const visible = [];
     for (const item of items) if (await canViewTimelineItem(request, item)) visible.push(item);
     return visible.map(serializeTimelineItem);
@@ -191,7 +199,7 @@ export function registerTimelineRoutes({
 
   app.get("/api/timeline/items/:itemId", async (request, reply) => {
     const params = z.object({ itemId: z.string() }).parse(request.params);
-    const item = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true } });
+    const item = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } } });
     if (!item) return reply.code(404).send({ ok: false, code: "RESOURCE_NOT_FOUND", error: "Timeline item not found." });
     if (!(await canViewTimelineItem(request, item))) return reply.code(403).send({ ok: false, code: "ACCESS_DENIED", error: "You no longer have access to this Timeline item." });
     return serializeTimelineItem(item);
@@ -203,7 +211,7 @@ export function registerTimelineRoutes({
     if (!(await requireTimelinePlacement(request, reply, body, `timeline:create:${body.projectId || user?.id || "studio"}`))) return;
     const item = await prisma.timelineItem.create({
       data: { userId: user?.id || null, ...timelineItemData(body) },
-      include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true },
+      include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
     });
     await logActivity({ userId: user?.id, projectId: item.projectId, type: "created", entityType: "timeline_item", entityId: item.id, title: "Timeline item created", message: item.title });
     return serializeTimelineItem(item);
@@ -213,7 +221,7 @@ export function registerTimelineRoutes({
     const user = await getCurrentUser(request);
     const params = z.object({ itemId: z.string() }).parse(request.params);
     const body = timelineItemInputSchema.and(revisionInputSchema).parse(request.body);
-    const existing = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true } });
+    const existing = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } } });
     if (!existing) return reply.code(404).send({ ok: false, error: "Timeline item not found." });
     if (body.expectedRevision !== undefined && body.expectedRevision !== existing.revision) return sendRevisionConflict(reply, "timeline item", serializeTimelineItem(existing));
     if (!(await requireTimelinePlacement(request, reply, body, params.itemId))) return;
@@ -222,10 +230,10 @@ export function registerTimelineRoutes({
       data: { ...timelineItemData(body), revision: { increment: 1 } },
     });
     if (!updated.count) {
-      const current = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true } });
+      const current = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } } });
       return sendRevisionConflict(reply, "timeline item", current ? serializeTimelineItem(current) : null);
     }
-    const item = await prisma.timelineItem.findUniqueOrThrow({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true } });
+    const item = await prisma.timelineItem.findUniqueOrThrow({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } } });
     await logActivity({ userId: user?.id, projectId: item.projectId, type: "updated", entityType: "timeline_item", entityId: item.id, title: "Timeline item updated", message: item.title });
     return serializeTimelineItem(item);
   });
@@ -248,7 +256,7 @@ export function registerTimelineRoutes({
       return true;
     });
     if (!removed) {
-      const current = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: true } });
+      const current = await prisma.timelineItem.findUnique({ where: { id: params.itemId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } } });
       return sendRevisionConflict(reply, "timeline item", current ? serializeTimelineItem(current) : null);
     }
     await logActivity({ userId: user?.id, projectId: item.projectId, type: "deleted", entityType: "timeline_item", entityId: item.id, title: "Timeline item deleted", message: item.title });

@@ -8,6 +8,7 @@ import { api, ApiError, queryApi, setApiQueryData } from "../../core/api";
 import { useVisibleTicker } from "../../core/visible-ticker";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterVisualMeter, ClusterVisualRankedBars } from "../../components/ClusterVisualMetrics";
 
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { ToolPageHeader } from "../../components/ToolPageHeader";
@@ -611,14 +612,6 @@ export default function TimeWorkspacePage({
             value: durationLabel(summary.scheduledMinutes),
           },
           {
-            label: "Utilization",
-            value: `${summary.utilizationPercent || 0}%`,
-          },
-          {
-            label: "Remaining",
-            value: durationLabel(summary.remainingCapacityMinutes),
-          },
-          {
             label: "Conflicts",
             value: String(workspace?.planning?.conflicts.length || 0),
           },
@@ -637,7 +630,6 @@ export default function TimeWorkspacePage({
                 year: "numeric",
               })}
             </strong>
-            <span>Current week</span>
           </ClusterButton>
         }
         actions={
@@ -662,11 +654,7 @@ export default function TimeWorkspacePage({
                 : "Clocked out"}
           </span>
           <strong>{active ? durationLabel(activeMinutes) : "Ready"}</strong>
-          <p>
-            {active
-              ? `${active.title}${active.project?.name ? ` · ${active.project.name}` : ""}`
-              : "Start a work session."}
-          </p>
+          {active && <p>{active.title}{active.project?.name ? ` · ${active.project.name}` : ""}</p>}
           {active && (
             <small>
               Started {clockLabel(active.startedAt)} ·{" "}
@@ -929,22 +917,9 @@ export default function TimeWorkspacePage({
                 <span className="time-kicker-v212">Week</span>
                 <strong>{durationLabel(summary.trackedMinutes)}</strong>
               </header>
-              <div className="time-progress-v212">
-                <span
-                  style={runtimeStyle({
-                    width: `${Math.min(100, summary.utilizationPercent)}%`,
-                  })}
-                />
-              </div>
+              <ClusterVisualMeter label="Tracked / capacity" value={summary.trackedMinutes} total={summary.capacityMinutes} formatValue={durationLabel} tone={summary.overtimeMinutes > 0 ? "warning" : "accent"} />
+              <ClusterVisualMeter label="Scheduled / capacity" value={summary.scheduledMinutes} total={summary.capacityMinutes} formatValue={durationLabel} tone="neutral" compact />
               <dl>
-                <div>
-                  <dt>Capacity</dt>
-                  <dd>{durationLabel(summary.capacityMinutes)}</dd>
-                </div>
-                <div>
-                  <dt>Scheduled</dt>
-                  <dd>{durationLabel(summary.scheduledMinutes)}</dd>
-                </div>
                 <div>
                   <dt>Breaks</dt>
                   <dd>{durationLabel(summary.breakMinutes)}</dd>
@@ -1022,19 +997,7 @@ export default function TimeWorkspacePage({
                 <span className="time-kicker-v212">Project allocation</span>
                 <strong>{summary.byProject.length}</strong>
               </header>
-              <div className="time-allocation-list-v212">
-                {summary.byProject.slice(0, 8).map((item) => (
-                  <div key={item.id}>
-                    <span>{item.name}</span>
-                    <strong>{durationLabel(item.minutes)}</strong>
-                  </div>
-                ))}
-                {!summary.byProject.length && (
-                  <p className="time-clear-state-v212">
-                    No project time this week.
-                  </p>
-                )}
-              </div>
+              <ClusterVisualRankedBars label="Logged time by project" rows={summary.byProject.slice(0, 8).map((item) => ({ id: item.id, label: item.name, value: item.minutes }))} formatValue={durationLabel} />
             </section>
           </aside>
         </div>

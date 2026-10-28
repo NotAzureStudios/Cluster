@@ -4,6 +4,8 @@ import { ClusterIcon } from "./ClusterIcon";
 import { ClusterActionGroup, ClusterButton, ClusterIconButton } from "./ClusterButton";
 import { ClusterNativeSelect } from "./ClusterNativeControls";
 import { ClusterMetricStrip } from "./ClusterMetricStrip";
+import { ClusterTextInput } from "./ClusterTextInput";
+import { ClusterToolbar } from "./ClusterToolbar";
 
 export function DataViewGroupControl({
   fields,

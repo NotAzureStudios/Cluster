@@ -7,12 +7,11 @@ import {
   type SecurityPinRequestDetail,
 } from "../core/security-pin";
 import "./security-pin.css";
-import { ClusterTextInput } from "./ClusterTextInput";
+import { ClusterPinEntry } from "./ClusterPinEntry";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterIcon } from "./ClusterIcon";
 import { ClusterModal } from "./ClusterModal";
 
-const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
 type PinPhase = "verify" | "current" | "new" | "confirm";
 
 function initialPhase(mode: SecurityPinMode): PinPhase {
@@ -34,12 +33,12 @@ export function SecurityPinHost() {
   const mode = request?.mode || "verify";
   const phaseCopy = useMemo(() => {
     if (phase === "current")
-      return { label: "Current PIN", helper: "Enter your existing PIN." };
+      return { label: "Current PIN" };
     if (phase === "new")
-      return { label: "New PIN", helper: "Choose 4–8 digits." };
+      return { label: "New PIN" };
     if (phase === "confirm")
-      return { label: "Confirm PIN", helper: "Enter the new PIN again." };
-    return { label: "Security PIN", helper: "Enter your 4–8 digit PIN." };
+      return { label: "Confirm PIN" };
+    return { label: "Security PIN" };
   }, [phase]);
 
   useEffect(() => {
@@ -87,12 +86,6 @@ export function SecurityPinHost() {
     setCurrentPin("");
     setNewPin("");
     setError("");
-  }
-
-  function append(value: number) {
-    if (verifying) return;
-    setError("");
-    setPin((current) => `${current}${value}`.slice(0, 8));
   }
 
   async function finishSetup(finalPin: string, priorPin?: string) {
@@ -175,10 +168,6 @@ export function SecurityPinHost() {
 
   if (!request) return null;
 
-  const stepNumber =
-    mode === "verify" ? 1 : mode === "setup" ? (phase === "new" ? 1 : 2) : phase === "current" ? 1 : phase === "new" ? 2 : 3;
-  const stepTotal = mode === "verify" ? 1 : mode === "setup" ? 2 : 3;
-
   return (
     <ClusterModal
       open
@@ -188,8 +177,7 @@ export function SecurityPinHost() {
       includeDefaultBackdropClass={false}
       className="security-pin-dialog-v262 security-pin-dialog-v267"
       labelledBy="security-pin-title-v262"
-      describedBy="security-pin-description-v262"
-      portal={false}
+      portal={true}
       dialogProps={{
         "data-mode": mode,
         "data-phase": phase,
@@ -197,82 +185,11 @@ export function SecurityPinHost() {
     >
       <>
       <header>
-        <div>
-          <span className="security-pin-eyebrow-v262">
-            {mode === "verify" ? "Protected action" : "Account security"}
-          </span>
-          <h2 id="security-pin-title-v262">{request.title}</h2>
-          <p id="security-pin-description-v262">{request.description}</p>
-        </div>
-        <ClusterButton unstyled
-          type="button"
-          className="security-pin-close-v262"
-          onClick={close}
-          aria-label="Cancel PIN entry"
-        >
-          <ClusterIcon name="close" />
-        </ClusterButton>
+        <h2 id="security-pin-title-v262">{request.title}</h2>
+        <ClusterButton unstyled type="button" className="security-pin-close-v262" onClick={close} aria-label="Close PIN pad"><ClusterIcon name="close" /></ClusterButton>
       </header>
-
-      <div className="security-pin-step-v267">
-        <span>
-          Step {stepNumber} of {stepTotal}
-        </span>
-        <strong>{phaseCopy.label}</strong>
-        <small>{phaseCopy.helper}</small>
-      </div>
-
-      <div className="security-pin-display-v262" data-length={pin.length}>
-        <ClusterTextInput
-          ref={inputRef}
-          value={pin}
-          onChange={(event) => {
-            setError("");
-            setPin(event.target.value.replace(/\D/g, "").slice(0, 8));
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") void advance();
-          }}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          aria-label={phaseCopy.label}
-        />
-        <div className="security-pin-dots-v262" aria-hidden="true">
-          {Array.from({ length: 8 }, (_, index) => (
-            <span key={index} className={index < pin.length ? "filled" : ""} />
-          ))}
-        </div>
-        <small>{pin.length}/8 digits</small>
-      </div>
-
-      <div className="security-pin-keypad-v262" aria-label="PIN keypad">
-        {DIGITS.slice(0, 9).map((digit) => (
-          <ClusterButton unstyled key={digit} type="button" onClick={() => append(digit)}>
-            {digit}
-          </ClusterButton>
-        ))}
-        <ClusterButton unstyled
-          type="button"
-          className="secondary-action"
-          onClick={() => resetEntry()}
-        >
-          Clear
-        </ClusterButton>
-        <ClusterButton unstyled type="button" onClick={() => append(0)}>
-          0
-        </ClusterButton>
-        <ClusterButton unstyled
-          type="button"
-          className="secondary-action"
-          onClick={() => {
-            setError("");
-            setPin((current) => current.slice(0, -1));
-          }}
-          aria-label="Delete last digit"
-        >
-          Delete
-        </ClusterButton>
-      </div>
+      {mode !== "verify" && <span className="security-pin-phase-v124" aria-live="polite">{phaseCopy.label}</span>}
+      <ClusterPinEntry value={pin} onChange={(next) => { setError(""); setPin(next); }} disabled={verifying} inputRef={inputRef} label={phaseCopy.label} onEnter={() => void advance()} />
 
       {error && (
         <div className="security-pin-error-v262" role="alert">
@@ -281,9 +198,6 @@ export function SecurityPinHost() {
       )}
 
       <footer>
-        <ClusterButton type="button" className="" onClick={close} variant="secondary">
-          Cancel
-        </ClusterButton>
         <ClusterButton
           type="button"
           className=""
@@ -293,10 +207,10 @@ export function SecurityPinHost() {
           {verifying
             ? "Working…"
             : phase === "confirm"
-              ? request.confirmLabel || "Save PIN"
+              ? "Save PIN"
               : mode === "verify"
-                ? request.confirmLabel || "Confirm PIN"
-                : "Continue"}
+                ? request.confirmLabel || "Confirm"
+                : "Next"}
         </ClusterButton>
       </footer>
       </>

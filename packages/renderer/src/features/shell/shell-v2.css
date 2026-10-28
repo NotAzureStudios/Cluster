@@ -22,7 +22,7 @@
 :root[data-taskbar-labels="icons"] .cluster-taskbar-action__label{display:none}
 @media(max-width:1180px){:root[data-taskbar-labels="auto"] .cluster-taskbar-action__label{display:none}}
 
-.cluster-sidebar-shell{width:var(--cluster-sidebar-current-width,264px);min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--cluster-sidebar-surface);color:var(--cluster-visual-text);border-right:1px solid var(--cluster-visual-border);transition:width 150ms ease,transform 150ms ease}
+.cluster-sidebar-shell{width:var(--cluster-sidebar-current-width,232px);min-width:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--cluster-sidebar-surface);color:var(--cluster-visual-text);border-right:1px solid var(--cluster-visual-border);transition:width 150ms ease,transform 150ms ease}
 .cluster-sidebar-section{min-width:0;display:grid;gap:3px}
 .cluster-sidebar-nav-item{position:relative;width:100%;min-width:0;min-height:38px;display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;align-items:center;gap:7px;padding:6px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--cluster-visual-text-muted);text-align:left}
 .cluster-sidebar-nav-item:hover,.cluster-sidebar-nav-item:focus-visible{background:var(--cluster-visual-hover);color:var(--cluster-visual-text)}
@@ -249,3 +249,77 @@
 .cluster-transfer-action-error{margin:0;padding:10px 14px;border-bottom:1px solid color-mix(in srgb,var(--danger) 30%,var(--cluster-visual-border));background:color-mix(in srgb,var(--danger) 9%,var(--cluster-visual-surface-raised));color:var(--cluster-visual-text);font-size:.76rem;line-height:1.5;overflow-wrap:anywhere}
 .cluster-transfer-popover[aria-busy="true"] .cluster-transfer-list__actions{opacity:.75}
 @media (prefers-contrast:more){.cluster-transfer-action-error{border:2px solid var(--danger)}}
+
+/* RC14: Search takes the full remaining taskbar row, with history controls visible.
+   The account/menu utilities reappear immediately when search closes. */
+@media (min-width: 768px) {
+  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+  .shell-unified-v3430 .taskbar-unified-v3430 .cluster-taskbar-search-switch-v546[data-search-open="true"] {
+    grid-column: 2 / -1 !important; grid-row: 1 !important; width: 100% !important; display: grid !important; min-width: 0 !important;
+  }
+  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) > .taskbar-right-v143 { display: none !important; }
+  .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-switch__input,
+  .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-field-v546 { min-width: 0; width: 100%; height: 100%; }
+}
+/* Canonical icon boxes: artwork sizes must not move buttons off their centerline. */
+.shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) :is(.cluster-icon-svg, .taskbar-svg-icon-v227) {
+  display: block; flex: 0 0 auto; vertical-align: middle; transform-origin: 50% 50%;
+}
+.shell-unified-v3430 .taskbar-unified-v3430 :is(.cluster-taskbar-action, .taskbar-icon-button-v081) { align-items: center; justify-content: center; }
+
+/* RC15 unified icon grid: same optical box for all three curated icon sets.
+   The glyph itself is centered, not enlarged by old per-vendor CSS rules. */
+.shell-unified-v3430 :is(.shell-sidebar-v3430, .taskbar-unified-v3430) .cluster-icon--unified {
+  box-sizing: border-box !important;
+  display: block !important;
+  inline-size: 20px !important;
+  block-size: 20px !important;
+  min-inline-size: 20px !important;
+  min-block-size: 20px !important;
+  flex: 0 0 20px !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  overflow: hidden !important;
+  vertical-align: middle !important;
+}
+.shell-unified-v3430 .taskbar-unified-v3430 .cluster-icon--action { inline-size: 18px !important; block-size: 18px !important; min-inline-size: 18px !important; min-block-size: 18px !important; flex-basis: 18px !important; }
+.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item__icon { display: grid !important; place-items: center !important; min-width: 28px; }
+.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item__icon > .cluster-icon--unified { grid-area: 1 / 1; }
+.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item.is-nested .cluster-icon--unified { inline-size: 18px !important; block-size: 18px !important; min-inline-size: 18px !important; min-block-size: 18px !important; }
+.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar__empty { padding: 3px 0 4px 42px; font-size: .68rem; line-height: 1.25; color: var(--cluster-visual-text-muted); }
+/* RC15 account button: old global avatar selectors must not size the copy or badges. */
+.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { display: inline-flex !important; align-items: center !important; justify-content: flex-start !important; gap: 6px !important; min-width: 0 !important; max-width: 172px !important; overflow: hidden !important; white-space: nowrap !important; }
+.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 :is(.taskbar-profile-copy-v546, .taskbar-profile-copy-v227) { display: flex; flex: 1 1 auto; min-width: 0 !important; max-width: 100%; flex-direction: column; align-items: flex-start; justify-content: center; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 :is(.taskbar-profile-copy-v546, .taskbar-profile-copy-v227) :is(strong, small, em) { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+@media (max-width: 1180px) { :root[data-taskbar-labels="auto"] .shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { max-width: 54px !important; justify-content: center !important; } }
+
+/* RC20: taskbar must be a clean solid chrome surface regardless of selected shell texture. */
+.shell-unified-v3430 .taskbar-unified-v3430,
+:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 .taskbar-unified-v3430 {
+  background-image: none !important;
+  background-size: auto !important;
+  background-repeat: no-repeat !important;
+}
+
+/* RC47: legacy collapsed-layout rule used display:block at *all* widths.
+   Persistent desktop navigation must retain the two-column shell grid. */
+@media (min-width: 900px) {
+  :root[data-sidebar-collapsed="true"] .app-shell.shell-unified-v3430 {
+    display: grid !important;
+    grid-template-columns: var(--cluster-sidebar-current-width, 72px) minmax(0, 1fr) !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+@media (min-width: 900px) {
+  :root[data-sidebar-collapsed="true"][data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 {
+    grid-template-columns: calc(var(--cluster-sidebar-current-width, 72px) + 24px) minmax(0, 1fr) !important;
+  }
+}

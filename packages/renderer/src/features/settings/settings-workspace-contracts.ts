@@ -54,7 +54,7 @@ export type StudioSettingsDependencies = {
   AutomationRulesPanel: React.ComponentType<any>;
   StudioPermissionEditor: React.ComponentType<StudioPermissionEditorProps>;
 };
-export type StudioSettingsPageProps = { onSettingsSaved?: (settings: Settings) => void; currentUser: User; initialSection?: StudioSettingsSection | string | null; onSectionChange?: (section: StudioSettingsSection) => void; };
+export type StudioSettingsPageProps = { onSettingsSaved?: (settings: Settings) => void; currentUser: User; initialSection?: StudioSettingsSection | string | null; initialSubsection?: string | null; onSubsectionChange?: (tab: string) => void; onSectionChange?: (section: StudioSettingsSection) => void; };
 
 export type ServerConfigDependencies = { SERVER_MANAGED_SETTING_KEYS: Array<keyof Settings>; };
 export type ServerConfigPageProps = { onSettingsSaved?: (settings: Settings) => void; initialSection?: ServerConfigSection; onSectionChange?: (section: ServerConfigSection) => void; currentUser: User; };

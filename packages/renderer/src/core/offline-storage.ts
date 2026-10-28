@@ -194,7 +194,11 @@ export function subscribeOfflineStorage(listener: (area: OfflineStorageChangeAre
 // value here would let a signed-out/new tab adopt another user's offline cache.
 export function setOfflineScope(scope: string | null | undefined) {
   const next = String(scope || "anonymous").trim() || "anonymous";
-  if (next !== activeScope) activeScopeGeneration += 1;
+  // /api/me, session bootstrap and reconnect may repeatedly report the same
+  // account. Broadcasting an unchanged scope made every queue subscriber
+  // re-read IndexedDB, even though no authentication state had changed.
+  if (next === activeScope) return;
+  activeScopeGeneration += 1;
   activeScope = next;
   // Erase the old, unsafe browser-wide pointer; never persist a replacement.
   if (localStorageAvailable()) window.localStorage.removeItem?.(`${FALLBACK_PREFIX}scope`);
@@ -321,6 +325,27 @@ function listFallback<T>(store: string): T[] {
   return values;
 }
 
+// An invalidation can overtake a pending IndexedDB open or Desktop bridge
+// write. Each scope's generation fences those old writes out of disk cache.
+const responseCacheEpochs = new Map<string, number>();
+const responseCacheEpoch = (scope: string) => responseCacheEpochs.get(scope) || 0;
+function advanceResponseCacheEpoch(scope: string) {
+  responseCacheEpochs.set(scope, responseCacheEpoch(scope) + 1);
+}
+
+// Invalidation of a durable projection is asynchronous. During that window a
+// new page may read the old record from IndexedDB/native storage, even though
+// its memory cache was already cleared. Block matching disk reads until the
+// deletion commits; a failed deletion fails closed for that scope.
+const responseInvalidationsInFlight = new Map<string, Set<(record: OfflineCachedResponse) => boolean>>();
+const unsafeResponseReadScopes = new Set<string>();
+function eligibleCachedResponse(record: OfflineCachedResponse | null | undefined, scope: string) {
+  if (!record || record.scope !== scope || unsafeResponseReadScopes.has(scope)) return null;
+  const inFlight = responseInvalidationsInFlight.get(scope);
+  if (inFlight && [...inFlight].some((predicate) => predicate(record))) return null;
+  return record;
+}
+
 export function offlineCacheKey(path: string, scope = getOfflineScope()) {
   return `${scope}:${path}`;
 }
@@ -328,19 +353,22 @@ export function offlineCacheKey(path: string, scope = getOfflineScope()) {
 export async function readCachedResponse(path: string, scope = getOfflineScope()) {
   const key = offlineCacheKey(path, scope);
   const desktop = desktopCacheBridge();
-  if (desktop) return await desktop.offlineCacheGet!("responses", key) as OfflineCachedResponse | null;
+  if (unsafeResponseReadScopes.has(scope)) return null;
+  if (desktop) return eligibleCachedResponse(await desktop.offlineCacheGet!("responses", key) as OfflineCachedResponse | null, scope);
   const db = await openDatabase();
-  if (!db) return readFallback<OfflineCachedResponse>(RESPONSE_STORE, key);
+  if (!db) return eligibleCachedResponse(readFallback<OfflineCachedResponse>(RESPONSE_STORE, key), scope);
   try {
     const transaction = db.transaction(RESPONSE_STORE, "readonly");
-    return (await requestResult(transaction.objectStore(RESPONSE_STORE).get(key))) as OfflineCachedResponse | undefined;
+    return eligibleCachedResponse((await requestResult(transaction.objectStore(RESPONSE_STORE).get(key))) as OfflineCachedResponse | undefined, scope);
   } catch {
-    return readFallback<OfflineCachedResponse>(RESPONSE_STORE, key);
+    return eligibleCachedResponse(readFallback<OfflineCachedResponse>(RESPONSE_STORE, key), scope);
   }
 }
 
 export async function writeCachedResponse(input: Omit<OfflineCachedResponse, "key" | "scope" | "sizeBytes"> & { scope?: string }) {
   const scope = input.scope || getOfflineScope();
+  const expectedEpoch = responseCacheEpoch(scope);
+  const isCurrent = () => responseCacheEpoch(scope) === expectedEpoch;
   let serialized = "";
   try {
     serialized = JSON.stringify(input.value);
@@ -356,12 +384,17 @@ export async function writeCachedResponse(input: Omit<OfflineCachedResponse, "ke
     sizeBytes,
   };
   const desktop = desktopCacheBridge();
+  if (!isCurrent()) return;
   if (desktop) {
     await desktop.offlineCachePut!("responses", record);
-    emitChange("responses");
+    // A desktop bridge can finish after invalidation. Remove an obsolete
+    // response rather than re-expose it during the next page navigation.
+    if (!isCurrent()) await desktop.offlineCacheRemove?.("responses", record.key);
+    else emitChange("responses");
     return;
   }
   const db = await openDatabase();
+  if (!isCurrent()) return;
   if (!db) {
     writeFallback(RESPONSE_STORE, record.key, record);
     emitChange("responses");
@@ -371,19 +404,31 @@ export async function writeCachedResponse(input: Omit<OfflineCachedResponse, "ke
     const transaction = db.transaction(RESPONSE_STORE, "readwrite");
     transaction.objectStore(RESPONSE_STORE).put(record);
     await transactionComplete(transaction);
-    void pruneCachedResponses();
+    scheduleCachedResponsePrune();
     emitChange("responses");
   } catch {
-    writeFallback(RESPONSE_STORE, record.key, record);
+    if (isCurrent()) writeFallback(RESPONSE_STORE, record.key, record);
   }
 }
 
 export async function invalidateCachedResponses(predicate?: (record: OfflineCachedResponse) => boolean, scope = getOfflineScope()) {
+  // Block late writes which started before this invalidation. All predicates
+  // are conservative: losing a fresh cached item is safe; reviving a revoked
+  // or edited item is not.
+  advanceResponseCacheEpoch(scope);
+  const blocker = predicate || (() => true);
+  let active = responseInvalidationsInFlight.get(scope);
+  if (!active) { active = new Set(); responseInvalidationsInFlight.set(scope, active); }
+  active.add(blocker);
+  try {
   const desktop = desktopCacheBridge();
   if (desktop) {
     const records = await desktop.offlineCacheList!("responses", scope) as OfflineCachedResponse[];
     const keys = records.filter((record) => !predicate || predicate(record)).map((record) => record.key);
-    if (keys.length) await desktop.offlineCacheRemoveMany?.("responses", keys);
+    if (keys.length) {
+      if (desktop.offlineCacheRemoveMany) await desktop.offlineCacheRemoveMany("responses", keys);
+      else for (const key of keys) await desktop.offlineCacheRemove!("responses", key);
+    }
     emitChange("responses");
     return;
   }
@@ -401,6 +446,39 @@ export async function invalidateCachedResponses(predicate?: (record: OfflineCach
   for (const record of records) if (record.scope === scope && (!predicate || predicate(record))) store.delete(record.key);
   await transactionComplete(transaction);
   emitChange("responses");
+  } catch (error) {
+    // A failed invalidation may leave forbidden data on disk. Until repaired,
+    // serve fresh server reads only rather than revive stale persisted data.
+    unsafeResponseReadScopes.add(scope);
+    throw error;
+  } finally {
+    active.delete(blocker);
+    if (!active.size) responseInvalidationsInFlight.delete(scope);
+  }
+}
+
+// Cache inserts must not trigger a complete IndexedDB getAll() scan every
+// time a widget loads. Bound scans by both elapsed time and write volume.
+const RESPONSE_PRUNE_INTERVAL_MS = 30_000;
+const RESPONSE_PRUNE_WRITE_BATCH = 16;
+let responsePruneLastStartedAt = 0;
+let responseWritesSincePrune = 0;
+let responsePruneInFlight = false;
+function scheduleCachedResponsePrune() {
+  responseWritesSincePrune += 1;
+  if (responsePruneInFlight) return;
+  if (responseWritesSincePrune < RESPONSE_PRUNE_WRITE_BATCH && Date.now() - responsePruneLastStartedAt < RESPONSE_PRUNE_INTERVAL_MS) return;
+  responsePruneInFlight = true;
+  responseWritesSincePrune = 0;
+  responsePruneLastStartedAt = Date.now();
+  void pruneCachedResponses().catch(() => undefined).finally(() => {
+    responsePruneInFlight = false;
+    if (responseWritesSincePrune >= RESPONSE_PRUNE_WRITE_BATCH) {
+      // A large batch arrived while the previous scan was in flight.
+      responseWritesSincePrune = RESPONSE_PRUNE_WRITE_BATCH - 1;
+      scheduleCachedResponsePrune();
+    }
+  });
 }
 
 async function pruneCachedResponses() {
@@ -725,10 +803,10 @@ const draftOperationTails = new Map<string, Promise<void>>();
 // drafts. The local promise fallback covers one renderer, not separate native
 // processes without a shared Web Locks implementation.
 const readScopeTails = new Map<string, Promise<void>>();
-function withReadScopeOperation<T>(scope: string, clearing: boolean, operation: () => Promise<T>): Promise<T> {
+async function withReadScopeOperation<T>(scope: string, clearing: boolean, operation: () => Promise<T>): Promise<T> {
   const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
   if (locks?.request) {
-    return locks.request(`cluster-offline:read-scope:${scope}`, { mode: clearing ? "exclusive" : "shared" }, operation);
+    return await locks.request(`cluster-offline:read-scope:${scope}`, { mode: clearing ? "exclusive" : "shared" }, async () => await operation());
   }
   const previous = readScopeTails.get(scope) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(operation);

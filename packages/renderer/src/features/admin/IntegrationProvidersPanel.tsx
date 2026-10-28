@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { api, queryApi, setApiQueryData } from "../../core/api";
@@ -37,6 +38,17 @@ type ProviderResponse = {
   providers: Provider[];
 };
 
+function providerIconId(provider: Provider) {
+  const name = `${provider.id} ${provider.label}`.toLowerCase();
+  if (name.includes("discord")) return "brand:discord";
+  if (name.includes("steam")) return "brand:steam";
+  if (name.includes("epic")) return "brand:epic";
+  if (name.includes("unreal")) return "brand:unreal";
+  if (name.includes("blender")) return "brand:blender";
+  if (name.includes("curseforge")) return "brand:curseforge";
+  if (name.includes("minecraft")) return "brand:minecraft";
+  return "glyph:code";
+}
 function toneForHealth(state: string) {
   if (state === "healthy") return "good";
   if (["degraded", "misconfigured"].includes(state)) return "warning";
@@ -84,12 +96,12 @@ export function IntegrationProvidersPanel({ excludeCategories = [] }: { excludeC
   const providers = (data?.providers || []).filter((provider) => !excludedCategories.has(provider.category));
   const activeProviders = providers.filter((provider) => provider.implementation === "active");
   const providerColumns = useMemo<ClusterDataTableColumn<Provider>[]>(() => [
-    { id: "provider", header: "Provider", hideable: false, pinnable: true, defaultWidth: 240, sortValue: (provider) => provider.label, cell: (provider) => <span className="integration-provider-identity-v521"><strong>{provider.label}</strong><small>{provider.category.replace(/-/g, " ")} · v{provider.version}</small></span> },
+    { id: "provider", header: "Provider", hideable: false, pinnable: true, defaultWidth: 240, sortValue: (provider) => provider.label, cell: (provider) => <span className="integration-provider-identity-v521 integration-provider-identity-rc46"><ResourceIdentityMark iconId={providerIconId(provider)} label={provider.label} /><span><strong>{provider.label}</strong><small>{provider.category.replace(/-/g, " ")}</small></span></span> },
     { id: "implementation", header: "Mode", defaultWidth: 150, sortValue: (provider) => provider.implementation, cell: (provider) => provider.implementation === "active" ? "Active" : "Adapter contract" },
     { id: "configuration", header: "Configuration", defaultWidth: 160, sortValue: (provider) => provider.configured, cell: (provider) => <span className={`soft-pill ${provider.implementation === "adapter-contract" ? "" : provider.configured ? "good" : "warning"}`}>{provider.implementation === "adapter-contract" ? "Contract only" : provider.configured ? "Configured" : "Needs setup"}</span> },
     { id: "health", header: "Health", defaultWidth: 160, sortValue: (provider) => provider.health?.state || "unknown", cell: (provider) => <span className="integration-provider-health-v521"><span className={`soft-pill ${toneForHealth(provider.health?.state)}`}>{provider.health?.state || "unknown"}</span>{provider.health?.live ? <small>{provider.health.latencyMs} ms</small> : null}</span> },
-    { id: "capabilities", header: "Capabilities", defaultWidth: 280, sortValue: (provider) => provider.capabilities.length, cell: (provider) => provider.capabilities.length ? provider.capabilities.join(" · ") : "None" },
-    { id: "permissions", header: "Permissions", defaultWidth: 180, sortValue: (provider) => provider.permissionTool, cell: (provider) => `${provider.permissionTool} · view/manage` },
+    { id: "capabilities", header: "Capabilities", defaultWidth: 280, hiddenByDefault: true, sortValue: (provider) => provider.capabilities.length, cell: (provider) => provider.capabilities.length ? provider.capabilities.join(" · ") : "None" },
+    { id: "permissions", header: "Permissions", defaultWidth: 180, hiddenByDefault: true, sortValue: (provider) => provider.permissionTool, cell: (provider) => `${provider.permissionTool} · view/manage` },
     { id: "network", header: "Network", defaultWidth: 220, hiddenByDefault: true, sortValue: (provider) => provider.outboundHosts.join(","), cell: (provider) => provider.outboundHosts.length ? provider.outboundHosts.join(", ") : "No outbound hosts" },
     { id: "actions", header: "Actions", hideable: false, pinnable: false, defaultWidth: 190, cell: (provider) => provider.healthCheck === "live" && provider.implementation === "active" ? <ClusterButton size="compact" variant="quiet" disabled={checking === provider.id} onClick={() => void checkHealth(provider.id)}>{checking === provider.id ? "Checking…" : "Run health check"}</ClusterButton> : provider.missingSettings.length ? <span className="muted">Missing {provider.missingSettings.join(", ")}</span> : <span className="muted">No live action</span> },
   ], [checking]);

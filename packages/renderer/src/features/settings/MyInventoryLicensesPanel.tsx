@@ -122,12 +122,10 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
   }
 
   return (
-    <section className="settings-section-v092 inventory-recipient-keys" aria-label="My licenses">
+    <section className="settings-section-v092 inventory-recipient-keys inventory-resources-v22" aria-label="My licenses">
       <div className="settings-panel-head-v092">
         <div>
-          <p className="eyebrow">Studio resources</p>
-          <h2>My equipment & licenses</h2>
-          <p className="muted tight">View equipment, license seats, and game keys assigned to your account. Key values are never included in this list. Revealing one requires your Security PIN and creates a security audit entry.</p>
+          <h2>My resources</h2>
         </div>
         <ClusterButton disabled={loading || assetsLoading || Boolean(busyId)} onClick={() => { void load(); void loadAssets(); }}>Refresh assignments</ClusterButton>
       </div>
@@ -136,7 +134,7 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
       {!loading && !assetsLoading && !keys.length && !allocations.length && !error && (
         <ClusterEmptyState kind="first-use" title="No studio resources assigned" description="When a studio administrator assigns you a key, equipment, or license seat, it will appear here." />
       )}
-      <h3>Assigned equipment & license seats</h3>
+      <h3>Equipment & licenses <span className="inventory-resource-count-v22">{allocations.length}</span></h3>
       <div className="settings-card-grid-v092">
         {allocations.map((item) => (
           <article className="settings-card-v092" key={item.id}>
@@ -148,7 +146,7 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
       </div>
       {assetCursor && <ClusterButton disabled={assetsLoading} onClick={() => void loadAssets(assetCursor)}>Load more assets</ClusterButton>}
       {assetsLoading && <p className="muted" role="status">Loading assigned assets…</p>}
-      <h3>Assigned game & software keys</h3>
+      <h3>Keys <span className="inventory-resource-count-v22">{keys.length}</span></h3>
       <div className="settings-card-grid-v092">
         {keys.map((key) => {
           const expired = Boolean(key.expiresAt && new Date(key.expiresAt) <= new Date());

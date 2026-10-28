@@ -3,7 +3,7 @@ import { relocateLibraryStoredFile } from "./library-storage-relocation.js";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { normalizeClusterProjectTypeId, resolveClusterProductionProfile } from "@cluster/shared";
-import { createClusterStorageManager, type ClusterStorageOverrides } from "./storage/storage-manager.js";
+import { createClusterStorageManager, type ClusterStorageDomain, type ClusterStorageOverrides } from "./storage/storage-manager.js";
 
 export type ClusterDataLayout = ReturnType<typeof createClusterDataLayout>;
 
@@ -95,12 +95,12 @@ export function createClusterDataLayout(
 }
 
 export async function ensureClusterDataLayout(layout: ClusterDataLayout, options: { includeBackups?: boolean } = {}) {
-  const domains = [
+  const domains: ClusterStorageDomain[] = [
     "root", "system", "projects", "library", "users", "logs", "runtime", "exports", "uploads", "branding",
     "cache", "gitWorktrees", "thumbnails", "transcodes", "uploadStaging", "temp", "repositoryMirrors", "postgresData", "redisData",
-    ...(options.includeBackups ? ["backups"] : []),
-  ] as const;
-  await layout.storage.ensure([...domains]);
+  ];
+  if (options.includeBackups) domains.push("backups");
+  await layout.storage.ensure(domains);
   await Promise.all([layout.configRoot, layout.userAvatarsRoot].map((directory) => fs.mkdir(directory, { recursive: true })));
 }
 

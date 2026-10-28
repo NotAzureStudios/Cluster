@@ -60,7 +60,7 @@ export async function checkCalendarSeriesConflicts(
   check: (tx: any, input: any) => Promise<any[]>,
 ) {
   const result = validateCalendarSeriesHorizon(input as any);
-  if (!result.valid) return { error: result, conflicts: [] as any[] };
+  if (!result.valid || !result.occurrences) return { error: result, conflicts: [] as any[] };
   const duration = input.endsAt.getTime() - input.startsAt.getTime();
   const reported: any[] = [];
   let firstConflict: string | undefined;

@@ -10,6 +10,8 @@ type SetupForm = {
   ownerUsername: string;
   ownerPassword: string;
   ownerPasswordConfirm: string;
+  ownerPin: string;
+  ownerPinConfirm: string;
   studioName: string;
   studioTimezone: string;
   domainName: string;
@@ -62,7 +64,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
   const importGeneration = useRef(0);
   const [configurationName, setConfigurationName] = useState("");
   const [form, setForm] = useState<SetupForm>({
-    serverDisplayName: "Cluster Server", ownerUsername: "owner", ownerPassword: "", ownerPasswordConfirm: "",
+    serverDisplayName: "Cluster Server", ownerUsername: "owner", ownerPassword: "", ownerPasswordConfirm: "", ownerPin: "", ownerPinConfirm: "",
     studioName: "", studioTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     domainName: "", connectionMode: "lan", connectionProvider: "manual",
   });
@@ -98,7 +100,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
   }
 
   const serverReady = Boolean(form.serverDisplayName.trim());
-  const accountReady = Boolean(form.ownerUsername.trim() && form.ownerPassword && form.ownerPassword === form.ownerPasswordConfirm);
+  const accountReady = Boolean(form.ownerUsername.trim() && form.ownerPassword && form.ownerPassword === form.ownerPasswordConfirm && /^\d{4,8}$/.test(form.ownerPin) && form.ownerPin === form.ownerPinConfirm);
   const modeReady = mode !== "import" || Boolean(configuration);
   const studioReady = mode !== "guided" || Boolean(form.studioName.trim());
   const steps = ["Approach", "Server", "Owner", "Domain & Access", "Review"];
@@ -116,7 +118,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
     setSetupCompletedElsewhere(false);
     if (!modeReady) { setStep(0); setError("Choose and review a .clusterconfig file first."); return; }
     if (!serverReady || !studioReady) { setStep(1); setError("Complete the server and studio fields."); return; }
-    if (!accountReady) { setStep(2); setError("Enter an owner username and matching password."); return; }
+    if (!accountReady) { setStep(2); setError("Enter matching passwords and a 4–8 digit PIN."); return; }
     if (!validDomain) { setStep(3); setError("Enter a valid domain or leave it blank for local-only setup."); return; }
     setBusy(true);
     try {
@@ -124,7 +126,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
         method: "POST",
         body: JSON.stringify({
           mode, serverDisplayName: form.serverDisplayName, ownerUsername: form.ownerUsername,
-          ownerPassword: form.ownerPassword,
+          ownerPassword: form.ownerPassword, ownerPin: form.ownerPin,
           ...(mode === "guided" ? { studioName: form.studioName, studioTimezone: form.studioTimezone } : {}),
           ...(mode === "import" ? { configuration } : {}),
           ...(form.domainName.trim() ? { domainSetupIntent: {
@@ -147,7 +149,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
     setError("");
     if (step === 0 && !modeReady) { setError("Select a supported .clusterconfig file before continuing."); return; }
     if (step === 1 && (!serverReady || !studioReady)) { setError("Complete the required server and studio fields."); return; }
-    if (step === 2 && !accountReady) { setError("Enter a matching owner password."); return; }
+    if (step === 2 && !accountReady) { setError("Enter matching passwords and a 4–8 digit PIN."); return; }
     if (step === 3 && !validDomain) { setError("Enter a valid domain or leave it blank for local-only setup."); return; }
     setStep((value) => Math.min(steps.length - 1, value + 1));
   }
@@ -155,8 +157,8 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
   return <main className="setup-shell setup-phase1-v473">
     <section className="setup-card panel setup-card-v473">
       <header className="setup-header-v473"><div>
-        <span>Cluster v0.506</span><h1>Start Cluster</h1>
-        <p>Choose your setup path, secure the owner account, and finish optional work later.</p>
+        <span>Cluster setup</span><h1>Start Cluster</h1>
+        
       </div><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></header>
       <nav className="setup-progress-v473" aria-label="Setup progress">
         {steps.map((label, index) => <ClusterButton unstyled type="button" key={label}
@@ -194,16 +196,18 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
               <label className="field"><span>Studio name</span><ClusterTextInput value={form.studioName} onChange={(event) => patch("studioName", event.target.value)} placeholder="Your studio" required /></label>
               <label className="field"><span>Studio timezone (IANA)</span><ClusterTextInput value={form.studioTimezone} onChange={(event) => patch("studioTimezone", event.target.value)} placeholder="America/New_York" required /></label>
             </>}
-            <p className="setup-inline-note-v473">Networking, storage, backups, and other settings stay under authenticated administration. Cluster's administrator checklist distinguishes required Owner security from optional workspace setup.</p>
+            <p className="setup-inline-note-v473">Networking, storage, backups, and other settings stay under authenticated administration. Cluster's administrator checklist tracks recommended Owner security and optional workspace setup without blocking your first local login.</p>
           </div></section>}
         {step === 2 && <section className="setup-section-v473 setup-optional-v473"><div className="setup-section-copy-v473"><span>Owner</span><h2>Create the owner account</h2>
-          <p>Local-first privileged account bootstrap.</p>
+          
           {status && <small>{status.userCount} user(s) · {status.workspaceCount} workspace(s)</small>}
           </div><div className="setup-fields-v473">
             <label className="field"><span>Username</span><ClusterTextInput autoComplete="username" value={form.ownerUsername} onChange={(event) => patch("ownerUsername", event.target.value)} required /></label>
             <label className="field setup-password-v473"><span>Password</span><div><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" value={form.ownerPassword} onChange={(event) => patch("ownerPassword", event.target.value)} required /><ClusterButton unstyled type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></label>
             <label className="field setup-password-v473"><span>Confirm password</span><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" value={form.ownerPasswordConfirm} onChange={(event) => patch("ownerPasswordConfirm", event.target.value)} required /></label>
-          </div><p className="setup-inline-note-v473">The owner must enroll a passkey or security key and store one-time recovery codes before opening the workspace. This requirement cannot be skipped.</p>
+            <label className="field"><span>Security PIN · 4–8 digits</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" value={form.ownerPin} onChange={(event) => patch("ownerPin", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
+            <label className="field"><span>Confirm PIN</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" value={form.ownerPinConfirm} onChange={(event) => patch("ownerPinConfirm", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
+          </div><p className="setup-inline-note-v473">Your PIN protects sensitive actions. Configure MFA and recovery codes after sign-in.</p>
         </section>}
         {step === 3 && <section className="setup-section-v473"><div className="setup-section-copy-v473">
           <span>Domain &amp; access</span><h2>How will members connect?</h2>
@@ -215,7 +219,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
               setForm(current => ({ ...current, connectionMode: next, connectionProvider: domainProviders[next][0] }));
             }}><option value="lan">Local network</option><option value="private_vpn">Private VPN</option><option value="reverse_proxy">Reverse proxy</option><option value="direct_https">Direct HTTPS</option><option value="managed_tunnel">Managed tunnel</option></select></label>
             <label className="field"><span>Gateway provider</span><select value={form.connectionProvider} onChange={event => patch("connectionProvider", event.target.value as SetupForm["connectionProvider"])}>{domainProviders[form.connectionMode].map(provider => <option key={provider} value={provider}>{provider}</option>)}</select></label>
-            <p className="setup-inline-note-v473">No inbound router port, DNS record, proxy service, or TLS certificate will be installed by initial Owner bootstrap. Domain setup continues under Studio Settings → Domains and Server Configuration → Domains &amp; gateways.</p>
+            <div className="setup-access-guidance-rc46" role="note"><strong>Recommended: private studio VPN</strong><span>Finish owner setup locally, then open Admin → Server Configuration → Network → Connection assistant. It guides Tailscale or Cloudflare Tunnel setup, HTTPS, and a test from another device.</span><span>The choice here records your plan. It does not open a port or install a tunnel.</span></div>
           </div>
         </section>}
         {step === 4 && <section className="setup-section-v473 setup-review-v473"><div className="setup-section-copy-v473"><span>Review</span><h2>Ready to start</h2><p>Confirm the server and owner.</p></div>
@@ -227,10 +231,10 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
             {mode === "import" && <div><span>Configuration</span><strong>{Object.keys(configuration?.settings || {}).length} reviewed setting(s)</strong></div>}
             <div><span>Domain</span><strong>{form.domainName.trim() || "Local setup; add a domain later"}</strong></div>
             <div><span>Access method</span><strong>{form.connectionMode} · {form.connectionProvider}</strong></div>
-            <div><span>Security</span><strong>Passkey and recovery codes required</strong></div>
+            <div><span>Security</span><strong>Password and PIN ready · MFA later</strong></div>
           </div>
         </section>}
-        {step === 4 && <details className="setup-inline-note-v473"><summary>What happens after setup?</summary><p>The first Owner must finish passkey enrollment and protect offline recovery codes. The Admin setup checklist then guides backup policy, timezone, another administrator, and the first Project. Importing a .clusterconfig file never imports credentials or server secrets.</p></details>}
+        {step === 4 && <details className="setup-inline-note-v473"><summary>What happens after setup?</summary><p>You enter Cluster using the Owner password. The administrator checklist then guides MFA enrollment and recovery codes, backup policy, timezone, another administrator, and your first Project. Custom domains, remote gateways, and integrations can be configured later. Importing a .clusterconfig file never imports credentials or server secrets.</p></details>}
       </div>
       <footer className="setup-footer-v473"><span>{step + 1} / {steps.length}</span><div>
         {step > 0 && <ClusterButton type="button" disabled={busy} variant="secondary" onClick={() => { setError(""); setStep((value) => value - 1); }}>Back</ClusterButton>}

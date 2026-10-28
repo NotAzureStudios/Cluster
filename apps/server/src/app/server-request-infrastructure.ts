@@ -10,7 +10,7 @@ import { normalizeHttpError } from "../core/http-errors.js";
 import { assessRuntimeSaturation } from "../core/operational-health.js";
 import type { ResourceGovernor } from "../core/resource-governor.js";
 import { ensureSessionPolicyAcceptance } from "../core/policy-acceptance.js";
-import { authTransportRateLimitPolicy, boundedPayloadStream, requestWorkPolicy, userScopedRateLimitPolicy } from "../core/request-workload.js";
+import { apiTransportRateLimitPolicy, authTransportRateLimitPolicy, boundedPayloadStream, requestWorkPolicy, userScopedRateLimitPolicy } from "../core/request-workload.js";
 import { hasValidSecurityVerification, highRiskSecurityVerificationPurpose, strongerVerificationStrength } from "../core/security-verification.js";
 import { normalizeStudioSecurityPolicy, securityPolicyHighRiskVerificationStrength } from "../core/studio-security-policy.js";
 import { enterReliabilityContext, updateReliabilityContext } from "../core/reliability-context.js";
@@ -108,7 +108,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       "X-Request-Id", "X-Client-Request-Id", "X-Cluster-Version", "X-Cluster-Api-Contract",
       "X-Cluster-Minimum-Client-Version", "X-Cluster-Transport-Protocol", "X-Cluster-Client-Compatibility",
       "X-Cluster-Client-Protocol-Compatibility", "X-Cluster-Server-State", "X-Cluster-Server-Mode", "X-Cluster-CSRF-Invalid", "X-Cluster-Resource-Revision",
-      "X-Cluster-Correlation-Id", "X-Cluster-Original-Correlation-Id", "ETag", "Retry-After",
+      "X-Cluster-Correlation-Id", "X-Cluster-Original-Correlation-Id", "X-Cluster-Rate-Limit-Bucket", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "ETag", "Retry-After",
     ],
   });
 
@@ -269,9 +269,13 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       securityTelemetry.record("request.external_rate_limited", "FAILURE");
       return;
     }
-    if (context.policy.isApi && await rateLimit(request, reply, "api", apiRateLimitMax, apiRateLimitWindowMs, workPolicy.cost)) {
-      securityTelemetry.record("request.api_rate_limited", "FAILURE");
-      return;
+    if (context.policy.isApi) {
+      const traffic = apiTransportRateLimitPolicy({ pathname, method: request.method, apiRateLimitMax });
+      if (await rateLimit(request, reply, traffic.bucketName, traffic.limit, apiRateLimitWindowMs, workPolicy.cost)) {
+        request.log.warn({ route: pathname, method: request.method, bucket: traffic.bucketName, cost: workPolicy.cost, limit: traffic.limit, configuredLimit: apiRateLimitMax, windowMs: apiRateLimitWindowMs }, "Cluster API traffic budget exhausted");
+        securityTelemetry.record("request.api_rate_limited", "FAILURE");
+        return;
+      }
     }
   });
 

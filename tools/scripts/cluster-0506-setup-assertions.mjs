@@ -79,7 +79,7 @@ const checks = [
     const source = read("packages/renderer/src/features/application/modules/ApplicationSetupWizard.tsx");
     for (const mode of ['id: "guided"', 'id: "quick"', 'id: "import"', 'id: "skip"']) assert.ok(source.includes(mode));
     assert.match(source, /inspectImportedBundle\(JSON\.parse\(await file\.text\(\)\)\)/);
-    assert.match(source, /Passkey and recovery codes required/);
+    assert.match(source, /MFA setup after sign-in/);
   }],
   ["admin Command Center projects the real checklist and exports safe config", () => {
     const page = read("packages/renderer/src/features/admin/AdminWorkspacePage.tsx");

@@ -15,6 +15,8 @@ import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon"
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
+import { summarizeLoadedProjectHealth } from "../visual-first/loaded-view-summary";
 import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
 import { requestClusterDataExport } from "../../core/data-export-client";
 import { DataExportOperationFeedback } from "../../components/DataExportOperationFeedback";
@@ -128,11 +130,15 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [scheduleFilter, setScheduleFilter] = useState<"all" | "due_soon" | "overdue" | "unscheduled" | "scheduled">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "low" | "medium" | "high" | "urgent">("all");
   const [projectSorts, setProjectSorts] = useState<ClusterDataSort[]>([{ fieldId: "attention", direction: "desc" }]);
-  const [viewMode, setViewMode] = useServerState<"list" | "cards" | "table">("user", "projects.portfolio-view", "list", { merge: (value, fallback) => value === "list" || value === "cards" || value === "table" ? value : fallback });
+  const [viewMode, setViewMode] = useServerState<"list" | "cards" | "table">("user", "projects.portfolio-view", "cards", { merge: (value, fallback) => value === "list" || value === "cards" || value === "table" ? value : fallback });
   const [density, setDensity] = useServerState<"compact" | "comfortable">("user", "projects.portfolio-density", "comfortable", { merge: (value, fallback) => value === "compact" || value === "comfortable" ? value : fallback });
   const [focus, setFocus] = useServerState<ProjectPortfolioFocus>("user", "projects.portfolio-focus", "all");
   const [pinnedProjectIds, setPinnedProjectIds] = useServerState<string[]>("user", "projects.pinned", [], { merge: (value) => Array.isArray(value) ? value.map(String) : [] });
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [browserFiltersOpen, setBrowserFiltersOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [intelligenceOpen, setIntelligenceOpen] = useState(false);
   const [selectedProjectIds, setSelectedProjectIds] = useState<Set<string>>(() => new Set());
   const [projectRenderLimit, setProjectRenderLimit] = useState(PROJECT_RENDER_BATCH);
   const [portfolioIntelligence, setPortfolioIntelligence] = useState<PortfolioIntelligence | null>(null);
@@ -179,13 +185,13 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       search: deferredQuery.trim() || undefined,
       filters: mergeClusterDataFilterGroups(conditions.length ? { logic: "and", conditions } : null, clusterDataSelectionSetFilterGroup(projectAnalyticalSelectionSet)),
       sorts: projectServerSorts,
-      facets: ["status", "source", "schedule", "priority"],
-      aggregations: [{ id: "count", kind: "count", label: "Projects" }],
-      groups: projectServerGroups,
-      projections: projectProjections,
-      derivedFields: projectPortableDerivedPlan.fields,
+      facets: analyticsOpen ? ["status", "source", "schedule", "priority"] : [],
+      aggregations: analyticsOpen ? [{ id: "count", kind: "count", label: "Projects" }] : [],
+      groups: viewMode === "table" ? projectServerGroups : [],
+      projections: analyticsOpen ? projectProjections : [],
+      derivedFields: analyticsOpen ? projectPortableDerivedPlan.fields : [],
     };
-  }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, projectServerSorts, projectServerGroups, projectProjections, projectPortableDerivedPlan.fields, projectAnalyticalSelectionSet]);
+  }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, projectServerSorts, projectServerGroups, projectProjections, projectPortableDerivedPlan.fields, projectAnalyticalSelectionSet, analyticsOpen, viewMode]);
   const projectServerQueryKey = useMemo(() => JSON.stringify(projectServerDataQuery), [projectServerDataQuery]);
   const projectCursor = useClusterCursorData<Project>({
     resetKey: `${projects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")}::${projectServerQueryKey}`,
@@ -208,15 +214,18 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   }, [portfolioProjects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")]);
 
   useEffect(() => {
-    api<UserActivitySummary[]>("/api/users").then(setUsers).catch(() => setUsers([]));
-    api<TimelinePayload>(`/api/timeline?start=${encodeURIComponent(new Date().toISOString())}&end=${encodeURIComponent(addDays(new Date(), 180).toISOString())}`).then(setTimeline).catch(() => setTimeline(null));
-  }, []);
+    if (!inspectorOpen && !analyticsOpen && !intelligenceOpen) return;
+    let active = true;
+    api<UserActivitySummary[]>("/api/users").then((result) => { if (active) setUsers(result); }).catch(() => {});
+    api<TimelinePayload>(`/api/timeline?start=${encodeURIComponent(new Date().toISOString())}&end=${encodeURIComponent(addDays(new Date(), 180).toISOString())}`).then((result) => { if (active) setTimeline(result); }).catch(() => {});
+    return () => { active = false; };
+  }, [inspectorOpen, analyticsOpen, intelligenceOpen]);
   useEffect(() => {
-    if (!isAdmin || !portfolioProjects[0]?.id) { setPortfolioIntelligence(null); return; }
+    if (!isAdmin || !intelligenceOpen || !portfolioProjects[0]?.id) { setPortfolioIntelligence(null); return; }
     let active = true;
     api<PortfolioIntelligence>("/api/portfolio/intelligence").then((result) => { if (active) setPortfolioIntelligence(result); }).catch(() => { if (active) setPortfolioIntelligence(null); });
     return () => { active = false; };
-  }, [isAdmin, portfolioProjects]);
+  }, [isAdmin, portfolioProjects, intelligenceOpen]);
   useEffect(() => {
     if (!portfolioProjects.some((project) => project.id === selectedProjectId)) setSelectedProjectId(portfolioProjects[0]?.id || null);
   }, [portfolioProjects, selectedProjectId]);
@@ -256,7 +265,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     const members = projectMembers(project, users);
     const snapshot = projectSnapshots[project.id] || null;
     const gaps = snapshot?.readiness.gaps || projectSetupGaps(project);
-    const status = snapshot?.lifecycle.archived ? "archived" : normalizeProjectStatus(snapshot?.lifecycle.status || project.status);
+    const status = (snapshot?.lifecycle.archived || project.archived) ? "archived" : normalizeProjectStatus(snapshot?.lifecycle.status || project.status);
     const completeness = snapshot?.readiness.score ?? projectCompleteness(project);
     const source = projectSourceMeta(project);
     const projectWhiteboards = project.whiteboards?.length ? project.whiteboards : (whiteboardsByProject.get(project.id) || []);
@@ -323,6 +332,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
 
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
+  const loadedHealth = useMemo(() => summarizeLoadedProjectHealth(sortedFacts), [sortedFacts]);
   const projectServerAnalytics = projectCursor.dataView?.analytics || null;
   const projectAnalyticsExact = !["ready", "attention"].includes(statusFilter) && ["all", "due_soon", "unscheduled"].includes(focus);
   const selectedProjectSummary = useMemo(() => selectedDataSummary(sortedFacts, selectedProjectIds, {
@@ -336,7 +346,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { key: "portfolio-visible", label: "Loaded portfolio", scope: "visible" as const, values: { project: `${sortedFacts.length} project${sortedFacts.length === 1 ? "" : "s"}`, readiness: sortedFacts.length ? `${Math.round(sortedFacts.reduce((sum, fact) => sum + fact.completeness, 0) / sortedFacts.length)}% avg` : "—", people: `${sortedFacts.reduce((sum, fact) => sum + fact.memberCount, 0)} people` } },
   ], [sortedFacts, selectedProjectSummary, projectAnalyticsExact, projectServerAnalytics]);
   const projectTableColumns = useMemo<ClusterDataTableColumn<(typeof facts)[number]>[]>(() => [
-    { id: "project", header: "Project", hideable: false, pinnable: true, defaultWidth: 280, sortValue: (fact) => fact.project.name, groupValue: (fact) => projectTypeBadge(fact.project), groupSummaryValue: (fact) => fact.project.projectType || "", cell: (fact) => <ClusterButton unstyled type="button" onClick={() => setSelectedProjectId(fact.project.id)}><strong>{fact.project.name}</strong><span className="muted">{projectTypeBadge(fact.project)}</span></ClusterButton> },
+    { id: "project", header: "Project", hideable: false, pinnable: true, defaultWidth: 280, sortValue: (fact) => fact.project.name, groupValue: (fact) => projectTypeBadge(fact.project), groupSummaryValue: (fact) => fact.project.projectType || "", cell: (fact) => <ClusterButton unstyled type="button" onClick={() => onOpenProject(fact.project.id)}><strong>{fact.project.name}</strong><span className="muted">{projectTypeBadge(fact.project)}</span></ClusterButton> },
     { id: "status", header: "Status", defaultWidth: 140, sortValue: (fact) => fact.status, groupValue: (fact) => projectStatusLabel(fact.project), groupSummaryValue: (fact) => fact.status, cell: (fact) => projectStatusLabel(fact.project) },
     { id: "health", header: "Health", defaultWidth: 140, sortValue: (fact) => fact.health.label, groupValue: (fact) => fact.health.label, cell: (fact) => <span className={`soft-pill ${fact.health.tone}`}>{fact.health.label}</span> },
     { id: "readiness", header: "Readiness", defaultWidth: 120, sortValue: (fact) => fact.completeness, cell: (fact) => `${fact.completeness}%` },
@@ -401,6 +411,24 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     const readiness = total ? Math.round(facts.reduce((sum, fact) => sum + fact.completeness, 0) / total) : 0;
     return { total, active, atRisk, overdue, unscheduled, readiness };
   }, [facts]);
+  const browserFilters = [
+    { id: "all", label: "All projects", count: focusCounts.all, icon: "project" as const },
+    { id: "pinned", label: "Starred", count: focusCounts.pinned, icon: "star" as const },
+    { id: "recent", label: "Recently updated", count: focusCounts.recent, icon: "clock" as const },
+    { id: "at_risk", label: "Needs attention", count: focusCounts.at_risk, icon: "warning" as const },
+    { id: "due_soon", label: "Due soon", count: focusCounts.due_soon, icon: "calendar" as const },
+    { id: "unscheduled", label: "No target date", count: focusCounts.unscheduled, icon: "calendar" as const },
+  ] as const;
+  function chooseBrowserFocus(next: ProjectPortfolioFocus) {
+    setStatusFilter("all");
+    setSourceFilter("all");
+    setScheduleFilter("all");
+    setPriorityFilter("all");
+    setProjectAnalyticalSelection(null);
+    setProjectAnalyticalSelectionSet({ logic: "or", selections: [] });
+    persistFocus(next);
+    setInspectorOpen(false);
+  }
   const projectDataFields = PROJECT_PORTFOLIO_DATA_FIELDS;
   const defaultProjectTableLayout = useMemo(() => createClusterDataViewLayout(projectTableColumns.map((column) => column.id), projectTableColumns.filter((column) => !column.hiddenByDefault).map((column) => column.id)), [projectTableColumns]);
   const effectiveProjectTableLayout = projectTableLayout || defaultProjectTableLayout;
@@ -483,45 +511,18 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
         className="projects-primary-header-v459 cluster-page-header"
         title="Projects"
         icon="project"
-        description="Portfolio view for delivery health, ownership, schedule pressure, and the projects that need attention next."
+
         actions={
           <>
-            {portfolioProjects.length > 0 && <ClusterButton onClick={onOpenBuilds}>Release view</ClusterButton>}
+            {portfolioProjects.length > 0 && <ClusterButton variant="quiet" onClick={onOpenBuilds}>Releases</ClusterButton>}
             {isAdmin && <ClusterButton variant="primary" onClick={onCreateProject}><ClusterIcon name="plus" /> New project</ClusterButton>}
           </>
         }
       />
 
-      {portfolioProjects.length > 0 && (
-        <ClusterMetricStrip
-          className="project-portfolio-metrics-v427"
-          label="Project portfolio summary and filters"
-          items={[
-            { label: "Shown", value: sortedFacts.length, detail: `${portfolioPulse.total} total`, selected: focus === "all", onSelect: () => persistFocus("all") },
-            { label: "Needs attention", value: focusCounts.at_risk, detail: "delivery or setup", tone: focusCounts.at_risk ? "danger" : "neutral", selected: focus === "at_risk", onSelect: () => persistFocus("at_risk") },
-            { label: "Due soon", value: focusCounts.due_soon, detail: "next 30 days", tone: focusCounts.due_soon ? "warning" : "neutral", selected: focus === "due_soon", onSelect: () => persistFocus("due_soon") },
-            { label: "Pinned", value: focusCounts.pinned, detail: "priority access", selected: focus === "pinned", onSelect: () => persistFocus("pinned") },
-            { label: "Readiness", value: `${portfolioPulse.readiness}%`, detail: `${portfolioPulse.active} active`, progress: portfolioPulse.readiness },
-          ]}
-        />
-      )}
 
-      {isAdmin && portfolioIntelligence && portfolioProjects.length > 0 ? (
-        <ClusterDisclosureGroup className="projects-intelligence-v30d" title="Portfolio signals" summary="Cross-project risk and capacity signals" headerTrailing={<span className={portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "good"}>{portfolioIntelligence.atRisk} at risk · {portfolioIntelligence.highPressureOwners} pressured</span>}>
-          <ClusterMetricStrip
-            className="project-portfolio-metrics-v427"
-            label="Studio portfolio intelligence"
-            items={[
-              { label: "Portfolio risk", value: portfolioIntelligence.atRisk, detail: `${portfolioIntelligence.danger} high risk · ${portfolioIntelligence.trend?.samples || 1}d evidence${portfolioIntelligence.trend?.atRiskDelta ? ` · ${portfolioIntelligence.trend.atRiskDelta > 0 ? "+" : ""}${portfolioIntelligence.trend.atRiskDelta}` : ""}`, tone: portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "neutral" },
-              { label: "Cross-project", value: portfolioIntelligence.crossProjectDependencies, detail: `${portfolioIntelligence.criticalCrossProjectDependencies} critical`, tone: portfolioIntelligence.criticalCrossProjectDependencies ? "warning" : "neutral" },
-              { label: "Capacity pressure", value: portfolioIntelligence.highPressureOwners, detail: `${portfolioIntelligence.departments?.filter((item) => item.highPressureOwners).length || 0} departments · ${portfolioIntelligence.trend?.highPressureDelta ? `${portfolioIntelligence.trend.highPressureDelta > 0 ? "+" : ""}${portfolioIntelligence.trend.highPressureDelta} trend` : "stable trend"}`, tone: portfolioIntelligence.highPressureOwners ? "warning" : "neutral" },
-              { label: "Coverage", value: portfolioIntelligence.projectCount, detail: "visible Studio projects" },
-            ]}
-          />
-        </ClusterDisclosureGroup>
-      ) : null}
 
-      {portfolioProjects.length === 0 ? (
+      {projects.length === 0 && !portfolioProjects.length && !projectCursor.loading && !query.trim() && statusFilter === "all" && sourceFilter === "all" && scheduleFilter === "all" && priorityFilter === "all" && focus === "all" ? (
         <ClusterEmptyState
           kind="first-use"
           icon="project"
@@ -532,7 +533,37 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
           actions={isAdmin ? <ClusterButton variant="primary" onClick={onCreateProject}>Create project</ClusterButton> : undefined}
         />
       ) : (
-        <>
+        <div className="projects-browser-layout-rc25">
+          <aside className="projects-browser-rail-rc25" aria-label="Project collections">
+            <div className="projects-browser-rail-head-rc25"><strong>Browse</strong><span>{portfolioPulse.total}</span></div>
+            <nav aria-label="Project collections">
+              {browserFilters.map((item) => <ClusterButton unstyled key={item.id}
+                type="button" className={`projects-browser-rail-item-rc25 ${statusFilter !== "archived" && focus === item.id ? "active" : ""}`}
+                aria-current={statusFilter !== "archived" && focus === item.id ? "page" : undefined}
+                onClick={() => chooseBrowserFocus(item.id)}>
+                  <ClusterIcon name={item.icon} /><span>{item.label}</span><small>{item.count}</small>
+                </ClusterButton>)}
+              <ClusterButton unstyled type="button" className={`projects-browser-rail-item-rc25 ${statusFilter === "archived" ? "active" : ""}`}
+                aria-current={statusFilter === "archived" ? "page" : undefined}
+                onClick={() => { setStatusFilter("archived"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); persistFocus("all"); setInspectorOpen(false); }}>
+                <ClusterIcon name="archive" /><span>Archived</span>
+              </ClusterButton>
+            </nav>
+            {pinnedProjectIds.length > 0 && <div className="projects-browser-pinned-rc25">
+              <strong>Shortcuts</strong>
+              {pinnedProjectIds.slice(0, 6).map((id) => {
+                const pinned = projects.find((project) => project.id === id);
+                return pinned ? <ClusterButton key={id} unstyled type="button" title={pinned.name} onClick={() => onOpenProject(pinned.id)}>
+                  <i style={runtimeStyle({ background: pinned.color || "#57c1ff" })} /><span>{pinned.name}</span>
+                </ClusterButton> : null;
+              })}
+            </div>}
+          </aside>
+          <div className="projects-browser-main-rc25">
+            <div className="projects-browser-topline-rc25">
+              <div><h2>{statusFilter === "archived" ? "Archived" : browserFilters.find((item) => item.id === focus)?.label || "All projects"}</h2></div>
+              <ClusterButton size="compact" variant="quiet" aria-expanded={browserFiltersOpen} onClick={() => setBrowserFiltersOpen((open) => !open)}><ClusterIcon name="settings" /> {browserFiltersOpen ? "Hide filters" : "Filters"}{secondaryFilterCount || statusFilter !== "all" ? ` · ${secondaryFilterCount + Number(statusFilter !== "all")}` : ""}</ClusterButton>
+            </div>
           <ClusterTableToolbar
             className="projects-toolbar-v146"
             inputRef={searchRef}
@@ -547,10 +578,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
             searchLabel="Search projects"
             placeholder="Search projects"
             shortcut="/"
-            countLabel={`${sortedFacts.length} of ${portfolioProjects.length}${projectCursor.hasMore ? "+" : ""} projects`}
-            filters={
+            countLabel={`${sortedFacts.length} projects`}
+            filters={browserFiltersOpen ?
               <>
-                <div className="projects-filter-pills-v146" aria-label="Project status filter">
+                <div className={`projects-filter-pills-v146 ${browserFiltersOpen ? "filters-open" : ""}`} aria-label="Project status filter">
                   {[["all", "All"], ["attention", "Needs work"], ["ready", "Ready"], ["active", "Active"], ["on_hold", "On hold"], ["archived", "Archived"]].map(([value, label]) => (
                     <ClusterButton unstyled type="button" key={value} className={statusFilter === value ? "active" : ""} aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value as typeof statusFilter)}>{label}</ClusterButton>
                   ))}
@@ -563,36 +594,27 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     <label className="field"><span>Priority</span><ClusterNativeSelect value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}><option value="all">All</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></ClusterNativeSelect></label>
                   </div>
                 </ClusterFilterPopover>
-              </>
+              </> : undefined
             }
             actions={<>{isAdmin ? <DataImportBuilder resourceKind="project" label="Projects" /> : null}<DataExportBuilder fields={projectExportFields} selectionCount={selectedProjectIds.size} busy={projectExporting} onExport={({ format, fieldIds, scope, delivery }) => exportProjects(format, fieldIds, scope, delivery)} />{activeFilterCount > 0 ? <ClusterButton variant="quiet" size="compact" className="projects-clear-v310" onClick={clearFilters}>Clear {activeFilterCount}</ClusterButton> : null}</>}
           />
-          <ClusterDisclosureGroup className="projects-data-tools-v528" title="Data tools" summary="Saved views, analytics, layout" contentClassName="projects-data-tools-body-v528">
-                <>
-              <ClusterDataView scope="projects.portfolio" label="Project portfolio" resourceKind="project" current={projectDataView} onApply={applySavedDataView} allowStudio={isAdmin} summary="Save search, filters, sorting, analytical projections and drilldowns, focus, density, presentation, and the exact portfolio table layout together." />
-              {projectAnalyticsExact && projectServerAnalytics ? <>
-                <DataViewAggregationStrip aggregations={projectServerDataQuery.aggregations || []} values={projectServerAnalytics.aggregations} fields={PROJECT_DATA_FIELDS} label="Filtered portfolio totals" />
-                <DataViewFacetBar facets={projectServerAnalytics.facets} fields={PROJECT_DATA_FIELDS} selectedValues={{ status: !["all", "archived", "ready", "attention"].includes(statusFilter) ? [statusFilter] : [], source: sourceFilter !== "all" ? [sourceFilter] : [], schedule: scheduleFilter !== "all" ? [scheduleFilter] : [], priority: priorityFilter !== "all" ? [priorityFilter] : [] }} onToggle={(fieldId, value) => { const next = String(value); if (fieldId === "status") setStatusFilter(statusFilter === next ? "all" : next as ProjectStatusFilter); if (fieldId === "source") setSourceFilter(sourceFilter === next ? "all" : next as typeof sourceFilter); if (fieldId === "schedule") setScheduleFilter(scheduleFilter === next ? "all" : next as typeof scheduleFilter); if (fieldId === "priority") setPriorityFilter(priorityFilter === next ? "all" : next as typeof priorityFilter); }} />
-                {projectServerAnalytics.projections?.length ? <div className="cluster-data-projections-v504">{projectServerAnalytics.projections.map((projection) => <DataViewProjection key={projection.id} result={projection} fields={PROJECT_DATA_FIELDS} label={`Project ${projection.kind} projection`} selection={projectAnalyticalSelection} selectionSet={projectAnalyticalSelectionSet} onSelectionChange={applyProjectAnalyticalSelection} onSelectionSetChange={(next) => { if (!projectAnalyticalSelectionSet.selections.length && next.selections.length) projectDrilldown.capture(); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet(next); }} onDrilldown={(_selection, drilldown) => { if (drilldown?.presentation === "table") setViewMode("table"); }} />)}</div> : null}
-              </> : null}
-              <DataViewProjectionComposer fields={projectDataFields} projections={projectProjections} onChange={setProjectProjections} label="Project analytical projections" />
-              <DataViewSelectionBar selection={projectAnalyticalSelection} fields={PROJECT_DATA_FIELDS} historyDepth={projectDrilldown.depth} onBack={projectDrilldown.back} onExit={projectDrilldown.exit} onClear={() => setProjectAnalyticalSelection(null)} label="Project analytical selection" />
-              <DataViewSelectionSetBar selectionSet={projectAnalyticalSelectionSet} fields={PROJECT_DATA_FIELDS} onChange={(next) => { setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet(next); }} label="Project cross-highlight selections" />
-              {viewMode === "table" ? <DataViewDerivedFieldBuilder fields={projectDataFields} derivedFields={projectDerivedFields} onChange={(next) => { setProjectDerivedFields(next); setProjectTableLayout(null); }} label="Project formula columns" /> : null}
-              {projectExportStatus ? <p className="muted" aria-live="polite">{projectExportStatus}</p> : null}
-                </>
-          </ClusterDisclosureGroup>
-          <DataExportOperationFeedback jobId={projectExportJobId} onDismiss={() => setProjectExportJobId("")} />
-
-          <div className="projects-workspace-v146">
+          <div className={`projects-workspace-v146 projects-browser-rc24 ${inspectorOpen ? "has-inspector" : ""}`}>
             <section className="project-index-v146" aria-label="Project list">
               <div className="project-index-head-v146">
-                <div><strong>Projects</strong><span>{sortedFacts.length} of {portfolioProjects.length}{projectCursor.hasMore ? "+" : ""}</span></div>
+                <div className="projects-index-heading-rc24"><strong>{viewMode === "table" ? "Detailed view" : viewMode === "list" ? "Project list" : "Project gallery"}</strong><span>{projectCursor.hasMore ? "More available" : `${sortedFacts.length} projects`}</span></div>
                 <div className="project-index-controls-v310">
-                  <ClusterSegmentedControl value={density} onChange={persistDensity} label="Project density" options={[{ value: "compact", label: "Compact" }, { value: "comfortable", label: "Comfortable" }]} />
+                  <ClusterButton variant={inspectorOpen ? "secondary" : "quiet"} size="compact" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen((value) => !value)}><ClusterIcon name="note" /> {inspectorOpen ? "Hide details" : "Details"}</ClusterButton>
+                  <ClusterButton size="compact" variant="quiet" onClick={() => persistDensity(density === "compact" ? "comfortable" : "compact")} title="Toggle compact layout"><ClusterIcon name="settings" /> {density === "compact" ? "Spacious" : "Compact"}</ClusterButton>
                   <ClusterSegmentedControl value={viewMode} onChange={persistView} label="Project layout" options={[{ value: "list", label: "List" }, { value: "cards", label: "Cards" }, { value: "table", label: "Table" }]} />
                 </div>
               </div>
+              {loadedHealth.total > 0 && <div className="project-loaded-snapshot-rc41" aria-label="Loaded portfolio snapshot">
+                <ClusterVisualComposition label={projectCursor.hasMore ? "Loaded filtered projects · more on server" : "Loaded filtered projects"} total={loadedHealth.total} parts={[
+                  { label: "Healthy", value: loadedHealth.healthy, tone: "good" },
+                  { label: "Needs attention", value: loadedHealth.attention, tone: "warning" },
+                ]} />
+                <ClusterVisualMeter label="Average loaded readiness" value={loadedHealth.averageReadiness} total={100} tone="accent" />
+              </div>}
               {viewMode === "table" ? <>
                 <DataViewGroupControl fields={projectDataFields} groups={projectGroups} onChange={setProjectGroups} label="Group projects" />
                 <ClusterDataTable
@@ -639,8 +661,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     typeLabel={projectTypeBadge(fact.project)}
                     gaps={fact.gaps}
                     memberCount={fact.memberCount}
-                    onSelect={() => setSelectedProjectId(fact.project.id)}
-                    onOpen={() => onOpenProject(fact.project.id)}
+                    onSelect={() => onOpenProject(fact.project.id)}
+                    onInspect={() => { setSelectedProjectId(fact.project.id); setInspectorOpen(true); }}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
                   />
                 )) : (
@@ -656,7 +678,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 {hasMoreProjects ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" onClick={() => setProjectRenderLimit((current) => current + PROJECT_RENDER_BATCH)}>Show {Math.min(PROJECT_RENDER_BATCH, sortedFacts.length - visibleFacts.length)} more · {sortedFacts.length - visibleFacts.length} loaded locally</ClusterButton></div> : projectCursor.hasMore ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" disabled={projectCursor.loading} onClick={projectCursor.loadMore}>{projectCursor.loading ? "Loading more…" : "Load 80 more projects from server"}</ClusterButton></div> : null}
               </div>}
             </section>
-            <ProjectPortfolioInspector
+            {inspectorOpen ? <div className="projects-browser-inspector-shell-rc25">
+              <div className="projects-browser-inspector-toolbar-rc25"><strong>Project details</strong><ClusterButton variant="quiet" size="compact" onClick={() => setInspectorOpen(false)} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton></div>
+              <ProjectPortfolioInspector
               project={selectedProject}
               health={selectedFact?.health || null}
               schedule={selectedFact?.snapshot ? { label: selectedFact.snapshot.schedule.label, tone: projectSnapshotScheduleTone(selectedFact.snapshot), detail: selectedFact.snapshot.schedule.label } : null}
@@ -676,9 +700,43 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               onOpenBuilds={onOpenBuilds}
               onOpenActivity={onOpenActivity}
               onOpenReports={onOpenReports}
-            />
+            /></div> : null}
           </div>
-        </>
+          <section className="projects-browser-advanced-rc25" aria-label="Portfolio management">
+            {isAdmin && portfolioProjects.length > 0 ? (
+        <ClusterDisclosureGroup className="projects-intelligence-v30d" title="Portfolio signals"  open={intelligenceOpen} onOpenChange={setIntelligenceOpen} headerTrailing={portfolioIntelligence ? <span className={portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "good"}>{portfolioIntelligence.atRisk} at risk · {portfolioIntelligence.highPressureOwners} pressured</span> : null}>
+          {intelligenceOpen && portfolioIntelligence ?
+          <ClusterMetricStrip
+            className="project-portfolio-metrics-v427"
+            label="Studio portfolio intelligence"
+            items={[
+              { label: "Portfolio risk", value: portfolioIntelligence.atRisk, detail: `${portfolioIntelligence.danger} high risk · ${portfolioIntelligence.trend?.samples || 1}d evidence${portfolioIntelligence.trend?.atRiskDelta ? ` · ${portfolioIntelligence.trend.atRiskDelta > 0 ? "+" : ""}${portfolioIntelligence.trend.atRiskDelta}` : ""}`, tone: portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "neutral" },
+              { label: "Cross-project", value: portfolioIntelligence.crossProjectDependencies, detail: `${portfolioIntelligence.criticalCrossProjectDependencies} critical`, tone: portfolioIntelligence.criticalCrossProjectDependencies ? "warning" : "neutral" },
+              { label: "Capacity pressure", value: portfolioIntelligence.highPressureOwners, detail: `${portfolioIntelligence.departments?.filter((item) => item.highPressureOwners).length || 0} departments · ${portfolioIntelligence.trend?.highPressureDelta ? `${portfolioIntelligence.trend.highPressureDelta > 0 ? "+" : ""}${portfolioIntelligence.trend.highPressureDelta} trend` : "trend unavailable"}`, tone: portfolioIntelligence.highPressureOwners ? "warning" : "neutral" },
+              { label: "Coverage", value: portfolioIntelligence.projectCount, detail: "visible Studio projects" },
+            ]}
+          /> : intelligenceOpen ? <p className="muted">Loading…</p> : null}
+        </ClusterDisclosureGroup>
+      ) : null}
+            <ClusterDisclosureGroup className="projects-data-tools-v528" title="Views & analytics"  open={analyticsOpen} onOpenChange={setAnalyticsOpen} contentClassName="projects-data-tools-body-v528">
+                {analyticsOpen ? <>
+              <ClusterDataView scope="projects.portfolio" label="Project portfolio" resourceKind="project" current={projectDataView} onApply={applySavedDataView} allowStudio={isAdmin} summary="Save search, filters, sorting, analytical projections and drilldowns, focus, density, presentation, and the exact portfolio table layout together." />
+              {projectAnalyticsExact && projectServerAnalytics ? <>
+                <DataViewAggregationStrip aggregations={projectServerDataQuery.aggregations || []} values={projectServerAnalytics.aggregations} fields={PROJECT_DATA_FIELDS} label="Filtered portfolio totals" />
+                <DataViewFacetBar facets={projectServerAnalytics.facets} fields={PROJECT_DATA_FIELDS} selectedValues={{ status: !["all", "archived", "ready", "attention"].includes(statusFilter) ? [statusFilter] : [], source: sourceFilter !== "all" ? [sourceFilter] : [], schedule: scheduleFilter !== "all" ? [scheduleFilter] : [], priority: priorityFilter !== "all" ? [priorityFilter] : [] }} onToggle={(fieldId, value) => { const next = String(value); if (fieldId === "status") setStatusFilter(statusFilter === next ? "all" : next as ProjectStatusFilter); if (fieldId === "source") setSourceFilter(sourceFilter === next ? "all" : next as typeof sourceFilter); if (fieldId === "schedule") setScheduleFilter(scheduleFilter === next ? "all" : next as typeof scheduleFilter); if (fieldId === "priority") setPriorityFilter(priorityFilter === next ? "all" : next as typeof priorityFilter); }} />
+                {projectServerAnalytics.projections?.length ? <div className="cluster-data-projections-v504">{projectServerAnalytics.projections.map((projection) => <DataViewProjection key={projection.id} result={projection} fields={PROJECT_DATA_FIELDS} label={`Project ${projection.kind} projection`} selection={projectAnalyticalSelection} selectionSet={projectAnalyticalSelectionSet} onSelectionChange={applyProjectAnalyticalSelection} onSelectionSetChange={(next) => { if (!projectAnalyticalSelectionSet.selections.length && next.selections.length) projectDrilldown.capture(); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet(next); }} onDrilldown={(_selection, drilldown) => { if (drilldown?.presentation === "table") setViewMode("table"); }} />)}</div> : null}
+              </> : null}
+              <DataViewProjectionComposer fields={projectDataFields} projections={projectProjections} onChange={setProjectProjections} label="Project analytical projections" />
+              <DataViewSelectionBar selection={projectAnalyticalSelection} fields={PROJECT_DATA_FIELDS} historyDepth={projectDrilldown.depth} onBack={projectDrilldown.back} onExit={projectDrilldown.exit} onClear={() => setProjectAnalyticalSelection(null)} label="Project analytical selection" />
+              <DataViewSelectionSetBar selectionSet={projectAnalyticalSelectionSet} fields={PROJECT_DATA_FIELDS} onChange={(next) => { setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet(next); }} label="Project cross-highlight selections" />
+              {viewMode === "table" ? <DataViewDerivedFieldBuilder fields={projectDataFields} derivedFields={projectDerivedFields} onChange={(next) => { setProjectDerivedFields(next); setProjectTableLayout(null); }} label="Project formula columns" /> : null}
+              {projectExportStatus ? <p className="muted" aria-live="polite">{projectExportStatus}</p> : null}
+                </> : null}
+          </ClusterDisclosureGroup>
+          <DataExportOperationFeedback jobId={projectExportJobId} onDismiss={() => setProjectExportJobId("")} />
+          </section>
+          </div>
+        </div>
       )}
     </section>
   );

@@ -996,3 +996,7 @@ overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vert
   .home-widget-canvas-v484[data-mobile-layout="carousel"]:focus-visible{outline:2px solid var(--cluster-workspace-accent,var(--cluster-blue-400));outline-offset:3px;}
 }
 @media (prefers-reduced-motion:reduce){.home-widget-canvas-v484[data-mobile-layout="carousel"]{scroll-behavior:auto;}}
+
+/* RC41: coverage is a pair of comparable meters; no duplicate counters. */
+.home-widget-coverage-rc41{display:grid;gap:9px;min-width:0}
+.home-widget-coverage-rc41 .home-widget-metrics-v484{margin-top:2px}

@@ -40,3 +40,12 @@ export async function getClusterRelayStatus() {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
+
+// Authenticated worker liveness is separate from the public interaction endpoint.
+export async function reportClusterGatewayHealth(state) {
+  if (!["connected", "reconnecting", "error"].includes(state)) return;
+  await clusterFetch("/api/integrations/discord/gateway-health", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ state }), signal: AbortSignal.timeout(5_000),
+  });
+}

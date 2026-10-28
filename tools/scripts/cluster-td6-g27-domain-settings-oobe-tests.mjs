@@ -46,7 +46,7 @@ const setup=source('packages/renderer/src/features/application/modules/Applicati
 const setupServer=source('apps/server/src/app/server-routes-setup.ts');
 ok(studio.includes('<StudioDomainsPanel />'),'Studio owns domain registry');
 ok(server.includes('<ServerDomainsPanel />'),'Server Config owns gateway');
-ok(vault.includes('<DomainInventoryPanel />') && !vault.includes('<VaultDomainsPanel />'),'Vault read-only');
+ok(!vault.includes('<DomainInventoryPanel />') && !vault.includes('<VaultDomainsPanel />') && source('packages/renderer/src/features/application/modules/ApplicationSidebar.tsx').includes('{ label: "Domains"'), 'Domains is a dedicated Admin destination, not a Vault panel');
 ok(setup.includes('"Domain & Access"') && setup.includes('domainSetupIntent'),'OOBE owns initial domain intent');
 ok(source('packages/renderer/src/features/admin/AdminSetupChecklist.tsx').includes('<DomainSetupContinuation '),'authenticated OOBE completion is available');
 ok(setupServer.includes('domainSetupIntent: z.object') && setupServer.includes('Unsupported domain connection mode/provider'),'bootstrap validates input');

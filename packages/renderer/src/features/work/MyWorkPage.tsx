@@ -369,17 +369,17 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
           <ClusterButton unstyled type="button" onClick={() => setView("assigned")}>
             <span>Assigned</span>
             <strong>{assignedCount}</strong>
-            <em>{myCards.length} work items · {linkedAssignments} linked{relationshipBlockers ? ` · ${relationshipBlockers} blockers` : ""}</em>
+            <em>{relationshipBlockers ? `${relationshipBlockers} blockers` : `${linkedAssignments} linked`}</em>
           </ClusterButton>
           <ClusterButton unstyled type="button" onClick={() => setView("today")} data-tone={overdueCards.length ? "danger" : "good"}>
             <span>Overdue</span>
             <strong>{overdueCards.length}</strong>
-            <em>{dueTodayCards.length} due today</em>
+            {dueTodayCards.length > 0 && <em>{dueTodayCards.length} due today</em>}
           </ClusterButton>
           <ClusterButton unstyled type="button" onClick={() => setView("projects")}>
             <span>Projects</span>
             <strong>{myProjects.length}</strong>
-            <em>{myProjects.filter((project) => getProjectHealth(project).tone !== "good").length} need attention</em>
+            {myProjects.some((project) => getProjectHealth(project).tone !== "good") && <em>{myProjects.filter((project) => getProjectHealth(project).tone !== "good").length} need attention</em>}
           </ClusterButton>
           <ClusterButton unstyled type="button" onClick={onOpenTime}>
             <span>This week</span>

@@ -348,7 +348,8 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
     const fail = (): never => { throw new Error("Inconsistent native MSI recovery evidence: boot continuity invalid. No installation is authorized."); };
     const boot = report.bootObservation;
     if (!report.hasReceipt) { if (boot !== undefined) fail(); return; }
-    if (!boot || boot.readOnly !== true || boot.osAttested !== false || boot.rebootConfirmed !== false
+    if (!boot) return fail();
+    if (boot.readOnly !== true || boot.osAttested !== false || boot.rebootConfirmed !== false
       || typeof boot.anchorRecorded !== "boolean" || boot.anchorRecorded !== !!report.attempt?.bootAnchor) fail();
     if (report.attempt?.bootAnchor) {
       const anchor = report.attempt.bootAnchor;
@@ -373,7 +374,7 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
       || report.retryAuthorized !== false || report.readOnly !== true || typeof report.hasReceipt !== "boolean"
       || typeof report.lockPresent !== "boolean" || typeof report.admissionLockPresent !== "boolean"
       || (report.admissionLockPresent && !report.lockPresent) || typeof report.manualReviewRequired !== "boolean"
-      || report.stagedArtifactVerified === true) unsafe();
+      || (report as {stagedArtifactVerified?: unknown}).stagedArtifactVerified === true) unsafe();
     if (report.attempt?.msiPath !== undefined) {
       const path = report.attempt.msiPath;
       if (!/^[A-Za-z0-9_./-]+\.msi$/.test(path) || path.startsWith("/")
@@ -557,6 +558,7 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
         || (item.receipt.operation === "msi-rollback" && !validMSIRollbackJournal(item, item.packageKey))
         || (item.receipt.operation !== "msi-rollback" && ((item.receipt as {upgradeJournalSha256?:string}).upgradeJournalSha256 !== undefined
           || (item.receipt as {successorMsiSha256?:string}).successorMsiSha256 !== undefined))) unsafe();
+      if (!item.receipt) return unsafe();
       if (item.receipt.operation === "msi-rollback") pendingRollback = item;
       else if (pendingRollback) {
         const rollback = pendingRollback.receipt!;
@@ -1195,7 +1197,7 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
         && entry.release.artifactSha256 === target.release.artifactSha256))
         throw new Error("Device Package access changed; checkpoint recovery is not authorized.");
       const result = await recoverNativePackageArchive(target.release.artifactSha256);
-      if ("accepted" in result && result.accepted === false) return;
+      if ("accepted" in result) return;
       if (result.digest !== target.release.artifactSha256 || result.expectedBytes !== target.release.artifactSize)
         throw new Error("Recovered checkpoint does not match the currently selected release.");
       if (result.offer && (result.offer.packageId !== target.package.id || result.offer.releaseId !== target.release.id
@@ -1335,7 +1337,7 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
       });
       const bytes = downloaded.bytes;
       if (bytes.byteLength !== manifest.artifactSize) throw new Error("Downloaded Package size does not match the signed manifest.");
-      const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map((n) => n.toString(16).padStart(2, "0")).join("");
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)))).map((n) => n.toString(16).padStart(2, "0")).join("");
       if (digest !== manifest.artifactSha256 || downloaded.initialHeaders.get("x-cluster-package-sha256") !== digest)
         throw new Error("Downloaded Package digest does not match the signed target and server response.");
       // Deliberately DO NOT include deployment/receipt challenges in the kit.
@@ -1592,7 +1594,7 @@ export function DesktopDevicePackagesPanel({ available, runtimePlatform }: { ava
           <p className="muted tight">Receipt: {msiEvidence[target.package.key].hasReceipt ? "present" : "none"} · Operation lock: {msiEvidence[target.package.key].lockPresent ? "present" : "none"} · Profile-wide admission lock: {msiEvidence[target.package.key].admissionLockPresent ? "present, another installer is active or recovery needs review" : "none"} · {msiEvidence[target.package.key].manualReviewRequired ? "Manual operator review required" : "No recorded attempt"}</p>
           {msiEvidence[target.package.key].attempt && <p className="muted tight">Installer {msiEvidence[target.package.key].attempt?.version}, evidence recorded {msiEvidence[target.package.key].attempt?.startedAt}. {msiEvidence[target.package.key].attempt?.state === "msi_prepared_not_launched" ? "A launch was not committed; the grant outcome still requires manual review. No installation is claimed." : <>Launch committed: {msiEvidence[target.package.key].attempt?.launchCommittedAt || "unknown (older receipt)"} · Process exit: {msiEvidence[target.package.key].attempt?.state === "msi_exit_zero_not_os_attested" ? 0 : msiEvidence[target.package.key].attempt?.finishedAt ? msiEvidence[target.package.key].attempt?.exitCode ?? "unknown" : "unknown"}. Local attempt evidence does not attest installation health.</>}</p>}
           {msiEvidence[target.package.key].attempt?.artifactSha256 !== undefined && msiEvidence[target.package.key].attempt?.artifactSha256 !== target.release.artifactSha256 && <p className="muted tight" role="alert">This local receipt belongs to a different release. It must not be interpreted as verification of the currently selected installer.</p>}
-          {msiEvidence[target.package.key].product && <p className="muted tight">Windows Installer query: {msiEvidence[target.package.key].product.state.replaceAll("_", " ")} · Declared product version: {msiEvidence[target.package.key].product.expectedVersion} · Reported: {msiEvidence[target.package.key].product.reportedVersion || "unavailable"} · Exact version match: {msiEvidence[target.package.key].product.versionMatches ? "yes" : "no / unverified"}. Probe: {msiEvidence[target.package.key].product.probeComplete ? "complete for current user + machine" : "unavailable / incomplete"}. Other users’ MSI contexts are not enumerated. This is not software-health attestation.</p>}
+          {msiEvidence[target.package.key].product && <p className="muted tight">Windows Installer query: {msiEvidence[target.package.key].product?.state.replaceAll("_", " ")} · Declared product version: {msiEvidence[target.package.key].product?.expectedVersion} · Reported: {msiEvidence[target.package.key].product?.reportedVersion || "unavailable"} · Exact version match: {msiEvidence[target.package.key].product?.versionMatches ? "yes" : "no / unverified"}. Probe: {msiEvidence[target.package.key].product?.probeComplete ? "complete for current user + machine" : "unavailable / incomplete"}. Other users’ MSI contexts are not enumerated. This is not software-health attestation.</p>}
           {!!msiEvidence[target.package.key].attempt?.dependencies?.length && <p className="muted tight" role="status">MSI prerequisites checked at launch: {msiEvidence[target.package.key].attempt!.dependencies!.map((dep) => `${dep.packageKey} v${dep.version} (${dep.productVersion})`).join(", ")}. This receipt contains registration snapshots, not application-health or removal authorization.</p>}
           {msiEvidence[target.package.key].registrationTransition && <p className="muted tight" role="status">Registration across this attempt: {msiEvidence[target.package.key].registrationTransition?.replaceAll("_", " ")}. Pre-launch: {msiEvidence[target.package.key].attempt?.preLaunchRegistration?.state?.replaceAll("_", " ") || "not retained in older receipts"}; after process return: {msiEvidence[target.package.key].attempt?.postExitRegistration?.state?.replaceAll("_", " ") || "unknown or not recorded"}. These samples are not proof of installation origin, working application health, or permission to retry, repair or uninstall.</p>}
           {msiEvidence[target.package.key].registrationDrift && <p className="muted tight" role="status">Registration since process return: {msiEvidence[target.package.key].registrationDrift?.replaceAll("_", " ")}. A change or continued registration does not prove who installed the product or whether its application is healthy.</p>}

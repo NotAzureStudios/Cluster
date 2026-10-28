@@ -1,3 +1,5 @@
+import { createReadStream, existsSync } from "node:fs";
+import path from "node:path";
 import { requireClusterProjectRole, resolveClusterProjectRole } from "@cluster/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -45,18 +47,62 @@ type ProjectRouteDependencies = {
   authorization: any;
   gitRuntime?: ClusterManagedGitRuntime | null;
   dataLayout: ClusterDataLayout;
+  writeUpload: (projectId: string, kind: "branding", originalName: string, dataUrl: string, mimeType: string, destinationFolder: string) => Promise<{ storedName: string; actualSize: number; detectedMime: string }>;
 };
 class ProjectRevisionWriteConflict extends Error {
   readonly code = "PROJECT_REVISION_CONFLICT";
 }
 
 export function registerProjectRoutes(deps: ProjectRouteDependencies) {
-  const { app, prisma, getCurrentUser, decorateUserForClient, hasTargetAccess, enforceTargetAccess, serializeProjectSummary, normalizeProjectType, normalizeProjectStatus, configuredProjectType, unique, safeUrl, logActivity, sendRevisionConflict, verifyUserPin, hasToolPermission, readSettings, buildPersistenceStorageData, parseLabels, verifyStorage, authorization, gitRuntime } = deps;
+  const { app, prisma, getCurrentUser, decorateUserForClient, hasTargetAccess, enforceTargetAccess, serializeProjectSummary, normalizeProjectType, normalizeProjectStatus, configuredProjectType, unique, safeUrl, logActivity, sendRevisionConflict, verifyUserPin, hasToolPermission, readSettings, buildPersistenceStorageData, parseLabels, verifyStorage, authorization, gitRuntime, writeUpload, dataLayout } = deps;
   const projectRepository = createProjectRepository(prisma);
   const deliveryLifecycleService = createProjectDeliveryLifecycleService(prisma);
   const projectSnapshots = createProjectSnapshotService({ prisma, authorization, hasToolPermission });
   const decisions = createDecisionService(prisma);
   const serializeWithCapabilities = createProjectCapabilitySerializer({ hasTargetAccess, serializeProjectSummary, isExternalCollaboratorRole: authorization?.isExternalCollaboratorRole?.bind(authorization) });
+  // Project icons live in the project storage scope and are never public Library assets.
+  // URLs are intentionally private and checked against current project visibility on every GET.
+  app.get("/api/projects/:projectId/icon/:fileName", async (request, reply) => {
+    const params = z.object({ projectId: z.string().min(1), fileName: z.string().min(1).max(180) }).parse(request.params);
+    const project = await prisma.project.findUnique({ where: { id: params.projectId }, select: { id: true, iconId: true, source: true, archived: true, memberships: { where: { status: "active" } } } });
+    if (!project) return reply.code(404).send({ error: "Project not found" });
+    if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "view"))) return;
+    if (!/^([a-f0-9]{24})-[a-zA-Z0-9._-]{1,100}\.(png|jpg|webp)$/.test(params.fileName) || project.iconId !== `asset:${params.fileName}`) return reply.code(404).send({ error: "Project icon not found" });
+    const fullPath = path.join(await projectStorageDirectory(prisma, dataLayout, project.id), "Icons", params.fileName);
+    if (!existsSync(fullPath)) return reply.code(404).send({ error: "Project icon not found" });
+    const ext = path.extname(params.fileName).toLowerCase();
+    reply.header("Content-Type", ext === ".webp" ? "image/webp" : ext === ".png" ? "image/png" : "image/jpeg");
+    reply.header("Cache-Control", "private, no-cache");
+    reply.header("X-Content-Type-Options", "nosniff");
+    return reply.send(createReadStream(fullPath));
+  });
+  app.post("/api/projects/:projectId/icon", async (request, reply) => {
+    const params = z.object({ projectId: z.string().min(1) }).parse(request.params);
+    const body = z.object({
+      originalName: z.string().trim().min(1).max(120),
+      mimeType: z.enum(["image/png", "image/jpeg", "image/webp"]),
+      sizeBytes: z.number().int().positive().max(1024 * 1024),
+      dataUrl: z.string().max(1_500_000),
+      expectedRevision: z.number().int().positive(),
+    }).parse(request.body);
+    const project = await prisma.project.findUnique({ where: { id: params.projectId }, include: { memberships: { where: { status: "active" } } } });
+    if (!project) return reply.code(404).send({ error: "Project not found" });
+    const actor = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(actor);
+    const accessRules = decorated?.isAdmin ? [] : await projectRepository.listActiveAccessRulesForProject(project.id);
+    if (!(decorated?.isAdmin || hasToolPermission(actor, decorated?.workspaceRole, "projects", "edit") || hasTargetAccess(actor, decorated?.workspaceRole, "project", project.id, project, accessRules, "manage"))) {
+      return reply.code(403).send({ error: "Project edit permission required" });
+    }
+    if (project.revision !== body.expectedRevision) return sendRevisionConflict(reply, "project", serializeProjectSummary(project));
+    const folder = path.join(await projectStorageDirectory(prisma, dataLayout, project.id), "Icons");
+    // Common writeUpload verifies the actual image signature and malware policy.
+    const stored = await writeUpload(project.id, "branding", body.originalName, body.dataUrl, body.mimeType, folder);
+    if (stored.actualSize > 1024 * 1024) return reply.code(413).send({ error: "Icon exceeds the 1 MB limit" });
+    const updated = await prisma.project.updateMany({ where: { id: project.id, revision: project.revision }, data: { iconId: `asset:${stored.storedName}`, revision: { increment: 1 } } });
+    if (!updated.count) return sendRevisionConflict(reply, "project", serializeProjectSummary(await prisma.project.findUnique({ where: { id: project.id } })));
+    await logActivity({ userId: actor?.id, projectId: project.id, type: "updated", entityType: "project", entityId: project.id, title: "Project icon updated", message: project.name });
+    return { ok: true, iconId: `asset:${stored.storedName}` };
+  });
   app.get("/api/project-types", async (request, reply) => {
     const settings = await readSettings();
     const types = resolveClusterProjectPurposeTypes(settings.projectTypePresets);
@@ -458,6 +504,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
         tags: z.array(z.string().trim().min(1).max(48)).max(24).optional().default([]),
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
+        iconId: z.union([z.enum(["glyph:project", "glyph:game", "glyph:code", "glyph:video", "glyph:image", "glyph:model", "glyph:folder", "glyph:library", "glyph:work", "glyph:calendar", "glyph:packet", "glyph:grid", "brand:as-git", "brand:discord", "brand:steam", "brand:epic", "brand:unreal", "brand:blender", "brand:curseforge", "brand:minecraft"]), z.string().regex(/^asset:[a-f0-9]{24}-[a-zA-Z0-9._-]{1,100}\.(?:png|jpg|webp)$/)]).optional().nullable(),
         healthNote: z.string().max(1000).optional().nullable(),
         memberRoles: z.record(z.string().max(80)).optional().default({}),
         projectType: z.string().min(1).max(64).default("general"),
@@ -491,10 +538,10 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
     const leadIds = unique(body.memberIds.map((value) => value.trim()).filter(Boolean));
     for (const [userId, value] of Object.entries(body.memberRoles)) {
       if (!leadIds.includes(userId)) continue;
-      if (!resolveClusterProjectRole(value)) return reply.code(400).send({ ok: false, code: "PROJECT_ROLE_INVALID", error: `Unsupported role for project member ${userId}.` });
+      if (!resolveClusterProjectRole(value)) throw createHttpError("PROJECT_ROLE_INVALID", `Unsupported role for project member ${userId}.`, 400);
     }
     if (leadIds.slice(1).some((id: string) => resolveClusterProjectRole(body.memberRoles[id])?.key === "lead")) {
-      return reply.code(400).send({ ok: false, code: "MULTIPLE_PROJECT_LEADS", error: "Only the first selected member can be Project Lead. Choose Producer for additional managers." });
+      throw createHttpError("MULTIPLE_PROJECT_LEADS", "Only the first selected member can be Project Lead. Choose Producer for additional managers.", 400);
     }
     const validLeads = await prisma.workspaceMember.findMany({
       where: {

@@ -1,4 +1,5 @@
 import type { ApiErrorDetail, ApiErrorResponse, ClusterServerCapability as ClusterKnownServerCapability } from "@cluster/shared";
+import { readTrafficLane, readRateLimitCooldown, noteReadRateLimit, resetReadRateLimitCooldowns } from "./read-rate-limit.js";
 
 export const CLUSTER_API_CLIENT_PROTOCOL_VERSION = 2 as const;
 
@@ -218,7 +219,12 @@ export function configureClusterApiClient(input: Partial<ClusterApiClientRuntime
     retryBaseDelayMs: boundedRuntimeNumber(input.retryBaseDelayMs, runtime.retryBaseDelayMs ?? 250, 25, 30_000),
     retryMaximumDelayMs: boundedRuntimeNumber(input.retryMaximumDelayMs, runtime.retryMaximumDelayMs ?? 3_000, 100, 120_000),
   };
-  if (runtime.baseUrl !== previousBaseUrl) clearCsrfToken();
+  if (runtime.baseUrl !== previousBaseUrl) {
+    clearCsrfToken();
+    // A Retry-After window belongs to the server that issued it. Carrying the
+    // old limit into a different Cluster installation stalls valid navigation.
+    resetReadRateLimitCooldowns();
+  }
   return { ...runtime };
 }
 
@@ -285,7 +291,7 @@ function retryableReadStatus(status: number) {
 
 function retryDelayMilliseconds(attempt: number, response?: Response) {
   const retryAfter = response ? retryAfterSeconds(response) : null;
-  if (retryAfter !== null) return Math.min(runtime.retryMaximumDelayMs, retryAfter * 1_000);
+  if (retryAfter !== null) return Math.min(60_000, Math.max(0, retryAfter * 1_000));
   const exponential = runtime.retryBaseDelayMs * 2 ** Math.max(0, attempt - 1);
   const jitter = Math.floor(Math.random() * Math.max(1, runtime.retryBaseDelayMs));
   return Math.min(runtime.retryMaximumDelayMs, exponential + jitter);
@@ -294,6 +300,7 @@ function retryDelayMilliseconds(attempt: number, response?: Response) {
 export async function clusterApiFetch(pathname: string, init: RequestInit = {}) {
   const method = String(init.method || "GET").toUpperCase();
   const canRetry = method === "GET" || method === "HEAD";
+  const trafficLane = readTrafficLane(pathname, method);
   const maximumAttempts = 1 + (canRetry ? runtime.maxReadRetries : 0);
   const baseHeaders = requestHeaders(init.headers);
   const requestId = baseHeaders.get(CLUSTER_CLIENT_HEADERS.requestId) || createClientRequestId();
@@ -319,6 +326,7 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
 
   for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
     try {
+      if (trafficLane) await readRateLimitCooldown(trafficLane, init.signal);
       const headers = new Headers(baseHeaders);
       const response = await fetch(clusterApiUrl(pathname), {
         ...init,
@@ -326,6 +334,9 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
         headers,
       });
       updateServerMetadata(response);
+      // Respect the server window across parallel widgets: a 429 must not
+      // multiply into several immediate retries from every component.
+      if (response.status === 429 && trafficLane) noteReadRateLimit(trafficLane, response.headers.get("retry-after"));
 
       if (csrfRequired && !csrfRetried && response.headers.get("x-cluster-csrf-invalid") === "1") {
         csrfRetried = true;
@@ -339,11 +350,16 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
         }
       }
 
-      if (SESSION_CHANGING_PATHS.has(requestPathname(pathname)) && response.ok) clearCsrfToken();
+      if (SESSION_CHANGING_PATHS.has(requestPathname(pathname)) && response.ok) {
+        clearCsrfToken();
+        // A successful login/logout/reauthentication changes the rate-limit
+        // identity. Don't force the new session through a previous one's 429.
+        resetReadRateLimitCooldowns();
+      }
 
       if (attempt < maximumAttempts && retryableReadStatus(response.status) && !init.signal?.aborted) {
         await response.body?.cancel().catch(() => undefined);
-        await delay(retryDelayMilliseconds(attempt, response), init.signal);
+        if (response.status !== 429 || !trafficLane) await delay(retryDelayMilliseconds(attempt, response), init.signal);
         continue;
       }
       return response;

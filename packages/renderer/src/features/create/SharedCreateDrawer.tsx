@@ -372,7 +372,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setDuplicateMatches([]);
     setDuplicateOverride(false);
     const defaultMessage = handoff
-      ? "Using the supplied project or date context."
+      ? ""
       : contextBoard
         ? `Using ${contextBoard.name} from your current workspace.`
         : contextProjectId
@@ -906,7 +906,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   }
 
   /** Mutating creates use durable server receipts in addition to the immediate click lock. */
-  function createMutation<T>(path: string, options: Parameters<typeof api>[1]): Promise<T> {
+  function createMutation<T>(path: string, options: NonNullable<Parameters<typeof api>[1]>): Promise<T> {
     if (createSessionController.current.signal.aborted) return Promise.reject(new Error("Create session has changed."));
     const method = String(options.method || "POST").toUpperCase();
     const body = typeof options.body === "string" ? options.body : JSON.stringify(options.body ?? null);
@@ -1085,7 +1085,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
       }
       if (mode === "ticket" || mode === "bug") {
         const ticketBoard = boards.find((candidate) => candidate.id === ticketTargetBoardId && candidate.projectId === selectedProject?.id);
-        const ticketList = ticketBoard?.lists.find((candidate) => candidate.id === ticketTargetListId && !candidate.isDone);
+        const ticketList = ticketBoard?.lists?.find((candidate) => candidate.id === ticketTargetListId && !candidate.isDone);
         if (!ticketBoard || !ticketList) throw new Error("Choose an active Board and List for this Project Ticket. Cluster will not automatically populate a Board.");
         const labels = unique([
           mode === "bug" ? "bug" : "ticket",
@@ -1412,7 +1412,7 @@ ${bugActual}`,
               <ClusterIcon name="chevron-left" /><span>Create</span>
             </ClusterButton>
             <div className="shared-create-title-v448">
-              <span className="shared-create-title-icon-v448" data-create-mode={mode}><ClusterIcon name={selectedMode?.icon || "plus"} /></span>
+              <span className="shared-create-title-icon-v448" data-create-mode={mode}><ClusterIcon name={mode === "project" ? "project" : selectedMode?.icon || "plus"} treatment="duotone" /></span>
               <span className="shared-create-title-copy-v448"><h2 id="shared-create-title-v370">{selectedMode?.label || "Item"}</h2></span>
             </div>
             <ClusterButton type="button" variant="quiet" size="compact" className="shared-create-close-v448" onClick={() => void requestClose()} disabled={busy} aria-label="Close item creator">
@@ -1655,7 +1655,7 @@ ${bugActual}`,
                     <label>Ticket destination List</label>
                     <ClusterNativeSelect value={ticketTargetListId} disabled={!ticketTargetBoardId} onChange={(event) => setTicketTargetListId(event.target.value)}>
                       <option value="">Choose active List...</option>
-                      {boards.find((board) => board.id === ticketTargetBoardId)?.lists.filter((list) => !list.isDone).map((list) => <option key={list.id} value={list.id}>{list.title}</option>)}
+                      {boards.find((board) => board.id === ticketTargetBoardId)?.lists?.filter((list) => !list.isDone).map((list) => <option key={list.id} value={list.id}>{list.title}</option>)}
                     </ClusterNativeSelect>
                   </div>
                   {showAdvanced && <>

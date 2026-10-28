@@ -7,7 +7,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ClusterInput } from "../../components/ClusterNativeControls";
-import { createWebAuthnCredential, getWebAuthnCredential, webAuthnAvailable } from "../../core/webauthn-client";
+import { createWebAuthnCredential, getWebAuthnCredential, requireWebAuthnBrowserOrigin, webAuthnAvailable } from "../../core/webauthn-client";
 
 export type ClusterAuthUser = {
   id: string;
@@ -264,6 +264,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     setBusy(true); setError("");
     try {
       if (!webAuthnAvailable()) throw new Error("This device or browser does not support passkeys. A security key or compatible browser is required for owner setup.");
+      requireWebAuthnBrowserOrigin();
       const start = await api<{ publicKey: any }>("/api/auth/mfa/passkeys/enroll/start", { method: "POST", body: JSON.stringify({}) });
       const credential = await createWebAuthnCredential(start.publicKey);
       const enrolled = await api<{ recoveryCodes: string[] }>("/api/auth/mfa/passkeys/enroll/verify", { method: "POST", body: JSON.stringify({ credential }) });

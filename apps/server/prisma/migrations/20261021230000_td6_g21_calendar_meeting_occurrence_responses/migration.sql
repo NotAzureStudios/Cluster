@@ -13,7 +13,9 @@ CREATE TABLE "CalendarMeetingOccurrenceResponse" (
 );
 CREATE UNIQUE INDEX "CalendarMeetingOccurrenceResponse_calendarEventId_occurrenceStartsAt_userId_key"
   ON "CalendarMeetingOccurrenceResponse"("calendarEventId", "occurrenceStartsAt", "userId");
-CREATE INDEX "CalendarMeetingOccurrenceResponse_calendarEventId_occurrenceStartsAt_idx"
-  ON "CalendarMeetingOccurrenceResponse"("calendarEventId", "occurrenceStartsAt");
+-- The (calendarEventId, occurrenceStartsAt, userId) UNIQUE B-tree index
+-- already supports lookups by its first two columns. A second, prefix-only
+-- index is redundant and collides with the unique index after PostgreSQL
+-- truncates identifier names to 63 bytes. Do not add it back.
 ALTER TABLE "CalendarMeetingOccurrenceResponse" ADD CONSTRAINT "CalendarMeetingOccurrenceResponse_calendarEventId_fkey"
   FOREIGN KEY ("calendarEventId") REFERENCES "CalendarEvent"("id") ON DELETE CASCADE ON UPDATE CASCADE;

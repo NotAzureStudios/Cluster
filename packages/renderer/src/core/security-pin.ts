@@ -38,7 +38,7 @@ export function requestSecurityPinSetup(input?: {
     title: input?.title || "Create security PIN",
     description:
       input?.description ||
-      "Create a 4–8 digit PIN for protected actions.",
+      "Choose 4–8 digits.",
     purpose: input?.purpose || "create_security_pin",
     confirmLabel: "Save PIN",
   });
@@ -54,7 +54,7 @@ export function requestSecurityPinChange(input?: {
     title: input?.title || "Change security PIN",
     description:
       input?.description ||
-      "Enter your current PIN, then choose a new 4–8 digit PIN.",
+      "",
     purpose: input?.purpose || "change_security_pin",
     confirmLabel: "Save new PIN",
   });

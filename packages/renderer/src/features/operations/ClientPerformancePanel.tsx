@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
-import { HealthStrip, TrendIndicator } from "../../components/ClusterVisualIntelligence";
+import { HealthStrip } from "../../components/ClusterVisualIntelligence";
+import { MetricComparisonBars } from "../../components/MetricComparisonBars";
 import type { VisualDatum } from "../../components/visual-intelligence";
 import {
   clearPerformanceMetrics,
@@ -59,9 +60,8 @@ export function ClientPerformancePanel({ compact = false }: { compact?: boolean 
       </header>
       <div className="operations-visual-intelligence-v504">
         <HealthStrip items={clientHealth} label="Client operational health" />
-        {summary.webVitals.inpMs != null && summary.webVitals.fcpMs != null ? <TrendIndicator label="Interaction versus first content" current={summary.webVitals.inpMs} previous={summary.webVitals.fcpMs} /> : null}
       </div>
-      <div className="client-performance-vitals-v304">
+      <details className="cluster-visual-advanced"><summary>Detailed client metrics</summary><div className="cluster-visual-advanced__body"><div className="client-performance-vitals-v304">
         <article><span>{summary.startup.classification} first frame</span><strong>{summary.startup.firstFrameMs == null ? "—" : `${summary.startup.firstFrameMs} ms`}</strong></article>
         <article><span>FCP / LCP</span><strong>{summary.webVitals.fcpMs == null ? "—" : `${summary.webVitals.fcpMs} ms`} / {summary.webVitals.lcpMs == null ? "—" : `${summary.webVitals.lcpMs} ms`}</strong></article>
         <article><span>INP / CLS</span><strong>{summary.webVitals.inpMs == null ? "—" : `${summary.webVitals.inpMs} ms`} / {summary.webVitals.cls}</strong></article>
@@ -70,24 +70,20 @@ export function ClientPerformancePanel({ compact = false }: { compact?: boolean 
         <article><span>Long tasks</span><strong>{summary.sessionAgeMs < 60_000 ? "Sampling…" : `${summary.health.longTasksPerMinute}/min`}</strong></article>
         <article><span>Heap</span><strong>{formatBytes(summary.memory.usedBytes)}</strong></article>
         <article><span>React commits</span><strong>{summary.renderHealth.commits}</strong><small>{summary.renderHealth.averageActualMs} ms avg · {summary.renderHealth.maximumActualMs} ms max</small></article>
-      </div>
+      </div></div></details>
       {!compact && (
         <>
-          <div className="client-performance-categories-v304">
-            {categories.map((category) => {
+          <MetricComparisonBars
+            label="Client latency by activity"
+            items={categories.map((category) => {
               const metric = summary.byCategory[category];
               const violation = summary.violations.find((item) => item.category === category);
-              return (
-                <article key={category} className={violation ? "warning" : ""}>
-                  <span>{category}</span>
-                  <strong>{metric ? `${metric.p95Ms} ms p95` : "No samples"}</strong>
-                  <small>{metric ? `${metric.count} samples · ${metric.maximumMs} ms max` : "Use the application to collect this profile."}</small>
-                  {violation && <em>Category budget {violation.p95Ms} ms · +{violation.overByMs} ms</em>}
-                </article>
-              );
+              return { key: category, label: category, value: metric?.p95Ms ?? null,
+                detail: metric ? `${metric.count} samples; maximum ${metric.maximumMs} ms` : "No samples",
+                warning: Boolean(violation) };
             })}
-          </div>
-          <div className="client-performance-health-v440" aria-label="Client release performance budgets">
+          />
+          <details className="cluster-visual-advanced"><summary>Performance budgets ({knownChecks.filter((check: ClientPerformanceHealthCheck) => check.status === "fail" || check.status === "warn").length} need attention)</summary><div className="cluster-visual-advanced__body"><div className="client-performance-health-v440" aria-label="Client release performance budgets">
             {knownChecks.map((check) => (
               <article key={check.key} data-status={check.status} title={check.detail}>
                 <span>{check.label}</span>
@@ -96,7 +92,7 @@ export function ClientPerformancePanel({ compact = false }: { compact?: boolean 
               </article>
             ))}
             {!knownChecks.length ? <small>Use Cluster for a few minutes to collect enough samples for release-budget posture.</small> : null}
-          </div>
+          </div></div></details>
         </>
       )}
     </section>

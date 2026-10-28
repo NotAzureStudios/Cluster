@@ -30,7 +30,7 @@ export async function flattenPacketSourcePdf(bytes: Buffer, watermarkLabel = "")
     const sharp = sharpModule.default;
     task = getDocument({ data: new Uint8Array(bytes), isEvalSupported: false, enableXfa: false,
       disableAutoFetch: true, disableStream: true, stopAtErrors: true, useSystemFonts: false,
-      maxImageSize: 4_000_000 });
+      maxImageSize: 4_000_000 } as Parameters<typeof getDocument>[0]);
     const src: any = await task.promise;
     const attachments = await src.getAttachments();
     const actions = await src.getJSActions();

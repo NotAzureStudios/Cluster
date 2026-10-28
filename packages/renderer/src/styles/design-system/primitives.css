@@ -575,3 +575,38 @@ details.cluster-field-v425[open] > summary > .cluster-disclosure-chevron-v546 { 
 @media (prefers-reduced-motion: reduce) {
   details.cluster-field-v425 > summary > .cluster-disclosure-chevron-v546 { transition: none; }
 }
+
+/* RC16: application-wide three-pack optical alignment. No vendor-specific offsets. */
+svg.cluster-icon--unified {
+  display: inline-block !important;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  inline-size: 1em;
+  block-size: 1em;
+  align-self: center;
+  justify-self: center;
+  vertical-align: -0.125em;
+  margin: 0;
+  padding: 0;
+  /* Glyph geometry is no longer shifted globally. Interactive icons must be
+     allowed to rotate for disclosure, menu, sidebar, and select states. */
+  color: currentColor;
+  overflow: visible;
+}
+:where(.cluster-button-v425, .cluster-icon-button-v425, .cluster-taskbar-action, .cluster-sidebar-nav-item) > svg.cluster-icon--unified {
+  flex-shrink: 0;
+  align-self: center;
+  justify-self: center;
+}
+.cluster-icon--missing { display:inline-block; inline-size:1em; block-size:1em; border:1px dashed currentColor; border-radius:50%; opacity:.8; }
+@media (prefers-reduced-motion: reduce) { .cluster-icon--unified { transition: none !important; } }
+
+/* RC46: provider identity and domain progressive disclosure. */
+.integration-provider-identity-rc46{display:inline-flex;align-items:center;gap:8px;min-width:0}
+.integration-provider-identity-rc46>.resource-identity-mark{width:26px;height:26px;flex:0 0 26px}
+.integration-provider-identity-rc46>span{display:grid;min-width:0;gap:2px}
+.cluster-domains-rc46>header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.cluster-domains-rc46>header>p{margin:0;color:var(--muted);font-size:.75rem}
+.cluster-domain-help-rc46{padding:7px 0;color:var(--muted);font-size:.76rem}
+.cluster-domain-help-rc46 summary{color:var(--text);cursor:pointer}
+.cluster-domain-help-rc46 p{line-height:1.45;margin:8px 0 0}

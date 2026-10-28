@@ -47,11 +47,12 @@ import "./styles/resource-window.css";
 import "./styles/mobile-runtime-v495.css";
 import "../shell/sidebar.css";
 import "../shell/shell-v2.css";
+import "../shell/shell-spatial-rc27.css";
 import "../../styles/visual-system.css";
 import { useRoutePerformance, useRouteScrollRestoration, useShellKeyboardShortcuts, useUserHeartbeat } from "../shell/runtime-hooks";
 import { importantBuildEntries, projectCompleteness, projectHealth, projectStatusLabel } from "../projects/projects-utils";
 import { displayUserName } from "../people/people-utils";
-import { LoadingState, WorkspaceLoadingState } from "../../components/LoadingState";
+import { LoadingState, ScreenLoadingState, BoardLoadingState, WorkspaceLoadingState } from "../../components/LoadingState";
 import { RequestErrorState } from "../../components/RequestState";
 import { SECURITY_PIN_CONFIGURED_EVENT } from "../../core/security-pin";
 import { PublicClusterCover } from "../auth/PublicClusterCover";
@@ -145,7 +146,9 @@ export default function App() {
     if (next !== "settings" && next !== "serverConfig") setRouteSection(options.section || null);
     setRouteSubsection(options.subsection || null);
     setScreenState((current) => {
-      if (current !== next && !historyRestoreRef.current) {
+      // Admin deep links may change sections without changing the parent route.
+      // Keep URL/history in sync with the section picker rather than leaving stale hashes.
+      if (!historyRestoreRef.current && (current !== next || (next === "studioSettings" && (routeSection !== (options.section || null) || routeSubsection !== (options.subsection || null))))) {
         const nextNavigation = createNavigationState(next, {
           projectId: next === "project" || next === "board" || next === "whiteboard" ? projectId : null,
           boardId: next === "board" ? boardId : null,
@@ -171,6 +174,17 @@ export default function App() {
   const [projectId, setProjectId] = useState<string | null>(initialNavigation.state.context.projectId);
   const [openProjectTabIds, setOpenProjectTabIds] = useServerState<string[]>("user", "projects.open-tabs", [], { enabled: Boolean(user?.id), merge: (value) => Array.isArray(value) ? value.map(String).slice(-MAX_PROJECT_TABS) : [] });
   const [pinnedProjectTabIds, setPinnedProjectTabIds] = useServerState<string[]>("user", "projects.pinned-tabs", [], { enabled: Boolean(user?.id), merge: (value) => Array.isArray(value) ? value.map(String).slice(0, MAX_PROJECT_TABS) : [] });
+  // The board workspace must return to its actual entry point (Projects browser,
+  // My Work, or a Project), not blindly jump to its owning Project.
+  const lastVisitedScreenRef = useRef<AppScreen>(initialNavigation.state.route);
+  const boardReturnOriginRef = useRef<{ screen: AppScreen; projectId: string | null } | null>(null);
+  useEffect(() => {
+    const previous = lastVisitedScreenRef.current;
+    if (screen === "board" && previous !== "board") {
+      boardReturnOriginRef.current = { screen: previous === "whiteboard" ? "projects" : previous, projectId };
+    }
+    lastVisitedScreenRef.current = screen;
+  }, [screen, projectId]);
   const [boardId, setBoardId] = useState<string | null>(initialNavigation.state.context.boardId);
   const [board, setBoard] = useState<Board | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
@@ -518,21 +532,27 @@ export default function App() {
     const result = await api<{ user: User | null }>("/api/me");
     setUser(result.user);
   }
-  async function loadProjects() {
+  async function loadProjects(force = false) {
     const result = await queryApi<Project[]>("/api/projects", {
-      staleMs: 10_000,
+      force,
+      staleMs: 60_000,
+      maxAgeMs: 5 * 60_000,
+      tags: ["projects"],
     });
     setProjects(result);
     setProjectsLoaded(true);
   }
-  async function loadWhiteboards() {
+  async function loadWhiteboards(force = false) {
     const result = await queryApi<WhiteboardSummary[]>("/api/whiteboards", {
-      staleMs: 10_000,
+      force,
+      staleMs: 60_000,
+      maxAgeMs: 5 * 60_000,
+      tags: ["whiteboards"],
     });
     setWhiteboards(result);
     setWhiteboardsLoaded(true);
   }
-  async function loadBoard(id = boardId) {
+  async function loadBoard(id = boardId, force = false) {
     if (!id) {
       setBoard(null);
       setBoardLoadError(null);
@@ -542,7 +562,7 @@ export default function App() {
     setBoardLoading(true);
     setBoardLoadError(null);
     try {
-      const result = await queryApi<Board>(`/api/boards/${id}`, { staleMs: 10_000 });
+      const result = await queryApi<Board>(`/api/boards/${id}`, { force, staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["boards", `board:${id}`] });
       setBoard(result);
     } catch (error) {
       setBoard(null);
@@ -560,10 +580,10 @@ export default function App() {
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => {
         const entityTypes = new Set(changes.map((change) => change.entityType));
-        if (["project", "board", "list", "card"].some((type) => entityTypes.has(type))) void loadProjects().catch(() => undefined);
-        if (entityTypes.has("whiteboard") && (whiteboardsLoaded || screenNeedsWhiteboards(screen))) void loadWhiteboards().catch(() => undefined);
-        if (screen === "board" && boardId && changes.some((change) => change.entityId === boardId || change.boardId === boardId)) void loadBoard(boardId).catch(() => undefined);
-      }, 120);
+        if (entityTypes.has("project") || (["projects", "project"].includes(screen) && ["board", "list", "card"].some((type) => entityTypes.has(type)))) void loadProjects(true).catch(() => undefined);
+        if (entityTypes.has("whiteboard") && (whiteboardsLoaded || screenNeedsWhiteboards(screen))) void loadWhiteboards(true).catch(() => undefined);
+        if (screen === "board" && boardId && changes.some((change) => change.entityId === boardId || change.boardId === boardId)) void loadBoard(boardId, true).catch(() => undefined);
+      }, 500);
     };
     window.addEventListener("cluster-delta-applied", refreshFromDelta);
     return () => {
@@ -626,9 +646,9 @@ export default function App() {
     if (!user?.id || !offlineConnectivity.serverReachable || wasReachable) return;
     const route = serializeNavigationRoute(lastNavigationRef.current);
     void Promise.allSettled([
-      loadProjects(),
-      (whiteboardsLoaded || screenNeedsWhiteboards(screen)) ? loadWhiteboards() : Promise.resolve(),
-      screen === "board" && boardId ? loadBoard(boardId) : Promise.resolve(),
+      loadProjects(true),
+      (whiteboardsLoaded || screenNeedsWhiteboards(screen)) ? loadWhiteboards(true) : Promise.resolve(),
+      screen === "board" && boardId ? loadBoard(boardId, true) : Promise.resolve(),
     ]).then(() => {
       setNavigationNotice({
         title: "Connection restored",
@@ -640,7 +660,7 @@ export default function App() {
   useUserHeartbeat(signedOutKiosk ? undefined : user?.id);
   useWindowEvent("cluster-access-rules-changed", () => {
     setAccessRulesVersion((value) => value + 1);
-    void loadProjects().catch(() => undefined);
+    void loadProjects(true).catch(() => undefined);
   }, Boolean(user?.id));
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("cluster:identity-changed", { detail: { userId: user?.id || null } }));
@@ -706,7 +726,8 @@ export default function App() {
       return;
     }
     if (screen === "board") {
-      const target = boardId ? boardOptions(visibleProjects).find((item) => item.id === boardId) : null;
+      if (!boardId) return; // Board library is a valid top-level destination.
+      const target = boardOptions(visibleProjects).find((item) => item.id === boardId);
       if (!target) {
         replaceWith("projects", {
           title: "Board unavailable",
@@ -722,8 +743,8 @@ export default function App() {
   }, [projectsLoaded, visibleProjects, projectId, boardId, screen]);
 
   useEffect(() => {
-    if (screen !== "whiteboard" || !whiteboardsLoaded) return;
-    const target = whiteboardId ? whiteboards.find((item) => item.id === whiteboardId) : null;
+    if (screen !== "whiteboard" || !whiteboardsLoaded || !whiteboardId) return;
+    const target = whiteboards.find((item) => item.id === whiteboardId);
     if (!target) {
       const navigation = createNavigationState("projects");
       historyRestoreRef.current = true;
@@ -790,7 +811,7 @@ export default function App() {
     let navigationSequence = 0;
     const applyLinkedWork = (target: ClusterWorkNavigationTarget) => {
       if (!target?.screen || !activeUser || !isAppScreen(target.screen)) return;
-      const delegatedForms = delegatedFormDestination({ screen: target.screen, scope: target.inspectScope, id: target.inspectId, isAdmin: activeUser.isAdmin });
+      const delegatedForms = delegatedFormDestination({ screen: target.screen, scope: target.inspectScope, id: target.inspectId, isAdmin: Boolean(activeUser.isAdmin) });
       if (!delegatedForms && !canOpenScreen(activeUser, target.screen)) return;
       // A generic Studio Settings route is not enough: announcement editor
       // links are administrative, and must not leave an inspector token in a
@@ -880,7 +901,7 @@ export default function App() {
       // Permission failure must be a visible, non-revealing recovery state,
       // not a silent no-op that makes Search or Inbox appear broken. Delegated
       // Form reviewers still use their narrow My Forms authorization boundary.
-      const delegatedForms = delegatedFormDestination({ screen: incoming.screen, scope: incoming.inspectScope, id: incoming.inspectId, isAdmin: activeUser.isAdmin });
+      const delegatedForms = delegatedFormDestination({ screen: incoming.screen, scope: incoming.inspectScope, id: incoming.inspectId, isAdmin: Boolean(activeUser.isAdmin) });
       if (!canOpenScreen(activeUser, incoming.screen) && !delegatedForms) {
         clearPendingDesktopWorkNavigation(incoming);
         reportClusterWorkNavigationRecovery({
@@ -1265,7 +1286,7 @@ export default function App() {
             if (!await copyClusterText(window.location.href)) throw new Error("Clipboard access was denied.");
           }} workingLabel="Copying…" successLabel="Copied" errorLabel="Copy failed">Copy link</ClusterActionButton>
         </nav>}
-        {!resourceWindow && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
+        {!resourceWindow && screen !== "project" && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
           <ClusterButton type="button" className="" onClick={openContextualParent} variant="quiet" size="compact">
             <ClusterIcon name="chevron-left" />
             <span>{contextualParentLabel}</span>
@@ -1293,7 +1314,7 @@ export default function App() {
             </ClusterButton>
           </div>
         )}
-        <Suspense fallback={<LoadingState label="Loading workspace" rows={6} className="route-lazy-loading-v518" />}>
+        <Suspense fallback={<ScreenLoadingState screen={screen} />}>
         {screen === "people" && <LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "admin" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "admin" && activeUser.isAdmin} /></section></LazyFeatureBoundary>}
         {screen === "dashboard" && (
           <LazyDashboard
@@ -1406,7 +1427,7 @@ export default function App() {
           /></LazyFeatureBoundary>
         )}
         {screen === "board" && (boardLoading && boardId ? (
-          <LoadingState label="Loading board" rows={6} className="board-loading-state-v489" />
+          <BoardLoadingState label="Loading board" columns={4} />
         ) : boardLoadError && boardId ? (
           <RequestErrorState error={boardLoadError} title="Board could not be loaded" onRetry={() => void loadBoard(boardId)} reloadLabel="Reload projects" onReload={() => void loadProjects()} />
         ) : (
@@ -1431,10 +1452,17 @@ export default function App() {
             onOpenTimeline={(id) => openClusterWorkNavigation({ screen: "timeline", projectId: id })}
             onOpenTime={(id) => openClusterWorkNavigation({ screen: "scheduler", projectId: id })}
             onCloseBoard={() => {
-              const parentProjectId = projectId || board?.project?.id || null;
+              const origin = boardReturnOriginRef.current;
+              boardReturnOriginRef.current = null;
               setBoard(null);
-              if (parentProjectId) openProject(parentProjectId);
-              else void setScreen("projects");
+              setBoardId(null);
+              // The Project workspace is the only case where going to the owning
+              // Project is appropriate. All other entry points restore their page.
+              if (origin?.screen === "project" && origin.projectId) openProject(origin.projectId);
+              else {
+                setProjectId(origin?.projectId || null);
+                void setScreen(origin?.screen && origin.screen !== "board" ? origin.screen : "projects");
+              }
             }}
           />
         ))}
@@ -1542,6 +1570,15 @@ export default function App() {
           <LazyStudioSettingsPage
             currentUser={user}
             initialSection={routeSection}
+            initialSubsection={routeSubsection}
+            onSubsectionChange={(nextTab) => {
+              if (routeSubsection === nextTab) return;
+              setRouteSubsection(nextTab);
+              if (!historyRestoreRef.current) {
+                const navigation = createNavigationState("studioSettings", { section: routeSection, subsection: nextTab });
+                window.history.pushState(navigation, "", `${window.location.pathname}${window.location.search}${navigationHash(navigation)}`);
+              }
+            }}
             onSectionChange={(nextSection) => {
               if (nextSection === routeSection) return;
               setRouteSection(nextSection);

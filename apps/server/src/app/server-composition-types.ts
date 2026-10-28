@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { PacketsSettingsPayload } from "../core/packets-settings.js";
 
-export type SettingPayload = PacketsSettingsPayload & {
+export type SettingPayload = Record<string, unknown> & PacketsSettingsPayload & {
   setupComplete?: boolean;
   setupCompletedAt?: string;
   setupCompletedBy?: string;

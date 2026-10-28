@@ -1,5 +1,5 @@
 :root {
-  --cluster-sidebar-current-width: 264px;
+  --cluster-sidebar-current-width: 232px;
   --cluster-sidebar-collapsed: 72px;
   --cluster-taskbar-height: 56px;
   --cluster-taskbar-content-gap: clamp(12px, 1.4vw, 22px);
@@ -35,7 +35,7 @@
   --cluster-content-radius-button: 9px;
   --cluster-workspace-shadow: 0 18px 50px color-mix(in srgb, var(--cluster-black) 28%, transparent);
   --cluster-workspace-shadow-soft: 0 10px 30px color-mix(in srgb, var(--cluster-black) 18%, transparent);
-  --cluster-workspace-page-pad: clamp(18px, 2vw, 32px);
+  --cluster-workspace-page-pad: clamp(6px, .65vw, 12px);
   --cluster-workspace-stack-gap: clamp(10px, 1vw, 16px);
 
   

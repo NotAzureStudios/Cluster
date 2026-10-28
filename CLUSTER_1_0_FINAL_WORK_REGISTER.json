@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "roadmap": "CLUSTER_1_0_FINAL_MASTER_ROADMAP.md",
-  "baseline": "Cluster v0.546.0 F4 P15",
+  "baseline": "Cluster v0.546.0 / 1.0.0-rc.1 installer candidate",
   "as_of": "2026-10-26",
   "interpretation": "Document-evidence based planning baseline, not executable/full source audit or runtime certification",
   "tracking_fields": [
@@ -33,7 +33,8 @@
       "release_decision": "open",
       "evidence": [
         "BATCH_A_DELIVERY_AUTHORITY_AND_GPU_IDENTITY.md; updated canonical register and source test/packaging evidence; full reconciliation still open",
-        "BATCH_D_MEDIA_BACKUP_LIBRARY_CUSTODY_CLOSEOUT.md: corrected media/Library/backup process close fences and descriptor-bounded model/PDF inputs with source-level executable regression evidence. Windows/PostgreSQL/provider generation/live user certification not attempted; parent item remains open."
+        "BATCH_D_MEDIA_BACKUP_LIBRARY_CUSTODY_CLOSEOUT.md: corrected media/Library/backup process close fences and descriptor-bounded model/PDF inputs with source-level executable regression evidence. Windows/PostgreSQL/provider generation/live user certification not attempted; parent item remains open.",
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
       ]
     },
     {
@@ -1249,7 +1250,8 @@
       "release_decision": "open",
       "evidence": [
         "Batch E: Windows one-click TEST source revision manager added with independent staged compilation and application-file rollback snapshots. 18 static workflow contract checks only; Windows execution and certification remain OPEN.",
-        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer."
+        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer.",
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
       ]
     },
     {
@@ -1267,7 +1269,8 @@
       "user_accepted": null,
       "release_decision": "open",
       "evidence": [
-        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer."
+        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer.",
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
       ]
     },
     {
@@ -1831,7 +1834,9 @@
       "live_runtime": null,
       "user_accepted": null,
       "release_decision": "open",
-      "evidence": []
+      "evidence": [
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
+      ]
     },
     {
       "id": "CERT-01",
@@ -1843,13 +1848,14 @@
       "backend_authorized": null,
       "ui_integrated": null,
       "focused_tests": null,
-      "dependency_build": null,
+      "dependency_build": false,
       "live_runtime": null,
       "user_accepted": null,
       "release_decision": "open",
       "evidence": [
         "Batch E: Windows one-click TEST source revision manager added with independent staged compilation and application-file rollback snapshots. 18 static workflow contract checks only; Windows execution and certification remain OPEN.",
-        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer."
+        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer.",
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
       ]
     },
     {
@@ -2035,7 +2041,8 @@
       "release_decision": "open",
       "evidence": [
         "Batch E: Windows one-click TEST source revision manager added with independent staged compilation and application-file rollback snapshots. 18 static workflow contract checks only; Windows execution and certification remain OPEN.",
-        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer."
+        "BATCH_F_ONECLICK_PORTABLE_BOOTSTRAP.md: unsigned single-icon development launcher cross-built for Windows x64, bundles full source and automates private SHA256-pinned Node 24.20 / Go 1.27, build, existing native manager autostart; Windows elevation/OOBE, dependency-backed build, PostgreSQL and certification remain unverified. Not an accepted/signed production installer.",
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
       ]
     },
     {
@@ -2148,7 +2155,9 @@
       "live_runtime": null,
       "user_accepted": null,
       "release_decision": "open",
-      "evidence": []
+      "evidence": [
+        "RC1 (2026-10-26): independent embedded source, sequence-gated upgrade, bounded manifest allowlist, private portable Node/Go, compiled output gate, runtime pruning, install logs; executable installer tests passed. No full Node 24/Windows/PostgreSQL certification; keep open."
+      ]
     }
   ],
   "current_source_checkpoint": "v0.546.0 Batch F portable single-icon Windows test bootstrap (source-level; Windows execution pending)"

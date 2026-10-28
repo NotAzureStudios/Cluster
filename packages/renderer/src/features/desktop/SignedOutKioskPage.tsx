@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../../core/api";
 import { setNativeKioskMode } from "../../core/desktop";
 import { ClusterIcon } from "../../components/ClusterIcon";
@@ -7,6 +7,7 @@ import { ClusterModal } from "../../components/ClusterModal";
 import { CLUSTER_KIOSK_ADMIN_EXIT_REQUEST_EVENT } from "./use-native-kiosk-session";
 import "./signed-out-kiosk.css";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
+import { ClusterPinEntry } from "../../components/ClusterPinEntry";
 
 type PublicHealth = {
   ok?: boolean;
@@ -60,8 +61,13 @@ export function SignedOutKioskPage({ exitShortcut = "Ctrl+Shift+F10" }: { exitSh
   const [identifier, setIdentifier] = useState("");
   const [credentialType, setCredentialType] = useState<"password" | "pin">("password");
   const [credential, setCredential] = useState("");
+  const pinInputRef = useRef<HTMLInputElement>(null);
   const [exitError, setExitError] = useState("");
   const [exitBusy, setExitBusy] = useState(false);
+
+  useEffect(() => {
+    if (adminExitOpen && credentialType === "pin") pinInputRef.current?.focus();
+  }, [adminExitOpen, credentialType]);
 
   const applyOfflineFallback = useCallback(() => {
     const cached = content || readCachedProfile(requestedProfile);
@@ -188,15 +194,15 @@ export function SignedOutKioskPage({ exitShortcut = "Ctrl+Shift+F10" }: { exitSh
       </section>
       <ClusterModal open={adminExitOpen} onClose={() => setAdminExitOpen(false)} busy={exitBusy} backdropClassName="signed-out-kiosk-exit-backdrop-v495" className="" ariaLabel="Exit signed-out kiosk">
           <form className="signed-out-kiosk-exit-dialog-v495" onSubmit={submitAdminExit}>
-            <div><p className="eyebrow">Administrator verification</p><h2>Exit kiosk mode</h2><p>Use an administrator password or security PIN. This verifies the exit without signing an account into the public display.</p></div>
+            <div><h2>Exit kiosk</h2></div>
             <label>Username or email<ClusterTextInput autoFocus autoComplete="username" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
             <div className="signed-out-kiosk-credential-toggle-v495" role="group" aria-label="Credential type">
               <ClusterButton unstyled type="button" aria-pressed={credentialType === "password"} onClick={() => { setCredentialType("password"); setCredential(""); }}>Password</ClusterButton>
               <ClusterButton unstyled type="button" aria-pressed={credentialType === "pin"} onClick={() => { setCredentialType("pin"); setCredential(""); }}>Security PIN</ClusterButton>
             </div>
-            <label>{credentialType === "pin" ? "Security PIN" : "Password"}<ClusterTextInput type="password" inputMode={credentialType === "pin" ? "numeric" : undefined} autoComplete="current-password" value={credential} onChange={(event) => setCredential(event.target.value)} /></label>
+            {credentialType === "pin" ? <ClusterPinEntry value={credential} onChange={setCredential} disabled={exitBusy} label="Administrator PIN" inputRef={pinInputRef} /> : <label>Password<ClusterTextInput type="password" autoComplete="current-password" value={credential} onChange={(event) => setCredential(event.target.value)} /></label>}
             {exitError && <p className="signed-out-kiosk-exit-error-v495" role="alert">{exitError}</p>}
-            <div className="signed-out-kiosk-exit-actions-v495"><ClusterButton type="button" variant="secondary" onClick={() => setAdminExitOpen(false)} disabled={exitBusy}>Cancel</ClusterButton><ClusterButton type="submit" disabled={exitBusy || !identifier.trim() || !credential}>{exitBusy ? "Verifying…" : "Exit kiosk"}</ClusterButton></div>
+            <div className="signed-out-kiosk-exit-actions-v495"><ClusterButton type="button" variant="secondary" onClick={() => setAdminExitOpen(false)} disabled={exitBusy}>Cancel</ClusterButton><ClusterButton type="submit" disabled={exitBusy || !identifier.trim() || (credentialType === "pin" ? !/^\d{4,8}$/.test(credential) : !credential)}>{exitBusy ? "Verifying…" : "Exit kiosk"}</ClusterButton></div>
           </form>
       </ClusterModal>
     </main>

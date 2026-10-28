@@ -1,3 +1,4 @@
+import { ClusterVisualComposition, ClusterVisualMeter, ClusterVisualRankedBars } from "../../components/ClusterVisualMetrics";
 import { ClusterNativeSelect, ClusterInput } from "../../components/ClusterNativeControls";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import "./people.css";
@@ -134,6 +135,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [profileView, setProfileView] = useState<"overview" | "work" | "calendar" | "activity" | "records" | "access" | "full">("overview");
+  const [profileExpanded, setProfileExpanded] = useState(false);
   const [profileCalendar, setProfileCalendar] = useState<ProfileCalendarEvent[]>([]);
   const [profileCalendarLoading, setProfileCalendarLoading] = useState(false);
   const [directoryMode, setDirectoryMode] = useState<"list" | "table">("list");
@@ -279,6 +281,20 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
   async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false) {
     const sequence = ++peopleLoadSequenceRef.current;
+    if (activateTarget) {
+      const nextId = targetUserId || currentUser.id;
+      activeProfileIdRef.current = nextId;
+      ++calendarRequestSequenceRef.current;
+      setProfileCalendar([]);
+      setSelectedUserId(nextId);
+      setProfile(null);
+      // Load the authorized profile immediately; a slow 1000-person context must
+      // never gate the person header or a deep link into their full profile.
+      await loadProfile(nextId, force).catch((error) => {
+        if (activeProfileIdRef.current === nextId) setLoadStatus(error instanceof Error ? error.message : "Profile load failed");
+      });
+      if (sequence !== peopleLoadSequenceRef.current) return;
+    }
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -288,17 +304,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setAssignments(assignmentResult);
     setPeopleContext(contextResult);
     setWorkforceContext(workforceResult);
-    // A background person/team event is a data refresh, NOT a navigation request.
-    // Only initial deep-link selection and explicit Create & Open may select a person.
-    if (activateTarget) {
-      const nextId = targetUserId || currentUser.id;
-      activeProfileIdRef.current = nextId;
-      ++calendarRequestSequenceRef.current;
-      setProfileCalendar([]);
-      setSelectedUserId(nextId);
-      setProfile(null);
-      await loadProfile(nextId, force);
-    } else if (activeProfileIdRef.current === targetUserId && targetUserId) {
+    if (!activateTarget && activeProfileIdRef.current === targetUserId && targetUserId) {
       await loadProfile(targetUserId, force);
     }
   }
@@ -438,14 +444,17 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setProfileView("overview");
     setLoadStatus("Loading profile...");
     try {
-      const [profileResult, contextResult] = await Promise.all([
-        api<PeopleProfilePayload>(`/api/users/${encodeURIComponent(userId)}/profile`),
-        api<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`),
-      ]);
+      // Render the profile as soon as its authorized payload arrives. The legacy
+      // 1000-person context query should never block opening a single person.
+      const profileResult = await api<PeopleProfilePayload>(`/api/users/${encodeURIComponent(userId)}/profile`);
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(profileResult);
-      setPeopleContext(contextResult);
       setLoadStatus("Profile loaded.");
+      void queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`, {
+        staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["people", "teams", "profiles"],
+      }).then((contextResult) => {
+        if (sequence === profileRequestSequenceRef.current && activeProfileIdRef.current === userId) setPeopleContext(contextResult);
+      }).catch(() => { /* Profile remains usable when optional context is unavailable. */ });
     } catch (err) {
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(null);
@@ -454,9 +463,13 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }
   const restorePersonDetail = useCallback((id: string | null) => {
     if (id) void selectProfile(id);
-    else { ++profileRequestSequenceRef.current; ++peopleLoadSequenceRef.current; ++calendarRequestSequenceRef.current; activeProfileIdRef.current = ""; setSelectedUserId(""); setProfile(null); setProfileCalendar([]); setProfileCalendarLoading(false); }
+    else { ++profileRequestSequenceRef.current; ++peopleLoadSequenceRef.current; ++calendarRequestSequenceRef.current; activeProfileIdRef.current = ""; setSelectedUserId(""); setProfile(null); setProfileCalendar([]); setProfileCalendarLoading(false); setProfileExpanded(false); }
   }, []);
   const personDetailHistory = useClusterDetailHistory("person", selectedUserId || null, restorePersonDetail);
+  const openFullProfile = (userId: string) => {
+    setProfileExpanded(true);
+    personDetailHistory.openDetail(userId);
+  };
   const departments = Array.from(new Set(users.map((person) => person.department).filter((value): value is string => Boolean(value)))).sort();
   const filteredUsers = users.filter((person) => {
     if (departmentFilter !== "all" && person.department !== departmentFilter) return false;
@@ -528,7 +541,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const peopleTableColumns = useMemo<ClusterDataTableColumn<UserActivitySummary>[]>(() => {
     const valueMap = (person: UserActivitySummary) => ({ id: person.id, displayName: displayUserName(person), username: person.username || "", title: person.title || "", department: person.department || "", teamName: person.teamName || "", status: person.status || "offline", capacityHours: person.capacityHours ?? null, minimumHours: person.minimumHours ?? null, updatedAt: person.updatedAt || null });
     const base: ClusterDataTableColumn<UserActivitySummary>[] = [
-      { id: "person", header: "Person", hideable: false, pinnable: true, defaultWidth: 260, sortValue: (person) => displayUserName(person), cell: (person) => <ClusterButton unstyled type="button" onClick={() => personDetailHistory.openDetail(person.id)}><PersonSummary person={person} compact profileAction={false} avatarProfilePeek={false} /></ClusterButton> },
+      { id: "person", header: "Person", hideable: false, pinnable: true, defaultWidth: 260, sortValue: (person) => displayUserName(person), cell: (person) => <ClusterButton unstyled type="button" onClick={() => openFullProfile(person.id)}><PersonSummary person={person} compact profileAction={false} avatarProfilePeek={false} /></ClusterButton> },
       { id: "role", header: "Role", defaultWidth: 190, sortValue: (person) => person.title || "", groupValue: (person) => person.title || "Member", cell: (person) => person.title || "Member" },
       { id: "department", header: "Department", defaultWidth: 160, sortValue: (person) => person.department || "", groupValue: (person) => person.department || person.teamName || "Unassigned", cell: (person) => person.department || person.teamName || "Unassigned" },
       { id: "presence", header: "Presence", defaultWidth: 130, sortValue: (person) => presenceState(person), groupValue: (person) => presenceState(person), cell: (person) => presenceLabel(person) },
@@ -711,14 +724,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const canSeeSensitiveProfile = Boolean(profile && canViewSensitiveProfile(currentUser, profile));
   const sensitiveProfileMessage = profile?.id === currentUser.id ? "Your private contact record." : "Private contact data is limited to administrators.";
   return (
-    <section className="page cluster-page-shell people-page-v244">
+    <section className={`page cluster-page-shell people-page-v244${profileExpanded && profile ? " people-profile-expanded-rc46" : ""}`}>
       <ToolPageHeader
         className="cluster-page-header"
         title="People"
         actions={<>
           <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => loadProfiles() }]} />
           {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => setCreateAccountOpen((open) => !open)}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
-          <ClusterButton variant="primary" onClick={() => personDetailHistory.openDetail(currentUser.id)}>My profile</ClusterButton>
+          <ClusterButton variant="primary" onClick={() => { openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
 
@@ -752,7 +765,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
             <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
-<CompanyGraphPanel departments={workforceContext.departments} teams={workforceContext.teams} people={workforceContext.people} workspaceId={workforceContext.workspaceId || ""} canEdit={Boolean(currentUser.isAdmin || ["edit", "manage"].includes(getToolLevel(currentUser, "people")))} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} onOpenPerson={(id) => personDetailHistory.openDetail(id)} />
+<CompanyGraphPanel departments={workforceContext.departments} teams={workforceContext.teams} people={workforceContext.people} workspaceId={workforceContext.workspaceId || ""} canEdit={Boolean(currentUser.isAdmin || ["edit", "manage"].includes(getToolLevel(currentUser, "people")))} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} onOpenPerson={openFullProfile} />
           </>}
           {workforceMode === "teams" && <>
             <header><div><h2>Teams</h2></div><strong>{workforceContext.teams.length} teams</strong></header>
@@ -760,17 +773,23 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           </>}
           {workforceMode === "capacity" && <>
             <header><div><h2>Capacity</h2></div><strong>{Math.round(workforceAllocatedHours * 10) / 10}h allocated</strong></header>
-            <ClusterMetricStrip label="Workforce capacity summary" items={[
-              { label: "Configured", value: workforceContext.capacity.configuredPeople, detail: "people" },
-              { label: "Capacity", value: `${workforceContext.capacity.totalHours}h`, detail: "per week" },
-              { label: "Allocated", value: `${Math.round(workforceAllocatedHours * 10) / 10}h`, detail: "project membership" },
-              { label: "Overallocated", value: workforceOverallocated, detail: "people", tone: workforceOverallocated ? "warning" : "neutral" },
-            ]} />
-            <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const capacity = Number(person.employment?.capacityHours ?? 0); const allocation = (person.projectMemberships || []).reduce((sum, membership) => sum + Number(membership.allocationPercent || 0), 0); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.employment?.jobRole?.name || "No role"} · {person.employment?.department?.name || "No department"}</span></div><span>{capacity ? `${capacity}h capacity` : "Capacity unset"}</span><strong className={allocation > 100 ? "warning" : ""}>{allocation}% allocated</strong></article>; })}</div>
+            <div className="people-capacity-visuals-v34" aria-label="Workforce capacity overview">
+              <ClusterVisualComposition label="Capacity configured" total={workforceContext.people.length} parts={[
+                { label: "Configured", value: Math.min(workforceContext.people.length, workforceContext.capacity.configuredPeople), tone: "good" },
+                { label: "Not configured", value: Math.max(0, workforceContext.people.length - workforceContext.capacity.configuredPeople), tone: "neutral" },
+              ]} />
+              <ClusterVisualMeter label="Hours allocated" value={workforceAllocatedHours} total={workforceContext.capacity.totalHours} tone={workforceAllocatedHours > workforceContext.capacity.totalHours ? "warning" : "accent"} />
+              <span className={workforceOverallocated ? "warning" : "muted"}>{workforceOverallocated} overallocated</span>
+            </div>
+            <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const capacity = Number(person.employment?.capacityHours ?? 0); const allocation = (person.projectMemberships || []).reduce((sum, membership) => sum + Number(membership.allocationPercent || 0), 0); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.employment?.jobRole?.name || "No role"} · {person.employment?.department?.name || "No department"}</span></div><span>{capacity ? `${capacity}h capacity` : "Capacity unset"}</span><div className="people-capacity-person-v34"><ClusterVisualMeter label="Allocated" value={allocation} total={100} tone={allocation > 100 ? "danger" : "accent"} compact /></div></article>; })}</div>
           </>}
           {workforceMode === "availability" && <>
             <header><div><h2>Availability</h2></div><strong>{workforceContext.capacity.available} available · {workforceContext.capacity.clockedIn} clocked in</strong></header>
             {myWorkforce && <div className="people-my-availability-v504"><div><strong>My availability</strong><span>Set availability and visibility without changing time records.</span></div><ClusterSegmentedControl className="people-availability-segmented-v528" value={String(myWorkforce.availability || "available")} onChange={(value) => void updateMyAvailability({ availability: value })} label="My availability" options={[{ value: "available", label: "Available" }, { value: "busy", label: "Busy" }, { value: "focus", label: "Focus" }, { value: "do_not_disturb", label: "Do Not Disturb" }, { value: "away", label: "Away" }]} /><div className="project-form-grid-v312"><label><span>Custom status</span><ClusterTextInput key={`declared-${myWorkforce.declaredStatus || ""}`} defaultValue={myWorkforce.declaredStatus || ""} maxLength={120} placeholder="Optional status" onBlur={(event) => void updateMyAvailability({ declaredStatus: event.target.value.trim() || null })} disabled={availabilityBusy} /></label><label><span>Status message</span><ClusterTextInput key={`message-${myWorkforce.availabilityMessage || ""}`} defaultValue={myWorkforce.availabilityMessage || ""} maxLength={160} placeholder="What teammates should know" onBlur={(event) => void updateMyAvailability({ message: event.target.value.trim() || null })} disabled={availabilityBusy} /></label><label><span>Presence detail</span><ClusterNativeSelect value={String(myWorkforce.presenceDisclosure || "work_state")} onChange={(event) => void updateMyAvailability({ presenceDisclosure: event.target.value as "connection" | "work_state" | "application" | "project" | "detailed" })} disabled={availabilityBusy}><option value="connection">Connection only</option><option value="work_state">Work state</option><option value="application">Application</option><option value="project">Project</option><option value="detailed">Detailed work context</option></ClusterNativeSelect></label></div><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={availabilityBusy} onClick={() => void updateMyAvailability({ connectionVisibility: myWorkforce.connectionVisibility === "invisible" ? "visible" : "invisible" })}>{myWorkforce.connectionVisibility === "invisible" ? "Become visible" : "Go invisible"}</ClusterButton><span className="muted">{myWorkforce.connectionVisibility === "invisible" ? "Invisible hides presence from ordinary viewers; time records stay unchanged." : "Availability does not change time records."}</span></div></div>}
+            <div className="people-capacity-visuals-v34"><ClusterVisualComposition label="Availability" total={workforceContext.people.length} parts={[
+              { label: "Available", value: Math.min(workforceContext.people.length, workforceContext.capacity.available), tone: "good" },
+              { label: "Other / unknown", value: Math.max(0, workforceContext.people.length - workforceContext.capacity.available), tone: "neutral" },
+            ]} /></div>
             <WorkforceAvailabilityExceptions currentUser={currentUser} people={workforceContext.people} canManageAll={Boolean(currentUser.isAdmin || ["edit", "manage"].includes(getToolLevel(currentUser, "people")))} onStatus={setLoadStatus} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} />
             <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const windows = (person.availabilityExceptions || []).filter((item) => item.status !== "cancelled" && new Date(item.endsAt).getTime() >= Date.now()); const active = windows.find((item) => new Date(item.startsAt).getTime() <= Date.now() && new Date(item.endsAt).getTime() >= Date.now()); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.availabilityMessage || person.employment?.jobRole?.name || "No status message"}{active ? ` · ${active.kind === "time_off" ? "time off" : active.kind}` : windows.length ? ` · ${windows.length} upcoming window${windows.length === 1 ? "" : "s"}` : ""}</span></div><span>{person.availability || "available"} · {person.clockState || "clocked_out"}</span><strong>{person.connectionState || "unknown"}{person.connectionVisibility === "invisible" ? " · invisible" : ""}</strong></article>; })}</div>
           </>}
@@ -793,7 +812,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       <ClusterDisclosureGroup className="people-data-tools-v524" title="Data tools" summary="Saved views, analytics, layout" contentClassName="people-data-tools-body-v524">
         <>
           {peopleContext && <ClusterDisclosureGroup className="people-context-disclosure-v30d" title="Team & expertise context" summary="Allocation, working hours, teams, and searchable expertise" headerTrailing={<span className="people-context-count-v547">{peopleContext.teams.length} teams · {peopleContext.capacity.overallocatedPeople || 0} overallocated</span>}><section className="people-context-v495" aria-label="Team and expertise context">
-        <div className="people-context-summary-v495"><div><span>Studio teams</span><strong>{peopleContext.teams.length}</strong><small>{peopleContext.teams.reduce((sum, team) => sum + team.members.length, 0)} memberships</small></div><div><span>Working hours</span><strong>{peopleContext.capacity.workingHoursConfigured}/{users.length}</strong><small>profiles configured</small></div><div><span>Allocated capacity</span><strong>{peopleContext.capacity.totalAllocatedHours ?? 0}h</strong><small>{peopleContext.capacity.overallocatedPeople || 0} overallocated</small></div><div><span>Expertise</span><strong>{peopleContext.expertise.length}</strong><small>searchable areas</small></div></div>
+        <div className="cluster-visual-summary-grid people-context-charts-v40">
+          <ClusterVisualComposition label="Working hours configured · loaded people" total={peopleContext.people.length} parts={[
+            { label: "Configured", value: Math.min(peopleContext.people.length, peopleContext.capacity.workingHoursConfigured), tone: "good" },
+            { label: "Not set", value: Math.max(0, peopleContext.people.length - peopleContext.capacity.workingHoursConfigured), tone: "neutral" },
+          ]} />
+          <ClusterVisualMeter label="Allocated working hours" value={peopleContext.capacity.totalAllocatedHours ?? null} total={peopleContext.capacity.totalHours} tone={(peopleContext.capacity.totalAllocatedHours || 0) > peopleContext.capacity.totalHours ? "warning" : "accent"} formatValue={(hours: number) => `${Math.round(hours * 10) / 10}h`} />
+          {peopleContext.teams.length > 0 && <ClusterVisualRankedBars label="Largest teams · memberships" rows={peopleContext.teams.slice().sort((a: PeopleTeam, b: PeopleTeam) => b.members.length - a.members.length).slice(0, 5).map((team) => ({ id: team.id, label: team.name, value: team.members.length }))} />}
+        </div>
         <div className="people-team-strip-v495">{peopleContext.teams.slice(0, 8).map((team) => { const selectedId = selectedUserId || currentUser.id; const selectedMember = team.members.find((member) => member.userId === selectedId); const allocation = team.members.reduce((sum, member) => sum + Number(member.allocationPercent || 0), 0); return <article key={team.id}><div><strong>{team.name}</strong><span>{team.department || "Cross-studio"} · {team.members.length} members</span></div><small>{team.lead ? `Lead: ${displayUserName(team.lead)}` : "No lead assigned"} · {allocation}% allocation</small>{canManageTeams && selectedMember && <div className="people-team-member-controls-v495"><label><span>Selected allocation</span><ClusterNativeSelect aria-label={`${team.name} selected person allocation`} value={selectedMember.allocationPercent} disabled={busyTeamIds.has(team.id)} onChange={(event) => void patchTeamMember(team, selectedId, { allocationPercent: Number(event.target.value) })}>{[25,50,75,100,125,150,175,200].map((value) => <option key={value} value={value}>{value}%</option>)}</ClusterNativeSelect></label><label className="tool-check compact"><ClusterInput type="checkbox" checked={selectedMember.primaryMembership} disabled={busyTeamIds.has(team.id)} onChange={(event) => void patchTeamMember(team, selectedId, { primaryMembership: event.target.checked })} /> Primary team</label></div>}{currentUser.isAdmin && teamBundles.length > 0 && <ClusterDisclosureGroup className="people-team-bundles-v507" title={`Permission bundles (${team.permissionBundleIds?.length || 0})`}><p className="muted tight">Team bundles layer after department and before Studio role and user overrides.</p>{teamBundles.map((bundle) => <label key={bundle.id} className="tool-check compact"><ClusterInput type="checkbox" checked={(team.permissionBundleIds || []).includes(bundle.id)} disabled={busyTeamIds.has(team.id) || Boolean(savingTeamBundleId) || (!bundle.enabled && !(team.permissionBundleIds || []).includes(bundle.id))} onChange={() => void toggleTeamBundle(team, bundle.id)} />{bundle.label}{!bundle.enabled ? " (disabled)" : ""}</label>)}</ClusterDisclosureGroup>}{canManageTeams && <div className="button-row compact"><ClusterButton type="button" className="" onClick={() => toggleTeamMember(team, selectedId)} disabled={busyTeamIds.has(team.id)} variant="quiet" size="compact">{selectedMember ? "Remove selected" : "Add selected"}</ClusterButton><ClusterButton type="button" className="" onClick={() => archiveTeam(team)} disabled={busyTeamIds.has(team.id)} variant="quiet" size="compact">Archive</ClusterButton></div>}</article>; })}{!peopleContext.teams.length && <span className="muted">No structured Studio teams yet.</span>}</div>
             {peopleContext.directory?.truncated && <div className="people-directory-boundary-v495" role="status">Showing the first {peopleContext.directory.loaded} directory records. Search remains bounded for predictable Studio performance.</div>}
         <div className="people-expertise-coverage-v495">{peopleContext.expertise.slice(0, 12).map((item) => <ClusterButton unstyled type="button" key={item.name} onClick={() => setQuery(item.name)}><strong>{item.name}</strong><span>{item.total} people · {item.experts} expert</span></ClusterButton>)}</div>
@@ -854,7 +880,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       </ClusterDisclosureGroup>
       <DataExportOperationFeedback jobId={peopleExportJobId} onDismiss={() => setPeopleExportJobId("")} />
 
-      <ClusterMasterDetail className="people-layout-v244" label="People directory and profile inspector" masterLabel="People directory" detailLabel="Person profile" detailOpen={Boolean(profile)} onCloseDetail={personDetailHistory.closeDetail} detailSize="wide" persistKey="people" master={<aside className="panel people-directory-v244" aria-label="People directory">
+      <ClusterMasterDetail className="people-layout-v244" label="People directory and profile inspector" masterLabel="People directory" detailLabel="Person profile" detailOpen={Boolean(profile)} onCloseDetail={() => { setProfileExpanded(false); personDetailHistory.closeDetail(); }} detailSize="wide" persistKey="people" resizable={!profileExpanded} master={<aside className="panel people-directory-v244" aria-label="People directory">
           <div className="people-directory-head-v244">
             <div><strong>Directory</strong><span>{filteredUsers.length}</span></div>
             <ClusterSegmentedControl value={directoryMode} onChange={setDirectoryMode} label="People directory layout" options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} />
@@ -872,7 +898,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
               onSortsChange={setDirectorySorts}
               selectedKeys={selectedPeopleIds}
               onSelectionChange={(keys) => setSelectedPeopleIds(new Set(keys))}
-              onRowActivate={(person) => personDetailHistory.openDetail(person.id)}
+              onRowActivate={(person) => openFullProfile(person.id)}
               configurableColumns
               persistKey="people-directory"
               controlledLayout={directoryTableLayout || undefined}
@@ -888,7 +914,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
             /></>
           ) : <div className="people-list-v244">
             {!users.length && loadStatus.startsWith("Loading") ? <LoadingState label="Loading people" rows={7} compact /> : peopleProgress.visibleItems.map((person) => (
-              <ClusterButton unstyled type="button" className={selectedUserId === person.id ? "active" : ""} key={person.id} onClick={() => personDetailHistory.openDetail(person.id)}>
+              <ClusterButton unstyled type="button" className={selectedUserId === person.id ? "active" : ""} key={person.id} onClick={() => openFullProfile(person.id)}>
                 <PersonSummary person={person} compact profileAction={false} showCapacity />
               </ClusterButton>
             ))}
@@ -901,14 +927,16 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         detail={<main className="panel people-detail-v244">
           {profile ? (
             <>
+              {profileExpanded && <div className="people-profile-back-rc46"><ClusterButton variant="quiet" size="compact" onClick={() => setProfileExpanded(false)}>← Back to directory</ClusterButton><span>Person profile</span></div>}
               <header className="people-detail-header-v244">
                 <PersonSummary person={profile} profileAction={false} showCapacity className="people-detail-person-summary-v493" />
                 <div className="people-detail-presence-v244">
                   <strong>{profileAvailabilityLabel(profile)}</strong>
                   <span>{profileLocalTime(profile.timezone)}{profile.lastSeenAt ? ` · Last seen ${formatRelativeTime(profile.lastSeenAt)}` : ""}</span>
-                  <small>{profile.statusMessage || "No custom status"}</small>
+                  {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
                 </div>
                 <div className="button-row compact people-person-actions-v495">
+                  <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
                   <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
                     { id: "copy-profile-link", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy profile link", icon: "link", onSelect: () => copyProfileLink(profile) },
                     { id: "mention-person", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy mention", icon: "comment", onSelect: () => copyProfileMention(profile) },
@@ -946,37 +974,41 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
               </nav>
 
               <div className="people-detail-scroll-v244">
+                {profileExpanded && profileView === "overview" && <section className="people-profile-social-intro-rc46" aria-label="About this person">
+                  {profile.profileBio ? <p>{profile.profileBio}</p> : <span className="muted">{profile.title || "Studio member"}{profile.department ? ` · ${profile.department}` : ""}</span>}
+                  <div className="people-profile-social-stats-rc46"><span><strong>{profileProjects.length}</strong> Projects</span><span><strong>{profileTeams.length}</strong> Teams</span>{profile.recentActivity?.length ? <ClusterButton variant="quiet" size="compact" onClick={() => setProfileView("activity")}>Recent activity</ClusterButton> : null}</div>
+                </section>}
                 {profileView === "overview" && (
                   <>
                     <div className="people-profile-grid-v244">
-                      <div>
+                      {profile.email ? <div>
                         <span>Work email</span>
-                        <strong>{profile.email || "Unset"}</strong>
-                      </div>
-                      <div>
+                        <strong>{profile.email}</strong>
+                      </div> : null}
+                      {(profileTeams.length || profile.teamName) ? <div>
                         <span>Team</span>
-                        <strong>{profileTeams.length ? profileTeams.map((team) => team.name).join(", ") : profile.teamName || "Unset"}</strong>
-                      </div>
-                      <div>
+                        <strong>{profileTeams.length ? profileTeams.map((team) => team.name).join(", ") : profile.teamName}</strong>
+                      </div> : null}
+                      {(profile.manager || profile.managerName) ? <div>
                         <span>Manager</span>
-                        <strong>{profile.manager ? displayUserName(profile.manager as User) : profile.managerName || "Unset"}</strong>
-                      </div>
-                      <div>
+                        <strong>{profile.manager ? displayUserName(profile.manager as User) : profile.managerName}</strong>
+                      </div> : null}
+                      {(profile.hideLocation || profile.workLocation || profile.timezone) ? <div>
                         <span>Location</span>
-                        <strong>{profile.workLocation || profile.timezone || "Unset"}</strong>
-                      </div>
-                      <div>
+                        <strong>{profile.hideLocation ? "Hidden" : profile.workLocation || profile.timezone}</strong>
+                      </div> : null}
+                      {profile.timezone ? <div>
                         <span>Timezone</span>
-                        <strong>{profile.timezone || "Unset"}</strong>
-                      </div>
-                      <div>
+                        <strong>{profile.timezone}</strong>
+                      </div> : null}
+                      {profile.timezone ? <div>
                         <span>Local time</span>
                         <strong>{profileLocalTime(profile.timezone)}</strong>
-                      </div>
-                      <div>
+                      </div> : null}
+                      {profile.capacityHours != null ? <div>
                         <span>Capacity</span>
-                        <strong>{profile.capacityHours != null ? `${profile.capacityHours}h/week` : "Unset"}</strong>
-                      </div>
+                        <strong>{profile.capacityHours}h/week</strong>
+                      </div> : null}
                       <div>
                         <span>Team allocation</span>
                         <strong>{profileAllocation ? `${profileAllocation}% · ${profileAllocationState}` : "Unallocated"}</strong>
@@ -991,6 +1023,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     )}
                     {(profile.expertise?.length || profile.workingHours) && <section className="people-section-v244 people-capability-context-v495"><header className="people-section-heading-v417"><div><h3>Expertise & availability</h3><span>{workingHoursSummary(profile.workingHours)}</span></div></header><div className="people-expertise-tags-v495">{(profile.expertise || []).map((item) => <span className="tag-chip" key={item.name}><strong>{item.name}</strong><small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small></span>)}</div></section>}
                     {profileShowcaseProjects.length > 0 && <section className="people-section-v244"><header className="people-section-heading-v417"><div><h3>Showcase</h3><span>Pinned by this person</span></div><strong>{profileShowcaseProjects.length}</strong></header><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}
+                    {profileExpanded && <section className="people-section-v244 people-profile-feed-rc46" aria-label="Recent work activity">
+                      <header className="people-section-heading-v417"><h3>Activity</h3><ClusterButton size="compact" variant="quiet" onClick={() => setProfileView("activity")}>View all</ClusterButton></header>
+                      {profile.recentActivity?.length ? <ol>{profile.recentActivity.slice(0, 5).map((event) => <li key={event.id}><span className="people-profile-feed-dot-rc46" aria-hidden="true" /><div><strong>{event.title}</strong>{event.message && <p>{event.message}</p>}<time dateTime={event.createdAt}>{formatRelativeTime(event.createdAt)}</time></div></li>)}</ol> : <p className="muted">No recent work activity visible.</p>}
+                    </section>}
                     <section className="people-section-v244">
                       <h3>Skills</h3>
                       <div className="chip-row">
@@ -1025,7 +1061,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         <div><span>Project involvement</span><strong>{profileProjects.length}</strong></div>
                         <div><span>Current workload</span><strong>{profileWork ? profileWorkloadLabel(profileWork.cards, profile.capacityHours) : "No assignments"}</strong></div>
                       </div>
-                      {directReports.length > 0 && <div className="chip-row people-report-chips-v417">{directReports.map((person) => <ClusterButton unstyled type="button" className="tag-chip" key={person.id} onClick={() => personDetailHistory.openDetail(person.id)}>{displayUserName(person)}</ClusterButton>)}</div>}
+                      {directReports.length > 0 && <div className="chip-row people-report-chips-v417">{directReports.map((person) => <ClusterButton unstyled type="button" className="tag-chip" key={person.id} onClick={() => openFullProfile(person.id)}>{displayUserName(person)}</ClusterButton>)}</div>}
                     </section>
                   </>
                 )}

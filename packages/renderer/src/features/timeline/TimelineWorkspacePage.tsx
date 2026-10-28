@@ -7,9 +7,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import "./timeline-workspace.css";
 import { ClusterModal } from "../../components/ClusterModal";
 import { confirmCluster } from "../../components/cluster-dialog-service";
-import { api, mutateApi, queryApi, setApiQueryData } from "../../core/api";
+import { api, mutateApi, queryApi, peekApiQuery, setApiQueryData } from "../../core/api";
 import { addDays, compactDateTime, toDateTimeLocalInput } from "../../core/date-time";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterVisualBars } from "../../components/ClusterVisualMetrics";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterSelect } from "../../components/ClusterSelect";
@@ -63,13 +64,18 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
   const [typeFilter, setTypeFilter] = useState("all");
   const [laneMode, setLaneMode] = useState<"auto" | "source" | "type">("source");
   const [timelineView, setTimelineView] = useState<"map" | "board" | "list">("map");
-  const [payload, setPayload] = useState<TimelinePayload | null>(null);
+  // Restore the current range immediately when returning from another tool.
+  // Network reconciliation can happen afterward without an empty-map flash.
+  const [payload, setPayload] = useState<TimelinePayload | null>(() =>
+    peekApiQuery<TimelinePayload>(timelineQueryPath(start, end, projectId, typeFilter)));
+  const activeTimelineQueryRef = useRef(timelineQueryPath(start, end, projectId, typeFilter));
   const [editing, setEditing] = useState<TimelineItem | null>(null);
   const [selectedTimelineEntryId, setSelectedTimelineEntryId] = useState<string | null>(null);
   const [inspectedTimelineItem, setInspectedTimelineItem] = useState<TimelineItem | null>(null);
   const [timelineComposerOpen, setTimelineComposerOpen] = useState(false);
   const [status, setStatus] = useState("Loading timeline…");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() =>
+    peekApiQuery<TimelinePayload>(timelineQueryPath(start, end, projectId, typeFilter)) === null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [users, setUsers] = useState<User[]>([currentUser]);
   const timelineRequestSequence = useRef(0);
@@ -91,12 +97,15 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
     return () => document.body.classList.remove("timeline-detail-fullscreen-open-v254");
   }, [selectedTimelineEntryId, timelineComposerOpen]);
   useEffect(() => {
+    // Timeline browsing never needs a 1,000-person directory. Load it only
+    // when an item is inspected and the collaboration panel can use it.
+    if (!selectedTimelineEntryId) return;
     let cancelled = false;
-    queryApi<User[]>("/api/users?summary=true&limit=1000", { staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["users", "people"] })
+    queryApi<User[]>("/api/users?summary=true&limit=1000", { staleMs: 5 * 60_000, maxAgeMs: 30 * 60_000, tags: ["users", "people"] })
       .then((items) => { if (!cancelled) setUsers(items.filter((user) => !user.archived)); })
       .catch(() => { if (!cancelled) setUsers([currentUser]); });
     return () => { cancelled = true; };
-  }, [currentUser.id]);
+  }, [currentUser.id, selectedTimelineEntryId]);
   const restoreTimelineDetail = useCallback((id: string | null) => {
     if (!id) { timelineDetailRequestSequence.current += 1; setSelectedTimelineEntryId(null); setInspectedTimelineItem(null); return; }
     setSelectedTimelineEntryId(id);
@@ -142,17 +151,22 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
     setPayload((current) => {
       if (!current) return current;
       const next = update(current);
-      setApiQueryData(timelineQueryPath(start, end, projectId, typeFilter), next, { staleMs: 10_000, maxAgeMs: 5 * 60_000, tags: ["timeline"] });
+      setApiQueryData(timelineQueryPath(start, end, projectId, typeFilter), next, { staleMs: 60_000, maxAgeMs: 10 * 60_000, tags: ["timeline"] });
       return next;
     });
   }
   async function loadTimeline(force = false) {
     const sequence = ++timelineRequestSequence.current;
-    if (!payload) setLoading(true);
+    const path = timelineQueryPath(start, end, projectId, typeFilter);
+    if (activeTimelineQueryRef.current !== path) {
+      activeTimelineQueryRef.current = path;
+      const snapshot = peekApiQuery<TimelinePayload>(path);
+      setPayload(snapshot); // never display a different range while it loads
+      setLoading(!snapshot);
+    } else if (!peekApiQuery<TimelinePayload>(path) && !payload) setLoading(true);
     setLoadError(null);
     try {
-      const path = timelineQueryPath(start, end, projectId, typeFilter);
-      const result = await queryApi<TimelinePayload>(path, { force, staleMs: 10_000, maxAgeMs: 5 * 60_000, tags: ["timeline"] });
+      const result = await queryApi<TimelinePayload>(path, { force, staleMs: 60_000, maxAgeMs: 5 * 60_000, tags: ["timeline"] });
       if (sequence !== timelineRequestSequence.current) return;
       setPayload(result);
       setStatus(`Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
@@ -169,7 +183,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
     revalidateTimerRef.current = window.setTimeout(() => {
       revalidateTimerRef.current = null;
       if (document.visibilityState === "visible" && navigator.onLine) void loadTimeline(true);
-    }, 350);
+    }, 1_200);
   }
   useEffect(() => {
     void loadTimeline();
@@ -463,22 +477,16 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
     const value = new Date(entry.startsAt).getTime();
     return value >= todayMs && value <= todayMs + 30 * 86400000;
   }).length;
-  const gapDays = entries.length > 1 ? Math.round(entries.slice(1).reduce((total, entry, index) => total + Math.max(0, new Date(entry.startsAt).getTime() - new Date(entries[index].startsAt).getTime()), 0) / Math.max(1, entries.length - 1) / 86400000) : 0;
   const timelineTools = [
     {
       label: "Next 30 days",
       value: String(upcoming30Count),
-      meta: upcoming30Count ? "scheduled beats" : "needs a next beat",
+      meta: "",
     },
     {
       label: "Overdue",
       value: String(overdueEntries.length),
-      meta: overdueEntries.length ? "review dates" : "clean",
-    },
-    {
-      label: "Cadence",
-      value: entries.length > 1 ? `${gapDays}d` : "n/a",
-      meta: "average gap",
+      meta: "",
     },
   ];
   const phaseDefinitions = [
@@ -514,7 +522,6 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
         <header className="timeline-commandbar-v254" aria-label="Timeline controls">
           <ToolPageHeader
             title="Timeline"
-            description="Plan milestones, releases, deadlines, meetings, and production events across the active delivery window."
             metrics={[
               { label: "Items", value: entries.length },
               { label: "Projects", value: projectCoverage },
@@ -619,9 +626,9 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
             <ClusterButton unstyled type="button" key={tool.label} className="timeline-brief-cell-v153" onClick={() => (tool.label === "Overdue" ? setTimelineView("list") : undefined)}>
               <span>{tool.label}</span>
               <strong>{tool.value}</strong>
-              <em>{tool.meta}</em>
             </ClusterButton>
           ))}
+          {weeklyBuckets.some((bucket) => bucket.items.length > 0) && <div className="timeline-brief-chart-v34"><ClusterVisualBars label="Next 6 weeks" buckets={weeklyBuckets.map((bucket) => ({ label: `${bucket.first.getMonth() + 1}/${bucket.first.getDate()}`, value: bucket.items.length }))} /></div>}
         </section>
 
         <div className="timeline-layout-v154">
@@ -630,10 +637,8 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
               <section className="panel timeline-map-panel-v153">
                 <div className="timeline-panel-header-v154">
                   <div>
-                    <h2>Roadmap map</h2>
-                    <span>
-                      {entriesInRange.length} visible · lanes by {laneMode}
-                    </span>
+                    <h2>Roadmap</h2>
+                    
                   </div>
                   <span className="soft-pill">{typeSummary.find((row) => row.value === typeFilter)?.label || "All"}</span>
                 </div>
@@ -689,7 +694,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
                         );
                       })
                     ) : (
-                      <div className="timeline-empty-graphic">No points in this range.</div>
+                      <div className="timeline-empty-graphic">No timeline items in this range.</div>
                     )}
                   </div>
                 </div>

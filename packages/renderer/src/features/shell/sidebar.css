@@ -1,7 +1,7 @@
 /* Canonical persistent navigation. Sidebar geometry and responsive presentation live here. */
 
 :root {
-  --cluster-sidebar-expanded-width: 264px;
+  --cluster-sidebar-expanded-width: 232px;
   --cluster-sidebar-compact-width: 72px;
   --cluster-sidebar-item-height: 38px;
   --cluster-sidebar-icon-slot: 26px;
@@ -817,4 +817,29 @@
   max-width: 42px !important;
   height: 42px !important;
   min-height: 42px !important;
+}
+
+/* RC47: compact mode must never hide its only expand control. */
+@media (min-width: 900px) {
+  :root[data-sidebar-collapsed="true"] #cluster-sidebar.cluster-sidebar .cluster-sidebar__header {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 34px 34px !important;
+    min-height: 82px !important;
+    align-content: start !important;
+    justify-items: center !important;
+    gap: 4px !important;
+    padding: 5px 4px !important;
+  }
+  :root[data-sidebar-collapsed="true"] #cluster-sidebar.cluster-sidebar .cluster-sidebar__mode-toggle {
+    display: inline-grid !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    color: var(--cluster-shell-text) !important;
+  }
+  :root[data-sidebar-collapsed="true"] #cluster-sidebar.cluster-sidebar .cluster-sidebar__logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
 }

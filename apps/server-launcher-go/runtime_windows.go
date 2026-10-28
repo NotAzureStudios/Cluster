@@ -17,7 +17,7 @@ import (
 )
 
 const postgresVersion = "18.6"
-const postgresInstallerRevision = "1"
+const postgresBinariesRevision = "5"
 
 func preparePlatformRuntime(root string) (node string, npm string, cleanup cleanupFunc, err error) {
 	nodeRoot := filepath.Join(root, "runtime", "node")
@@ -203,124 +203,44 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 }
 
 func installPostgresRuntime(root, destination string) error {
-	cache := filepath.Join(root, "runtime", "cache")
-	if err := os.MkdirAll(cache, 0o755); err != nil {
-		return err
-	}
-	installer := filepath.Join(cache, "postgresql-installer.exe")
-	url := fmt.Sprintf("https://get.enterprisedb.com/postgresql/postgresql-%s-%s-windows-x64.exe", postgresVersion, postgresInstallerRevision)
-
-	// Keep the large installer in the local cache. A failed extraction should not force a
-	// 350+ MiB download on every retry.
-	if err := validateWindowsExecutable(installer); err != nil {
-		if fileExists(installer) {
-			fmt.Printf("Cached PostgreSQL installer is unusable (%v); downloading a fresh copy...\n", err)
-			_ = os.Remove(installer)
-		}
-		if err := downloadFile(url, installer); err != nil {
-			return fmt.Errorf("unable to download PostgreSQL %s-%s runtime installer: %w", postgresVersion, postgresInstallerRevision, err)
-		}
-		if err := validateWindowsExecutable(installer); err != nil {
-			return fmt.Errorf("downloaded PostgreSQL installer is invalid: %w", err)
-		}
-	} else {
-		fmt.Println("Using cached PostgreSQL runtime installer.")
-	}
-
-	temporary := destination + ".installing"
-	_ = os.RemoveAll(temporary)
-	if err := os.MkdirAll(temporary, 0o755); err != nil {
-		return err
-	}
-	if err := runPostgresExtractor(root, installer, temporary); err != nil {
-		return err
-	}
-	binDir, err := findDirectoryContaining(temporary, "postgres.exe")
-	if err != nil {
-		return err
-	}
-	installRoot := filepath.Dir(binDir)
-	fmt.Println("Staging private PostgreSQL runtime...")
-	_ = os.RemoveAll(destination)
-	if err := copyTree(installRoot, destination); err != nil {
-		return fmt.Errorf("unable to stage PostgreSQL runtime: %w", err)
-	}
-	_ = os.RemoveAll(temporary)
-	fmt.Println("Private PostgreSQL runtime is ready.")
-	return nil
-}
-
-func runPostgresExtractor(root, installer, temporary string) error {
-	logs := filepath.Join(root, "data", "system", "logs")
-	if err := os.MkdirAll(logs, 0o755); err != nil {
-		return err
-	}
-	logPath := filepath.Join(logs, "postgresql-bootstrap.log")
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	defer logFile.Close()
-
-	tempRoot := filepath.Join(root, "data", "system", "runtime", "postgres-installer-temp")
-	_ = os.RemoveAll(tempRoot)
-	if err := os.MkdirAll(tempRoot, 0o755); err != nil {
-		return err
-	}
-	defer os.RemoveAll(tempRoot)
-
-	fmt.Println("Extracting private PostgreSQL runtime. This can take a few minutes...")
-	fmt.Printf("  extraction log: %s\n", logPath)
-	fmt.Fprintf(logFile, "%s starting PostgreSQL %s-%s extract-only bootstrap\n", time.Now().Format(time.RFC3339), postgresVersion, postgresInstallerRevision)
-
-	// Extract only. Cluster owns initdb/startup itself, so the EDB installer must not
-	// install a Windows service or bootstrap VC runtimes in a nested elevated process.
-	cmd := exec.Command(installer,
-		"--mode", "unattended",
-		"--unattendedmodeui", "none",
-		"--extract-only", "1",
-		"--install_runtimes", "0",
-		"--prefix", temporary,
-	)
-	configureChildProcess(cmd)
-	cmd.Dir = root
-	cmd.Env = setEnv(os.Environ(), "TEMP", tempRoot)
-	cmd.Env = setEnv(cmd.Env, "TMP", tempRoot)
-	// The EDB extractor can emit a very large burst of installer output. Keep that
-	// detail in its dedicated bootstrap log and send only lightweight heartbeat
-	// messages to the native panel so its Win32 message pump never gets flooded.
-	cmd.Stdout, cmd.Stderr = logFile, logFile
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("unable to start PostgreSQL runtime extractor: %w", err)
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	timeout := time.NewTimer(10 * time.Minute)
-	defer timeout.Stop()
-	started := time.Now()
-
-	for {
-		select {
-		case err := <-done:
-			if err != nil {
-				return fmt.Errorf("PostgreSQL runtime extraction failed after %s: %w (see %s)", time.Since(started).Round(time.Second), err, logPath)
-			}
-			fmt.Printf("PostgreSQL runtime extraction completed in %s.\n", time.Since(started).Round(time.Second))
-			fmt.Fprintf(logFile, "%s PostgreSQL extraction completed successfully\n", time.Now().Format(time.RFC3339))
-			return nil
-		case <-ticker.C:
-			fmt.Printf("  PostgreSQL extraction still running (%s elapsed)...\n", time.Since(started).Round(time.Second))
-		case <-timeout.C:
-			if cmd.Process != nil {
-				_ = cmd.Process.Kill()
-			}
-			<-done
-			return fmt.Errorf("PostgreSQL runtime extraction timed out after 10 minutes (see %s)", logPath)
-		}
-	}
+    cache := filepath.Join(root, "runtime", "cache")
+    if err := os.MkdirAll(cache, 0o755); err != nil { return err }
+    archiveName := fmt.Sprintf("postgresql-%s-%s-windows-x64-binaries.zip", postgresVersion, postgresBinariesRevision)
+    archive := filepath.Join(cache, archiveName)
+    url := "https://get.enterprisedb.com/postgresql/" + archiveName
+    // Verify even on cache hits. A renamed PE installer or a partial download
+    // must never be treated as a portable PostgreSQL distribution.
+    if err := verifySHA256(archive, postgresBinariesSHA256); err != nil {
+        if fileExists(archive) {
+            fmt.Printf("Cached PostgreSQL binaries failed integrity verification (%v); removing cache entry.\n", err)
+            _ = os.Remove(archive)
+        }
+        fmt.Printf("Downloading verified portable PostgreSQL %s runtime archive...\n", postgresVersion)
+        if err := downloadFile(url, archive); err != nil { return fmt.Errorf("unable to download PostgreSQL binaries: %w", err) }
+        if err := verifySHA256(archive, postgresBinariesSHA256); err != nil {
+            _ = os.Remove(archive)
+            return fmt.Errorf("downloaded PostgreSQL binaries failed official SHA-256 verification: %w", err)
+        }
+    } else {
+        fmt.Println("Using verified cached portable PostgreSQL binaries ZIP.")
+    }
+    temporary := destination + ".installing"
+    _ = os.RemoveAll(temporary)
+    defer os.RemoveAll(temporary)
+    fmt.Println("Extracting verified PostgreSQL binaries without Administrator elevation...")
+    if err := extractPostgresBinaries(archive, temporary); err != nil {
+        return fmt.Errorf("portable PostgreSQL extraction failed: %w", err)
+    }
+    for _, executable := range []string{"postgres.exe", "pg_ctl.exe", "initdb.exe", "psql.exe", "createdb.exe"} {
+        if !fileExists(filepath.Join(temporary,"bin",executable)) { return fmt.Errorf("portable PostgreSQL runtime missing %s", executable) }
+    }
+    fmt.Println("Staging private PostgreSQL runtime...")
+    if err := stageRuntimeDirectory(temporary, destination); err != nil { return fmt.Errorf("could not stage verified PostgreSQL runtime: %w", err) }
+    // A previous RC may have cached the elevation-requiring installer. It is
+    // obsolete once the portable binaries have been safely staged.
+    _ = os.Remove(filepath.Join(cache, "postgresql-installer.exe"))
+    fmt.Println("Private PostgreSQL runtime is ready.")
+    return nil
 }
 
 func downloadFile(source, destination string) error {

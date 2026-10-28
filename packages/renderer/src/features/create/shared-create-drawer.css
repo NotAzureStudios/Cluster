@@ -555,3 +555,12 @@
 }
 .shared-create-close-v448 > span { display: none !important; }
 .shared-create-close-v448 svg { width: 16px !important; height: 16px !important; margin: 0 !important; }
+
+/* RC22: canonical project glyph and a calm first-create surface. */
+.shared-create-title-icon-v448[data-create-mode="project"]{width:40px;height:40px;flex-basis:40px;border-color:color-mix(in srgb,var(--accent) 28%,var(--cluster-border));background:color-mix(in srgb,var(--accent) 10%,var(--cluster-surface-2));color:var(--accent)}
+.shared-create-title-icon-v448[data-create-mode="project"]>.cluster-icon-svg{display:block;width:24px!important;height:24px!important;max-width:24px;max-height:24px;margin:auto;flex:none;vertical-align:middle}
+.shared-create-scroll-v254 .create-form-v161{background:var(--cluster-surface-1);border-color:var(--cluster-border);border-radius:11px}
+.shared-create-scroll-v254 .create-context-strip-v161{padding:6px 9px;min-height:33px}
+.shared-create-workspace-v254 .shared-create-header-v254{align-items:center}
+
+@media(min-width:761px){.shared-create-workspace-v254:has(.shared-create-title-icon-v448[data-create-mode="project"]){height:min(475px,calc(100dvh - 36px))!important}}

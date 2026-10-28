@@ -128,8 +128,8 @@
 .notification-group-controls-v416 button.active{border-color:color-mix(in srgb,var(--studio-primary,var(--accent)) 42%,var(--cluster-border));background:var(--surface-selected);color:var(--text);box-shadow:none}
 .notification-project-policy-v416 select{width:100%;min-height:30px}
 @media (max-width:760px){.notification-group-controls-v416{width:100%;order:3;margin-left:0}.notification-group-controls-v416 button{flex:1}.notification-queue-v252>header{flex-wrap:wrap}}
-.notification-center-v251 { background: transparent !important; }
-.notification-workspace-v251 { background: transparent !important; }
+.notification-center-v251 { background: var(--cluster-surface-1); border-radius: 12px; }
+.notification-workspace-v251 { background: var(--cluster-surface-1); }
 .notification-workspace-v251 :where(.notification-lanes-v251, .notification-queue-v251, .notification-detail-v251) { background-color: color-mix(in srgb, var(--cluster-workbench-panel) 82%, transparent) !important; }
 
 .notification-lanes-v251 nav button:hover { background: var(--surface-hover) !important; }

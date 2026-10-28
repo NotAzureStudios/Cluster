@@ -311,3 +311,7 @@
   .team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 { grid-template-columns: minmax(0,1fr); }
   .team-page-v064 .team-command-bar-v062 > .team-filter-grid-v0102 .search-field { grid-column: auto; }
 }
+
+.team-department-identity-rc46 { display:flex; align-items:center; gap:7px; min-width:0; }
+.team-department-identity-rc46 .resource-identity-mark { width:22px; height:22px; flex:0 0 22px; }
+.team-department-identity-rc46 small { color:var(--muted); font-size:.7em; }

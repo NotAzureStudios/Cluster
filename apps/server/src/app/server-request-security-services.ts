@@ -94,6 +94,7 @@ export function createRequestSecurityServices(deps: Record<string, any>) {
     if (!RATE_LIMIT_ENABLED) return false;
     const limiter = ["auth-transport", "security-transport", "setup"].includes(bucketName) ? securityRateLimiter : rateLimiter;
     const decision = await limiter.consumeCost(`${bucketName}:${getClientKey(request)}`, limit, windowMs, Math.max(1, Math.min(limit, Math.trunc(cost))));
+    reply.header("X-Cluster-Rate-Limit-Bucket", bucketName);
     reply.header("X-RateLimit-Limit", String(decision.limit));
     reply.header("X-RateLimit-Remaining", String(decision.remaining));
     reply.header("X-RateLimit-Reset", String(Math.ceil(decision.resetAt / 1000)));
@@ -106,6 +107,7 @@ export function createRequestSecurityServices(deps: Record<string, any>) {
       action: `Try again in ${decision.retryAfterSeconds} seconds.`,
       retryable: true,
       retryAfterSeconds: decision.retryAfterSeconds,
+      details: { bucket: bucketName, limit: decision.limit, remaining: decision.remaining, windowMs },
     });
     return true;
   }
@@ -113,11 +115,18 @@ export function createRequestSecurityServices(deps: Record<string, any>) {
   async function rateLimitKey(reply: FastifyReply, key: string, limit: number, windowMs: number) {
     if (!RATE_LIMIT_ENABLED) return false;
     const decision = await securityRateLimiter.consume(key, limit, windowMs);
+    // Expose the authoritative bucket for diagnosis, including on successful
+    // requests. It contains no user ID, credential or secret material.
+    reply.header("X-Cluster-Rate-Limit-Bucket", key.startsWith("user-scope:") ? key.split(":").at(-1) || "user-scope" : "security");
+    reply.header("X-RateLimit-Limit", String(decision.limit));
+    reply.header("X-RateLimit-Remaining", String(decision.remaining));
+    reply.header("X-RateLimit-Reset", String(Math.ceil(decision.resetAt / 1000)));
     if (decision.allowed) return false;
     reply.header("Retry-After", String(decision.retryAfterSeconds));
     reply.code(429).send({
       ok: false,
       code: "RATE_LIMITED",
+      details: { bucket: key.includes("user-scope:") ? key.split(":").at(-1) : "security", limit: decision.limit, windowMs },
       error: "Too many attempts. Try again later.",
       action: `Try again in ${decision.retryAfterSeconds} seconds.`,
       retryable: true,

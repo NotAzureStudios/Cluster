@@ -112,7 +112,7 @@ export async function readDevicePackageTargets(db: any, input: { userId: string;
   const entitlements = await db.managedPackageEntitlement.findMany({ where: {
     userId: input.userId, revokedAt: null, expiresAt: { gt: now },
   }, select: { packageId: true }, take: 501 });
-  const rawIds = [...new Set(entitlements.map((row: any) => row.packageId))];
+  const rawIds = [...new Set<string>(entitlements.map((row: {packageId: string}) => row.packageId))];
   if (entitlements.length > 500) throw new Error("PACKAGE_DEVICE_ENTITLEMENT_SCOPE_EXCEEDED");
   const eligibleIds = await packageSeatEligibleIds(db, rawIds, input.userId, now);
   if (!eligibleIds.length) return [];

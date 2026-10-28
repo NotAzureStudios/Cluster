@@ -317,7 +317,7 @@ export function BoardManagerModal({ board, projects, currentBoardId, onSelectBoa
   async function archiveList(list: BoardList) {
     const revision = listRevisionRef.current[list.id];
     if (!Number.isSafeInteger(revision) || !revision) { setStatus("Refresh this column before archiving."); return; }
-    if (!await confirmCluster({ title: "Archive column?", message: `Archive "${list.title}"? Move or archive active Cards and Tickets first. This preserves historical work and can be restored.`, confirmLabel: "Archive column", tone: "warning" })) return;
+    if (!await confirmCluster({ title: "Archive column?", message: `Archive "${list.title}"? Move or archive active Cards and Tickets first. This preserves historical work and can be restored.`, confirmLabel: "Archive column", tone: "danger" })) return;
     await runManagerAction("Archiving column", async () => {
       await api(`/api/lists/${list.id}/lifecycle`, { method: "POST", body: JSON.stringify({ action: "archive", expectedRevision: revision }) });
       await onChanged(); await loadArchivedColumns();
@@ -508,7 +508,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
   }, [initialCard?.id, mode]);
   // This baseline is intentionally anchored until the user explicitly accepts
   // a newer server revision. Checklist/comment refreshes must not rebase it.
-  const [reviewBaseline, setReviewBaseline] = useState<BoardCardDraft>(() => initialCard ? cardToBoardDraft(initialCard, currentUser.id) : cardToBoardDraft({ title: "", priority: "medium", labels: [], memberIds: [], watcherIds: [] } as Card, currentUser.id));
+  const [reviewBaseline, setReviewBaseline] = useState<BoardCardDraft>(() => initialCard ? cardToBoardDraft(initialCard, currentUser.id) : cardToBoardDraft({ id: "", listId: "", title: "", priority: "medium", labels: [], memberIds: [], watcherIds: [], checklistItems: [], comments: [] } satisfies Card, currentUser.id));
   const [conflictCard, setConflictCard] = useState<Card | null>(null);
   const [conflictChoices, setConflictChoices] = useState<Partial<Record<BoardDraftField, BoardConflictChoice>>>({});
   const [conflictLoading, setConflictLoading] = useState(false);
@@ -918,7 +918,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
         // The 409 includes an authorization-filtered current Card. Keep the
         // user's local fields intact; never silently retry with a new revision.
         const latest = (err.payload as { current?: Card } | undefined)?.current;
-        if (latest?.id === card?.id && Number.isSafeInteger(latest.revision)) {
+        if (latest && latest.id === card?.id && Number.isSafeInteger(latest.revision)) {
           setConflictCard(latest);
           setConflictChoices({});
         }

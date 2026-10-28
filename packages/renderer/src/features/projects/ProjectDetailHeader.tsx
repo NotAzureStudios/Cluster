@@ -2,8 +2,10 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { formatRelativeTime } from "../../core/format";
+import { runtimeStyle } from "../../core/runtime-style";
 import type { Project } from "../application/application-models";
 import { projectStatusLabel, projectStatusMeta } from "./projects-utils";
+import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ProjectWorkspaceNav } from "./ProjectWorkspaceNav";
 import type { ProjectWorkspaceMode, ProjectWorkspaceTabId } from "./project-workspace-registry";
 
@@ -37,44 +39,40 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
     : "Not set";
 
   return (
-    <header className="project-hero-v312 project-hero-converged-v495 project-hero-v57">
-      <div className="project-header-top-v148 project-header-grid-v57">
-        <div className="project-title-stack-v148 project-title-stack-v57">
-          <ClusterButton variant="quiet" size="compact" className="project-back-v147" onClick={onBack}>
-            <ClusterIcon name="chevron-left" />Projects
-          </ClusterButton>
-          <div className="project-title-main-v148">
-            <div className="project-title-kicker-v57">
-              <p className="eyebrow">{typeLabel}</p>
-              <span className={`project-status-pill-v077 ${projectStatusMeta(project).tone}`}>{status}</span>
-              <span className="project-priority-v57">{project.priority || "medium"}</span>
-            </div>
-            <h1>{project.name}</h1>
-            <p className="muted compact-copy-v147">{project.description || project.objective || "No project brief yet."}</p>
+    <header className="project-hero-v312 project-hero-v57 project-hero-rc24 project-hero-rc25">
+      <div className="project-head-breadcrumb-rc25">
+        <ClusterButton variant="quiet" size="compact" className="project-back-v147" onClick={onBack}><ClusterIcon name="chevron-left" /> Projects</ClusterButton>
+        <span aria-hidden="true">/</span><span>{typeLabel}</span>
+      </div>
+      <div className="project-hero-main-rc24 project-hero-main-rc25">
+        <div className="project-hero-identity-rc24 project-hero-identity-rc25">
+          <span className="project-hero-mark-rc25" aria-hidden="true" style={runtimeStyle({ "--project-detail-accent": project.color || "#57c1ff" })}><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
+          <div className="project-hero-title-content-rc25">
+            <div className="project-hero-title-line-rc25"><h1 title={project.name}>{project.name}</h1><span className={`project-status-pill-v077 ${projectStatusMeta(project).tone}`}>{status}</span></div>
           </div>
         </div>
-
-        <dl className="project-identity-summary-v57" aria-label="Project summary">
-          <div><dt>Target</dt><dd>{targetDate}</dd></div>
-          <div><dt>Team</dt><dd>{teamCount}</dd></div>
-          <div><dt>Setup</dt><dd>{readiness}%</dd></div>
-          <div><dt>Updated</dt><dd>{project.updatedAt ? formatRelativeTime(project.updatedAt) : "unknown"}</dd></div>
-        </dl>
-
-        <div className="project-hero-actions-v310 project-hero-actions-v57" aria-label="Project actions">
-          {primaryBoardId ? (
-            <ClusterButton variant="primary" size="compact" onClick={() => onOpenBoard(primaryBoardId)}>
-              <ClusterIcon name="project" />Open board
-            </ClusterButton>
-          ) : null}
-          <ClusterActionMenu label="Project workspace shortcuts" triggerLabel="Go to" items={[
-            { id: "timeline", label: "Timeline", description: "Open project milestones and schedule", onSelect: onOpenTimeline },
-            { id: "tickets", label: "Tickets", description: "Open project-filtered tickets", onSelect: onOpenTickets },
+        <div className="project-hero-actions-rc24">
+          {primaryBoardId && <ClusterButton variant="primary" size="compact" onClick={() => onOpenBoard(primaryBoardId)}><ClusterIcon name="project" /> Board</ClusterButton>}
+          <ClusterActionMenu label="Project shortcuts" triggerLabel="Open" items={[
+            { id: "timeline", label: "Timeline", onSelect: onOpenTimeline },
+            { id: "tickets", label: "Tickets", onSelect: onOpenTickets },
           ]} />
         </div>
       </div>
-
-      <ProjectWorkspaceNav items={tabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
+      <div className="project-nav-row-rc25">
+        <ProjectWorkspaceNav items={tabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
+        <details className="project-header-details-rc25">
+          <summary>Info <ClusterIcon name="chevron-down" /></summary>
+          <div className="project-header-details-menu-rc25">
+            <div><span>Type</span><strong>{typeLabel}</strong></div>
+            <div><span>Target</span><strong>{targetDate}</strong></div>
+            <div><span>Team</span><strong>{teamCount}</strong></div>
+            <div><span>Readiness</span><strong>{readiness}%</strong></div>
+            <div><span>Updated</span><strong>{project.updatedAt ? formatRelativeTime(project.updatedAt) : "Unknown"}</strong></div>
+            {project.priority === "urgent" || project.priority === "high" ? <div><span>Priority</span><strong>{project.priority}</strong></div> : null}
+          </div>
+        </details>
+      </div>
     </header>
   );
 }

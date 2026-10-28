@@ -3,6 +3,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { api, queryApi } from "../../core/api";
@@ -200,6 +201,8 @@ export function OperationsSystemsPanel() {
 
   const reviewQueue = (snapshot?.media?.queue?.failed || 0) + (snapshot?.media?.queue?.deadLetter || 0);
   const clientPosture = snapshot?.clients;
+  const mediaWorkersOnline = snapshot?.media?.workers?.online;
+  const mediaWorkersTotal = snapshot?.media?.workers?.total;
 
   return (
     <div className="operations-systems-v510">
@@ -208,6 +211,22 @@ export function OperationsSystemsPanel() {
           <div><p className="eyebrow">Operations 2.0</p><h2>Systems & Integrations</h2><p className="muted tight">Server-connected clients, worker/queue posture, recovery readiness, and integration provider health. Configuration stays with the domain that owns it.</p></div>
           <ClusterButton type="button" variant="secondary" onClick={() => void load()} disabled={loadingRef.current}>Refresh</ClusterButton>
         </div>
+        <div className="cluster-visual-summary-grid" aria-label="Systems at a glance">
+          {clientPosture && clientPosture.total != null && clientPosture.active != null && clientPosture.stale != null && <ClusterVisualComposition label="Connected clients" total={clientPosture.total} parts={[
+            { label: "Active", value: clientPosture.active, tone: "good" },
+            { label: "Stale", value: clientPosture.stale, tone: "warning" },
+            { label: "Other", value: Math.max(0, clientPosture.total - clientPosture.active - clientPosture.stale), tone: "neutral" },
+          ]} />}
+          {typeof mediaWorkersOnline === "number" && typeof mediaWorkersTotal === "number" && <ClusterVisualMeter label="Media workers online" value={mediaWorkersOnline} total={mediaWorkersTotal} tone={mediaWorkersTotal > 0 && mediaWorkersOnline === 0 ? "warning" : "good"} />}
+          <div className="cluster-visual-signal-list" role="status">
+            {clientPosture?.conflicts ? <span className="warning">{clientPosture.conflicts} sync conflicts</span> : null}
+            {reviewQueue ? <span className="danger">{reviewQueue} media failures</span> : null}
+            {snapshot?.queues?.stalledLeases ? <span className="danger">{snapshot.queues.stalledLeases} stalled leases</span> : null}
+            {snapshot?.backup?.latestVerificationOk === false ? <span className="danger">Backup verification failed</span> : null}
+            {snapshot && !clientPosture?.conflicts && !reviewQueue && !snapshot.queues?.stalledLeases && snapshot.backup?.latestVerificationOk !== false ? <span className="good">No reported queue or sync blockers</span> : null}
+          </div>
+        </div>
+        <details className="cluster-visual-advanced"><summary>System counts & recovery evidence</summary><div className="cluster-visual-advanced__body">
         <ClusterMetricStrip label="Systems summary" items={[
           { label: "Sync clients", value: clientPosture?.total ?? clients?.total ?? "—", detail: `${clientPosture?.active || 0} active · ${clientPosture?.stale || 0} stale`, tone: clientPosture?.stale ? "warning" : "good" },
           { label: "Sync conflicts", value: clientPosture?.conflicts ?? "—", detail: `${clientPosture?.failedReceipts24h || 0} failed receipts / 24h`, tone: clientPosture?.conflicts || clientPosture?.failedReceipts24h ? "warning" : "good" },
@@ -216,6 +235,7 @@ export function OperationsSystemsPanel() {
           { label: "Queue leases", value: snapshot?.queues?.stalledLeases ?? "—", detail: `${snapshot?.queues?.rows?.length || 0} active queues`, tone: snapshot?.queues?.stalledLeases ? "danger" : "good" },
           { label: "Recovery", value: snapshot?.backup?.enabled ? `${snapshot.backup.generationCount || 0} backups` : "Disabled", detail: snapshot?.backup?.latestVerificationOk === false ? "latest verification failed" : snapshot?.backup?.latestVerificationOk ? "latest verified" : "verification pending", tone: !snapshot?.backup?.enabled || snapshot?.backup?.latestVerificationOk === false ? "warning" : "good" },
         ]} />
+        </div></details>
         <div className="button-row">
           <label>Client search<ClusterTextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, platform, or version" /></label>
           <label>Client state<ClusterNativeSelect value={state} onChange={(event) => setState(event.target.value as typeof state)}><option value="all">All clients</option><option value="active">Active</option><option value="stale">Stale</option></ClusterNativeSelect></label>
@@ -229,6 +249,13 @@ export function OperationsSystemsPanel() {
           </div>
           <div className="button-row"><ClusterButton type="button" variant="secondary" disabled={dependencyCheckBusy} aria-busy={dependencyCheckBusy} onClick={() => void checkDependencies()}>{dependencyCheckBusy ? "Checking…" : "Check dependencies now"}</ClusterButton><span className="muted" role="status">{dependencyCheckStatus}</span></div>
           {apiToolError ? <p role="alert" className="muted">API diagnostics unavailable: {apiToolError}</p> : null}
+          {apiTools && <ClusterVisualComposition label="Observed API tools" total={apiTools.tools.length} parts={[
+            { label: "Healthy traffic", value: apiTools.counts["observed-healthy"], tone: "good" },
+            { label: "Warning", value: apiTools.counts.warning, tone: "warning" },
+            { label: "Degraded", value: apiTools.counts.degraded, tone: "danger" },
+            { label: "Not measured", value: apiTools.counts["no-observations"] + apiTools.counts["insufficient-data"], tone: "neutral" },
+          ]} />}
+          <details className="cluster-visual-advanced"><summary>API traffic counts</summary><div className="cluster-visual-advanced__body">
           <ClusterMetricStrip label="API tool traffic" items={[
             { label: "Registered tools", value: apiTools?.tools.length ?? "—", detail: "Canonical server domains", tone: "good" },
             { label: "Normal metrics", value: apiTools?.counts["observed-healthy"] ?? "—", detail: "Measured traffic only", tone: "good" },
@@ -236,6 +263,7 @@ export function OperationsSystemsPanel() {
             { label: "Degraded", value: apiTools?.counts.degraded ?? "—", detail: "Observed elevated 5xx / p95", tone: apiTools?.counts.degraded ? "danger" : "good" },
             { label: "No evidence", value: apiTools ? apiTools.counts["no-observations"] + apiTools.counts["insufficient-data"] : "—", detail: "Not a readiness verdict" },
           ]} />
+          </div></details>
           <div className="button-row">
             <label>Find a tool<ClusterTextInput value={apiToolQuery} onChange={(event) => setApiToolQuery(event.target.value)} placeholder="Tool, route, or owner module" /></label>
             <label>Observed posture<ClusterNativeSelect value={apiToolPosture} onChange={(event) => setApiToolPosture(event.target.value as ApiToolPosture | "all")}>
@@ -244,7 +272,7 @@ export function OperationsSystemsPanel() {
             </ClusterNativeSelect></label>
           </div>
           <ClusterDataTable rows={apiToolRows} columns={apiToolColumns} rowKey={(tool) => tool.key} rowLabel={(tool) => tool.label} label="Observed API tool metrics" configurableColumns persistKey="admin-operations-api-tools" empty={<ClusterEmptyState compact kind="empty" title="No tools match these filters" description="Adjust the tool search or observed posture filter." />} />
-          <p className="muted">Dependencies checked: {timeLabel(apiTools?.dependencyReadiness?.sampledAt)}{apiTools?.dependencyReadiness?.stale ? " (stale or unavailable)" : ""}. The server samples known lifecycle, database, storage and scheduler signals on its own cadence; this page does not trigger active checks. Counts are since process start; latency percentiles reflect bounded recent samples. No per-tool authorization, route correctness or external connectivity is certified. Unclassified traffic: {apiTools?.unclassified.requests ?? "—"} requests.</p>
+          <details className="cluster-visual-advanced"><summary>Measurement scope & limitations</summary><div className="cluster-visual-advanced__body"><p className="muted">Dependencies checked: {timeLabel(apiTools?.dependencyReadiness?.sampledAt)}{apiTools?.dependencyReadiness?.stale ? " (stale or unavailable)" : ""}. The server samples known lifecycle, database, storage and scheduler signals on its own cadence; this page does not trigger active checks. Counts are since process start; latency percentiles reflect bounded recent samples. No per-tool authorization, route correctness or external connectivity is certified. Unclassified traffic: {apiTools?.unclassified.requests ?? "—"} requests.</p></div></details>
         </section>
       <section className="panel" aria-label="Redis-compatible acceleration protocol">
         <div className="section-heading">

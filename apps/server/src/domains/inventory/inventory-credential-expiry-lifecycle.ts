@@ -58,7 +58,7 @@ export async function runInventoryCredentialExpiryTick(input: {
   ]);
   if ([seats, keys, vault].some(rows => rows.length > limit)) throw new Error("INVENTORY_CREDENTIAL_EXPIRY_SCAN_INCOMPLETE");
   if (admins.length > 500) throw new Error("INVENTORY_CREDENTIAL_EXPIRY_ADMIN_SCOPE_INCOMPLETE");
-  const adminIds = [...new Set(admins.map((item: { userId: string }) => item.userId))];
+  const adminIds = [...new Set<string>(admins.map((item: { userId: string }) => item.userId))];
   if (!adminIds.length && (seats.length || keys.length || vault.length)) throw new Error("INVENTORY_CREDENTIAL_EXPIRY_NO_ADMIN");
   let committed = 0;
   const cases: Array<{ kind: InventoryExpiryKind; record: CredentialDeadline }> = [

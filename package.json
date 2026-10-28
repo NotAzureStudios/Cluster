@@ -15,6 +15,8 @@
     "integrations/discord-bot"
   ],
   "scripts": {
+    "cluster:rc37:check": "node tools/scripts/cluster-rc37-source-checks.mjs",
+    "cluster:rc:package": "node tools/scripts/package-cluster-rc.mjs",
     "cluster:f2:p4:native-reconciliation": "node tools/scripts/cluster-f2-p4-native-journal-reconciliation-tests.mjs && node tools/scripts/cluster-f3-p3-alert-routing-tests.mjs && node tools/scripts/cluster-f3-p3-policy-atomic-tests.mjs && node tools/scripts/cluster-f3-p2-incident-bridge-tests.mjs && node tools/scripts/cluster-f3-p2-api-tool-readiness-tests.mjs && node tools/scripts/cluster-td6-g27-api-tool-manager-tests.mjs && node tools/scripts/cluster-td6-source-scan.mjs",
     "cluster:f3:p4:native-emergency": "node tools/scripts/cluster-f3-p4-native-operations-tests.mjs && node tools/scripts/cluster-f3-p3-alert-routing-tests.mjs && node tools/scripts/cluster-f3-p3-policy-atomic-tests.mjs && node tools/scripts/cluster-f3-p2-incident-bridge-tests.mjs && node tools/scripts/cluster-f3-p2-api-tool-readiness-tests.mjs && node tools/scripts/cluster-td6-g27-api-tool-manager-tests.mjs && node tools/scripts/cluster-td6-source-scan.mjs",
     "cluster:f3:p3:incident-alerts": "node tools/scripts/cluster-f3-p3-alert-routing-tests.mjs && node tools/scripts/cluster-f3-p3-policy-atomic-tests.mjs && node tools/scripts/cluster-f3-p2-incident-bridge-tests.mjs && node tools/scripts/cluster-f3-p2-api-tool-readiness-tests.mjs && node tools/scripts/cluster-td6-g27-api-tool-manager-tests.mjs && node tools/scripts/cluster-td6-source-scan.mjs",
@@ -47,12 +49,12 @@
     "cluster:0530:work-library": "node --experimental-strip-types tools/scripts/cluster-0530-work-library-assertions.mjs",
     "cluster:0529:library-admin": "node --experimental-strip-types tools/scripts/cluster-0529-library-admin-assertions.mjs",
     "cluster:0528:work-library": "node --experimental-strip-types tools/scripts/cluster-0528-work-library-assertions.mjs",
-    "dev": "concurrently -n SERVER,WEB -c blue,magenta \"npm run dev -w @cluster/server\" \"npm run dev -w @cluster/web\"",
+    "dev": "npm run icons:generate && concurrently -n SERVER,WEB -c blue,magenta \"npm run dev -w @cluster/server\" \"npm run dev -w @cluster/web\"",
     "dev:server": "npm run dev -w @cluster/server",
-    "dev:web": "npm run dev -w @cluster/web",
+    "dev:web": "npm run icons:generate && npm run dev -w @cluster/web",
     "build": "npm run build:server && npm run build:web",
     "build:server": "npm run build -w @cluster/shared && npm run build -w @cluster/server",
-    "build:web": "npm run build -w @cluster/shared && npm run build -w @cluster/api-client && npm run build -w @cluster/renderer && npm run build -w @cluster/web",
+    "build:web": "npm run icons:generate && npm run build -w @cluster/shared && npm run build -w @cluster/api-client && npm run build -w @cluster/renderer && npm run build -w @cluster/web",
     "db:generate": "node tools/scripts/database-command.mjs generate",
     "db:validate": "node tools/scripts/database-command.mjs validate",
     "db:status": "node tools/scripts/database-command.mjs status",
@@ -441,8 +443,14 @@
     "cluster:batch-d:pdf-snapshot": "node --experimental-strip-types tools/scripts/cluster-batch-d-pdf-snapshot-tests.mjs",
     "cluster:batch-d:connected": "npm run cluster:batch-c:connected && npm run cluster:batch-d:media-custody && npm run cluster:batch-d:managed-subprocess && npm run cluster:batch-d:pdf-snapshot && node --experimental-strip-types tools/scripts/cluster-td6-g26-model-conversion-runtime-tests.mjs && node tools/scripts/cluster-td4-r76-1-library-transfer-atomic-version-tests.mjs && node tools/scripts/cluster-td6-g26-library-derivative-version-tests.mjs && node tools/scripts/cluster-td2-inflight-availability-tests.mjs && node tools/scripts/cluster-td2-library-ownership-tests.mjs && node tools/scripts/cluster-td6-source-scan.mjs",
     "cluster:installer:build": "node tools/scripts/build-cluster-installer.mjs",
-    "cluster:installer:verify": "node tools/installer/installer-contract-tests.mjs",
-    "cluster:windows:test-runner:verify": "node tools/windows/cluster-windows-test-runner-contract-tests.mjs"
+    "cluster:installer:verify": "node tools/installer/installer-contract-tests.mjs && node tools/scripts/cluster-batch-l-build-boundary-tests.mjs",
+    "cluster:windows:test-runner:verify": "node tools/windows/cluster-windows-test-runner-contract-tests.mjs",
+    "cluster:rc:preflight": "node tools/scripts/cluster-rc-preflight.mjs",
+    "cluster:rc:build-check": "node tools/scripts/cluster-rc-preflight.mjs --built",
+    "cluster:rc:readiness": "node tools/scripts/cluster-rc-readiness.mjs",
+    "cluster:rc:smoke": "node tools/scripts/cluster-rc-smoke.mjs",
+    "cluster:server-entry:build": "node tools/scripts/build-cluster-server-entry.mjs",
+    "icons:generate": "node tools/scripts/generate-cluster-icons.mjs"
   },
   "devDependencies": {
     "concurrently": "9.2.1",

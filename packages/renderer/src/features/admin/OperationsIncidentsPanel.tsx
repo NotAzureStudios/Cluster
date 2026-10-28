@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterVisualComposition } from "../../components/ClusterVisualMetrics";
 import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { RequestStatusLine } from "../../components/RequestState";
 import { api, queryApi } from "../../core/api";
+import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { useVisibleRefresh } from "../../core/visible-refresh";
 import { useClusterActionFlight } from "../../components/useClusterActionFlight";
 import { createClusterLatestResponse } from "../../components/cluster-action-flight";
@@ -49,7 +51,6 @@ export function OperationsIncidentsPanel() {
   const [incidents, setIncidents] = useState<OperationsIncident[]>([]);
   const [alertPolicies, setAlertPolicies] = useState<AlertPolicy[]>([]);
   const [alertTargets, setAlertTargets] = useState<AlertPolicyPayload["targets"]>({ users: [], teams: [], departments: [] });
-  const [alertPin, setAlertPin] = useState("");
   const [nativeHistory, setNativeHistory] = useState<NativeEmergencyReceipt[] | null>(null);
   const [nativeHistoryBusy, setNativeHistoryBusy] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -133,11 +134,16 @@ export function OperationsIncidentsPanel() {
   }
 
   async function saveAlertPolicies() {
-    if (!alertPin || !alertPolicies.length || !beginAction("policy:save")) return;
+    if (!alertPolicies.length || busy) return;
     try {
+      const response = await api<{ user: { pinConfigured?: boolean } | null }>("/api/me");
+      const pin = response.user?.pinConfigured
+        ? await requestSecurityPin({ title: "Save alert settings", description: "", purpose: "save_operational_alert_policies" })
+        : await requestSecurityPinSetup({ title: "Set security PIN", purpose: "setup_for_operational_alert_policies" });
+      if (!pin || !beginAction("policy:save")) return;
       const result = await api<{ ok: true; policies: AlertPolicy[] }>("/api/admin/operations/alert-policies", {
         method: "PUT", body: JSON.stringify({
-          securityPin: alertPin,
+          securityPin: pin,
           policies: alertPolicies.map((policy) => ({
             key: policy.key, enabled: policy.enabled,
             recipientType: policy.recipientType, recipientId: policy.recipientId,
@@ -148,7 +154,6 @@ export function OperationsIncidentsPanel() {
         }),
       });
       setAlertPolicies(result.policies);
-      setAlertPin("");
       setStatus("System alert policies saved together. Assignment changes take effect on the next incident check.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Alert policy changes failed. No policy changes were applied.");
@@ -253,10 +258,27 @@ export function OperationsIncidentsPanel() {
   return (
     <section className="panel operations-incidents-v510" aria-labelledby="operations-incidents-title-v510">
       <div className="section-heading">
-        <div><p className="eyebrow">Operations 2.0</p><h2 id="operations-incidents-title-v510">Incidents & health</h2><p className="muted tight">Durable incidents own severity, operator, affected resources, investigation evidence, and resolution state. Health transitions remain evidence, not fake incidents.</p></div>
+        <div><p className="eyebrow">Operations 2.0</p><h2 id="operations-incidents-title-v510">Incidents & health</h2></div>
         <ClusterButton type="button" variant="secondary" onClick={() => void load()} disabled={loadingRef.current}>Refresh</ClusterButton>
       </div>
 
+      <div className="cluster-visual-summary-grid" aria-label="Incident and health overview">
+        <div className={`cluster-visual-posture tone-${operationalTone(current)}`}><span>Server</span><strong>{stateLabel(current)}</strong></div>
+        <ClusterVisualComposition label="Open incident severity" total={activeIncidents.length} parts={[
+          { label: "Critical", value: criticalIncidents, tone: "danger" },
+          { label: "High", value: activeIncidents.filter((incident) => incident.severity === "high").length, tone: "warning" },
+          { label: "Other", value: Math.max(0, activeIncidents.length - criticalIncidents - activeIncidents.filter((incident) => incident.severity === "high").length), tone: "neutral" },
+        ]} />
+        <ClusterVisualComposition label="Operational checks" total={checks.length} parts={[
+          { label: "Passing", value: Math.max(0, checks.length - unhealthyChecks.length), tone: "good" },
+          { label: "Needs review", value: unhealthyChecks.length, tone: "warning" },
+        ]} />
+        {(jobReview > 0 || (health?.performanceBudgets?.failures || 0) > 0) && <div className="cluster-visual-signal-list" role="status">
+          {jobReview > 0 && <span className="danger">{jobReview} failed jobs</span>}
+          {(health?.performanceBudgets?.failures || 0) > 0 && <span className="danger">{health?.performanceBudgets?.failures} performance failures</span>}
+        </div>}
+      </div>
+      <details className="cluster-visual-advanced"><summary>Exact incident & diagnostic counts</summary><div className="cluster-visual-advanced__body">
       <ClusterMetricStrip label="Operational incident summary" items={[
         { label: "Current state", value: stateLabel(current), tone: operationalTone(current) as "good" | "warning" | "danger" },
         { label: "Open incidents", value: activeIncidents.length, detail: `${criticalIncidents} critical`, tone: criticalIncidents ? "danger" : activeIncidents.length ? "warning" : "good" },
@@ -264,9 +286,10 @@ export function OperationsIncidentsPanel() {
         { label: "Job failures", value: jobReview, detail: `${health?.durableJobs?.counts?.running || 0} running`, tone: jobReview ? "danger" : "good" },
         { label: "Performance", value: health?.performanceBudgets?.failures || 0, detail: `${health?.performanceBudgets?.warnings || 0} warnings`, tone: health?.performanceBudgets?.failures ? "danger" : health?.performanceBudgets?.warnings ? "warning" : "good" },
       ]} />
+      </div></details>
 
       <section className="panel" aria-label="Automated incident alert routing">
-        <header className="section-heading"><div><h3>System incident alerts</h3><p className="muted tight">Assign server dependency and native supervisor incidents to authorized administrators, teams, or departments. Recipients must already have administrative access; assignments never grant permissions. Empty assignments fall back to active administrators.</p></div></header>
+        <header className="section-heading"><div><h3>System incident alerts</h3></div></header>
         <div className="admin-split-grid">
           {alertPolicies.map((policy) => <div className="panel" key={policy.key}>
             <h4>{ALERT_POLICY_LABELS[policy.key] || policy.key}</h4>
@@ -294,12 +317,11 @@ export function OperationsIncidentsPanel() {
             </div>
           </div>)}
         </div>
-        {alertPolicies.length ? <label><span>Security PIN to save protected alert settings</span><ClusterInput type="password" autoComplete="off" value={alertPin} onChange={(event) => setAlertPin(event.target.value)} placeholder="PIN required only when saving" /></label> : <p className="muted tight">Loading alert policies…</p>}
-        <ClusterButton type="button" variant="primary" disabled={Boolean(busy) || !alertPolicies.length || !alertPin || alertPolicies.some((policy) => (policy.recipientType !== "admins" && !policy.recipientId) || (policy.escalationType !== "admins" && !policy.escalationId))} onClick={() => void saveAlertPolicies()}>Save all alert settings</ClusterButton>
+        <ClusterButton type="button" variant="primary" disabled={Boolean(busy) || !alertPolicies.length || alertPolicies.some((policy) => (policy.recipientType !== "admins" && !policy.recipientId) || (policy.escalationType !== "admins" && !policy.escalationId))} onClick={() => void saveAlertPolicies()}>Save alert settings</ClusterButton>
       </section>
 
       <section className="panel" aria-label="Native emergency reconciliation history">
-        <header className="section-heading"><div><h3>Native supervisor recovery evidence</h3><p className="muted tight">After the database recovers, trusted emergency journal events are reconciled into the Incident Manager. Read-only history is requested on demand, not continuously polled.</p></div>
+        <header className="section-heading"><div><h3>Native supervisor recovery evidence</h3></div>
           <ClusterButton type="button" variant="secondary" disabled={nativeHistoryBusy} onClick={() => void loadNativeHistory()}>{nativeHistoryBusy ? "Loading…" : "Inspect recent native events"}</ClusterButton>
         </header>
         {nativeHistory !== null ? <div className="control-domain-list-v136">
@@ -313,7 +335,7 @@ export function OperationsIncidentsPanel() {
 
       <div className="admin-split-grid">
         <section className="panel">
-          <header className="section-heading"><div><h3>Open incident</h3><p className="muted tight">Create a durable operational incident. The current administrator becomes owner by default.</p></div></header>
+          <header className="section-heading"><div><h3>Open incident</h3></div></header>
           <div className="form-grid">
             <label><span>Title</span><ClusterInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Search indexing unavailable" /></label>
             <label><span>Severity</span><ClusterNativeSelect value={severity} onChange={(event) => setSeverity(event.target.value as IncidentSeverity)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></ClusterNativeSelect></label>

@@ -28,6 +28,7 @@ import type {
 import { ProjectBuildArtifactWorkbench, ProjectBuildMatrix } from "./ProjectBuildArtifactWorkbench";
 import { ProjectBuildComposer, type ProjectBuildComposerForm, type ProjectBuildSourceOptions } from "./ProjectBuildComposer";
 import { ProjectSectionHeader, ProjectSectionStatus } from "./ProjectWorkspacePrimitives";
+import { ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
 import { HealthStrip, PipelineRail } from "../../components/ClusterVisualIntelligence";
 import type { VisualDatum } from "../../components/visual-intelligence";
 import { nextBuildChannel } from "./project-quality-models";
@@ -311,7 +312,7 @@ export function ProjectBuildsPanelFeature({ project, projects, onOpenTimeline, o
   }
   return (
     <section className="project-subpage-v312 project-release-workspace-v159 project-release-workspace-v160 project-builds-v312">
-      <ProjectSectionHeader eyebrow={`Builds · ${buildProfile.label}`} title={`${buildProfile.artifactLabel} track`} description={buildProfile.summary} metrics={[{ label: "Stage", value: releaseStage, tone: blockers.length ? "danger" : approvedArtifacts.length ? "good" : "accent" }, { label: "Artifacts", value: projectArtifacts.length }, { label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning" }, { label: "Blockers", value: blockers.length, tone: blockers.length ? "danger" : "good" }]} actions={<><ClusterButton type="button" className="" onClick={onOpenTimeline} variant="secondary">Roadmap</ClusterButton>{onOpenQa ? <ClusterButton type="button" className="" onClick={onOpenQa} variant="secondary">QA evidence</ClusterButton> : null}<ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setArtifactComposerOpen((open) => !open); setComposerOpen(false); }} variant="secondary">{buildProfile.artifactLabel}</ClusterButton><ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setComposerOpen((open) => !open); setArtifactComposerOpen(false); }} variant="primary">Build beat</ClusterButton></>} />
+      <ProjectSectionHeader eyebrow={`Builds · ${buildProfile.label}`} title={`${buildProfile.artifactLabel} track`} metrics={[{ label: "Stage", value: releaseStage, tone: blockers.length ? "danger" : approvedArtifacts.length ? "good" : "accent" }, { label: "Artifacts", value: projectArtifacts.length }, { label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning" }, { label: "Blockers", value: blockers.length, tone: blockers.length ? "danger" : "good" }]} actions={<><ClusterButton type="button" className="" onClick={onOpenTimeline} variant="secondary">Roadmap</ClusterButton>{onOpenQa ? <ClusterButton type="button" className="" onClick={onOpenQa} variant="secondary">QA evidence</ClusterButton> : null}<ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setArtifactComposerOpen((open) => !open); setComposerOpen(false); }} variant="secondary">{buildProfile.artifactLabel}</ClusterButton><ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setComposerOpen((open) => !open); setArtifactComposerOpen(false); }} variant="primary">Build beat</ClusterButton></>} />
       <ProjectCollaborationStrip tool="build" projectId={project.id} activity={`Builds · ${buildView}`} />
       <ProjectDeliveryLifecycle projectId={project.id} canContribute={canContribute} />
       <ProjectSectionStatus tone={!canContribute ? "warning" : status.toLowerCase().includes("failed") ? "danger" : "neutral"}>{!canContribute ? permissionReason : status}</ProjectSectionStatus>
@@ -394,7 +395,7 @@ export function ProjectBuildsPanelFeature({ project, projects, onOpenTimeline, o
           {buildView === "flow" && (
             <div className="project-release-flow-v159">
               <section className="panel flat-panel-v159 cluster-visual-consumer-panel">
-                <div className="section-heading"><div><h3>Delivery overview</h3><p className="muted tight">The build path and health summary are derived from the existing lane, artifact, QA, and blocker state.</p></div></div>
+                <div className="section-heading"><div><h3>Delivery overview</h3></div></div>
                 <HealthStrip label="Build health" items={[
                   { id: "artifacts", label: "Artifacts", value: projectArtifacts.length, tone: projectArtifacts.length ? "accent" : "neutral", detail: latestArtifact?.version || "None yet" },
                   { id: "qa", label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning", detail: `${activeQaSessions.length} active sessions` },
@@ -417,15 +418,8 @@ export function ProjectBuildsPanelFeature({ project, projects, onOpenTimeline, o
               </section>
               <div className="project-release-grid-v159 platform-build-grid-v160">
                 <section className="panel flat-panel-v159">
-                  <div className="section-heading">
-                    <div>
-                      <h3>Ship gates</h3>
-                      <p className="muted tight">Generic release checks plus {buildProfile.label} metadata.</p>
-                    </div>
-                    <span className="soft-pill">
-                      {shipGates.filter((gate) => gate.ready).length}/{shipGates.length}
-                    </span>
-                  </div>
+                  <div className="section-heading"><div><h3>Ship gates</h3></div></div>
+                  <ClusterVisualMeter label="Release readiness" value={shipGates.filter((gate) => gate.ready).length} total={shipGates.length} tone={blockers.length ? "danger" : "good"} />
                   <div className="gate-row-list-v159 platform-gate-list-v160">
                     {shipGates.map((gate) => (
                       <div key={gate.label} className={gate.ready ? "ready" : "needs-work"}>

@@ -1,4 +1,5 @@
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
+import { downloadAuthenticatedClusterFile } from "../../core/browser-download-transfers";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
@@ -14,6 +15,7 @@ import { LibraryGovernanceBulkModal } from "./LibraryGovernanceBulkModal";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterModal } from "../../components/ClusterModal";
 import { ClusterActionMenu, ClusterBulkActionBar } from "../../components/ClusterContextActions";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
@@ -521,7 +523,7 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
         </div>}
         <p className="muted tight">Comparison is metadata-only. It does not claim binary or visual content is identical unless matching hashes are available.</p>
       </section>}
-      {item.type === "file" && <section className="library-version-history-v504"><div className="library-section-title-v504"><strong>File versions</strong><span>{versionsLoading ? "Loading…" : `${versions.length} saved`}</span></div>{versions.map((version) => <article key={version.id}><div><strong>v{version.versionNumber}</strong><span>{formatDate(version.createdAt)}</span></div><p>{version.note || version.originalName || "Previous file version"}</p><small>{formatBytes(version.sizeBytes)}{version.checksumSha256 ? ` · ${version.checksumSha256.slice(0, 12)}…` : ""}</small><div className="button-row">{version.downloadUrl && <ClusterLinkButton href={version.downloadUrl} variant="secondary">Download v{version.versionNumber}</ClusterLinkButton>}<ClusterButton type="button" variant="secondary" disabled={saving} onClick={() => void restoreVersion(version)}>Restore</ClusterButton></div></article>)}{!versionsLoading && !versions.length && <p className="muted">No prior file versions yet.</p>}</section>}
+      {item.type === "file" && <section className="library-version-history-v504"><div className="library-section-title-v504"><strong>File versions</strong><span>{versionsLoading ? "Loading…" : `${versions.length} saved`}</span></div>{versions.map((version) => <article key={version.id}><div><strong>v{version.versionNumber}</strong><span>{formatDate(version.createdAt)}</span></div><p>{version.note || version.originalName || "Previous file version"}</p><small>{formatBytes(version.sizeBytes)}{version.checksumSha256 ? ` · ${version.checksumSha256.slice(0, 12)}…` : ""}</small><div className="button-row">{version.downloadUrl && <ClusterLinkButton href={version.downloadUrl} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: version.downloadUrl!, fileName: version.originalName || item.originalName || `library-version-${version.versionNumber}` }).then(() => setMessage(`Download requested for v${version.versionNumber}.`)).catch((error) => setMessage(error instanceof Error ? error.message : "Version download failed.")); }}>Download v{version.versionNumber}</ClusterLinkButton>}<ClusterButton type="button" variant="secondary" disabled={saving} onClick={() => void restoreVersion(version)}>Restore</ClusterButton></div></article>)}{!versionsLoading && !versions.length && <p className="muted">No prior file versions yet.</p>}</section>}
       {item.type !== "folder" && <CollaborationPanel entityType="library" entityId={item.id} currentUser={currentUser} users={users} title="Review notes" compact />}
       {message && <div className={message.includes("Could not") || message.includes("conflict") ? "error-box slim" : "status-box slim"}>{message}</div>}
       <div className="library-history-v217">{(item.changelog || []).map((entry, index) => <article key={`${entry.at}-${index}`}><span>{formatDate(entry.at)}</span><strong>{entry.note || `${entry.from || "new"} → ${entry.to || item.status}`}</strong></article>)}{!(item.changelog || []).length && <p>No recorded changes yet.</p>}</div><dl className="library-technical-v217"><div><dt>Created</dt><dd>{formatDate(item.createdAt)}</dd></div><div><dt>Updated</dt><dd>{formatDate(item.updatedAt)}</dd></div><div><dt>Owner</dt><dd>{userName(item.owner)}</dd></div><div><dt>Project</dt><dd>{item.project?.name || "Workspace"}</dd></div></dl></div>}
@@ -562,6 +564,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   const [filters, setFilters] = useState<LibraryFilters>(() => ({ projectId: readClusterWorkProjectContext() || "", ownerId: "", type: "all", status: "active", mimeGroup: "all", visibility: "all", modified: "any", tag: "", pinned: "all", sort: "updated-desc" }));
   const [layout, setLayout] = useServerState<LayoutMode>("user", "library.layout", "grid", { merge: (value, fallback) => ["grid", "compact-grid", "list", "details"].includes(String(value)) ? value as LayoutMode : fallback });
   const [showFilters, setShowFilters] = useState(false);
+  const [showSavedViews, setShowSavedViews] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<LibraryItem | null>(null);
   const [viewerItem, setViewerItem] = useState<LibraryItem | null>(null);
@@ -1303,7 +1306,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         const result = await api<{ ok: true; job: { id: string; status: string; progress: number; progressMessage?: string | null; lastError?: string | null }; checkpoint: { nextIndex: number; changed: number; conflicted: number; denied: number; blocked: number; skipped: number } | null }>(`/api/library/bulk/jobs/${encodeURIComponent(id!)}`);
         if (disposed) return;
         const checkpoint = result.checkpoint;
-        setBackgroundBulkJob((current) => current?.id === id ? {
+        setBackgroundBulkJob((current) => current && current.id === id ? {
           ...current, status: result.job.status, progress: result.job.progress,
           message: result.job.lastError || result.job.progressMessage || result.job.status.toLowerCase(),
           changed: checkpoint?.changed ?? 0, conflicted: checkpoint?.conflicted ?? 0,
@@ -1314,7 +1317,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           scheduleWorkspaceRevalidation();
         }
       } catch (error) {
-        if (!disposed) setBackgroundBulkJob((current) => current?.id === id ? { ...current, message: `Status unavailable: ${error instanceof Error ? error.message : "Try again later"}` } : current);
+        if (!disposed) setBackgroundBulkJob((current) => current && current.id === id ? { ...current, message: `Status unavailable: ${error instanceof Error ? error.message : "Try again later"}` } : current);
       } finally { polling = false; }
     }
     void refresh();
@@ -1338,7 +1341,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           `/api/library/bulk/hierarchy/move/${encodeURIComponent(id!)}`,
         );
         if (disposed) return;
-        setHierarchyMoveJob((current) => current?.id === id ? {
+        setHierarchyMoveJob((current) => current && current.id === id ? {
           ...current, status: result.job.status, progress: result.job.progress,
           message: result.job.lastError || result.job.progressMessage || result.job.status.toLowerCase(),
           moved: result.checkpoint?.moved ?? 0, skipped: result.checkpoint?.skipped ?? 0,
@@ -1351,9 +1354,9 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         if (disposed) return;
         if (reason instanceof ApiError && [403, 404].includes(reason.status)) {
           try { window.sessionStorage.removeItem("cluster.library.hierarchyMoveJob"); } catch { /* optional local state */ }
-          setHierarchyMoveJob((current) => current?.id === id ? null : current);
+          setHierarchyMoveJob((current) => current && current.id === id ? null : current);
         } else {
-          setHierarchyMoveJob((current) => current?.id === id ? { ...current, message: `Status unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
+          setHierarchyMoveJob((current) => current && current.id === id ? { ...current, message: `Status unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
         }
       } finally { polling = false; }
     }
@@ -1384,7 +1387,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           `/api/library/bulk/hierarchy/lifecycle/${encodeURIComponent(id!)}`,
         );
         if (disposed) return;
-        setHierarchyLifecycleJob((current) => current?.id === id ? {
+        setHierarchyLifecycleJob((current) => current && current.id === id ? {
           ...current, status: result.job.status, progress: result.job.progress,
           message: result.job.lastError || result.job.progressMessage || result.job.status.toLowerCase(),
           changed: result.checkpoint?.changed ?? 0, preserved: result.checkpoint?.preserved ?? 0,
@@ -1397,8 +1400,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         if (disposed) return;
         if (reason instanceof ApiError && [403, 404].includes(reason.status)) {
           try { window.sessionStorage.removeItem("cluster.library.hierarchyLifecycleJob"); } catch { /* optional */ }
-          setHierarchyLifecycleJob((current) => current?.id === id ? null : current);
-        } else setHierarchyLifecycleJob((current) => current?.id === id ? {
+          setHierarchyLifecycleJob((current) => current && current.id === id ? null : current);
+        } else setHierarchyLifecycleJob((current) => current && current.id === id ? {
           ...current, message: `Status unavailable: ${reason instanceof Error ? reason.message : "Retrying"}`,
         } : current);
       } finally { polling = false; }
@@ -1431,7 +1434,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       try {
         const result = await api<{ ok: true; job: { status: string; progress: number; progressMessage?: string | null; lastError?: string | null; result?: { unresolved?: number; needsAttention?: boolean } | null } }>(`/api/library/storage/reconciliation/${encodeURIComponent(id!)}`);
         if (disposed) return;
-        setStorageRepair((current) => current?.id === id ? {
+        setStorageRepair((current) => current && current.id === id ? {
           ...current, status: result.job.status, progress: result.job.progress,
           message: result.job.lastError || result.job.progressMessage || result.job.status.toLowerCase(),
           unresolved: result.job.result?.unresolved ?? null,
@@ -1446,10 +1449,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           // A different signed-in person must not inherit another user's
           // persisted job handle or poll an inaccessible background record.
           try { window.sessionStorage.removeItem("cluster.library.storageRepairJob"); } catch { /* non-critical */ }
-          setStorageRepair((current) => current?.id === id ? null : current);
+          setStorageRepair((current) => current && current.id === id ? null : current);
           return;
         }
-        setStorageRepair((current) => current?.id === id ? { ...current, message: `Repair status temporarily unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
+        setStorageRepair((current) => current && current.id === id ? { ...current, message: `Repair status temporarily unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
       } finally { polling = false; }
     }
     void refresh();
@@ -1500,7 +1503,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       try {
         const detail = await api<{ job: { status: string; progress: number; progressMessage?: string | null; lastError?: string | null; result?: NonNullable<NonNullable<typeof orphanAudit>["result"]> | null } }>(`/api/library/storage/orphans/audit/${encodeURIComponent(id!)}`);
         if (disposed) return;
-        setOrphanAudit((current) => current?.id === id ? {
+        setOrphanAudit((current) => current && current.id === id ? {
           ...current, status: detail.job.status, progress: detail.job.progress,
           message: detail.job.lastError || detail.job.progressMessage || detail.job.status.toLowerCase(),
           result: detail.job.result ?? current.result,
@@ -1512,9 +1515,9 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         if (disposed) return;
         if (reason instanceof ApiError && [403, 404].includes(reason.status)) {
           try { window.sessionStorage.removeItem("cluster.library.orphanAuditJob"); } catch { /* non-critical */ }
-          setOrphanAudit((current) => current?.id === id ? null : current);
+          setOrphanAudit((current) => current && current.id === id ? null : current);
         } else {
-          setOrphanAudit((current) => current?.id === id ? { ...current, message: `Audit status unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
+          setOrphanAudit((current) => current && current.id === id ? { ...current, message: `Audit status unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
         }
       } finally { fetching = false; }
     }
@@ -1900,6 +1903,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           <ClusterSelect value={filters.mimeGroup} onChange={(mimeGroup) => setFilters((value) => ({ ...value, mimeGroup }))} ariaLabel="Filter Library by media type" options={[{ value: "all", label: "All files" }, { value: "image", label: "Images" }, { value: "video", label: "Video" }, { value: "audio", label: "Audio" }, { value: "pdf", label: "PDFs" }, { value: "text", label: "Text and code" }, { value: "model", label: "3D models" }, { value: "office", label: "Documents and Office" }, { value: "ebook", label: "E-books" }, { value: "archive", label: "Archives" }]} />
           <ClusterSelect value={filters.sort} onChange={(sort) => setFilters((value) => ({ ...value, sort }))} ariaLabel="Sort Library" options={[{ value: "updated-desc", label: "Recently updated" }, { value: "created-desc", label: "Recently added" }, { value: "title-asc", label: "Name A–Z" }, { value: "title-desc", label: "Name Z–A" }, { value: "size-desc", label: "Largest first" }, { value: "size-asc", label: "Smallest first" }, { value: "custom", label: "Custom order" }]} />
           <ClusterButton unstyled type="button" className={`library-filter-toggle-v219${showFilters ? " active" : ""}`} onClick={() => setShowFilters((value) => !value)}>Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}</ClusterButton>
+          <div className="library-views-anchor-v22"><ClusterButton unstyled type="button" className={`library-saved-toggle-v21${showSavedViews ? " active" : ""}`} onClick={() => setShowSavedViews((value) => !value)} aria-expanded={showSavedViews} aria-haspopup="true" aria-label={showSavedViews ? "Hide saved views" : "Show saved views"} title="Saved Library views"><LibraryIcon name="star" size={16}/><span>Views</span></ClusterButton>
+          {showSavedViews ? <div className="library-views-flyout-v22" role="region" aria-label="Saved Library views"><header><strong>Saved views</strong><ClusterButton size="compact" variant="quiet" onClick={() => setShowSavedViews(false)} aria-label="Close saved views"><LibraryIcon name="close" size={15}/></ClusterButton></header><SavedViewsToolbar scope="library.workspace" label="Library" current={savedLibraryView} autoRestore={false} onApply={(values) => { applySavedLibraryView(values); setShowSavedViews(false); }} /></div> : null}</div>
           <ClusterButton unstyled type="button" className={`library-pin-filter-v217${filters.pinned === "yes" ? " active" : ""}`} onClick={() => setFilters((value) => ({ ...value, pinned: value.pinned === "yes" ? "all" : "yes" }))} aria-label="Show pinned files"><LibraryIcon name="star" size={16} /></ClusterButton>
           <ClusterSegmentedControl value={layout} onChange={setLayout} label="Library layout" size="compact" options={[{ value: "grid", label: "Grid" }, { value: "compact-grid", label: "Compact" }, { value: "list", label: "List" }, { value: "details", label: "Details" }]} />
         </div>
@@ -1916,7 +1921,6 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           {popularTags.length ? <div className="library-tag-shortcuts-v14" aria-label="Popular loaded tags"><span>Tags</span>{popularTags.map(([tag, count]) => <ClusterButton key={tag} size="compact" variant="quiet" selected={filters.tag === tag} onClick={() => setFilters((value) => ({ ...value, tag: value.tag === tag ? "" : tag }))}>{tag}<small>{count}</small></ClusterButton>)}</div> : null}
         </div>}
       </div>
-      {showFilters || activeFilterCount > 0 ? <SavedViewsToolbar scope="library.workspace" label="Library views" current={savedLibraryView} onApply={applySavedLibraryView} summary={`Save filters, search scope, grouping, layout, and sort. Current scope: ${searchScopeLabel}.`} /> : null}
 
       <ClusterResizableRail className="library-browser-grid-v429" label="Library Explorer" persistKey="library-folders" minWidth={240} defaultWidth={272} maxWidth={380} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217" aria-label="Library Explorer">
         <header className="library-explorer-head-v10"><div><LibraryIcon name="folder" size={18} /><strong>Library Explorer</strong></div><ClusterIconButton label="Collapse Library Explorer" type="button" onClick={() => setExplorerCollapsed(true)}><LibraryIcon name="chevron" size={16} /></ClusterIconButton></header>
@@ -2028,13 +2032,13 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             {librarySection === "collection" && activeCollection?.kind === "manual" && activeCollection.accessRole !== "viewer" ? <ClusterButton size="compact" variant="secondary" disabled={bulkBusy} onClick={() => void removeSelectedFromCollection()}>Remove from collection</ClusterButton> : null}
             <ClusterButton size="compact" variant={librarySection === "trash" ? "secondary" : "danger"} disabled={bulkBusy || (librarySection !== "trash" && selectedProtectedFolders.length > 0)} title={selectedProtectedFolders.length ? "Managed folders cannot be moved to Trash." : undefined} onClick={() => void runBulk(librarySection === "trash" ? "restore" : "trash")}>{librarySection === "trash" ? "Restore" : "Move to Trash"}</ClusterButton>
           </ClusterBulkActionBar>
-          {reorderEnabled ? <div className="library-custom-order-note-v14" role="status"><LibraryIcon name="drag" size={15} /><span><strong>Custom order</strong>Folders and files share one manual sequence in this folder. Drag any loaded item before another item to save its position.</span></div> : null}
+          {reorderEnabled ? <div className="library-custom-order-note-v14" role="status"><ClusterIcon name="drag" width={15} height={15} /><span><strong>Custom order</strong>Folders and files share one manual sequence in this folder. Drag any loaded item before another item to save its position.</span></div> : null}
           {uploading.active && <div className="library-upload-v217"><div><strong>Transferring {uploading.current} of {uploading.total} · {uploading.percent}%</strong><span>{uploading.name}{uploading.message ? ` · ${uploading.message}` : ""}</span></div><progress className="ui-progress-v224" value={Math.max(0, uploading.percent)} max={100} aria-label="File transfer progress" /></div>}
           {status && <div className="status-box slim">{status}</div>}
           {error ? <RequestErrorState error={error} title={storageIssue ? "Library storage needs repair" : undefined} compact onRetry={() => void loadWorkspace(true, true)} actions={storageIssue ? <span className="muted">Close Cluster Server and run <code>ClusterServer.exe --repair</code>.</span> : undefined} /> : null}
           <div className="library-results-v217" aria-busy={loading || refreshing}>
-            {loading ? ((layout === "grid" || layout === "compact-grid") ? <CardGridLoadingState label="Loading Library items" cards={8} /> : <TableLoadingState label="Loading Library items" rows={9} columns={6} compact />) : items.length === 0 ? (
-              activeFilterCount > 0 ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Clear the search or filters, or open another folder. Existing Library content has not been removed." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
+            {loading ? ((layout === "grid" || layout === "compact-grid") ? <CardGridLoadingState label="Loading Library items" cards={8} /> : <TableLoadingState label="Loading Library items" rows={9} columns={6} compact />) : error && !items.length ? null : items.length === 0 ? (
+              activeFilterCount > 0 ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Try clearing filters or opening another folder." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
               : currentFolder ? <ClusterEmptyState kind="empty" icon="folder" className="library-empty-v217" title="This folder is empty" description="Upload files or add a link when this folder has something worth keeping with the project." actions={<ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton>} />
               : <ClusterEmptyState kind="first-use" icon="library" className="library-empty-v217" title="Add the first Library item" description="Use Library for project files, references, links, media, and durable project context. Start with a file or link instead of building an empty taxonomy first." actions={<><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton><ClusterButton variant="secondary" onClick={() => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" })}>Add link</ClusterButton></>} />
             ) : <div className={`library-result-groups-v11 layout-${layout}`} data-grouped={groupBy !== "none" ? "true" : "false"}>{groupedItems.map((group) => <section key={group.key} className="library-result-group-v11">{group.label ? <header className="library-result-group__header-v11"><strong>{group.label}</strong><span>{group.items.length}</span></header> : null}{layout === "list" || layout === "details" ? <div role="table" aria-label={group.label ? `${group.label} Library items` : "Library items"} className={layout === "list" ? "library-table-v11 is-simple" : "library-table-v11 is-details"}><div className="library-list-head-v217" role="row"><span role="columnheader" aria-label="Selection" /><span role="columnheader">Name</span><span role="columnheader">Project</span><span role="columnheader">Type</span><span role="columnheader">Size</span><span role="columnheader">Modified</span></div><LibraryListRows items={group.items} activeId={activeId} selectedIds={selectedIds} onSelect={toggleSelection} onOpen={(item) => void selectItem(item)} onPreview={(item) => void openItemViewer(item)} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} /></div> : <div className={`library-grid-v217${layout === "compact-grid" ? " is-compact-v11" : ""}`}>{group.items.map((item) => <LibraryGridCard key={item.id} item={item} active={activeId === item.id} selected={selectedIds.has(item.id)} onSelect={(checked) => toggleSelection(item, checked)} onOpen={() => void selectItem(item)} onPreview={() => void openItemViewer(item)} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} />)}</div>}</section>)}</div>}

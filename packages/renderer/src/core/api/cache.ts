@@ -1,5 +1,5 @@
 import { recordPerformanceMetric } from "../performance";
-import { clearOfflineReadScope, getOfflineScope, invalidateCachedResponses, setOfflineScope, writeCachedResponse } from "../offline-storage";
+import { clearOfflineReadScope, getOfflineScope, invalidateCachedResponses, setOfflineScope, writeCachedResponse, type OfflineCachedResponse } from "../offline-storage";
 
 export type QueryCacheEntry = { value?: unknown; staleAt: number; expiresAt: number; promise?: Promise<unknown>; tags?: string[] };
 export const queryCache = new Map<string, QueryCacheEntry>();
@@ -22,6 +22,26 @@ export function setQueryCache(key: string, entry: QueryCacheEntry) {
     if (queryCache.size <= QUERY_CACHE_MAX_ENTRIES) break;
     if (!cached.promise) queryCache.delete(candidate);
   }
+}
+
+// A mutation can invalidate several projections at once. Merge their durable
+// cache predicates into one IndexedDB read/write pass per account and tick.
+// Account scope is captured now, not read again after an async microtask.
+const pendingDurableInvalidations = new Map<string, Array<(record: OfflineCachedResponse) => boolean>>();
+function scheduleDurableInvalidation(predicate: (record: OfflineCachedResponse) => boolean) {
+  const scope = getOfflineScope();
+  const queued = pendingDurableInvalidations.get(scope);
+  if (queued) {
+    queued.push(predicate);
+    return;
+  }
+  const predicates = [predicate];
+  pendingDurableInvalidations.set(scope, predicates);
+  queueMicrotask(() => {
+    if (pendingDurableInvalidations.get(scope) !== predicates) return;
+    pendingDurableInvalidations.delete(scope);
+    void invalidateCachedResponses((record) => predicates.some((test) => test(record)), scope).catch(() => undefined);
+  });
 }
 
 export const backgroundRevalidations = new Map<string, Promise<void>>();
@@ -59,7 +79,7 @@ export function invalidateApiQueries(prefix = "") {
     startedAt: Date.now(),
     detail: { source: "invalidation", mode: prefix ? "prefix" : "all", removed, bypass: true },
   });
-  void invalidateCachedResponses((record) => !prefix || record.path.startsWith(prefix));
+  scheduleDurableInvalidation((record) => !prefix || record.path.startsWith(prefix));
 }
 
 export function setApiQueryData<T>(path: string, value: T, options: Pick<QueryApiOptions, "staleMs" | "maxAgeMs" | "persist" | "tags"> = {}) {
@@ -69,7 +89,7 @@ export function setApiQueryData<T>(path: string, value: T, options: Pick<QueryAp
   const tags = options.tags || [];
   setQueryCache(`${getOfflineScope()}:${path}`, { value, staleAt: cachedAt + staleMs, expiresAt: cachedAt + maxAgeMs, tags });
   if (options.persist !== false) {
-    void writeCachedResponse({ path, value, cachedAt, staleAt: cachedAt + staleMs, expiresAt: cachedAt + maxAgeMs, tags });
+    void writeCachedResponse({ path, value, cachedAt, staleAt: cachedAt + staleMs, expiresAt: cachedAt + maxAgeMs, tags }).catch(() => undefined);
   }
 }
 
@@ -90,7 +110,7 @@ export function invalidateApiQueryTags(tags: string[]) {
     startedAt: Date.now(),
     detail: { source: "invalidation", mode: "tags", removed, tags: [...normalized].join(",").slice(0, 500), bypass: true },
   });
-  void invalidateCachedResponses((record) => (record.tags || []).some((tag) => normalized.has(tag)));
+  scheduleDurableInvalidation((record) => (record.tags || []).some((tag) => normalized.has(tag)));
 }
 
 export async function invalidateAuthenticatedClientState(reason = "session_invalidated") {

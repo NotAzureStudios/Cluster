@@ -197,6 +197,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
           priority: draft.priority,
           tags: draft.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
           color: draft.color || null,
+          iconId: draft.iconId,
           healthNote: draft.healthNote.trim() || null,
           status: draft.status,
           pin,
@@ -211,6 +212,21 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     } finally {
       setProjectSaveBusy(false);
     }
+  }
+  async function uploadProjectIcon(file: File) {
+    if (!project || !getProjectCapabilities(currentUser, project).canEditProject) throw new Error("Project edit permission required.");
+    if (!(["image/png", "image/jpeg", "image/webp"].includes(file.type)) || file.size > 5 * 1024 * 1024) throw new Error("Choose a PNG, JPG or WebP up to 5 MB.");
+    // Resize locally before upload; the server still verifies image content, scope and revision.
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement("canvas"); canvas.width=256;canvas.height=256;
+      const context = canvas.getContext("2d"); if (!context) throw new Error("Image processing unavailable.");
+      const side = Math.min(bitmap.width, bitmap.height);
+      context.drawImage(bitmap, (bitmap.width-side)/2, (bitmap.height-side)/2, side, side, 0, 0, 256, 256);
+      const dataUrl = canvas.toDataURL("image/png");
+      await api(`/api/projects/${encodeURIComponent(project.id)}/icon`, { method: "POST", body: JSON.stringify({ originalName: "project-icon.png", mimeType: "image/png", sizeBytes: Math.round(dataUrl.length*0.75), dataUrl, expectedRevision: project.revision }) });
+      await onReloadProjects();
+    } finally { bitmap.close(); }
   }
   async function runProjectLifecycleAction(action: "cancel" | "reactivate", reason: string) {
     if (!project || !getProjectCapabilities(currentUser, project).canManage) return;
@@ -418,6 +434,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               onOpenTickets={() => onOpenTickets(project.id)}
               onOpenTime={() => onOpenTime(project.id)}
               onOpenPlan={() => setTab("plan")}
+              availableSections={tabs.map((item) => item.id)}
               onOpenSection={(section) => setTab(section as typeof tab)}
               onRefresh={() => Promise.all([loadProjectSnapshot(), loadProjectDashboard(), loadProjectControlCenter()]).catch(() => undefined)}
               canManage={capabilities.canManage}
@@ -467,7 +484,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
 
           {activeTab === "plan" && (
             <>
-              <ProjectPlanningPanel project={project} setupChecklist={setupChecklist} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} />
+              <ProjectPlanningPanel project={project} setupChecklist={setupChecklist} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
               <ClusterDisclosureGroup className="project-secondary-details-v57 project-plan-handoff-v57"
                 contentClassName="project-plan-handoff-body-v57" title="Workflow handoff"
                 summary="Recurring work, dependencies, meetings, and ownership handoff">

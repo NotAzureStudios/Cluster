@@ -888,7 +888,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                             Ticket destination Board
                             <ClusterNativeSelect value={ticketDraft.boardId} onChange={(event) => setTicketDraft((current) => ({ ...current, boardId: event.target.value, listId: "" }))}>
                               <option value="">Choose Board...</option>
-                              {ticketBoardOptions.filter((board) => board.project.id === ticketDraft.projectId && !board.archived).map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
+                              {ticketBoardOptions.filter((board) => board.project.id === ticketDraft.projectId).map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
                             </ClusterNativeSelect>
                           </label>
                           <label>

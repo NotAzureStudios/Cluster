@@ -90,13 +90,14 @@ let compatibilityCache: {
   proven: boolean;
   readsAllowed: boolean;
   replayAllowed: boolean;
+  rejected: boolean;
 } | null = null;
 let snapshot: OfflineSyncSnapshot = {
   online: typeof navigator === "undefined" ? true : navigator.onLine !== false,
   serverReachable: true,
-  serverState: "unknown",
-  readAccessAllowed: true,
-  mutationReplayAllowed: true,
+  serverState: "compatibility-check-pending",
+  readAccessAllowed: false,
+  mutationReplayAllowed: false,
   syncing: false,
   uploading: false,
   pulling: false,
@@ -444,6 +445,7 @@ async function checkServer() {
     const healthVersion = String(payload?.version || "").trim() || null;
     const reachable = response.ok;
     let compatibilityProven = false;
+    let compatibilityRejected = false;
     let compatibilityReadsAllowed = false;
     let compatibilityReplayAllowed = false;
     const cachedCompatibility = compatibilityCache && Date.now() - compatibilityCache.checkedAt < COMPATIBILITY_CACHE_MS && compatibilityCache.healthVersion === healthVersion
@@ -451,6 +453,7 @@ async function checkServer() {
       : null;
     if (reachable && cachedCompatibility) {
       compatibilityProven = cachedCompatibility.proven;
+      compatibilityRejected = cachedCompatibility.rejected;
       compatibilityReadsAllowed = cachedCompatibility.readsAllowed;
       compatibilityReplayAllowed = cachedCompatibility.replayAllowed;
     } else if (reachable) {
@@ -459,9 +462,10 @@ async function checkServer() {
         if (compatibilityResponse.ok) {
           const compatibility = await compatibilityResponse.json() as { compatible?: unknown; serverInstanceId?: unknown; serverDataEpoch?: unknown; serverVersion?: unknown; contractVersion?: unknown; mutationSchemaVersion?: unknown; runtimeAccess?: { readsAllowed?: unknown; queuedMutationReplayAllowed?: unknown } };
           compatibilityProven = compatibility.compatible === true;
+          compatibilityRejected = compatibility.compatible === false;
           compatibilityReadsAllowed = compatibilityProven && compatibility.runtimeAccess?.readsAllowed !== false;
           compatibilityReplayAllowed = compatibilityProven && compatibility.runtimeAccess?.queuedMutationReplayAllowed === true;
-          compatibilityCache = { checkedAt: Date.now(), healthVersion, proven: compatibilityProven, readsAllowed: compatibilityReadsAllowed, replayAllowed: compatibilityReplayAllowed };
+          compatibilityCache = { checkedAt: Date.now(), healthVersion, proven: compatibilityProven, rejected: compatibilityRejected, readsAllowed: compatibilityReadsAllowed, replayAllowed: compatibilityReplayAllowed };
           writeOfflineServerBinding(getOfflineScope(), {
             serverInstanceId: String(compatibility.serverInstanceId || "").trim() || null,
             serverDataEpoch: String(compatibility.serverDataEpoch || "").trim() || null,
@@ -469,13 +473,17 @@ async function checkServer() {
             contractVersion: String(compatibility.contractVersion || "").trim() || null,
             mutationSchemaVersion: Number.isInteger(Number(compatibility.mutationSchemaVersion)) ? Number(compatibility.mutationSchemaVersion) : null,
           });
+        } else if (compatibilityResponse.status === 426) {
+          compatibilityRejected = true;
         }
       } catch {
         compatibilityCache = null;
         // Reachability is still authoritative; reads/replay stay held until compatibility is proven again.
       }
     }
-    const effectiveServerState = reachable && !compatibilityProven && ["healthy", "degraded"].includes(serverState) ? "incompatible" : serverState;
+    const effectiveServerState = reachable && !compatibilityProven && ["healthy", "degraded"].includes(serverState)
+      ? compatibilityRejected ? "incompatible" : "compatibility-check-pending"
+      : serverState;
     const readAccessAllowed = reachable && compatibilityReadsAllowed && !["maintenance", "recovery", "draining", "starting", "unavailable"].includes(serverState);
     const mutationReplayAllowed = reachable && compatibilityReplayAllowed && ["healthy", "degraded"].includes(serverState);
     setSnapshot({ online: true, serverReachable: reachable, serverState: effectiveServerState, readAccessAllowed, mutationReplayAllowed, lastCheckedAt: Date.now() });

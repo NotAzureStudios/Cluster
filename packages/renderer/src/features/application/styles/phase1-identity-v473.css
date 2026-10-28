@@ -58,11 +58,44 @@
 
 /* v0.506 first-run choices remain usable at narrow widths and Windows DPI scaling. */
 .setup-mode-picker-v506 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 10px; width: 100%; }
-.setup-mode-picker-v506 > button { min-width: 0; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; border: 1px solid var(--border, #5c5c5c); border-radius: 14px; background: var(--surface, #292929); cursor: pointer; white-space: normal; }
-.setup-mode-picker-v506 > button.selected { border-color: var(--accent, #929292); box-shadow: inset 0 0 0 1px var(--accent, #929292); }
-.setup-mode-picker-v506 small { font-weight: 400; opacity: .8; line-height: 1.45; }
+/* Setup modes are unstyled native buttons. Native button foreground does not
+   inherit the dark card's text color on Windows and can silently render black.
+   Bind the foreground explicitly to the same semantic theme tokens as the panel. */
+.setup-phase1-v473 .setup-mode-picker-v506 > button {
+  min-width: 0; text-align: left; display: flex; flex-direction: column;
+  align-items: flex-start; gap: 8px; padding: 16px;
+  border: 1px solid var(--border, #5c5c5c); border-radius: 14px;
+  background: var(--surface, #292929); color: var(--text, #f2f5f9);
+  font: inherit; cursor: pointer; white-space: normal;
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button > strong {
+  color: inherit; font-size: .89rem; line-height: 1.35;
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button > small {
+  color: var(--soft-text, var(--muted, #c1c8d1));
+  opacity: 1; font-size: .76rem; font-weight: 400; line-height: 1.45;
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent, #57c1ff) 55%, var(--border, #5c5c5c));
+  background: color-mix(in srgb, var(--accent, #57c1ff) 7%, var(--surface, #292929));
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button.selected {
+  border-color: var(--accent, #57c1ff);
+  background: color-mix(in srgb, var(--accent, #57c1ff) 9%, var(--surface, #292929));
+  box-shadow: inset 0 0 0 1px var(--accent, #57c1ff);
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button:focus-visible {
+  outline: 2px solid var(--cluster-focus-color, #57c1ff);
+  outline-offset: 3px;
+}
+.setup-phase1-v473 .setup-mode-picker-v506 > button:disabled {
+  cursor: not-allowed; opacity: .6;
+}
 .setup-config-import-v506 { display: grid; gap: 12px; min-width: 0; }
-.setup-config-preview-v506 { border: 1px solid var(--border, #5c5c5c); border-radius: 12px; padding: 12px 14px; min-width: 0; overflow-wrap: anywhere; }
+.setup-config-preview-v506 { color: var(--text, #f2f5f9); border: 1px solid var(--border, #5c5c5c); border-radius: 12px; padding: 12px 14px; min-width: 0; overflow-wrap: anywhere; }
 .setup-config-preview-v506 ul { margin: 8px 0; padding-left: 20px; }
 .setup-config-preview-v506 li { overflow-wrap: anywhere; }
 @media (max-width: 580px) { .setup-mode-picker-v506 { grid-template-columns: 1fr; } }
+
+.setup-access-guidance-rc46{display:grid;gap:6px;background:var(--surface-soft);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text)}
+.setup-access-guidance-rc46 span{color:var(--soft-text);font-size:.76rem;line-height:1.4}

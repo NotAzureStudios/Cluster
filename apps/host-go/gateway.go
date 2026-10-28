@@ -51,6 +51,22 @@ func (h *host) handler(target *url.URL) http.Handler {
 			writeJSON(response, http.StatusForbidden, map[string]any{"ok": false, "error": "Cross-origin Cluster Host requests are not allowed.", "code": "ORIGIN_NOT_ALLOWED"})
 			return
 		}
+		// Old bookmarks using http://127.0.0.1 need to reach localhost
+		// before the browser requests a passkey registration challenge.
+		// Redirect only safe navigation methods, never credentials or writes.
+		canonical, _ := url.Parse(h.origin)
+		incoming, _ := url.Parse("//" + request.Host)
+		if !h.remoteAccess && canonical != nil && incoming != nil &&
+			!strings.EqualFold(incoming.Hostname(), canonical.Hostname()) &&
+			request.URL.Path != "/host/health" {
+			if request.Method == http.MethodGet || request.Method == http.MethodHead {
+				response.Header().Set("Cache-Control", "no-store")
+				http.Redirect(response, request, h.origin+request.URL.RequestURI(), http.StatusTemporaryRedirect)
+			} else {
+				writeJSON(response, http.StatusMisdirectedRequest, map[string]any{"ok": false, "code": "CANONICAL_HOST_REQUIRED", "error": "Open Cluster using its canonical localhost browser address before submitting requests."})
+			}
+			return
+		}
 		pathValue := request.URL.Path
 		switch {
 		case pathValue == "/host/health":
@@ -162,7 +178,14 @@ func (h *host) hostAllowed(rawHost string) bool {
 	}
 	if !h.remoteAccess && isLoopbackBind(h.bindAddress) {
 		host := strings.ToLower(requestURL.Hostname())
-		return host == "localhost" || host == "127.0.0.1" || host == "::1"
+		if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+			return false
+		}
+		expectedPort := originURL.Port()
+		if expectedPort == "" { expectedPort = map[bool]string{true: "443", false: "80"}[h.secure] }
+		requestedPort := requestURL.Port()
+		if requestedPort == "" { requestedPort = map[bool]string{true: "443", false: "80"}[h.secure] }
+		return requestedPort == expectedPort
 	}
 	return false
 }

@@ -70,7 +70,7 @@ export function buildAdminWorkspaceNav(scope: AdminPageScope, input: { userCount
   return adminWorkspaceSections(scope, true).map((section) => ({
     id: section.id,
     label: section.label,
-    detail: section.id === "users" ? String(input.userCount) : section.id === "security-center" ? String(input.pendingApprovals) : undefined,
+    detail: section.id === "users" ? String(input.userCount) : section.id === "approvals" ? String(input.pendingApprovals) : undefined,
     group: "group" in section ? section.group : undefined,
   }));
 }

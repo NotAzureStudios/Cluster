@@ -34,6 +34,10 @@ export function useVisibleRefresh(refresh: () => Promise<unknown> | unknown, opt
     let timer = 0;
     let recoveryTimer = 0;
     let lastStartedAt = 0;
+    let lastRecoveryAt = Date.now();
+    // Focus and visibility can fire together, and quickly switching tabs can
+    // otherwise wake every mounted workspace poller on each transition.
+    const recoveryGapMs = Math.max(12_000, minimumGapMs);
     let rerunRequested = false;
 
     const run = async () => {
@@ -72,12 +76,18 @@ export function useVisibleRefresh(refresh: () => Promise<unknown> | unknown, opt
       }, intervalMs);
     };
     const request = () => { void run(); };
+    const requestRecovery = () => {
+      const now = Date.now();
+      if (now - lastRecoveryAt < recoveryGapMs) return;
+      lastRecoveryAt = now;
+      request();
+    };
     const onVisibility = () => {
       if (document.visibilityState !== "visible") { clearTimer(); return; }
-      if (refreshOnVisible) request();
+      if (refreshOnVisible) requestRecovery();
       schedule();
     };
-    const onFocus = () => { request(); schedule(); };
+    const onFocus = () => { requestRecovery(); schedule(); };
     const onOnline = () => { request(); schedule(); };
 
     schedule();

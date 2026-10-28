@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterIcon } from "../../components/ClusterIcon";
 
 type Request = { id: string; operation: string; targetId: string; userId: string; quantity: number;
   expiresAt: string; status: string; reason: string; subjectLabel?: string; targetLabel?: string; requestedById: string; reviewedById?: string;
@@ -18,9 +19,25 @@ export function StudioInventoryApprovalPanel() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [truncated, setTruncated] = useState(false);
+  const [requestsLoaded, setRequestsLoaded] = useState(false);
   const [custody, setCustody] = useState<Array<{ id: string; userId: string; assetId: string; quantity: number; asset: { title: string; kind: string } }> | null>(null);
   const [custodyTruncated, setCustodyTruncated] = useState(false);
   const [personId, setPersonId] = useState("");
+  const [personOptions, setPersonOptions] = useState<Array<{ id: string; displayName: string; username: string }>>([]);
+  const [personOptionsLoading, setPersonOptionsLoading] = useState(false);
+  const personOptionsRequested = useRef(false);
+  async function loadPersonOptions() {
+    if (personOptionsRequested.current) return;
+    personOptionsRequested.current = true;
+    setPersonOptionsLoading(true);
+    try {
+      const result = await api<{ people: Array<{ id: string; displayName: string; username: string }> }>("/api/admin/inventory/access-requests/options");
+      setPersonOptions(result.people || []);
+    } catch (failure) {
+      personOptionsRequested.current = false;
+      setError(failure instanceof Error ? failure.message : "People lookup unavailable.");
+    } finally { setPersonOptionsLoading(false); }
+  }
   const [access, setAccess] = useState<{
     person: { displayName?: string; username: string }; eligible: boolean;
     allocations: Array<{ id: string; effectiveStatus: string; asset: { title: string; kind: string } }>;
@@ -31,10 +48,10 @@ export function StudioInventoryApprovalPanel() {
   } | null>(null);
   async function reload() {
     const result = await api<{ requests: Request[]; truncated: boolean }>("/api/admin/inventory/access-requests");
-    setRequests(result.requests || []); setTruncated(Boolean(result.truncated));
+    setRequests(result.requests || []); setTruncated(Boolean(result.truncated)); setRequestsLoaded(true);
   }
   useEffect(() => { let active = true; void api<{ requests: Request[]; truncated: boolean }>("/api/admin/inventory/access-requests")
-    .then((result) => { if (active) { setRequests(result.requests || []); setTruncated(Boolean(result.truncated)); } })
+    .then((result) => { if (active) { setRequests(result.requests || []); setTruncated(Boolean(result.truncated)); setRequestsLoaded(true); } })
     .catch((failure) => { if (active) setError(failure instanceof Error ? failure.message : "Could not load Inventory access reviews."); });
     return () => { active = false; }; }, []);
   const selected = requests.find((row) => row.id === selectedId);
@@ -47,16 +64,18 @@ export function StudioInventoryApprovalPanel() {
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Inventory decision failed. Refresh before trying again."); }
     finally { setBusy(false); inFlight.current = false; }
   }
-  return <div className="settings-card-v092">
-    <h3>Reviewed Inventory access</h3>
-    <p>Digital seat issuance, seat extensions, and commercial-key assignments require an independent administrator. Requests do not reserve capacity or expose any key. The server rechecks current eligibility and stock at the moment of approval.</p>
-    <ClusterButton type="button" disabled={busy} onClick={() => void reload().catch((failure) => setError(failure instanceof Error ? failure.message : "Refresh failed."))}>Refresh reviews</ClusterButton>
+  return <div className="inventory-review-workspace-v22">
+    <header className="inventory-review-heading-v22"><div><ClusterIcon name="check" treatment="duotone" /><h3>Access reviews</h3><span>{requests.filter((item) => item.status === "pending").length} pending</span></div>
+    <ClusterButton size="compact" type="button" disabled={busy} onClick={() => void reload().catch((failure) => setError(failure instanceof Error ? failure.message : "Refresh failed."))}><ClusterIcon name="refresh" /> Refresh</ClusterButton></header>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {truncated && <p role="status">Showing only the latest 100 requests. Older records remain in the database.</p>}
-    <section className="settings-card-v092" aria-label="Cross-tool person access summary">
-      <h4>People · access and custody reconciliation</h4>
-      <p>Inspect a person's Inventory seats, assigned keys, Package entitlements, direct Project allow rules and equipment custody together. This is an admin summary, not an effective-permission grant.</p>
-      <div className="field"><label>Person ID</label><ClusterInput value={personId} maxLength={160} onChange={(event) => { setPersonId(event.target.value); setAccess(null); }} placeholder="Paste a Person ID" /></div>
+    <details className="inventory-review-disclosure-v22" aria-label="Person access audit" onToggle={(event) => { if (event.currentTarget.open) void loadPersonOptions(); }}>
+      <summary><ClusterIcon name="users" /> Person access <ClusterIcon name="chevron-down" /></summary><div className="inventory-review-disclosure-body-v22">
+      <div className="field"><label>Person</label><ClusterNativeSelect value={personId} onChange={(event) => { setPersonId(event.target.value); setAccess(null); }} disabled={personOptionsLoading}>
+        <option value="">{personOptionsLoading ? "Loading people…" : "Select person"}</option>
+        {personOptions.map((person) => <option key={person.id} value={person.id}>{person.displayName || person.username}</option>)}
+      </ClusterNativeSelect></div>
+      <details className="inventory-review-advanced-v22"><summary>Use person ID</summary><ClusterInput value={personId} maxLength={160} onChange={(event) => { setPersonId(event.target.value); setAccess(null); }} placeholder="Person ID" /></details>
       <ClusterButton type="button" disabled={!personId.trim() || busy} onClick={() => void api<typeof access>(`/api/admin/inventory/person-access/${encodeURIComponent(personId.trim())}`)
         .then((result) => { setAccess(result); setError(""); })
         .catch((failure) => { setAccess(null); setError(failure instanceof Error ? failure.message : "Unable to inspect person access."); })}>Inspect person access</ClusterButton>
@@ -70,18 +89,17 @@ export function StudioInventoryApprovalPanel() {
         {Object.values(access.truncated).some(Boolean) && <p role="status">One or more sections are incomplete due to listing limits.</p>}
         <small>{access.note}</small>
       </div>}
-    </section>
-    <section className="settings-card-v092" aria-label="Outstanding equipment custody">
-      <h4>Offboarded people · open equipment custody</h4>
-      <p>Physical custody remains active until a real return, transfer, or write-off is recorded in Assets & allocations. Offboarding paperwork does not put equipment back on the shelf.</p>
+      </div></details>
+    <details className="inventory-review-disclosure-v22" aria-label="Outstanding equipment custody">
+      <summary><ClusterIcon name="archive" /> Outstanding custody <ClusterIcon name="chevron-down" /></summary><div className="inventory-review-disclosure-body-v22">
       <ClusterButton type="button" disabled={busy} onClick={() => void api<{ allocations: Array<{ id: string; userId: string; assetId: string; quantity: number; asset: { title: string; kind: string } }>; truncated: boolean }>("/api/admin/inventory/custody-outstanding")
         .then((result) => { setCustody(result.allocations); setCustodyTruncated(result.truncated); setError(""); })
         .catch((failure) => setError(failure instanceof Error ? failure.message : "Custody reconciliation unavailable."))}>Inspect outstanding custody</ClusterButton>
       {custody && <><p>{custody.length} open equipment allocation(s){custodyTruncated ? " (partial, first 100)" : ""}.</p>
         {custody.map((allocation) => <p key={allocation.id}>{allocation.asset.title} · {allocation.quantity} unit(s) · Person {allocation.userId} · Allocation {allocation.id.slice(0, 12)}</p>)}
       </>}
-    </section>
-    {requests.length === 0 && <p>No reviewed or pending requests.</p>}
+      </div></details>
+    {requestsLoaded && !error && requests.length === 0 && <div className="inventory-review-empty-v22"><ClusterIcon name="check" treatment="duotone" /><strong>All caught up</strong><span>No access requests to review.</span></div>}
     {requests.map((item) => <article className="studio-explanation-v272" key={item.id}>
       <strong>{item.operation.replaceAll("_", " ")} · {item.status}</strong>
       <span>Recipient {item.subjectLabel || item.userId} · {item.targetLabel || item.targetId.slice(0, 12)} · {item.quantity} unit(s) · Until {new Date(item.expiresAt).toLocaleString()} · {item.reason}</span>

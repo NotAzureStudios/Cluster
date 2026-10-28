@@ -81,6 +81,56 @@ export function userScopedRateLimitPolicy(input: { pathname: string; method: str
   return null;
 }
 
+/**
+ * Interactive actions must not share a fixed-window budget with live dashboard,
+ * presence, sync and background reads. All lanes remain bounded per session/IP;
+ * authentication and high-risk controls have additional independent limits.
+ */
+export type ApiTransportRateLimitPolicy = {
+  bucketName: "api" | "api-library" | "api-inventory" | "api-timeline" | "api-admin" | "api-compatibility" | "api-live" | "api-mutation" | "api-project-preview" | "api-project-create" | "api-project-progress";
+  limit: number;
+};
+export function apiTransportRateLimitPolicy(input: { pathname: string; method: string; apiRateLimitMax: number }): ApiTransportRateLimitPolicy {
+  const method = upper(input.method);
+  const max = Math.max(10, Math.trunc(input.apiRateLimitMax || 10));
+  // Compatibility checks must remain possible when ordinary workspace reads saturate.
+  // They are still bounded per client and do not bypass transport/auth controls.
+  if (method === "GET" && input.pathname === "/api/meta/compatibility") {
+    return { bucketName: "api-compatibility", limit: Math.min(max, 120) };
+  }
+  // Live widgets and notifications refresh independently of directory/list pages.
+  if (method === "GET" && (["/api/notifications/summary", "/api/time/active", "/api/calendar/upcoming", "/api/library/summary", "/api/me/presence"].includes(input.pathname) || input.pathname.startsWith("/api/presence/"))) {
+    return { bucketName: "api-live", limit: max };
+  }
+  // Workspace browsing has its own bounded quota. A busy Home/dashboard
+  // tab must not make Library and Inventory inaccessible to the same user.
+  if (["GET", "HEAD"].includes(method) && (input.pathname === "/api/library/workspace" || input.pathname.startsWith("/api/library/collections"))) {
+    return { bucketName: "api-library", limit: max };
+  }
+  if (["GET", "HEAD"].includes(method) && (input.pathname.startsWith("/api/admin/inventory/") || input.pathname.startsWith("/api/inventory/"))) {
+    return { bucketName: "api-inventory", limit: max };
+  }
+  if (["GET", "HEAD"].includes(method) && input.pathname.startsWith("/api/timeline")) {
+    return { bucketName: "api-timeline", limit: max };
+  }
+  if (["GET", "HEAD"].includes(method) && input.pathname.startsWith("/api/admin/")) {
+    return { bucketName: "api-admin", limit: max };
+  }
+  if (method === "POST" && input.pathname === "/api/projects/provision/preview") {
+    return { bucketName: "api-project-preview", limit: Math.min(max, 60) };
+  }
+  if (method === "POST" && (input.pathname === "/api/projects/provision" || /^\/api\/projects\/provision\/[^/]+\/retry$/.test(input.pathname))) {
+    return { bucketName: "api-project-create", limit: Math.min(max, 20) };
+  }
+  if (method === "GET" && /^\/api\/projects\/provision\/[^/]+$/.test(input.pathname)) {
+    return { bucketName: "api-project-progress", limit: Math.min(max, 120) };
+  }
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    return { bucketName: "api-mutation", limit: Math.min(max, Math.max(10, Math.min(1200, Math.floor(max / 8)))) };
+  }
+  return { bucketName: "api", limit: max };
+}
+
 function base64EnvelopeLimit(rawBytes: number, globalLimit: number) {
   return Math.min(globalLimit, Math.ceil(rawBytes * 4 / 3) + 2 * MIB);
 }

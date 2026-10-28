@@ -26,6 +26,53 @@ function statePath(scope: ServerStateScope, key: string) {
   return `/api/client-state/${scope}/${encodeURIComponent(key)}`;
 }
 
+// Collapse simultaneous user preference hydration into one authorized read.
+// Studio keys retain their individually authorized endpoints: the studio-wide
+// collection endpoint requires admin privileges and is not permission-equivalent.
+type UserStateWaiter = {
+  key: string;
+  resolve: (response: StateResponse<unknown>) => void;
+  reject: (error: unknown) => void;
+};
+const pendingUserStateReads = new Map<string, UserStateWaiter[]>();
+function batchUserStateRead<T>(key: string): Promise<StateResponse<T>> {
+  const identity = getOfflineScopeIdentity();
+  const ownerKey = `${identity.scope}:${identity.generation}`;
+  return new Promise<StateResponse<T>>((resolve, reject) => {
+    const queue = pendingUserStateReads.get(ownerKey) || [];
+    queue.push({ key, resolve: resolve as (response: StateResponse<unknown>) => void, reject });
+    if (!pendingUserStateReads.has(ownerKey)) {
+      pendingUserStateReads.set(ownerKey, queue);
+      queueMicrotask(() => {
+        const waiting = pendingUserStateReads.get(ownerKey) || [];
+        pendingUserStateReads.delete(ownerKey);
+        // Do not issue an old account's preference fetch after ownership changes.
+        const current = getOfflineScopeIdentity();
+        if (`${current.scope}:${current.generation}` !== ownerKey) {
+          for (const item of waiting) item.resolve({ ok: true, record: null });
+          return;
+        }
+        const byKey = new Map<string, UserStateWaiter[]>();
+        for (const item of waiting) byKey.set(item.key, [...(byKey.get(item.key) || []), item]);
+        const keys = [...byKey.keys()];
+        for (let offset = 0; offset < keys.length; offset += 24) {
+          const selection = keys.slice(offset, offset + 24);
+          void queryApi<{ records: ServerStateRecord<unknown>[] }>(
+            `/api/client-state/user?keys=${selection.map(encodeURIComponent).join(",")}`,
+            { force: true, staleMs: 10_000, tags: ["client-state", "user-preferences"] },
+          ).then((result) => {
+            const records = new Map((result.records || []).map((record) => [record.key, record]));
+            for (const name of selection) for (const item of byKey.get(name) || [])
+              item.resolve({ ok: true, record: records.get(name) || null });
+          }).catch((error) => {
+            for (const name of selection) for (const item of byKey.get(name) || []) item.reject(error);
+          });
+        }
+      });
+    }
+  });
+}
+
 export async function readServerState<T>(scope: ServerStateScope, key: string, fallback: T, force = false) {
   const owner = getOfflineScopeIdentity();
   if (!mayApplyClientState(scope, owner, getOfflineScopeIdentity())) return fallback;
@@ -115,12 +162,12 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
       return;
     }
     let alive = true;
-    queryApi<StateResponse<T>>(statePath(scope, key), {
+    (scope === "user" ? batchUserStateRead<T>(key) : queryApi<StateResponse<T>>(statePath(scope, key), {
       force: true,
       staleMs: 10_000,
       maxAgeMs: 30 * 24 * 60 * 60 * 1000,
       tags: ["client-state", `${scope}:${key}`],
-    })
+    }))
       .then(async (result) => {
         if (!alive || !mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) return;
         // Editing while a slow initial read is pending must not be undone by
@@ -150,8 +197,10 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
 
   const persist = useCallback<Dispatch<SetStateAction<T>>>((next) => {
     if (!mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) return;
-    localChangeVersionRef.current += 1;
     const resolved = typeof next === "function" ? (next as (current: T) => T)(valueRef.current) : next;
+    // Re-rendering an unchanged tab list must not generate an identical PUT.
+    if (Object.is(resolved, valueRef.current)) return;
+    localChangeVersionRef.current += 1;
     valueRef.current = resolved;
     setValue(resolved);
     if (options.enabled === false) return;

@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ClusterButton } from "./ClusterButton";
+import { ClusterIcon, type ClusterIconName } from "./ClusterIcon";
 import { ClusterFloatingSurface } from "./ClusterFloatingSurface";
 import { focusMenuItem } from "./cluster-menu-navigation";
 
@@ -7,6 +8,7 @@ export type CompactSectionNavItem<Id extends string = string> = {
   id: Id;
   label: string;
   detail?: string;
+  icon?: ClusterIconName;
   group?: string;
 };
 
@@ -96,6 +98,7 @@ export function CompactSectionNav<Id extends string>({
             onClick={() => select(item.id)}
             onKeyDown={(event) => handleKeys(event, index)}
           >
+            {item.icon && <ClusterIcon name={item.icon} treatment="navigation" className="cluster-section-nav-glyph" aria-hidden="true" />}
             <strong>{item.label}</strong>
             {item.detail ? <span aria-hidden="true">{item.detail}</span> : null}
           </ClusterButton>

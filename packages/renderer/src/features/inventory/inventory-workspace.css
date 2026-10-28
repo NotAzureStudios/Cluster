@@ -17,3 +17,247 @@
 .cluster-vault-secret code{overflow-wrap:anywhere;user-select:text}
 .cluster-vault-actions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:800px){.cluster-vault-grid{grid-template-columns:minmax(0,1fr)}.cluster-resource-workspace{padding:10px}.cluster-vault-records{max-height:320px}}
+
+/* RC14: empty Vault lists and detail panels retain the same visible structure as populated views. */
+.cluster-vault-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(145px, 230px) auto; gap: 8px; }
+.cluster-vault-grid { margin-top: 12px; grid-template-columns: minmax(245px, .85fr) minmax(0, 1.6fr); }
+.cluster-vault-records { min-height: 240px; padding: 12px; border: 1px solid var(--cluster-border); border-radius: 12px; background: var(--panel); }
+.cluster-vault-records > p { color: var(--text-muted); margin: 0; padding: 16px 8px; }
+.cluster-vault-details > .settings-card-v092 { padding: clamp(14px, 1.5vw, 22px); border: 1px solid var(--cluster-border); border-radius: 12px; background: var(--panel); }
+.cluster-vault-details h2 { font-size: clamp(1rem, 1.2vw, 1.25rem); margin: 0 0 12px; }
+@media(max-width: 800px) { .cluster-vault-toolbar { grid-template-columns: minmax(0, 1fr); } .cluster-vault-grid { grid-template-columns: minmax(0, 1fr); } .cluster-vault-records { min-height: 80px; max-height: 280px; } }
+
+/* RC17: asset- and record-first resource workspaces. Forms are progressive disclosure. */
+.cluster-resource-workspace__header h1 { display:flex; align-items:center; gap:10px; margin:0; }
+.cluster-resource-workspace__header h1 > svg { width:25px; height:25px; color:var(--accent); flex-shrink:0; }
+.cluster-resource-workspace__tabs { gap:6px; padding-bottom:10px; }
+.inventory-tool-workspace .studio-systems-layout-v34f { display:grid; grid-template-columns:minmax(255px,320px) minmax(0,1fr); gap:14px; align-items:start; }
+.inventory-tool-workspace .studio-systems-list-v34f { display:grid; align-content:start; gap:9px; min-width:0; padding:12px; border:1px solid var(--cluster-border); border-radius:12px; background:var(--cluster-surface-1); }
+.inventory-tool-workspace .studio-systems-editor-v34f { min-width:0; padding:14px; border:1px solid var(--cluster-border); border-radius:12px; background:var(--cluster-surface-1); }
+.cluster-inventory-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; align-items:stretch; }
+.cluster-inventory-kpis > div { display:grid; justify-items:start; gap:2px; min-width:0; padding:8px; border:1px solid var(--cluster-border); border-radius:8px; background:var(--cluster-surface-2); }
+.cluster-inventory-kpis strong { font-size:1.17rem; font-variant-numeric:tabular-nums; }
+.cluster-inventory-kpis span { color:var(--muted); font-size:.7rem; }
+.cluster-inventory-kpis > button { grid-column:1/-1; justify-content:center; }
+.cluster-inventory-attention { display:flex; gap:6px; align-items:center; padding:9px 10px; background:var(--cluster-surface-2); border:1px solid var(--cluster-border); border-radius:8px; font-size:.76rem; }
+.cluster-inventory-browser-head { display:flex; align-items:center; justify-content:space-between; gap:9px; }
+.cluster-inventory-catalog { display:grid; gap:6px; align-content:start; min-width:0; }
+.inventory-tool-workspace .cluster-inventory-item { display:flex; min-height:62px; width:100%; min-width:0; gap:10px; align-items:center; text-align:left; padding:9px; border:1px solid var(--cluster-border); border-radius:9px; background:var(--cluster-surface-2); color:var(--text); }
+.inventory-tool-workspace .cluster-inventory-item.active { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,var(--cluster-surface-2)); }
+.cluster-inventory-item__icon { display:grid; place-items:center; width:34px; height:34px; flex:0 0 34px; border-radius:9px; color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
+.cluster-inventory-item__identity { display:grid; min-width:0; flex:1; gap:3px; }
+.cluster-inventory-item__identity strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cluster-inventory-item__identity small { font-size:.7rem; color:var(--muted); }
+.cluster-inventory-item__status { flex-shrink:0; font-size:.64rem; color:var(--good); }
+.cluster-inventory-item__status.is-retired { color:var(--muted); }
+.cluster-inventory-creator { display:grid; gap:8px; }
+.cluster-inventory-selected-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--cluster-border); }
+.cluster-inventory-selected-head h3 { margin:3px 0 0; }
+.cluster-inventory-selected-head small { font-size:.7rem; color:var(--muted); }
+.cluster-inventory-availability { display:grid; grid-template-columns:repeat(3,auto); grid-template-rows:auto auto; gap:2px 13px; text-align:center; }
+.cluster-inventory-availability strong { font-size:1.13rem; }
+.cluster-inventory-availability span { grid-row:2; color:var(--muted); font-size:.65rem; }
+.cluster-inventory-zero-state { min-height:250px; display:grid; place-content:center; justify-items:center; gap:9px; color:var(--muted); text-align:center; }
+.cluster-inventory-zero-state > svg { width:42px; height:42px; color:var(--accent); }
+.cluster-resource-disclosure { border:1px solid var(--cluster-border); border-radius:10px; background:var(--cluster-surface-1); padding:10px 12px; }
+.cluster-resource-disclosure > summary { cursor:pointer; display:flex; align-items:center; gap:9px; font-weight:700; list-style:none; }
+.cluster-resource-disclosure > summary::-webkit-details-marker { display:none; }
+.cluster-resource-disclosure > summary > svg { width:17px; height:17px; color:var(--accent); }
+.cluster-resource-disclosure[open] > summary { margin-bottom:12px; padding-bottom:9px; border-bottom:1px solid var(--cluster-border); }
+.cluster-vault-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) auto; gap:8px; align-items:stretch; }
+.cluster-vault-summary > div { display:grid; grid-template-columns:auto 1fr; column-gap:9px; align-items:center; padding:9px 12px; border:1px solid var(--cluster-border); border-radius:9px; background:var(--cluster-surface-1); }
+.cluster-vault-summary > div > svg { grid-row:1/3; width:21px; height:21px; color:var(--accent); }
+.cluster-vault-summary strong { font-size:1.12rem; }
+.cluster-vault-summary span { font-size:.68rem; color:var(--muted); }
+.cluster-vault-grid { grid-template-columns:minmax(260px,.9fr) minmax(0,1.6fr); }
+.cluster-vault-records { gap:6px; min-height:270px; }
+.cluster-vault-records .cluster-vault-record { flex-direction:row; align-items:center; gap:10px; min-height:57px; padding:9px; background:var(--cluster-surface-2); border:1px solid var(--cluster-border); }
+.cluster-vault-record__glyph { display:grid; place-items:center; flex:0 0 33px; width:33px; height:33px; background:color-mix(in srgb,var(--accent) 12%,transparent); border-radius:9px; color:var(--accent); }
+.cluster-vault-record__text { flex:1; min-width:0; display:grid; gap:2px; }
+.cluster-vault-record__text strong { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.cluster-vault-record__state { font-size:.65rem; color:var(--good); }
+.cluster-vault-record__state.state-expired,.cluster-vault-record__state.state-revoked { color:var(--warning); }
+.cluster-vault-empty,.cluster-vault-detail-empty { display:grid; gap:9px; justify-items:center; align-content:center; min-height:175px; text-align:center; color:var(--muted); }
+.cluster-vault-empty > svg,.cluster-vault-detail-empty > svg { width:37px; height:37px; color:var(--accent); }
+.cluster-vault-review-queue { display:grid; gap:7px; }
+.cluster-vault-review-queue > button { justify-self:start; }
+.cluster-vault-new-secret { display:grid; gap:9px; }
+.cluster-vault-security-note { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:.71rem; margin:0; }
+.cluster-vault-domains { margin-top:2px; }
+@media(max-width:1000px) { .cluster-vault-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .cluster-vault-summary > button { grid-column:1/-1; } }
+@media(max-width:850px) { .inventory-tool-workspace .studio-systems-layout-v34f, .cluster-vault-grid { grid-template-columns:minmax(0,1fr); } .cluster-vault-toolbar { grid-template-columns:minmax(0,1fr); } }
+
+/* RC18: actual catalog browsing, not a form-first settings panel. */
+.cluster-inventory-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px;min-width:0}
+.cluster-inventory-filters>select{min-width:0;width:100%}
+.cluster-inventory-mini-empty{display:grid;justify-items:center;gap:9px;padding:22px 12px;border:1px dashed var(--cluster-border);border-radius:10px;color:var(--muted);text-align:center}
+.cluster-inventory-mini-empty strong{color:var(--text)}
+.cluster-inventory-availability{grid-template-columns:repeat(3,minmax(50px,1fr));gap:3px 12px}
+.cluster-inventory-availability strong{font-variant-numeric:tabular-nums}
+.cluster-inventory-item:focus-visible,.cluster-vault-record:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cluster-vault-toolbar>*{min-width:0}
+.cluster-vault-details{align-content:start}
+.cluster-vault-records{overscroll-behavior:contain}
+.cluster-vault-record__text strong{max-width:100%}
+.cluster-vault-summary>div{min-width:0}
+.cluster-vault-summary>div strong{font-variant-numeric:tabular-nums}
+.cluster-vault-secret{background:var(--cluster-surface-2);border-color:var(--accent)}
+.cluster-vault-secret code{padding:10px;border-radius:7px;background:var(--cluster-surface-1);word-break:break-all}
+@media(max-width:520px){.cluster-inventory-filters{grid-template-columns:1fr}.cluster-vault-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* RC18 Vault uses metadata classification + state before pagination. */
+.cluster-vault-toolbar{grid-template-columns:minmax(180px,1fr) minmax(135px,185px) minmax(130px,175px) auto}
+@media(max-width:900px){.cluster-vault-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.cluster-vault-toolbar>input{grid-column:1/-1}}
+@media(max-width:520px){.cluster-vault-toolbar{grid-template-columns:1fr}}
+
+/* RC19: key pools are resources, not a permanently expanded import form. */
+.cluster-key-pool-creator{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:9px 0;padding:13px;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2)}
+.cluster-key-pool-creator>.field:first-child{grid-column:1/-1}
+.cluster-key-pool-creator>button{justify-self:start;align-self:end}
+.cluster-key-pools-heading{display:flex;align-items:center;gap:9px;min-width:0;margin:6px 0 10px}
+.cluster-key-pools-heading>svg{flex-shrink:0;color:var(--accent);width:20px;height:20px}
+.cluster-key-pools-heading h3{margin:0;flex:1;min-width:0;font-size:.96rem}
+.cluster-key-pools-heading>span{margin-left:auto;font-size:.71rem;color:var(--muted)}
+.cluster-key-pool-selected{display:flex;align-items:center;gap:11px;min-width:0;padding:12px;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2)}
+.cluster-key-pool-selected>svg{width:28px;height:28px;flex-shrink:0;color:var(--accent)}
+.cluster-key-pool-selected>div{display:grid;gap:3px;flex:1;min-width:0}
+.cluster-key-pool-selected strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cluster-key-pool-selected small{font-size:.72rem;color:var(--muted)}
+.cluster-key-pool-selected>span{font-size:.69rem;text-transform:capitalize;color:var(--muted)}
+.cluster-key-pool-selected>span.is-active{color:var(--good)}
+.cluster-key-pool-key-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:9px;margin-top:8px}
+.cluster-key-pool-key{display:flex;flex-direction:column;gap:9px;min-width:0;padding:12px;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2)}
+.cluster-key-pool-key>header{display:flex;align-items:center;gap:9px;min-width:0}
+.cluster-key-pool-key>header strong{font-size:.82rem;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cluster-key-pool-key__glyph{display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;color:var(--accent);border-radius:8px;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.cluster-key-pool-key__status{font-size:.66rem;text-transform:capitalize;color:var(--muted)}
+.cluster-key-pool-key__status.state-assigned{color:var(--accent)}
+.cluster-key-pool-key__status.state-available{color:var(--good)}
+.cluster-key-pool-key p{margin:0;color:var(--muted);font-size:.73rem;overflow-wrap:anywhere}
+.cluster-key-pool-key button{align-self:start;max-width:100%}
+@media(max-width:640px){.cluster-key-pool-creator{grid-template-columns:1fr}}
+
+/* RC19: placeholders follow the actual catalog/inspector geometry. */
+.cluster-resource-skeleton-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2);min-height:57px;animation:cluster-resource-skeleton-breathe 1.6s ease-in-out infinite alternate}
+.cluster-resource-skeleton-item>span{width:33px;height:33px;flex:0 0 33px;border-radius:8px;background:var(--cluster-surface-3,var(--cluster-surface-1))}
+.cluster-resource-skeleton-item>div{flex:1;display:grid;gap:6px}
+.cluster-resource-skeleton-item strong,.cluster-resource-skeleton-item small,.cluster-resource-skeleton-detail>span,.cluster-resource-skeleton-detail>strong,.cluster-resource-skeleton-detail>div{display:block;height:10px;border-radius:5px;background:var(--cluster-surface-3,var(--cluster-surface-1))}
+.cluster-resource-skeleton-item strong{width:72%}.cluster-resource-skeleton-item small{width:45%;height:7px}
+.cluster-resource-skeleton-detail{display:grid;gap:12px;padding:16px;border:1px solid var(--cluster-border);border-radius:10px;min-height:190px;background:var(--cluster-surface-2);animation:cluster-resource-skeleton-breathe 1.6s ease-in-out infinite alternate}
+.cluster-resource-skeleton-detail>span{width:20%;height:8px}.cluster-resource-skeleton-detail>strong{width:55%;height:23px}.cluster-resource-skeleton-detail>div{height:40px}
+@keyframes cluster-resource-skeleton-breathe{from{opacity:.5}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.cluster-resource-skeleton-item,.cluster-resource-skeleton-detail{animation:none}}
+
+/* RC22: a resource tool, not a settings document. */
+.inventory-tool-workspace .inventory-resources-v22{display:grid;align-content:start;gap:12px;min-width:0}
+.inventory-resources-v22 .settings-panel-head-v092{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--cluster-border);border-radius:12px;background:var(--cluster-surface-1)}
+.inventory-resources-v22 .settings-panel-head-v092 h2{margin:0;font-size:1.08rem}
+.inventory-resources-v22>h3{display:flex;align-items:center;gap:10px;margin:4px 0 0;font-size:.95rem}
+.inventory-resource-count-v22{display:inline-grid;place-items:center;min-width:24px;padding:3px 7px;border-radius:20px;background:var(--cluster-surface-2);border:1px solid var(--cluster-border);color:var(--muted);font-size:.72rem;font-weight:600}
+.inventory-resources-v22 .settings-card-grid-v092{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px;min-height:72px;padding:10px;border:1px solid var(--cluster-border);border-radius:12px;background:var(--cluster-surface-1)}
+.inventory-resources-v22 .settings-card-grid-v092:empty:after{content:"No assignments";display:grid;place-items:center;min-height:66px;color:var(--muted);font-size:.78rem}
+.inventory-resources-v22 .settings-card-grid-v092>.settings-card-v092{margin:0;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2);padding:12px}
+.inventory-resources-v22 .settings-card-grid-v092 h3{margin:0;font-size:.89rem}
+.inventory-resources-v22 .settings-card-head-v092{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.inventory-review-workspace-v22{display:grid;align-content:start;gap:10px;min-width:0;padding:14px;border:1px solid var(--cluster-border);border-radius:13px;background:var(--cluster-surface-1)}
+.inventory-review-heading-v22{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--cluster-border)}
+.inventory-review-heading-v22>div{display:flex;align-items:center;gap:9px;min-width:0}
+.inventory-review-heading-v22 svg{width:20px;height:20px;color:var(--accent)}
+.inventory-review-heading-v22 h3{margin:0;font-size:1.08rem}
+.inventory-review-heading-v22 span{padding:3px 8px;border:1px solid var(--cluster-border);background:var(--cluster-surface-2);border-radius:20px;color:var(--muted);font-size:.71rem}
+.inventory-review-disclosure-v22{padding:0;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2);overflow:clip}
+.inventory-review-disclosure-v22>summary{display:flex;align-items:center;gap:10px;min-height:42px;padding:10px 12px;cursor:pointer;font-weight:650;font-size:.82rem;list-style:none}
+.inventory-review-disclosure-v22>summary::-webkit-details-marker{display:none}
+.inventory-review-disclosure-v22>summary svg:first-child{width:19px;height:19px;color:var(--accent)}
+.inventory-review-disclosure-v22>summary svg:last-child{margin-left:auto;width:15px;height:15px;color:var(--muted)}
+.inventory-review-disclosure-v22[open]>summary{border-bottom:1px solid var(--cluster-border)}
+.inventory-review-disclosure-v22[open]>summary svg:last-child{transform:rotate(180deg)}
+.inventory-review-disclosure-body-v22{display:grid;gap:9px;padding:12px}
+.inventory-review-disclosure-body-v22 .field{display:grid;gap:5px;min-width:0}
+.inventory-review-disclosure-body-v22 button{justify-self:start}
+.inventory-review-workspace-v22>.studio-explanation-v272{display:grid;gap:7px;margin:0;padding:12px;border:1px solid var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2)}
+.inventory-review-workspace-v22>.studio-explanation-v272>span{font-size:.75rem;color:var(--muted)}
+.inventory-review-empty-v22{display:grid;justify-items:center;align-content:center;gap:6px;min-height:140px;border:1px dashed var(--cluster-border);border-radius:10px;background:var(--cluster-surface-2);text-align:center}
+.inventory-review-empty-v22 svg{width:27px;height:27px;color:var(--accent)}
+.inventory-review-empty-v22 span{font-size:.77rem;color:var(--muted)}
+@media(max-width:700px){.inventory-review-workspace-v22{padding:9px}.inventory-resource-count-v22{min-width:22px}}
+
+.inventory-review-advanced-v22{margin-top:2px;padding:6px 0;font-size:.72rem;color:var(--muted)}
+.inventory-review-advanced-v22>summary{cursor:pointer}
+.inventory-review-advanced-v22>input{margin-top:6px;max-width:100%}
+
+
+/* RC29: inventory is a stock/custody tool, not Library's file browser. */
+.inventory-tool-workspace .cluster-inventory-v29{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start;min-width:0}
+.inventory-tool-workspace .cluster-inventory-v29.has-inspector{grid-template-columns:minmax(0,1fr) minmax(310px,365px)}
+.inventory-tool-workspace .cluster-inventory-v29>.studio-systems-list-v34f{padding:12px;gap:12px;min-width:0}
+.inventory-tool-workspace .cluster-inventory-v29>.studio-systems-editor-v34f{position:sticky;top:72px;max-height:calc(100dvh - 100px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;min-width:0}
+.cluster-inventory-browser-head{flex-wrap:wrap;gap:12px}
+.cluster-inventory-browser-head>strong{font-size:1.03rem}
+.cluster-inventory-browser-actions,.cluster-inventory-category-nav{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.cluster-inventory-browser-actions{margin-left:auto}
+.cluster-inventory-category-nav{padding-block:8px;border-top:1px solid var(--cluster-border);border-bottom:1px solid var(--cluster-border)}
+.cluster-inventory-category-nav button{min-height:35px}
+.inventory-tool-workspace .cluster-inventory-filters{grid-template-columns:minmax(140px,220px);justify-content:end}
+.inventory-tool-workspace .cluster-inventory-catalog.catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,205px),1fr));gap:10px;align-content:start}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item{display:grid;grid-template-columns:38px minmax(0,1fr);grid-template-rows:auto 1fr auto auto;gap:8px 10px;align-content:start;align-items:start;min-height:192px;padding:14px;text-align:left;transition:border-color .12s ease,background .12s ease}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__icon{width:38px;height:38px;grid-column:1;grid-row:1}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__icon svg{width:21px;height:21px}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__identity{grid-column:1/-1;grid-row:2;display:grid;gap:5px;align-self:start;overflow-wrap:anywhere}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__identity strong{font-size:.92rem;white-space:normal;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__status{grid-column:2;grid-row:1;justify-self:end;align-self:center}
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__stock{grid-column:1/-1;grid-row:4;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;padding-top:10px;border-top:1px solid var(--cluster-border)}
+.cluster-inventory-item__stock{display:grid;grid-template-columns:auto auto;gap:0 10px;text-align:center;align-items:center}
+.cluster-inventory-item__stock strong{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.cluster-inventory-item__stock small{font-size:.69rem;color:var(--muted)}
+.inventory-tool-workspace .catalog-list .cluster-inventory-item{min-height:75px}
+.inventory-tool-workspace .catalog-list .cluster-inventory-item__stock{grid-template-columns:repeat(2,auto);margin-inline-start:auto}
+.inventory-tool-workspace .catalog-list .cluster-inventory-item__stock strong{grid-row:1}
+.inventory-tool-workspace .catalog-list .cluster-inventory-item__stock small{grid-row:2}
+.cluster-inventory-inspector-close,.cluster-vault-inspector-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--cluster-border);margin-bottom:8px}
+.cluster-inventory-inspector-close strong{font-size:.88rem}
+.cluster-inventory-inspector-close button,.cluster-vault-inspector-heading button{flex-shrink:0}
+.inventory-tool-workspace .cluster-inventory-v29 .cluster-inventory-zero-state{min-height:150px}
+/* Vault is an encrypted credential manager. List metadata, never plaintext. */
+.vault-tool-workspace .vault-catalog-v29{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-top:8px}
+.vault-tool-workspace .vault-catalog-v29.has-inspector{grid-template-columns:minmax(0,1fr) minmax(320px,380px)}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-records{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));align-content:start;gap:10px;min-width:0;max-height:none;overflow:visible;min-height:200px}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record{display:grid;grid-template-columns:36px minmax(0,1fr);grid-template-rows:38px auto auto;gap:6px 9px;min-height:145px;align-content:start;align-items:center;padding:14px}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record__glyph{grid-column:1;grid-row:1}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record__text{grid-column:1/-1;grid-row:2;gap:5px;min-width:0}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record__text strong{white-space:normal;overflow-wrap:anywhere}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record__state{grid-column:2;grid-row:1;justify-self:end}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-details{position:sticky;top:72px;max-height:calc(100dvh - 95px);overflow-y:auto;overscroll-behavior:contain;min-width:0;scrollbar-width:thin}
+.vault-tool-workspace .vault-catalog-v29 .cluster-vault-details>.settings-card-v092{padding:12px}
+.vault-tool-workspace .cluster-vault-inspector-heading h2{margin:0}
+.cluster-vault-categories{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:12px 0 9px;padding-bottom:11px;border-bottom:1px solid var(--cluster-border)}
+.vault-tool-workspace .cluster-vault-toolbar{grid-template-columns:minmax(180px,1fr) minmax(140px,200px) auto;gap:8px}
+@media(max-width:1050px){.inventory-tool-workspace .cluster-inventory-v29.has-inspector,.vault-tool-workspace .vault-catalog-v29.has-inspector{grid-template-columns:minmax(0,1fr)}.inventory-tool-workspace .cluster-inventory-v29>.studio-systems-editor-v34f,.vault-tool-workspace .vault-catalog-v29 .cluster-vault-details{position:static;max-height:none;overflow:visible}}
+@media(max-width:620px){.cluster-inventory-browser-actions{margin-left:0}.inventory-tool-workspace .cluster-inventory-catalog.catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.inventory-tool-workspace .catalog-grid .cluster-inventory-item{padding:10px}.vault-tool-workspace .vault-catalog-v29 .cluster-vault-records{grid-template-columns:repeat(2,minmax(0,1fr));padding:7px}.vault-tool-workspace .vault-catalog-v29 .cluster-vault-record{padding:10px}.vault-tool-workspace .cluster-vault-toolbar{grid-template-columns:minmax(0,1fr)}.inventory-tool-workspace .cluster-inventory-v29>.studio-systems-list-v34f{padding:8px}}
+@media(max-width:400px){.inventory-tool-workspace .cluster-inventory-catalog.catalog-grid,.vault-tool-workspace .vault-catalog-v29 .cluster-vault-records{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.inventory-tool-workspace .catalog-grid .cluster-inventory-item{transition:none}}
+
+/* RC34: available stock is one accurate capacity meter, not four tiny labels. */
+.inventory-tool-workspace .cluster-inventory-item__stock { display:block; text-align:start; min-width:90px; }
+.inventory-tool-workspace .catalog-grid .cluster-inventory-item__stock { display:block; }
+.inventory-tool-workspace .catalog-list .cluster-inventory-item__stock { display:block; }
+.cluster-inventory-item__stock .cluster-visual-meter__head strong { font-size:.76rem; }
+.cluster-inventory-availability-v34 { width:min(100%,300px); min-width:165px; }
+.cluster-inventory-availability-v34 .cluster-visual-composition__legend { gap:5px 8px; }
+@media(max-width:600px) { .cluster-inventory-availability-v34 { width:100%; } }
+
+/* RC40: Vault summary is a graph + actionable controls, not four stat boxes. */
+.cluster-vault-summary { grid-template-columns:minmax(0,1fr) auto auto;align-items:center; }
+.cluster-vault-summary>.cluster-vault-visual-status { display:block;min-width:0;padding:10px 12px; }
+.cluster-vault-summary>.cluster-vault-visual-status .cluster-visual-composition { gap:6px; }
+.cluster-vault-summary>.cluster-vault-review-indicator { min-width:0;white-space:nowrap; }
+@media (max-width:900px) { .cluster-vault-summary { grid-template-columns:minmax(0,1fr) auto auto; } }
+@media (max-width:650px) { .cluster-vault-summary { grid-template-columns:1fr 1fr; } .cluster-vault-summary>.cluster-vault-visual-status { grid-column:1/-1; } .cluster-vault-summary>.cluster-vault-review-indicator { grid-column:1/-1; } .cluster-vault-summary>button { grid-column:auto; } }
+
+/* RC41: visually summarize only the loaded, filter-matched, authorized catalog rows. */
+.cluster-inventory-visual-summary-rc41{display:grid;gap:8px;padding:9px 10px;min-width:0}
+.cluster-inventory-visual-summary-rc41>.cluster-visual-composition{min-width:0}
+.cluster-inventory-visual-summary-rc41>.cluster-button{justify-self:start}
+.cluster-inventory-visual-details-rc41{min-width:0;border:1px solid var(--cluster-line,var(--border));border-radius:9px;padding:7px 9px}
+.cluster-inventory-visual-details-rc41>summary{cursor:pointer;font-size:.75rem;color:var(--cluster-muted,var(--muted))}
+.cluster-inventory-visual-details-rc41[open]>.cluster-visual-ranked{margin-top:8px}

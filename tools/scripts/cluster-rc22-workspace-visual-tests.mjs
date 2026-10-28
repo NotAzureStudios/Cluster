@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
+const require=createRequire(import.meta.url);
+const ts=(()=>{try{return require('typescript')}catch{return require(`${execFileSync('npm',['root','-g'],{encoding:'utf8'}).trim()}/typescript`)}})();
+let count=0;const check=(fn)=>{fn();count++};
+const icon=read('packages/renderer/src/components/ClusterIcon.tsx');
+const generator=read('tools/scripts/generate-cluster-icons.mjs');
+const inventory=read('packages/renderer/src/features/inventory/InventoryWorkspacePage.tsx');
+const resource=read('packages/renderer/src/features/settings/MyInventoryLicensesPanel.tsx');
+const reviews=read('packages/renderer/src/features/settings/StudioInventoryApprovalPanel.tsx');
+const library=read('packages/renderer/src/features/library/LibraryWorkspacePage.tsx');
+const inspector=read('packages/renderer/src/features/projects/ProjectPortfolioInspector.tsx');
+const creator=read('packages/renderer/src/features/create/SharedCreateDrawer.tsx');
+check(()=>assert.match(icon,/\| "inventory"/));
+check(()=>assert.match(generator,/inventory:'package-duotone'/));
+check(()=>assert.match(generator,/inventory:'package'/));
+check(()=>assert.match(inventory,/useState<InventorySection>\(isAdmin \? "assets" : "mine"\)/));
+check(()=>assert.match(inventory,/<ClusterIcon name="inventory"/));
+check(()=>assert.match(resource,/className="settings-section-v092 inventory-recipient-keys inventory-resources-v22"/));
+check(()=>assert.match(reviews,/inventory-review-heading-v22/));
+check(()=>assert.match(reviews,/personOptionsRequested\.current/));
+check(()=>assert.match(reviews,/aria-label="Person access audit" onToggle=/));
+check(()=>assert.match(reviews,/className="inventory-review-disclosure-v22" aria-label="Outstanding equipment custody"/));
+check(()=>assert.match(reviews,/reason\.trim\(\)\.length < 8/));
+check(()=>assert.match(library,/className="library-views-anchor-v22"/));
+check(()=>assert.match(library,/className="library-views-flyout-v22"/));
+check(()=>assert.doesNotMatch(library,/\n\s*\{showSavedViews \? <SavedViewsToolbar/));
+check(()=>assert.match(read('packages/renderer/src/features/library/library-workspace.css'),/\.library-views-flyout-v22\{position:absolute/));
+check(()=>assert.match(inspector,/<details className="inspector-section-v146 project-brief-inspector-v307 project-inspector-secondary-v22">/));
+check(()=>assert.match(inspector,/<summary>Setup readiness/));
+check(()=>assert.match(creator,/mode === "project" \? "project" : selectedMode\?\.icon/));
+check(()=>assert.match(read('packages/renderer/src/features/create/shared-create-drawer.css'),/data-create-mode="project"/));
+// Parse every changed TSX surface, not just string-match markup.
+for(const file of ['packages/renderer/src/features/inventory/InventoryWorkspacePage.tsx','packages/renderer/src/features/settings/MyInventoryLicensesPanel.tsx','packages/renderer/src/features/settings/StudioInventoryApprovalPanel.tsx','packages/renderer/src/features/library/LibraryWorkspacePage.tsx','packages/renderer/src/features/projects/ProjectPortfolioInspector.tsx','packages/renderer/src/features/projects/ProjectsPage.tsx','packages/renderer/src/features/create/SharedCreateDrawer.tsx','packages/renderer/src/components/ClusterIcon.tsx']){
+ const parsed=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ check(()=>assert.equal(parsed.parseDiagnostics.length,0,`${file}: ${parsed.parseDiagnostics.map(d=>d.messageText).join('; ')}`));
+}
+console.log(`RC22: ${count}/${count} icon, inventory, approvals, Library, Projects and JSX assertions passed`);

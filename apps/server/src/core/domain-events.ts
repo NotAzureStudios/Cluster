@@ -83,7 +83,7 @@ const MAX_PAYLOAD_BYTES = 256 * 1024;
 // INSERT and held by PostgreSQL until its containing transaction commits.
 // Rollbacks may leave harmless sequence gaps, but committed rows cannot pass
 // an earlier uncommitted outbox writer. This is the sole canonical writer.
-const OUTBOX_COMMIT_ORDER_LOCK_SQL = "SELECT pg_advisory_xact_lock(6192449487634434181::bigint)";
+const OUTBOX_COMMIT_ORDER_LOCK_SQL = 'SELECT pg_advisory_xact_lock(6192449487634434181::bigint)::text AS "lock"';
 
 
 function eventType(value: unknown) {

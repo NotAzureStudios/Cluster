@@ -1,4 +1,6 @@
 import type { ClusterDataExportJobStatus } from "@cluster/shared";
+import { useState } from "react";
+import { downloadAuthenticatedClusterFile } from "../core/browser-download-transfers";
 import { API_URL } from "../core/api";
 import { useClusterOperationJobStatus } from "./useClusterOperationJobStatus";
 import { ClusterButton, ClusterLinkButton } from "./ClusterButton";
@@ -20,6 +22,7 @@ function sizeLabel(bytes?: number | null) {
 
 export function DataExportOperationFeedback({ jobId, onDismiss }: { jobId?: string | null; onDismiss?: () => void }) {
   const { status, requestError } = useClusterOperationJobStatus<ClusterDataExportJobStatus>(jobId, "/api/data-exports/jobs", "Export progress could not be refreshed.");
+  const [downloadError, setDownloadError] = useState("");
 
   if (!jobId) return null;
   const normalized = String(status?.status || "QUEUED").toUpperCase();
@@ -43,7 +46,8 @@ export function DataExportOperationFeedback({ jobId, onDismiss }: { jobId?: stri
 
   return <ClusterOperationFeedback state={state} message={message} detail={detail} progress={working ? status?.progress ?? 0 : succeeded ? 100 : null}>
     <div className="button-row">
-      {href ? <ClusterLinkButton href={href} download={artifact?.fileName || undefined} size="compact">Download export</ClusterLinkButton> : null}
+      {href ? <ClusterLinkButton href={href} download={artifact?.fileName || undefined} size="compact" onClick={(event) => { event.preventDefault(); setDownloadError(""); void downloadAuthenticatedClusterFile({ url: event.currentTarget.href, fileName: artifact?.fileName || "cluster-export" }).catch((error) => setDownloadError(error instanceof Error ? error.message : "Export download failed.")); }}>Download export</ClusterLinkButton> : null}
+      {downloadError && <span role="alert" className="cluster-transfer-action-error">{downloadError}</span>}
       {onDismiss && !working ? <ClusterButton type="button" variant="quiet" size="compact" onClick={onDismiss}>Dismiss</ClusterButton> : null}
     </div>
   </ClusterOperationFeedback>;

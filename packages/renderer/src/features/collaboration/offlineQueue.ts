@@ -72,7 +72,9 @@ async function hydrate() {
 function initialize() {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
-  subscribeOfflineStorage(() => void hydrate());
+  subscribeOfflineStorage((area) => {
+    if (area === "mutations" || area === "scope" || area === "all") void hydrate();
+  });
   void hydrate();
 }
 
@@ -85,7 +87,9 @@ export function collaborationMutationQueue(tool?: "board" | "whiteboard", resour
 export function subscribeCollaborationMutationQueue(listener: () => void) {
   if (typeof window === "undefined") return () => undefined;
   window.addEventListener(CHANGE_EVENT, listener);
-  const unsubscribe = subscribeOfflineStorage(() => void hydrate());
+  const unsubscribe = subscribeOfflineStorage((area) => {
+    if (area === "mutations" || area === "scope" || area === "all") void hydrate();
+  });
   return () => {
     window.removeEventListener(CHANGE_EVENT, listener);
     unsubscribe();

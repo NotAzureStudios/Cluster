@@ -4,6 +4,8 @@ import { copyClusterText } from "../../core/clipboard";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterVisualComposition } from "../../components/ClusterVisualMetrics";
 
 type VaultRecord = {
   id: string; name: string; kind: string; fingerprint: string;
@@ -21,11 +23,16 @@ function secretState(item: VaultRecord) {
 
 /** Raw values stay in component memory only. The list projection never requests ciphertext. */
 export function VaultManager() {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [metadataOpen, setMetadataOpen] = useState(false);
+  const [rotationOpen, setRotationOpen] = useState(false);
   const [records, setRecords] = useState<VaultRecord[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState("all");
   const [createDraft, setCreateDraft] = useState({ name: "", kind: "integration", value: "", expiresAt: "" });
   const [metadata, setMetadata] = useState({ name: "", kind: "integration", expiresAt: "" });
   const [replacement, setReplacement] = useState("");
@@ -34,6 +41,9 @@ export function VaultManager() {
   const [externalNote, setExternalNote] = useState("");
   const [rotationReviews, setRotationReviews] = useState<VaultRotationReview[]>([]);
   const [rotationReviewsTruncated, setRotationReviewsTruncated] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [revealed, setRevealed] = useState<{ id: string; value: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -41,15 +51,41 @@ export function VaultManager() {
   const [notice, setNotice] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
+  const revealRequestId = useRef(0);
+  const selectedSecretRef = useRef(selectedId);
+  selectedSecretRef.current = selectedId;
+  const reviewsRequestId = useRef(0);
   const mutationLock = useRef(false);
   const mounted = useRef(true);
   const selected = records.find((item) => item.id === selectedId) || null;
-  const visible = records.filter((item) => statusFilter === "all" || secretState(item).toLowerCase() === statusFilter);
+  const visible = records; // Status filtering happens in PostgreSQL before cursor pagination.
+  const detailsVisible = Boolean(selected || createOpen || reviewsOpen);
 
   function conceal() {
+    revealRequestId.current++; // Late reveal responses must never reopen a concealed credential.
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     setRevealed(null);
+  }
+
+  // Secret metadata search must never trigger a privileged review queue query.
+  // Keep the independent approval workflow isolated so a review failure cannot
+  // prevent an administrator from inspecting non-secret metadata.
+  async function loadReviews() {
+    const sequence = ++reviewsRequestId.current;
+    setReviewsLoading(true);
+    try {
+      const reviews = await api<{ reviews: VaultRotationReview[]; truncated: boolean }>("/api/admin/vault/rotation-reviews");
+      if (!mounted.current || sequence !== reviewsRequestId.current) return;
+      setRotationReviews(reviews.reviews || []);
+      setReviewsLoaded(true);
+      setRotationReviewsTruncated(Boolean(reviews.truncated));
+      setReviewsError("");
+    } catch (failure) {
+      if (mounted.current && sequence === reviewsRequestId.current) setReviewsError(formatApiError(failure));
+    } finally {
+      if (mounted.current && sequence === reviewsRequestId.current) setReviewsLoading(false);
+    }
   }
 
   async function load(next: string | null = null, q = search) {
@@ -58,18 +94,15 @@ export function VaultManager() {
     try {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (kindFilter !== "all") params.set("kind", kindFilter);
       if (next) params.set("cursor", next);
-      const [result, reviews] = await Promise.all([
-        api<VaultPage>(`/api/admin/vault/secrets?${params}`),
-        api<{ reviews: VaultRotationReview[]; truncated: boolean }>("/api/admin/vault/rotation-reviews"),
-      ]);
+      const result = await api<VaultPage>(`/api/admin/vault/secrets?${params}`);
       if (!mounted.current || sequence !== requestId.current) return;
       const rows = result.secrets || [];
       setRecords((current) => next ? [...current.filter((item) => !rows.some((row) => row.id === item.id)), ...rows] : rows);
       setCursor(result.nextCursor || null);
-      setRotationReviews(reviews.reviews || []);
-      setRotationReviewsTruncated(Boolean(reviews.truncated));
-      if (!next) setSelectedId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id || "");
+      if (!next) setSelectedId((current) => rows.some((row) => row.id === current) ? current : "");
       setError("");
     } catch (failure) {
       if (mounted.current && sequence === requestId.current) setError(formatApiError(failure));
@@ -82,12 +115,12 @@ export function VaultManager() {
     mounted.current = true;
     const onHidden = () => { if (document.visibilityState === "hidden") { conceal(); setReplacement(""); setCreateDraft((draft) => ({ ...draft, value: "" })); } };
     document.addEventListener("visibilitychange", onHidden);
-    return () => { mounted.current = false; requestId.current++; document.removeEventListener("visibilitychange", onHidden); if (timer.current) clearTimeout(timer.current); };
+    return () => { mounted.current = false; requestId.current++; reviewsRequestId.current++; document.removeEventListener("visibilitychange", onHidden); if (timer.current) clearTimeout(timer.current); };
   }, []);
   useEffect(() => {
     const timeout = setTimeout(() => { conceal(); void load(null, search); }, 250);
     return () => { clearTimeout(timeout); requestId.current++; };
-  }, [search]);
+  }, [search, statusFilter, kindFilter]);
   useEffect(() => {
     conceal(); setReplacement("");
     const item = records.find((record) => record.id === selectedId);
@@ -98,7 +131,7 @@ export function VaultManager() {
     if (mutationLock.current) return;
     mutationLock.current = true;
     setBusy(true); setError(""); setNotice(""); conceal();
-    try { await task(); if (mounted.current) await load(null, search); }
+    try { await task(); if (mounted.current) await Promise.all([load(null, search), loadReviews()]); }
     catch (failure) { if (mounted.current) setError(`${formatApiError(failure)} Reload Vault metadata before retrying an uncertain write.`); }
     finally { mutationLock.current = false; if (mounted.current) setBusy(false); }
   }
@@ -109,6 +142,7 @@ export function VaultManager() {
     await mutate(async () => {
       await api("/api/admin/vault/secrets", { method: "POST", body: JSON.stringify(payload) });
       setCreateDraft({ name: "", kind: "integration", value: "", expiresAt: "" });
+      setCreateOpen(false);
       setNotice("Secret encrypted and stored. Only metadata appears in this list.");
     });
   }
@@ -129,11 +163,12 @@ export function VaultManager() {
   async function reveal(item: VaultRecord) {
     if (mutationLock.current || secretState(item) !== "Active") return;
     const confirmed = await confirmCluster({ title: "Reveal sensitive credential", message: `Reveal ${item.name}? This privileged operation is audited. The plaintext is displayed for at most 20 seconds.`, confirmLabel: "Reveal" });
-    if (!confirmed || mutationLock.current || selectedId !== item.id) return;
+    if (!confirmed || mutationLock.current || selectedSecretRef.current !== item.id) return;
     mutationLock.current = true; setBusy(true); setError(""); conceal();
+    const revealSequence = revealRequestId.current;
     try {
       const result = await api<{ value: string }>(`/api/admin/vault/secrets/${encodeURIComponent(item.id)}/reveal`, { method: "POST", headers: { "X-Cluster-Confirmation": "REVEAL VAULT SECRET" } });
-      if (!mounted.current || document.visibilityState === "hidden") return;
+      if (!mounted.current || revealSequence !== revealRequestId.current || selectedSecretRef.current !== item.id || document.visibilityState === "hidden") return;
       setRevealed({ id: item.id, value: result.value });
       timer.current = setTimeout(() => { if (mounted.current) setRevealed(null); timer.current = null; }, 20_000);
     } catch (failure) { if (mounted.current) setError(formatApiError(failure)); }
@@ -201,27 +236,44 @@ export function VaultManager() {
   }
 
   return <section className="cluster-resource-workspace__body" aria-label="Vault secret manager">
+    <div className="cluster-vault-summary" aria-label="Vault overview">
+      <div className="cluster-vault-visual-status">
+        <ClusterVisualComposition label={cursor ? "Loaded credentials · more available" : "Credential states"} total={records.length} parts={[
+          { label: "Active", value: records.filter((record) => secretState(record) === "Active").length, tone: "good" },
+          { label: "Expired", value: records.filter((record) => secretState(record) === "Expired").length, tone: "warning" },
+          { label: "Revoked", value: records.filter((record) => secretState(record) === "Revoked").length, tone: "neutral" },
+        ]} />
+      </div>
+      {reviewsLoaded && rotationReviews.some((review) => review.status === "pending") && <span className="cluster-vault-review-indicator" role="status"><ClusterIcon name="bell" /> {rotationReviews.filter((review) => review.status === "pending").length} pending reviews</span>}
+      <ClusterButton size="compact" variant="secondary" onClick={() => { setReviewsOpen((open) => !open); setSelectedId(""); if (!reviewsOpen) void loadReviews(); }} aria-expanded={reviewsOpen}><ClusterIcon name="bell" /> Reviews</ClusterButton>
+      <ClusterButton variant="primary" size="compact" onClick={() => { setCreateOpen((open) => !open); setSelectedId(""); conceal(); }} aria-expanded={createOpen}><ClusterIcon name={createOpen ? "close" : "plus"} />{createOpen ? "Close" : "New secret"}</ClusterButton>
+    </div>
+    <nav className="cluster-vault-categories" aria-label="Credential categories">{([
+      ["all", "All", "lock"], ["password", "Passwords", "lock"], ["integration", "Integrations", "link"], ["license_key", "Licenses", "game"], ["game_key", "Game keys", "game"], ["other", "Other", "file"]
+    ] as const).map(([id, label, icon]) => <ClusterButton key={id} size="compact" variant={kindFilter === id ? "primary" : "secondary"} aria-pressed={kindFilter === id} onClick={() => { conceal(); setSelectedId(""); setKindFilter(id); }}><ClusterIcon name={icon} /> {label}</ClusterButton>)}</nav>
     <div className="cluster-vault-toolbar">
-      <ClusterInput aria-label="Search Vault metadata" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search secret labels and kinds" />
+      <ClusterInput aria-label="Search Vault metadata" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search labels or classifications…" />
       <ClusterNativeSelect aria-label="Filter Vault status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
         <option value="all">All states</option><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option>
       </ClusterNativeSelect>
-      <ClusterButton disabled={busy || loading} variant="secondary" onClick={() => { conceal(); void load(); }}>Refresh</ClusterButton>
+      <ClusterButton disabled={busy || loading} variant="secondary" onClick={() => { conceal(); void load(); if (reviewsOpen || rotationOpen) void loadReviews(); }}><ClusterIcon name="refresh" /> Refresh</ClusterButton>
     </div>
     {error && <p role="alert" className="settings-card-v092">{error}</p>}
     {notice && <p role="status" className="settings-card-v092">{notice}</p>}
-    <div className="cluster-vault-grid">
+    <div className={`cluster-vault-grid vault-catalog-v29 ${detailsVisible ? "has-inspector" : ""}`}>
       <div className="cluster-vault-records" aria-label="Stored secret metadata">
-        {visible.map((item) => <ClusterButton key={item.id} className="cluster-vault-record settings-card-v092" variant="quiet" aria-current={selectedId === item.id ? "true" : undefined} onClick={() => { conceal(); setSelectedId(item.id); }}>
-          <strong>{item.name}</strong><small>{item.kind.replaceAll("_", " ")} · {secretState(item)} · Rev {item.revision}</small>
+        {visible.map((item) => <ClusterButton key={item.id} className="cluster-vault-record settings-card-v092" variant="quiet" aria-pressed={selectedId === item.id} onClick={() => { conceal(); setSelectedId((id) => id === item.id ? "" : item.id); setCreateOpen(false); setMetadataOpen(false); setRotationOpen(false); }}>
+          <span className="cluster-vault-record__glyph"><ClusterIcon name={item.kind === "password" ? "lock" : item.kind === "license_key" || item.kind === "game_key" ? "game" : "link"} treatment="duotone" /></span>
+          <span className="cluster-vault-record__text"><strong>{item.name}</strong><small>{item.kind.replaceAll("_", " ")}</small></span><span className={`cluster-vault-record__state state-${secretState(item).toLowerCase()}`}>{secretState(item)}</span>
         </ClusterButton>)}
-        {loading && <p role="status">Loading encrypted record metadata…</p>}
-        {!loading && !visible.length && <p>No matching Vault records.</p>}
+        {loading && [1,2,3].map((row) => <div className="cluster-resource-skeleton-item" role="status" aria-label="Loading Vault records" key={row}><span/><div><strong/><small/></div></div>)}
+        {!loading && !visible.length && <div className="cluster-vault-empty"><ClusterIcon name="lock" treatment="duotone" /><strong>No records</strong><small>{search || statusFilter !== "all" || kindFilter !== "all" ? "No matching metadata." : "Create a record to get started."}</small>{(search || statusFilter !== "all" || kindFilter !== "all") && <ClusterButton size="compact" variant="quiet" onClick={() => { setSearch(""); setStatusFilter("all"); setKindFilter("all"); }}>Clear filters</ClusterButton>}</div>}
         {cursor && <ClusterButton disabled={loading || busy} onClick={() => void load(cursor)}>Load more records</ClusterButton>}
       </div>
-      <div className="cluster-vault-details">
+      {detailsVisible && <div className="cluster-vault-details" aria-label="Credential details">
         <div className="settings-card-v092">
-          <h2>{selected?.name || "Choose a Vault record"}</h2>
+          <div className="cluster-vault-inspector-heading"><h2>{selected?.name || (createOpen ? "New secret" : "Rotation reviews")}</h2><ClusterButton size="compact" variant="quiet" aria-label="Close credential details" onClick={() => { conceal(); setSelectedId(""); setCreateOpen(false); setReviewsOpen(false); setMetadataOpen(false); setRotationOpen(false); }}><ClusterIcon name="close" /></ClusterButton></div>
+          {!selected && !createOpen && !reviewsOpen && <div className="cluster-vault-detail-empty"><ClusterIcon name="lock" treatment="duotone" /><span>Select a credential to inspect its metadata and permissions.</span></div>}
           {selected && <>
             <p>{selected.kind.replaceAll("_", " ")} · {secretState(selected)} · Revision {selected.revision}</p>
             <p className="muted tight">Fingerprint: <code>{selected.fingerprint.slice(0, 20)}…</code></p>
@@ -232,13 +284,15 @@ export function VaultManager() {
             </div>}
             {secretState(selected) === "Active" && <>
               <div className="cluster-vault-actions"><ClusterButton disabled={busy} variant="secondary" onClick={() => void reveal(selected)}>Reveal secret</ClusterButton><ClusterButton disabled={busy} variant="secondary" onClick={() => void revoke(selected)}>Revoke…</ClusterButton></div>
-              <div className="cluster-vault-metadata">
+              <ClusterButton variant="quiet" size="compact" onClick={() => setMetadataOpen((open) => !open)} aria-expanded={metadataOpen}><ClusterIcon name="settings" /> Details {metadataOpen ? "▴" : "▾"}</ClusterButton>
+              {metadataOpen && <div className="cluster-vault-metadata">
                 <label className="field"><span>Record label</span><ClusterInput maxLength={160} value={metadata.name} onChange={(event) => setMetadata((draft) => ({ ...draft, name: event.target.value }))} /></label>
                 <label className="field"><span>Classification</span><ClusterNativeSelect value={metadata.kind} onChange={(event) => setMetadata((draft) => ({ ...draft, kind: event.target.value }))}><option value="integration">Integration</option><option value="password">Password</option><option value="license_key">License key</option><option value="game_key">Game key</option><option value="other">Other</option></ClusterNativeSelect></label>
                 <label className="field"><span>Expires at (optional)</span><ClusterInput type="datetime-local" value={metadata.expiresAt} onChange={(event) => setMetadata((draft) => ({ ...draft, expiresAt: event.target.value }))} /></label>
                 <ClusterButton disabled={busy || !metadata.name.trim()} variant="secondary" onClick={() => void updateMetadata(selected)}>Save metadata</ClusterButton>
-              </div>
-              <div className="settings-card-v092">
+              </div>}
+              <ClusterButton variant="quiet" size="compact" onClick={() => { setRotationOpen((open) => !open); if (!rotationOpen) void loadReviews(); }} aria-expanded={rotationOpen}><ClusterIcon name="sync" /> Rotate {rotationOpen ? "▴" : "▾"}</ClusterButton>
+              {rotationOpen && <div className="settings-card-v092">
                 <strong>Independent rotation review</strong>
                 <p className="muted tight">Request without a plaintext replacement. A separate administrator must approve. Approval expires after 24 hours or any credential revision change.</p>
                 <label className="field"><span>Business justification (12+ characters)</span><ClusterInput maxLength={1000} value={rotationReason} onChange={(event) => setRotationReason(event.target.value)} /></label>
@@ -258,11 +312,15 @@ export function VaultManager() {
                       <ClusterButton disabled={busy || !replacement || externalNote.trim().length < 12} onClick={() => void commitRotation(selected, review)}>Commit reviewed replacement…</ClusterButton>
                     </>}
                   </div>)}
-              </div>
+              </div>}
             </>}
           </>}
         </div>
-        <div className="settings-card-v092" aria-label="Vault rotation approval queue">
+        <div className="settings-card-v092 cluster-vault-review-queue" aria-label="Vault rotation approval queue">
+          <ClusterButton size="compact" variant="quiet" onClick={() => { setReviewsOpen((open) => !open); if (!reviewsOpen) void loadReviews(); }} aria-expanded={reviewsOpen}><ClusterIcon name="bell" /> Rotation queue · {rotationReviews.filter((review) => review.status === "pending").length} {reviewsOpen ? "▴" : "▾"}</ClusterButton>
+          {reviewsOpen && <>
+          {reviewsLoading && <p role="status">Loading reviews…</p>}
+          {reviewsError && <p role="alert">{reviewsError} <ClusterButton size="compact" onClick={() => void loadReviews()}>Retry</ClusterButton></p>}
           <h2>Rotation reviews</h2>
           <p className="muted tight">A different administrator must approve each pending request. Replacement values are never part of this queue.</p>
           {rotationReviews.filter((review) => review.status === "pending").map((review) => <div key={review.id} className="settings-card-v092">
@@ -272,17 +330,18 @@ export function VaultManager() {
             <ClusterButton disabled={busy} variant="secondary" onClick={() => void decideRotation(review, "reject")}>Reject</ClusterButton>
           </div>)}
           {rotationReviewsTruncated && <p role="status">More than 100 reviews exist. This snapshot is incomplete; request queue pagination remains outstanding.</p>}
+          </>}
         </div>
-        <div className="settings-card-v092">
-          <h2>Store new secret</h2>
+        {createOpen && <div className="settings-card-v092 cluster-vault-new-secret">
+          <h2>New secret</h2>
           <label className="field"><span>Label</span><ClusterInput maxLength={160} value={createDraft.name} onChange={(event) => setCreateDraft((draft) => ({ ...draft, name: event.target.value }))} /></label>
           <label className="field"><span>Kind</span><ClusterNativeSelect value={createDraft.kind} onChange={(event) => setCreateDraft((draft) => ({ ...draft, kind: event.target.value }))}><option value="integration">Integration</option><option value="password">Password</option><option value="license_key">License key</option><option value="game_key">Game key</option><option value="other">Other</option></ClusterNativeSelect></label>
           <label className="field"><span>Secret value</span><ClusterInput type="password" autoComplete="new-password" maxLength={16384} value={createDraft.value} onChange={(event) => setCreateDraft((draft) => ({ ...draft, value: event.target.value }))} /></label>
           <label className="field"><span>Expires at (optional)</span><ClusterInput type="datetime-local" value={createDraft.expiresAt} onChange={(event) => setCreateDraft((draft) => ({ ...draft, expiresAt: event.target.value }))} /></label>
-          <ClusterButton variant="primary" disabled={busy || !createDraft.name.trim() || !createDraft.value} onClick={() => void create()}>Store encrypted secret</ClusterButton>
-        </div>
-      </div>
+          <ClusterButton variant="primary" disabled={busy || !createDraft.name.trim() || !createDraft.value} onClick={() => void create()}>Store secret</ClusterButton>
+        </div>}
+      </div>}
     </div>
-    <p className="muted tight">Only administrators can use this workspace. Values are never fetched in lists, and every privileged reveal is audited before disclosure. Copied values may persist in the system clipboard.</p>
+    <p className="cluster-vault-security-note"><ClusterIcon name="lock" /> Admin-only · Reveals are audited · Clipboard contents may persist</p>
   </section>;
 }

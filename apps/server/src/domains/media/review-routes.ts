@@ -302,7 +302,7 @@ export function registerReviewAssetRoutes(deps: ServerRouteRegistrationDeps, hel
     const eligible = reviewDecisionEligibility(current, body, user.id, canManage);
     if (!eligible.ok) return reply.code(eligible.status).send({ code: eligible.code, message: eligible.message });
     try {
-      const committed = await prisma.$transaction(async (tx) => {
+      const committed = await prisma.$transaction(async (tx: any) => {
         const update = await tx.reviewAsset.updateMany({
           where: reviewDecisionGuard(current),
           data: {
@@ -458,7 +458,7 @@ export function registerReviewAssetRoutes(deps: ServerRouteRegistrationDeps, hel
     const origin = { reviewAssetId: comment.reviewAsset.id, reviewCommentId: comment.id, versionGroupId: comment.reviewAsset.versionGroupId, versionNumber: comment.reviewAsset.versionNumber, locator };
     let card: any;
     try {
-      card = await prisma.$transaction(async (tx) => {
+      card = await prisma.$transaction(async (tx: any) => {
         // Recheck the destination inside the same write transaction. The G25
         // database admission guard also refuses a concurrent List archive.
         const destination = await tx.boardList.findFirst({ where: { id: list.id, boardId: board.id, archived: false, board: { archived: false, projectId: project.id } } });

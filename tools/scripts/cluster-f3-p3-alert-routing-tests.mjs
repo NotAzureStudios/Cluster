@@ -105,7 +105,7 @@ const schema=read('apps/server/prisma/schema.prisma');
 check(schema.includes('model OperationsIncidentAlertDispatch')&&schema.includes('@@unique([incidentId, cycle, stage, userId])'),'durable receipt uniqueness in Prisma');
 check(schema.includes('model OperationsAlertPolicy')&&schema.includes('acknowledgedById String?'),'policy and acknowledgement persisted');
 check(read('apps/server/prisma/migrations/20261109000000_f4_incident_alert_routing/migration.sql').includes('CREATE UNIQUE INDEX'),'matching migration supplied');
-check(read('packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx').includes('Save all alert settings'),'one-PIN batch UI exists');
+check(read('packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx').includes('Save alert settings') && read('packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx').includes('requestSecurityPin('),'one shared PIN-pad batch confirmation exists');
 check(policyCode.includes('batchPolicyMutationSchema')&&policyCode.includes('commitOperationsAlertPolicyBatch'),'batch settings route present');
 check(policyCode.includes('new Set(body.policies.map')&&policyCode.includes('policyMutationSchema.omit'),'duplicate keys and batch field validation');
 console.log(`Cluster F3 P3 Alert Routing & Escalation: ${n}/${n} assertions passed`);

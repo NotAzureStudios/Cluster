@@ -621,3 +621,50 @@
 .search-favorites-manager-v546__actions { display: flex; gap: .25rem; align-items: center; }
 .search-favorites-manager-v546__actions button { min-height: 32px; }
 @media (max-width: 480px) { .search-favorites-manager-v546__row > span { flex-basis: 100%; } .search-favorites-manager-v546__actions button { min-height: 40px; } }
+
+/* RC15: Prevent command results from visually stacking over each other under
+   narrow taskbar search. Preserve preview isolation and keyboard focus. */
+.cluster-taskbar-search-results-v546 .search-command-results-v294 {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 36px;
+}
+.cluster-taskbar-search-results-v546 .search-command-results-v294 > button {
+  box-sizing: border-box;
+  grid-template-columns: 72px minmax(0, 1fr) auto !important;
+  grid-auto-rows: minmax(0, auto);
+  align-items: center;
+  min-height: 52px;
+  height: auto !important;
+  column-gap: 10px;
+  row-gap: 3px;
+  padding: 8px 10px;
+}
+.cluster-taskbar-search-results-v546 .search-command-results-v294 > button .search-result-copy-v495 {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.cluster-taskbar-search-results-v546 .search-command-results-v294 > button .search-result-copy-v495 :is(strong,em,small) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.cluster-taskbar-search-results-v546 .search-result-group-v431 {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 4px 0 0;
+  background: var(--cluster-visual-surface-raised, var(--panel));
+}
+@media (max-width: 720px) {
+  .cluster-taskbar-search-results-v546 .search-command-results-v294 > button {
+    grid-template-columns: 60px minmax(0, 1fr) !important;
+    min-height: 54px;
+  }
+}

@@ -109,7 +109,7 @@ async function filterAuthorizedChanges(deps: any, request: any, changes: Cluster
     return change.resource.projectId ? [change.resource.projectId] : [];
   })])];
   const projects = projectIds.length ? await deps.prisma.project.findMany({ where: { id: { in: projectIds }, archived: false } }) : [];
-  const projectById = new Map(projects.map((project: any) => [String(project.id), project]));
+  const projectById = new Map<string, any>(projects.map((project: any) => [String(project.id), project]));
 
   const directTargets = new Set<string>(CLUSTER_ACCESS_TARGET_KINDS as readonly string[]);
   const targetPairs = new Map<string, { targetKind: string; targetId: string }>();

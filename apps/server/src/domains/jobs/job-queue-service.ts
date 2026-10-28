@@ -398,14 +398,14 @@ export class BackgroundJobQueue {
            SELECT job."id"
            FROM "BackgroundJob" AS job
            LEFT JOIN workspace_load AS load ON load."workspaceId" = job."workspaceId"
-           WHERE job."id" = $8 AND job."queue" = ANY($1::text[])
-             AND NOT (job."type" = ANY($6::text[]))
+           WHERE job."id" = $7 AND job."queue" = ANY($1::text[])
+             AND NOT (job."type" = ANY($5::text[]))
              AND job."attempts" < job."maxAttempts"
              AND job."cancelRequestedAt" IS NULL
              AND (
                job."workspaceId" IS NULL OR (
-                 COALESCE(load.running, 0) < $4
-                 AND COALESCE(load."runningCost", 0) + job."costUnits" <= $5
+                 COALESCE(load.running, 0) < $3
+                 AND COALESCE(load."runningCost", 0) + job."costUnits" <= $4
                )
              )
              AND (
@@ -418,8 +418,8 @@ export class BackgroundJobQueue {
          )
          UPDATE "BackgroundJob" AS job
          SET "status" = 'RUNNING',
-             "leaseOwner" = $7,
-             "leaseExpiresAt" = NOW() + ($3::bigint * interval '1 millisecond'),
+             "leaseOwner" = $6,
+             "leaseExpiresAt" = NOW() + ($2::bigint * interval '1 millisecond'),
              "attempts" = job."attempts" + 1,
              "startedAt" = COALESCE(job."startedAt", NOW()),
              "updatedAt" = NOW(),
@@ -428,7 +428,6 @@ export class BackgroundJobQueue {
          WHERE job."id" = candidate."id"
          RETURNING job.*`,
         normalizedQueues,
-        owner,
         boundedLeaseMs,
         boundedWorkspaceConcurrency,
         boundedWorkspaceCostBudget,

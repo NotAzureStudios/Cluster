@@ -33,6 +33,7 @@ export function validMSIRollbackReview(value: unknown, packageKey: string): valu
   }
   if (settled !== item.settledDependents.length || outstanding !== item.outstandingDependents.length) return false;
   // The native decision may be reviewable only for an upgrade predecessor.
+  if (!item.predecessorProductVersion || !item.successorProductVersion) return false;
   const a = item.predecessorProductVersion.split(".").map(Number);
   const b = item.successorProductVersion.split(".").map(Number);
   return a[0] === b[0] && (b[1] > a[1] || (b[1] === a[1] && b[2] > a[2]));

@@ -17,7 +17,7 @@ export function ClusterTaskbar({ left, tabs, utilities, children, searchOpen = f
 
 export function TaskbarAction({ icon, label, className = "", active = false, badge, onClick, title, ariaLabel }: { icon: ClusterIconName; label?: string; className?: string; active?: boolean; badge?: ReactNode; onClick: () => void; title?: string; ariaLabel?: string }) {
   return <ClusterButton unstyled type="button" className={`cluster-taskbar-action ${active ? "is-active" : ""} ${className}`.trim()} onClick={onClick} title={title || label} aria-label={ariaLabel || label}>
-    <ClusterIcon name={icon} className="cluster-taskbar-action__icon" />
+    <ClusterIcon name={icon} treatment="action" className="cluster-taskbar-action__icon" />
     {label ? <span className="cluster-taskbar-action__label">{label}</span> : null}
     {badge}
   </ClusterButton>;
@@ -33,7 +33,7 @@ export function SidebarSection({ id, className = "", children }: { id?: string; 
 
 export function SidebarNavItem({ icon, label, active = false, nested = false, badge, trailing, title, onClick, onPointerEnter, onFocus, ariaExpanded, ariaControls }: { icon?: ClusterIconName; label: string; active?: boolean; nested?: boolean; badge?: ReactNode; trailing?: ReactNode; title?: string; onClick: () => void; onPointerEnter?: () => void; onFocus?: () => void; ariaExpanded?: boolean; ariaControls?: string }) {
   return <ClusterButton unstyled type="button" className={`cluster-sidebar-nav-item ${active ? "is-active" : ""} ${nested ? "is-nested" : ""}`.trim()} onPointerEnter={onPointerEnter} onFocus={onFocus} onClick={onClick} aria-label={label} aria-current={active && ariaExpanded === undefined ? "page" : undefined} aria-expanded={ariaExpanded} aria-controls={ariaControls} title={title || label}>
-    {icon ? <span className="cluster-sidebar-nav-item__icon" data-nav-icon={icon}><ClusterIcon name={icon} /></span> : null}
+    {icon ? <span className="cluster-sidebar-nav-item__icon" data-nav-icon={icon}><ClusterIcon name={icon} treatment={active ? "duotone" : nested ? "navigation" : "duotone"} /></span> : null}
     <span className="cluster-sidebar-nav-item__label">{label}</span>
     {badge != null ? <span className="cluster-sidebar-nav-item__badge">{badge}</span> : null}
     {trailing ? <span className="cluster-sidebar-nav-item__trailing">{trailing}</span> : null}

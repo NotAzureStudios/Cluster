@@ -1,0 +1,16 @@
+.cluster-telemetry-chart{min-width:0;display:grid;gap:8px;padding:12px;border:1px solid var(--border);border-radius:var(--ds-radius-lg,14px);background:var(--panel-2)}
+.cluster-telemetry-chart>header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cluster-telemetry-chart>header span,.cluster-telemetry-chart small{font-size:11px;color:var(--muted)}
+.cluster-telemetry-chart-legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px}
+.cluster-telemetry-chart-legend span{display:inline-flex;align-items:center;gap:7px}
+.cluster-telemetry-chart-legend span:before{content:"";display:inline-block;width:14px;height:3px;background:var(--cluster-accent,#57c1ff);border-radius:3px}
+.cluster-telemetry-chart-legend span.database:before{background:var(--success,#48ba87)}
+.cluster-telemetry-chart svg{display:block;width:100%;height:168px;overflow:visible}
+.cluster-telemetry-chart svg path{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.cluster-telemetry-chart svg g.requests path{stroke:var(--cluster-accent,#57c1ff)}
+.cluster-telemetry-chart svg g.database path{stroke:var(--success,#48ba87)}
+.cluster-telemetry-chart svg g.requests circle{fill:var(--cluster-accent,#57c1ff)}
+.cluster-telemetry-chart svg g.database circle{fill:var(--success,#48ba87)}
+.cluster-telemetry-chart svg line.grid{stroke:var(--border);stroke-width:1;vector-effect:non-scaling-stroke}
+.cluster-telemetry-chart svg text{fill:var(--muted);font-size:11px}
+@media(prefers-reduced-motion:reduce){.cluster-telemetry-chart *{transition:none!important;animation:none!important}}

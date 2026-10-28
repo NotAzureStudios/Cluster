@@ -67,10 +67,6 @@ const dataLoaders: Partial<Record<PrefetchableScreen, () => Promise<unknown>>> =
     queryApi("/api/calendar/upcoming", { staleMs: 15_000, maxAgeMs: 5 * 60_000, tags: ["calendar", "prefetch"] }),
     queryApi("/api/activity?limit=100", { staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["activity", "prefetch"] }),
   ]),
-  people: () => Promise.all([
-    queryApi("/api/users/activity", { staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["users", "prefetch"] }),
-    queryApi("/api/team/assignments", { staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "prefetch"] }),
-  ]),
   settings: () => queryApi("/api/settings", { staleMs: 30_000, maxAgeMs: 10 * 60_000, tags: ["settings", "prefetch"] }),
   studioSettings: () => queryApi("/api/settings", { staleMs: 30_000, maxAgeMs: 10 * 60_000, tags: ["settings", "prefetch"] }),
   serverConfig: () => queryApi("/api/server-config", { staleMs: 30_000, maxAgeMs: 10 * 60_000, tags: ["server-config", "prefetch"] }),
@@ -99,14 +95,17 @@ function prefetchFeatureData(screen: AppScreen) {
   return task;
 }
 
-export function prefetchFeature(screen: AppScreen) {
+export function prefetchFeature(screen: AppScreen, options: { includeData?: boolean } = {}) {
   const loader = isStandaloneToolRoute(screen)
     ? () => preloadStandaloneTool(screen)
     : loaders[screen as PrefetchableScreen];
   const existing = pending.get(screen);
-  const moduleTask = existing || (loader ? loader().catch(() => undefined) : Promise.resolve());
+  const moduleTask = existing || (loader ? loader().catch(() => {
+    // A failed chunk load must not poison future navigation/preload attempts.
+    pending.delete(screen);
+  }) : Promise.resolve());
   if (loader && !existing) pending.set(screen, moduleTask);
-  return Promise.all([moduleTask, prefetchFeatureData(screen)]);
+  return options.includeData ? Promise.all([moduleTask, prefetchFeatureData(screen)]) : moduleTask;
 }
 
 export function scheduleFeaturePrefetch(screen: AppScreen) {

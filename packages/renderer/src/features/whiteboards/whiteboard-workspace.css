@@ -228,3 +228,17 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 .cluster-whiteboard-workspace .whiteboard-conflict-values-g25>div {display:grid;min-width:0;gap:2px}
 .cluster-whiteboard-workspace .whiteboard-conflict-values-g25 span {font-size:11px;color:var(--cluster-workspace-muted)}
 .cluster-whiteboard-workspace .whiteboard-conflict-values-g25 code {font:inherit;font-size:12px;overflow-wrap:anywhere;white-space:pre-wrap}
+
+/* RC28: canvas-first Whiteboard editor, shared with Board directory visual vocabulary. */
+.whiteboard-page-v069.cluster-whiteboard-workspace{gap:9px;padding:8px clamp(8px,1.1vw,15px);min-width:0;max-width:none;}
+.whiteboard-page-v069 .whiteboard-hero-v194 h1{font-size:clamp(1.18rem,1.7vw,1.6rem);line-height:1.22;white-space:normal;overflow-wrap:anywhere;}
+.whiteboard-page-v069 .whiteboard-hero-v194{min-height:55px;padding:8px 12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;}
+.whiteboard-page-v069 .whiteboard-quick-tools-v28{display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:8px 10px;background:var(--surface-raised);border-bottom:1px solid var(--border-subtle);}
+.whiteboard-page-v069 .whiteboard-quick-tools-v28 button{min-height:31px;}
+.whiteboard-page-v069 .whiteboard-shell{min-width:0;overflow:visible;}
+.whiteboard-page-v069 .whiteboard-canvas-wrap{min-height:max(66dvh,520px);background:var(--surface-muted);}
+.whiteboard-page-v069 .whiteboard-label-list-v308 button,.whiteboard-page-v069 .whiteboard-palette-presets-v308 button{color:var(--text);}
+.whiteboard-page-v069 .whiteboard-toolbar.expanded :where(button,.cluster-button-v425){color:var(--text);background:var(--surface-raised);border:1px solid var(--border-subtle);}
+.whiteboard-page-v069 .whiteboard-toolbar.expanded button:hover{border-color:var(--accent);}
+.whiteboard-page-v069 .whiteboard-toolbar.expanded button.active{background:color-mix(in srgb,var(--accent) 16%,var(--surface-raised));border-color:var(--accent);}
+@media(max-width:700px){.whiteboard-page-v069 .whiteboard-canvas-wrap{min-height:66dvh}.whiteboard-page-v069 .whiteboard-quick-tools-v28{overflow-x:auto;flex-wrap:nowrap}}

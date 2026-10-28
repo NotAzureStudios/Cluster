@@ -3,7 +3,7 @@ import type { ViewerAssetSession } from "./viewer-contracts";
 import { API_URL, api } from "../../core/api";
 import { downloadNativeResource } from "../../core/desktop";
 import { copyClusterText } from "../../core/clipboard";
-import { recordBrowserDownloadHandoff } from "../../core/browser-download-transfers";
+import { downloadAuthenticatedClusterFile } from "../../core/browser-download-transfers";
 import { desktopWorkspaceRouteFromCurrentLocation, openCurrentWorkInDesktopWindow } from "../workflow/workspace-window";
 
 export type ViewerMetadataExportPreview = {
@@ -42,19 +42,6 @@ function reviewAssetId(session: ViewerAssetSession) {
   return locator.provider === "review_asset" ? locator.assetId : null;
 }
 
-function browserDownload(url: string, fileName: string) {
-  if (typeof document === "undefined") return null;
-  const anchor = document.createElement("a");
-  anchor.href = `${API_URL}${url}`;
-  anchor.download = fileName;
-  anchor.rel = "noopener";
-  anchor.style.display = "none";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  return recordBrowserDownloadHandoff({ url, fileName });
-}
-
 function nativeCapabilityHost() {
   if (typeof window === "undefined") return false;
   return new URLSearchParams(window.location.search).get("clusterDesktop") === "1";
@@ -71,9 +58,8 @@ export async function downloadViewerResource(input: { url: string; fileName: str
       // Fall through to the authenticated browser endpoint if native transfer is unavailable.
     }
   }
-  const transferId = browserDownload(relativeUrl, input.fileName);
-  if (!transferId) throw new Error("This runtime cannot start a file download.");
-  return { native: false, transferId };
+  const result = await downloadAuthenticatedClusterFile({ url: relativeUrl, fileName: input.fileName });
+  return { native: false, transferId: result.transferId, state: result.state };
 }
 
 export async function previewViewerExport(session: ViewerAssetSession, selection: MetadataExportSelection) {

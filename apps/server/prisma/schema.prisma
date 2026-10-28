@@ -137,6 +137,7 @@ model User {
   reviewAssetsModified ReviewAsset[] @relation("ReviewAssetLastModifier")
   avatarAudits AvatarAudit[]
   discordLinkChallenges DiscordLinkChallenge[]
+  discordRoleProjections DiscordRoleProjection[]
   securityVerificationGrants SecurityVerificationGrant[]
   securityEventsAsActor SecurityAuditEvent[] @relation("SecurityAuditActor")
   securityEventsAsTarget SecurityAuditEvent[] @relation("SecurityAuditTarget")
@@ -817,6 +818,7 @@ model Project {
   priority      String   @default("medium")
   tags          String   @default("[]")
   color         String?
+  iconId        String?
   healthNote    String?
   source        String   @default("manual")
   projectType   String   @default("general")
@@ -897,12 +899,37 @@ model IntegrationConnection {
   eventInbox      IntegrationEventInbox[]
   actionReceipts  IntegrationActionReceipt[]
   secrets         IntegrationConnectionSecret[]
+  discordRoleProjections DiscordRoleProjection[]
 
   @@unique([workspaceId, providerId, displayName])
   @@index([workspaceId, category, archived, updatedAt])
   @@index([providerId, status, archived])
 }
 
+
+// Tracks only roles actually granted by Cluster, so it never removes manually
+// assigned Discord roles. A pending grant is deliberately not treated as owned.
+model DiscordRoleProjection {
+  id            String   @id @default(cuid())
+  connectionId  String
+  userId        String?
+  discordUserId String
+  guildId       String
+  roleId        String
+  status        String   @default("pending") // pending, managed, revoked, uncertain
+  lastError     String?
+  grantedAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  connection IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, guildId, discordUserId, roleId], map: "DiscordRoleProjection_owner_key")
+  @@index([connectionId, guildId, status])
+  @@index([userId, status])
+}
 
 model IntegrationConnectionSecret {
   id             String   @id @default(cuid())
@@ -1991,6 +2018,7 @@ model Card {
   @@index([workItemKind, archived, updatedAt])
   @@index([workItemKind, ticketStage, archived])
   @@index([assigneeId, archived, dueDate])
+  @@index([archived, dueDate])
   @@index([archived, updatedAt])
   @@index([priority, archived, dueDate])
   @@index([archived, deferredUntil])
@@ -2295,7 +2323,6 @@ model CalendarMeetingOccurrenceResponse {
   event CalendarEvent @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
 
   @@unique([calendarEventId, occurrenceStartsAt, userId])
-  @@index([calendarEventId, occurrenceStartsAt])
 }
 
 model CalendarEventReminderDispatch {

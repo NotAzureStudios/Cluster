@@ -87,7 +87,10 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   let responseStatus = 0;
   const controller = new AbortController();
-  const timeout = typeof window !== "undefined" ? window.setTimeout(() => controller.abort(), API_TIMEOUT_MS) : setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  // Reads can be delayed by the server's authoritative Retry-After window.
+  // Give those retries time to complete without weakening the timeout on writes.
+  const requestTimeoutMs = method === "GET" || method === "HEAD" ? API_TIMEOUT_MS + 65_000 : API_TIMEOUT_MS;
+  const timeout = typeof window !== "undefined" ? window.setTimeout(() => controller.abort(), requestTimeoutMs) : setTimeout(() => controller.abort(), requestTimeoutMs);
   const headers = new Headers(options.headers || {});
   if (!headers.has("X-Cluster-Device-Id")) headers.set("X-Cluster-Device-Id", installationDeviceId());
   if (!(options.body instanceof FormData) && options.body != null && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
@@ -113,7 +116,10 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
       });
     }
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new ApiError(`The request timed out after ${Math.round(API_TIMEOUT_MS / 1000)} seconds.`, 408, undefined, null, "REQUEST_TIMEOUT", { operation, occurredAt });
+      // Unmounting a tab or cancelling a search is not a server timeout.
+      // Let the caller's cancellation handlers ignore this abort normally.
+      if (options.signal?.aborted && !controller.signal.aborted) throw error;
+      throw new ApiError(`The request timed out after ${Math.round(requestTimeoutMs / 1000)} seconds.`, 408, undefined, null, "REQUEST_TIMEOUT", { operation, occurredAt });
     }
     if (error instanceof TypeError) {
       throw new ApiError("Cluster could not reach the configured server.", 0, undefined, null, "NETWORK_UNAVAILABLE", { operation, occurredAt });

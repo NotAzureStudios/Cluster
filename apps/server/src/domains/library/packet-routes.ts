@@ -583,12 +583,12 @@ export function registerPacketRoutes(deps: any) {
       where: { releaseId: { in: releases.map((row: any) => row.id) }, recipientId: context.user.id },
       select: { releaseId: true, dueAt: true, assignedAt: true, manifestSha256: true }, take: 100,
     }) : [];
-    const requiredByRelease = new Map(requirements.map((row: any) => [row.releaseId, row]));
+    const requiredByRelease = new Map<string, {manifestSha256: string; dueAt: Date | null; assignedAt: Date}>(requirements.map((row: any) => [String(row.releaseId), row]));
     const acknowledged = releases.length ? await prisma.packetReleaseAcknowledgment.findMany({
       where: { releaseId: { in: releases.map((row: any) => row.id) }, recipientId: context.user.id },
       select: { releaseId: true, manifestSha256: true, acknowledgedAt: true }, take: 100,
     }) : [];
-    const acknowledgedByRelease = new Map(acknowledged.map((row: any) => [row.releaseId, row]));
+    const acknowledgedByRelease = new Map<string, {manifestSha256: string; acknowledgedAt: Date}>(acknowledged.map((row: any) => [String(row.releaseId), row]));
     // Reuse one strict People projection for all frozen versions. An outage
     // must fail closed, not silently remove exclusion memberships.
     const recipientAudienceContext = !context.decorated?.isAdmin && releases.length

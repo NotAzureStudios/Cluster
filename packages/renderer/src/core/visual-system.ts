@@ -16,6 +16,7 @@ export type VisualProjectTabStyle = "compact" | "standard";
 /** Placement is independent of the material (solid/glass) and tab density. */
 export type VisualTaskbarLayout = "floating" | "full-width";
 export type VisualSidebarLayout = "docked" | "floating";
+export type VisualSidebarItemStyle = "soft" | "divided" | "outlined";
 export type VisualSurfaceDepth = "flat" | "soft" | "elevated";
 export type VisualSurfaceTexture = "none" | "fine" | "brushed";
 export type VisualIconSize = "small" | "standard" | "large";
@@ -43,6 +44,7 @@ export type VisualSettingsInput = AccessibilityPreferenceInput & {
   taskbarSurface?: VisualShellSurface;
   taskbarLayout?: VisualTaskbarLayout;
   sidebarLayout?: VisualSidebarLayout;
+  sidebarItemStyle?: VisualSidebarItemStyle;
   surfaceDepth?: VisualSurfaceDepth;
   surfaceTexture?: VisualSurfaceTexture;
   surfaceTextureIntensity?: number;
@@ -87,6 +89,7 @@ export const CLUSTER_VISUAL_MASTER: Readonly<VisualSettingsInput> = Object.freez
   taskbarSurface: "match",
   taskbarLayout: "floating",
   sidebarLayout: "docked",
+  sidebarItemStyle: "outlined",
   surfaceDepth: "soft",
   surfaceTexture: "fine",
   surfaceTextureIntensity: 6,
@@ -101,7 +104,7 @@ export const VISUAL_INSTANCE_PARAMETERS = Object.freeze([
   "studioPrimaryColor", "studioSecondaryColor", "dangerColor", "fontFamily",
   "cornerRadius", "glassStrength", "interfaceDensity", "backgroundBaseStyle",
   "backgroundPattern", "backgroundPatternIntensity", "backgroundPatternScale",
-  "surfaceStyle", "sidebarSurface", "taskbarSurface", "taskbarLayout", "sidebarLayout", "surfaceDepth", "surfaceTexture", "surfaceTextureIntensity", "iconSize", "panelBorders", "scrollbarStyle", "userTaskbarLabels",
+  "surfaceStyle", "sidebarSurface", "taskbarSurface", "taskbarLayout", "sidebarLayout", "sidebarItemStyle", "surfaceDepth", "surfaceTexture", "surfaceTextureIntensity", "iconSize", "panelBorders", "scrollbarStyle", "userTaskbarLabels",
   "projectTabStyle",
 ] as const);
 
@@ -155,6 +158,7 @@ export type EffectiveVisualContext = {
   taskbarSurface: VisualShellSurface;
   taskbarLayout: VisualTaskbarLayout;
   sidebarLayout: VisualSidebarLayout;
+  sidebarItemStyle: VisualSidebarItemStyle;
   surfaceDepth: VisualSurfaceDepth;
   surfaceTexture: VisualSurfaceTexture;
   surfaceTextureIntensity: number;
@@ -259,6 +263,7 @@ export function resolveVisualContext(
     taskbarSurface: constrainShellSurface(requestedTaskbar),
     taskbarLayout: choice(instance.taskbarLayout, ["floating", "full-width"] as const, "floating"),
     sidebarLayout: choice(instance.sidebarLayout, ["docked", "floating"] as const, "docked"),
+    sidebarItemStyle: choice(instance.sidebarItemStyle, ["soft", "divided", "outlined"] as const, "outlined"),
     surfaceDepth: choice(instance.surfaceDepth, ["flat", "soft", "elevated"] as const, "soft"),
     surfaceTexture: choice(instance.surfaceTexture, ["none", "fine", "brushed"] as const, "fine"),
     surfaceTextureIntensity: clamp(instance.surfaceTextureIntensity, 0, 20, 6),
@@ -339,6 +344,7 @@ export function applyVisualContext(root: HTMLElement, context: EffectiveVisualCo
   root.dataset.taskbarSurface = context.taskbarSurface;
   root.dataset.taskbarLayout = context.taskbarLayout;
   root.dataset.sidebarLayout = context.sidebarLayout;
+  root.dataset.sidebarItemStyle = context.sidebarItemStyle;
   root.dataset.surfaceDepth = context.surfaceDepth;
   root.dataset.surfaceTexture = context.surfaceTexture;
   root.dataset.iconSize = context.iconSize;

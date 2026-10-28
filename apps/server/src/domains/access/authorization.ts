@@ -263,7 +263,7 @@ export function createAuthorizationService(deps: AuthorizationDependencies) {
     const normalizedRole = String(role || "member");
     if (isUserAccessInactive(user)) {
       const reason = isUserAccessExpired(user) ? "The user's access expiration date has passed." : "This person's account is disabled, suspended, archived or erased.";
-      return { tool, level: "none", source: "account-inactive", reasons: [reason], role: normalizedRole, explanation: createClusterExplanation({ code: "ACCESS_TOOL_PERMISSION", title: `${tool} permission`, summary: "Effective permission is none because the account is inactive.", outcome: "none", reasons: [reason] }) };
+      return { tool, level: "none", source: "account-inactive", reasons: [reason], role: normalizedRole, explanation: createClusterExplanation({ code: "ACCESS_TOOL_PERMISSION", title: `${tool} permission`, summary: "Effective permission is none because the account is inactive.", outcome: "none", reasons: [reason], evidence: [] }) };
     }
     if (["owner", "admin"].includes(normalizedRole)) {
       const reasons = [`Workspace role ${normalizedRole} grants manage access.`];

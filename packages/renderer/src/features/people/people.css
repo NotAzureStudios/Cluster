@@ -300,3 +300,64 @@
   .people-detail-tabs-v244 > button, .profile-tabs-v250 > button { flex: 0 0 auto; min-height: 42px; }
   .people-detail-tabs-v244 > button:focus-visible, .profile-tabs-v250 > button:focus-visible { outline-offset: -2px; }
 }
+
+/* RC34: capacity and availability are visual proportions with exact accessible values. */
+.people-capacity-visuals-v34 { display:grid; grid-template-columns:minmax(190px,1fr) minmax(190px,1fr) auto; gap:16px; align-items:center; padding:11px 13px; border:1px solid var(--border); border-radius:9px; background:var(--surface); }
+.people-capacity-visuals-v34>span { font-size:.76rem; white-space:nowrap; }
+.people-capacity-person-v34 { min-width:130px; width:min(190px,100%); }
+.people-workforce-table-v504 .people-capacity-person-v34 { display:block; }
+.people-workforce-table-v504 .people-capacity-person-v34 .cluster-visual-meter__head { font-size:.7rem; }
+@media(max-width:850px) { .people-capacity-visuals-v34 { grid-template-columns:1fr; } .people-capacity-person-v34 { min-width:100px; } }
+
+/* RC46: full-page people profiles, with a social-style identity hero and work feed.
+   Full profiles are layout, not an independent access path: server authorization and
+   per-user profile visibility stay authoritative. */
+.people-layout-v244.detail-open.detail-resizable {grid-template-columns:minmax(280px,1fr) 9px minmax(320px,var(--cluster-detail-width,min(440px,50%)))!important}
+.people-profile-expanded-rc46 .people-workforce-modebar-v504,
+.people-profile-expanded-rc46 .people-directory-workspace-v504 > :not(.people-layout-v244) {display:none!important}
+.people-profile-expanded-rc46 .people-layout-v244 {grid-template-columns:minmax(0,1fr)!important;height:auto;min-height:calc(100dvh - 210px);overflow:visible}
+.people-profile-expanded-rc46 .people-layout-v244 .cluster-master-pane-v429,
+.people-profile-expanded-rc46 .people-layout-v244 .cluster-detail-resizer-v429 {display:none!important}
+.people-profile-expanded-rc46 .people-layout-v244 .cluster-detail-pane-v429 {grid-column:1/-1;max-width:none!important;min-width:0;overflow:visible!important;border-inline-start:0!important}
+.people-profile-expanded-rc46 .people-detail-v244 {display:grid;grid-template-rows:auto auto auto minmax(0,1fr) auto}
+.people-profile-expanded-rc46 .people-detail-scroll-v244 {width:min(100%,1050px);margin:0 auto;overflow:visible;padding:16px 22px 35px;gap:14px}
+.people-profile-expanded-rc46 .people-detail-header-v244 {min-height:162px;padding:36px max(20px,calc((100% - 1050px)/2 + 20px)) 17px;align-items:end;background:linear-gradient(130deg,color-mix(in srgb,var(--accent,#57c1ff) 18%,var(--panel)) 0%,var(--panel) 80%);position:relative}
+.people-profile-expanded-rc46 .people-detail-person-summary-v493 {align-self:end;min-width:0}
+.people-profile-expanded-rc46 .people-detail-presence-v244 {justify-items:start;align-self:end}
+.people-profile-expanded-rc46 .people-detail-tabs-v244 {padding-inline:max(12px,calc((100% - 1030px)/2));overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+.people-profile-expanded-rc46 .people-detail-tabs-v244>button {flex:0 0 auto}
+.people-profile-back-rc46 {display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);gap:12px;color:var(--muted);font-size:.7rem}
+.people-profile-social-intro-rc46 {display:grid;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);color:var(--text);font-size:.84rem}
+.people-profile-social-intro-rc46 p {margin:0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.people-profile-social-stats-rc46 {display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:.72rem;color:var(--muted)}
+.people-profile-social-stats-rc46 strong {color:var(--text);font-size:.86rem}
+.people-profile-feed-rc46 ol {list-style:none;margin:0;padding:0;display:grid}
+.people-profile-feed-rc46 li {display:grid;grid-template-columns:18px minmax(0,1fr);gap:9px;padding:11px 0;border-bottom:1px solid var(--border);min-width:0}
+.people-profile-feed-rc46 li:last-child {border-bottom:0}
+.people-profile-feed-rc46 li>div {display:grid;gap:5px;min-width:0}
+.people-profile-feed-rc46 li p {margin:0;color:var(--muted);font-size:.75rem;overflow-wrap:anywhere}
+.people-profile-feed-rc46 li time {color:var(--muted);font-size:.68rem}
+.people-profile-feed-dot-rc46 {width:8px;height:8px;margin:5px;border-radius:50%;background:var(--accent,#57c1ff)}
+.people-profile-expanded-rc46 .people-profile-grid-v244>div:has(>strong:empty) {display:none}
+.people-layout-v244 .cluster-detail-resizer-v429:focus-visible {outline-offset:-1px}
+@media(max-width:900px){.people-profile-expanded-rc46 .people-layout-v244 {height:auto;min-height:0}.people-profile-expanded-rc46 .people-detail-header-v244 {padding:18px 12px;grid-template-columns:1fr;gap:9px}.people-profile-expanded-rc46 .people-detail-scroll-v244 {padding:12px}.people-profile-expanded-rc46 .people-detail-presence-v244 {justify-items:start}}
+/* Inspector close must remain reachable on desktop; the global primitive only
+   displays it in compact mode. In full-page mode use Back to directory instead. */
+@media (min-width: 901px) {
+  .people-page-v244:not(.people-profile-expanded-rc46) .people-layout-v244.detail-open .cluster-detail-close-v429 {
+    display: inline-grid;
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    z-index: 8;
+    background: var(--surface-soft, var(--panel-2));
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .people-page-v244:not(.people-profile-expanded-rc46) .people-detail-header-v244 { padding-right: 47px; }
+}
+.people-profile-expanded-rc46 .cluster-detail-close-v429 {display:none!important}

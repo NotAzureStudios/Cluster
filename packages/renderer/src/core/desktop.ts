@@ -138,6 +138,10 @@ export type ClusterNativeCapability =
   | "package.destination.choose"
   | "package.destination.remove"
   | "package.auditManaged"
+  | "package.auditFiles"
+  | "package.transfer.stage"
+  | "package.msiIncidentWorklist"
+  | "package.msiRollbackCascade"
   | "package.previewFiles"
   | "package.syncFiles"
   | "package.replaceFiles"
@@ -566,7 +570,7 @@ export function installNativeCapabilityTransport() {
     if (!event || event.schema !== 1) return;
     // A delayed native push from the previous server profile must not be
     // displayed as another profile's transfer queue after account switching.
-    if (nativeBrokerContext && event.profileId && event.profileId !== nativeBrokerContext.profileId) return;
+    if (nativeBrokerContext && "profileId" in event && event.profileId && event.profileId !== nativeBrokerContext.profileId) return;
     if (event.event === "watch.changed") nativeEventListeners.forEach((listener) => listener(event));
     if (event.event === "filesystem.drop") nativeDropListeners.forEach((listener) => listener(event));
     if (event.event === "package.staging.changed") nativePackageStageListeners.forEach((listener) => listener(event));
@@ -886,9 +890,9 @@ export async function diagnoseNativePackageArchive(artifactSha256: string) {
  */
 export async function recoverNativePackageArchive(artifactSha256: string) {
   const result = await requestNativeCapability<NativePackageTransferCheckpoint | { accepted: false }>("package.transfer.recover", { artifactSha256 });
-  if ("accepted" in result && result.accepted === false) return result;
+  if ("accepted" in result) return result;
   if (result.digest !== artifactSha256 || !result.recoveryAction ||
-    !Number.isSafeInteger(result.recoveredBytes) || result.recoveredBytes < 0 ||
+    (typeof result.recoveredBytes !== "number" || !Number.isSafeInteger(result.recoveredBytes) || result.recoveredBytes < 0) ||
     result.receivedBytes > result.expectedBytes) {
     throw new Error("Native transfer recovery evidence was incomplete.");
   }
@@ -961,7 +965,7 @@ export async function commitNativePackageArchive(artifactSha256: string, expecte
 export async function persistPackageArchiveToNative(bytes: Uint8Array, artifactSha256: string, progress?: (n: number) => void) {
   if (!/^[0-9a-f]{64}$/.test(artifactSha256) || bytes.byteLength < 1 || bytes.byteLength > 32 * 1024 * 1024)
     throw new Error("Invalid verified Package archive transport identity or size.");
-  const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes))))
     .map((n) => n.toString(16).padStart(2, "0")).join("");
   if (digest !== artifactSha256) throw new Error("Package archive digest mismatch before native handoff.");
   let checkpoint: NativePackageTransferCheckpoint;
@@ -981,7 +985,7 @@ export async function persistPackageArchiveToNative(bytes: Uint8Array, artifactS
   // Verify checkpoint prefix on the renderer side too. Native independently
   // hashes all persistent bytes; neither side trusts a reported offset alone.
   const prefix = bytes.subarray(0, checkpoint.receivedBytes);
-  const prefixDigest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", prefix)))
+  const prefixDigest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(prefix))))
     .map((n) => n.toString(16).padStart(2, "0")).join("");
   if (prefixDigest !== checkpoint.prefixSha256) throw new Error("Existing native checkpoint prefix mismatch.");
   for (let offset = checkpoint.receivedBytes; offset < bytes.length; offset += NATIVE_PACKAGE_ARCHIVE_SEGMENT_BYTES) {
@@ -1014,7 +1018,7 @@ export async function transferDownloadedPackageKitToNative(kit: Blob, target: Cl
   const bytes = new Uint8Array(await kit.arrayBuffer());
   if (bytes.length < 1 || bytes.length > 4 * 1024 * 1024 + 64 * 1024)
     throw new Error("Prepared Package kit exceeds the native handoff limit.");
-  const kitSha256 = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
+  const kitSha256 = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes))))
     .map((value) => value.toString(16).padStart(2, "0")).join("");
   const started = await requestNativeCapability<{ accepted: boolean; transferId: string }>("package.kit.begin", {
     ...target, kitSha256, kitSizeBytes: bytes.length,

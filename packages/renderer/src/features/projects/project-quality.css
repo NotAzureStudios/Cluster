@@ -254,3 +254,6 @@
 .project-delivery-open-fixes-g25>div {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:5px;min-width:0}
 .project-delivery-open-fixes-g25>div>button {min-width:0;justify-content:flex-start;overflow-wrap:anywhere;text-align:left;white-space:normal}
 .project-delivery-open-fixes-g25>small {color:var(--cluster-workspace-muted)}
+
+.cluster-qa-visual-summary-v39 { display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:10px 12px;border:1px solid var(--cluster-border,var(--border,#363c45));border-radius:10px; }
+.cluster-qa-visual-summary-v39 .cluster-visual-composition { flex:1 1 260px; }

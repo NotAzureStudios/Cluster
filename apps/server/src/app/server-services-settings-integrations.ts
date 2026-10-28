@@ -190,8 +190,8 @@ export function createSettingsIntegrationServices(deps: Record<string, any>) {
   async function recoverPendingConfigPublication(): Promise<"none" | "committed" | "rolled_back"> {
     if (!(await hasPublicationJournal(CONFIG_FILE_PATH))) return "none";
     const result = await prisma.$transaction(async (tx: any) => {
-      await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 1)`;
-      await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 2)`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 1)::text AS "locked"`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 2)::text AS "locked"`;
       return recoverPendingConfigPublicationUnderLock(tx);
     }, { isolationLevel: "ReadCommitted", timeout: 30_000 });
     settingsCache = null;
@@ -328,7 +328,7 @@ export function createSettingsIntegrationServices(deps: Record<string, any>) {
       throw new Error("Expected Studio Settings must identify every selected field exactly once.");
     }
     const result = await prisma.$transaction(async (tx: any) => {
-      await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 1)`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 1)::text AS "locked"`;
       const rows = await tx.appSetting.findMany({ where: { key: { in: selected } }, select: { key: true, value: true } });
       const current: Record<string, unknown> = {};
       for (const row of rows) current[row.key] = JSON.parse(decryptSettingStorageValue(row.key, row.value));
@@ -437,8 +437,8 @@ export function createSettingsIntegrationServices(deps: Record<string, any>) {
     let committed: SettingPayload;
     try {
       committed = await prisma.$transaction(async (tx: any) => {
-        await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 1)`;
-        await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 2)`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 1)::text AS "locked"`;
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 2)::text AS "locked"`;
         // Finish any previous killed writer before reading file/DB authority.
         await recoverPendingConfigPublicationUnderLock(tx);
         await assertNetworkDeploymentWritable(CONFIG_FILE_PATH);

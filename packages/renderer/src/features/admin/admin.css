@@ -18,3 +18,90 @@
 .versioning-empty-v532 { min-height:150px; display:grid; place-content:center; justify-items:center; gap:4px; color:var(--muted); }
 .versioning-empty-v532 strong { color:var(--text); }
 @media (max-width:980px){.versioning-workspace-v532{grid-template-columns:1fr}}
+
+/* RC17 repository-first Source Control: overview in cards, provider setup secondary. */
+.source-control-overview-v524 { display:flex; flex-wrap:wrap; gap:9px; align-items:center; }
+.source-control-overview-v524 .summary-card { min-width:120px; }
+.source-control-overview-actions-v524 { margin-left:auto; display:flex; flex-wrap:wrap; gap:6px; }
+.source-control-mode-header { display:flex; justify-content:space-between; gap:10px; align-items:center; margin:0 0 12px; }
+.source-control-mode-header strong { font-size:1rem; }
+.source-control-mode-header span { font-size:.74rem; color:var(--muted); }
+.source-control-repository-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,315px),1fr)); gap:10px; }
+.source-control-repository-card { display:grid; gap:14px; padding:15px; min-width:0; border:1px solid var(--cluster-border); border-radius:12px; background:var(--cluster-surface-2); }
+.source-control-repository-card__top { display:flex; align-items:center; gap:10px; min-width:0; }
+.source-control-repository-card__top > svg { flex:0 0 30px; width:30px; height:30px; color:var(--accent); }
+.source-control-repository-card__top > div { flex:1; min-width:0; }
+.source-control-repository-card__top h3 { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:0 0 3px; font-size:.96rem; }
+.source-control-repository-card__top small { font-size:.72rem; color:var(--muted); }
+.source-control-repository-card__metrics { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.73rem; color:var(--muted); }
+.source-control-repository-card__metrics span { display:flex; gap:5px; align-items:center; padding:5px 7px; border:1px solid var(--cluster-border); border-radius:7px; }
+.source-control-repository-card__footer { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.source-control-repository-card__footer code { color:var(--muted); font-size:.74rem; }
+.source-control-empty { display:grid; min-height:270px; place-content:center; justify-items:center; gap:10px; text-align:center; color:var(--muted); }
+.source-control-empty > svg { width:42px; height:42px; color:var(--accent); }
+.source-control-empty strong { color:var(--text); font-size:1.1rem; }
+.source-control-empty span { max-width:45ch; font-size:.79rem; }
+.source-control-advanced-table { margin-top:14px; padding:11px; border:1px solid var(--cluster-border); border-radius:10px; }
+.source-control-advanced-table > summary { cursor:pointer; display:flex; align-items:center; gap:7px; font-size:.78rem; }
+.source-control-advanced-table[open] > summary { padding-bottom:11px; }
+
+/* RC18: repository browser with an explicit, inspectable selection. */
+.source-control-repository-toolbar{display:grid;grid-template-columns:minmax(200px,1fr) minmax(150px,190px) minmax(140px,175px);gap:9px;margin-bottom:12px;min-width:0}
+.source-control-repository-toolbar>*{min-width:0;width:100%}
+.source-control-repository-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,340px);gap:12px;align-items:start;min-width:0}
+.source-control-repository-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,275px),1fr));align-content:start}
+.source-control-repository-card.is-selected{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--cluster-surface-2))}
+.source-control-repository-card__footer{min-width:0}
+.source-control-repository-card__footer code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.source-control-repository-inspector{min-width:0;display:grid;align-content:start;gap:13px;padding:15px;border:1px solid var(--cluster-border);border-radius:12px;background:var(--cluster-surface-2);position:sticky;top:8px}
+.source-control-repository-inspector>header{display:flex;gap:10px;align-items:center;min-width:0}
+.source-control-repository-inspector>header>svg{width:27px;height:27px;flex-shrink:0;color:var(--accent)}
+.source-control-repository-inspector>header>div{min-width:0}
+.source-control-repository-inspector>header h3{margin:3px 0 0;font-size:1rem;overflow-wrap:anywhere}
+.source-control-repository-inspector small,.source-control-repository-inspector dt{font-size:.69rem;color:var(--muted)}
+.source-control-repository-inspector dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0}
+.source-control-repository-inspector dl>div{min-width:0;padding:9px;border:1px solid var(--cluster-border);border-radius:8px;background:var(--cluster-surface-1)}
+.source-control-repository-inspector dd{margin:4px 0 0;font-size:.8rem;font-weight:600;overflow-wrap:anywhere}
+.source-control-repository-remote{display:grid;gap:7px;min-width:0}
+.source-control-repository-remote code{font-size:.72rem;overflow-wrap:anywhere;user-select:text}
+.source-control-repository-health{margin:0;color:var(--muted);font-size:.77rem;overflow-wrap:anywhere}
+.source-control-repository-inspector__empty{display:grid;justify-items:center;place-content:center;gap:9px;min-height:240px;text-align:center;color:var(--muted)}
+.source-control-repository-inspector__empty>svg{width:38px;height:38px;color:var(--accent)}
+.source-control-repository-inspector__empty strong{color:var(--text)}
+@media(max-width:1080px){.source-control-repository-layout{grid-template-columns:minmax(0,1fr)}.source-control-repository-inspector{position:static}}
+@media(max-width:720px){.source-control-repository-toolbar{grid-template-columns:1fr}}
+
+/* RC19: Source Control displays repository-shaped loading cards, not fake empty state. */
+.source-control-skeleton-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,275px),1fr));gap:10px}
+.source-control-skeleton-card{display:grid;gap:13px;min-height:155px;padding:16px;border:1px solid var(--cluster-border);border-radius:12px;background:var(--cluster-surface-2);animation:cluster-source-skeleton-breathe 1.6s ease-in-out infinite alternate}
+.source-control-skeleton-card>span,.source-control-skeleton-card>strong,.source-control-skeleton-card>small{display:block;height:10px;border-radius:5px;background:var(--cluster-surface-1)}
+.source-control-skeleton-card>span{height:30px;width:30px;border-radius:8px}.source-control-skeleton-card>strong{width:68%;height:16px}.source-control-skeleton-card>small{width:85%}.source-control-skeleton-card>small:last-child{width:45%}
+@keyframes cluster-source-skeleton-breathe{from{opacity:.5}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.source-control-skeleton-card{animation:none}}
+
+/* RC19: inspect history from the existing authorized source-control state API. */
+.source-control-repository-history{display:grid;gap:10px;min-width:0;border-top:1px solid var(--cluster-border);padding-top:10px}
+.source-control-repository-history>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.source-control-repository-history>header strong{font-size:.8rem}
+.source-control-repository-branches,.source-control-repository-commits{display:grid;gap:7px;min-width:0}
+.source-control-repository-branches>small,.source-control-repository-commits>small{font-size:.69rem;color:var(--muted)}
+.source-control-repository-branches>div{display:flex;flex-wrap:wrap;gap:5px}
+.source-control-repository-branches>div>span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.69rem;padding:4px 7px;border-radius:7px;border:1px solid var(--cluster-border);background:var(--cluster-surface-1)}
+.source-control-repository-branches>div>span.is-default{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--cluster-border))}
+.source-control-repository-commit{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start;border:1px solid var(--cluster-border);border-radius:8px;padding:7px;background:var(--cluster-surface-1);min-width:0}
+.source-control-repository-commit>code{font-size:.68rem;color:var(--accent);padding-top:1px}
+.source-control-repository-commit>div{display:grid;gap:3px;min-width:0}
+.source-control-repository-commit strong{font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.source-control-repository-commit small{font-size:.67rem;color:var(--muted)}
+
+/* RC48: Discord gets an at-a-glance management dashboard. No new polling. */
+.cluster-discord-dashboard-v548 { display: grid; gap: 14px; }
+.cluster-discord-dashboard-v548 .admin-section-heading-v243 h3 { display: flex; align-items: center; gap: 8px; }
+.cluster-discord-health-grid-v548 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.cluster-discord-health-grid-v548 > div { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid var(--cluster-border, #383838); border-radius: 12px; background: var(--cluster-surface-raised, rgba(255,255,255,.025)); }
+.cluster-discord-health-grid-v548 span { color: var(--cluster-text-muted, #a8b1bb); font-size: .78rem; }
+.cluster-discord-health-grid-v548 strong { font-size: 1.15rem; overflow-wrap: anywhere; }
+.cluster-discord-health-grid-v548 small { color: var(--cluster-text-muted, #a8b1bb); }
+.cluster-discord-health-grid-v548 strong.good { color: #58c7a1; }
+@media (max-width: 920px) { .cluster-discord-health-grid-v548 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .cluster-discord-health-grid-v548 { grid-template-columns: minmax(0, 1fr); } }

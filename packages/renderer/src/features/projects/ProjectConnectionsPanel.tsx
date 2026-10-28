@@ -29,6 +29,7 @@ type DiscordRoute = {
   id: string;
   connectionId: string;
   channelId: string;
+  guildId?: string | null;
   displayName?: string | null;
   eventClasses: string[];
   minPriority: string;
@@ -112,6 +113,8 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
   const [healthError, setHealthError] = useState("");
   const [discordRoutes, setDiscordRoutes] = useState<DiscordRoute[]>([]);
   const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
+  const [discordGuilds, setDiscordGuilds] = useState<Array<{ id: string; primary: boolean }>>([]);
+  const [routeGuildId, setRouteGuildId] = useState("");
   const [routeChannelId, setRouteChannelId] = useState("");
   const [routePreset, setRoutePreset] = useState<DiscordRoutePreset>("production");
   const [routePriority, setRoutePriority] = useState("medium");
@@ -157,16 +160,29 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
 
   async function loadDiscordRouting() {
     try {
-      const [routeResult, channelResult] = await Promise.all([
+      const [routeResult, guildResult] = await Promise.all([
         api<{ routes: DiscordRoute[] }>(`/api/projects/${project.id}/discord/routes`),
-        api<{ channels: DiscordChannel[] }>(`/api/projects/${project.id}/discord/channels`),
+        api<{ guilds: Array<{ id: string; primary: boolean }>; primaryGuildId: string }>(`/api/projects/${project.id}/discord/guilds`),
       ]);
+      setDiscordGuilds(guildResult.guilds || []);
+      const targetGuild = (guildResult.guilds || []).some((guild) => guild.id === routeGuildId) ? routeGuildId : guildResult.primaryGuildId;
+      if (targetGuild) setRouteGuildId(targetGuild);
+      const channelResult = targetGuild ? await api<{ channels: DiscordChannel[] }>(`/api/projects/${project.id}/discord/channels?guildId=${encodeURIComponent(targetGuild)}`) : { channels: [] };
       setDiscordRoutes(routeResult.routes || []);
       setDiscordChannels(channelResult.channels || []);
       setDiscordRouteStatus("");
     } catch (error) {
       setDiscordRouteStatus(formatApiError(error));
     }
+  }
+
+  async function chooseRouteGuild(value: string) {
+    setRouteGuildId(value);
+    setRouteChannelId("");
+    try {
+      const result = await api<{ channels: DiscordChannel[] }>(`/api/projects/${project.id}/discord/channels?guildId=${encodeURIComponent(value)}`);
+      setDiscordChannels(result.channels || []);
+    } catch (error) { setDiscordChannels([]); setDiscordRouteStatus(formatApiError(error)); }
   }
 
   function applyRoutePreset(value: string) {
@@ -184,7 +200,7 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
     const channel = discordChannels.find((row) => row.id === routeChannelId);
     setDiscordRouteBusy(true);
     try {
-      await api(`/api/projects/${project.id}/discord/routes`, { method: "POST", body: JSON.stringify({ connectionId, channelId: routeChannelId, displayName: channel?.name || null, eventClasses: routeEvents, minPriority: routePriority, mentionMode: routeMentionMode, routeKind: channel?.routeKind || "channel" }) });
+      await api(`/api/projects/${project.id}/discord/routes`, { method: "POST", body: JSON.stringify({ connectionId, guildId: routeGuildId, channelId: routeChannelId, displayName: channel?.name || null, eventClasses: routeEvents, minPriority: routePriority, mentionMode: routeMentionMode, routeKind: channel?.routeKind || "channel" }) });
       setRouteChannelId("");
       await loadDiscordRouting();
       setDiscordRouteStatus("Discord delivery route added.");
@@ -264,6 +280,7 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
           {activeDiscordBinding(project) ? (
             <>
               <div className="project-form-grid-v312">
+                {discordGuilds.length > 1 ? <label className="field span-2"><span>Discord server</span><ClusterSelect ariaLabel="Discord server" value={routeGuildId} onChange={(value) => void chooseRouteGuild(value)} options={discordGuilds.map((guild) => ({ value: guild.id, label: guild.primary ? `${guild.id} · Primary` : guild.id }))} /></label> : null}
                 <label className="field span-2"><span>Delivery destination</span><ClusterSelect ariaLabel="Discord delivery destination" value={routeChannelId} onChange={setRouteChannelId} placeholder="Choose a channel or thread" options={discordChannels.map((channel) => ({ value: channel.id, label: `${channel.name}${channel.routeKind === "thread" ? " · thread" : ""}` }))} /></label>
                 <label className="field span-2"><span>Update preset</span><ClusterSelect ariaLabel="Discord update preset" value={routePreset} onChange={applyRoutePreset} options={[...Object.entries(DISCORD_ROUTE_PRESETS).map(([value, preset]) => ({ value, label: preset.label })), { value: "custom", label: "Custom" }]} /></label>
                 <label className="field"><span>Minimum priority</span><ClusterSelect ariaLabel="Discord minimum priority" value={routePriority} onChange={(value) => { setRoutePriority(value); setRoutePreset("custom"); }} options={[{ value: "normal", label: "Normal and above" }, { value: "medium", label: "Medium and above" }, { value: "high", label: "High and critical" }, { value: "critical", label: "Critical only" }]} /></label>
@@ -276,7 +293,7 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
               <div className="button-row"><ClusterButton type="button" variant="primary" disabled={!canManage || discordRouteBusy || !routeChannelId || !routeEvents.length} onClick={() => void addDiscordRoute()}>{discordRouteBusy ? "Working…" : "Add delivery route"}</ClusterButton><ClusterButton type="button" variant="secondary" disabled={!canManage || discordRouteBusy} onClick={() => void reconcileDiscordRoutes()}>Verify routes</ClusterButton></div>
               {discordRouteStatus ? <ProjectSectionStatus tone={discordRouteStatus.toLowerCase().includes("missing") || discordRouteStatus.toLowerCase().includes("failed") ? "warning" : "neutral"}>{discordRouteStatus}</ProjectSectionStatus> : null}
               <div className="admin-summary-grid-v243">
-                {discordRoutes.map((route) => <article className="admin-summary-card-v243" key={route.id}><div className="button-row"><strong>{route.displayName || route.channelId}</strong><span className={`soft-pill ${route.health === "healthy" ? "good" : route.health === "missing" ? "warning" : ""}`}>{routeHealthLabel(route.health)}</span></div><p>{route.eventClasses.map(routeEventLabel).join(", ")} · {route.minPriority === "normal" ? "Normal and above" : `${route.minPriority.charAt(0).toUpperCase()}${route.minPriority.slice(1)} and above`}</p><small>{route.mentionMode === "linked" ? "Uses each person's Discord mention preference" : "People are not mentioned"}{route.healthMessage ? ` · ${route.healthMessage}` : ""}</small>{canManage ? <div className="button-row"><ClusterButton type="button" variant="danger" size="compact" disabled={discordRouteBusy} onClick={() => void removeDiscordRoute(route.id)}>Remove</ClusterButton></div> : null}</article>)}
+                {discordRoutes.map((route) => <article className="admin-summary-card-v243" key={route.id}><div className="button-row"><strong>{route.displayName || route.channelId}</strong>{route.guildId && discordGuilds.length > 1 ? <small>{route.guildId}</small> : null}<span className={`soft-pill ${route.health === "healthy" ? "good" : route.health === "missing" ? "warning" : ""}`}>{routeHealthLabel(route.health)}</span></div><p>{route.eventClasses.map(routeEventLabel).join(", ")} · {route.minPriority === "normal" ? "Normal and above" : `${route.minPriority.charAt(0).toUpperCase()}${route.minPriority.slice(1)} and above`}</p><small>{route.mentionMode === "linked" ? "Uses each person's Discord mention preference" : "People are not mentioned"}{route.healthMessage ? ` · ${route.healthMessage}` : ""}</small>{canManage ? <div className="button-row"><ClusterButton type="button" variant="danger" size="compact" disabled={discordRouteBusy} onClick={() => void removeDiscordRoute(route.id)}>Remove</ClusterButton></div> : null}</article>)}
                 {!discordRoutes.length ? <article className="admin-summary-card-v243"><strong>No delivery routes</strong><p>Add at least one route to send project Inbox updates to Discord.</p></article> : null}
               </div>
             </>

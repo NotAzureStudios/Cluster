@@ -12,19 +12,21 @@ const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES20
 const zChain={trim(){return this},min(){return this},max(){return this},int(){return this},positive(){return this},default(){return this},optional(){return this},nullable(){return this},datetime(){return this},strict(){return this},extend(){return Object.create(this)},parse(v){return v}};
 const z={object(){return Object.create(zChain)},string(){return Object.create(zChain)},number(){return Object.create(zChain)},enum(){return Object.create(zChain)},array(){return Object.create(zChain)}};
 const requireMock=(name)=>{if(name==='node:crypto')return crypto;if(name==='zod')return {z};if(name.endsWith('crypto-service.js'))return {clusterSecretFingerprint:()=> 'fingerprint'};if(name.endsWith('studio-inventory-approvals.js'))return {registerStudioInventoryApprovalRoutes:()=>{}};
-  if(name.endsWith('inventory-key-readiness.js'))return {registerInventoryKeyReadinessRoutes:()=>{}};if(name.endsWith('setting-crypto.js'))return {decryptSecuritySecret:()=>'',encryptSecuritySecret:()=>'',encryptionKeyConfigured:()=>true};throw Error(name)};
+  if(name.endsWith('inventory-key-readiness.js'))return {registerInventoryKeyReadinessRoutes:()=>{}};if(name.endsWith('vault-reviewed-rotation.js'))return {registerVaultReviewedRotationRoutes:()=>{}};if(name.endsWith('setting-crypto.js'))return {decryptSecuritySecret:()=>'',encryptSecuritySecret:()=>'',encryptionKeyConfigured:()=>true};throw Error(name)};
 const ctx={module:{exports:{}},require:requireMock,process,Buffer,Date,console};ctx.exports=ctx.module.exports;vm.runInNewContext(js,ctx);
 let asset={id:'asset-1',title:'Unreal licenses',kind:'license',provider:'Vendor',reference:'LIC-2026',capacity:3,status:'active',revision:1};
 let allocations=[{id:'allocation-1',assetId:asset.id,userId:'person-a',quantity:2,status:'active',reason:'Developer',assignedAt:new Date(),revokedAt:null}];
 const users={ 'person-a':{id:'person-a',archived:false,accountState:'ACTIVE',accessExpiresAt:null}, 'person-b':{id:'person-b',archived:false,accountState:'ACTIVE',accessExpiresAt:null}, 'person-c':{id:'person-c',archived:true,accountState:'ACTIVE',accessExpiresAt:null} };
 const routes=new Map(),events=[];let adminAllowed=true,confirmAllowed=true,seq=1;
-let assetListOverride=null;
+let assetListOverride=null, lastVaultWhere=null, lastVaultSelect=null;
 const db={
   studioInventoryAsset:{
     findMany:async({where={},cursor,skip=0,take=101})=>{
       if(!assetListOverride)return [structuredClone(asset)];
       let records=assetListOverride;
       if(where.OR?.length){const q=where.OR[0].title.contains.toLowerCase();records=records.filter(row=>`${row.title} ${row.provider||''} ${row.reference||''} ${row.kind}`.toLowerCase().includes(q));}
+      if(where.kind)records=records.filter(row=>row.kind===where.kind);
+      if(where.status)records=records.filter(row=>row.status===where.status);
       const start=cursor?records.findIndex(row=>row.id===cursor.id)+skip:0;
       return records.slice(Math.max(start,0),Math.max(start,0)+take);
     },findUnique:async({where})=>asset?.id===where.id?structuredClone(asset):null,
@@ -32,6 +34,11 @@ const db={
     updateMany:async({where,data})=>{if(asset?.id!==where.id||asset.revision!==where.revision)return {count:0};asset={...asset,...data,revision:asset.revision+Number(data.revision?.increment||0)};return {count:1}}
   },
   studioInventoryAllocation:{
+    // Mirror Prisma's paginated stock aggregation across selected asset IDs.
+    groupBy:async({where})=>{
+      const ids=where.assetId?.in||[];
+      return ids.map(assetId=>({assetId,_sum:{quantity:allocations.filter(row=>row.assetId===assetId && row.status==="active" && (!where.OR || !row.expiresAt || new Date(row.expiresAt)>new Date())).reduce((sum,row)=>sum+row.quantity,0)}}));
+    },
     findMany:async({where})=>allocations.filter(a=>a.assetId===where.assetId && (!where.status||a.status===where.status)).map(a=>({...a})),
     findUnique:async({where})=>allocations.find(a=>a.id===where.id)||null,
     findFirst:async({where})=>allocations.find(a=>a.assetId===where.assetId&&a.userId===where.userId&&a.status===where.status)||null,
@@ -41,7 +48,7 @@ const db={
     create:async({data})=>{const row={id:`allocation-${++seq}`,status:'active',assignedAt:new Date(),revokedAt:null,...data};allocations.push(row);return {...row}}
   },
   user:{findUnique:async({where})=>users[where.id]||null},
-  studioVaultSecret:{findMany:async()=>[],create:async()=>{},findUnique:async()=>null,updateMany:async()=>({count:0})},
+  studioVaultSecret:{findMany:async({where,select})=>{lastVaultWhere=where;lastVaultSelect=select;return [];},create:async()=>{},findUnique:async()=>null,updateMany:async()=>({count:0})},
   $queryRaw:async()=>asset?[{id:asset.id}]:[],
   $transaction:async fn=>fn(db)
 };
@@ -51,6 +58,8 @@ const invoke=async(method,path,body={},params={},query={})=>{const fn=routes.get
 let passed=0;
 const check=(assertion,name)=>{assertion();passed++;console.log('PASS',name)};
 check(()=>assert.equal(routes.size,29),'Inventory/Vault and recipient routes are registered');
+let stock=await invoke('GET','/api/admin/inventory/assets');
+check(()=>{assert.equal(stock.res.assets[0].allocated,2);assert.equal(stock.res.assets[0].available,1);assert.equal(stock.res.assets[0].capacity,3)},'Catalog exposes active stock quantity without requesting allocation identities');
 let result=await invoke('GET','/api/admin/inventory/assets/:id/allocations',{}, {id:asset.id},{history:'true'});
 check(()=>{assert.equal(result.res.allocated,2);assert.equal(result.res.allocations.length,1)},'History endpoint counts only active capacity');
 result=await invoke('PATCH','/api/admin/inventory/assets/:id',{title:'Updated',kind:'license',provider:'Vendor',reference:'LIC',capacity:1,expectedRevision:1},{id:asset.id});
@@ -110,7 +119,25 @@ const page3=await invoke('GET','/api/admin/inventory/assets',{}, {},{cursor:page
 check(()=>{assert.equal(page3.res.assets.length,5);assert.equal(page3.res.nextCursor,null)},'Final page terminates without a phantom cursor');
 const searchPage=await invoke('GET','/api/admin/inventory/assets',{}, {},{q:'camera'});
 check(()=>{assert.equal(searchPage.res.assets.length,1);assert.equal(searchPage.res.assets[0].id,'paged-203')},'Server-side Inventory search reaches beyond unloaded pages');
+// Filter before cursor slicing: otherwise physical assets and retired records
+// beyond the first page would be hidden until someone paged through every row.
+assetListOverride=Array.from({length:205},(_,i)=>({
+  ...asset,id:`typed-${String(i).padStart(3,'0')}`,title:i===203?'Studio Camera':'License seat',
+  kind:i===203?'physical':'license',status:i===202?'retired':'active'
+}));
+const typePage=await invoke('GET','/api/admin/inventory/assets',{}, {},{kind:'physical'});
+check(()=>{assert.equal(typePage.res.assets.length,1);assert.equal(typePage.res.assets[0].id,'typed-203');assert.equal(typePage.res.nextCursor,null)},'Server-side kind filter reaches late pages before cursor is applied');
+const statusPage=await invoke('GET','/api/admin/inventory/assets',{}, {},{kind:'license',status:'retired'});
+check(()=>{assert.equal(statusPage.res.assets.length,1);assert.equal(statusPage.res.assets[0].id,'typed-202')},'Kind and lifecycle filters compose on server');
+const impossible=await invoke('GET','/api/admin/inventory/assets',{}, {},{q:'Studio Camera',kind:'license'});
+check(()=>assert.equal(impossible.res.assets.length,0),'Search is intersected with type filter, never overriding it');
 assetListOverride=null;
+const activeVault=await invoke('GET','/api/admin/vault/secrets',{}, {},{status:'active',q:'github'});
+check(()=>{assert.equal(activeVault.res.secrets.length,0);assert.equal(lastVaultWhere.revokedAt,null);assert.ok(Array.isArray(lastVaultWhere.OR));assert.ok(Array.isArray(lastVaultWhere.AND));assert.equal(lastVaultSelect.encryptedValue,undefined)},'Vault active filter composes metadata search without ciphertext projection');
+await invoke('GET','/api/admin/vault/secrets',{}, {},{status:'expired'});
+check(()=>{assert.equal(lastVaultWhere.revokedAt,null);assert.ok(lastVaultWhere.expiresAt.lte instanceof Date)},'Vault expired filter excludes revoked records and uses a time boundary');
+await invoke('GET','/api/admin/vault/secrets',{}, {},{status:'revoked'});
+check(()=>assert.ok(lastVaultWhere.revokedAt.not===null),'Vault revoked filter is server-side');
 adminAllowed=false;
 result=await invoke('GET','/api/admin/inventory/assets');
 check(()=>assert.equal(result.res,undefined),'Non-admin cannot enumerate assets');

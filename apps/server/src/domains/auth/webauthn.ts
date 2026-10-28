@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { isIP } from "node:net";
 
 function b64url(value: Buffer) { return value.toString("base64url"); }
 function fromB64url(value: string) { return Buffer.from(String(value || ""), "base64url"); }
@@ -181,7 +182,17 @@ export function verifyWebAuthnAssertion(input: {
 }
 
 export function webAuthnRpFromOrigin(originValue: string) {
-  const origin = new URL(originValue).origin;
-  const hostname = new URL(origin).hostname;
+  const parsed = new URL(originValue);
+  const origin = parsed.origin;
+  const hostname = parsed.hostname.toLowerCase();
+  // Browser WebAuthn does not allow IP literals (including 127.0.0.1)
+  // as relying-party IDs. Never accept a different RP ID than the page
+  // origin: that would break attestation and origin binding.
+  if (isIP(hostname.replace(/^\[|\]$/g, ""))) {
+    throw new Error("WEBAUTHN_DOMAIN_REQUIRED: Open Cluster at http://localhost:3000 instead of an IP-address URL.");
+  }
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && hostname === "localhost")) {
+    throw new Error("WEBAUTHN_SECURE_ORIGIN_REQUIRED: Passkeys require HTTPS, except for the local localhost address.");
+  }
   return { origin, rpId: hostname, rpName: "Cluster" };
 }

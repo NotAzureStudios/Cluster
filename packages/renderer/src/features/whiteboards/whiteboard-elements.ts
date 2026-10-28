@@ -58,25 +58,57 @@ function distancePointToSegment(point: WhiteboardPoint, start: WhiteboardPoint, 
   return distanceBetween(point, { x: start.x + t * dx, y: start.y + t * dy });
 }
 
+/** Clip each pen segment against the brush circle. Splitting only at actual
+ * intersections preserves long, sparsely sampled strokes outside the brush. */
 function erasePathElement(element: WhiteboardPathElement, point: WhiteboardPoint, radius: number): WhiteboardPathElement[] {
-  const segments: WhiteboardPoint[][] = [];
-  let current: WhiteboardPoint[] = [];
-  for (let index = 0; index < element.points.length; index += 1) {
-    const currentPoint = element.points[index];
-    const previousPoint = element.points[index - 1];
-    const nextPoint = element.points[index + 1];
-    const touchesPoint = distanceBetween(point, currentPoint) <= radius;
-    const touchesPreviousSegment = previousPoint ? distancePointToSegment(point, previousPoint, currentPoint) <= radius : false;
-    const touchesNextSegment = nextPoint ? distancePointToSegment(point, currentPoint, nextPoint) <= radius : false;
-    if (touchesPoint || touchesPreviousSegment || touchesNextSegment) {
-      if (current.length > 1) segments.push(current);
-      current = [];
-      continue;
+  const effectiveRadius = Math.max(0.5, radius + Math.max(0, element.strokeWidth) / 2);
+  if (element.points.length < 2) return element.points.length && distanceBetween(element.points[0], point) > effectiveRadius ? [element] : [];
+  const survivors: WhiteboardPoint[][] = [];
+  let fragment: WhiteboardPoint[] = [];
+  let clipped = false;
+  const epsilon = 1e-6;
+  const append = (p: WhiteboardPoint) => {
+    const last = fragment[fragment.length - 1];
+    if (!last || distanceBetween(last, p) > epsilon) fragment.push(p);
+  };
+  const finish = () => {
+    if (fragment.length >= 2 && fragment.some((p) => distanceBetween(p, fragment[0]) > epsilon)) survivors.push(fragment);
+    fragment = [];
+  };
+  for (let i = 1; i < element.points.length; i += 1) {
+    const start = element.points[i - 1];
+    const end = element.points[i];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    if (lengthSquared < epsilon) continue;
+    const fx = start.x - point.x;
+    const fy = start.y - point.y;
+    const b = 2 * (fx * dx + fy * dy);
+    const c = fx * fx + fy * fy - effectiveRadius * effectiveRadius;
+    const discriminant = b * b - 4 * lengthSquared * c;
+    const cuts = [0, 1];
+    if (discriminant > 0) {
+      const root = Math.sqrt(discriminant);
+      for (const t of [(-b - root) / (2 * lengthSquared), (-b + root) / (2 * lengthSquared)]) {
+        if (t > epsilon && t < 1 - epsilon) cuts.push(t);
+      }
     }
-    current.push(currentPoint);
+    cuts.sort((x, y) => x - y);
+    const interpolate = (t: number) => ({ x: start.x + dx * t, y: start.y + dy * t });
+    for (let j = 1; j < cuts.length; j += 1) {
+      const t0 = cuts[j - 1];
+      const t1 = cuts[j];
+      if (t1 - t0 < epsilon) continue;
+      const midpoint = interpolate((t0 + t1) / 2);
+      const inside = distanceBetween(midpoint, point) < effectiveRadius;
+      if (inside) { clipped = true; finish(); }
+      else { append(interpolate(t0)); append(interpolate(t1)); }
+    }
   }
-  if (current.length > 1) segments.push(current);
-  return segments.map((points, index) => ({ ...element, id: index === 0 ? element.id : makeWhiteboardId(), points }));
+  if (!clipped) return [element];
+  finish();
+  return survivors.map((points, index) => ({ ...element, id: index === 0 ? element.id : makeWhiteboardId(), points }));
 }
 
 function whiteboardElementContainsPoint(element: WhiteboardElement, point: WhiteboardPoint, radius: number) {
@@ -103,18 +135,25 @@ function whiteboardElementContainsPoint(element: WhiteboardElement, point: White
   return false;
 }
 
-export function eraseWhiteboardElementsAt(items: WhiteboardElement[], point: WhiteboardPoint, radius: number): WhiteboardElement[] {
+/** Brush erases freehand/line geometry; Object mode deliberately deletes whole
+ * diagram objects. Shapes, images, text and linked cards remain intact in Brush. */
+export function eraseWhiteboardElementsAt(items: WhiteboardElement[], point: WhiteboardPoint, radius: number, mode: "brush" | "object" = "brush"): WhiteboardElement[] {
   const next: WhiteboardElement[] = [];
   for (const element of items) {
-    if (element.locked) {
-      next.push(element);
-      continue;
-    }
-    if (element.type === "path") {
+    if (element.locked) { next.push(element); continue; }
+    if (mode === "brush" && element.type === "path") {
       next.push(...erasePathElement(element, point, radius));
       continue;
     }
-    if (!whiteboardElementContainsPoint(element, point, radius)) next.push(element);
+    if (mode === "brush" && element.type === "line" && !element.fromId && !element.toId) {
+      // Free-standing lines are brushable. Preserve the visible surviving spans
+      // as independent paths instead of deleting the full connector.
+      const fragments = erasePathElement({ id: element.id, type: "path", points: [{ x: element.x1, y: element.y1 }, { x: element.x2, y: element.y2 }], stroke: element.stroke, strokeWidth: element.strokeWidth, opacity: element.opacity, dashed: element.dashed, categoryId: element.categoryId, labelIds: element.labelIds, locked: element.locked }, point, radius);
+      if (fragments.length === 1 && fragments[0].points[0].x === element.x1 && fragments[0].points[0].y === element.y1 && fragments[0].points.at(-1)?.x === element.x2 && fragments[0].points.at(-1)?.y === element.y2) next.push(element);
+      else next.push(...fragments);
+      continue;
+    }
+    if (mode === "brush" || !whiteboardElementContainsPoint(element, point, radius)) next.push(element);
   }
   return next;
 }

@@ -221,6 +221,7 @@ export function createSearchService(deps: SearchServiceDependencies) {
     userId: string;
     canViewItem: (item: SearchIndexSnapshot["items"][number], project: any | null, accessRules: any[]) => boolean | Promise<boolean>;
     prepareBatch?: (items: SearchIndexSnapshot["items"]) => Promise<void>;
+    visibilityContextKey?: string;
   }) {
     const startedAt = performance.now();
     totalSearches += 1;
@@ -236,7 +237,7 @@ export function createSearchService(deps: SearchServiceDependencies) {
     // Rank only matching candidates. The earlier whole-corpus visibility scan both
     // multiplied authorization calls on each keystroke and could reuse revoked
     // access for its five-second lifetime. Cache only non-sensitive ranking indices.
-    const cacheKey = `${indexRevision}:${options.userId}:${options.scope}:${normalize(options.q)}`;
+    const cacheKey = `${indexRevision}:${options.userId}:${options.visibilityContextKey || ""}:${options.scope}:${normalize(options.q)}`;
     let rankedCandidates = rankingCache.get(cacheKey);
     const rankingCached = rankedCandidates !== undefined;
     if (rankingCached) cacheHits += 1;
@@ -260,12 +261,13 @@ export function createSearchService(deps: SearchServiceDependencies) {
       rankingCache.set(cacheKey, rankedCandidates, SEARCH_STALE_REBUILD_MS);
     }
 
+    const candidates = rankedCandidates ?? [];
     const ranked: Array<{ item: SearchIndexSnapshot["items"][number]; value: number; reason: string }> = [];
     // Bounded concurrency avoids serializing hundreds of ACL checks while never
     // evaluating more than a small window beyond the requested visible results.
     const admissionBatch = Math.max(1, Math.min(12, options.limit));
-    for (let offset = 0; offset < rankedCandidates.length && ranked.length < options.limit; offset += admissionBatch) {
-      const batch = rankedCandidates.slice(offset, offset + admissionBatch);
+    for (let offset = 0; offset < candidates.length && ranked.length < options.limit; offset += admissionBatch) {
+      const batch = candidates.slice(offset, offset + admissionBatch);
       if (options.prepareBatch) await options.prepareBatch(batch.map(({ index }) => current.items[index]));
       const grants = await Promise.all(batch.map(({ index: candidateIndex }) => {
         const item = current.items[candidateIndex];

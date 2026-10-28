@@ -5,7 +5,7 @@ import { MyInventoryLicensesPanel } from "../settings/MyInventoryLicensesPanel";
 import { StudioInventoryKeyPools, StudioInventoryPanel } from "../settings/StudioInventoryVaultPanel";
 import { StudioInventoryApprovalPanel } from "../settings/StudioInventoryApprovalPanel";
 import { VaultManager } from "./VaultManager";
-import { DomainInventoryPanel } from "../domains/DomainManagementPanel";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import "./inventory-workspace.css";
 
 type InventorySection = "mine" | "assets" | "keys" | "approvals";
@@ -13,7 +13,7 @@ type Person = { id: string; displayName: string; username: string; profileRevisi
 
 /** A genuine tool route, not an admin settings subsection. The server remains the authority for mutations. */
 export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: boolean; pinConfigured: boolean }) {
-  const [section, setSection] = useState<InventorySection>("mine");
+  const [section, setSection] = useState<InventorySection>(isAdmin ? "assets" : "mine");
   const [people, setPeople] = useState<Person[]>([]);
   const [peopleError, setPeopleError] = useState("");
   useEffect(() => {
@@ -27,13 +27,13 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
 
   return <main className="cluster-resource-workspace inventory-tool-workspace" aria-label="Inventory workspace">
     <header className="cluster-resource-workspace__header">
-      <div><p className="eyebrow">Studio resources</p><h1>Inventory</h1><p>Manage equipment, license seats, and commercial keys in one place. Secret values are protected by Vault.</p></div>
+      <div><h1><ClusterIcon name="inventory" treatment="duotone" /> Inventory</h1></div>
     </header>
     <nav className="cluster-resource-workspace__tabs" aria-label="Inventory sections">
-      <ClusterButton variant={section === "mine" ? "primary" : "secondary"} onClick={() => setSection("mine")}>My resources</ClusterButton>
-      {isAdmin && <ClusterButton variant={section === "assets" ? "primary" : "secondary"} onClick={() => setSection("assets")}>Assets & allocations</ClusterButton>}
-      {isAdmin && <ClusterButton variant={section === "keys" ? "primary" : "secondary"} onClick={() => setSection("keys")}>Key pools</ClusterButton>}
-      {isAdmin && <ClusterButton variant={section === "approvals" ? "primary" : "secondary"} onClick={() => setSection("approvals")}>Access reviews</ClusterButton>}
+      <ClusterButton variant={section === "mine" ? "primary" : "secondary"} onClick={() => setSection("mine")}><ClusterIcon name="user" /> My items</ClusterButton>
+      {isAdmin && <ClusterButton variant={section === "assets" ? "primary" : "secondary"} onClick={() => setSection("assets")}><ClusterIcon name="inventory" /> Catalog</ClusterButton>}
+      {isAdmin && <ClusterButton variant={section === "keys" ? "primary" : "secondary"} onClick={() => setSection("keys")}><ClusterIcon name="lock" /> Key pools</ClusterButton>}
+      {isAdmin && <ClusterButton variant={section === "approvals" ? "primary" : "secondary"} onClick={() => setSection("approvals")}><ClusterIcon name="check" /> Approvals</ClusterButton>}
     </nav>
     <section className="cluster-resource-workspace__body" aria-live="off">
       {section === "mine" && <MyInventoryLicensesPanel pinConfigured={pinConfigured} />}
@@ -50,9 +50,8 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
 export function VaultWorkspacePage() {
   return <main className="cluster-resource-workspace vault-tool-workspace" aria-label="Vault workspace">
     <header className="cluster-resource-workspace__header">
-      <div><p className="eyebrow">Privileged studio security</p><h1>Vault</h1><p>Encrypted secrets, controlled reveals, rotation, expiration, and revocation. Inventory key pools have a separate lifecycle.</p></div>
+      <div><h1><ClusterIcon name="lock" treatment="duotone" /> Vault</h1></div>
     </header>
     <VaultManager />
-    <DomainInventoryPanel />
   </main>;
 }

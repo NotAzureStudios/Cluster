@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../../core/api";
+import { queryApi } from "../../core/api";
 import { createHomeRequestAuthority } from "./home-request-authority";
 import type { HomeDeliveryLifecycleSummary } from "./home-widget-phase7-data";
 
@@ -17,7 +17,7 @@ export function useHomeDeliveryLifecycleSummaries(projectIds: string[], enabled:
       setResult({ owner, rows: [] });
     } else {
       setResult({ owner, rows: [] });
-      void api<{ projects?: HomeDeliveryLifecycleSummary[] }>(`/api/project-delivery/lifecycle?projectIds=${encodeURIComponent(signature)}`)
+      void queryApi<{ projects?: HomeDeliveryLifecycleSummary[] }>(`/api/project-delivery/lifecycle?projectIds=${encodeURIComponent(signature)}`, { staleMs: 45_000, maxAgeMs: 2 * 60_000, tags: ["project-delivery", "home", "projects"] })
         .then((payload) => {
           if (authorityRef.current.isCurrent(ticket)) setResult({ owner, rows: Array.isArray(payload.projects) ? payload.projects : [] });
         })

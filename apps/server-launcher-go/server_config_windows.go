@@ -72,7 +72,7 @@ var nativeServerSettings = []nativeSettingSpec{
 	{"sessionMaxPerUser", "Maximum sessions per user", "Security · Sessions", settingNumber, 10, nil, num(1), num(100), true, false, false, "Maximum concurrent browser or device sessions allowed for one account."},
 	{"sessionSecure", "Secure-only session cookies", "Security · Sessions", settingBoolean, false, []string{"false", "true"}, nil, nil, false, true, false, "Send session cookies only over HTTPS."},
 	{"rateLimitEnabled", "Enable rate limiting", "Security · Request protection", settingBoolean, true, []string{"false", "true"}, nil, nil, false, false, false, "Limit repeated API requests to reduce abuse, accidental loops, and brute-force traffic."},
-	{"rateLimitMax", "Requests per window", "Security · Request protection", settingNumber, 120, nil, num(1), num(1000000), true, false, false, "Maximum general API requests allowed during one rate-limit window."},
+	{"rateLimitMax", "Requests per window", "Security · Request protection", settingNumber, 12000, nil, num(1), num(1000000), true, false, false, "Per-client API traffic budget per window. The default supports many concurrent dashboard widgets; authentication and sensitive actions have tighter independent limits."},
 	{"rateLimitWindowMinutes", "Rate-limit window (minutes)", "Security · Request protection", settingNumber, 1, nil, num(1), num(1440), true, false, false, "Length of the general and authentication rate-limit window."},
 	{"authRateLimitMax", "Authentication attempts per window", "Security · Request protection", settingNumber, 120, nil, num(3), num(1000), true, false, false, "Maximum authentication attempts during one rate-limit window."},
 	{"securityHeadersEnabled", "Enable security headers", "Security · Request protection", settingBoolean, true, []string{"false", "true"}, nil, nil, false, true, false, "Send browser security headers for framing, MIME sniffing, referrers, and related protections."},
@@ -590,12 +590,12 @@ func checkUpdateManifest(root string) updateCheckResult {
 	download := firstManifestString(manifest, "downloadUrl", "url")
 	comparison := compareVersions(latest, version)
 	if comparison > 0 {
-		return updateCheckResult{Message: fmt.Sprintf("Cluster %s is available. This server is %s.", latest, version), DownloadURL: download, Available: true}
+		return updateCheckResult{Message: fmt.Sprintf("Cluster %s is available. This server is %s.", latest, displayReleaseVersion(root)), DownloadURL: download, Available: true}
 	}
 	if comparison == 0 {
-		return updateCheckResult{Message: fmt.Sprintf("Cluster Server is up to date (%s).", version)}
+		return updateCheckResult{Message: fmt.Sprintf("Cluster Server is up to date (%s).", displayReleaseVersion(root))}
 	}
-	return updateCheckResult{Message: fmt.Sprintf("This server (%s) is newer than the manifest (%s).", version, latest)}
+	return updateCheckResult{Message: fmt.Sprintf("This server (%s) is newer than the manifest (%s).", displayReleaseVersion(root), latest)}
 }
 
 func firstManifestString(m map[string]any, keys ...string) string {

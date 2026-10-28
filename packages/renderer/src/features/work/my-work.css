@@ -131,3 +131,7 @@
 @media(max-width:680px){.mywork-search-v253{max-width:none}.mywork-search-v253 input{font-size:16px}.mywork-tabs-v253{scrollbar-width:none}.mywork-tabs-v253::-webkit-scrollbar{display:none}.mywork-tabs-v253 button{flex:0 0 auto;min-height:42px}}
 
 .mywork-attention-warning-v536 { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:10px 12px; margin:6px 0 12px; border:1px solid var(--warning); border-radius:10px; color:var(--text); font-size:12px; }
+
+/* RC14: empty focus plans must not stretch to the height of the right-hand stack. */
+.mywork-today-grid-v253 { align-items: start; }
+.mywork-today-grid-v253 > .mywork-panel-v253 { align-self: start; min-height: 0; }

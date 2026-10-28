@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { chmod } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
-import { throwIfAborted } from "./operation-cancellation.js";
+import { throwIfAborted, OperationCancelledError } from "./operation-cancellation.js";
 import { runManagedSubprocess } from "./managed-subprocess.js";
 
 export type DatabaseBackupResult = {

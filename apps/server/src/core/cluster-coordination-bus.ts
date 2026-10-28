@@ -73,6 +73,7 @@ export class ClusterCoordinationBus {
   private lastReceivedAt: Date | null = null;
   private accelerationPublished = 0;
   private postgresqlPublished = 0;
+  private pendingPublish: Promise<void> = Promise.resolve();
   private unsubscribeAcceleration: (() => void) | null = null;
   private readonly acceleration?: AccelerationTransport;
 
@@ -136,7 +137,14 @@ export class ClusterCoordinationBus {
       return false;
     }
     try {
-      await client.query("SELECT pg_notify($1, $2)", [this.channel, encoded]);
+      // Serialize publishes on the dedicated LISTEN connection. pg@9 rejects
+      // concurrent client.query calls; bursts occur during initial job enqueue.
+      const operation = this.pendingPublish.catch(() => undefined).then(async () => {
+        if (!this.connected || this.client !== client) throw new Error("Cluster coordination connection changed");
+        await client.query("SELECT pg_notify($1, $2)", [this.channel, encoded]);
+      });
+      this.pendingPublish = operation.catch(() => undefined);
+      await operation;
       this.published += 1;
       this.postgresqlPublished += 1;
       return true;

@@ -188,14 +188,14 @@ function AdminConfigurationImport({ onApplied }: { onApplied: () => void }) {
       <input type="file" accept=".clusterconfig,.json,application/json" disabled={busy} onChange={(event) => void readFile(event)} />
     </label>
     {fileName && <p className="muted tight">Selected: {fileName}</p>}
-    {bundle && typeof bundle === "object" && "settings" in bundle && <fieldset className="admin-config-selection-v509" disabled={busy}>
+    {bundle != null && typeof bundle === "object" && "settings" in bundle ? <fieldset className="admin-config-selection-v509" disabled={busy}>
       <legend>Choose the defaults to import</legend>
       {Object.entries((bundle as { settings: Record<string, unknown> }).settings).map(([key, value]) => <label key={key}>
         <input type="checkbox" checked={selectedKeys.includes(key)} onChange={(event) => toggleField(key, event.target.checked)} />
         <span>{CONFIG_LABELS[key] || key} <small>{configurationValue(value as string | boolean | null)}</small></span>
       </label>)}
       <small>Unselected settings are not sent to the server. Changing selection clears the old preview; a fresh preview is required before applying.</small>
-    </fieldset>}
+    </fieldset> : null}
     {error && <p role="alert" className="muted">{error}</p>}
     {feedback && <p role="status">{feedback}</p>}
     {preview && <div className="admin-config-preview-v506" aria-label="Configuration change preview">

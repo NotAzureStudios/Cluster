@@ -1,7 +1,7 @@
 /* Canonical Cluster shell chrome. Persistent shell selectors live here only. */
 
 
-:root{--cluster-sidebar-icon-surface:#6c7379;--cluster-sidebar-icon-border:#858c92;--cluster-shell-brand-accent:#6577cf;--cluster-shell-brand-accent-strong:#7388e2;--cluster-shell-chrome-text:#edf3f4;--cluster-shell-chrome-muted:#aab7bc;--cluster-sidebar-icon-accent:#5865f2;--cluster-sidebar-layout-width:var(--cluster-sidebar-current-width,264px);--cluster-shell-content-gap:20px;}:root[data-theme="light"]{--cluster-taskbar-chrome-hover:#d1d5d7;--cluster-taskbar-chrome-text:#090b0c;--cluster-shell-text:#050607;--cluster-shell-muted:#3e454b;--cluster-shell-nav-text:#111214;--cluster-shell-nav-muted:#4e5058;--cluster-sidebar-section-border:#c5c8ce;--cluster-taskbar-interaction-hover:#f1f2f4;--cluster-taskbar-interaction-active:#bcc1c7;--cluster-taskbar-interaction-border:#aeb3b9;--cluster-sidebar-surface:#f7f9fa;--cluster-sidebar-surface-raised:var(--cluster-white);--cluster-sidebar-surface-hover:#f0f4f6;--cluster-sidebar-surface-active:transparent;--cluster-sidebar-border:#cfd5d9;--cluster-taskbar-surface:#d5dade;--cluster-taskbar-surface-raised:#e4e8eb;--cluster-taskbar-surface-hover:#f0f2f4;--cluster-taskbar-surface-active:#c7cdd1;--cluster-taskbar-border:#abb3b9;--cluster-taskbar-icon:#353b40;}:root[data-theme="dark"]{--cluster-taskbar-chrome-hover:#4e5559;--cluster-taskbar-chrome-text:var(--cluster-white);--cluster-shell-text:var(--cluster-white);--cluster-shell-muted:#c3c7ca;--cluster-sidebar-border:#151719;--cluster-taskbar-border:#17191b;--cluster-taskbar-icon:#e0e3e5;--cluster-shell-nav-text:var(--cluster-white);--cluster-shell-nav-muted:#b5bac1;--cluster-sidebar-section-border:#111214;--cluster-taskbar-interaction-hover:#43464d;--cluster-taskbar-interaction-active:#4e5158;--cluster-taskbar-interaction-border:#17181a;--cluster-sidebar-surface:#222528;--cluster-sidebar-surface-raised:#2c3033;--cluster-sidebar-surface-hover:#33373a;--cluster-sidebar-surface-active:#383c40;--cluster-taskbar-surface:#303438;--cluster-taskbar-surface-raised:#3c4145;--cluster-taskbar-surface-hover:#474c51;--cluster-taskbar-surface-active:#51575c;}.accessibility-pass-v204 :where(.taskbar-icon-button-v081){min-width:36px;}@media  (pointer:coarse){.accessibility-pass-v204 :where(.taskbar-icon-button-v081){min-width:44px;}}.sidebar-project-entry-v370{position:relative;display:block;min-width:0;}.sidebar-project-entry-v370 > .sidebar-project-main-v370{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-width:0;padding-right:38px;}.sidebar-project-entry-v370 > .sidebar-project-main-v370 > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;}.sidebar-project-entry-v370 > .sidebar-project-pin-v289{position:absolute;top:50%;right:5px;z-index:2;margin:0;transform:translateY(-50%);border:0;background:transparent;}.sidebar-project-entry-v370:hover > .sidebar-project-pin-v289,
+:root{--cluster-sidebar-icon-surface:#6c7379;--cluster-sidebar-icon-border:#858c92;--cluster-shell-brand-accent:#6577cf;--cluster-shell-brand-accent-strong:#7388e2;--cluster-shell-chrome-text:#edf3f4;--cluster-shell-chrome-muted:#aab7bc;--cluster-sidebar-icon-accent:#5865f2;--cluster-sidebar-layout-width:var(--cluster-sidebar-current-width,232px);--cluster-shell-content-gap:20px;}:root[data-theme="light"]{--cluster-taskbar-chrome-hover:#d1d5d7;--cluster-taskbar-chrome-text:#090b0c;--cluster-shell-text:#050607;--cluster-shell-muted:#3e454b;--cluster-shell-nav-text:#111214;--cluster-shell-nav-muted:#4e5058;--cluster-sidebar-section-border:#c5c8ce;--cluster-taskbar-interaction-hover:#f1f2f4;--cluster-taskbar-interaction-active:#bcc1c7;--cluster-taskbar-interaction-border:#aeb3b9;--cluster-sidebar-surface:#f7f9fa;--cluster-sidebar-surface-raised:var(--cluster-white);--cluster-sidebar-surface-hover:#f0f4f6;--cluster-sidebar-surface-active:transparent;--cluster-sidebar-border:#cfd5d9;--cluster-taskbar-surface:#d5dade;--cluster-taskbar-surface-raised:#e4e8eb;--cluster-taskbar-surface-hover:#f0f2f4;--cluster-taskbar-surface-active:#c7cdd1;--cluster-taskbar-border:#abb3b9;--cluster-taskbar-icon:#353b40;}:root[data-theme="dark"]{--cluster-taskbar-chrome-hover:#4e5559;--cluster-taskbar-chrome-text:var(--cluster-white);--cluster-shell-text:var(--cluster-white);--cluster-shell-muted:#c3c7ca;--cluster-sidebar-border:#151719;--cluster-taskbar-border:#17191b;--cluster-taskbar-icon:#e0e3e5;--cluster-shell-nav-text:var(--cluster-white);--cluster-shell-nav-muted:#b5bac1;--cluster-sidebar-section-border:#111214;--cluster-taskbar-interaction-hover:#43464d;--cluster-taskbar-interaction-active:#4e5158;--cluster-taskbar-interaction-border:#17181a;--cluster-sidebar-surface:#222528;--cluster-sidebar-surface-raised:#2c3033;--cluster-sidebar-surface-hover:#33373a;--cluster-sidebar-surface-active:#383c40;--cluster-taskbar-surface:#303438;--cluster-taskbar-surface-raised:#3c4145;--cluster-taskbar-surface-hover:#474c51;--cluster-taskbar-surface-active:#51575c;}.accessibility-pass-v204 :where(.taskbar-icon-button-v081){min-width:36px;}@media  (pointer:coarse){.accessibility-pass-v204 :where(.taskbar-icon-button-v081){min-width:44px;}}.sidebar-project-entry-v370{position:relative;display:block;min-width:0;}.sidebar-project-entry-v370 > .sidebar-project-main-v370{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-width:0;padding-right:38px;}.sidebar-project-entry-v370 > .sidebar-project-main-v370 > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;}.sidebar-project-entry-v370 > .sidebar-project-pin-v289{position:absolute;top:50%;right:5px;z-index:2;margin:0;transform:translateY(-50%);border:0;background:transparent;}.sidebar-project-entry-v370:hover > .sidebar-project-pin-v289,
 .sidebar-project-entry-v370.pinned-project-v111 > .sidebar-project-pin-v289,
 .sidebar-project-entry-v370 > .sidebar-project-pin-v289:focus-visible{opacity:1;}.project-tab-wrap-v370{position:relative;flex:0 0 auto;display:inline-flex;min-width:0;max-width:300px;}.project-tab-wrap-v370 > .project-tab-chip-v047{padding-right:58px !important;}.project-tab-pin-icon-v505{width:13px;height:13px;flex:0 0 auto;color:var(--cluster-workspace-accent,var(--accent));}.project-tab-actions-v505{position:absolute;top:50%;right:4px;z-index:3;display:flex;align-items:center;gap:1px;transform:translateY(-50%);}.project-tab-actions-v505 .project-tab-close-button-v370{width:24px;min-width:24px;height:24px;min-height:24px;padding:0;border:0;background:transparent;}.project-tab-actions-v505 .cluster-action-menu-v428{opacity:0;pointer-events:none;transition:opacity var(--cluster-motion-fast,100ms) ease;}.project-tab-wrap-v370:is(:hover,:focus-within,.active) .project-tab-actions-v505 .cluster-action-menu-v428{opacity:1;pointer-events:auto;}.project-tab-actions-v505 :where(.project-tab-close-button-v370,.cluster-icon-button-v425):hover,
 .project-tab-actions-v505 :where(.project-tab-close-button-v370,.cluster-icon-button-v425):focus-visible{background:color-mix(in srgb,var(--line) 74%,transparent);color:var(--text);}.project-tab-wrap-v370.pinned-v505{max-width:320px;}:root[data-transparency="reduced"] :where(.panel, .settings-card-v092, [role="dialog"], [role="menu"], .shell-sidebar-v3430, .taskbar-unified-v3430){-webkit-backdrop-filter:blur(var(--cluster-backdrop-blur-reduced)) !important;backdrop-filter:blur(var(--cluster-backdrop-blur-reduced)) !important;}:root[data-transparency="off"] :where(.panel, .settings-card-v092, [role="dialog"], [role="menu"], .shell-sidebar-v3430, .taskbar-unified-v3430){background-color:var(--panel,Canvas) !important;background-image:none !important;}.taskbar-profile-v073 > .taskbar-profile-avatar-v227{margin-right:1px;}.taskbar-chevron-v227{width:15px;height:15px;color:var(--muted);}.taskbar-svg-icon-v227{width:18px;height:18px;}.taskbar-profile-v073{overflow:visible;}.taskbar-profile-avatar-v227{flex:0 0 30px;width:30px;height:30px;overflow:visible;}.taskbar-profile-avatar-v227 .cluster-presence-indicator-v227,
@@ -622,7 +622,7 @@
   color: var(--muted);
   font-style: normal;
 }.taskbar-profile-v073 img,
-.taskbar-profile-v073 > span{
+.taskbar-profile-v073 > .taskbar-profile-avatar-v227{
 
 
   border-radius: 999px;
@@ -890,7 +890,7 @@
 .taskbar-profile-v073,
 .taskbar-empty-tabs-v073{  gap: 8px; }.taskbar-action-v073.taskbar-icon-button-v081{ width: 38px !important; min-width: 38px !important; }.taskbar-action-v073.my-work em,
 .taskbar-action-v073 em{ min-width: 20px; height: 20px; font-size: .68rem !important; }.taskbar-profile-v073{ max-width: min(300px, 26vw) !important; }.taskbar-profile-v073 img,
-.taskbar-profile-v073 > span{ width: 28px; height: 28px; }.taskbar-profile-v073 strong{ max-width: 190px; font-size: .95rem !important; }.taskbar-count-badge-v086{ min-width: 18px; height: 18px; font-size: .66rem !important; top: -7px; right: -5px; }:root[data-theme="light"] .taskbar-user-dropdown-v078{ background: color-mix(in srgb, var(--cluster-white) 94%, transparent) !important; border-color: color-mix(in srgb, var(--cluster-slate-900) 12%, transparent) !important; box-shadow: 0 22px 48px rgba(30, 41, 59, .16) !important; }
+.taskbar-profile-v073 > .taskbar-profile-avatar-v227{ width: 28px; height: 28px; }.taskbar-profile-v073 strong{ max-width: 190px; font-size: .95rem !important; }.taskbar-count-badge-v086{ min-width: 18px; height: 18px; font-size: .66rem !important; top: -7px; right: -5px; }:root[data-theme="light"] .taskbar-user-dropdown-v078{ background: color-mix(in srgb, var(--cluster-white) 94%, transparent) !important; border-color: color-mix(in srgb, var(--cluster-slate-900) 12%, transparent) !important; box-shadow: 0 22px 48px rgba(30, 41, 59, .16) !important; }
 
 @media (max-width: 760px) {.taskbar-left-v073{ border-right: 0 !important; padding-right: 0 !important; } }.taskbar-user-dropdown-v078{  font-family: var(--cluster-font-stack) !important; }:root[data-theme="light"] .shell-sidebar-v3430{ border-right: 0 !important; }
 @media (max-width: 760px) {.shell-sidebar-v3430{ min-width: 0 !important; max-width: none !important; } }html,
@@ -1906,4 +1906,55 @@ html[data-cluster-kiosk-touch="true"] a{ min-height: 44px; }html[data-cluster-ki
   font-size: .76rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+/* RC13 account control: only the avatar is a square. Username and status must
+   remain a flexible two-line text column, not inherit legacy span/avatar rules. */
+.taskbar-unified-v3430 .taskbar-profile-v073 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  max-width: 224px !important;
+  width: auto !important;
+  overflow: hidden !important;
+}
+.taskbar-unified-v3430 .taskbar-profile-v073 > .taskbar-profile-avatar-v227 {
+  flex: 0 0 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+}
+.taskbar-unified-v3430 .taskbar-profile-v073 > .taskbar-profile-copy-v546 {
+  flex: 1 1 auto !important;
+  display: grid !important;
+  gap: 2px !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+.taskbar-unified-v3430 .taskbar-profile-copy-v546 > :is(strong,small) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskbar-unified-v3430 .taskbar-profile-v073 > .taskbar-chevron-v227 {
+  flex: 0 0 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+}
+@media (max-width: 899px) {
+  .taskbar-unified-v3430 .taskbar-profile-v073 > .taskbar-profile-copy-v546 { display: none !important; }
+  .taskbar-unified-v3430 .taskbar-profile-v073 { justify-content: center !important; }
 }

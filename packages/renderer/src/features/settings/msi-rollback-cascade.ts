@@ -16,13 +16,14 @@ export function validMSIRollbackCascade(value: unknown, key: string): value is C
       x.recoveryOrder.length === 0 || x.recoveryOrder.length > 64 || x.steps.length !== x.recoveryOrder.length ||
       x.recoveryOrder.at(-1) !== key || x.warnings.length < 3 || x.warnings.length > 12 ||
       !x.warnings.every((s: unknown) => typeof s === "string" && s.length > 0)) return false;
+  const recoveryOrder = x.recoveryOrder as string[];
   const seen = new Set<string>();
   const derivedBlockers: string[] = [];
   let allPriorSettled = true;
   const manualReviewPackages: string[] = [];
   let nextReviewable = "";
   for (let i = 0; i < x.steps.length; i++) {
-    const packageKey = x.recoveryOrder[i];
+    const packageKey = (x.recoveryOrder as string[])[i];
     const step = x.steps[i] as Record<string, unknown> | null;
     if (typeof packageKey !== "string" || !keyPattern.test(packageKey) || seen.has(packageKey) ||
         !step || typeof step !== "object" || step.index !== i || step.packageKey !== packageKey ||
@@ -31,7 +32,7 @@ export function validMSIRollbackCascade(value: unknown, key: string): value is C
         step.separateAuthorizationRequired !== true || step.mutationAuthorized !== false || typeof step.dispositionObserved !== "boolean" ||
         (step.dispositionObserved && (i === x.steps.length - 1 || (Array.isArray(step.blockers) && step.blockers.length > 0))) ||
         !Array.isArray(step.waitingFor) || step.waitingFor.length !== i ||
-        !step.waitingFor.every((entry: unknown, j: number) => entry === x.recoveryOrder[j]) ||
+        !step.waitingFor.every((entry: unknown, j: number) => entry === recoveryOrder[j]) ||
         !Array.isArray(step.blockers) || !step.blockers.every((s: unknown) => typeof s === "string" && s.length > 0) ||
         typeof step.lifecycleJournalSha256 !== "string" || typeof step.lifecycleJournalState !== "string" ||
         (step.lifecycleJournalSha256 === "" ? step.lifecycleJournalState !== "not_recorded" :
@@ -63,6 +64,6 @@ export function validMSIRollbackCascade(value: unknown, key: string): value is C
     x.manualReviewPackages.every((p: unknown, i: number) => p === manualReviewPackages[i]) &&
     x.nextReviewablePackageKey === nextReviewable &&
     x.blockers.length === derivedBlockers.length &&
-    derivedBlockers.every((b, i) => x.blockers[i] === b) &&
+    derivedBlockers.every((b, i) => (x.blockers as string[])[i] === b) &&
     (x.state === "blocked") === (derivedBlockers.length > 0);
 }

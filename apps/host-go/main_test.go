@@ -153,10 +153,10 @@ func TestRemoteBindRequiresExplicitAddressAndSameOrigin(t *testing.T) {
 }
 
 func TestOriginForRemoteBindKeepsLocalControlOrigin(t *testing.T) {
-	if actual := originForBind("0.0.0.0", 3000, "http"); actual != "http://127.0.0.1:3000" {
+	if actual := originForBind("0.0.0.0", 3000, "http"); actual != "http://localhost:3000" {
 		t.Fatalf("remote bind control origin = %q", actual)
 	}
-	if actual := originForBind("127.0.0.1", 3200, "http"); actual != "http://127.0.0.1:3200" {
+	if actual := originForBind("127.0.0.1", 3200, "http"); actual != "http://localhost:3200" {
 		t.Fatalf("loopback origin = %q", actual)
 	}
 }
@@ -313,7 +313,7 @@ func TestRestartBackoffIsBounded(t *testing.T) {
 }
 
 func TestOriginSchemeIsPreserved(t *testing.T) {
-	if actual := originForBind("0.0.0.0", 3443, "https"); actual != "https://127.0.0.1:3443" {
+	if actual := originForBind("0.0.0.0", 3443, "https"); actual != "https://localhost:3443" {
 		t.Fatalf("secure control origin = %q", actual)
 	}
 }
@@ -370,4 +370,56 @@ func TestManagedShutdownGracePreservesServerDrain(t *testing.T) {
 	if managedAPIDrainGrace <= maximumAPIShutdown+serverWatchdogMargin {
 		t.Fatalf("managed API grace %s truncates server drain %s", managedAPIDrainGrace, maximumAPIShutdown+serverWatchdogMargin)
 	}
+}
+
+func TestPasskeyLocalhostCanonicalOriginAndLegacyAlias(t *testing.T) {
+    origin, err := resolvePublicOrigin("", "127.0.0.1", 3000, "http", false)
+    if err != nil || origin != "http://localhost:3000" {
+        t.Fatalf("fresh local public origin = %q, %v", origin, err)
+    }
+    origin, err = resolvePublicOrigin("http://127.0.0.1:3000", "127.0.0.1", 3000, "http", false)
+    if err != nil || origin != "http://localhost:3000" {
+        t.Fatalf("older local public origin = %q, %v", origin, err)
+    }
+    origin, err = resolvePublicOrigin("https://cluster.example.com", "0.0.0.0", 3000, "https", true)
+    if err != nil || origin != "https://cluster.example.com:3000" {
+        t.Fatalf("remote TLS origin changed = %q, %v", origin, err)
+    }
+}
+
+func TestPasskeyCanonicalLoopbackNavigationRedirectIsSafe(t *testing.T) {
+    root := t.TempDir()
+    runtimeHost := &host{root: root, origin: "http://localhost:3000", bindAddress: "127.0.0.1", webPort: 3000, scheme: "http", startedAt: time.Now()}
+    backend, err := url.Parse("http://127.0.0.1:4000")
+    if err != nil { t.Fatal(err) }
+    handler := runtimeHost.handler(backend)
+
+    legacy := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3000/login?state=1", nil)
+    rec := httptest.NewRecorder()
+    handler.ServeHTTP(rec, legacy)
+    if rec.Code != http.StatusTemporaryRedirect || rec.Header().Get("Location") != "http://localhost:3000/login?state=1" {
+        t.Fatalf("legacy URL redirect status %d target %q", rec.Code, rec.Header().Get("Location"))
+    }
+
+    unsafe := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:3000/api/auth/mfa/passkeys/enroll/start", nil)
+    unsafe.Header.Set("Origin", "http://127.0.0.1:3000")
+    rec = httptest.NewRecorder()
+    handler.ServeHTTP(rec, unsafe)
+    if rec.Code != http.StatusMisdirectedRequest { t.Fatalf("unsafe alias request status %d", rec.Code) }
+
+    crossSite := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3000/login", nil)
+    crossSite.Header.Set("Origin", "https://evil.example")
+    rec = httptest.NewRecorder()
+    handler.ServeHTTP(rec, crossSite)
+    if rec.Code != http.StatusForbidden || rec.Header().Get("Location") != "" { t.Fatalf("cross-site unexpectedly redirected (%d)", rec.Code) }
+
+    otherPort := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3999/login", nil)
+    rec = httptest.NewRecorder()
+    handler.ServeHTTP(rec, otherPort)
+    if rec.Code != http.StatusMisdirectedRequest { t.Fatalf("wrong loopback port allowed (%d)", rec.Code) }
+
+    health := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3000/host/health", nil)
+    rec = httptest.NewRecorder()
+    handler.ServeHTTP(rec, health)
+    if rec.Code != http.StatusOK { t.Fatalf("native health check must still work (%d)", rec.Code) }
 }

@@ -6,7 +6,7 @@ import "../application/admin-control-center.css";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { confirmCluster } from "../../components/cluster-dialog-service";
-import { api, apiErrorPresentation, createDeviceProofRotationPayload, currentDeviceProofKeyFingerprint, mutateApi, promotePendingDeviceProofKey, queryApi, recoverPendingDeviceProofKey } from "../../core/api";
+import { API_URL, api, apiErrorPresentation, createDeviceProofRotationPayload, currentDeviceProofKeyFingerprint, mutateApi, promotePendingDeviceProofKey, queryApi, recoverPendingDeviceProofKey } from "../../core/api";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { accessibilityPreferenceDefaults } from "../../core/accessibility-preferences";
 import { applyDesktopPreferences, connectDesktopServer, getClusterRuntimeInfo, getDesktopServerUrl, requestDesktopNotificationPermission, testDesktopServerConnection } from "../../core/desktop";
@@ -26,6 +26,7 @@ import { PrivacyDataControlCenter } from "../legal/PrivacyDataControlCenter";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { NOTIFICATION_CATEGORIES, NOTIFICATION_CATEGORY_DETAILS, NOTIFICATION_DELIVERY_OPTIONS, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationCategory, type NotificationDeliveryMode, type NotificationToolMode } from "../notifications/notification-preferences";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { AccountAccessibilitySettingsSection } from "./AccountAccessibilitySettingsSection";
@@ -39,8 +40,8 @@ import { requestSecurityPinChange, requestSecurityPinSetup } from "../../core/se
 import type { AppTheme, Project, ServerSessionRecord, Settings, SettingsSection, User } from "../application/application-models";
 import { projectMemberIds } from "../projects/projects-utils";
 import "./settings-workspace.css";
-import { ClusterButton } from "../../components/ClusterButton";
-import { createWebAuthnCredential, webAuthnAvailable } from "../../core/webauthn-client";
+import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { createWebAuthnCredential, requireWebAuthnBrowserOrigin, webAuthnAvailable } from "../../core/webauthn-client";
 
 import type { AccountSettingsPageProps } from "./settings-workspace-contracts";
 import { ACCOUNT_SETTINGS_DEPENDENCIES } from "./account-settings-dependencies";
@@ -217,6 +218,22 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [discordOAuth, setDiscordOAuth] = useState<{ configured: boolean; required: boolean } | null>(null);
+  const [discordOAuthError, setDiscordOAuthError] = useState(false);
+  // OAuth readiness is a one-shot read when the profile editor is opened, never polled.
+  useEffect(() => {
+    if (section !== "profile") return;
+    let active = true;
+    setDiscordOAuth(null);
+    setDiscordOAuthError(false);
+    void queryApi<{ discordConfigured: boolean; discordLinkRequired: boolean }>("/api/auth/config", { staleMs: 30_000 })
+      .then((config) => { if (active) setDiscordOAuth({ configured: config.discordConfigured, required: config.discordLinkRequired }); })
+      .catch(() => { if (active) setDiscordOAuthError(true); });
+    return () => { active = false; };
+  }, [section, currentUser.id]);
+  const discordLinkUrl = `${(runtimeInfo.serverUrl || API_URL || "").replace(/\/$/, "")}/api/auth/discord/link`;
+
+
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const dashboardWidgets = useDashboardWidgets();
   const accountDraftTimer = useRef<number | null>(null);
@@ -267,6 +284,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           taskbarSurface: (document.documentElement.dataset.taskbarSurface as Settings["taskbarSurface"]) || "match",
           taskbarLayout: (document.documentElement.dataset.taskbarLayout as Settings["taskbarLayout"]) || "floating",
           sidebarLayout: (document.documentElement.dataset.sidebarLayout as Settings["sidebarLayout"]) || "docked",
+          sidebarItemStyle: (document.documentElement.dataset.sidebarItemStyle as Settings["sidebarItemStyle"]) || "outlined",
           surfaceDepth: (document.documentElement.dataset.surfaceDepth as Settings["surfaceDepth"]) || "soft",
           surfaceTexture: (document.documentElement.dataset.surfaceTexture as Settings["surfaceTexture"]) || "fine",
           surfaceTextureIntensity: 6,
@@ -432,7 +450,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       if (!securityRequestsRef.current.isCurrent(ticket)) return;
       const avatarUrl = result.user.avatarUrl || null;
       setProfileAvatarUrl(avatarUrl);
-      const warning = await reconcileAfterCommit(() => {
+      const warning = await reconcileAfterCommit(async () => {
         onUserUpdated({ ...currentUser, avatarUrl });
         window.dispatchEvent(new CustomEvent("cluster-avatar-updated", { detail: { userId: ticket.ownerId, avatarUrl } }));
       });
@@ -545,7 +563,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       setProfileForm(profileFormFromUser(result.user));
       setProfileDirty(false);
       setLastSavedAt(new Date().toISOString());
-      const presentationWarning = await reconcileAfterCommit(() => onUserUpdated(result.user));
+      const presentationWarning = await reconcileAfterCommit(async () => onUserUpdated(result.user));
       if (securityRequestsRef.current.isCurrent(ticket)) setStatus(presentationWarning
         ? "Profile saved; local account display could not refresh. Reopen this page."
         : "Profile saved.");
@@ -578,6 +596,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       taskbarSurface: "match",
       taskbarLayout: "floating",
       sidebarLayout: "docked",
+      sidebarItemStyle: "outlined",
       surfaceDepth: "soft",
       surfaceTexture: "fine",
       surfaceTextureIntensity: 6,
@@ -751,7 +770,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         dedupeKey: `account-settings:${currentUser.id}`,
         entityType: "user-preferences",
         entityId: currentUser.id,
-        optimisticResult: optimisticPreferenceResult,
+        optimisticResult: { ...optimisticPreferenceResult, fingerprint: preferencesFingerprintRef.current || "" },
         optimisticCache: {
           "/api/me/preferences": optimisticPreferenceResult,
           "/api/me": { user: optimisticPreferenceResult.user },
@@ -1001,6 +1020,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     if (!owner) return;
     setStatus("");
     try {
+      requireWebAuthnBrowserOrigin();
       const start = await api<{ ok: boolean; publicKey: any }>("/api/auth/mfa/passkeys/enroll/start", { method: "POST", body: JSON.stringify({}) });
       if (!isCurrentMfaOwner(owner)) return;
       const credential = await createWebAuthnCredential(start.publicKey);
@@ -1178,6 +1198,21 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 </div>
                 <div className="profile-account-color-v547"><span>User color</span><ColorField label="User color" value={personalAccentColor} onChange={(next) => { setPersonalAccentColor(next); setProfileDirty(true); persistAccountDraft(settings, next, theme); applyCustomization(settings, next); }} /></div>
               </section>
+              <section className="settings-card-v092 cluster-discord-identity-v548" aria-label="Discord account connection">
+                <div className="settings-card-head-v092"><h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord account</h3><span className={`soft-pill ${currentUser.discordUserId ? "good" : ""}`}>{currentUser.discordUserId ? "Linked" : "Not linked"}</span></div>
+                {currentUser.discordUserId ? <div className="cluster-discord-identity-row-v548">
+                  {currentUser.discordAvatar ? <img src={currentUser.discordAvatar} alt="" width={40} height={40} loading="lazy" /> : <ResourceIdentityMark iconId="brand:discord" label="Discord" />}
+                  <div><strong>{currentUser.discordDisplayName || currentUser.discordUsername || "Discord account"}</strong><span>{currentUser.discordUsername ? `@${currentUser.discordUsername}` : "Connected identity"}{currentUser.discordLinkedAt ? ` · Linked ${compactDateTime(currentUser.discordLinkedAt)}` : ""}</span></div>
+                </div> : <p className="muted tight">Link your personal Discord identity to receive optional notifications and use authorized bot actions. Your Cluster password and permissions do not change.</p>}
+                {discordOAuthError ? <p role="status" className="muted">Connection readiness could not be checked. Retry by reopening Profile.</p> : !discordOAuth ? <span className="muted">Checking Discord linking…</span> : !discordOAuth.configured ? <p role="status" className="warning">Discord linking is not ready. An admin must finish the OAuth application setup under Integrations → Discord.</p> : null}
+                <div className="button-row">
+                  {discordOAuth?.configured && !currentUser.discordUserId ? <ClusterLinkButton variant="primary" href={discordLinkUrl}><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Link Discord account</ClusterLinkButton> : null}
+                  {discordOAuth?.configured && currentUser.discordUserId ? <ClusterButton type="button" variant="secondary" onClick={async () => {
+                    if (await confirmCluster({ title: "Change linked Discord account?", message: "This will verify a different Discord identity and rotate your Cluster sessions. Your Cluster access will not change.", confirmLabel: "Continue to Discord" })) window.location.assign(discordLinkUrl);
+                  }}>Change linked account</ClusterButton> : null}
+                  {currentUser.discordUserId ? <ClusterButton type="button" variant="quiet" onClick={() => { setSection("privacy"); onSectionChange?.("privacy"); }}>Disconnect / privacy controls</ClusterButton> : null}
+                </div>
+              </section>
               <div className="profile-editor-grid-v473">
                 <section className="settings-card-v092 profile-editor-card-v473">
                   <div className="settings-card-head-v092"><h3>Identity</h3><span>@{currentUser.username}</span></div>
@@ -1266,7 +1301,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   <div>
                     <span className="eyebrow">Status</span>
                     <h3>{currentUser.pinConfigured ? "PIN configured" : "PIN required"}</h3>
-                    <p className="muted tight">{currentUser.pinConfigured ? "Protected actions use the PIN pad." : "Create a PIN to enable protected actions."}</p>
+
                   </div>
                   <ClusterButton variant="primary" type="button" onClick={() => void openSecurityPinPad()}>
                     {currentUser.pinConfigured ? "Change PIN" : "Create PIN"}
@@ -1468,6 +1503,12 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                               {option.charAt(0).toUpperCase() + option.slice(1)}
                             </ClusterButton>
                           ))}
+                        </div>
+                      </div>
+                      <div className="field sidebar-item-style-field-rc27">
+                        <label>Sidebar buttons</label>
+                        <div className="segmented-choice-v267" role="group" aria-label="Sidebar button separation">
+                          {(["soft", "divided", "outlined"] as Array<NonNullable<Settings["sidebarItemStyle"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.sidebarItemStyle || "outlined") === option} className={(settings.sidebarItemStyle || "outlined") === option ? "active" : ""} onClick={() => patch("sidebarItemStyle", option)}>{option === "soft" ? "Soft" : option === "divided" ? "Lines" : "Borders"}</ClusterButton>)}
                         </div>
                       </div>
                       <div className="field sidebar-layout-field-v546">

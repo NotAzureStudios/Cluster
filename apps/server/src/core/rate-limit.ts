@@ -19,6 +19,8 @@ type Bucket = {
 
 export class FixedWindowRateLimiter {
   private readonly buckets = new Map<string, Bucket>();
+  private nextAutomaticPruneAt = 0;
+  private static readonly PRUNE_INTERVAL_MS = 15_000;
 
   constructor(
     private readonly softLimit = 5_000,
@@ -38,7 +40,13 @@ export class FixedWindowRateLimiter {
     if (!Number.isFinite(windowMs) || windowMs < 1) throw new Error("Rate limit window must be positive.");
     if (!Number.isInteger(cost) || cost < 1 || cost > limit) throw new Error("Rate limit cost must be a positive integer no larger than the limit.");
 
-    this.prune(now);
+    // A full map sweep per request becomes expensive once thousands of keys
+    // accumulate. Expiry for the requested key is still enforced immediately;
+    // global cleanup is periodic and capacity remains strictly bounded.
+    if (this.buckets.size >= this.softLimit && now >= this.nextAutomaticPruneAt) {
+      this.prune(now);
+      this.nextAutomaticPruneAt = now + FixedWindowRateLimiter.PRUNE_INTERVAL_MS;
+    }
     const current = this.buckets.get(key);
     const bucket = !current || current.resetAt <= now
       ? { count: cost, resetAt: now + windowMs }
@@ -47,7 +55,7 @@ export class FixedWindowRateLimiter {
     // Reinsert active buckets so hard-limit pruning removes the least recently used keys.
     this.buckets.delete(key);
     this.buckets.set(key, bucket);
-    this.prune(now);
+    if (this.buckets.size > this.hardLimit) this.prune(now);
 
     const allowed = bucket.count <= limit;
     return {

@@ -37,7 +37,7 @@ export async function resolveLibraryEffectiveRetention(tx: any, item: {
     lineage.push({ id: current.id, parentId: current.parentId || null, revision: Number(current.revision || 0),
       legalHold: hold, retentionUntil: deadline?.toISOString() || null });
     if (!current.parentId) break;
-    const parent = await tx.libraryItem.findUnique({ where: { id: current.parentId },
+    const parent: typeof item | null = await tx.libraryItem.findUnique({ where: { id: current.parentId },
       select: { id: true, parentId: true, projectId: true, revision: true, legalHold: true, retentionUntil: true } });
     if (!parent) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_PARENT_MISSING", "Retention ancestor is missing.");
     current = parent;

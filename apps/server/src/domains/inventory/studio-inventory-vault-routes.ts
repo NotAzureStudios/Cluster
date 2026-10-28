@@ -44,6 +44,16 @@ export function inventoryKeyFingerprint(poolId: string, value: string) { return 
 const paramsId = z.object({ id: z.string().min(1).max(160) });
 
 const assetPublicSelect = { id: true, title: true, kind: true, provider: true, reference: true, capacity: true, status: true, revision: true, createdById: true, createdAt: true, updatedAt: true } as const;
+// This route receives a dynamic Prisma handle. Type its catalog projection rather
+// than allowing an implicit any to escape into the renderer-facing inventory API.
+type InventoryCatalogAsset = {
+  id: string;
+  title: string;
+  kind: "physical" | "equipment" | "digital" | "license";
+  capacity: number;
+  status: "active" | "retired";
+  [field: string]: unknown;
+};
 const vaultPublicSelect = { id: true, name: true, kind: true, fingerprint: true, createdById: true, expiresAt: true, revokedAt: true, revision: true, createdAt: true, updatedAt: true } as const;
 export function vaultEncryptionPurpose(id: string) { return `vault:record:${id}`; }
 
@@ -186,16 +196,40 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
   app.get("/api/admin/inventory/assets", async (request: any, reply: any) => {
     if (!(await admin(request, reply))) return;
     reply.header("Cache-Control", "no-store");
-    const query = z.object({ cursor: z.string().trim().min(1).max(160).optional(), q: z.string().trim().max(160).optional() }).parse(request.query || {});
+    const query = z.object({
+      cursor: z.string().trim().min(1).max(160).optional(),
+      q: z.string().trim().max(160).optional(),
+      kind: z.enum(["physical", "equipment", "digital", "license"]).optional(),
+      status: z.enum(["active", "retired"]).optional(),
+    }).parse(request.query || {});
     const q = query.q || "";
+    // Apply filters before cursor pagination. Filtering only the loaded client page
+    // hides valid assets on later pages and makes the catalog dishonest.
+    const where = {
+      ...(query.kind ? { kind: query.kind } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { provider: { contains: q, mode: "insensitive" } }, { reference: { contains: q, mode: "insensitive" } }, { kind: { contains: q, mode: "insensitive" } }] } : {}),
+    };
     const rows = await prisma.studioInventoryAsset.findMany({
-      where: q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { provider: { contains: q, mode: "insensitive" } }, { reference: { contains: q, mode: "insensitive" } }, { kind: { contains: q, mode: "insensitive" } }] } : {},
+      where,
       select: assetPublicSelect,
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       take: 101,
     });
-    return { ok: true, assets: rows.slice(0, 100), nextCursor: rows.length > 100 ? rows[99].id : null };
+    // An actual inventory catalog needs available stock, not just record metadata.
+    // Aggregate only the authorized, already paginated asset IDs. Digital seats
+    // past their expiration no longer occupy stock; physical custody does.
+    const page: InventoryCatalogAsset[] = rows.slice(0, 100);
+    const physicalIds = page.filter((asset) => !inventoryDigitalKind(asset.kind)).map((asset) => asset.id);
+    const digitalIds = page.filter((asset) => inventoryDigitalKind(asset.kind)).map((asset) => asset.id);
+    const now = new Date();
+    const [physicalAllocationTotals, digitalAllocationTotals] = await Promise.all([
+      physicalIds.length ? prisma.studioInventoryAllocation.groupBy({ by: ["assetId"], where: { assetId: { in: physicalIds }, status: "active" }, _sum: { quantity: true } }) : [],
+      digitalIds.length ? prisma.studioInventoryAllocation.groupBy({ by: ["assetId"], where: { assetId: { in: digitalIds }, ...effectiveDigitalAllocations(now) }, _sum: { quantity: true } }) : [],
+    ]);
+    const occupancy = new Map<string, number>([...physicalAllocationTotals, ...digitalAllocationTotals].map((allocation) => [allocation.assetId, Number(allocation._sum.quantity || 0)]));
+    return { ok: true, assets: page.map((asset) => ({ ...asset, allocated: occupancy.get(asset.id) || 0, available: asset.status === "active" ? Math.max(0, asset.capacity - (occupancy.get(asset.id) || 0)) : 0 })), nextCursor: rows.length > 100 ? rows[99].id : null };
   });
 
   app.post("/api/admin/inventory/assets", async (request: any, reply: any) => {
@@ -632,12 +666,22 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
   app.get("/api/admin/vault/secrets", async (request: any, reply: any) => {
     if (!(await admin(request, reply))) return;
     // Explicit projection: ciphertext is never loaded, serialized or cached in a list endpoint.
-    const query = z.object({ cursor: z.string().trim().min(1).max(160).optional(), q: z.string().trim().max(160).optional() }).parse(request.query || {});
+    const query = z.object({
+      cursor: z.string().trim().min(1).max(160).optional(),
+      q: z.string().trim().max(160).optional(),
+      kind: z.enum(["integration", "password", "license_key", "game_key", "other"]).optional(),
+      status: z.enum(["active", "expired", "revoked"]).optional(),
+    }).parse(request.query || {});
+    const now = new Date();
+    // Filter metadata only. Never fetch encryptedValue for a list projection.
+    const stateWhere = query.status === "revoked" ? { revokedAt: { not: null } }
+      : query.status === "expired" ? { revokedAt: null, expiresAt: { lte: now } }
+      : query.status === "active" ? { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } : {};
     const rows = await prisma.studioVaultSecret.findMany({
-      where: { inventoryKey: { is: null }, ...(query.q ? { OR: [
+      where: { inventoryKey: { is: null }, ...stateWhere, ...(query.kind ? { kind: query.kind } : {}), ...(query.q ? { AND: [{ OR: [
         { name: { contains: query.q, mode: "insensitive" } },
         { kind: { contains: query.q, mode: "insensitive" } },
-      ] } : {}) },
+      ] }] } : {}) },
       select: vaultPublicSelect, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}), take: 101,
     });

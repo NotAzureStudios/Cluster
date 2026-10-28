@@ -56,7 +56,7 @@ export function createSearchSensitiveAccess(deps: {
       pending = deps.prisma.personnelRecordAttachment.findFirst({
         where: { libraryItemId: itemId }, select: { id: true },
       }).then((row: any) => Boolean(row));
-      recordChecks.set(itemId, pending);
+      recordChecks.set(itemId, pending!);
     }
     return pending;
   }

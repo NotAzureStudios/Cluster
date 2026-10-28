@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { hashPassword, nextAccountState, normalizeAuthUsername, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateNewPassword } from "../core/auth.js";
 import { isLoopbackAddress } from "../core/security.js";
+import { hashSecurityPin } from "../core/security-pin-credential.js";
 import { inspectInstanceSetup } from "../core/instance-setup.js";
 import { appendSecurityAuditEvent } from "../core/security-audit-store.js";
 import { CLUSTER_CONFIG_FIELDS, exportSafeStudioConfiguration, parseClusterConfigBundle, planSafeStudioConfiguration, planSafeConfigurationRollback, parseSafeConfigurationRevisionChanges, sanitizeSkippedSetupItems, SETUP_CHECKLIST_IDS } from "../core/setup-configuration.js";
@@ -52,8 +53,8 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     const memberships = await prisma.workspaceMember.findMany({
       where: { role: { in: ["owner", "admin"] } }, select: { userId: true, role: true },
     });
-    const administratorIds = [...new Set(memberships.map((member) => member.userId))];
-    const ownerMembershipIds = [...new Set(memberships.filter((member) => member.role === "owner").map((member) => member.userId))];
+    const administratorIds = [...new Set(memberships.map((member: { userId: string }) => member.userId))];
+    const ownerMembershipIds: string[] = [...new Set<string>(memberships.filter((member: { role: string }) => member.role === "owner").map((member: { userId: string }) => member.userId))];
     const [people, passkeys, recoveryCodes, projectCount, domainProfileCount] = await Promise.all([
       prisma.user.findMany({ where: { id: { in: administratorIds }, archived: false }, select: { id: true } }),
       prisma.authenticator.findMany({ where: {
@@ -66,10 +67,10 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
         bindingHostname: { not: null }, connectionMode: { not: null },
       } }),
     ]);
-    const activeIds = new Set(people.map((person) => person.id));
+    const activeIds = new Set(people.map((person: { id: string }) => person.id));
     const security = ownerSecurityReadiness(
       ownerMembershipIds.filter((id) => activeIds.has(id)),
-      passkeys.map((key) => key.userId), recoveryCodes.map((code) => code.userId),
+      passkeys.map((key: { userId: string }) => key.userId), recoveryCodes.map((code: { userId: string }) => code.userId),
     );
     const zone = settings.studioTimezone;
     let timezoneValid = false;
@@ -88,11 +89,16 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       "domains": domainProfileCount > 0,
     };
     const skipped = new Set(sanitizeSkippedSetupItems(settings.setupChecklistSkippedIds));
+    // Readiness is advice during bootstrap, not a second login gate. A studio
+    // administrator can explicitly enforce MFA later under Security Policy.
+    // A TOTP-capable minimum never implies that a passkey specifically is required.
+    const ownerPasskeyRequired = (settings.securityMfaRequirement === "admins" || settings.securityMfaRequirement === "all")
+      && settings.securityAdminMfaMinimumStrength !== "mfa";
     const items = SETUP_CHECKLIST_IDS.map((id) => ({
       id, label: SETUP_GUIDES[id].title, group: SETUP_GUIDES[id].group,
       detail: SETUP_GUIDES[id].detail, nextStep: SETUP_GUIDES[id].nextStep,
       destination: SETUP_GUIDES[id].destination,
-      required: id === "owner-passkey" || id === "recovery-codes",
+      required: id === "owner-passkey" && ownerPasskeyRequired,
       status: flags[id] ? "complete" : skipped.has(id) ? "skipped" : "recommended",
     }));
     reply.header("Cache-Control", "no-store");
@@ -175,7 +181,7 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 20,
       select: { id: true, actorUserId: true, requestedJson: true, changesJson: true, createdAt: true },
     });
-    return { ok: true, revisions: rows.map((row) => ({
+    return { ok: true, revisions: rows.map((row: { id: string; actorUserId: string | null; createdAt: Date; requestedJson: string; changesJson: string }) => ({
       id: row.id, actorUserId: row.actorUserId, createdAt: row.createdAt,
       requested: parseClusterConfigBundle({ format: "clusterconfig", schemaVersion: 1, settings: JSON.parse(row.requestedJson) }).settings,
       changes: JSON.parse(row.changesJson),
@@ -205,8 +211,8 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     // own separate publication and recovery authority.
     let outcome: { applied: number; revisionId: string | null; changedFields: string[] };
     try {
-      outcome = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 1)`;
+      outcome = await prisma.$transaction(async (tx: any) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 1)::text AS "locked"`;
         const requested = parseClusterConfigBundle(payload.configuration).settings;
         const keys = CLUSTER_CONFIG_FIELDS.filter((key) => Object.prototype.hasOwnProperty.call(requested, key));
         const stored = await tx.appSetting.findMany({ where: { key: { in: keys } }, select: { key: true, value: true } });
@@ -311,8 +317,8 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     const { previewId, reason } = rollbackReasonBody.parse(request.body);
     let result: { applied: number; newRevisionId: string };
     try {
-      result = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(506, 1)`;
+      result = await prisma.$transaction(async (tx: any) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(506, 1)::text AS "locked"`;
         const prepared = await rollbackFromStore(revisionId, tx as typeof prisma);
         if (!prepared || prepared.plan.conflictingKeys.length || prepared.previewId !== previewId || !prepared.plan.changes.length) {
           throw new Error("CONFIGURATION_ROLLBACK_STALE");
@@ -378,6 +384,7 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       serverDisplayName: z.string().trim().min(1).max(120),
       ownerUsername: z.string().min(3).max(32),
       ownerPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+      ownerPin: z.string().regex(/^\d{4,8}$/, "Choose a 4–8 digit PIN."),
       mode: z.enum(["guided", "quick", "import", "skip"]).default("quick"),
       studioName: z.string().trim().min(1).max(120).optional(),
       studioTimezone: z.string().trim().min(1).max(120).optional(),
@@ -429,11 +436,15 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       });
     }
 
-    const ownerPasswordHash = await hashPassword(ownerPassword);
+    const [ownerPasswordHash, ownerPinHash] = await Promise.all([hashPassword(ownerPassword), hashSecurityPin(body.ownerPin)]);
     const owner = await (prisma as any).user.upsert({
       where: { username: ownerUsername },
       update: {
         passwordHash: ownerPasswordHash,
+        pinHash: ownerPinHash,
+        pinUpdatedAt: new Date(),
+        failedPinCount: 0,
+        pinLockedUntil: null,
         passwordChangedAt: new Date(),
         firstLoginCompletedAt: new Date(),
         accountState: nextAccountState(null, REQUIRE_DISCORD_LINK),
@@ -444,6 +455,10 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
         username: ownerUsername,
         displayName: ownerUsername,
         passwordHash: ownerPasswordHash,
+        pinHash: ownerPinHash,
+        pinUpdatedAt: new Date(),
+        failedPinCount: 0,
+        pinLockedUntil: null,
         passwordChangedAt: new Date(),
         firstLoginCompletedAt: new Date(),
         accountState: nextAccountState(null, REQUIRE_DISCORD_LINK),
@@ -483,7 +498,12 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     };
 
     await saveSettings(setupSettings);
-    await createSession(owner.id, reply, request, { authMethod: "mfa-enrollment-pending" });
+    // Initial owner bootstrap is password-authenticated. MFA, recovery codes,
+    // and optional integrations are configured from the authenticated setup
+    // checklist after the workspace opens, not as a mandatory login trap.
+    // An administrator enabling an explicit MFA policy must first verify with
+    // a compliant authenticator (studio-security-routes enforces this).
+    await createSession(owner.id, reply, request, { authMethod: "password" });
     await logActivity({
       userId: owner.id,
       type: "setup",
@@ -509,11 +529,12 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       },
     });
 
+    const ownerForClient = await decorateUserForClient(owner);
     return {
       ok: true,
-      user: { ...(await decorateUserForClient(owner)), nextAuthStep: "SETUP_MFA" },
-      nextStep: "SETUP_MFA",
-      mfaEnrollmentRequired: true,
+      user: ownerForClient,
+      nextStep: ownerForClient.nextAuthStep || "NONE",
+      mfaEnrollmentRequired: false,
       setup: await getSetupStatus(),
     };
   });

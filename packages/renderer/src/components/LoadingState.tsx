@@ -170,3 +170,50 @@ export function InlineLoadingState({ label = "Loading", lines = 3, className = "
     </div>
   );
 }
+
+/** Match the skeleton to the destination workspace, not the previous route's generic rows. */
+export function ScreenLoadingState({ screen }: { screen: string }) {
+  if (["settings", "studioSettings", "serverConfig", "toolInfrastructure"].includes(screen)) return <SettingsLoadingState label="Loading settings" />;
+  if (["board"].includes(screen)) return <BoardLoadingState label="Loading board" columns={4} />;
+  if (["whiteboard"].includes(screen)) return <CanvasLoadingState label="Loading whiteboard" />;
+  if (screen === "inventory") return <InventoryLoadingState />;
+  if (screen === "vault") return <VaultLoadingState />;
+  if (["projects", "library", "packets", "myRecords"].includes(screen)) return <CardGridLoadingState label={`Loading ${screen}`} cards={6} />;
+  if (["tickets", "activity", "inbox", "people", "admin"].includes(screen)) return <TableLoadingState label={`Loading ${screen}`} rows={7} columns={5} />;
+  if (["calendar", "timeline", "scheduler"].includes(screen)) return <TimelineLoadingState label={`Loading ${screen}`} rows={7} />;
+  if (["mywork", "dashboard"].includes(screen)) return <DashboardLoadingState label={screen === "mywork" ? "Loading My Work" : "Loading dashboard"} />;
+  return <LoadingState label="Loading workspace" rows={5} className="route-lazy-loading-v518" />;
+}
+
+export function DashboardLoadingState({ label = "Loading dashboard" }: { label?: string }) {
+  return <section className="cluster-skeleton cluster-dashboard-skeleton-v547" role="status" aria-live="polite" aria-label={label}>
+    <span className="sr-only-v204">{label}</span>
+    <div className="cluster-dashboard-skeleton-summary-v547" aria-hidden="true">
+      <i className="skeleton-line skeleton-line-heading" />
+      <div>{Array.from({ length: 4 }, (_, i) => <article key={i}><i className="skeleton-line skeleton-line-secondary"/><i className="skeleton-line skeleton-line-heading" /></article>)}</div>
+    </div>
+    <div className="cluster-dashboard-skeleton-columns-v547" aria-hidden="true">
+      <section><i className="skeleton-line skeleton-line-heading" />{Array.from({length: 4},(_,i)=><article key={i}><i className="skeleton-line skeleton-line-primary" /><i className="skeleton-line skeleton-line-secondary" /></article>)}</section>
+      <section>{Array.from({length: 3},(_,i)=><article key={i}><i className="skeleton-line skeleton-line-heading" /><i className="skeleton-line skeleton-line-secondary" /></article>)}</section>
+    </div>
+  </section>;
+}
+
+/** Header, filters and resources follow the Inventory workspace rather than a generic list. */
+export function InventoryLoadingState() {
+  return <section className="cluster-skeleton cluster-resource-loading-v547" role="status" aria-live="polite" aria-label="Loading Inventory">
+    <span className="sr-only-v204">Loading Inventory</span>
+    <div aria-hidden="true" className="cluster-resource-loading-header-v547"><i className="skeleton-line skeleton-line-title"/><i className="skeleton-line skeleton-line-secondary"/></div>
+    <nav aria-hidden="true">{Array.from({length: 4},(_,i)=><i className="skeleton-pill" key={i}/>)}</nav>
+    <section aria-hidden="true"><i className="skeleton-line skeleton-line-heading"/><i className="skeleton-button"/><div className="cluster-resource-loading-grid-v547">{Array.from({length: 3},(_,i)=><i key={i} className="skeleton-shape" />)}</div></section>
+  </section>;
+}
+/** Vault has a search/filter row, left metadata list, and right detail/rotation panels. */
+export function VaultLoadingState() {
+  return <section className="cluster-skeleton cluster-resource-loading-v547" role="status" aria-live="polite" aria-label="Loading Vault">
+    <span className="sr-only-v204">Loading Vault</span>
+    <div aria-hidden="true" className="cluster-resource-loading-header-v547"><i className="skeleton-line skeleton-line-title"/><i className="skeleton-line skeleton-line-secondary"/></div>
+    <div aria-hidden="true" className="cluster-resource-loading-toolbar-v547"><i className="skeleton-input"/><i className="skeleton-input"/><i className="skeleton-button"/></div>
+    <div aria-hidden="true" className="cluster-resource-loading-vault-v547"><section>{Array.from({length: 5},(_,i)=><i key={i} className="skeleton-nav"/>)}</section><section>{Array.from({length: 3},(_,i)=><article key={i}><i className="skeleton-line skeleton-line-heading"/><i className="skeleton-line skeleton-line-secondary"/><i className="skeleton-input"/></article>)}</section></div>
+  </section>;
+}

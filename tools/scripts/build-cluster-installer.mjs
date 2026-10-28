@@ -11,13 +11,13 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const installer=path.join(root,'tools','installer');
 const embedded=path.join(installer,'assets','bundled-source.zip');
 const binary=path.join(root,'bin','Cluster-Installer.exe');
-const keepRoot=new Set(['package.json','.npmrc','prisma.config.ts']);
+const keepRoot=new Set(['package.json','package-lock.json','.npmrc','prisma.config.ts']);
 const excludedFolders=new Set(['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);
 function omit(rel) {
   const parts=rel.split('/');
   if (parts.some((v,i)=>excludedFolders.has(v) && i!==0)) return true;
   if (parts[0]==='node_modules'||parts[0]==='.git')return true;
-  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||rel==='tools/installer/assets/bundled-source.zip')return true;
+  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||rel==='bin/Cluster Server.exe'||rel==='tools/installer/assets/bundled-source.zip')return true;
   if (rel.startsWith('tools/installer/assets/'))return true;
   if (parts.length===1 && !keepRoot.has(rel))return true; // root historical development evidence, >1000 files
   if (rel.endsWith('.tsbuildinfo')||rel.endsWith('.pyc'))return true;

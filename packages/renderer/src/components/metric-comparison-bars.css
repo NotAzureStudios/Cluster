@@ -1,0 +1,11 @@
+.cluster-metric-comparison{padding:14px;border:1px solid var(--border);border-radius:var(--ds-radius-lg,14px);background:var(--panel-2);display:grid;gap:12px;min-width:0}
+.cluster-metric-comparison header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cluster-metric-comparison header small{font-size:.69rem;color:var(--muted)}
+.cluster-metric-comparison__rows{display:grid;gap:10px}
+.cluster-metric-comparison__row{display:grid;grid-template-columns:minmax(80px,120px) minmax(0,1fr) 80px;gap:10px;align-items:center;font-size:.72rem;font-variant-numeric:tabular-nums}
+.cluster-metric-comparison__row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:capitalize}
+.cluster-metric-comparison__row>strong{text-align:right;font-weight:600}
+.cluster-metric-comparison__track{height:9px;overflow:hidden;border-radius:5px;background:color-mix(in srgb,var(--border) 55%,transparent)}
+.cluster-metric-comparison__track i{display:block;height:100%;border-radius:inherit;background:var(--studio-primary,var(--accent))}
+.cluster-metric-comparison__row.is-warning .cluster-metric-comparison__track i{background:var(--warning,#e8b64a)}
+@media(max-width:420px){.cluster-metric-comparison__row{grid-template-columns:75px minmax(0,1fr) 60px;gap:6px}}

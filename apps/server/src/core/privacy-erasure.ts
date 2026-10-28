@@ -10,7 +10,7 @@ function canonical(value: unknown): string {
 function digest(value: unknown) { return createHash("sha256").update(canonical(value)).digest("hex"); }
 
 export async function buildPrivacyErasurePlan(prisma: any, userId: string) {
-  const [user, activeHolds, sessions, consent, analytics, notifications, discordChallenges, avatarAudits, memberships, entityCommentDrafts, entityCommentReadStates, entityCommentThreadReadStates, formAssignments, formReviewGrants, formDrafts, formReminders, packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements, packetReleaseReminders] = await Promise.all([
+  const [user, activeHolds, sessions, consent, analytics, notifications, discordChallenges, avatarAudits, memberships, entityCommentDrafts, entityCommentReadStates, entityCommentThreadReadStates, formAssignments, formReviewGrants, formDrafts, formReminders, packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements, packetReleaseReminders, activeDiscordRoles] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.privacyLegalHold.findMany({ where: { userId, status: "active" }, orderBy: { createdAt: "asc" } }),
     prisma.session.count({ where: { userId } }),
@@ -31,13 +31,17 @@ export async function buildPrivacyErasurePlan(prisma: any, userId: string) {
     prisma.packetReleaseAcknowledgment.count({ where: { recipientId: userId } }),
     prisma.packetReleaseRequirement.count({ where: { recipientId: userId } }),
     prisma.packetReleaseReminderDelivery.count({ where: { recipientId: userId } }),
+    prisma.discordRoleProjection.findMany({ where: { userId, status: { in: ["managed", "revoking", "pending", "uncertain"] } }, select: { id: true, guildId: true, status: true }, take: 101 }),
   ]);
   if (!user) return null;
   const plan = {
     schemaVersion: PRIVACY_ERASURE_SCHEMA_VERSION,
     userId,
     mode: "pseudonymize",
-    blockers: activeHolds.map((hold: any) => ({ type: "legal_hold", id: hold.id, reason: hold.reason, authorityRef: hold.authorityRef || null })),
+    blockers: [
+      ...activeHolds.map((hold: any) => ({ type: "legal_hold", id: hold.id, reason: hold.reason, authorityRef: hold.authorityRef || null })),
+      ...activeDiscordRoles.map((role: any) => ({ type: "discord_role_cleanup", id: role.id, reason: "Reconcile or manually verify removal of the Discord role before erasing its linked identity.", guildId: role.guildId, status: role.status })),
+    ],
     destructive: { sessions, consent, analytics, notifications, discordChallenges, avatarAudits, memberships, entityCommentDrafts, entityCommentReadStates, entityCommentThreadReadStates, formAssignments, formReviewGrants, formDrafts, formReminders },
     preservedCounts: { packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements, packetReleaseReminders },
     preserved: ["published Packet delivery issuance, required release assignments, reminder deliveries and release-bound recipient acknowledgment evidence (account pseudonymized, subject to retention)", "submitted Form response evidence (contains submitted answers governed by retention)", "authored work records", "security audit evidence", "policy acceptance evidence", "privacy request/erasure evidence"],
@@ -54,7 +58,9 @@ export async function fulfillPrivacyErasure(prisma: any, input: { requestId: str
   if (request.userId === input.actorUserId) return { ok: false as const, code: "PRIVACY_ERASURE_SELF_BLOCKED", error: "Administrators cannot fulfill erasure of their own active account." };
   const plan = await buildPrivacyErasurePlan(prisma, request.userId);
   if (!plan) return { ok: false as const, code: "RESOURCE_NOT_FOUND", error: "Privacy request subject no longer exists." };
-  if (plan.blockers.length) return { ok: false as const, code: "PRIVACY_ERASURE_LEGAL_HOLD", error: "Active legal hold blocks privacy erasure fulfillment.", blockers: plan.blockers };
+  if (plan.blockers.length) return { ok: false as const,
+    code: plan.blockers.some((blocker: any) => blocker.type === "legal_hold") ? "PRIVACY_ERASURE_LEGAL_HOLD" : "PRIVACY_ERASURE_DISCORD_ROLE_CLEANUP",
+    error: "Resolve legal holds and any Cluster-managed Discord roles before erasing this identity.", blockers: plan.blockers };
 
   const now = new Date();
   const subjectKey = `privacy-erased:${request.userId}`;
@@ -67,6 +73,7 @@ export async function fulfillPrivacyErasure(prisma: any, input: { requestId: str
       ["analytics", "behavioralAnalyticsEvent", { userId: request.userId }],
       ["notifications", "notificationInboxItem", { userId: request.userId }],
       ["discordChallenges", "discordLinkChallenge", { userId: request.userId }],
+      ["discordRoleHistory", "discordRoleProjection", { userId: request.userId, status: { in: ["revoked", "external"] } }],
       ["avatarAudits", "avatarAudit", { userId: request.userId }],
       ["memberships", "workspaceMember", { userId: request.userId }],
       ["entityCommentDrafts", "entityCommentDraft", { userId: request.userId }],

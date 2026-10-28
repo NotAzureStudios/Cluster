@@ -54,6 +54,7 @@ const schema=new Proxy({}, {get(_t,key){if(key==='parse')return value=>value;ret
 const z=new Proxy({}, {get(){return ()=>schema;}});
 const {registerSetupRoutes}=load('apps/server/src/app/server-routes-setup.ts',{
   zod:{z},'../core/auth.js':{}, '../core/security.js':{isLoopbackAddress:()=>true},
+  '../core/security-pin-credential.js':{hashSecurityPin:async () => 'unused-in-rollback-test'},
   '../core/instance-setup.js':{inspectInstanceSetup:async()=>({setupRequired:false})},
   '../core/setup-configuration.js':config,
   '../core/security-audit-store.js':{appendSecurityAuditEvent:async (_tx, event)=>{if(forceAuditFailure)throw new Error('DB_AUDIT_FAILED');audits.push(event);}},

@@ -6,7 +6,7 @@ import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../compon
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, queryApi } from "../../core/api";
-import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_TOOL_PERMISSION_KEYS, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
+import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { DEFAULT_MEMBER_TOOL_PERMISSIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
@@ -15,12 +15,13 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
+import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
-import { PipelineRail } from "../../components/ClusterVisualIntelligence";
 import { LegalComplianceCenter } from "../legal/LegalComplianceCenter";
 import { BUILD_PLATFORM_PROFILES } from "../projects/ProjectBuildsPanel";
 import { PROJECT_STATUS_OPTIONS } from "../projects/projects-utils";
@@ -36,14 +37,22 @@ import { StudioKioskSettingsSection } from "./StudioKioskSettingsSection";
 import { StudioSystemsSettingsSection } from "./StudioSystemsSettingsSection";
 import { DASHBOARD_WIDGETS, HOME_WIDGET_PERMISSIONS, homeWidgetExtensionPolicyFromSettings, parseHomeWidgetKeyCsv, type HomeWidgetPermission } from "../home-widgets/home-widget-model";
 import { useHomeWidgetLibrary } from "../home-widgets/home-widget-library";
-import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, STUDIO_ACTION_RULES, studioSettingsGroupForSection, studioSettingsNavAnchor, studioSettingsSectionLabel } from "./studio-settings-state";
+import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, STUDIO_ACTION_RULES } from "./studio-settings-state";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { StudioDomainsPanel } from "../domains/DomainManagementPanel";
 import { VersioningAdminPage } from "../admin/ProductionIntegrationAdminPages";
 
+/** Navigation is the single section locator; avoid a second numbered progress rail. */
+const STUDIO_SETTINGS_NAV_ICONS: Record<StudioSettingsSection, import("../../components/ClusterIcon").ClusterIconName> = {
+  identity: "user", domains: "link", privacy: "lock", kiosk: "fullscreen", studioSystems: "file",
+  people: "users", departments: "users", roles: "lock", defaults: "settings", projectTypes: "project",
+  createFields: "plus", customFields: "list", starters: "folder", whiteboards: "palette",
+  builds: "code", versioning: "timeline", qa: "check", automations: "sync", workflow: "link",
+};
+
 const SETTINGS_EXTENSION_RENDER_BATCH = 80;
 
-export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSection, onSectionChange }: StudioSettingsPageProps) {
+export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSection, initialSubsection, onSubsectionChange, onSectionChange }: StudioSettingsPageProps) {
   const { withoutServerManagedSettings, DEFAULT_CREATE_PROJECT_FIELDS, DEFAULT_CREATE_BUILD_FIELDS, DEFAULT_BUILD_STATUSES, DEFAULT_QA_CHECKLIST, DEFAULT_QA_SEVERITIES, DEFAULT_QA_CATEGORIES, DEFAULT_WEBHOOK_EVENTS, DEFAULT_ROLE_CREATE_ROLES, DEFAULT_ROLE_APPROVAL_ROLES, studioSlug, splitCsv, normalizeRoleId, roleLabelFromId, mergeStudioDepartments, mergeStudioRoles, rolesCsvFromIds, rolePermissionTemplateOptions, permissionTemplateTools, departmentPermissionsFromSettings, DEFAULT_PROJECT_TYPE_PRESETS, slugProjectTypeId, sanitizeProjectTypePreset, mergeProjectTypePresets, writeProjectTypePresetsCache, projectTypePresetsFromSettings, readFileAsDataUrl, normalizeClusterAccent, applyCustomization, CustomFieldDefinitionsPanel, AutomationRulesPanel, StudioPermissionEditor } = STUDIO_SETTINGS_DEPENDENCIES;
   const [settings, setSettings] = useState<Settings>({});
   const [heldStudioDraft, setHeldStudioDraft] = useState<{ settings?: Settings; section?: StudioSettingsSection } | null>(null);
@@ -89,7 +98,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [saveError, setSaveError] = useState<unknown>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const validStudioSection = (value: unknown): StudioSettingsSection =>
-    STUDIO_SETTINGS_GROUPS.some((group) => group.sections.includes(value as StudioSettingsSection))
+    value === "people" ? "customFields" : STUDIO_SETTINGS_GROUPS.some((group) => group.sections.includes(value as StudioSettingsSection))
       ? value as StudioSettingsSection : "identity";
   const [section, setSection] = useState<StudioSettingsSection>(() => validStudioSection(initialSection));
   useEffect(() => { const selected = validStudioSection(initialSection); setSection((current: StudioSettingsSection) => current === selected ? current : selected); }, [initialSection]);
@@ -320,7 +329,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       updates.studioDepartmentDefinitions = mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => ({ ...department, homeRecommendedWidgetsCsv: parseHomeWidgetKeyCsv(department.homeRecommendedWidgetsCsv).filter((key) => key !== widgetKey).join(", ") }));
     }
     setDirty(true);
-    if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(key))) {
+    if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(field))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
       setBundlePreviewLoading(false);
@@ -860,10 +869,8 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     projectCreationFieldCount: (settings.studioCreateProjectFieldsCsv || DEFAULT_CREATE_PROJECT_FIELDS.join(", ")).split(",").filter(Boolean).length,
     starterCount,
   });
-  const activeStudioSettingsGroup = studioSettingsGroupForSection(section);
-  const visibleStudioGroupSections = activeStudioSettingsGroup.sections.filter((item) => currentUser.isAdmin || !["privacy", "kiosk"].includes(item));
   const enabledSpecializedProductionProfiles = new Set(settings.studioEnabledProductionProfileIds || []);
-  const enabledSpecializedProfileDefinitions = CLUSTER_PRODUCTION_PROFILE_DEFINITIONS.filter((profile) => profile.exposure === "specialized" && enabledSpecializedProductionProfiles.has(profile.id));
+  const enabledSpecializedProfileDefinitions = CLUSTER_PRODUCTION_PROFILE_DEFINITIONS.filter((profile) => profile.classification === "specialized" && enabledSpecializedProductionProfiles.has(profile.id));
   const enabledSpecializedBuildProfileKeys = new Set(enabledSpecializedProfileDefinitions.map((profile) => profile.buildProfileKey));
   const availableBuildProfiles = BUILD_PLATFORM_PROFILES.filter((profile) => profile.key === "generic" || enabledSpecializedBuildProfileKeys.has(profile.key));
   const curseForgePublishingEnabled = enabledSpecializedProfileDefinitions.some((profile) => ["curseforge", "ark_mod", "ark_map", "minecraft_map", "minecraft_mod"].includes(profile.id));
@@ -878,12 +885,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       className="settings-workspace-v298 settings-page-v092 studio-settings-page-v165 studio-settings-console-v271 settings-console-v269"
       title="Studio Settings"
       icon="settings"
-      description={`Configure ${settings.studioName || "the studio"} defaults, roles, project types, delivery rules, and shared workspace behavior.`}
-      metrics={[
-        { label: "Departments", value: enabledStudioDepartments.length, tone: enabledStudioDepartments.length ? "good" : "warning" },
-        { label: "Roles", value: enabledStudioRoles.length, tone: enabledStudioRoles.length ? "good" : "warning" },
-        { label: "Project types", value: projectTypePresets.length, tone: projectTypePresets.length ? "good" : "warning" },
-      ]}
       actions={
         <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
           {dirty ? "Save changes" : "Saved"}
@@ -891,9 +892,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       }
       status={status}
       navLabel="Studio settings sections"
-      activeId={studioSettingsNavAnchor(section)}
+      activeId={section}
       onChange={setSection}
-      items={studioSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.group }))}
+      items={studioSections.map((item) => ({ id: item.key, label: item.label, group: item.group, icon: STUDIO_SETTINGS_NAV_ICONS[item.key] }))}
     >
       {heldStudioDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated Studio settings draft">
         <strong>Stored Studio draft needs review</strong>
@@ -910,10 +911,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
       <div className="settings-primary-layout-v469 studio-settings-layout-v165">
         <div className="panel settings-content-v092 studio-settings-content-v165">
-          <section className="studio-settings-context-v15" aria-label={`${activeStudioSettingsGroup.label} settings`}>
-            <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeStudioSettingsGroup.label}</p><h2>{studioSettingsSectionLabel(section)}</h2><p className="muted tight">{activeStudioSettingsGroup.description}</p></div><span className="soft-pill">{visibleStudioGroupSections.length} areas</span></div>
-            <PipelineRail density="compact" label={`${activeStudioSettingsGroup.label} areas`} items={visibleStudioGroupSections.map((item) => ({ id: item, label: studioSettingsSectionLabel(item), detail: item === section ? "Current" : undefined, tone: item === section ? "accent" : "neutral" }))} onSelect={({ datumId }) => setSection(datumId as StudioSettingsSection)} />
-          </section>
           {section === "domains" && currentUser.isAdmin && <StudioDomainsPanel />}
           {section === "identity" && (
             <div className="settings-section-v092">
@@ -1000,6 +997,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           {section === "kiosk" && currentUser.isAdmin && <StudioKioskSettingsSection settings={settings} patch={patch} />}
 
           {section === "studioSystems" && currentUser.isAdmin && <StudioSystemsSettingsSection
+            initialTab={initialSubsection} onTabChange={onSubsectionChange}
             targetFormId={studioResource?.scope === "studio-form" ? studioResource.id : null}
             targetSubmissionId={studioResource?.scope === "form-submission" ? studioResource.id : null}
             targetApplicationId={studioResource?.scope === "studio-application" ? studioResource.id : null}
@@ -1008,23 +1006,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
             showAnnouncements={studioResource?.scope === "studio-announcement-list"}
           />}
 
-          {section === "people" && (
-            <div className="settings-section-v092 studio-settings-section-v272 people-profile-fields-admin-v495">
-              <div className="settings-panel-head-v092 studio-section-intro-v272"><div><p className="eyebrow">People</p><h2>Profile schema</h2><p className="muted tight">Add Studio-specific fields without hard-coding another permanent column into every account. Visibility controls who receives the value, while ordinary identity/contact privacy remains separate.</p></div><ClusterButton type="button" variant="secondary" onClick={addPeopleProfileField} disabled={profileFieldDefinitions.length >= 30}>Add field</ClusterButton></div>
-              <div className="people-profile-field-list-v495">
-                {profileFieldDefinitions.map((field) => <div className="settings-card-v092 people-profile-field-row-v495" key={field.id}><div className="field"><label>Label</label><ClusterInput value={field.label} onChange={(event) => updatePeopleProfileField(field.id, { label: event.target.value })} /></div><div className="field"><label>Key</label><ClusterInput value={field.id} onChange={(event) => updatePeopleProfileField(field.id, { id: studioSlug(event.target.value, field.id) })} /></div><div className="field"><label>Type</label><ClusterNativeSelect value={field.type} onChange={(event) => updatePeopleProfileField(field.id, { type: event.target.value as typeof field.type })}>{CLUSTER_PROFILE_FIELD_TYPES.map((type) => <option key={type} value={type}>{type === "multi_select" ? "Multi-select" : type === "url" ? "URL" : `${type.slice(0, 1).toUpperCase()}${type.slice(1)}`}</option>)}</ClusterNativeSelect></div><div className="field"><label>Visibility</label><ClusterNativeSelect value={field.visibility || "studio"} onChange={(event) => updatePeopleProfileField(field.id, { visibility: event.target.value as NonNullable<typeof field.visibility> })}>{CLUSTER_PROFILE_FIELD_VISIBILITIES.map((visibility) => <option key={visibility} value={visibility}>{visibility === "studio" ? "Studio" : visibility === "managers" ? "Managers" : "Private"}</option>)}</ClusterNativeSelect></div>{["select", "multi_select"].includes(field.type) && <div className="field span-2"><label>Options</label><ClusterInput value={(field.options || []).join(", ")} onChange={(event) => updatePeopleProfileField(field.id, { options: event.target.value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 40) })} placeholder="Option A, Option B" /></div>}<label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={Boolean(field.required)} onChange={(event) => updatePeopleProfileField(field.id, { required: event.target.checked })} /> Required</label><ClusterButton type="button" size="compact" onClick={() => removePeopleProfileField(field.id)}>Remove</ClusterButton></div>)}
-                {!profileFieldDefinitions.length && <div className="settings-card-v092"><strong>No Studio-specific profile fields</strong><p className="muted">Core identity, contact, expertise, working hours, capacity, teams, and project context remain available without custom fields.</p></div>}
-              </div>
-            </div>
-          )}
-
           {section === "departments" && (
             <div className="settings-section-v092 studio-settings-section-v272">
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Organization</p>
                   <h2>Departments</h2>
-                  <p className="muted tight">Define how teams are grouped, which roles lead them, and the baseline access inherited by department members.</p>
                 </div>
                 <span className="studio-section-count-v272">{enabledStudioDepartments.length} active</span>
               </div>
@@ -1037,7 +1024,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <option key={department.id} value={department.id}>{department.label}</option>
                     ))}
                   </ClusterNativeSelect>
-                  <small>Preselected when a new person is added.</small>
                 </div>
                 <div className="field">
                   <label>Capacity policy</label>
@@ -1046,19 +1032,15 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                     <option value="advisory">Show capacity guidance</option>
                     <option value="required">Require capacity on profiles</option>
                   </ClusterNativeSelect>
-                  <small>Controls whether weekly capacity is optional or required.</small>
                 </div>
                 <label className="studio-setting-toggle-v272">
                   <ClusterInput type="checkbox" checked={settings.studioDepartmentRequired !== false} onChange={(event) => patch("studioDepartmentRequired", event.target.checked)} />
-                  <span><strong>Require a department</strong><small>Every active studio member must belong to a department.</small></span>
+                  <span><strong>Required</strong></span>
                 </label>
               </div>
 
               <div className="studio-create-strip-v272">
-                <div>
-                  <strong>Add department</strong>
-                  <span>Create a department, then configure its details and access policy.</span>
-                </div>
+                <div><strong>New</strong></div>
                 <ClusterInput value={newDepartmentLabel} onChange={(event) => setNewDepartmentLabel(event.target.value)} placeholder="Department name" />
                 <ClusterInput value={newDepartmentTeam} onChange={(event) => setNewDepartmentTeam(event.target.value)} placeholder="Default team name" />
                 <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add department</ClusterButton>
@@ -1067,14 +1049,15 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
               <div className="studio-entity-manager-v272">
                 <aside className="studio-entity-list-v272" aria-label="Departments">
                   <div className="studio-entity-list-head-v272">
-                    <strong>Departments</strong>
+                    <strong>Directory</strong>
                     <span>{studioDepartments.length}</span>
                   </div>
                   {departmentRoleCoverage.map((department) => (
                     <ClusterButton type="button" key={department.id} className={selectedDepartment?.id === department.id ? "active" : ""} onClick={() => { setSelectedDepartmentId(department.id); setDepartmentEditorTab("details"); }}>
+                      <span className="studio-entity-icon-rc46" aria-hidden="true"><ResourceIdentityMark iconId={department.iconId} label={department.label} accentColor={department.accentColor} /></span>
                       <span className="studio-entity-list-copy-v272">
                         <strong>{department.label}</strong>
-                        <small>{department.description || "No description"}</small>
+                        {department.defaultTeamName && <small>{department.defaultTeamName}</small>}
                       </span>
                       <span className="studio-entity-list-meta-v272">{department.roles.length} roles</span>
                     </ClusterButton>
@@ -1084,10 +1067,11 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 {selectedDepartment && (
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
-                      <div>
-                        <span className="eyebrow">Department</span>
-                        <h3>{selectedDepartment.label}</h3>
-                        <p>{selectedDepartment.description || "Add a concise description of what this department owns."}</p>
+                      <div className="studio-department-heading-rc46">
+                        <ResourceIdentityMark iconId={selectedDepartment.iconId} label={selectedDepartment.label} accentColor={selectedDepartment.accentColor} />
+                        <div><h3>{selectedDepartment.label}</h3>
+                        {selectedDepartment.description && <p>{selectedDepartment.description}</p>}
+                        </div>
                       </div>
                       <div className="button-row compact">
                         <label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedDepartment.enabled !== false} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { enabled: event.target.checked })} /> Enabled</label>
@@ -1109,12 +1093,14 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
                     {departmentEditorTab === "details" && (
                       <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Department defaults</strong><span>These values are suggested when people and roles are assigned to this department. Individual profiles can still be adjusted.</span></div>
+                        
                         <div className="studio-form-grid-v272">
-                          <div className="field"><label>Department name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
+                          <div className="field span-2"><label>Department icon</label><ResourceIconPicker label={selectedDepartment.label} value={selectedDepartment.iconId} onChange={(iconId) => updateStudioDepartment(selectedDepartment.id, { iconId })} /></div>
+                          <div className="field"><ColorField label="Accent" value={selectedDepartment.accentColor || "#57c1ff"} onChange={(accentColor) => updateStudioDepartment(selectedDepartment.id, { accentColor })} /></div>
+                          <div className="field"><label>Name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
                           <div className="field"><label>Default team</label><ClusterInput value={selectedDepartment.defaultTeamName || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { defaultTeamName: event.target.value })} placeholder="Team suggestion" /></div>
                           <div className="field"><label>Lead role</label><ClusterNativeSelect value={selectedDepartment.leadRoleId || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { leadRoleId: event.target.value })}><option value="">No lead role</option>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Used for coverage and leadership suggestions.</small></div>
-                          <div className="field"><label>Weekly capacity target</label><ClusterInput type="number" min="0" max="168" value={selectedDepartment.capacityTargetHours ?? 0} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { capacityTargetHours: Number(event.target.value || 0) })} /><small>Guidance for a typical full-capacity member.</small></div>
+                          <div className="field"><label>Capacity (hrs/week)</label><ClusterInput type="number" min="0" max="168" value={selectedDepartment.capacityTargetHours ?? 0} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { capacityTargetHours: Number(event.target.value || 0) })} /></div>
                           <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedDepartment.description || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { description: event.target.value })} placeholder="Responsibilities, ownership, and scope" /></div>
                         </div>
                         <div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => applyDepartmentDefaults(selectedDepartment)}>Use as onboarding default</ClusterButton></div>
@@ -1123,7 +1109,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
                     {departmentEditorTab === "permissions" && (
                       <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Department access baseline</strong><span>Roles assigned to this department inherit this access unless the role defines a more specific level. User-level permissions remain the final override.</span></div>
+                        <div className="studio-explanation-v272"><strong>Inherited access</strong><span>Role and user permissions may override these defaults.</span></div>
                         <div className="field studio-template-field-v272">
                           <label>Baseline permission preset</label>
                           <ClusterNativeSelect value={selectedDepartment.permissionTemplateKey || "member"} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { permissionTemplateKey: event.target.value, toolPermissions: {} })}>
@@ -1139,7 +1125,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
                     {departmentEditorTab === "roles" && (
                       <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Department roles and protected actions</strong><span>Roles are configured individually. The switches below grant or remove an action for every active role in this department.</span></div>
+                        <div className="studio-explanation-v272"><strong>Roles & actions</strong></div>
                         <div className="studio-related-role-list-v272">
                           {selectedDepartmentRoles.length ? selectedDepartmentRoles.map((role) => (
                             <ClusterButton type="button" key={role.id} onClick={() => { setSelectedRoleId(role.id); setRoleEditorTab("details"); setSection("roles"); }}>
@@ -1500,11 +1486,22 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           )}
 
           {section === "customFields" && (
+            <div className="settings-section-v092 studio-settings-section-v272 people-profile-fields-admin-v495">
+              <div className="settings-panel-head-v092 studio-section-intro-v272"><div><p className="eyebrow">People</p><h2>People profile fields</h2></div><ClusterButton type="button" variant="secondary" onClick={addPeopleProfileField} disabled={profileFieldDefinitions.length >= 30}>Add field</ClusterButton></div>
+              <div className="people-profile-field-list-v495">
+                {profileFieldDefinitions.map((field) => <div className="settings-card-v092 people-profile-field-row-v495" key={field.id}><div className="field"><label>Label</label><ClusterInput value={field.label} onChange={(event) => updatePeopleProfileField(field.id, { label: event.target.value })} /></div><div className="field"><label>Key</label><ClusterInput value={field.id} onChange={(event) => updatePeopleProfileField(field.id, { id: studioSlug(event.target.value, field.id) })} /></div><div className="field"><label>Type</label><ClusterNativeSelect value={field.type} onChange={(event) => updatePeopleProfileField(field.id, { type: event.target.value as typeof field.type })}>{CLUSTER_PROFILE_FIELD_TYPES.map((type) => <option key={type} value={type}>{type === "multi_select" ? "Multi-select" : type === "url" ? "URL" : `${type.slice(0, 1).toUpperCase()}${type.slice(1)}`}</option>)}</ClusterNativeSelect></div><div className="field"><label>Visibility</label><ClusterNativeSelect value={field.visibility || "studio"} onChange={(event) => updatePeopleProfileField(field.id, { visibility: event.target.value as NonNullable<typeof field.visibility> })}>{CLUSTER_PROFILE_FIELD_VISIBILITIES.map((visibility) => <option key={visibility} value={visibility}>{visibility === "studio" ? "Studio" : visibility === "managers" ? "Managers" : "Private"}</option>)}</ClusterNativeSelect></div>{["select", "multi_select"].includes(field.type) && <div className="field span-2"><label>Options</label><ClusterInput value={(field.options || []).join(", ")} onChange={(event) => updatePeopleProfileField(field.id, { options: event.target.value.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 40) })} placeholder="Option A, Option B" /></div>}<label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={Boolean(field.required)} onChange={(event) => updatePeopleProfileField(field.id, { required: event.target.checked })} /> Required</label><ClusterButton type="button" size="compact" onClick={() => removePeopleProfileField(field.id)}>Remove</ClusterButton></div>)}
+                {!profileFieldDefinitions.length && <div className="settings-card-v092"><strong>No Studio-specific profile fields</strong><p className="muted">Core identity, contact, expertise, working hours, capacity, teams, and project context remain available without custom fields.</p></div>}
+              </div>
+            </div>
+          )}
+
+
+          {section === "customFields" && (
             <div className="settings-section-v092 studio-custom-fields-v195">
               <div className="settings-panel-head-v092">
                 <p className="eyebrow">Studio</p>
                 <h2>Custom fields</h2>
-                <p className="muted tight">One reusable field catalog for tickets, projects, users, calendar events, and builds.</p>
+                
               </div>
               <CustomFieldDefinitionsPanel />
             </div>
@@ -1515,7 +1512,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
               <div className="settings-panel-head-v092">
                 <p className="eyebrow">Studio</p>
                 <h2>Automation rules</h2>
-                <p className="muted tight">Build priority-ordered workflow rules with chained actions, project scope, delays, retries, dry runs, and an execution queue. Ticket triggers execute now; broader trigger adapters remain visible for the next integration pass.</p>
               </div>
               <AutomationRulesPanel />
             </div>

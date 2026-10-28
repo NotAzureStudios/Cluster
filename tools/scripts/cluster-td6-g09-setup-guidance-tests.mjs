@@ -67,6 +67,7 @@ const imported = {
   'zod': { z },
   '../core/auth.js': {},
   '../core/security.js': { isLoopbackAddress: () => true },
+  '../core/security-pin-credential.js': { hashSecurityPin: async () => 'unused-in-setup-guidance-test' },
   '../core/instance-setup.js': { inspectInstanceSetup: async () => ({ setupRequired: false }) },
   '../core/setup-guidance.js': guide,
   '../core/setup-configuration.js': config,

@@ -9,6 +9,7 @@ import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterActionGroup, ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterActionMenu, ClusterBulkActionBar, ClusterUndoBar } from "../../components/ClusterContextActions";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterVisualComposition } from "../../components/ClusterVisualMetrics";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { SavedViewsToolbar } from "../../components/SavedViewsToolbar";
 import { ClusterMasterDetail, useClusterDetailHistory } from "../../components/ClusterMasterDetail";
@@ -398,6 +399,12 @@ export function NotificationInboxPage({ currentUser, onOpenProject, onOpenTicket
     <section className="page cluster-page-shell notification-center-v251 notification-center-v387" aria-busy={mutationBusy}>
       <header className="notification-command-v252 cluster-workspace-header-v391 cluster-page-header">
         <div className="notification-title-v252"><div><h1>Inbox</h1><span>{status}</span>{mutationBusy ? <ClusterStatus state="loading" compact>Saving change</ClusterStatus> : refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}</div>
+          <ClusterVisualComposition label="Loaded inbox priorities" total={active.length} parts={[
+            { label: "Critical", value: active.filter((item) => item.priority === "critical").length, tone: "danger" },
+            { label: "High", value: active.filter((item) => item.priority === "high").length, tone: "warning" },
+            { label: "Other", value: active.filter((item) => item.priority !== "critical" && item.priority !== "high").length, tone: "neutral" },
+          ]} />
+          <details className="cluster-visual-advanced notification-quick-filters-v40"><summary>Quick filters</summary><div className="cluster-visual-advanced__body">
           <ClusterMetricStrip
             className="notification-summary-v252 notification-summary-v253 cluster-workspace-metrics-v391"
             label="Inbox summary"
@@ -409,6 +416,7 @@ export function NotificationInboxPage({ currentUser, onOpenProject, onOpenTicket
               { label: "Snoozed", value: snoozed.length, selected: filter === "snoozed", onSelect: () => setFilter("snoozed") },
             ]}
           />
+          </div></details>
         </div>
         <ClusterActionGroup label="Inbox actions" className="notification-command-actions-v252">
           <ClusterActionMenu iconOnly label="More inbox actions" items={[

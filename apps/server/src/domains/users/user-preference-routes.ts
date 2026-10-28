@@ -42,6 +42,7 @@ const userPreferenceSchema = z
     taskbarSurface: z.enum(["match", "solid", "glass"]).optional(),
     taskbarLayout: z.enum(["floating", "full-width"]).optional(),
     sidebarLayout: z.enum(["docked", "floating"]).optional(),
+    sidebarItemStyle: z.enum(["soft", "divided", "outlined"]).optional(),
     surfaceDepth: z.enum(["flat", "soft", "elevated"]).optional(),
     surfaceTexture: z.enum(["none", "fine", "brushed"]).optional(),
     surfaceTextureIntensity: z.number().int().min(0).max(20).optional(),

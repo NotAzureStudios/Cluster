@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnPortable } from "./command-invocation.mjs";
 import { loadDatabaseConfiguration, resolveClusterRoot } from "./database-config.mjs";
+import { recoverRc3MeetingOccurrenceMigration } from "./migration-recovery.mjs";
 
 const root = await resolveClusterRoot();
 const action = process.argv[2] || "deploy";
@@ -53,6 +54,14 @@ try {
     await run(process.execPath, [prismaCli, "studio", ...prismaArgs]);
   } else if (["deploy", "release"].includes(action)) {
     await requireMigrationHistory();
+    // RC3 could leave a half-applied migration after the 63-byte PostgreSQL
+    // index collision. Recover only that known empty-table failure; never
+    // broadly reset migrations or drop user data.
+    await recoverRc3MeetingOccurrenceMigration({
+      root, config,
+      resolveRolledBack: () => run(process.execPath, [prismaCli, "migrate", "resolve", "--rolled-back",
+        "20261021230000_td6_g21_calendar_meeting_occurrence_responses", ...prismaArgs]),
+    });
     await run(process.execPath, [prismaCli, "migrate", "deploy", ...prismaArgs]);
   } else {
     throw new Error(`Unknown database action: ${action}`);

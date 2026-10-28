@@ -37,7 +37,7 @@ function validStoredStep(value: unknown): FirstLoginStep {
 
 function StepHeader({ step }: { step: FirstLoginStep }) {
   const index = STEPS.indexOf(step);
-  return <><p className="eyebrow">First login · {index + 1} / {STEPS.length}</p><div className="button-row" aria-label="First login progress">{STEPS.map((item, itemIndex) => <span key={item} aria-current={item === step ? "step" : undefined}><strong>{itemIndex + 1}</strong> {STEP_LABELS[item]}</span>)}</div></>;
+  return <><div className="button-row" aria-label="First login progress">{STEPS.map((item, itemIndex) => <span key={item} aria-current={item === step ? "step" : undefined}><strong>{itemIndex + 1}</strong> {STEP_LABELS[item]}</span>)}</div></>;
 }
 
 export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: FirstLoginUser; onUserUpdated: (user: FirstLoginUser) => void; onLogout: () => void | Promise<void> }) {
@@ -108,7 +108,7 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
   }
 
   if (step === "policies") {
-    return <StudioPolicyGate onLogout={onLogout}><main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><StepHeader step={step} /><h1>Studio policies are clear.</h1><p className="muted">Any policy required for workspace access has been accepted using the Studio Policy system. Nothing was copied into a first-login checklist.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></section></main></StudioPolicyGate>;
+    return <StudioPolicyGate onLogout={onLogout}><main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><StepHeader step={step} /><h1>Policies</h1><p className="muted">Required policies accepted.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></section></main></StudioPolicyGate>;
   }
 
   return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
@@ -117,30 +117,30 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
     {Boolean(loadError) && <RequestErrorState error={loadError} title="Account context could not be loaded" onRetry={() => void loadContext()} />}
 
     {step === "profile" && <>
-      <h1>Set up your workspace identity.</h1><p className="muted">These are your existing People profile fields. Add what is useful now, or leave them for later.</p>
+      <h1>Your profile</h1>
       <div className="managed-auth-form">
         <label className="field"><span>Display name</span><ClusterTextInput autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder={user.username} /></label>
         <label className="field"><span>Preferred name</span><ClusterTextInput value={preferredName} onChange={(event) => setPreferredName(event.target.value)} placeholder="Optional" /></label>
-        <label className="field"><span>Timezone</span><ClusterTextInput autoComplete="off" value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="America/New_York" /><small>Used by Calendar, Scheduler, and time-aware notifications.</small></label>
+        <label className="field"><span>Timezone</span><ClusterTextInput autoComplete="off" value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="America/New_York" /></label>
       </div>
       {profileError && <div className="error-box" role="alert">{profileError}</div>}
       <div className="login-actions"><ClusterButton type="button" variant="primary" disabled={profileBusy} onClick={() => void saveProfile()}>{profileBusy ? "Saving…" : "Save and continue"}</ClusterButton><ClusterButton type="button" variant="secondary" disabled={profileBusy} onClick={() => void persistStep("policies")}>Skip for now</ClusterButton></div>
     </>}
 
     {step === "onboarding" && <>
-      <h1>Your studio onboarding.</h1><p className="muted">Onboarding remains owned by My Work. First login only shows what was assigned so there is one completion record, not two competing checklists.</p>
+      <h1>Onboarding</h1>
       <div className="studio-form-field-list-v34f">{!onboardingLoaded ? <div className="settings-card-v092" role="status"><strong>{contextLoading ? "Checking onboarding assignments…" : "Onboarding assignments unavailable"}</strong><span>Refresh account context to check your required steps. You can resume them from My Work after entering Cluster.</span><ClusterButton type="button" variant="secondary" onClick={() => void loadContext()}>Retry</ClusterButton></div> : onboarding.length ? onboarding.map((plan) => <div className="settings-card-v092" key={plan.assignmentId}><strong>{plan.plan.title}</strong><span>{plan.progress.requiredComplete}/{plan.progress.requiredTotal} required steps complete</span><small>{plan.progress.done ? "Complete" : plan.lifecycle.overdue ? "Overdue" : plan.lifecycle.dueAt ? `Due ${new Date(plan.lifecycle.dueAt).toLocaleDateString()}` : "Continue from My Work after entry"}</small></div>) : <div className="settings-card-v092"><strong>No onboarding assigned</strong><span>You can continue directly into the workspace.</span></div>}</div>
       <div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("session")}>{activeOnboarding.length ? "Continue setup" : "Continue"}</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("policies")}>Back</ClusterButton></div>
     </>}
 
     {step === "session" && <>
-      <h1>Know where you’re signed in.</h1><p className="muted">Cluster already tracks sessions and registered devices. This is the same security data available later in Account Settings.</p>
+      <h1>Signed-in device</h1>
       <div className="studio-form-field-list-v34f"><div className="settings-card-v092"><strong>{currentDevice?.label || "Current device"}</strong><span>{currentDevice?.platform || currentSession?.userAgent || "Current client"}</span><small>{currentDevice ? `${currentDevice.activeSessionCount} active session${currentDevice.activeSessionCount === 1 ? "" : "s"} on this device` : "Device registration is handled by the canonical session service."}</small></div><div className="settings-card-v092"><strong>Current session</strong><span>{currentSession ? `${currentSession.authMethod} authentication` : "Active Cluster session"}</span><small>{currentSession?.expiresAt ? `Expires ${new Date(currentSession.expiresAt).toLocaleString()}` : `${sessions.length} active session${sessions.length === 1 ? "" : "s"} on your account`}</small></div></div>
       <div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("review")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("onboarding")}>Back</ClusterButton></div>
     </>}
 
     {step === "review" && <>
-      <h1>Cluster is ready.</h1><p className="muted">Your account security is active, required access policies are handled, and any unfinished studio onboarding will remain visible in My Work.</p>
+      <h1>Ready</h1>
       <div className="studio-form-field-list-v34f"><div className="settings-card-v092"><strong>@{user.username}</strong><span>{user.preferredName || user.displayName || "Profile details can be completed later"}</span></div><div className="settings-card-v092"><strong>{!onboardingLoaded ? "Onboarding status not loaded" : activeOnboarding.length ? `${activeOnboarding.length} onboarding plan${activeOnboarding.length === 1 ? "" : "s"} still active` : "Onboarding clear"}</strong><span>{!onboardingLoaded ? "Review your assignments in My Work after signing in." : activeOnboarding.length ? "Continue them from My Work." : "No required onboarding is waiting."}</span></div></div>
       {completeError && <div className="error-box" role="alert">{completeError}</div>}
       <div className="login-actions"><ClusterButton type="button" variant="primary" disabled={completeBusy} onClick={() => void finish()}>{completeBusy ? "Opening…" : "Enter Cluster"}</ClusterButton><ClusterButton type="button" variant="secondary" disabled={completeBusy} onClick={() => void persistStep("session")}>Back</ClusterButton></div>

@@ -312,11 +312,11 @@ const { projectAutomation, jobQueue, operationRuntime, studioAutomation, jobRunt
     deliver: async (deliveryId, attempt, maxAttempts) => { if (!integrationsRuntime) throw new Error("Webhook integration runtime is not initialized."); return integrationsRuntime.webhooks.deliver(deliveryId, attempt, maxAttempts); },
     recoverPending: async (limit) => integrationsRuntime?.webhooks.recoverPending(limit) ?? { scanned: 0, enqueued: 0 },
   },
-  wakePublisher: () => coordinationBus.publish("background-jobs.wake", { at: Date.now() }),
+  wakePublisher: async () => { await coordinationBus.publish("background-jobs.wake", { at: Date.now() }); },
 });
 eventRuntime.setWakePublisher(() => {
   changeRuntime.wake();
-  return coordinationBus.publish("domain-events.wake", { at: Date.now() });
+  return coordinationBus.publish("domain-events.wake", { at: Date.now() }).then(() => {});
 });
 coordinationBus.subscribe("domain-events.wake", () => { eventRuntime.wake(); changeRuntime.wake(); });
 coordinationBus.subscribe("background-jobs.wake", () => jobRuntime.wake());
@@ -502,6 +502,7 @@ const {
 } = createSettingsIntegrationServices({
   AUTH_SECRET,
   CONFIG_FILE_PATH,
+  DATABASE_URL,
   DATA_FOLDERS,
   DATA_LAYOUT,
   DATA_ROOT,
@@ -728,7 +729,7 @@ registerServerArchitectureRoutes({
   notificationSummaryCache: notificationService,
   requireAdminUserForRequest,
 });
-const productionIntegrations = createServerProductionIntegrationRuntime({ app, prisma, queue: jobQueue, worker: jobWorker, backgroundTasks, readSettings, discordRequest, fetchWithTimeout, notificationService, authorization, getCurrentUser, enforceTargetAccess, repositoriesRoot: DATA_LAYOUT.repositoriesRoot, sourceWorkspacesRoot: DATA_LAYOUT.sourceWorkspacesRoot, dataLayout: DATA_LAYOUT, logActivity });
+const productionIntegrations = createServerProductionIntegrationRuntime({ app, prisma, queue: jobQueue, worker: jobWorker, backgroundTasks, readSettings, discordRequest, fetchWithTimeout, notificationService, authorization, getCurrentUser, enforceTargetAccess, localDiscordUrl: `http://${["0.0.0.0", "::", ""].includes(RUNTIME_CONFIG.listenHost) ? "127.0.0.1" : RUNTIME_CONFIG.listenHost === "::1" ? "[::1]" : RUNTIME_CONFIG.listenHost}:${RUNTIME_CONFIG.listenPort}`, repositoriesRoot: DATA_LAYOUT.repositoriesRoot, sourceWorkspacesRoot: DATA_LAYOUT.sourceWorkspacesRoot, dataLayout: DATA_LAYOUT, logActivity });
 registerIntegrationRoutes({ app, prisma, registry: integrationRegistry, readSettings, saveSettings, settingsForClient, authorization, sourceProvider: productionIntegrations.sourceProvider, discordRequest, logActivity });
 registerUserPreferenceRoutes({ app, prisma, getCurrentUser, decorateUserForClient, normalizePersonalAccent, verifyPassword, hashPassword, verifyUserPin, logSecurityEvent, readSettings });
 registerKioskRoutes({ app, prisma, readSettings, getCurrentSession, decorateUserForClient, verifyPassword, verifyUserPin, dummyPasswordHash, normalizeAuthUsername, rateLimitKey, clearRateLimitKey, authRateLimitMax: AUTH_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, logSecurityEvent, kioskRuntime });
@@ -855,6 +856,7 @@ registerProjectRoutes({
   authorization,
   gitRuntime: productionIntegrations.gitRuntime,
   dataLayout: DATA_LAYOUT,
+  writeUpload,
 });
 registerProjectProvisioningRoutes({
   app, prisma, operationRuntime, getCurrentUser, decorateUserForClient, hasToolPermission, configuredProjectType,
@@ -1471,7 +1473,7 @@ export async function startClusterServer() {
         operationsCadenceLastApplied.set(key, operationsCadenceMilliseconds(key, bootToolSettings[key]));
       }
       app.log.info(
-        { version: CLUSTER_VERSION, host: RUNTIME_CONFIG.listenHost, port: RUNTIME_CONFIG.listenPort, dataRoot: DATA_ROOT },
+        { version: CLUSTER_VERSION, host: RUNTIME_CONFIG.listenHost, port: RUNTIME_CONFIG.listenPort, dataRoot: DATA_ROOT, apiRequestBudget: { enabled: RATE_LIMIT_ENABLED, perMinuteWindowLimit: API_RATE_LIMIT_MAX, windowMs: API_RATE_LIMIT_WINDOW_MS } },
         "Cluster server ready",
       );
     },

@@ -39,7 +39,7 @@ export function ClusterEmptyState({
       data-empty-kind={kind}
       role={kind === "offline" || kind === "restricted" ? "status" : undefined}
     >
-      <span className="cluster-empty-state-icon-v436" aria-hidden="true"><ClusterIcon name={icon || DEFAULT_ICONS[kind]} /></span>
+      <span className="cluster-empty-state-icon-v436" aria-hidden="true"><ClusterIcon name={icon || DEFAULT_ICONS[kind]} treatment="duotone" /></span>
       <div className="cluster-empty-state-copy-v436">
         {eyebrow ? <small>{eyebrow}</small> : null}
         <strong>{title}</strong>

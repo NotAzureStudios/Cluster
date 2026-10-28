@@ -872,7 +872,18 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         }
         for (const [kind, entries] of [["Role", safeBody.studioRoleDefinitions ?? current.studioRoleDefinitions ?? []], ["Department", safeBody.studioDepartmentDefinitions ?? current.studioDepartmentDefinitions ?? []]] as const) {
           if (!Array.isArray(entries) || entries.length > 256) throw new Error(`${kind} definitions must be a bounded array.`);
-          for (const entry of entries as any[]) validateClusterBundleAssignments(entry?.permissionBundleIds, bundles, `${kind} ${entry?.id || "unknown"}`);
+          for (const entry of entries as any[]) {
+            validateClusterBundleAssignments(entry?.permissionBundleIds, bundles, `${kind} ${entry?.id || "unknown"}`);
+            if (kind === "Department") {
+              if (entry?.iconId != null && ![
+                "glyph:project", "glyph:game", "glyph:code", "glyph:video", "glyph:image", "glyph:model",
+                "glyph:folder", "glyph:library", "glyph:work", "glyph:calendar", "glyph:packet", "glyph:grid",
+                "glyph:check", "glyph:users", "brand:as-git", "brand:discord", "brand:steam", "brand:epic",
+                "brand:unreal", "brand:blender", "brand:curseforge", "brand:minecraft",
+              ].includes(entry.iconId)) throw new Error("Department icons must use an approved built-in preset.");
+              if (entry?.accentColor != null && (typeof entry.accentColor !== "string" || !/^#[0-9a-fA-F]{6}$/.test(entry.accentColor))) throw new Error("Department accent must be a six-digit hex color.");
+            }
+          }
         }
       } catch (error) {
         return reply.code(400).send({ ok: false, code: "PERMISSION_BUNDLE_INVALID", error: error instanceof Error ? error.message : "Invalid permission bundles." });

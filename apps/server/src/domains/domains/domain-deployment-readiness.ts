@@ -6,7 +6,7 @@ import { buildDomainConnectionPlan, type ConnectionConfiguration } from "./domai
 export function domainDeploymentReadiness(hostname: string, profile: ConnectionConfiguration, settings: Record<string, unknown>) {
   const plan = buildDomainConnectionPlan(hostname, profile);
   const normalized = (value: unknown) => String(value || "").trim().replace(/\/$/, "").toLowerCase();
-  const checks = [
+  const checks: Array<{ id: string; label: string; expected: string | number | boolean; observed: unknown; pass: boolean }> = [
     { id: "public-web-url", label: "Canonical web URL", expected: plan.canonicalUrl, observed: settings.publicWebUrl || null,
       pass: normalized(settings.publicWebUrl) === normalized(plan.canonicalUrl) },
     { id: "public-api-url", label: "Canonical API URL", expected: plan.canonicalUrl, observed: settings.publicApiUrl || null,

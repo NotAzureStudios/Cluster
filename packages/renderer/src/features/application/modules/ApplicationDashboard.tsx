@@ -199,7 +199,7 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
     const ids = projects.map((project) => project.id).sort();
     if (!ids.length) { setProjectSnapshots({}); return; }
     let active = true;
-    queryApi<{ snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`, { staleMs: 15_000, maxAgeMs: 2 * 60_000, tags: ["home", "projects", "project-snapshot"] })
+    queryApi<{ snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`, { staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["home", "projects", "project-snapshot"] })
       .then((result) => { if (active) setProjectSnapshots(Object.fromEntries((result.snapshots || []).map((snapshot) => [snapshot.projectId, snapshot]))); })
       .catch(() => { if (active) setProjectSnapshots({}); });
     return () => { active = false; };
@@ -383,45 +383,45 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
     }
   }
   function loadHomeLibrary(quiet = false, force = false) {
-    return loadHomeSource("library", () => queryApi<LibrarySummary>("/api/library/summary", { staleMs: 30_000, maxAgeMs: 15 * 60_000, force, tags: ["library", "home"] }), setLibrarySummary, quiet);
+    return loadHomeSource("library", () => queryApi<LibrarySummary>("/api/library/summary", { staleMs: 60_000, maxAgeMs: 15 * 60_000, force, tags: ["library", "home"] }), setLibrarySummary, quiet);
   }
   function loadRequiredKnowledge(quiet = false, force = false) {
-    return loadHomeSource("requiredKnowledge", () => queryApi<{ assignments: HomeKnowledgeAssignment[] }>("/api/my-knowledge", { staleMs: 10_000, maxAgeMs: 2 * 60_000, force, tags: ["work", "packets", "studio-systems", "home"] }), (result) => setHomeKnowledgeAssignments(result.assignments || []), quiet);
+    return loadHomeSource("requiredKnowledge", () => queryApi<{ assignments: HomeKnowledgeAssignment[] }>("/api/my-knowledge", { staleMs: 45_000, maxAgeMs: 2 * 60_000, force, tags: ["work", "packets", "studio-systems", "home"] }), (result) => setHomeKnowledgeAssignments(result.assignments || []), quiet);
   }
   function loadHomeTime(quiet = false, force = false) {
     return loadHomeSource("time", async () => {
       const start = weekStart();
       const end = addDays(start, 7);
       return Promise.all([
-        queryApi<TimeSummary>(`/api/time/summary?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}&userId=${encodeURIComponent(currentUser.id)}`, { staleMs: 10_000, maxAgeMs: 2 * 60_000, force, tags: ["time", "home"] }),
-        queryApi<{ active: TimeEntry | null }>("/api/time/active", { staleMs: 5_000, maxAgeMs: 60_000, force, tags: ["time", "clock", "workday"] }),
+        queryApi<TimeSummary>(`/api/time/summary?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}&userId=${encodeURIComponent(currentUser.id)}`, { staleMs: 30_000, maxAgeMs: 2 * 60_000, force, tags: ["time", "home"] }),
+        queryApi<{ active: TimeEntry | null }>("/api/time/active", { staleMs: 15_000, maxAgeMs: 60_000, force, tags: ["time", "clock", "workday"] }),
       ]);
     }, ([summary, active]) => { setTimeSummary(summary); setHomeActiveEntry(active.active); setClockTick(Date.now()); }, quiet, true);
   }
   function loadHomeCalendar(quiet = false, force = false) {
-    return loadHomeSource("calendar", () => queryApi<UpcomingPayload>("/api/calendar/upcoming", { staleMs: 15_000, maxAgeMs: 5 * 60_000, force, tags: ["calendar"] }), setUpcoming, quiet);
+    return loadHomeSource("calendar", () => queryApi<UpcomingPayload>("/api/calendar/upcoming", { staleMs: 45_000, maxAgeMs: 5 * 60_000, force, tags: ["calendar"] }), setUpcoming, quiet);
   }
   function loadHomeTimeline(quiet = false, force = false) {
     return loadHomeSource("timeline", () => {
       const start = new Date(); start.setHours(0, 0, 0, 0);
       const end = addDays(start, 180);
-      return queryApi<TimelinePayload>(`/api/timeline?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { staleMs: 30_000, maxAgeMs: 10 * 60_000, force, tags: ["timeline", "home"] });
+      return queryApi<TimelinePayload>(`/api/timeline?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { staleMs: 90_000, maxAgeMs: 10 * 60_000, force, tags: ["timeline", "home"] });
     }, setTimeline, quiet);
   }
   function loadHomePeople(quiet = false, force = false) {
-    return loadHomeSource("people", () => queryApi<UserActivitySummary[]>("/api/users", { staleMs: 15_000, maxAgeMs: 5 * 60_000, force, tags: ["users", "people"] }), setUsers, quiet);
+    return loadHomeSource("people", () => queryApi<UserActivitySummary[]>("/api/users", { staleMs: 60_000, maxAgeMs: 5 * 60_000, force, tags: ["users", "people"] }), setUsers, quiet);
   }
   function loadHomeActivity(quiet = false, force = false) {
-    return loadHomeSource("activity", () => queryApi<ActivityEvent[]>("/api/activity?limit=100", { staleMs: 10_000, maxAgeMs: 2 * 60_000, force, tags: ["activity"] }), setActivity, quiet);
+    return loadHomeSource("activity", () => queryApi<ActivityEvent[]>("/api/activity?limit=100", { staleMs: 45_000, maxAgeMs: 2 * 60_000, force, tags: ["activity"] }), setActivity, quiet);
   }
   function loadHomeAssignments(quiet = false, force = false) {
-    return loadHomeSource("assignments", () => queryApi<TeamAssignment[]>(`/api/team/assignments?scope=${homeNeedsTeamWideAssignments ? "team" : "mine"}`, { staleMs: 10_000, maxAgeMs: 2 * 60_000, force, tags: ["work"] }), setHomeAssignments, quiet);
+    return loadHomeSource("assignments", () => queryApi<TeamAssignment[]>(`/api/team/assignments?scope=${homeNeedsTeamWideAssignments ? "team" : "mine"}`, { staleMs: 45_000, maxAgeMs: 2 * 60_000, force, tags: ["work"] }), setHomeAssignments, quiet);
   }
   function loadHomeInbox(quiet = false, force = false) {
-    return loadHomeSource("inbox", () => queryApi<{ ok: true; summary: NotificationSummary }>("/api/notifications/summary", { staleMs: 5_000, maxAgeMs: 60_000, force, tags: ["inbox", "notifications", "home"] }), (result) => setHomeInboxSummary(result.summary), quiet);
+    return loadHomeSource("inbox", () => queryApi<{ ok: true; summary: NotificationSummary }>("/api/notifications/summary", { staleMs: 20_000, maxAgeMs: 60_000, force, tags: ["inbox", "notifications", "home"] }), (result) => setHomeInboxSummary(result.summary), quiet);
   }
   function loadHomeTickets(quiet = false, force = false) {
-    return loadHomeSource("tickets", () => queryApi<{ items: HomeTicketSummary[] }>("/api/tickets/assigned-summary?limit=40", { staleMs: 15_000, maxAgeMs: 5 * 60_000, force, tags: ["tickets", "work", "home"] }), (result) => setHomeTickets(result.items || []), quiet);
+    return loadHomeSource("tickets", () => queryApi<{ items: HomeTicketSummary[] }>("/api/tickets/assigned-summary?limit=40", { staleMs: 45_000, maxAgeMs: 5 * 60_000, force, tags: ["tickets", "work", "home"] }), (result) => setHomeTickets(result.items || []), quiet);
   }
   function runScheduledHomeRefresh() {
     window.clearTimeout(homeRefreshTimerRef.current);
@@ -446,7 +446,7 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
     sources.filter(homeSourceAllowed).forEach((source) => homeRefreshPendingRef.current.add(source));
     window.clearTimeout(homeRefreshTimerRef.current);
     if (document.visibilityState !== "visible") return;
-    homeRefreshTimerRef.current = window.setTimeout(runScheduledHomeRefresh, 160);
+    homeRefreshTimerRef.current = window.setTimeout(runScheduledHomeRefresh, 1_000);
   }
   function retryHomeRemote(source: HomeRemoteSource) {
     if (!homeSourceAllowed(source)) return;

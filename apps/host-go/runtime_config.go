@@ -206,15 +206,21 @@ func resolvePublicOrigin(value, bindAddress string, port int, scheme string, rem
 	if parsed.Port() == "" && !((scheme == "https" && port == 443) || (scheme == "http" && port == 80)) {
 		parsed.Host = net.JoinHostPort(parsed.Hostname(), strconv.Itoa(port))
 	}
+	// A persisted older local public-origin setting may still name 127.0.0.1.
+	// Canonicalize only loopback IP literals, never a network/LAN address.
+	// Remote origin and transport validation above remain authoritative.
+	if !remote && isLoopbackBind(bindAddress) && net.ParseIP(parsed.Hostname()) != nil && isLocalOnlyHostname(parsed.Hostname()) {
+		parsed.Host = net.JoinHostPort("localhost", strconv.Itoa(port))
+	}
 	parsed.Path = ""
 	return strings.TrimSuffix(parsed.String(), "/"), nil
 }
 
 func originForBind(bindAddress string, port int, scheme string) string {
-	host := bindAddress
-	if !isLoopbackBind(bindAddress) {
-		host = "127.0.0.1"
-	}
+	// Browser WebAuthn refuses an IP literal as a relying-party ID. Keep the
+	// network listener on 127.0.0.1, but expose the local browser UI at the
+	// registrable, trustworthy loopback hostname "localhost" instead.
+	host := "localhost"
 	if scheme != "https" {
 		scheme = "http"
 	}

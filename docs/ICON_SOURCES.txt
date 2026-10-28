@@ -1,0 +1,13 @@
+Cluster UI icon artwork (generated at build time)
+
+Phosphor Icons (Phosphor Duotone), MIT License
+  https://phosphoricons.com/
+  Iconify package: @iconify-json/ph@1.2.2
+Tabler Icons, MIT License
+  https://tabler.io/icons
+  Iconify package: @iconify-json/tabler@1.2.42
+Lucide Icons, ISC License
+  https://lucide.dev/
+  Iconify package: @iconify-json/lucide@1.2.146
+
+Cluster uses generated local subsets. Refer to the respective packaged LICENSE files for complete license text and copyright notices. Vendor assets are never loaded from a CDN at runtime.

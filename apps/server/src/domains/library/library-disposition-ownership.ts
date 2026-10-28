@@ -68,7 +68,7 @@ async function walkOwners(prisma: any, check: () => Promise<void>, consume: (sou
     let after: string | null = null;
     for (;;) {
       await check();
-      const rows = await prisma[source].findMany({
+      const rows: Array<{ id: string; [key: string]: unknown }> = await prisma[source].findMany({
         where: { [field]: { not: null }, ...(after ? { id: { gt: after } } : {}) },
         select: { id: true, ...(source === "libraryItem" ? {} : { itemId: true }), [field]: true }, orderBy: { id: "asc" },
         take: Math.min(LIBRARY_OWNERSHIP_LIMITS.pageSize, LIBRARY_OWNERSHIP_LIMITS.databaseReferences - scanned + 1),

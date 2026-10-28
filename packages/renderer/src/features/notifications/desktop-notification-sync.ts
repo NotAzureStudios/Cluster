@@ -115,7 +115,7 @@ export function useDesktopNotificationSync({ enabled, user, settings }: { enable
         write: (ids) => writeSeen(user.id, ids),
         deliver: (fresh) => showItems(fresh.map((token) => byToken.get(token)).filter((item): item is DesktopInboxItem => Boolean(item))),
         exclusive: locks?.request
-          ? (work) => locks.request(`cluster-native-notifications:${user.id}`, { mode: "exclusive" }, work)
+          ? async (work) => await locks.request(`cluster-native-notifications:${user.id}`, { mode: "exclusive" }, async () => await work())
           : undefined,
       });
     };

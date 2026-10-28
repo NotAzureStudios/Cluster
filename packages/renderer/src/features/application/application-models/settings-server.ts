@@ -26,6 +26,9 @@ export type ProjectTypePreset = ClusterProjectTypeDefinition;
 export type StudioDepartmentDefinition = {
   id: string;
   label: string;
+  /** Offline preset from Cluster's curated icon catalog. Never a remote URL. */
+  iconId?: string | null;
+  accentColor?: string | null;
   description?: string;
   leadRoleId?: string;
   defaultTeamName?: string;
@@ -71,6 +74,7 @@ export type Settings = {
   taskbarSurface?: "match" | "solid" | "glass";
   taskbarLayout?: "floating" | "full-width";
   sidebarLayout?: "docked" | "floating";
+  sidebarItemStyle?: "soft" | "divided" | "outlined";
   surfaceDepth?: "flat" | "soft" | "elevated";
   surfaceTexture?: "none" | "fine" | "brushed";
   surfaceTextureIntensity?: number;

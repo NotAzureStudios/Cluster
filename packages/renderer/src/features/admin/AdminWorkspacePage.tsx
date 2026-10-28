@@ -1530,7 +1530,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                   {adminUserView === "profile" && (
                     <div className="user-admin-detail-scroll-v244">
                       <section className="admin-avatar-editor-v251">
-                        <PresenceAvatar userId={adminSelectedUser.id} imageUrl={adminUserForm.avatarUrl} label={adminUserForm.displayName || adminUserForm.username || "User"} fallback={(adminUserForm.displayName || adminUserForm.username || "U").slice(0, 1).toUpperCase()} state={adminUserForm.status || "offline"} title="Profile icon preview" className="admin-avatar-preview-v251" />
+                        <PresenceAvatar userId={adminSelectedUser.id} imageUrl={adminUserForm.avatarUrl} label={adminUserForm.displayName || adminUserForm.username || "User"} fallback={(adminUserForm.displayName || adminUserForm.username || "U").slice(0, 1).toUpperCase()} state={adminSelectedUser.status || "offline"} title="Profile icon preview" className="admin-avatar-preview-v251" />
                         <div>
                           <strong>Profile image</strong>
                           <span>PNG, JPEG, WebP, or GIF · 5 MB maximum</span>
@@ -1744,7 +1744,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                         </header>
                         <div className="admin-credential-status-v270">
                           <div><span>Password</span><strong>{adminSelectedUser.passwordConfigured ? "Configured" : "Setup required"}</strong><small>{adminSelectedUser.passwordChangedAt ? `Changed ${formatRelativeTime(adminSelectedUser.passwordChangedAt)}` : "No change recorded"}</small></div>
-                          <div><span>Security PIN</span><strong>{adminSelectedUser.pinConfigured ? "Configured" : "Not configured"}</strong><small>{adminSelectedUser.pinUpdatedAt ? `Changed ${formatRelativeTime(adminSelectedUser.pinUpdatedAt)}` : "No PIN change recorded"}</small></div>
+                          <div><span>Security PIN</span><strong>{adminSelectedUser.pinConfigured ? "Configured" : "Not configured"}</strong></div>
                         </div>
                         <div className="admin-credential-editor-v270">
                           <label className="field"><span>Set password</span><div className="admin-password-field-v473"><ClusterTextInput type={adminPasswordVisible ? "text" : "password"} maxLength={1024} value={adminCredentialForm.password} onChange={(event) => setAdminCredentialForm((current) => ({ ...current, password: event.target.value }))} placeholder="New password" /><ClusterButton type="button" onClick={() => setAdminPasswordVisible((value) => !value)}>{adminPasswordVisible ? "Hide" : "Show"}</ClusterButton></div></label>
@@ -1820,7 +1820,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                     <div className="logo-mark small">+</div>
                     <div>
                       <h3>New person</h3>
-                      <span>Create an account with a temporary password.</span>
+
                     </div>
                   </header>
                   {issuedTemporaryPassword && (

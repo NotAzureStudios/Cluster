@@ -25,6 +25,7 @@ $backupRoot = Join-Path $WorkRoot 'Rollback'
 $ownerMarker = '.cluster-installer-managed.json'
 $preserved = @('data', 'runtime', $ownerMarker)
 $log = $null
+$releaseIdentity = $null
 
 function Say([string]$message) {
   $line = '[Cluster Installer] ' + $message
@@ -35,7 +36,7 @@ function Fail([string]$message) { throw $message }
 function EnsureUnder([string]$path, [string]$parent) {
   $p = [IO.Path]::GetFullPath($path).TrimEnd('\','/')
   $r = [IO.Path]::GetFullPath($parent).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
-  if (-not $p.StartsWith($r, [StringComparison]::OrdinalIgnoreCase)) { Fail "Unsafe path outside lab root: $path" }
+  if (-not $p.StartsWith($r, [StringComparison]::OrdinalIgnoreCase)) { Fail "Unsafe path outside portable Cluster root: $path" }
 }
 # Pin the official platform archive digests. Toolchains are private and never installed into Windows.
 $nodeArchiveSha256 = '6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba'
@@ -110,10 +111,32 @@ function ProvisionPortableTools() {
 function Run([string]$executable, [string[]]$arguments, [string]$workingDirectory) {
   Say ("Running: " + $executable + ' ' + ($arguments -join ' '))
   Push-Location -LiteralPath $workingDirectory
+  # Native stdout/stderr must BOTH reach the durable installer log. Previously
+  # only the command name and exit code were saved, making build errors vanish.
+  # PowerShell 5.1 converts redirected native stderr to ErrorRecords; Continue
+  # avoids treating a warning as a terminating PowerShell exception. The real
+  # subprocess exit code remains the source of truth.
+  $previousPreference = $ErrorActionPreference
+  $exitCode = $null
   try {
-    & $executable @arguments
-    if ($LASTEXITCODE -ne 0) { Fail "$executable failed (exit $LASTEXITCODE); existing Cluster installation was not replaced." }
-  } finally { Pop-Location }
+    $ErrorActionPreference = 'Continue'
+    & $executable @arguments 2>&1 | ForEach-Object {
+      $line = [string]$_
+      Write-Host $line
+      if ($script:log) {
+        # Do not persist database URL passwords if a dependency prints one.
+        $safeLine = $line -replace '(?i)(postgres(?:ql)?|mysql|mongodb(?:\+srv)?):\/\/[^\s@]+@', '$1://[REDACTED]@'
+        Add-Content -LiteralPath $script:log -Value $safeLine -Encoding UTF8 -ErrorAction Stop
+      }
+    }
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousPreference
+    Pop-Location
+  }
+  if ($null -eq $exitCode -or $exitCode -ne 0) {
+    Fail "$executable failed (exit $exitCode); full stdout/stderr is in $script:log; existing Cluster installation was not replaced."
+  }
 }
 function IsBadEntry([string]$path) {
   if (-not $path -or $path.StartsWith('/') -or $path.StartsWith('\') -or $path -match '^[A-Za-z]:' -or $path.Contains(':')) { return $true }
@@ -163,6 +186,7 @@ function TestManifest([string]$source) {
     return
   }
   $checked = 0
+  $listed = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
   foreach ($line in [IO.File]::ReadLines($manifest)) {
     if ($line -notmatch '^([0-9a-fA-F]{64})  (.+)$') { Fail 'Invalid source SHA-256 manifest line.' }
     $expected = $Matches[1].ToLowerInvariant()
@@ -170,13 +194,22 @@ function TestManifest([string]$source) {
     if ($relative -match '(^|[\\/])\.\.([\\/]|$)' -or [IO.Path]::IsPathRooted($relative)) { Fail 'Unsafe path in source manifest.' }
     $candidate = Join-Path $source $relative
     EnsureUnder $candidate $source
+    if (-not $listed.Add([IO.Path]::GetFullPath($candidate))) { Fail "Duplicate manifest entry: $relative" }
     if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { Fail "Manifest file missing: $relative" }
     $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidate).Hash.ToLowerInvariant()
     if ($actual -ne $expected) { Fail "Source integrity failure: $relative" }
     $checked++
   }
   if ($checked -lt 200) { Fail 'Source manifest contained too few files.' }
-  Say "Verified $checked source-file hashes."
+  # Manifest is a complete allowlist. An attacker must not append an unlisted
+  # npm lifecycle script, path override or source file to an otherwise valid ZIP.
+  foreach ($candidate in @(Get-ChildItem -LiteralPath $source -Recurse -File -Force)) {
+    if ($candidate.FullName -ieq $manifest) { continue }
+    if (-not $listed.Contains([IO.Path]::GetFullPath($candidate.FullName))) {
+      Fail "Unlisted source file in archive: $($candidate.FullName)"
+    }
+  }
+  Say "Verified $checked source-file hashes and complete manifest allowlist."
 }
 function LaunchClusterServer([string]$root) {
   # The current Cluster 0.546 native launcher uses default PostgreSQL
@@ -214,6 +247,114 @@ function AssertServerStopped([string]$root) {
     Fail "Cluster Server has active processes (PIDs $ids). Stop it before installing revision files."
   }
 }
+# npm workspaces on Windows use NTFS junctions with absolute staging paths.
+# Relocating node_modules without reconstructing them leaves @cluster/shared,
+# @cluster/server, etc. pointing at the deleted temporary build directory.
+function RepairWorkspaceJunctions([string]$installedRoot) {
+  $scope = Join-Path $installedRoot 'node_modules/@cluster'
+  if (-not (Test-Path -LiteralPath $scope -PathType Container)) { Fail 'Built runtime missing node_modules/@cluster; cannot start safely.' }
+  $workspaces = @('apps/server','apps/web','packages/shared','packages/api-client','packages/renderer','integrations/discord-bot')
+  foreach ($relative in $workspaces) {
+    $destination = Join-Path $installedRoot $relative
+    $manifest = Join-Path $destination 'package.json'
+    if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { Fail "Missing workspace package: $relative" }
+    $package = Get-Content -LiteralPath $manifest -Raw | ConvertFrom-Json
+    $packageName = [string]$package.name
+    if (-not $packageName.StartsWith('@cluster/', [StringComparison]::Ordinal) -or $packageName.Substring(9) -notmatch '^[a-z0-9-]+$') {
+      Fail "Unexpected Cluster workspace package identity: $packageName"
+    }
+    $link = Join-Path $scope $packageName.Substring(9)
+    $old = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    if ($null -ne $old) {
+      if (-not ($old.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        Fail "Expected a workspace junction, refusing to replace a physical directory: $link"
+      }
+      # Directory.Delete with recursive=false removes the junction, not its target.
+      # Never recursively delete an NTFS junction: some PowerShell versions
+      # follow it and could delete the source workspace itself.
+      [IO.Directory]::Delete($link, $false)
+    }
+    New-Item -ItemType Junction -Path $link -Target $destination -ErrorAction Stop | Out-Null
+    if (-not (Test-Path -LiteralPath (Join-Path $link 'package.json') -PathType Leaf)) {
+      Fail "Installed workspace junction did not resolve: $packageName"
+    }
+  }
+  Say 'Rebuilt 6 Windows npm workspace junctions against the installed server root.'
+}
+# Publish the already-built native entry point beside the installer, for example
+# D:\Cluster-Server\Cluster Server.exe. The managed runtime/data remain under
+# D:\Cluster-Server\Cluster\Server; this is a tiny entry point, not a second server.
+function PublishRootServerLauncher([string]$installedRoot) {
+  $portableRoot = Split-Path -Parent $WorkRoot
+  $entry = Join-Path $installedRoot 'bin/Cluster Server.exe'
+  $launcher = Join-Path $portableRoot 'Cluster Server.exe'
+  $ownershipFile = Join-Path $WorkRoot 'root-launcher.manifest.json'
+  if (-not (Test-Path -LiteralPath $entry -PathType Leaf)) { Fail "Built root launcher missing: $entry" }
+  if (-not (Test-Path -LiteralPath (Join-Path $installedRoot $ownerMarker) -PathType Leaf)) { Fail 'Cannot publish root launcher before managed installation commit.' }
+  $expected = (Get-FileHash -LiteralPath $entry -Algorithm SHA256).Hash.ToLowerInvariant()
+  $existing = Test-Path -LiteralPath $launcher
+  if ($existing) {
+    $existingFile = Get-Item -LiteralPath $launcher -Force
+    if ($existingFile.PSIsContainer -or ($existingFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+      Fail "Refusing to replace a directory or link at $launcher"
+    }
+    $actual = (Get-FileHash -LiteralPath $launcher -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) {
+      if (-not (Test-Path -LiteralPath $ownershipFile -PathType Leaf)) {
+        Fail "Root executable already exists and is not managed by this installer: $launcher. Move it aside yourself if you want Cluster to use this filename."
+      }
+      $record = Get-Content -LiteralPath $ownershipFile -Raw | ConvertFrom-Json
+      if ($record.managedBy -ne 'cluster-installer' -or
+          $record.installRoot -ine $WorkRoot -or
+          $record.launcherPath -ine $launcher -or
+          $record.sha256 -ine $actual) {
+        Fail "Root executable ownership verification failed; refusing to overwrite: $launcher"
+      }
+    }
+  }
+  $staged = "$launcher.cluster-staging"
+  $backup = "$launcher.cluster-previous"
+  if (Test-Path -LiteralPath $staged) { Fail "Root launcher staging file already exists: $staged" }
+  if (Test-Path -LiteralPath $backup) { Fail "Root launcher backup already exists: $backup" }
+  $oldMoved = $false
+  $newMoved = $false
+  try {
+    if (-not $existing -or $actual -ne $expected) {
+      Copy-Item -LiteralPath $entry -Destination $staged -ErrorAction Stop
+      if ((Get-FileHash -LiteralPath $staged -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { Fail 'Root launcher copy failed integrity verification.' }
+      if ($existing) {
+        Move-Item -LiteralPath $launcher -Destination $backup -ErrorAction Stop
+        $oldMoved = $true
+      }
+      Move-Item -LiteralPath $staged -Destination $launcher -ErrorAction Stop
+      $newMoved = $true
+    }
+    $record = @{
+      schema = 1
+      managedBy = 'cluster-installer'
+      installRoot = $WorkRoot
+      launcherPath = $launcher
+      sha256 = $expected
+    }
+    $manifestStaging = "$ownershipFile.writing"
+    if (Test-Path -LiteralPath $manifestStaging) { Fail 'Root launcher manifest staging already exists.' }
+    try {
+      [IO.File]::WriteAllText($manifestStaging, ($record | ConvertTo-Json -Depth 3), ([Text.UTF8Encoding]::new($false)))
+      Move-Item -LiteralPath $manifestStaging -Destination $ownershipFile -Force -ErrorAction Stop
+    } finally {
+      if (Test-Path -LiteralPath $manifestStaging) { Remove-Item -LiteralPath $manifestStaging -Force }
+    }
+    if ($oldMoved) { Remove-Item -LiteralPath $backup -Force }
+    Say "Root server executable ready: $launcher"
+  } catch {
+    if ($newMoved -and (Test-Path -LiteralPath $launcher -PathType Leaf)) { Remove-Item -LiteralPath $launcher -Force }
+    if ($oldMoved -and (Test-Path -LiteralPath $backup -PathType Leaf)) { Move-Item -LiteralPath $backup -Destination $launcher -ErrorAction Stop }
+    throw
+  } finally {
+    if (Test-Path -LiteralPath $staged -PathType Leaf) { Remove-Item -LiteralPath $staged -Force }
+  }
+}
+
 function ApplyRevision([string]$source, [string]$hash) {
   EnsureUnder $target $WorkRoot
   if (Test-Path -LiteralPath $target) {
@@ -223,7 +364,7 @@ function ApplyRevision([string]$source, [string]$hash) {
     AssertServerStopped $target
   } else { New-Item -ItemType Directory -Path $target -Force | Out-Null }
   $previous = Join-Path $backupRoot ('previous-' + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fffffff') + '-' + $hash.Substring(0,8))
-  New-Item -ItemType Directory -Path $previous -Force | Out-Null
+  if (@(Get-ChildItem -LiteralPath $target -Force | Where-Object { $preserved -notcontains $_.Name }).Count -gt 0) { New-Item -ItemType Directory -Path $previous -Force | Out-Null }
   $savedEnv = Join-Path $target 'apps/server/.env'
   $stateEnv = Join-Path $WorkRoot 'preserved-server-env.tmp'
   if (Test-Path -LiteralPath $savedEnv -PathType Leaf) { Copy-Item -LiteralPath $savedEnv -Destination $stateEnv -Force }
@@ -243,8 +384,13 @@ function ApplyRevision([string]$source, [string]$hash) {
     if (Test-Path -LiteralPath $stateEnv -PathType Leaf) {
       Copy-Item -LiteralPath $stateEnv -Destination (Join-Path $target 'apps/server/.env') -Force
     }
-    $record = @{ schema=2; archiveSha256=$hash; appliedUtc=[DateTime]::UtcNow.ToString('o'); installRoot=$WorkRoot; managedBy='cluster-installer' }
-    ($record | ConvertTo-Json -Depth 5) | Set-Content -LiteralPath (Join-Path $target $ownerMarker) -Encoding UTF8
+    # Verify the DEPLOYED tree, not just the pre-move staging directory.
+    # A failure here triggers the existing application rollback.
+    RepairWorkspaceJunctions $target
+    Run 'node' @('tools/scripts/cluster-rc-runtime-admission.mjs') $target
+    $record = @{ schema=3; releaseCandidate=[string]$releaseIdentity.release; releaseSequence=[int]$releaseIdentity.sequence; archiveSha256=$hash; appliedUtc=[DateTime]::UtcNow.ToString('o'); installRoot=$WorkRoot; managedBy='cluster-installer' }
+    # Windows PowerShell 5.1's -Encoding UTF8 writes a BOM, which Go's JSON decoder rejects.
+    [IO.File]::WriteAllText((Join-Path $target $ownerMarker), ($record | ConvertTo-Json -Depth 5), ([Text.UTF8Encoding]::new($false)))
     $committed = $true
   } finally {
     if (-not $committed) {
@@ -260,7 +406,9 @@ function ApplyRevision([string]$source, [string]$hash) {
     }
     if (Test-Path -LiteralPath $stateEnv -PathType Leaf) { Remove-Item -LiteralPath $stateEnv -Force }
   }
-  Say "Updated managed Cluster installation. Previous application snapshot: $previous"
+  if (Test-Path -LiteralPath $previous -PathType Container) {
+    Say "Updated managed Cluster installation. Previous application snapshot: $previous"
+  } else { Say 'Installed independent fresh Cluster release candidate.' }
 }
 
 try {
@@ -286,6 +434,7 @@ try {
     if (-not (Test-Path -LiteralPath $currentMarker -PathType Leaf)) { Fail 'No Cluster installation has been completed yet.' }
     $installedMarker = Get-Content -LiteralPath $currentMarker -Raw | ConvertFrom-Json
     if ($installedMarker.managedBy -ne 'cluster-installer' -or $installedMarker.installRoot -ine $WorkRoot) { Fail 'Unmanaged installation marker. Refusing to launch from an untrusted folder.' }
+    PublishRootServerLauncher $target
     LaunchClusterServer $target
     exit 0
   }
@@ -299,11 +448,13 @@ try {
   if ([IO.Path]::GetExtension($Archive).ToLowerInvariant() -ne '.zip') { Fail 'Expected full source ZIP (not an incremental patch).' }
   $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $Archive).Hash.ToLowerInvariant()
   Say "Revision archive SHA-256: $hash"
+  Say 'Installer logging: native stdout/stderr retained (credentials redacted)'
   $current = Join-Path $target $ownerMarker
   if (-not $BuildOnly -and -not $CheckOnly -and (Test-Path -LiteralPath $current -PathType Leaf)) {
     $installed = Get-Content -LiteralPath $current -Raw | ConvertFrom-Json
     if ($installed.archiveSha256 -eq $hash -and $installed.managedBy -eq 'cluster-installer' -and $installed.installRoot -ieq $WorkRoot) {
       Say 'Installed revision is current; launching without rebuilding.'
+      PublishRootServerLauncher $target
       if (-not $SkipLaunch) { LaunchClusterServer $target }
       exit 0
     }
@@ -316,13 +467,35 @@ try {
   [IO.Compression.ZipFile]::ExtractToDirectory($Archive, $stage)
   $source = Join-Path $stage 'source'
   TestManifest $source
+  $releaseFile = Join-Path $source 'config/release-candidate.json'
+  if (-not (Test-Path -LiteralPath $releaseFile -PathType Leaf)) { Fail 'Installer source lacks release-candidate identity.' }
+  $releaseIdentity = Get-Content -LiteralPath $releaseFile -Raw | ConvertFrom-Json
+  $sourceToolchain = Get-Content -LiteralPath (Join-Path $source 'config/toolchain-versions.json') -Raw | ConvertFrom-Json
+  if ($releaseIdentity.schema -ne 1 -or $releaseIdentity.channel -ne 'rc' -or $releaseIdentity.sequence -lt 1 -or $releaseIdentity.sourceVersion -ne $sourceToolchain.cluster) { Fail 'Invalid release candidate metadata; refuse to install.' }
+  Say "Building clean-room candidate $($releaseIdentity.release) (source $($releaseIdentity.sourceVersion))."
   if ($CheckOnly) { Say 'Source archive verified; no installation or build was performed.'; exit 0 }
   ProvisionPortableTools
   $versions = Get-Content -LiteralPath (Join-Path $source 'config/toolchain-versions.json') -Raw | ConvertFrom-Json
   Say "Building Cluster v$($versions.cluster). Installed server remains untouched until builds succeed."
   $env:GOTOOLCHAIN = 'local'
   $env:CLUSTER_VERSION = [string]$versions.cluster
-  Run 'npm.cmd' @('install','--include=dev','--no-audit','--no-fund','--no-progress') $source
+  # RC gate: native binaries are part of the product. Compile/test them BEFORE
+  # the slower npm/Vite work so Go source mistakes cannot survive into packaging.
+  # Uses the private pinned Go toolchain provisioned above, not system Go.
+  Run 'node' @('tools/scripts/cluster-rc-native-checks.mjs') $source
+  Run 'node' @('tools/scripts/build-native-host.mjs') $source
+  Run 'node' @('tools/scripts/build-server-launcher.mjs') $source
+  Run 'node' @('tools/scripts/build-cluster-server-entry.mjs') $source
+  Run 'node' @('tools/scripts/build-update-helper.mjs') $source
+  Run 'node' @('tools/scripts/build-workstation-service.mjs') $source
+  $lockfile = Join-Path $source 'package-lock.json'
+  if (Test-Path -LiteralPath $lockfile -PathType Leaf) {
+    Say 'Locked dependency install: npm ci'
+    Run 'npm.cmd' @('ci','--include=dev','--no-audit','--no-fund','--no-progress') $source
+  } else {
+    Say 'RC WARNING: package-lock.json is missing. Dependency graph cannot be certified reproducible; stable release is BLOCKED.'
+    Run 'npm.cmd' @('install','--include=dev','--no-audit','--no-fund','--no-progress') $source
+  }
   # Prisma 7 validates its configured datasource during generation. Use a
   # deliberately nonfunctional local build-time URL; never connect to live data.
   $oldDirect = $env:DIRECT_DATABASE_URL
@@ -336,12 +509,13 @@ try {
     $env:DATABASE_URL = $oldDatabase
   }
   Run 'npm.cmd' @('run','build') $source
-  Run 'node' @('tools/scripts/build-native-host.mjs') $source
-  Run 'node' @('tools/scripts/build-server-launcher.mjs') $source
   # Auxiliary binaries are optional for web/server testing; not silently declared certified.
-  foreach ($requiredFile in @('apps/server/dist/index.js','apps/web/dist/index.html','packages/shared/dist/index.js','bin/ClusterServer.exe','bin/cluster-host.exe','node_modules/@prisma/client/package.json')) {
+  foreach ($requiredFile in @('apps/server/dist/index.js','apps/web/dist/index.html','packages/shared/dist/index.js','bin/ClusterServer.exe','bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe','bin/cluster-workstation-service.exe','node_modules/@prisma/client/package.json')) {
     if (-not (Test-Path -LiteralPath (Join-Path $source $requiredFile) -PathType Leaf)) { Fail "Build missing required output: $requiredFile" }
   }
+  # Validate the actual compiled artifacts before making installation changes.
+  Run 'node' @('tools/scripts/cluster-rc-preflight.mjs','--built') $source
+  Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
   # Native startup trusts this marker only as a build-readiness hint, never as a signature.
   # Without it, Cluster's launcher recompiles the already-built source on first start.
   $releaseMarker = @{
@@ -349,6 +523,10 @@ try {
     clusterVersion = [string]$versions.cluster
     prebuilt = @{ server = $true; web = $true; shared = $true }
     managedInstaller = $true
+    releaseChannel = 'rc'
+    releaseCandidate = [string]$releaseIdentity.release
+    releaseSequence = [int]$releaseIdentity.sequence
+    certification = 'candidate-unverified'
     archiveSha256 = $hash
   }
   # Windows PowerShell 5.1 Set-Content UTF8 adds a BOM; Go's JSON decoder rejects it.
@@ -367,11 +545,38 @@ try {
       $pruned++
     }
   }
+  # Keep the full source in the distributable ZIP, not in the installed runtime.
+  # These paths are preview fixtures, repository-only tests or installer
+  # bootstrap code, not application dependencies.
+  foreach ($unused in @('docs','tools/fixtures','tools/installer')) {
+    $folder = Join-Path $source $unused
+    if (Test-Path -LiteralPath $folder -PathType Container) { Remove-Item -LiteralPath $folder -Recurse -Force; $pruned++ }
+  }
+  $testPatterns = @('*-tests.mjs','*-test.mjs','*-assertions.mjs','*-source-scan.mjs')
+  $scriptsDir = Join-Path $source 'tools/scripts'
+  foreach ($pattern in $testPatterns) {
+    foreach ($testScript in @(Get-ChildItem -LiteralPath $scriptsDir -Filter $pattern -File -ErrorAction SilentlyContinue)) {
+      Remove-Item -LiteralPath $testScript.FullName -Force
+      $pruned++
+    }
+  }
+  foreach ($releaseTool in @('cluster-rc-preflight.mjs','cluster-rc-smoke.mjs','cluster-rc-readiness.mjs')) {
+    $toolFile = Join-Path $scriptsDir $releaseTool
+    if (Test-Path -LiteralPath $toolFile -PathType Leaf) { Remove-Item -LiteralPath $toolFile -Force; $pruned++ }
+  }
   Remove-Item -LiteralPath (Join-Path $source 'SOURCE_FILE_MANIFEST.sha256') -Force
-  Say "Removed $pruned development-only root documents/reports from the installed runtime."
+  Say "Pruned $pruned development-only files/directories from the installed runtime."
   ApplyRevision $source $hash
+  # Build staging has been consumed by the atomic apply. Eliminate redundant
+  # copies to avoid accumulating gigabytes over RC iterations.
+  if (Test-Path -LiteralPath $stage -PathType Container) {
+    Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+  }
+  # A copy of the tiny entry point is placed in the portable root only after
+  # successful verified deployment. Never overwrite an unrelated root EXE.
+  PublishRootServerLauncher $target
   if (-not $SkipLaunch) { LaunchClusterServer $target }
-  Say 'Cluster installed. To update, place a full source ZIP beside Cluster-Installer.exe and reopen it.'
+  Say 'Cluster RC installed. Later candidates are delivered by newer installers; explicitly drag full source ZIPs for development overrides.'
   exit 0
 } catch {
   Write-Host ('[Cluster Installer] FAILED: ' + $_.Exception.Message) -ForegroundColor Red

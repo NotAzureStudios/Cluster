@@ -571,8 +571,8 @@ function EventEditor({ event, date, occurrenceStartsAt, projects, users, current
   const responsesForOccurrence = (event?.meetingOccurrenceResponses || []).filter((item) =>
     occurrenceStartsAt && item.occurrenceStartsAt === occurrenceStartsAt);
   const responseFor = (userId: string) => responsesForOccurrence.find((item) => item.userId === userId);
-  const [attendance, setAttendance] = useState<Record<string, string>>(() => ({ ...event?.meeting?.attendance,
-    ...Object.fromEntries(responsesForOccurrence.filter((item) => item.attendance).map((item) => [item.userId, item.attendance])) }));
+  const [attendance, setAttendance] = useState<Record<string, string>>(() => ({ ...Object.fromEntries(Object.entries(event?.meeting?.attendance || {}).filter((entry): entry is [string, string] => typeof entry[1] === "string")),
+    ...Object.fromEntries(responsesForOccurrence.map((item) => [item.userId, item.attendance] as const).filter((entry): entry is readonly [string, string] => typeof entry[1] === "string")) }));
   const [error, setError] = useState("");
   const eventTypes = ["meeting", "review", "deadline", "release", "milestone", "focus", "availability", "client", "production", "publishing", "maintenance", "other"];
   const isMeeting = eventType === "meeting";
@@ -786,7 +786,7 @@ function EventEditor({ event, date, occurrenceStartsAt, projects, users, current
       <div className="modal-actions">
         <ClusterButton type="button" disabled={mutationBusy} onClick={closeEditor} variant="secondary">Cancel</ClusterButton>
         {event && <ClusterButton type="button" disabled={mutationBusy} onClick={() => void deleteEvent()} variant="secondary">Delete</ClusterButton>}
-        <ClusterButton type="button" onClick={() => void saveEvent()} disabled={mutationBusy || !title.trim() || !startsAt || (isMeeting && (!endsAt || (recurrenceRule && !recurrenceEndDate)))} variant="primary">{mutationBusy ? "Saving…" : `Save ${isMeeting ? "meeting" : "event"}`}</ClusterButton>
+        <ClusterButton type="button" onClick={() => void saveEvent()} disabled={mutationBusy || !title.trim() || !startsAt || (isMeeting && (!endsAt || (Boolean(recurrenceRule) && !recurrenceEndDate)))} variant="primary">{mutationBusy ? "Saving…" : `Save ${isMeeting ? "meeting" : "event"}`}</ClusterButton>
       </div>
   </ClusterModal>;
 }

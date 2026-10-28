@@ -63,7 +63,7 @@ export function SharedCreateModePicker({
         {!normalizedQuery && recentModes.length > 0 ? <section className="shared-create-recent-v458" aria-label="Recent item types">
           <span>Recent</span>
           <div>{recentModes.map((item) => <ClusterButton variant="quiet" key={`recent-${item.id}`} data-create-mode={item.id} data-active={activeMode === item.id ? "true" : undefined} onMouseEnter={() => onActivateMode(item.id)} onFocus={() => onActivateMode(item.id)} onClick={() => onChooseMode(item.id)}>
-            <ClusterIcon name={item.icon} /><span>{item.label}</span>
+            <ClusterIcon name={item.icon} treatment="duotone" /><span>{item.label}</span>
           </ClusterButton>)}</div>
         </section> : null}
         <div className="shared-create-type-groups-v458">
@@ -72,7 +72,7 @@ export function SharedCreateModePicker({
             <div className="shared-create-type-list-v458">{group.modes.map((modeId) => {
               const item = modes.find((candidate) => candidate.id === modeId)!;
               return <ClusterButton variant="quiet" key={item.id} data-create-mode={item.id} data-active={activeMode === item.id ? "true" : undefined} onMouseEnter={() => onActivateMode(item.id)} onFocus={() => onActivateMode(item.id)} onClick={() => onChooseMode(item.id)}>
-                <span className="create-mode-icon-v448"><ClusterIcon name={item.icon} /></span>
+                <span className="create-mode-icon-v448"><ClusterIcon name={item.icon} treatment="duotone" /></span>
                 <span className="shared-create-type-copy-v458"><strong>{item.label}</strong><small>{item.detail}</small></span>
                 <ClusterIcon name="chevron-right" className="shared-create-picker-chevron-v455" />
               </ClusterButton>;

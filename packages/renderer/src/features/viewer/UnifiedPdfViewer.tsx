@@ -1,4 +1,5 @@
 import { clusterApiFetch } from "@cluster/api-client";
+import { downloadAuthenticatedClusterFile } from "../../core/browser-download-transfers";
 import { DEFAULT_RESOURCE_BUDGETS, VIEWER_CLIENT_RESOURCE_BUDGETS, type NormalizedPoint, type NormalizedRegion, type PdfRegionLocator } from "@cluster/shared";
 import {
   GlobalWorkerOptions,
@@ -511,13 +512,18 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
     setCustomScale((current) => clamp((fitMode === "custom" ? current : scale) + delta, PDF_MIN_SCALE, PDF_MAX_SCALE));
   }, [fitMode, scale]);
 
-  const download = useCallback(() => {
+  const download = useCallback(async () => {
     if (!source.url) throw new Error("The PDF source is not available for download.");
-    const anchor = document.createElement("a");
-    anchor.href = source.url;
-    anchor.download = session.resource.source.originalName || "document.pdf";
-    anchor.rel = "noopener";
-    anchor.click();
+    const fileName = session.resource.source.originalName || "document.pdf";
+    if (source.url.startsWith("blob:") || source.url.startsWith("data:")) {
+      const anchor = document.createElement("a");
+      anchor.href = source.url;
+      anchor.download = fileName;
+      anchor.click();
+      return;
+    }
+    const url = new URL(source.url, window.location.href);
+    await downloadAuthenticatedClusterFile({ url: `${url.pathname}${url.search}`, fileName });
   }, [session.resource.source.originalName, source.url]);
 
   const print = useCallback(async () => {

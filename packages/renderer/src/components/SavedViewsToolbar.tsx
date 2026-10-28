@@ -29,12 +29,14 @@ export function SavedViewsToolbar({
   current,
   onApply,
   summary,
+  autoRestore = true,
 }: {
   scope: string;
   label: string;
   current: Record<string, string>;
   onApply: (values: Record<string, string>) => void;
   summary?: string;
+  autoRestore?: boolean;
 }) {
   const [views, setViews] = useServerState<SharedWorkSavedView[]>("user", `saved-views.${scope}`, [], {
     merge: (value) => validViews(scope, value).slice(0, 12),
@@ -47,15 +49,16 @@ export function SavedViewsToolbar({
   useEffect(() => {
     if (!lastViewState.hydrated || restoredRef.current) return;
     restoredRef.current = true;
-    if (!lastView) return;
+    if (!lastView || !autoRestore) return;
     onApply(lastView);
     setRestoreStatus("Last working view restored");
-  }, [lastViewState.hydrated, lastView, onApply]);
+  }, [lastViewState.hydrated, lastView, onApply, autoRestore]);
 
   useEffect(() => {
+    if (!autoRestore) return;
     const timer = window.setTimeout(() => { void setLastView(current); }, 250);
     return () => window.clearTimeout(timer);
-  }, [scope, current, setLastView]);
+  }, [scope, current, setLastView, autoRestore]);
 
   const currentSignature = stableViewValue(current);
   const activeViewId = views.find((view) => stableViewValue(view.values) === currentSignature)?.id || "";
@@ -112,7 +115,7 @@ export function SavedViewsToolbar({
             <ClusterButton variant="quiet" size="compact" aria-pressed={activeViewId === view.id} className={activeViewId === view.id ? "active" : ""} onClick={() => applyView(view.values)}>{view.name}{activeViewId === view.id ? " · Current" : ""}</ClusterButton>
             <ClusterIconButton label={`Delete ${view.name}`} size="compact" onClick={() => deleteView(view.id)}><ClusterIcon name="trash" /></ClusterIconButton>
           </span>
-        )) : <em>No named views yet. The current view is still remembered automatically.</em>}
+        )) : <em>No saved views.</em>}
       </div>
     </section>
   );

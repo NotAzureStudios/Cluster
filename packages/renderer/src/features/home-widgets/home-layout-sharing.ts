@@ -27,11 +27,11 @@ export function useHomeLayoutSharing(enabled = true): HomeLayoutSharingControlle
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (!enabled) return;
     setLoading(true);
     try {
-      const result = await queryApi<HomeLayoutSharingResponse>("/api/home-layouts", { force: true, staleMs: 5_000, maxAgeMs: 60_000, tags: ["home-layouts"] });
+      const result = await queryApi<HomeLayoutSharingResponse>("/api/home-layouts", { force, staleMs: 60_000, maxAgeMs: 5 * 60_000, tags: ["home-layouts"] });
       setState(result.state?.schema === 2 ? result.state : EMPTY_HOME_LAYOUT_SHARING);
       setCurrentUserId(result.currentUserId || "");
     } catch (error) {
@@ -90,5 +90,5 @@ export function useHomeLayoutSharing(enabled = true): HomeLayoutSharingControlle
     finally { setBusy(false); }
   }
 
-  return { state, currentUserId, loading, busy, message, refresh, publishTemplate, removeTemplate, shareProfile, unshareProfile, ownSharedProfile };
+  return { state, currentUserId, loading, busy, message, refresh: () => refresh(true), publishTemplate, removeTemplate, shareProfile, unshareProfile, ownSharedProfile };
 }

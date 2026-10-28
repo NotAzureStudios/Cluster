@@ -54,6 +54,6 @@ check(routes.indexOf('await deps.verifyUserPin(admin, body.securityPin')<routes.
 check(routes.includes('new Set(body.policies.map')&&routes.includes('policyMutationSchema.omit'), 'batch checks duplicate keys and is strict');
 check(routes.includes('await deps.logSecurityEvent?.({ event: "operations.alert_policy.update_batch"'),'post-commit audit invoked');
 const ui=read('packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx');
-check(ui.includes('Save all alert settings')&&ui.includes('securityPin: alertPin'),'UI offers one save + PIN');
+check(ui.includes('Save alert settings')&&ui.includes('securityPin: pin')&&ui.includes('requestSecurityPin('),'UI offers one save + authenticated PIN pad');
 check(ui.includes('recipientType: policy.recipientType')&&ui.includes('expectedRevision: policy.revision'),'UI sends explicit allowlisted fields and expected revision');
 console.log(`Cluster F3 P3 Atomic Alert Policy Save: ${n}/${n} assertions passed`);

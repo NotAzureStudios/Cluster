@@ -54,7 +54,7 @@ export function registerContextPackRoutes(deps: ServerRouteRegistrationDeps) {
       entityId: pack.id,
       title: "Context pack created",
       message: pack.name,
-      metadata: { includesSecrets: payload.includesSecrets, reason: includeSecrets ? body.reason.trim() : null },
+      metadata: { includesSecrets: payload.includesSecrets, reason: includeSecrets ? (body.reason ?? "").trim() : null },
     });
     reply.header("Cache-Control", "no-store");
     return serializeContextPack(pack, true);
@@ -84,8 +84,8 @@ export function registerContextPackRoutes(deps: ServerRouteRegistrationDeps) {
     }
     const pack = await prisma.contextPack.create({
       data: {
-        name: body.name || String(payload.name || "Imported context pack"),
-        description: body.description || String(payload.description || "Imported integration context."),
+        name: body.name || "Imported context pack",
+        description: body.description ?? "Imported integration context.",
         payload: encryptContextPackStorageValue(JSON.stringify(payload, null, 2)),
         createdById: user?.id || null,
       },

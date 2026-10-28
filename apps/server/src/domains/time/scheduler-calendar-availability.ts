@@ -77,7 +77,7 @@ export function evaluateCalendarVirtualOccupancy(input: CalendarVirtualWindow, r
     const originals = calendarOccurrencesInWindow(event, from, input.endsAt, 370);
     if (originals.length >= 370) return fail();
     for (const original of originals) {
-      if (event.id === input.excludeOccurrence?.calendarEventId && original.getTime() === input.excludeOccurrence.occurrenceStartsAt.getTime()) continue;
+      if (event.id === input.excludeOccurrence?.calendarEventId && original.getTime() === input.excludeOccurrence?.occurrenceStartsAt.getTime()) continue;
       if (isCancelledCalendarOccurrence(event, original) || movedCalendarOccurrence(event, original)) continue;
       // The first series instance is already represented by its physical
       // Scheduler anchor; subsequent instances have no physical row.

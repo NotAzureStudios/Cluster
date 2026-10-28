@@ -66,7 +66,10 @@ export function normalizeStudioSecurityPolicy(settings: Record<string, any> | nu
 }
 
 export function securityPolicyRequiresMfa(policy: StudioSecurityPolicy, workspaceRole: unknown) {
-  if (String(workspaceRole || "").toLowerCase() === "owner") return true;
+  // Owners are strongly encouraged to enroll MFA after bootstrap, but an
+  // optional studio policy must not silently force enrollment. This allows a
+  // new, loopback-only server to reach the workspace before WebAuthn or domain
+  // configuration. Explicit admins/all policies still fail closed.
   if (policy.mfaRequirement === "all") return true;
   if (policy.mfaRequirement === "admins") return ["owner", "admin"].includes(String(workspaceRole || "").toLowerCase());
   return false;

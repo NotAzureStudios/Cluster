@@ -1,12 +1,15 @@
+import { ClusterVisualMeter, ClusterVisualComposition, ClusterVisualRankedBars } from "../../components/ClusterVisualMetrics";
+import { summarizeLoadedAssets } from "../visual-first/loaded-view-summary";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { InventoryKeyCustodyReview } from "../inventory/InventoryKeyCustodyReview";
 
 // Inventory is the authority for asset lifecycle and allocation tracking.
 // Vault remains a separate security projection and is never mixed into these rows.
-type Asset = { id: string; title: string; kind: string; provider?: string | null; reference?: string | null; capacity: number; status: string; revision: number };
+type Asset = { id: string; title: string; kind: string; provider?: string | null; reference?: string | null; capacity: number; allocated?: number; available?: number; status: string; revision: number };
 type Allocation = { id: string; userId: string; quantity: number; reason: string; status: string; revision: number; expiresAt?: string | null; assignedAt: string; revokedAt?: string | null; closedReason?: string | null; closedById?: string | null };
 type Person = { id: string; displayName: string; username: string; profileRevision: number };
 type AssetEdit = { title: string; kind: string; provider: string; reference: string; capacity: number };
@@ -26,7 +29,17 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [pageLoading, setPageLoading] = useState(false);
   const requestSequence = useRef(0);
+  const allocationSequence = useRef(0);
+  const selectedAssetRef = useRef(selectedId);
+  selectedAssetRef.current = selectedId;
+  const [allocationsLoadedFor, setAllocationsLoadedFor] = useState("");
+  const [allocationsLoading, setAllocationsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [assetCreatorOpen, setAssetCreatorOpen] = useState(false);
+  const [assetKindFilter, setAssetKindFilter] = useState("all");
+  const [catalogMode, setCatalogMode] = useState<"grid" | "list">("grid");
+  const [assetStatusFilter, setAssetStatusFilter] = useState("all");
+  const [assignmentOpen, setAssignmentOpen] = useState(false);
   const [newAsset, setNewAsset] = useState({ title: "", kind: "physical", provider: "", reference: "", capacity: 1 });
   const [edit, setEdit] = useState<AssetEdit | null>(null);
   const [assignment, setAssignment] = useState({ userId: "", quantity: 1, reason: "", expiresAt: "" });
@@ -50,51 +63,64 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
     try {
       const params = new URLSearchParams();
       if (search.trim()) params.set("q", search.trim());
+      if (assetKindFilter !== "all") params.set("kind", assetKindFilter);
+      if (assetStatusFilter !== "all") params.set("status", assetStatusFilter);
       if (cursor) params.set("cursor", cursor);
       const response = await api<{ assets: Asset[]; nextCursor: string | null }>(`/api/admin/inventory/assets?${params.toString()}`);
       if (sequence !== requestSequence.current) return [];
       const rows = response.assets || [];
       setAssets((current) => cursor ? [...current.filter((item) => !rows.some((row) => row.id === item.id)), ...rows] : rows);
       setNextCursor(response.nextCursor || null);
-      if (!cursor) setSelectedId((current) => rows.some((row) => row.id === current) ? current : rows[0]?.id || "");
+      if (!cursor) setSelectedId((current) => rows.some((row) => row.id === current) ? current : "");
       return rows;
     } finally {
       if (sequence === requestSequence.current) setPageLoading(false);
     }
   }
   async function loadAllocations(id: string, history: boolean) {
-    if (!id) { setAllocations([]); setAllocated(0); return; }
-    const response = await api<{ allocations: Allocation[]; allocated: number }>(`/api/admin/inventory/assets/${encodeURIComponent(id)}/allocations?history=${history}`);
-    setAllocations(response.allocations || []);
-    setAllocated(response.allocated || 0);
+    const sequence = ++allocationSequence.current;
+    setAllocationsLoading(Boolean(id));
+    setAllocationsLoadedFor("");
+    setAllocations([]);
+    setAllocated(0);
+    if (!id) { setAllocationsLoading(false); return; }
+    try {
+      const response = await api<{ allocations: Allocation[]; allocated: number }>(`/api/admin/inventory/assets/${encodeURIComponent(id)}/allocations?history=${history}`);
+      // A response for another asset can never make this asset appear available.
+      if (sequence !== allocationSequence.current || selectedAssetRef.current !== id) return;
+      setAllocations(response.allocations || []);
+      setAllocated(response.allocated || 0);
+      setAllocationsLoadedFor(id);
+    } finally {
+      if (sequence === allocationSequence.current && selectedAssetRef.current === id) setAllocationsLoading(false);
+    }
   }
   useEffect(() => {
+    // A catalog visit never needs the entire people directory. Load it only for
+    // assignment actions (or the legacy combined settings view with key pools).
+    if (!assignmentOpen && !includeKeyPools) return;
     let active = true;
     void api<{ people: Person[] }>("/api/admin/inventory/access-requests/options")
       .then((options) => { if (active) setPeople(options.people || []); })
       .catch((failure) => { if (active) setError(inventoryError(failure)); });
     return () => { active = false; };
-  }, []);
+  }, [assignmentOpen, includeKeyPools]);
   useEffect(() => {
     const timer = setTimeout(() => {
       void loadAssets(null, filter).catch((failure) => setError(inventoryError(failure))).finally(() => setLoading(false));
     }, 200);
     return () => { clearTimeout(timer); requestSequence.current++; };
-  }, [filter]);
+  }, [filter, assetKindFilter, assetStatusFilter]);
   const selected = assets.find((row) => row.id === selectedId);
   useEffect(() => {
     setEdit(selected ? editFields(selected) : null);
-    setRevokeConfirm(""); setDispositionId(""); setTransferId(""); setLifecycleConfirm(false);
+    setRevokeConfirm(""); setDispositionId(""); setTransferId(""); setLifecycleConfirm(false); setAssignmentOpen(false);
   }, [selectedId, selected?.revision]);
   useEffect(() => {
-    let active = true;
-    setAllocations([]); setAllocated(0);
-    if (selectedId) {
-      void api<{ allocations: Allocation[]; allocated: number }>(`/api/admin/inventory/assets/${encodeURIComponent(selectedId)}/allocations?history=${showHistory}`)
-        .then((response) => { if (active) { setAllocations(response.allocations || []); setAllocated(response.allocated || 0); } })
-        .catch((failure) => { if (active) setError(inventoryError(failure)); });
-    }
-    return () => { active = false; };
+    void loadAllocations(selectedId, showHistory).catch((failure) => {
+      if (selectedAssetRef.current === selectedId) setError(inventoryError(failure));
+    });
+    return () => { allocationSequence.current++; };
   }, [selectedId, showHistory]);
   async function mutate(task: () => Promise<void>) {
     if (inFlight.current) return;
@@ -107,26 +133,55 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
   async function reload(id = selectedId) {
     await Promise.all([loadAssets(), loadAllocations(id, showHistory)]);
   }
-  const free = selected?.status === "active" ? Math.max(0, selected.capacity - allocated) : 0;
-  const visibleAssets = assets;
+  const allocationsReady = Boolean(selected && allocationsLoadedFor === selected.id && !allocationsLoading);
+  const free = selected?.status === "active" && allocationsReady ? Math.max(0, selected.capacity - allocated) : 0;
+  const visibleAssets = assets; // Kind and lifecycle filtering are server-side before pagination.
+  const loadedSummary = summarizeLoadedAssets(visibleAssets);
   const editDirty = Boolean(selected && edit && JSON.stringify(edit) !== JSON.stringify(editFields(selected)));
-  return <div className="studio-systems-layout-v34f">
+  return <div className={`studio-systems-layout-v34f cluster-inventory-v29 ${selected || assetCreatorOpen ? "has-inspector" : ""}`}>
     <aside className="studio-systems-list-v34f">
-      <div className="settings-card-v092"><strong>Inventory</strong><p>Track assets and seat allocations. Key values and credentials belong in Vault, not Inventory.</p></div>
-      <div className="settings-card-v092"><strong>Inventory lifecycle overview</strong>
-        <p>Check current seat and key deadlines, and open physical custody. An expired game key is not automatically reusable.</p>
-        <ClusterButton type="button" disabled={busy} onClick={() => void mutate(async () => {
-          const result = await api<{ asOf: string; digitalSeatsExpiring: number; digitalSeatsPastDue: number; physicalCustodyOpen: number; keysExpiring: number; keysPastDue: number; vaultExpiring: number; vaultPastDue: number }>("/api/admin/inventory/attention");
-          setAttention(result);
-        })}>Refresh inventory attention</ClusterButton>
-        {attention && <p role="status">As of {new Date(attention.asOf).toLocaleString()}: {attention.digitalSeatsExpiring} seats expiring within 7 days, {attention.digitalSeatsPastDue} expired seats awaiting reconciliation, {attention.physicalCustodyOpen} open equipment allocations, {attention.keysExpiring} keys expiring within 7 days, {attention.keysPastDue} expired key assignments (not reusable), {attention.vaultExpiring ?? 0} Vault secrets expiring within 7 days, {attention.vaultPastDue ?? 0} expired Vault secrets requiring review. No secret values are included.</p>}
+      <div className="cluster-inventory-visual-summary-rc41" aria-label="Loaded inventory visual summary">
+        {loadedSummary.total > 0 ? <>
+          <ClusterVisualComposition label={nextCursor ? "Loaded matching assets · more available" : "Loaded matching assets"} total={loadedSummary.total} parts={[
+            { label: "Active", value: loadedSummary.active, tone: "good" },
+            { label: "Retired", value: loadedSummary.retired, tone: "neutral" },
+            { label: "Other", value: loadedSummary.other, tone: "warning" },
+          ]} />
+          <details className="cluster-inventory-visual-details-rc41"><summary>Asset types</summary>
+            <ClusterVisualRankedBars label="Types in loaded view" rows={loadedSummary.kinds.slice(0, 6)} />
+          </details>
+        </> : !loading && !pageLoading ? <span className="muted">No matching assets loaded</span> : null}
+        <ClusterButton size="compact" variant="secondary" aria-label="Refresh inventory attention" disabled={busy} onClick={() => void mutate(async () => {
+          setAttention(await api<{ asOf: string; digitalSeatsExpiring: number; digitalSeatsPastDue: number; physicalCustodyOpen: number; keysExpiring: number; keysPastDue: number; vaultExpiring: number; vaultPastDue: number }>("/api/admin/inventory/attention"));
+        })}><ClusterIcon name="refresh" /> Audit</ClusterButton>
       </div>
-      <div className="field"><label>Find assets</label><ClusterInput value={filter} placeholder="Search all Inventory by name, reference or provider" onChange={(event) => setFilter(event.target.value)}/></div>
-      {visibleAssets.map((asset) => <ClusterButton key={asset.id} type="button" className={selectedId === asset.id ? "active" : ""} disabled={busy} onClick={() => setSelectedId(asset.id)}>{asset.title} · {asset.kind}{asset.status !== "active" ? " · Retired" : ""}</ClusterButton>)}
-      {!loading && !visibleAssets.length && <p>No matching assets.</p>}
+      {attention && <div className="cluster-inventory-attention" role="status"><ClusterIcon name="bell" /> {attention.digitalSeatsExpiring + attention.digitalSeatsPastDue + attention.keysExpiring + attention.keysPastDue + attention.vaultExpiring + attention.vaultPastDue} expiring / past due · {attention.physicalCustodyOpen} checked out</div>}
+      <div className="cluster-inventory-browser-head"><strong>Assets</strong><div className="cluster-inventory-browser-actions"><ClusterButton size="compact" variant={catalogMode === "grid" ? "primary" : "secondary"} aria-pressed={catalogMode === "grid"} onClick={() => setCatalogMode("grid")}><ClusterIcon name="grid" /> Grid</ClusterButton><ClusterButton size="compact" variant={catalogMode === "list" ? "primary" : "secondary"} aria-pressed={catalogMode === "list"} onClick={() => setCatalogMode("list")}><ClusterIcon name="list" /> List</ClusterButton><ClusterButton size="compact" variant="primary" onClick={() => { setSelectedId(""); setAssetCreatorOpen((open) => !open); }} aria-expanded={assetCreatorOpen}><ClusterIcon name={assetCreatorOpen ? "close" : "plus"} />{assetCreatorOpen ? "Cancel" : "Add asset"}</ClusterButton></div></div>
+      <nav className="cluster-inventory-category-nav" aria-label="Asset categories">{([
+        ["all", "All assets", "inventory"], ["physical", "Physical", "archive"], ["equipment", "Equipment", "tools"], ["digital", "Digital", "code"], ["license", "Licenses", "lock"]
+      ] as const).map(([id, label, icon]) => <ClusterButton key={id} size="compact" variant={assetKindFilter === id ? "primary" : "secondary"} aria-pressed={assetKindFilter === id} onClick={() => { setAssetKindFilter(id); setAssetCreatorOpen(false); setSelectedId(""); }}><ClusterIcon name={icon} /> {label}</ClusterButton>)}</nav>
+      <div className="field"><ClusterInput aria-label="Search assets" value={filter} placeholder="Name, serial, provider…" onChange={(event) => setFilter(event.target.value)}/></div>
+      <div className="cluster-inventory-filters"><ClusterNativeSelect aria-label="Filter asset lifecycle" value={assetStatusFilter} onChange={(event) => setAssetStatusFilter(event.target.value)}><option value="all">All states</option><option value="active">Active</option><option value="retired">Retired</option></ClusterNativeSelect></div>
+      <div className={`cluster-inventory-catalog catalog-${catalogMode}`} role="list" aria-label="Inventory catalog">
+      {loading && [1,2,3].map((row) => <div className="cluster-resource-skeleton-item" role="status" aria-label="Loading inventory assets" key={row}><span/><div><strong/><small/></div></div>)}
+      {visibleAssets.map((asset) => <ClusterButton key={asset.id} type="button" className={`cluster-inventory-item ${selectedId === asset.id ? "active" : ""}`} aria-pressed={selectedId === asset.id} disabled={busy} onClick={() => { setAssetCreatorOpen(false); setSelectedId((id) => id === asset.id ? "" : asset.id); }}>
+        <span className="cluster-inventory-item__icon"><ClusterIcon name={asset.kind === "license" ? "lock" : asset.kind === "digital" ? "code" : asset.kind === "equipment" ? "tools" : "inventory"} treatment="duotone" /></span>
+        <span className="cluster-inventory-item__identity"><strong>{asset.title}</strong><small>{asset.provider || asset.kind.replaceAll("_", " ")}</small></span>
+        <span className={`cluster-inventory-item__status ${asset.status !== "active" ? "is-retired" : ""}`}>{asset.status === "active" ? "Active" : "Retired"}</span>
+        <span className="cluster-inventory-item__stock"><ClusterVisualMeter label="Available" value={asset.available ?? null} total={asset.capacity} tone={asset.available === 0 ? "warning" : "good"} compact /></span>
+      </ClusterButton>)}
+      </div>
+      {!loading && !visibleAssets.length && <div className="cluster-inventory-mini-empty"><ClusterIcon name="archive" /><strong>No matching assets</strong><ClusterButton size="compact" variant="quiet" onClick={() => { setFilter(""); setAssetKindFilter("all"); setAssetStatusFilter("all"); }}>Clear filters</ClusterButton></div>}
+      {error && !selected && !assetCreatorOpen && <p role="alert">{error}</p>}
+      {message && !selected && !assetCreatorOpen && <p role="status">{message}</p>}
       {pageLoading && <p>Loading inventory records…</p>}
       {nextCursor && <ClusterButton type="button" disabled={busy || pageLoading} onClick={() => void loadAssets(nextCursor).catch((failure) => setError(inventoryError(failure)))}>Load more assets</ClusterButton>}
-      <div className="settings-card-v092"><strong>Create asset</strong>
+    </aside>
+    {(selected || assetCreatorOpen) && <section className="studio-systems-editor-v34f" aria-label="Asset inspector">
+      <div className="cluster-inventory-inspector-close"><strong>{assetCreatorOpen ? "New asset" : "Asset details"}</strong><ClusterButton size="compact" variant="quiet" aria-label="Close asset details" onClick={() => { setSelectedId(""); setAssetCreatorOpen(false); }}><ClusterIcon name="close" /></ClusterButton></div>
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
+      {assetCreatorOpen && <div className="settings-card-v092 cluster-inventory-creator"><strong>New asset</strong>
         <div className="field"><label>Name</label><ClusterInput value={newAsset.title} maxLength={160} onChange={(event) => setNewAsset((old) => ({ ...old, title: event.target.value }))}/></div>
         <div className="field"><label>Kind</label><ClusterNativeSelect value={newAsset.kind} onChange={(event) => setNewAsset((old) => ({ ...old, kind: event.target.value }))}><option value="physical">Physical</option><option value="equipment">Equipment</option><option value="digital">Digital</option><option value="license">License seats</option></ClusterNativeSelect></div>
         <div className="field"><label>Provider</label><ClusterInput maxLength={160} value={newAsset.provider} onChange={(event) => setNewAsset((old) => ({ ...old, provider: event.target.value }))}/></div>
@@ -135,21 +190,19 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
         <ClusterButton type="button" variant="primary" disabled={busy || !newAsset.title.trim() || !Number.isInteger(newAsset.capacity) || newAsset.capacity < 1} onClick={() => void mutate(async () => {
           const response = await api<{ asset: Asset }>("/api/admin/inventory/assets", { method: "POST", body: JSON.stringify({ ...newAsset, provider: newAsset.provider || null, reference: newAsset.reference || null }) });
           setNewAsset({ title: "", kind: "physical", provider: "", reference: "", capacity: 1 });
-          await loadAssets(); setSelectedId(response.asset.id); setMessage("Asset created.");
+          const filtersWereActive = Boolean(filter.trim() || assetKindFilter !== "all" || assetStatusFilter !== "all");
+          setFilter(""); setAssetKindFilter("all"); setAssetStatusFilter("all");
+          if (!filtersWereActive) await loadAssets(null, "");
+          setSelectedId(response.asset.id); setAssetCreatorOpen(false); setMessage("Asset created.");
         })}>Create asset</ClusterButton>
-      </div>
-    </aside>
-    <section className="studio-systems-editor-v34f">
-      {loading && <p>Loading Inventory…</p>}
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
-      {!selected && !loading && <p>Create or select an asset to manage its lifecycle and allocations.</p>}
-      {selected && <>
-        <h3>{selected.title}</h3><p>{selected.kind} · {selected.status} · {allocated} of {selected.capacity} allocated · {free} available · Revision {selected.revision}</p>
-        <div className="settings-card-v092"><strong>Edit asset</strong>
+      </div>}
+      {!assetCreatorOpen && !selected && !loading && <div className="cluster-inventory-zero-state"><ClusterIcon name="inventory" treatment="duotone" /><strong>Select an asset</strong><span>Choose a record or create one from the catalog.</span></div>}
+      {!assetCreatorOpen && selected && <>
+        <header className="cluster-inventory-selected-head"><div><small>{selected.kind.toUpperCase()} · {selected.status}</small><h3>{selected.title}</h3></div><div className="cluster-inventory-availability-v34">{allocationsReady ? <ClusterVisualComposition label="Stock" total={selected.capacity} parts={[{ label: "Available", value: free, tone: "good" }, { label: "Assigned", value: allocated, tone: "accent" }]} /> : <span>Loading stock…</span>}</div></header>
+        <details className="settings-card-v092 cluster-resource-disclosure"><summary><ClusterIcon name="settings" /> Edit details</summary>
           {edit && <>
             <div className="field"><label>Name</label><ClusterInput maxLength={160} value={edit.title} onChange={(event) => setEdit((old) => old && ({ ...old, title: event.target.value }))}/></div>
-            <div className="field"><label>Kind</label><ClusterNativeSelect value={edit.kind} disabled={allocated > 0} onChange={(event) => setEdit((old) => old && ({ ...old, kind: event.target.value }))}><option value="physical">Physical</option><option value="equipment">Equipment</option><option value="digital">Digital</option><option value="license">License seats</option></ClusterNativeSelect></div>
+            <div className="field"><label>Kind</label><ClusterNativeSelect value={edit.kind} disabled={!allocationsReady || allocated > 0} onChange={(event) => setEdit((old) => old && ({ ...old, kind: event.target.value }))}><option value="physical">Physical</option><option value="equipment">Equipment</option><option value="digital">Digital</option><option value="license">License seats</option></ClusterNativeSelect></div>
             <div className="field"><label>Provider</label><ClusterInput maxLength={160} value={edit.provider} onChange={(event) => setEdit((old) => old && ({ ...old, provider: event.target.value }))}/></div>
             <div className="field"><label>Reference / serial</label><ClusterInput maxLength={160} value={edit.reference} onChange={(event) => setEdit((old) => old && ({ ...old, reference: event.target.value }))}/></div>
             <div className="field"><label>Capacity</label><ClusterInput type="number" min={Math.max(1, allocated)} max={1000000} value={edit.capacity} onChange={(event) => setEdit((old) => old && ({ ...old, capacity: Number(event.target.value) }))}/></div>
@@ -159,15 +212,15 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
             })}>Save changes</ClusterButton>
             <ClusterButton type="button" disabled={busy || !editDirty} onClick={() => setEdit(editFields(selected))}>Discard edits</ClusterButton>
           </>}
-        </div>
-        <div className="settings-card-v092"><strong>Asset lifecycle</strong><p>Retiring an asset prevents new assignments. Existing assignments must be returned or revoked first; history is preserved.</p>
+        </details>
+        <details className="settings-card-v092 cluster-resource-disclosure"><summary><ClusterIcon name="archive" /> Lifecycle</summary><p>Retiring an asset prevents new assignments. Existing assignments must be returned or revoked first; history is preserved.</p>
           {lifecycleConfirm ? <div><p>Confirm {selected.status === "active" ? "retirement" : "reactivation"} of {selected.title}?</p>
             <ClusterButton type="button" variant={selected.status === "active" ? "danger" : "primary"} disabled={busy} onClick={() => void mutate(async () => {
               await api(`/api/admin/inventory/assets/${encodeURIComponent(selected.id)}/lifecycle`, { method: "POST", headers: { "X-Cluster-Confirmation": "CHANGE INVENTORY LIFECYCLE" }, body: JSON.stringify({ expectedRevision: selected.revision, status: selected.status === "active" ? "retired" : "active" }) });
               setLifecycleConfirm(false); await reload(); setMessage("Asset lifecycle updated.");
             })}>Confirm</ClusterButton><ClusterButton type="button" onClick={() => setLifecycleConfirm(false)}>Cancel</ClusterButton></div>
-            : <ClusterButton type="button" disabled={busy || (selected.status === "active" && allocated > 0)} onClick={() => setLifecycleConfirm(true)}>{selected.status === "active" ? "Retire asset…" : "Reactivate asset…"}</ClusterButton>}
-        </div>
+            : <ClusterButton type="button" disabled={busy || !allocationsReady || (selected.status === "active" && allocated > 0)} onClick={() => setLifecycleConfirm(true)}>{selected.status === "active" ? "Retire asset…" : "Reactivate asset…"}</ClusterButton>}
+        </details>
         <div className="settings-card-v092"><strong>Allocations</strong><p>Current: {allocated} seats · Available: {free}</p>
           <label><input type="checkbox" checked={showHistory} onChange={(event) => setShowHistory(event.target.checked)}/> Show allocation history (up to 500 entries)</label>
           {allocations.length === 0 && <p>No {showHistory ? "recorded" : "active"} allocations.</p>}
@@ -211,12 +264,13 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
             </>}
           </div>)}
         </div>
-        {selected.status === "active" && <div className="settings-card-v092"><strong>Assign asset or seats</strong>
+        {selected.status === "active" && <details className="settings-card-v092 cluster-resource-disclosure" open={assignmentOpen} onToggle={(event) => setAssignmentOpen(event.currentTarget.open)}><summary><ClusterIcon name="plus" /> Assign {selected.kind === "license" || selected.kind === "digital" ? "seats" : "equipment"} · {free} available</summary>
+          {!allocationsReady && <p role="status">Checking available capacity…</p>}
           <div className="field"><label>Person</label><ClusterNativeSelect value={assignment.userId} onChange={(event) => setAssignment((old) => ({ ...old, userId: event.target.value }))}><option value="">Choose a person</option>{people.map((person) => <option key={person.id} value={person.id}>{person.displayName || person.username}</option>)}</ClusterNativeSelect></div>
           <div className="field"><label>Quantity</label><ClusterInput type="number" min={1} max={free} value={assignment.quantity} onChange={(event) => setAssignment((old) => ({ ...old, quantity: Number(event.target.value) }))}/></div>
           <div className="field"><label>Reason</label><ClusterInput maxLength={1000} value={assignment.reason} onChange={(event) => setAssignment((old) => ({ ...old, reason: event.target.value }))}/></div>
           {(["digital", "license"].includes(selected.kind)) && <div className="field"><label>Lease expiry (required for reviewed seats, local time; max 180 days)</label><ClusterInput type="datetime-local" value={assignment.expiresAt} onChange={(event) => setAssignment((old) => ({ ...old, expiresAt: event.target.value }))}/></div>}
-          <ClusterButton variant="primary" type="button" disabled={busy || !assignment.userId || !Number.isInteger(assignment.quantity) || assignment.quantity < 1 || assignment.quantity > free || (["digital", "license"].includes(selected.kind) && (!assignment.expiresAt || assignment.reason.trim().length < 8))} onClick={() => void mutate(async () => {
+          <ClusterButton variant="primary" type="button" disabled={busy || !allocationsReady || !assignment.userId || !Number.isInteger(assignment.quantity) || assignment.quantity < 1 || assignment.quantity > free || (["digital", "license"].includes(selected.kind) && (!assignment.expiresAt || assignment.reason.trim().length < 8))} onClick={() => void mutate(async () => {
             if (["digital", "license"].includes(selected.kind)) {
               const person = people.find((row) => row.id === assignment.userId);
               if (!person) throw new Error("Recipient not in the active Inventory roster; refresh.");
@@ -226,10 +280,10 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
             }
             setAssignment({ userId: "", quantity: 1, reason: "", expiresAt: "" }); await reload(); setMessage(["digital", "license"].includes(selected.kind) ? "Seat issuance requested for independent approval." : "Physical custody allocation recorded.");
           })}>{["digital", "license"].includes(selected.kind) ? "Request seat issuance" : "Assign equipment"}</ClusterButton>
-        </div>}
+        </details>}
       </>}
     {includeKeyPools && <StudioInventoryKeyPools people={people}/>}
-    </section>
+    </section>}
   </div>;
 }
 
@@ -252,27 +306,43 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
   const [shown, setShown] = useState<{ id: string; value: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
+  const poolListSeq = useRef(0);
+  const poolKeysSeq = useRef(0);
+  const chosenPoolRef = useRef(selectedId);
+  chosenPoolRef.current = selectedId;
+  const [poolCreatorOpen, setPoolCreatorOpen] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const selected = pools.find((pool) => pool.id === selectedId);
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") { setShown(null); setImportText(""); setImportConfirm(false); }
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => { document.removeEventListener("visibilitychange", onHidden); poolListSeq.current++; poolKeysSeq.current++; };
+  }, []);
   useEffect(() => {
     if (!shown) return;
     const timeout = setTimeout(() => setShown(null), 20_000);
     return () => clearTimeout(timeout);
   }, [shown]);
   async function loadPools(next: string | null = null, search = poolSearch) {
+    const seq = ++poolListSeq.current;
     const query = new URLSearchParams();
     if (next) query.set("cursor", next);
     if (search.trim()) query.set("q", search.trim());
     const response = await api<{ pools: KeyPool[]; nextCursor: string | null }>(`/api/admin/inventory/key-pools?${query.toString()}`);
+    if (seq !== poolListSeq.current) return;
     setPools((current) => next ? [...current.filter((old) => !(response.pools || []).some((pool) => pool.id === old.id)), ...(response.pools || [])] : response.pools || []);
     setPoolCursor(response.nextCursor || null);
-    if (!next) setSelectedId((current) => current || response.pools?.[0]?.id || "");
+    if (!next) setSelectedId((current) => response.pools?.some((pool) => pool.id === current) ? current : response.pools?.[0]?.id || "");
   }
   async function loadKeys(id: string, next: string | null = null) {
+    const seq = ++poolKeysSeq.current;
     if (!id) { setKeys([]); setCursor(null); return; }
     const query = next ? `?cursor=${encodeURIComponent(next)}` : "";
     const response = await api<{ pool: KeyPool; keys: PoolKey[]; nextCursor: string | null }>(`/api/admin/inventory/key-pools/${encodeURIComponent(id)}/keys${query}`);
+    if (seq !== poolKeysSeq.current || chosenPoolRef.current !== id) return;
     setPools((current) => current.some((pool) => pool.id === response.pool.id)
       ? current.map((pool) => pool.id === response.pool.id ? response.pool : pool)
       : [...current, response.pool]);
@@ -281,15 +351,14 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
   }
   useEffect(() => {
     const timeout = setTimeout(() => { void loadPools(null, poolSearch).catch((failure) => setError(inventoryError(failure))); }, 200);
-    return () => clearTimeout(timeout);
+    return () => { clearTimeout(timeout); poolListSeq.current++; };
   }, [poolSearch]);
   useEffect(() => {
     let active = true;
-    setShown(null); setKeys([]); setCursor(null); setAction(null); setImportConfirm(false);
-    if (selectedId) void api<{ keys: PoolKey[]; nextCursor: string | null }>(`/api/admin/inventory/key-pools/${encodeURIComponent(selectedId)}/keys`)
-      .then((response) => { if (active) { setKeys(response.keys || []); setCursor(response.nextCursor || null); } })
-      .catch((failure) => { if (active) setError(inventoryError(failure)); });
-    return () => { active = false; };
+    poolKeysSeq.current++;
+    setShown(null); setKeys([]); setCursor(null); setAction(null); setImportConfirm(false); setImportText("");
+    if (selectedId) void loadKeys(selectedId).catch((failure) => { if (active) setError(inventoryError(failure)); });
+    return () => { active = false; poolKeysSeq.current++; };
   }, [selectedId]);
   async function perform(task: () => Promise<void>) {
     if (running.current) return;
@@ -302,21 +371,22 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
   const values = importText.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
   const safeInput = values.length > 0 && values.length <= 100 && values.every((value) => value.length <= 256);
   return <div className="settings-card-v092">
-    <h3>Game and license key pools</h3>
-    <p>Import up to 100 keys per batch. Values are encrypted in Vault; Inventory shows only assignments, statuses, and counts. Reveals are privileged, audited, and temporary.</p>
+    <header className="cluster-key-pools-heading"><ClusterIcon name="game" treatment="duotone" /><h3>Key pools</h3><span>{pools.length}{poolCursor ? "+" : ""} shown</span></header>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    <ClusterButton type="button" variant="secondary" size="compact" onClick={() => setPoolCreatorOpen((open) => !open)} aria-expanded={poolCreatorOpen}><ClusterIcon name={poolCreatorOpen ? "close" : "plus"} /> {poolCreatorOpen ? "Close" : "New key pool"}</ClusterButton>
+    {poolCreatorOpen && <div className="cluster-key-pool-creator">
     <div className="field"><label>New pool name</label><ClusterInput maxLength={160} value={newPool.title} onChange={(event) => setNewPool((old) => ({ ...old, title: event.target.value }))}/></div>
     <div className="field"><label>Provider</label><ClusterInput maxLength={160} value={newPool.provider} onChange={(event) => setNewPool((old) => ({ ...old, provider: event.target.value }))}/></div>
     <div className="field"><label>Key type</label><ClusterNativeSelect value={newPool.kind} onChange={(event) => setNewPool((old) => ({ ...old, kind: event.target.value }))}><option value="game_key">Game key</option><option value="license_key">License key</option></ClusterNativeSelect></div>
     <ClusterButton type="button" variant="primary" disabled={busy || !newPool.title.trim()} onClick={() => void perform(async () => {
       const response = await api<{ pool: KeyPool }>("/api/admin/inventory/key-pools", { method: "POST", body: JSON.stringify({ ...newPool, provider: newPool.provider || null }) });
-      setNewPool({ title: "", provider: "", kind: "game_key" }); await loadPools(); setPools((current) => current.some((row) => row.id === response.pool.id) ? current : [...current, response.pool]); setSelectedId(response.pool.id); setMessage("Key pool created.");
-    })}>Create key pool</ClusterButton>
+      setNewPool({ title: "", provider: "", kind: "game_key" }); setPoolCreatorOpen(false); await loadPools(); setPools((current) => current.some((row) => row.id === response.pool.id) ? current : [...current, response.pool]); setSelectedId(response.pool.id); setMessage("Key pool created.");
+    })}>Create key pool</ClusterButton></div>}
     <div className="field"><label>Search pools</label><ClusterInput value={poolSearch} maxLength={160} placeholder="Search name or provider" onChange={(event) => setPoolSearch(event.target.value)}/></div>
-    <div className="field"><label>Manage pool</label><ClusterNativeSelect value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Choose a pool</option>{pools.map((pool) => <option key={pool.id} value={pool.id}>{pool.title} ({pool._count?.keys ?? 0} keys) {pool.status === "closed" ? "[closed]" : ""}</option>)}</ClusterNativeSelect></div>
+    <div className="field"><label>Pool</label><ClusterNativeSelect value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Choose a pool</option>{pools.map((pool) => <option key={pool.id} value={pool.id}>{pool.title} ({pool._count?.keys ?? 0} keys) {pool.status === "closed" ? "[closed]" : ""}</option>)}</ClusterNativeSelect></div>
     {poolCursor && <ClusterButton type="button" disabled={busy} onClick={() => void perform(async () => { await loadPools(poolCursor); })}>Load more pools</ClusterButton>}
     {selected && <>
-      <p>{selected.title} · {selected.kind.replaceAll("_", " ")} · {selected.status} · revision {selected.revision}</p>
+      <div className="cluster-key-pool-selected"><ClusterIcon name="game" treatment="duotone" /><div><strong>{selected.title}</strong><small>{selected.kind.replaceAll("_", " ")} · {selected._count?.keys ?? 0} keys</small></div><span className={selected.status === "active" ? "is-active" : ""}>{selected.status}</span></div>
       <ClusterButton type="button" disabled={busy} onClick={() => void perform(async () => {
         await api(`/api/admin/inventory/key-pools/${encodeURIComponent(selected.id)}/lifecycle`, { method: "POST", headers: { "X-Cluster-Confirmation": "CHANGE KEY POOL STATUS" }, body: JSON.stringify({ expectedRevision: selected.revision, status: selected.status === "active" ? "closed" : "active" }) });
         await refresh(); setMessage("Pool availability changed.");
@@ -333,11 +403,12 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
         : <ClusterButton type="button" disabled={busy || !safeInput} onClick={() => setImportConfirm(true)}>Review import ({values.length})</ClusterButton>}
       </div>}
       <InventoryKeyCustodyReview poolId={selected.id} />
-      <strong>Keys</strong>
-      {keys.length === 0 && <p>No keys in this pool.</p>}
-      {keys.map((key) => <div className="studio-explanation-v272" key={key.id}>
-        <strong>Key {key.id.slice(0, 8)}… · {key.status === "assigned" && key.expiresAt && new Date(key.expiresAt) <= new Date() ? "expired (retained, not reusable)" : key.status}</strong>
-        <p>{key.userId ? `Assigned to ${people.find((person) => person.id === key.userId)?.displayName || key.userId}` : "Not assigned"}{key.closedReason ? ` · ${key.closedReason}` : ""}{key.expiresAt ? ` · Expires ${new Date(key.expiresAt).toLocaleDateString()}` : ""}{key.firstRevealedAt ? " · Disclosed (never reusable)" : ""} · rev {key.revision}</p>
+      <header className="cluster-key-pools-heading"><h3>Keys</h3><span>{keys.length}{cursor ? "+" : ""} shown</span></header>
+      {keys.length === 0 && <div className="cluster-inventory-mini-empty"><ClusterIcon name="lock" treatment="duotone" /><strong>No keys yet</strong><span>Import keys to this pool.</span></div>}
+      <div className="cluster-key-pool-key-grid">
+      {keys.map((key) => <div className="cluster-key-pool-key" key={key.id}>
+        <header><span className="cluster-key-pool-key__glyph"><ClusterIcon name="lock" treatment="duotone" /></span><strong>Key {key.id.slice(0, 8)}…</strong><span className={`cluster-key-pool-key__status state-${key.status}`}>{key.status === "assigned" && key.expiresAt && new Date(key.expiresAt) <= new Date() ? "Expired" : key.status}</span></header>
+        <p>{key.userId ? `Assigned to ${people.find((person) => person.id === key.userId)?.displayName || key.userId}` : "Unassigned"}{key.closedReason ? ` · ${key.closedReason}` : ""}{key.expiresAt ? ` · Expires ${new Date(key.expiresAt).toLocaleDateString()}` : ""}{key.firstRevealedAt ? " · Disclosed" : ""}</p>
         {action?.keyId === key.id ? <div>
           {action.kind === "assign" ? <>
             <div className="field"><label>Recipient</label><ClusterNativeSelect value={action.userId} onChange={(event) => setAction((old) => old && ({ ...old, userId: event.target.value }))}><option value="">Choose person</option>{people.map((person) => <option value={person.id} key={person.id}>{person.displayName || person.username}</option>)}</ClusterNativeSelect></div>
@@ -360,7 +431,9 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
           {key.status === "available" && selected.status === "active" && <ClusterButton type="button" disabled={busy} onClick={() => setAction({ keyId: key.id, kind: "assign", userId: "", reason: "", expiresAt: "" })}>Assign key…</ClusterButton>}
           {key.status === "assigned" && <>
             <ClusterButton type="button" disabled={busy || selected.status !== "active" || Boolean(key.expiresAt && new Date(key.expiresAt) <= new Date())} onClick={() => void perform(async () => {
+              const poolSequence = poolKeysSeq.current;
               const response = await api<{ value: string }>(`/api/admin/inventory/key-pools/${encodeURIComponent(selected.id)}/keys/${encodeURIComponent(key.id)}/reveal`, { method: "POST", headers: { "X-Cluster-Confirmation": "REVEAL INVENTORY KEY" }, body: JSON.stringify({ expectedRevision: key.revision }) });
+              if (poolSequence !== poolKeysSeq.current || chosenPoolRef.current !== selected.id || document.visibilityState === "hidden") return;
               setShown({ id: key.id, value: response.value }); setMessage("Key revealed for 20 seconds. Do not share it through unapproved channels.");
             })}>Reveal assigned key (audited)</ClusterButton>
             <ClusterButton type="button" disabled={busy} onClick={() => setAction({ keyId: key.id, kind: "redeemed", userId: "", reason: "", expiresAt: "" })}>Mark redeemed…</ClusterButton>
@@ -369,6 +442,7 @@ export function StudioInventoryKeyPools({ people }: { people: Person[] }) {
         </>}
         {shown?.id === key.id && <div role="status"><strong>Temporary secret:</strong> <code>{shown.value}</code> <ClusterButton type="button" onClick={() => setShown(null)}>Hide now</ClusterButton></div>}
       </div>)}
+      </div>
       {cursor && <ClusterButton type="button" disabled={busy} onClick={() => void perform(async () => { await loadKeys(selected.id, cursor); })}>Load more keys</ClusterButton>}
     </>}
   </div>;

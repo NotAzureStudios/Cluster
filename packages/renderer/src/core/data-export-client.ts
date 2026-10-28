@@ -40,6 +40,7 @@ export async function requestClusterDataExport(input: ClusterDataExportClientReq
     if (!receipt.jobId) throw new Error("The export was queued without a job identifier.");
     return { mode: "background", jobId: receipt.jobId };
   }
+  if (response.headers.get("content-type")?.toLowerCase().includes("text/html")) throw new Error("Export returned an HTML page, not a file. Check your Cluster session.");
   const blob = await response.blob();
   const disposition = response.headers.get("content-disposition") || "";
   const match = disposition.match(/filename="([^"]+)"/i);
@@ -48,8 +49,13 @@ export async function requestClusterDataExport(input: ClusterDataExportClientReq
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = fileName;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  // Chromium can process the click asynchronously; immediate URL revocation
+  // races against the download manager and silently drops the file.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   return {
     mode: "download",
     fileName,

@@ -192,6 +192,7 @@ var (
 	procSetTimer               = user32.NewProc("SetTimer")
 	procKillTimer              = user32.NewProc("KillTimer")
 	procSetForegroundWindow    = user32.NewProc("SetForegroundWindow")
+	procFindWindowW            = user32.NewProc("FindWindowW")
 	procLoadImageW             = user32.NewProc("LoadImageW")
 	procShellNotifyIcon        = syscall.NewLazyDLL("shell32.dll").NewProc("Shell_NotifyIconW")
 	procSetWindowPos           = user32.NewProc("SetWindowPos")
@@ -443,13 +444,11 @@ var originalCommandEditProc uintptr
 var commandEditCallback = syscall.NewCallback(commandEditWndProc)
 
 func runPlatformLauncher(options launcherOptions) error {
-	relaunched, err := ensureWindowsAdministrator()
-	if err != nil {
-		return err
-	}
-	if relaunched {
-		return nil
-	}
+	// The ordinary control panel, local PostgreSQL, and loopback API do not
+	// require an administrator token. Always elevating the UI breaks some
+	// lower-integrity screenshot/overlay utilities and needlessly expands
+	// the privileges held by the web/API child processes. Windows Service
+	// installation/removal still requests elevation in service_actions_windows.go.
 	prefs := loadNativePanelPreferences(options.root)
 	if options.modeOverride == "" && !prefs.Configured {
 		answer := messageBox(0, "Cluster Windows Server", "Use visual interface?", mbYesNo|mbIconQuestion)
@@ -504,7 +503,17 @@ func runWindowsControlPanel(options launcherOptions) error {
 	}
 	defer procCloseHandle.Call(mutex)
 	if errno, ok := mutexErr.(syscall.Errno); ok && errno == 183 {
-		messageBox(0, "Cluster Server", "The Cluster Server control panel is already open.", mbIconError)
+		// A second click on the root Cluster Server.exe should bring its existing
+		// Win32 panel back (including when it is minimized to the tray), rather
+		// than open a second manager or show a confusing duplicate-instance error.
+		className := utf16("ClusterServerNativeControlPanel")
+		existing, _, _ := procFindWindowW.Call(uintptr(unsafe.Pointer(className)), 0)
+		if existing != 0 {
+			procShowWindow.Call(existing, swRestore)
+			procSetForegroundWindow.Call(existing)
+			return nil
+		}
+		messageBox(0, "Cluster Server", "The Cluster Server Manager is already running, but its window could not be found.", mbIconError)
 		return nil
 	}
 
@@ -545,7 +554,7 @@ func runWindowsControlPanel(options launcherOptions) error {
 	hwnd, _, err := procCreateWindowExW.Call(
 		0,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16("Cluster Windows Server"))),
+		uintptr(unsafe.Pointer(utf16("Cluster Server " + displayReleaseVersion(options.root)))),
 		wsOverlappedWin|wsClipChildren,
 		120, 90, 1040, 760,
 		0, 0, instance, 0,
@@ -570,7 +579,7 @@ func runWindowsControlPanel(options launcherOptions) error {
 	}
 	defer captureCleanup()
 
-	fmt.Printf("Cluster Server v%s native Windows control panel\n", version)
+	fmt.Printf("Cluster Server %s native Windows control panel\n", displayReleaseVersion(options.root))
 	fmt.Printf("Workspace: %s\n", options.root)
 	fmt.Println("Interface: native Win32 controls; no browser renderer or WebView is used by this control panel.")
 	fmt.Println()
@@ -627,7 +636,7 @@ func (ui *windowsControlPanel) createControls(instance uintptr) error {
 	if ui.title, err = createControl("STATIC", "Cluster Windows Server", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
 		return err
 	}
-	if ui.subtitle, err = createControl("STATIC", "Native control panel · v"+version, wsChild|wsVisible|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
+	if ui.subtitle, err = createControl("STATIC", "Native control panel · "+displayReleaseVersion(ui.controller.options.root), wsChild|wsVisible|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
 		return err
 	}
 	if ui.statusDot, err = createControl("STATIC", "●", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
@@ -1450,7 +1459,7 @@ func (c *windowsServerController) failStart(err error) {
 	logs := filepath.Join(c.options.root, "data", "system", "logs")
 	if mkErr := os.MkdirAll(logs, 0o755); mkErr == nil {
 		failurePath := filepath.Join(logs, "last-startup-failure.log")
-		_ = os.WriteFile(failurePath, []byte(fmt.Sprintf("%s Cluster Server v%s\n%s\n", time.Now().Format(time.RFC3339), version, message)), 0o600)
+		_ = os.WriteFile(failurePath, []byte(fmt.Sprintf("%s Cluster Server %s\n%s\n", time.Now().Format(time.RFC3339), displayReleaseVersion(c.options.root), message)), 0o600)
 		fmt.Fprintf(os.Stderr, "Startup failure summary: %s\n", failurePath)
 	}
 	recordLauncherEmergency(c.options.root, nativealerts.LauncherStartupFailed)
@@ -2754,7 +2763,7 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 	}
 	originalOut, originalErr := os.Stdout, os.Stderr
 	os.Stdout, os.Stderr = writer, writer
-	_, _ = fmt.Fprintf(logFile, "\n===== Cluster Server v%s session %s =====\n", version, time.Now().Format(time.RFC3339))
+	_, _ = fmt.Fprintf(logFile, "\n===== Cluster Server %s session %s =====\n", displayReleaseVersion(root), time.Now().Format(time.RFC3339))
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)

@@ -1,5 +1,5 @@
 import process from "node:process";
-import { relayDiscordInteraction } from "./cluster-client.mjs";
+import { relayDiscordInteraction, reportClusterGatewayHealth } from "./cluster-client.mjs";
 
 const token = String(process.env.CLUSTER_DISCORD_BOT_TOKEN || "").trim();
 const relayToken = String(process.env.CLUSTER_DISCORD_RELAY_TOKEN || "").trim();
@@ -16,6 +16,15 @@ let reconnectTimer = null;
 let reconnectAttempt = 0;
 let currentSocket = null;
 let shuttingDown = false;
+let gatewayReady = false;
+function publishGatewayHealth(state) {
+  // No credentials or Discord message content are persisted in health reports.
+  void reportClusterGatewayHealth(state).catch(() => undefined);
+}
+const healthTimer = setInterval(() => {
+  if (gatewayReady && currentSocket?.readyState === WebSocket.OPEN) publishGatewayHealth("connected");
+}, 15_000);
+healthTimer.unref?.();
 
 function gatewayUrl() {
   const base = String(resumeGatewayUrl || defaultGatewayUrl).replace(/\/+$/, "");
@@ -41,6 +50,7 @@ function scheduleReconnect() {
   if (shuttingDown || reconnectTimer) return;
   const delay = reconnectDelayMs();
   console.warn(`Discord Gateway disconnected; reconnecting in ${delay} ms.`);
+  publishGatewayHealth("reconnecting");
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connect();
@@ -51,22 +61,65 @@ async function respondToInteraction(interaction, responsePayload) {
   if (!interaction?.id || !interaction?.token || !responsePayload) return;
   const response = await fetch(`https://discord.com/api/v10/interactions/${encodeURIComponent(interaction.id)}/${encodeURIComponent(interaction.token)}/callback`, {
     method: "POST",
-    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/0.505.0" },
+    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/0.546.0" },
     body: JSON.stringify(responsePayload),
   });
   if (!response.ok) console.error(`Discord interaction response failed: ${response.status} ${(await response.text()).slice(0, 500)}`);
 }
 
+async function editDeferredInteraction(interaction, responsePayload) {
+  const url = `https://discord.com/api/v10/webhooks/${encodeURIComponent(interaction.application_id)}/${encodeURIComponent(interaction.token)}/messages/@original`;
+  const content = responsePayload?.data || { content: "Cluster processed the command.", allowed_mentions: { parse: [] } };
+  const result = await fetch(url, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/0.546.0" },
+    body: JSON.stringify({ ...content, flags: undefined }),
+  });
+  if (!result.ok) console.error(`Discord deferred reply failed: ${result.status}`);
+}
+
 async function handleInteraction(interaction) {
+  let acknowledged = false;
+  let deferred = false;
+  let deferral = Promise.resolve();
+  // Discord requires an initial ACK within three seconds; Cluster's durable
+  // authorization/receipt pipeline may legitimately take longer than that.
+  const timer = interaction?.type === 1 ? null : setTimeout(() => {
+    if (acknowledged) return;
+    acknowledged = true;
+    deferred = true;
+    deferral = respondToInteraction(interaction, {
+      type: 5,
+      data: { flags: 64 },
+    });
+  }, 1_500);
   try {
     const response = await relayDiscordInteraction(interaction);
-    await respondToInteraction(interaction, response);
+    if (timer) clearTimeout(timer);
+    if (deferred) {
+      await deferral;
+      await editDeferredInteraction(interaction, response);
+    } else {
+      acknowledged = true;
+      await respondToInteraction(interaction, response);
+    }
   } catch (error) {
-    console.error("Cluster rejected or failed a Discord interaction:", error instanceof Error ? error.message : error);
-    await respondToInteraction(interaction, {
-      type: 4,
-      data: { content: "Cluster could not process this Discord action. Check the Cluster integration status.", flags: 64, allowed_mentions: { parse: [] } },
-    }).catch(() => undefined);
+    if (timer) clearTimeout(timer);
+    console.error("Cluster rejected or failed a Discord interaction:", error instanceof Error ? error.message : "Request failed");
+    const detail = error instanceof Error ? error.message : "";
+    const message = detail.includes("DISCORD_GUILD_MISMATCH") || detail.includes("not connected to a Cluster studio")
+      ? "This Discord server has not been approved by a Cluster administrator."
+      : detail.includes("DISCORD_IDENTITY_NOT_LINKED") || detail.includes("Link your Discord identity")
+      ? "Link your Discord account from your Cluster profile to use this action."
+      : "Cluster could not process this action. Check the connection and your Cluster access.";
+    const failure = { type: 4, data: { content: message, flags: 64, allowed_mentions: { parse: [] } } };
+    if (deferred) {
+      await deferral.catch(() => undefined);
+      await editDeferredInteraction(interaction, failure).catch(() => undefined);
+    } else if (!acknowledged) {
+      acknowledged = true;
+      await respondToInteraction(interaction, failure).catch(() => undefined);
+    }
   }
 }
 
@@ -145,26 +198,37 @@ function connect() {
       sessionId = packet.d?.session_id || null;
       resumeGatewayUrl = packet.d?.resume_gateway_url || null;
       reconnectAttempt = 0;
+      gatewayReady = true;
+      publishGatewayHealth("connected");
       console.log(`Discord Gateway relay ready${sessionId ? ` (session ${sessionId.slice(0, 8)}…)` : ""}.`);
       return;
     }
     if (packet.t === "RESUMED") {
       reconnectAttempt = 0;
+      gatewayReady = true;
+      publishGatewayHealth("connected");
       console.log("Discord Gateway relay session resumed.");
       return;
     }
     if (packet.t === "INTERACTION_CREATE") await handleInteraction(packet.d);
   });
   socket.addEventListener("close", () => {
+    gatewayReady = false;
     if (currentSocket === socket) currentSocket = null;
     clearHeartbeat();
     scheduleReconnect();
   });
-  socket.addEventListener("error", (event) => console.error("Discord Gateway transport error", event?.message || event));
+  socket.addEventListener("error", () => {
+    gatewayReady = false;
+    publishGatewayHealth("reconnecting");
+    console.error("Discord Gateway transport error (see bot status).");
+  });
 }
 
 function shutdown() {
   shuttingDown = true;
+  gatewayReady = false;
+  clearInterval(healthTimer);
   clearHeartbeat();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;

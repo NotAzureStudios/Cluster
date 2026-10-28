@@ -29,10 +29,10 @@ type VerificationLogger = {
   warn?: (payload: unknown, message?: string) => void;
 };
 
-const REQUIRED_LATEST_MIGRATION = "20260921154500_phase9n_calendar_meeting_authority";
+const REQUIRED_LATEST_MIGRATION = "20261114000000_rc45_discord_role_index_name";
 
 const REQUIRED_TABLES = [
-  "User", "AvatarAudit", "Session", "DiscordLinkChallenge", "SecurityAuditEvent",
+  "User", "AvatarAudit", "Session", "DiscordLinkChallenge", "DiscordRoleProjection", "SecurityAuditEvent",
   "Workspace", "WorkspaceMember", "StudioTeam", "StudioTeamMember", "Project", "ProjectControlRecord", "ProjectRelationship", "ReviewAsset", "AssetArtifact", "MediaWorkerHeartbeat", "MediaProcessingPolicy",
   "ReviewComment", "ProjectFile", "Board", "BoardList", "Card", "ChecklistItem", "CardComment", "EntityComment",
   "CardActivity", "Whiteboard", "CalendarEvent", "ActivityEvent", "TimelineItem", "LibraryItem", "FolderPermission",
@@ -61,6 +61,9 @@ const REQUIRED_INDEXES = [
   "ServiceCredential_tokenHash_key",
   "ServiceCredential_credentialType_revokedAt_expiresAt_idx",
   "ServiceCredential_createdById_revokedAt_createdAt_idx",
+  "DiscordRoleProjection_owner_key",
+  "DiscordRoleProjection_connectionId_guildId_status_idx",
+  "DiscordRoleProjection_userId_status_idx",
   "WorkspaceMember_workspaceId_userId_key",
   "StudioTeam_workspaceId_name_key",
   "StudioTeam_workspaceId_archived_updatedAt_idx",
@@ -68,11 +71,12 @@ const REQUIRED_INDEXES = [
   "StudioTeamMember_teamId_userId_key",
   "StudioTeamMember_userId_archived_primaryMembership_idx",
   "StudioTeamMember_teamId_archived_idx",
-  "User_managerUserId_archived_idx",
+    // User.managerUserId was retired by WIP43. PostgreSQL dropped its index with the column.
   "Project_workspaceId_archived_updatedAt_idx",
   "Board_projectId_archived_updatedAt_idx",
   "BoardList_boardId_isDone_position_idx",
   "Card_listId_archived_position_idx",
+  "Card_archived_dueDate_idx",
   "LibraryItem_projectId_parentId_status_idx",
   "SavedDataView_workspaceId_scope_visibility_archived_updatedAt_i",
   "SavedDataView_ownerId_scope_archived_updatedAt_idx",

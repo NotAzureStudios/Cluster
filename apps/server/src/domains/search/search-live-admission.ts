@@ -44,7 +44,7 @@ export function createSearchLiveAdmission(prisma: any) {
         } } : {}),
       },
     }) : [];
-    const scopes = new Map(scopeRows.map((row: any) => [String(row.id), row]));
+    const scopes = new Map<string, any>(scopeRows.map((row: any) => [String(row.id), row]));
     await Promise.all([...groups].map(async ([group, candidates]) => {
       const ids = [...new Set(candidates.map((item) => item.kind === "source_commit" ? String(item.raw?.id || "") :
         item.kind === "whiteboard" ? String(item.whiteboardId || item.id) : item.id))];

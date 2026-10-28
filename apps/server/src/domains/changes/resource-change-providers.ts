@@ -286,7 +286,7 @@ enroll({
  * explicitly scoped to another Project. Only live bindings count.
  */
 function sourceBindingProjects(row: any): string[] {
-  return [...new Set((row.repository?.projects ?? row.projects ?? [])
+  return [...new Set<string>((row.repository?.projects ?? row.projects ?? [])
     .filter((binding: any) => !binding.archived && typeof binding.projectId === "string" && binding.projectId)
     .map((binding: any) => String(binding.projectId)))];
 }

@@ -3,6 +3,7 @@ import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api";
 import { useVisibleRefresh } from "../../core/visible-refresh";
@@ -274,7 +275,7 @@ export function OperationsCenterPanel() {
   const worker = payload?.worker;
   const queues = useMemo(() => (payload?.pressure?.byQueue || []).map((row) => row.queue), [payload?.pressure?.byQueue]);
   const summaryItems = useMemo(() => [
-    ["Queued", counts.queued], ["Running", counts.running], ["Succeeded", counts.succeeded], ["Dead letter", counts.deadLetter], ["Cancelled", counts.cancelled],
+    ["Queued", counts.queued], ["Running", counts.running], ["Succeeded", counts.succeeded], ["Failed", counts.failed], ["Dead letter", counts.deadLetter], ["Cancelled", counts.cancelled],
   ] as const, [counts]);
   const fieldLabels = useMemo(() => new Map((payload?.dataView?.fields || []).map((field) => [field.id, field.label] as const)), [payload?.dataView?.fields]);
   const jobColumns = useMemo<ClusterDataTableColumn<BackgroundJobSummary>[]>(() => [
@@ -365,11 +366,24 @@ export function OperationsCenterPanel() {
         </div>
       </header>
 
+      <div className="cluster-visual-summary-grid" aria-label="Operation queue overview">
+        <ClusterVisualComposition label="Retained job states" total={counts.total} parts={[
+          { label: "Succeeded", value: counts.succeeded, tone: "good" },
+          { label: "Queued", value: counts.queued, tone: "neutral" },
+          { label: "Running", value: counts.running, tone: "accent" },
+          { label: "Failed", value: counts.failed + counts.deadLetter, tone: "danger" },
+          { label: "Cancelled", value: counts.cancelled, tone: "neutral" },
+        ]} />
+        {worker && <ClusterVisualMeter label="Worker slots used" value={worker.running} total={worker.concurrency} tone={unhealthy ? "warning" : "accent"} />}
+        {unhealthy > 0 && <div className="cluster-visual-signal-list" role="status"><span className="danger">{unhealthy} jobs need review</span></div>}
+      </div>
+      <details className="cluster-visual-advanced"><summary>Exact queue counts</summary><div className="cluster-visual-advanced__body">
       <ClusterMetricStrip
         className="background-jobs-summary-v384"
         label="Operation totals"
         items={summaryItems.map(([label, count]) => ({ label, value: count, detail: label === "Queued" ? ageLabel(payload?.pressure?.oldestQueuedAgeMs) : label === "Running" ? `${worker?.running || 0}/${worker?.concurrency || 0} worker slots` : "retained jobs", tone: label === "Dead letter" && count ? "danger" : label === "Succeeded" && count ? "good" : "neutral" }))}
       />
+      </div></details>
 
       <ClusterTableToolbar
         query={search}

@@ -33,9 +33,12 @@ export async function resolveAuthorizedPacketNavigation(
     // The server's catalog already enforces Packet source visibility and
     // audience, or the policy's current recipient eligibility. Do not use
     // cached favorites, past notifications or a fallback first-row selection.
-    const records = packet ? (result as PacketCatalogRead).packets : (result as PolicyCatalogRead).policies;
+    const records = packet ? (result as PacketCatalogRead)?.packets : (result as PolicyCatalogRead)?.policies;
     if (!Array.isArray(records)) return null;
-    const found = records.some((row) => packet ? row?.id === id : (row as { policy?: { id?: unknown } })?.policy?.id === id);
+    const found = records.some((row) => {
+      if (!row || typeof row !== "object") return false;
+      return packet ? ("id" in row && row.id === id) : ("policy" in row && row.policy?.id === id);
+    });
     if (!found) return null;
     return { ...target, projectId: null };
   } catch {

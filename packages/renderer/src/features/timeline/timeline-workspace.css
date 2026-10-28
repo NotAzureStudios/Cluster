@@ -861,3 +861,27 @@ max-width: 230px;
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* RC27: predictable Timeline panel surfaces instead of transparent boxes and competing edge rules. */
+.timeline-page-v156 .timeline-map-panel-v153,
+.timeline-page-v156 .timeline-board-panel-v153,
+.timeline-page-v156 .timeline-list-panel-v153,
+.timeline-page-v156 .timeline-brief-cell-v153 {
+  background: var(--cluster-surface-1, var(--surface));
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 10px;
+}
+.timeline-page-v156 .timeline-support-row-v155 > .panel {
+  background: var(--cluster-surface-1, var(--surface));
+  border: 1px solid var(--cluster-border, var(--border)) !important;
+  border-radius: 10px !important;
+}
+.timeline-page-v156 .timeline-panel-header-v154 { border-bottom: 1px solid var(--cluster-border, var(--border)); }
+.timeline-page-v156 .timeline-brief-cell-v153 { min-width: 0; }
+.timeline-page-v156 .timeline-brief-cell-v153 em:empty { display: none; }
+
+/* RC34: use the six-week schedule distribution instead of a third text-only statistic. */
+.timeline-page-v156 .timeline-brief-v153 { grid-template-columns:minmax(110px,.6fr) minmax(110px,.6fr) minmax(220px,2fr); }
+.timeline-page-v156 .timeline-brief-chart-v34 { min-width:0; background:var(--surface); padding:7px 12px; }
+.timeline-page-v156 .timeline-brief-chart-v34 .cluster-visual-bars__plot { height:46px; }
+@media(max-width:700px){ .timeline-page-v156 .timeline-brief-v153 { grid-template-columns:repeat(2,minmax(0,1fr)); display:grid; overflow:visible; } .timeline-page-v156 .timeline-brief-chart-v34 { grid-column:1/-1; } }

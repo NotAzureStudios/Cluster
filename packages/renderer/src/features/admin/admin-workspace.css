@@ -1091,3 +1091,12 @@
 .admin-config-selection-v509 label small { overflow-wrap: anywhere; opacity: .7; }
 .admin-config-selection-v509 > small { line-height: 1.5; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .admin-setup-progress-v509 > span { transition: none; } }
+
+/* RC27: consistent neutral surfaces on Operations, including metrics and setup panels. */
+.operations-admin-page-v241 .operations-overview > .cluster-status-strip,
+.operations-admin-page-v241 .admin-setup-checklist-v506,
+.operations-admin-page-v241 .operations-summary-grid > button {
+  background: var(--cluster-surface-1, var(--surface));
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 10px;
+}

@@ -73,8 +73,8 @@ function simulator(items,{pauseBeforeLock=5,failFirstAdvisoryLock=false}={}) {
           return [{id:candidate.id,workspaceId:candidate.workspaceId}];
         }
         if(sql.includes('UPDATE "BackgroundJob" AS job')){
-          const [queues,worker,leaseMs,concurrency,costBudget,blocked,claimToken,jobId]=args;
-          assert.match(sql,/job\."id" = \$8/);
+          const [queues,leaseMs,concurrency,costBudget,blocked,claimToken,jobId]=args;
+          assert.match(sql,/job\."id" = \$7/);
           const job=state.find(j=>j.id===jobId);
           assert(job && rows.has(jobId));
           if(job.workspaceId)assert(workspaces.has(`cluster-job-workspace-running:${job.workspaceId}`), 'claim MUST hold same-workspace advisory lock');

@@ -6,7 +6,7 @@ export type { QueryApiOptions } from "./cache";
 export { ApiError, apiErrorPresentation, formatApiError, formatApiErrorPresentationDiagnostics, formatApiErrorDiagnostics, isApiNetworkFailure } from "./errors";
 export type { ApiErrorIssue, ApiErrorRecoveryKind, ApiErrorPresentation } from "./errors";
 export { api } from "./transport";
-export { queryApi } from "./query";
+export { queryApi, peekApiQuery } from "./query";
 export { mutateApi } from "./mutation";
 export type { QueueableMutationOptions, QueueableMutationResult } from "./mutation";
 export { uploadApi, flushApiUploads, discardUploadSession } from "./uploads";

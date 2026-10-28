@@ -6,7 +6,8 @@ import { serializeBackgroundJob } from "../jobs/job-queue-service.js";
 import { libraryBulkMetadataRequestSchema, libraryBulkSelectionDigest } from "./library-bulk-job-contract.js";
 import { hierarchyMoveSchema, hierarchyMoveSubmitSchema, inspectLibraryHierarchyMove, LIBRARY_HIERARCHY_IMPACT_LIMIT } from "./library-hierarchy-move.js";
 import { hierarchyLifecycleSchema, hierarchyLifecycleSubmitSchema, inspectLibraryHierarchyLifecycle } from "./library-hierarchy-lifecycle.js";
-import { filterLibraryBackgroundCandidates } from "./library-bulk-lifecycle.js";
+import { filterLibraryBackgroundCandidates, type LibraryLifecycleCandidate } from "./library-bulk-lifecycle.js";
+import type { LibraryMatchingItem } from "./library-matching-selection.js";
 import { resolveLibraryBulkCollectionSelection, LibraryBulkCollectionError } from "./library-bulk-collection-selection.js";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -533,7 +534,7 @@ export function registerLibraryRoutes({
       });
       const query = libraryWorkspaceQuerySchema.omit({ cursor: true, includeContext: true, includeTreeFiles: true, limit: true }).parse(body.query);
       const where = await libraryWorkspaceWhere({ ...query, limit: 80, includeContext: "0", includeTreeFiles: "0" }, context, tx);
-      const targets = await collectLibraryMatchingSelection({
+      const targets = await collectLibraryMatchingSelection<LibraryMatchingItem & LibraryLifecycleCandidate>({
         maximumSelected: 1000,
         fetchPage: (skip, take) => tx.libraryItem.findMany({ where, include: itemInclude, orderBy: [{ id: "asc" }], skip, take }),
         filterVisible: async (rows) => {

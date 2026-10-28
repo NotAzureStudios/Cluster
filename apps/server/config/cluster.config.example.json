@@ -30,7 +30,7 @@
     "sessionMaxPerUser": 10,
     "sessionSecure": false,
     "rateLimitEnabled": true,
-    "rateLimitMax": 6000,
+    "rateLimitMax": 12000,
     "rateLimitWindowMinutes": 1,
     "authRateLimitMax": 12,
     "securityHeadersEnabled": true,

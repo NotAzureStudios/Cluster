@@ -10,6 +10,7 @@ const routeBody = z.object({
   minPriority: z.enum(["normal", "medium", "high", "critical"]).default("medium"),
   mentionMode: z.enum(["off", "linked"]).default("linked"),
   routeKind: z.enum(["channel", "thread"]).default("channel"),
+  guildId: z.string().regex(/^\d{8,24}$/).optional(),
 });
 
 export function registerDiscordProductionRoutes(input: {
@@ -22,7 +23,14 @@ export function registerDiscordProductionRoutes(input: {
   input.app.get("/api/projects/:projectId/discord/channels", async (request: any, reply: any) => {
     const { projectId } = z.object({ projectId: z.string().min(1) }).parse(request.params);
     if (!(await input.enforceTargetAccess(request, reply, "project", projectId, "view"))) return;
-    return { ok: true, ...(await input.service.availableChannels(projectId)) };
+    const query = z.object({ guildId: z.string().regex(/^\d{8,24}$/).optional() }).parse(request.query || {});
+    return { ok: true, ...(await input.service.availableChannels(projectId, query.guildId)) };
+  });
+
+  input.app.get("/api/projects/:projectId/discord/guilds", async (request: any, reply: any) => {
+    const { projectId } = z.object({ projectId: z.string().min(1) }).parse(request.params);
+    if (!(await input.enforceTargetAccess(request, reply, "project", projectId, "view"))) return;
+    return { ok: true, ...(await input.service.listGuilds()) };
   });
 
   input.app.get("/api/projects/:projectId/discord/routes", async (request: any, reply: any) => {
@@ -62,6 +70,45 @@ export function registerDiscordProductionRoutes(input: {
     const { projectId } = z.object({ projectId: z.string().min(1) }).parse(request.params);
     if (!(await input.enforceTargetAccess(request, reply, "project", projectId, "manage"))) return;
     return { ok: true, ...(await input.service.reconcileRoutes({ projectId })) };
+  });
+
+  input.app.get("/api/admin/integrations/discord/guilds", async (request: any, reply: any) => {
+    if (!(await input.authorization.requireTool(request, reply, "integrations", "view"))) return;
+    reply.header("Cache-Control", "no-store");
+    return { ok: true, ...(await input.service.listGuilds()) };
+  });
+  input.app.post("/api/admin/integrations/discord/guilds", async (request: any, reply: any) => {
+    const actor = await input.authorization.requireTool(request, reply, "integrations", "manage");
+    if (!actor) return;
+    const { guildId } = z.object({ guildId: z.string().regex(/^\d{8,24}$/) }).parse(request.body || {});
+    const result = await input.service.addGuild(guildId);
+    await input.logActivity({ userId: actor.id, type: "discord_guild_approved", entityType: "integration", entityId: guildId, title: "Discord server approved", metadata: { guildId } });
+    return { ok: true, ...result };
+  });
+  input.app.delete("/api/admin/integrations/discord/guilds/:guildId", async (request: any, reply: any) => {
+    const actor = await input.authorization.requireTool(request, reply, "integrations", "manage");
+    if (!actor) return;
+    const { guildId } = z.object({ guildId: z.string().regex(/^\d{8,24}$/) }).parse(request.params);
+    const result = await input.service.removeGuild(guildId);
+    await input.logActivity({ userId: actor.id, type: "discord_guild_revoked", entityType: "integration", entityId: guildId, title: "Discord server access revoked", metadata: { guildId } });
+    return { ok: true, ...result };
+  });
+
+  input.app.get("/api/admin/integrations/discord/link-coverage", async (request: any, reply: any) => {
+    if (!(await input.authorization.requireTool(request, reply, "integrations", "view"))) return;
+    reply.header("Cache-Control", "no-store");
+    return { ok: true, coverage: await input.service.linkedAccountCoverage() };
+  });
+
+  input.app.post("/api/admin/integrations/discord/test-message", async (request: any, reply: any) => {
+    const actor = await input.authorization.requireTool(request, reply, "integrations", "manage");
+    if (!actor) return;
+    const { channelId } = z.object({ channelId: z.string().regex(/^\d{8,24}$/) }).parse(request.body || {});
+    const outcome = await input.service.sendTestMessage(channelId);
+    await input.logActivity({ userId: actor.id, type: "discord_test_message_sent", entityType: "integration", entityId: outcome.guildId,
+      title: "Discord connectivity test sent", metadata: { guildId: outcome.guildId, channelId: outcome.channelId, messageId: outcome.messageId } });
+    reply.header("Cache-Control", "no-store");
+    return { ok: true, ...outcome };
   });
 
   input.app.get("/api/admin/discord/status", async (request: any, reply: any) => {

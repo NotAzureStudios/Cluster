@@ -4,7 +4,7 @@ import type { BoardPlanningPayload } from "@cluster/shared";
 import { ClusterNativeSelect, ClusterInput } from "../../components/ClusterNativeControls";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { createPortal } from "react-dom";
+import { WorkspaceDirectory } from "../workspaces/WorkspaceDirectory";
 import { DndContext, KeyboardSensor, PointerSensor, closestCorners, type DragEndEvent, useDraggable, useSensor, useSensors } from "@dnd-kit/core";
 import { ApiError, api, mutateApi, queryApi } from "../../core/api";
 import { unique } from "../../core/storage";
@@ -15,7 +15,6 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { CompactColorField } from "../../components/ColorField";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterActionMenu, ClusterBulkActionBar, ClusterRecoveryNotice } from "../../components/ClusterContextActions";
-import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ProjectResourceSwitcher, type ProjectResourceSwitcherItem } from "../../components/ProjectResourceSwitcher";
@@ -85,7 +84,7 @@ export type BoardWorkspacePageProps = {
   };
 };
 
-export function BoardWorkspacePage({ board, projects, currentUser, currentBoardId, onSelectBoard, onRefresh, onRefreshProjects, onOpenSettings, onOpenProject, onOpenTickets, onOpenTimeline, onOpenTime, onCloseBoard, components }: BoardWorkspacePageProps) {
+export function BoardWorkspacePage({ board, projects, currentUser, currentBoardId, onSelectBoard, onRefresh, onRefreshProjects, onOpenSettings, onOpenProject, onOpenTickets, onOpenTimeline, onOpenTime, components }: BoardWorkspacePageProps) {
   const { RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel } = components;
   const [newCardListId, setNewCardListId] = useState<string | null>(null);
   const [quickCardListId, setQuickCardListId] = useState<string | null>(null);
@@ -116,6 +115,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   const [density, setDensity] = useState<"compact" | "comfortable">("comfortable");
   const [hideDone, setHideDone] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedView, setShowAdvancedView] = useState(false);
   const [showBoardManager, setShowBoardManager] = useState(false);
   const [showArchiveTray, setShowArchiveTray] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
@@ -148,13 +148,8 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   const [boardLabelDefinitions, setBoardLabelDefinitions] = useState<BoardLabelDefinition[]>(board?.labelDefinitions?.length ? board.labelDefinitions : DEFAULT_BOARD_LABELS);
   const [newBoardLabelName, setNewBoardLabelName] = useState("");
   const [newBoardLabelColor, setNewBoardLabelColor] = useState("#2563eb");
-  useEffect(() => {
-    if (!board) return;
-    document.body.classList.add("board-fullscreen-open-v254");
-    return () => document.body.classList.remove("board-fullscreen-open-v254");
-  }, [board?.id]);
   const [boardProjectId, setBoardProjectId] = useState(board?.project.id || projects[0]?.id || "");
-  const [boardTemplate, setBoardTemplate] = useState<BoardTemplateId>("blank");
+  const [boardTemplate, setBoardTemplate] = useState<BoardTemplateId>("kanban");
   const [boardManagerStatus, setBoardManagerStatus] = useState("");
   const [workspaceWindowStatus, setWorkspaceWindowStatus] = useState("");
   const resourceWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("clusterWindow") === "resource";
@@ -601,7 +596,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   }
   async function deleteCategory(list: BoardList) {
     if (!Number.isSafeInteger(list.revision) || !list.revision) { setCategoryStatus("Refresh the column before archiving it."); return; }
-    if (!await confirmCluster({ title: "Archive column?", message: `Archive "${list.title}"? Active Cards and Tickets must be moved or archived first. Historical archived Cards are preserved and the column can be restored from Board tools.`, confirmLabel: "Archive column", tone: "warning" })) return;
+    if (!await confirmCluster({ title: "Archive column?", message: `Archive "${list.title}"? Active Cards and Tickets must be moved or archived first. Historical archived Cards are preserved and the column can be restored from Board tools.`, confirmLabel: "Archive column", tone: "danger" })) return;
     setCategoryStatus("Archiving column...");
     try {
       await api(`/api/lists/${list.id}/lifecycle`, { method: "POST", body: JSON.stringify({ action: "archive", expectedRevision: list.revision }) });
@@ -727,7 +722,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     setBoardBackgroundColor("#2563eb");
     setBoardBackgroundStyle("soft");
     setBoardLabelDefinitions(DEFAULT_BOARD_LABELS);
-    setBoardTemplate("blank");
+    setBoardTemplate("kanban");
     setBoardManagerStatus("Ready for a new board.");
   }
   async function deleteBoardFromPanel() {
@@ -1101,43 +1096,37 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     </div>
   );
   if (!board) {
-    return (
-      <section className="page cluster-specialist-workspace cluster-board-workspace board-page cohesive-page-v043 board-page-v194">
-        <div className="page-header compact board-hero standard-header-v043">
-          <div>
-            <p className="eyebrow">Production</p>
-            <h1>Boards</h1>
-            <p className="muted">Create or open a production board for a project.</p>
-          </div>
-        </div>
-        {boardManagerPanel}
-        <ClusterEmptyState
-          kind="first-use"
-          icon="work"
-          eyebrow="Boards"
-          title="No board selected"
-          description="Create a board above or open an existing project board to manage cards, bugs, tasks, and build work."
-        />
-      </section>
-    );
+    return <WorkspaceDirectory kind="Boards" icon="work" items={boards.map((item) => ({ id: item.id, name: item.name, projectName: item.projectName, detail: item.description }))}
+      onOpen={(id) => onSelectBoard(id)} onCreate={() => setShowBoardManager((value) => !value)} creating={showBoardManager}>
+      <div className="board-simple-create-v28">
+        <ClusterTextInput autoFocus aria-label="Board name" value={boardName} onChange={(event) => setBoardName(event.target.value)} placeholder="Board name" maxLength={120} />
+        <ClusterNativeSelect aria-label="Project" value={boardProjectId} onChange={(event) => setBoardProjectId(event.target.value)}>
+          <option value="">Select project</option>
+          {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+        </ClusterNativeSelect>
+        <ClusterNativeSelect aria-label="Starting layout" value={boardTemplate} onChange={(event) => setBoardTemplate(event.target.value as BoardTemplateId)}>
+          {BOARD_TEMPLATES.map((template) => <option key={template.id} value={template.id}>{template.label}</option>)}
+        </ClusterNativeSelect>
+        <ClusterButton variant="primary" disabled={!boardProjectId || !boardName.trim()} onClick={() => void createBoardFromPanel()}>Create board</ClusterButton>
+        {boardManagerStatus && <span role="status">{boardManagerStatus}</span>}
+      </div>
+    </WorkspaceDirectory>;
   }
-  return createPortal(
+  return (
     <ProjectWorkspaceShell
       style={boardAppearanceStyle}
-      className={`cluster-specialist-workspace cluster-board-workspace board-page cohesive-page-v043 board-page-v194 board-fullscreen-v254 board-workspace-v257 board-lanes-${laneWidth}-v299 board-theme-${board.backgroundStyle || "soft"}-v308`}
+      className={`cluster-specialist-workspace cluster-board-workspace board-page cohesive-page-v043 board-page-v194 board-inline-v28 board-workspace-v257 board-lanes-${laneWidth}-v299 board-theme-${board.backgroundStyle || "soft"}-v308`}
       headerClassName="page-header compact board-hero standard-header-v043 board-hero-v194 board-workspace-header-v256 cluster-workspace-header-v391"
-      eyebrow={`${board.project.name} · Board`}
+      eyebrow={board.project.name}
       title={board.name}
       icon="work"
-      description={board.description || "Production board for cards, issues, assignments, and delivery work."}
+      description={undefined}
       metrics={[
         { label: "Cards", value: cards.length },
-        { label: "Complete", value: `${completionPercent}%`, tone: completionPercent >= 80 ? "good" : "neutral" },
-        { label: "Overdue", value: overdueCount, tone: overdueCount ? "warning" : "good" },
-        { label: "Collaborators", value: Math.max(1, boardCollaboration.presence.length) },
+        { label: "Overdue", value: overdueCount, tone: overdueCount ? "warning" : "neutral" },
       ]}
       headerActions={<>
-        {!resourceWindow && <ClusterButton variant="secondary" onClick={onCloseBoard}>Exit board</ClusterButton>}
+        {!resourceWindow && <ClusterButton variant="secondary" onClick={() => { onSelectBoard(null); }}>All boards</ClusterButton>}
         {canOpenWorkspaceWindow && <ClusterButton variant="secondary" onClick={() => void openBoardInNewWindow()}>Open window</ClusterButton>}
         {backlogList && <ClusterButton variant="primary" onClick={() => setNewCardListId(backlogList.id)}>New card</ClusterButton>}
         <ClusterButton variant="secondary" selected={showFilters} onClick={() => setShowFilters((value) => !value)}>Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</ClusterButton>
@@ -1147,6 +1136,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
           items={[
             { id: "add-column", label: "Add column", onSelect: () => setShowColumnCreator(true) },
             { id: "setup", label: showBoardSetup ? "Hide setup" : "Board setup", onSelect: () => setShowBoardSetup((value) => !value) },
+            { id: "view", label: showAdvancedView ? "Hide view options" : "View options", onSelect: () => setShowAdvancedView((value) => !value) },
             { id: "manage", label: "Manage boards", onSelect: () => setShowBoardManager(true) },
             { id: "archive", label: "Archived cards", onSelect: () => setShowArchiveTray(true) },
             { id: "stats", label: showInsights ? "Hide planning" : "Planning intelligence", onSelect: () => setShowInsights((value) => !value) },
@@ -1224,9 +1214,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
           <div className="field board-search-field">
             <ClusterTextInput ref={searchInputRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards, labels, assignees, Source Control issues…  /" aria-label="Search board cards" />
           </div>
-          <span className="control-result">
-            {filteredCount}/{cards.length} shown
-          </span>
+          <span className="control-result">{filteredCount} cards</span>
           <div className="board-view-mode-v489" role="group" aria-label="Board layout">
             {([
               ["kanban", "Board"],
@@ -1238,7 +1226,8 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
               <ClusterButton key={mode} size="compact" variant="quiet" selected={viewMode === mode} onClick={() => { setViewMode(mode); setSelectedCardIds(new Set()); }}>{label}</ClusterButton>
             ))}
           </div>
-          <div className="board-view-presets-v299" aria-label="Board view presets">
+          <ClusterButton size="compact" variant="quiet" selected={showAdvancedView} onClick={() => setShowAdvancedView((value) => !value)}>View options</ClusterButton>
+          {showAdvancedView && <div className="board-view-presets-v299" aria-label="Board view presets">
             {([
               ["all", "All"],
               ["mine", "My cards"],
@@ -1252,8 +1241,8 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             ] as const).map(([value, label]) => (
               <ClusterButton key={value} size="compact" variant="quiet" selected={viewPreset === value} onClick={() => setViewPreset(value)}>{label}</ClusterButton>
             ))}
-          </div>
-          <div className="board-layout-controls-v299">
+          </div>}
+          {showAdvancedView && <div className="board-layout-controls-v299">
             <ClusterButton size="compact" variant="quiet" selected={hideEmptyLists} onClick={() => setHideEmptyLists((value) => !value)}>Non-empty</ClusterButton>
             <ClusterSelect
               ariaLabel="Sort cards"
@@ -1291,8 +1280,8 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
                 ]}
               />
             ) : null}
-          </div>
-          <div className="board-saved-views-v489">
+          </div>}
+          {showAdvancedView && <div className="board-saved-views-v489">
             <ClusterSelect
               ariaLabel="Saved board views"
               value={activeSavedViewId}
@@ -1303,7 +1292,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <ClusterButton size="compact" variant="quiet" onClick={saveCurrentView} disabled={savedViews.length >= 8}>Save view</ClusterButton>
             <ClusterButton size="compact" variant="quiet" onClick={shareCurrentView} disabled={boardSharedViews.length >= 24 || sharedViewSync.pending > 0}>Share view</ClusterButton>
             {activeSavedViewId ? <ClusterButton size="compact" variant="quiet" onClick={removeActiveSavedView}>Remove</ClusterButton> : null}
-          </div>
+          </div>}
           {sharedViewSync.error ? <span className="board-shared-view-status-v495" role="alert">{sharedViewSync.error}</span> : null}
         </div>
 
@@ -1485,12 +1474,13 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             );
           })}
           {!renderedLists.length && (
-            <div className="board-empty-filter-state-v299">
-              <strong>No columns match this view.</strong>
-              <span>Clear filters or show empty columns.</span>
-              <ClusterButton unstyled type="button" onClick={() => { setViewPreset("all"); setHideEmptyLists(false); setQuery(""); }}>Reset view</ClusterButton>
+            <div className="board-empty-filter-state-v299" role="status">
+              <strong>{board.lists.length ? "No matching lists" : "Start with a list"}</strong>
+              {board.lists.length ? <ClusterButton variant="secondary" onClick={() => { setViewPreset("all"); setHideEmptyLists(false); setQuery(""); }}>Clear filters</ClusterButton> : null}
+              <ClusterButton variant="primary" onClick={() => setShowColumnCreator(true)}>+ Add list</ClusterButton>
             </div>
           )}
+          {renderedLists.length > 0 && <ClusterButton unstyled type="button" className="board-add-list-v28" onClick={() => setShowColumnCreator(true)}><ClusterIcon name="plus" /> Add list</ClusterButton>}
         </div>
       </DndContext>
       ) : viewMode === "list" ? (
@@ -1600,7 +1590,6 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
           }}
         />
       )}
-    </ProjectWorkspaceShell>,
-    document.body,
+    </ProjectWorkspaceShell>
   );
 }

@@ -1,7 +1,7 @@
 export const CLUSTER_DISCORD_COMMANDS = [
   {
     name: "cluster",
-    description: "Work with Cluster from this Discord server.",
+    description: "Access linked Cluster work in this Discord server.",
     type: 1,
     dm_permission: false,
     default_member_permissions: null,

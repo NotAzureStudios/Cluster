@@ -181,3 +181,22 @@ body { background-color: var(--cluster-workbench-canvas); }
 ) {
   background-color: var(--cluster-readable-content-surface) !important;
 }
+
+/* RC23: prevent unbacked text on the application canvas. No background image
+   overlays in resource and preference panels; respect dark/light surface tokens. */
+.visual-overhaul-v139 :where(
+  .studio-systems-list-v34f,
+  .studio-systems-editor-v34f,
+  .inventory-resources-v22 .settings-card-grid-v092,
+  .inventory-review-workspace-v22,
+  .cluster-vault-grid > section,
+  .notification-workspace-v251,
+  .notification-queue-v251,
+  .notification-detail-v251,
+  .project-brief-inspector-v307,
+  .settings-section-v092,
+  .settings-card-grid-v092 > .settings-card-v092
+) {
+  background-color: var(--cluster-readable-content-surface) !important;
+  background-image: none !important;
+}

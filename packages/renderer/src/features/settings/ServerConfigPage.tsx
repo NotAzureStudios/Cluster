@@ -15,6 +15,7 @@ import "./settings-workspace.css";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
+import { ServerConnectionGuide } from "./ServerConnectionGuide";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { RequestErrorState } from "../../components/RequestState";
 
@@ -247,7 +248,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     section: "security",
     group: "Request protection",
     type: "number",
-    min: 1,
+    min: 600,
   },
   {
     key: "rateLimitWindowMinutes",
@@ -650,7 +651,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           sessionDays: 7,
           sessionSecure: false,
           rateLimitEnabled: true,
-          rateLimitMax: 120,
+          rateLimitMax: 12000,
           rateLimitWindowMinutes: 1,
           authRateLimitMax: 12,
           sessionIdleHours: 168,
@@ -1374,6 +1375,14 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
 
       {section === "network" && (
         <>
+          <ServerConnectionGuide busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
+            // Stage only public HTTPS routing metadata. Listener and firewall policy
+            // remain unchanged; the existing protected Save requires a PIN.
+            setSettings((current) => ({ ...current, publicWebUrl: origin, publicApiUrl: origin, sessionSecure: true,
+              corsOrigins: Array.from(new Set([...(current.corsOrigins || "").split(/[\n,]+/).map((item) => item.trim()).filter(Boolean), origin])).join(",") }));
+            setNetworkReview(null);
+            setStatus("HTTPS address staged. Review network changes before saving; external access is not active yet.");
+          }} />
           {renderSectionFields("network")}
           <section className="panel server-config-operations-v238" aria-label="Network deployment status">
             <div className="server-config-group-head-v238"><div><h2>Managed network deployment</h2><p className="muted tight">After Save, a staged network change is checked on the next independent Windows Service startup. Only a matching, unmodified configuration can be rolled back automatically.</p></div><span>{networkDeployment?.state || "Unknown"}</span></div>

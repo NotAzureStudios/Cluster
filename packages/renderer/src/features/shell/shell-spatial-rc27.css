@@ -1,0 +1,54 @@
+/* RC27: viewport-oriented shell: compact geometry, clear navigation edges and one page scroll. */
+:root {
+  --cluster-sidebar-expanded-width: 232px;
+  --cluster-workspace-page-pad: clamp(6px, .65vw, 12px);
+}
+#cluster-sidebar.cluster-sidebar {
+  border-right: 1px solid color-mix(in srgb, var(--cluster-visual-border, var(--cluster-sidebar-border)) 80%, var(--cluster-shell-text) 20%) !important;
+  box-shadow: 3px 0 12px rgb(0 0 0 / 14%) !important;
+  padding-inline: 6px !important;
+}
+#cluster-sidebar .cluster-sidebar__nav { padding-inline: 1px !important; scrollbar-gutter: auto !important; }
+#cluster-sidebar .cluster-sidebar__admin-list { min-width:0; padding-inline-start: 5px !important; }
+#cluster-sidebar .cluster-sidebar__link { min-height: 35px !important; }
+:root[data-sidebar-item-style="outlined"] #cluster-sidebar .cluster-sidebar__link:not(.active):not([aria-current="page"]) {
+  border: 1px solid color-mix(in srgb, var(--cluster-visual-border, var(--cluster-sidebar-border)) 58%, transparent) !important;
+  background: color-mix(in srgb, var(--cluster-sidebar-surface-raised) 35%, transparent) !important;
+}
+:root[data-sidebar-item-style="divided"] #cluster-sidebar .cluster-sidebar__link:not(.active):not([aria-current="page"]) {
+  border: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--cluster-visual-border, var(--cluster-sidebar-border)) 70%, transparent) !important;
+  border-radius: 3px !important;
+}
+:root[data-sidebar-item-style="soft"] #cluster-sidebar .cluster-sidebar__link:not(.active):not([aria-current="page"]) { border-color: transparent !important; }
+:root[data-sidebar-item-style="outlined"] #cluster-sidebar .cluster-sidebar__link:hover,
+:root[data-sidebar-item-style="divided"] #cluster-sidebar .cluster-sidebar__link:hover { background: var(--cluster-sidebar-surface-hover) !important; }
+:root[data-high-contrast="true"] #cluster-sidebar .cluster-sidebar__link { border: 1px solid var(--cluster-visual-border) !important; }
+@media (min-width:900px) {
+  .app-shell.shell-unified-v3430 > .content-shell {
+    min-width:0 !important;
+    padding: 5px 8px 16px !important;
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: auto !important;
+    overscroll-behavior-x:none;
+  }
+  .visual-overhaul-v139 .page {
+    width:100%; max-width:100%;
+    min-width:0;
+    margin-inline:0;
+    padding: var(--cluster-workspace-page-pad) !important;
+  }
+  .visual-overhaul-v139 .page:where(.projects-page-v310, .timeline-page-v156) { padding-inline: 6px !important; }
+  :root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
+    --cluster-taskbar-gutter-left:8px;
+    --cluster-taskbar-gutter-right:8px;
+  }
+}
+/* Noninteractive page-level wrappers should not make a second scroll pane. */
+.content-shell :where(.projects-page-v310, .timeline-page-v156, .project-detail-page-v310) { max-width:100%; min-width:0; overflow-x:clip; }
+/* The live Appearance preview uses the same nav button treatment as the persistent shell. */
+.appearance-shell-preview-v10[data-sidebar-item-style="outlined"] .appearance-shell-preview__nav:not(.active) { border:1px solid var(--cluster-visual-border); background:color-mix(in srgb,var(--cluster-visual-surface-raised) 35%,transparent); }
+.appearance-shell-preview-v10[data-sidebar-item-style="divided"] .appearance-shell-preview__nav:not(.active) { border-bottom:1px solid var(--cluster-visual-border);border-radius:3px; }
+.appearance-shell-preview-v10[data-sidebar-item-style="soft"] .appearance-shell-preview__nav:not(.active) { border:1px solid transparent; }
+@media(max-width:899px) { #cluster-sidebar.cluster-sidebar { padding-inline:8px!important; } }

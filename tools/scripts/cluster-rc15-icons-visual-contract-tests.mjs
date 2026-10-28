@@ -1,0 +1,42 @@
+// Verify icon selection, offline generation, source-build integration and shell geometry.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {compile,iconCandidates,names} from './generate-cluster-icons.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
+const read=(rel)=>fs.readFileSync(path.join(root,rel),'utf8');
+const renderer=JSON.parse(read('packages/renderer/package.json'));
+assert.equal(renderer.devDependencies['@iconify-json/ph'],'1.2.2');
+assert.equal(renderer.devDependencies['@iconify-json/tabler'],'1.2.42');
+assert.equal(renderer.devDependencies['@iconify-json/lucide'],'1.2.146');
+const rootPackage=JSON.parse(read('package.json'));
+assert.match(rootPackage.scripts['build:web'],/^npm run icons:generate && /);
+assert.match(rootPackage.scripts['icons:generate'],/generate-cluster-icons/);
+const fixturePacks=Object.fromEntries(['ph','tabler','lucide'].map(pack=>[pack,{
+ width:24,height:24,icons:Object.fromEntries(Object.values(iconCandidates[pack]).map((name)=>[name,{body:'<path d="M1 2h3" />'}]))
+}]));
+const {catalog,included}=compile(fixturePacks);
+assert.ok(included.ph>=18 && included.tabler>=18 && included.lucide>=40,'all three packs must have curated coverage');
+assert.ok(catalog['ph:project'] && catalog['tabler:project'] && catalog['lucide:project']);
+assert.ok(catalog['ph:project'].body.startsWith('<path'));
+assert.ok(names.length>=70);
+const boundary=read('packages/renderer/src/components/ClusterIcon.tsx');
+for(const term of ['"ph", "tabler", "lucide"','"tabler", "ph", "lucide"','"lucide", "tabler", "ph"'])assert.ok(boundary.includes(term));
+assert.match(boundary,/data-icon-pack=\{result.pack\}/);
+assert.match(boundary,/resolveIcon\(name,effectiveTreatment\)/,'every icon goes through the curated catalog');
+const shell=read('packages/renderer/src/features/shell/ShellPrimitives.tsx');
+assert.match(shell,/treatment=\{active \? "duotone" : nested \? "navigation" : "duotone"\}/);
+assert.match(shell,/treatment="action"/);
+const css=read('packages/renderer/src/features/shell/shell-v2.css');
+assert.match(css,/RC15 unified icon grid/);
+assert.match(css,/RC15 account button/);
+assert.doesNotMatch(boundary,/https?:\/\//,'icon loading must never use a network endpoint');
+const searchStyles=read('packages/renderer/src/features/search/search.css');
+assert.match(searchStyles,/RC15: Prevent command results/);
+assert.match(searchStyles,/min-height: 52px/);
+const settingsStyles=read('packages/renderer/src/features/settings/settings-workspace.css');
+assert.match(settingsStyles,/RC15: Studio Settings rail/);
+const manifest=JSON.parse(read('config/release-candidate.json'));
+assert.ok(manifest.release.startsWith("1.0.0-rc.") && manifest.sequence >= 15, "Three-pack icon architecture must survive later RC releases");
+console.log('RC15: three curated offline icon packs, semantic treatments, account/layout geometry and build integration verified');

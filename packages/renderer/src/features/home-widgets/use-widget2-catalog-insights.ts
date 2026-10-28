@@ -56,8 +56,8 @@ export function useWidget2CatalogInsights(canSourceControl: boolean, canIntegrat
     setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), sourceControlStatus: { state: "loading" } }));
     try {
       const [repositoryResult, reviewResult] = await Promise.all([
-        queryApi<{ repositories: HomeSourceRepository[] }>("/api/admin/source-control/repositories", { staleMs: 20_000, maxAgeMs: 5 * 60_000, force, tags: ["source-control", "home"] }),
-        queryApi<{ reviews: HomeSourceReview[] }>("/api/source-control/review-queue?limit=40", { staleMs: 15_000, maxAgeMs: 2 * 60_000, force, tags: ["source-control", "reviews", "home"] }),
+        queryApi<{ repositories: HomeSourceRepository[] }>("/api/admin/source-control/repositories", { staleMs: 60_000, maxAgeMs: 5 * 60_000, force, tags: ["source-control", "home"] }),
+        queryApi<{ reviews: HomeSourceReview[] }>("/api/source-control/review-queue?limit=40", { staleMs: 45_000, maxAgeMs: 2 * 60_000, force, tags: ["source-control", "reviews", "home"] }),
       ]);
       if (!authority.isCurrent(ticket)) return;
       setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), repositories: repositoryResult.repositories || [], reviews: reviewResult.reviews || [], sourceControlStatus: { state: "ready" } }));
@@ -73,7 +73,7 @@ export function useWidget2CatalogInsights(canSourceControl: boolean, canIntegrat
     const ticket = authority.claim("integrations");
     setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), integrationStatus: { state: "loading" } }));
     try {
-      const result = await queryApi<{ providers: HomeIntegrationProvider[] }>("/api/admin/integrations/providers", { staleMs: 20_000, maxAgeMs: 5 * 60_000, force, tags: ["integrations", "home"] });
+      const result = await queryApi<{ providers: HomeIntegrationProvider[] }>("/api/admin/integrations/providers", { staleMs: 60_000, maxAgeMs: 5 * 60_000, force, tags: ["integrations", "home"] });
       if (!authority.isCurrent(ticket)) return;
       setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), providers: result.providers || [], integrationStatus: { state: "ready" } }));
     } catch (error) {
@@ -88,7 +88,7 @@ export function useWidget2CatalogInsights(canSourceControl: boolean, canIntegrat
     const ticket = authority.claim("saved-views");
     setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), savedViewsStatus: { state: "loading" } }));
     try {
-      const result = await queryApi<{ records: ClientStateRecord[] }>("/api/client-state/user?prefix=saved-views.", { staleMs: 15_000, maxAgeMs: 5 * 60_000, force, tags: ["client-state", "saved-views", "home"] });
+      const result = await queryApi<{ records: ClientStateRecord[] }>("/api/client-state/user?prefix=saved-views.", { staleMs: 60_000, maxAgeMs: 5 * 60_000, force, tags: ["client-state", "saved-views", "home"] });
       if (!authority.isCurrent(ticket)) return;
       setState((previous) => ({ ...(previous.owner === owner ? previous : initialState(owner, canSourceControl, canIntegrations, canSavedViews)), savedViews: normalizeSavedViews(result.records || []), savedViewsStatus: { state: "ready" } }));
     } catch (error) {
@@ -99,9 +99,11 @@ export function useWidget2CatalogInsights(canSourceControl: boolean, canIntegrat
 
   useEffect(() => {
     // A fresh identity must not reuse a previous identity's cached projections.
-    if (canSourceControl) void loadSourceControl(true);
-    if (canIntegrations) void loadIntegrations(true);
-    if (canSavedViews) void loadSavedViews(true);
+    // Remounting Home or changing tabs is not a request to bypass the cache.
+    // The query cache is account-scoped and permission-tag invalidated on writes.
+    if (canSourceControl) void loadSourceControl();
+    if (canIntegrations) void loadIntegrations();
+    if (canSavedViews) void loadSavedViews();
     return () => {
       authorityRef.current.invalidate("source-control");
       authorityRef.current.invalidate("integrations");

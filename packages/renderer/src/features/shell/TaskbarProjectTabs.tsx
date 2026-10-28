@@ -3,6 +3,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { resolveClusterResourceActions } from "../../core/resource-action-registry";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { isProjectContextScreen, type AppScreen } from "../../core/navigation";
 import type { Project } from "../application/application-models";
 import { projectHealth } from "../projects/projects-utils";
@@ -38,9 +39,9 @@ export function TaskbarProjectTabs({ projects, openProjectIds, pinnedProjectIds,
         return <div key={project.id} className={`cluster-taskbar-project ${active ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`.trim()} role="presentation">
           <ClusterButton unstyled type="button" className="cluster-taskbar-project__main" role="tab" aria-selected={active} aria-current={active ? "page" : undefined} tabIndex={tabbable ? 0 : -1} onClick={() => onOpenProject(project.id)} onKeyDown={handleTabKey} title={project.name}>
             <span className="cluster-taskbar-project__status" data-tone={health.tone} aria-hidden="true" />
+            <span className="cluster-taskbar-project__identity"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
             {isPinned ? <ClusterIcon name="pin" className="cluster-taskbar-project__pin" aria-hidden="true" /> : null}
             <span className="cluster-taskbar-project__title">{project.name}</span>
-            <em>{projectTypeBadge(project)}</em>
             <span className="sr-only-v370">Health: {health.label}</span>
           </ClusterButton>
           <div className="cluster-taskbar-project__actions">

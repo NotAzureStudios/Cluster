@@ -16,6 +16,7 @@ export type DiscordRouteInput = {
   minPriority?: "normal" | "medium" | "high" | "critical";
   mentionMode?: "off" | "linked";
   routeKind?: "channel" | "thread";
+  guildId?: string;
 };
 
 type DiscordProductionServiceInput = {
@@ -67,6 +68,7 @@ function serializeRoute(binding: any) {
     projectId: binding.projectId,
     connectionId: binding.connectionId,
     channelId: binding.externalId,
+    guildId: cleanText(metadata.guildId, 120) || null,
     url: binding.externalUrl,
     displayName: binding.displayName,
     eventClasses: parseArray(metadata.eventClasses).map(String),
@@ -180,6 +182,125 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     return connection;
   }
 
+  async function approvedGuildIds(connection?: any) {
+    const current = connection || await activeConnection();
+    const config = parseObject(current.configuration);
+    const primary = cleanText((await input.readSettings()).discordGuildId, 120);
+    return [...new Set([primary, ...(Array.isArray(config.authorizedGuildIds) ? config.authorizedGuildIds : [])]
+      .map((id) => cleanText(id, 120)).filter((id) => /^\d{8,24}$/.test(id)))];
+  }
+
+  // Cache bot-visible metadata so an admin or Project view does not issue a
+  // Discord REST request per row or on every render. Names are presentation only;
+  // the canonical allowlist always uses validated guild IDs.
+  const guildMetadataCache = new Map<string, { until: number; name: string | null; iconUrl: string | null; reachable: boolean }>();
+  async function getGuildPresentation(guildId: string) {
+    const cached = guildMetadataCache.get(guildId);
+    if (cached && cached.until > Date.now()) return cached;
+    let presentation: { until: number; name: string | null; iconUrl: string | null; reachable: boolean };
+    try {
+      const settings = await input.readSettings();
+      if (!settings.discordBotToken) throw new Error("bot not configured");
+      const guild = await input.discordRequest(settings, `/guilds/${guildId}`);
+      if (cleanText(guild?.id, 120) !== guildId) throw new Error("guild mismatch");
+      const hash = cleanText(guild?.icon, 120);
+      presentation = { until: Date.now() + 5 * 60_000, name: cleanText(guild?.name, 100) || null,
+        iconUrl: /^[a-zA-Z0-9_]{10,120}$/.test(hash) ? `https://cdn.discordapp.com/icons/${guildId}/${hash}.png?size=64` : null, reachable: true };
+    } catch {
+      // Fail visibly. Never infer that membership is healthy from a stale name.
+      presentation = { until: Date.now() + 30_000, name: cached?.name || null, iconUrl: cached?.iconUrl || null, reachable: false };
+    }
+    if (guildMetadataCache.size >= 50) guildMetadataCache.clear();
+    guildMetadataCache.set(guildId, presentation);
+    return presentation;
+  }
+
+  async function linkedAccountCoverage() {
+    const eligible = { archived: false, accountState: "ACTIVE", OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: new Date() } }] };
+    const [active, linked] = await Promise.all([
+      input.prisma.user.count({ where: eligible }),
+      input.prisma.user.count({ where: { ...eligible, discordUserId: { not: null } } }),
+    ]);
+    return { active, linked, unlinked: Math.max(0, active - linked) };
+  }
+
+  const lastTestMessageAt = new Map<string, number>();
+  async function sendTestMessage(channelId: string) {
+    const settings = await input.readSettings(true);
+    const target = cleanText(channelId, 120);
+    if (!/^\d{8,24}$/.test(target)) throw createHttpError("DISCORD_TEST_CHANNEL_REQUIRED", "Choose a Discord channel ID to test.", 400);
+    const connection = await activeConnection();
+    const allowed = await approvedGuildIds(connection);
+    const channel = await input.discordRequest(settings, `/channels/${target}`);
+    const guildId = cleanText(channel?.guild_id, 120);
+    if (!allowed.includes(guildId)) throw createHttpError("DISCORD_GUILD_NOT_APPROVED", "The destination must belong to an approved Discord server.", 403);
+    if (![0, 5, 10, 11, 12].includes(Number(channel?.type)))
+      throw createHttpError("DISCORD_TEST_CHANNEL_INVALID", "Choose a text channel or thread in an approved server.", 400);
+    const now = Date.now();
+    if (now - (lastTestMessageAt.get(target) || 0) < 30_000)
+      throw createHttpError("DISCORD_TEST_RATE_LIMITED", "Wait 30 seconds before testing this destination again.", 429);
+    if (lastTestMessageAt.size > 50) lastTestMessageAt.clear();
+    lastTestMessageAt.set(target, now);
+    // Deliberately a transient connectivity diagnostic, not a new Inbox record.
+    // The normal delivery pathway remains Cluster Inbox -> durable receipts/queue.
+    try {
+      const result = await input.discordRequest(settings, `/channels/${target}/messages`, {
+        method: "POST", body: { content: "Cluster Discord connectivity test. No action needed.", allowed_mentions: { parse: [] } },
+      });
+      const messageId = cleanText(result?.id, 120);
+      if (!/^\d{8,24}$/.test(messageId)) throw createHttpError("DISCORD_TEST_SEND_FAILED", "Discord did not confirm the test message.", 502);
+      return { sent: true, guildId, channelId: target, messageId };
+    } catch (error) {
+      lastTestMessageAt.delete(target);
+      throw error;
+    }
+  }
+
+  async function listGuilds() {
+    const connection = await activeConnection();
+    const settings = await input.readSettings();
+    const primaryGuildId = cleanText(settings.discordGuildId, 120);
+    const ids = await approvedGuildIds(connection);
+    const guilds = [];
+    // Small batches avoid a burst of 20 provider calls on the first admin visit.
+    for (let offset = 0; offset < ids.length; offset += 4) {
+      const batch = await Promise.all(ids.slice(offset, offset + 4).map(async (id) => {
+        const { name, iconUrl, reachable } = await getGuildPresentation(id);
+        return { id, primary: id === primaryGuildId, name, iconUrl, reachable };
+      }));
+      guilds.push(...batch);
+    }
+    return { primaryGuildId, guilds };
+  }
+
+  async function addGuild(guildId: string) {
+    if (!/^\d{8,24}$/.test(guildId)) throw createHttpError("DISCORD_GUILD_INVALID", "A Discord server ID is required.", 400);
+    const connection = await activeConnection();
+    const existing = await approvedGuildIds(connection);
+    if (existing.length >= 20 && !existing.includes(guildId)) throw createHttpError("DISCORD_GUILD_LIMIT", "Maximum approved Discord servers reached.", 409);
+    // Merely installing a public bot into a guild grants no Cluster access.
+    // Admin authorization and live bot membership must BOTH be established.
+    const settings = await input.readSettings(true);
+    const guild = await input.discordRequest(settings, `/guilds/${guildId}`);
+    if (cleanText(guild?.id, 120) !== guildId) throw createHttpError("DISCORD_GUILD_UNREACHABLE", "The bot must be installed on that Discord server first.", 409);
+    const config = parseObject(connection.configuration);
+    guildMetadataCache.delete(guildId);
+    await input.prisma.integrationConnection.update({ where: { id: connection.id }, data: { configuration: JSON.stringify({ ...config, authorizedGuildIds: [...new Set([...(Array.isArray(config.authorizedGuildIds) ? config.authorizedGuildIds : []), guildId])] }) } });
+    return listGuilds();
+  }
+
+  async function removeGuild(guildId: string) {
+    const connection = await activeConnection();
+    const settings = await input.readSettings();
+    if (guildId === cleanText(settings.discordGuildId, 120)) throw createHttpError("DISCORD_PRIMARY_GUILD", "Change the primary Discord server before removing it.", 409);
+    guildMetadataCache.delete(guildId);
+    const config = parseObject(connection.configuration);
+    // Revocation is immediate, even for already queued deliveries.
+    const approved = Array.isArray(config.authorizedGuildIds) ? config.authorizedGuildIds : [];
+    await input.prisma.integrationConnection.update({ where: { id: connection.id }, data: { configuration: JSON.stringify({ ...config, authorizedGuildIds: approved.filter((id: unknown) => String(id) !== guildId) }) } });
+    return listGuilds();
+  }
+
   async function projectRoutes(projectId: string) {
     const rows = await input.prisma.projectIntegrationBinding.findMany({
       where: { projectId, resourceType: "discord_route", archived: false, connection: { providerId: "communication.discord", archived: false } },
@@ -198,9 +319,14 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     if (!linked) throw createHttpError("DISCORD_PROJECT_NOT_LINKED", "Link this Discord connection to the project before adding delivery routes.", 409);
     const channelId = cleanText(route.channelId, 120);
     if (!/^\d{8,24}$/.test(channelId)) throw createHttpError("DISCORD_CHANNEL_INVALID", "Choose a valid Discord channel or thread.", 400);
+    const guildId = cleanText(route.guildId || (await input.readSettings()).discordGuildId, 120);
+    if (!(await approvedGuildIds(connection)).includes(guildId)) throw createHttpError("DISCORD_GUILD_NOT_APPROVED", "Approve this Discord server in Admin → Integrations first.", 403);
+    const settings = await input.readSettings();
+    const channel = await input.discordRequest(settings, `/channels/${channelId}`);
+    if (cleanText(channel?.guild_id, 120) !== guildId) throw createHttpError("DISCORD_CHANNEL_GUILD_MISMATCH", "This channel does not belong to the approved Discord server.", 403);
     const eventClasses = Array.from(new Set((route.eventClasses?.length ? route.eventClasses : ["all"]).filter((item): item is DiscordEventClass => DISCORD_EVENT_CLASSES.includes(item as DiscordEventClass))));
-    const metadata = JSON.stringify({ eventClasses, minPriority: route.minPriority || "medium", mentionMode: route.mentionMode || "linked", routeKind: route.routeKind || "channel", health: "unknown", healthMessage: "Not checked yet.", lastCheckedAt: null });
-    const url = discordUrl((await input.readSettings()).discordGuildId, channelId);
+    const metadata = JSON.stringify({ guildId, eventClasses, minPriority: route.minPriority || "medium", mentionMode: route.mentionMode || "linked", routeKind: route.routeKind || "channel", health: "unknown", healthMessage: "Not checked yet.", lastCheckedAt: null });
+    const url = discordUrl(guildId, channelId);
     if (routeId) {
       const existing = await input.prisma.projectIntegrationBinding.findFirst({ where: { id: routeId, projectId, resourceType: "discord_route", archived: false } });
       if (!existing) throw createHttpError("DISCORD_ROUTE_NOT_FOUND", "Discord route not found.", 404);
@@ -223,11 +349,11 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     return { id: existing.id, archived: true };
   }
 
-  async function discordChannels(settings: SettingPayload) {
-    if (!settings.discordGuildId || !settings.discordBotToken) return [];
+  async function discordChannels(settings: SettingPayload, guildId = cleanText(settings.discordGuildId, 120)) {
+    if (!guildId || !settings.discordBotToken) return [];
     const [channels, threads] = await Promise.all([
-      input.discordRequest(settings, `/guilds/${settings.discordGuildId}/channels`).catch(() => []),
-      input.discordRequest(settings, `/guilds/${settings.discordGuildId}/threads/active`).then((value) => value?.threads || []).catch(() => []),
+      input.discordRequest(settings, `/guilds/${guildId}/channels`).catch(() => []),
+      input.discordRequest(settings, `/guilds/${guildId}/threads/active`).then((value) => value?.threads || []).catch(() => []),
     ]);
     const map = new Map<string, any>();
     for (const channel of [...(Array.isArray(channels) ? channels : []), ...(Array.isArray(threads) ? threads : [])]) {
@@ -237,21 +363,25 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     return [...map.values()];
   }
 
-  async function availableChannels(projectId: string) {
+  async function availableChannels(projectId: string, requestedGuildId?: string) {
     const project = await input.prisma.project.findFirst({ where: { id: projectId, archived: false } });
     if (!project) throw createHttpError("PROJECT_NOT_FOUND", "Project not found.", 404);
     const binding = await input.prisma.projectIntegrationBinding.findFirst({ where: { projectId, resourceType: "project", archived: false, connection: { providerId: "communication.discord", archived: false, status: { not: "disabled" } } }, include: { connection: true } });
     if (!binding) return { connectionId: null, channels: [] };
     const settings = await input.readSettings();
-    const channels = await discordChannels(settings);
-    return { connectionId: binding.connectionId, channels: channels.map((channel: any) => ({ id: String(channel.id), name: cleanText(channel.name, 160) || `Discord ${channel.id}`, parentId: channel.parent_id ? String(channel.parent_id) : null, type: Number(channel.type), routeKind: [10, 11, 12].includes(Number(channel.type)) ? "thread" : "channel", url: discordUrl(settings.discordGuildId, String(channel.id)) })).sort((a: any, b: any) => a.name.localeCompare(b.name)) };
+    const approved = await approvedGuildIds(binding.connection);
+    const guildId = requestedGuildId || cleanText(settings.discordGuildId, 120);
+    if (!approved.includes(guildId)) throw createHttpError("DISCORD_GUILD_NOT_APPROVED", "This Discord server is not approved.", 403);
+    const channels = await discordChannels(settings, guildId);
+    return { connectionId: binding.connectionId, guildId, channels: channels.map((channel: any) => ({ id: String(channel.id), name: cleanText(channel.name, 160) || `Discord ${channel.id}`, parentId: channel.parent_id ? String(channel.parent_id) : null, type: Number(channel.type), routeKind: [10, 11, 12].includes(Number(channel.type)) ? "thread" : "channel", url: discordUrl(guildId, String(channel.id)) })).sort((a: any, b: any) => a.name.localeCompare(b.name)) };
   }
 
   async function reconcileRoutes(options: { projectId?: string | null; connectionId?: string | null } = {}) {
     const settings = await input.readSettings(true);
     const connection = await activeConnection(options.connectionId);
-    const channels = await discordChannels(settings);
-    const byId = new Map(channels.map((channel: any) => [String(channel.id), channel]));
+    const allowedGuilds = await approvedGuildIds(connection);
+    const allChannels = await Promise.all(allowedGuilds.map(async (guildId) => ({ guildId, channels: await discordChannels(settings, guildId) })));
+    const byId = new Map(allChannels.flatMap((group) => group.channels.map((channel: any) => [String(channel.id), { ...channel, guildId: group.guildId }] as const)));
     const rows = await input.prisma.projectIntegrationBinding.findMany({ where: { connectionId: connection.id, resourceType: "discord_route", archived: false, ...(options.projectId ? { projectId: options.projectId } : {}) }, include: { project: { include: { memberships: { where: { status: "active" } } } } } });
     let healthy = 0;
     let missing = 0;
@@ -265,8 +395,9 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
       }
       const channel = byId.get(String(row.externalId || ""));
       const previous = parseObject(row.metadata);
+      const routeGuildId = cleanText(previous.guildId || settings.discordGuildId, 120);
       const now = new Date().toISOString();
-      if (!channel) {
+      if (!channel || channel.guildId !== routeGuildId || !allowedGuilds.includes(routeGuildId)) {
         missing += 1;
         await input.prisma.projectIntegrationBinding.update({ where: { id: row.id }, data: { metadata: JSON.stringify({ ...previous, health: "missing", healthMessage: "Discord channel or thread no longer exists or is not visible to the bot.", lastCheckedAt: now }) } });
         continue;
@@ -274,8 +405,8 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
       healthy += 1;
       const name = cleanText(channel.name, 160) || row.displayName || `Discord ${row.externalId}`;
       if (row.displayName && row.displayName !== name) renamed += 1;
-      const url = discordUrl(settings.discordGuildId, String(channel.id));
-      const metadata = { ...previous, health: "healthy", healthMessage: "Discord route verified.", lastCheckedAt: now, parentId: channel.parent_id || null, discordType: Number(channel.type), routeKind: [10, 11, 12].includes(Number(channel.type)) ? "thread" : "channel" };
+      const url = discordUrl(routeGuildId, String(channel.id));
+      const metadata = { ...previous, guildId: routeGuildId, health: "healthy", healthMessage: "Discord route verified.", lastCheckedAt: now, parentId: channel.parent_id || null, discordType: Number(channel.type), routeKind: [10, 11, 12].includes(Number(channel.type)) ? "thread" : "channel" };
       await input.prisma.$transaction([
         input.prisma.projectIntegrationBinding.update({ where: { id: row.id }, data: { displayName: name, externalUrl: url, metadata: JSON.stringify(metadata) } }),
         input.prisma.externalEntityLink.upsert({
@@ -350,13 +481,17 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     const settings = currentSettings ?? await input.readSettings();
     if (!item.projectId) {
       const meta = parseObject(item.metadata);
-      if (meta.discordDeliveryRequested !== true || !settings.discordChatChannelId) return [];
+      if (meta.discordDeliveryRequested !== true || !settings.discordChatChannelId || !settings.discordGuildId) return [];
       const connection = await activeConnection();
       return [{ id: "studio-default", projectId: null, connectionId: connection.id, externalId: settings.discordChatChannelId, externalUrl: discordUrl(settings.discordGuildId, settings.discordChatChannelId), displayName: "Studio default", metadata: JSON.stringify({ eventClasses: ["all"], minPriority: "normal", mentionMode: "linked", health: "unknown" }) }];
     }
     const bindings = await input.prisma.projectIntegrationBinding.findMany({ where: { projectId: item.projectId, resourceType: "discord_route", archived: false, project: { archived: false }, connection: { providerId: "communication.discord", archived: false, status: { not: "disabled" } } }, include: { connection: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] });
-    const matched = bindings.filter((binding: any) => routeMatches(binding, item));
+    const allowedGuildIds = await approvedGuildIds();
+    const matched = bindings.filter((binding: any) => routeMatches(binding, item) && allowedGuildIds.includes(cleanText(parseObject(binding.metadata).guildId || settings.discordGuildId, 120)));
     if (matched.length) return matched;
+    // An explicit route set is authoritative. A disabled, revoked, or filtered
+    // destination must never silently fall back to the studio default.
+    if (bindings.length) return [];
     const projectBinding = await input.prisma.projectIntegrationBinding.findFirst({ where: { projectId: item.projectId, resourceType: "project", archived: false, project: { archived: false }, connection: { providerId: "communication.discord", archived: false, status: { not: "disabled" } } }, include: { connection: true } });
     if (!projectBinding || !settings.discordChatChannelId) return [];
     return [{ id: "project-default", projectId: item.projectId, connectionId: projectBinding.connectionId, externalId: settings.discordChatChannelId, externalUrl: discordUrl(settings.discordGuildId, settings.discordChatChannelId), displayName: "Project default", metadata: JSON.stringify({ eventClasses: ["all"], minPriority: "medium", mentionMode: "linked", health: "unknown" }) }];
@@ -455,15 +590,17 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
       });
       if (!binding) throw createHttpError("DISCORD_PROJECT_LINK_REVOKED", "The Project is no longer linked to this Discord connection.", 409);
     }
+    const approved = await approvedGuildIds(connection);
     const routes = await routesForNotification(item, settings);
     const matching = routes.find((route: any) => String(route.id) === routeId &&
       String(route.connectionId) === String(connection.id) &&
       cleanText(route.externalId, 120) === channelId &&
-      String(route.projectId || "") === String(item.projectId || ""));
+      String(route.projectId || "") === String(item.projectId || "") &&
+      approved.includes(cleanText(parseObject(route.metadata).guildId || settings.discordGuildId, 120)));
     if (!matching) {
       throw createHttpError("DISCORD_DELIVERY_TARGET_STALE", "The Discord route or delivery policy changed after this notification was queued.", 409);
     }
-    return { channelId, mentionMode: parseObject(matching.metadata).mentionMode === "off" ? "off" : "linked" };
+    return { channelId, guildId: cleanText(parseObject(matching.metadata).guildId || settings.discordGuildId, 120), mentionMode: parseObject(matching.metadata).mentionMode === "off" ? "off" : "linked" };
   }
 
   async function executeDelivery(receiptId: string, attempt: number) {
@@ -504,14 +641,14 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
       // reuse the earlier settings snapshot when an administrator has revoked
       // or redirected outbound delivery in the meantime.
       const sendSettings = await input.readSettings(true);
-      const { channelId, mentionMode } = await authorizedDeliveryRoute(receipt, item, metadata, sendSettings);
+      const { channelId, guildId, mentionMode } = await authorizedDeliveryRoute(receipt, item, metadata, sendSettings);
       if (mentionMode === "off") {
         payload.content = undefined;
         payload.allowed_mentions.users = [];
       }
       const sent = await input.discordRequest(sendSettings, `/channels/${channelId}/messages`, { method: "POST", body: payload });
       const messageId = cleanText(sent?.id, 120);
-      const providerUrl = discordUrl(sendSettings.discordGuildId, channelId, messageId);
+      const providerUrl = discordUrl(guildId, channelId, messageId);
       const completed = { ...metadata, messageId, providerUrl, deliveredAt: new Date().toISOString(), eventClass };
       await input.prisma.$transaction([
         input.prisma.integrationActionReceipt.update({ where: { id: receipt.id }, data: { status: "completed", providerEntityId: messageId || null, providerUrl, responseMetadata: JSON.stringify(completed), completedAt: new Date(), lastError: null } }),
@@ -561,20 +698,22 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     return board;
   }
 
-  async function projectRouteForChannel(connectionId: string, channelId: string, settings: SettingPayload) {
+  async function projectRouteForChannel(connectionId: string, channelId: string, settings: SettingPayload, guildId: string) {
     let binding = await input.prisma.projectIntegrationBinding.findFirst({ where: { connectionId, resourceType: "discord_route", externalId: channelId, archived: false, project: { archived: false } }, include: { project: { include: { memberships: { where: { status: "active" } } } } } });
-    if (binding) return binding;
+    if (binding && cleanText(parseObject(binding.metadata).guildId || settings.discordGuildId, 120) === guildId) return binding;
+    binding = null;
     try {
       const channel = await input.discordRequest(settings, `/channels/${channelId}`);
+      if (cleanText(channel?.guild_id, 120) !== guildId) return null;
       if (channel?.parent_id) binding = await input.prisma.projectIntegrationBinding.findFirst({ where: { connectionId, resourceType: "discord_route", externalId: String(channel.parent_id), archived: false, project: { archived: false } }, include: { project: { include: { memberships: { where: { status: "active" } } } } } });
     } catch {}
-    return binding;
+    return binding && cleanText(parseObject(binding.metadata).guildId || settings.discordGuildId, 120) === guildId ? binding : null;
   }
 
   async function createTicketFromInteraction(connection: any, interaction: any, actorDiscordId: string) {
     const settings = await input.readSettings();
     const channelId = cleanText(interaction.channel_id, 120);
-    const binding = await projectRouteForChannel(connection.id, channelId, settings);
+    const binding = await projectRouteForChannel(connection.id, channelId, settings, cleanText(interaction.guild_id, 120));
     if (!binding?.project) throw createHttpError("DISCORD_PROJECT_ROUTE_REQUIRED", "This Discord channel is not routed to a Cluster project.", 409);
     const { user, role } = await authorizeDiscordUser(actorDiscordId, binding.project, "tickets", "contribute");
     const targetId = cleanText(interaction?.data?.target_id, 120);
@@ -599,7 +738,7 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     const author = message.author?.global_name || message.author?.username || "Discord user";
     const content = cleanText(message.content || "Discord message", 8_000) || "Discord message";
     const title = cleanText(content.replace(/\s+/g, " "), 120) || "Discord follow-up";
-    const providerUrl = discordUrl(settings.discordGuildId, channelId, targetId);
+    const providerUrl = discordUrl(cleanText(interaction.guild_id, 120), channelId, targetId);
     const card = await input.prisma.card.create({ data: { listId: list.id, title, workItemKind: "ticket", ticketStage: "new", description: `${content}\n\nDiscord author: ${cleanText(author, 160)}`, priority: "medium", labels: JSON.stringify(["ticket", "discord"]), assigneeId: user.id, position: last ? last.position + 1 : 0, externalUrl: providerUrl } });
     await input.prisma.externalEntityLink.create({ data: { workspaceId: binding.project.workspaceId, projectId: binding.project.id, connectionId: connection.id, entityType: "ticket", entityId: card.id, providerEntityType: "discord_message", providerEntityId: targetId, providerUrl, metadata: JSON.stringify({ channelId, authorDiscordId: message.author?.id || null }) } });
     await input.logActivity({ userId: user.id, projectId: binding.project.id, boardId: board.id, cardId: card.id, type: "created", entityType: "ticket", entityId: card.id, title: "Ticket created from Discord", message: card.title, metadata: { discordMessageId: targetId, discordChannelId: channelId, notifyInbox: true, assigneeId: user.id } });
@@ -609,7 +748,7 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
   async function projectStatusFromInteraction(connection: any, interaction: any, actorDiscordId: string) {
     const settings = await input.readSettings();
     const channelId = cleanText(interaction.channel_id, 120);
-    const binding = await projectRouteForChannel(connection.id, channelId, settings);
+    const binding = await projectRouteForChannel(connection.id, channelId, settings, cleanText(interaction.guild_id, 120));
     if (!binding?.project) throw createHttpError("DISCORD_PROJECT_ROUTE_REQUIRED", "This Discord channel is not routed to a Cluster project.", 409);
     await authorizeDiscordUser(actorDiscordId, binding.project, "projects", "view");
     const [openTickets, openReviews, latestVersion] = await Promise.all([
@@ -626,8 +765,10 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     const settings = await input.readSettings();
     if (settings.discordApplicationId && cleanText(interaction?.application_id, 120) !== settings.discordApplicationId) throw createHttpError("DISCORD_APPLICATION_MISMATCH", "Discord interaction does not belong to the configured application.", 403);
     if (interaction?.type === 1) return { type: 1 };
-    if (settings.discordGuildId && cleanText(interaction?.guild_id, 120) !== settings.discordGuildId) throw createHttpError("DISCORD_GUILD_MISMATCH", "Discord interaction does not belong to the configured server.", 403);
+    // Public Discord installation is intentionally not a Cluster workspace grant.
+    // Unless explicitly bound by the studio owner, all other guilds and DMs fail closed.
     const connection = await activeConnection();
+    if (!(await approvedGuildIds(connection)).includes(cleanText(interaction?.guild_id, 120))) throw createHttpError("DISCORD_GUILD_MISMATCH", "This Discord server is not connected to a Cluster studio.", 403);
     const interactionId = cleanText(interaction?.id, 120);
     if (!interactionId) throw createHttpError("DISCORD_INTERACTION_INVALID", "Discord interaction ID is missing.", 400);
     const eventPayload = JSON.stringify({ id: interactionId, type: interaction.type, applicationId: cleanText(interaction.application_id, 120) || null, guildId: cleanText(interaction.guild_id, 120) || null, channelId: cleanText(interaction.channel_id, 120) || null, data: interaction.data || null, memberUserId: cleanText(interaction.member?.user?.id || interaction.user?.id, 120) || null });
@@ -646,9 +787,13 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
         const ack = /^cl:ack:([^:]+)$/.exec(customId);
         const approve = /^cl:review:approve:([^:]+):([^:]+)$/.exec(customId);
         if (ack) {
-          const item = await input.prisma.notificationInboxItem.findFirst({ where: { user: { discordUserId: actorDiscordId }, activityEventId: ack[1] } });
+          const user = await input.prisma.user.findFirst({ where: { discordUserId: actorDiscordId, archived: false, accountState: "ACTIVE" } });
+          if (!user || (user.accessExpiresAt && new Date(user.accessExpiresAt).getTime() <= Date.now())) {
+            throw createHttpError("DISCORD_IDENTITY_INACTIVE", "A linked, active Cluster account is required.", 403);
+          }
+          const item = await input.prisma.notificationInboxItem.findFirst({ where: { userId: user.id, activityEventId: ack[1] } });
           if (!item) throw createHttpError("DISCORD_NOTIFICATION_NOT_FOUND", "No matching Cluster Inbox item is available for your account.", 404);
-          await input.notificationService.acknowledge(item.userId, [item.id], true);
+          await input.notificationService.acknowledge(user.id, [item.id], true);
           entityType = "notification"; entityId = item.id;
           response = interactionResponse("Acknowledged in Cluster.");
         } else if (approve) {
@@ -713,7 +858,7 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
 
   async function syncCommands() {
     const settings = await input.readSettings(true);
-    if (!settings.discordApplicationId || !settings.discordGuildId) throw createHttpError("DISCORD_APPLICATION_REQUIRED", "Configure the Discord application ID and server ID before syncing commands.", 409);
+    if (!settings.discordApplicationId || !settings.discordGuildId) throw createHttpError("DISCORD_APPLICATION_REQUIRED", "Configure the Discord application ID and primary server ID before syncing commands.", 409);
     const commands = [
       {
         name: "cluster",
@@ -728,9 +873,16 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
       },
       { name: "Create Cluster Ticket", type: 3, dm_permission: false, default_member_permissions: null },
     ];
-    const result = await input.discordRequest(settings, `/applications/${encodeURIComponent(settings.discordApplicationId)}/guilds/${encodeURIComponent(settings.discordGuildId)}/commands`, { method: "PUT", body: commands });
-    return { commands: Array.isArray(result) ? result.map((row: any) => ({ id: row.id, name: row.name, type: row.type })) : [] };
+    const guildIds = await approvedGuildIds();
+    const outcomes = [];
+    for (const guildId of guildIds) {
+      try {
+        const result = await input.discordRequest(settings, `/applications/${encodeURIComponent(settings.discordApplicationId)}/guilds/${guildId}/commands`, { method: "PUT", body: commands });
+        outcomes.push({ guildId, ok: true, commands: Array.isArray(result) ? result.length : 0 });
+      } catch { outcomes.push({ guildId, ok: false, commands: 0 }); }
+    }
+    return { commands: commands.map((cmd) => ({ name: cmd.name, type: cmd.type })), guilds: outcomes };
   }
 
-  return { projectRoutes, upsertProjectRoute, archiveProjectRoute, availableChannels, reconcileRoutes, deliverySummary, retryDelivery, enqueueNotification, repairPendingDeliveries, executeDelivery, processInteraction, processGatewayInteraction, syncCommands, eventClassForNotification, discordNotificationPresentation };
+  return { listGuilds, linkedAccountCoverage, sendTestMessage, addGuild, removeGuild, projectRoutes, upsertProjectRoute, archiveProjectRoute, availableChannels, reconcileRoutes, deliverySummary, retryDelivery, enqueueNotification, repairPendingDeliveries, executeDelivery, processInteraction, processGatewayInteraction, syncCommands, eventClassForNotification, discordNotificationPresentation };
 }

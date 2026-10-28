@@ -87,7 +87,7 @@ func main() {
 
 func runServerHeadless(options launcherOptions) error {
 	root := options.root
-	fmt.Printf("Cluster Server v%s\nWorkspace: %s\n\n", version, root)
+	fmt.Printf("Cluster Server %s\nWorkspace: %s\n\n", displayReleaseVersion(root), root)
 
 	node, npm, cleanupRuntime, err := preparePlatformRuntime(root)
 	if err != nil {
@@ -180,6 +180,12 @@ func prepareApplicationContext(ctx context.Context, root, node, npm string, env 
 	webEntry := filepath.Join(root, "apps", "web", "dist", "index.html")
 	markerBytes, _ := os.ReadFile(marker)
 	prebuiltReady := releasePrebuiltReady(root) && fileExists(serverEntry) && fileExists(webEntry) && fileExists(filepath.Join(root, "packages", "shared", "dist", "index.js"))
+	// Source compilation belongs to Cluster-Installer.exe, never to an ordinary
+	// start of an installer-managed release. A broken release is a repairable
+	// installation failure; silently running npm here masks missing artifacts,
+	// requires build tools on every machine, and can mutate a live installation.
+	managedInstall := fileExists(filepath.Join(root, ".cluster-installer-managed.json"))
+	if err := verifyManagedStartup(root, force, prebuiltReady, true); err != nil { return err }
 	needsBuild := force || (!prebuiltReady && (strings.TrimSpace(string(markerBytes)) != version || !fileExists(serverEntry) || !fileExists(webEntry)))
 	dependencyMarker := filepath.Join(root, "data", "system", "runtime", "dependencies.sha256")
 	dependencyHash, err := dependencyFingerprint(root)
@@ -189,6 +195,9 @@ func prepareApplicationContext(ctx context.Context, root, node, npm string, env 
 	installedHash, _ := os.ReadFile(dependencyMarker)
 	installedFingerprint := strings.TrimSpace(string(installedHash))
 	coreDependenciesPresent := fileExists(filepath.Join(root, "node_modules", "prisma", "package.json")) && fileExists(filepath.Join(root, "node_modules", "@prisma", "client", "package.json"))
+	if managedInstall && !force {
+		if err := verifyManagedStartup(root, force, prebuiltReady, coreDependenciesPresent && installedDependencyGraphHealthy(root)); err != nil { return err }
+	}
 	dependenciesReady := coreDependenciesPresent && installedFingerprint == dependencyHash
 	if !force && !dependenciesReady && coreDependenciesPresent && installedDependencyGraphHealthy(root) {
 		// Migrate installations created by the old version-based fingerprint without
@@ -522,7 +531,7 @@ func writeEnvFile(file string, values map[string]string) error {
 	order := []string{"DATABASE_URL", "DIRECT_DATABASE_URL", "CLUSTER_REQUIRE_AUTH", "CLUSTER_REQUIRE_DISCORD_LINK", "CLUSTER_DEV_LOGIN", "CLUSTER_AUTO_SEED", "SESSION_SECURE", "SESSION_SECRET", "CLUSTER_AUTH_SECRET", "CLUSTER_SECRET_KEY", "CLUSTER_SECRET_KEY_PREVIOUS"}
 	seen := map[string]bool{}
 	var b strings.Builder
-	b.WriteString("# Managed by Cluster Server v" + version + "\n")
+	b.WriteString("# Managed by Cluster Server\n")
 	writeValue := func(key string) {
 		if seen[key] || !regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`).MatchString(key) {
 			return

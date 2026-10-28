@@ -41,6 +41,7 @@ export function AppearanceShellPreview({ settings, theme }: { settings: Settings
     data-background-pattern={context.backgroundPattern} data-surface-style={context.surfaceStyle}
     data-sidebar-surface={context.sidebarSurface} data-taskbar-surface={context.taskbarSurface}
     data-taskbar-layout={context.taskbarLayout} data-sidebar-layout={context.sidebarLayout}
+    data-sidebar-item-style={context.sidebarItemStyle}
     data-surface-depth={context.surfaceDepth} data-surface-texture={context.surfaceTexture}
     data-high-contrast={context.accessibility.highContrast ? "true" : "false"}
     data-icon-size={context.iconSize} data-panel-borders={context.accessibility.highContrast ? "defined" : context.panelBorders}
@@ -50,7 +51,7 @@ export function AppearanceShellPreview({ settings, theme }: { settings: Settings
     <div className="appearance-shell-preview__frame">
       <aside className="appearance-shell-preview__sidebar">
         <div className="appearance-shell-preview__brand"><span className="appearance-shell-preview__logo">C</span><strong>Cluster</strong></div>
-        {(["home", "project", "calendar", "library", "people"] as const).map((icon, index) => <div key={icon} className={`appearance-shell-preview__nav ${index === 3 ? "active" : ""}`}><ClusterIcon name={icon} /><span>{["Home", "Projects", "Calendar", "Library", "People"][index]}</span></div>)}
+        {(["home", "project", "calendar", "library", "people"] as const).map((icon, index) => <div key={icon} className={`appearance-shell-preview__nav ${index === 3 ? "active" : ""}`}><ClusterIcon name={icon === "people" ? "users" : icon} /><span>{["Home", "Projects", "Calendar", "Library", "People"][index]}</span></div>)}
       </aside>
       <div className="appearance-shell-preview__workspace">
         <div className="appearance-shell-preview__taskbar"><span><ClusterIcon name="chevron-left" /><ClusterIcon name="chevron-right" /></span><div className="appearance-shell-preview__tab active"><i />Project Orion</div><div className="appearance-shell-preview__tab">Cluster</div><span className="appearance-shell-preview__spacer" /><ClusterIcon name="search" /><div className="appearance-shell-preview__avatar">D</div></div>
@@ -61,6 +62,6 @@ export function AppearanceShellPreview({ settings, theme }: { settings: Settings
         </main>
       </div>
     </div>
-    <footer className="appearance-shell-preview__meta"><span>{settings.backgroundBaseStyle || "clean"}</span><span>{settings.backgroundPattern || "hex"}</span><span>{settings.surfaceStyle || "outlined"}</span><span>{context.sidebarLayout} sidebar</span><span>{context.surfaceDepth} depth</span><span>{context.surfaceTexture} texture</span><span>{context.panelBorders} borders</span><span>{context.iconSize} icons</span><span>{context.taskbarLayout === "floating" ? "Floating" : "Full-width"} taskbar</span><span>{settings.taskbarSurface || "match"} finish</span></footer>
+    <footer className="appearance-shell-preview__meta"><span>{settings.backgroundBaseStyle || "clean"}</span><span>{settings.backgroundPattern || "hex"}</span><span>{settings.surfaceStyle || "outlined"}</span><span>{context.sidebarLayout} sidebar</span><span>{context.sidebarItemStyle} navigation</span><span>{context.surfaceDepth} depth</span><span>{context.surfaceTexture} texture</span><span>{context.panelBorders} borders</span><span>{context.iconSize} icons</span><span>{context.taskbarLayout === "floating" ? "Floating" : "Full-width"} taskbar</span><span>{settings.taskbarSurface || "match"} finish</span></footer>
   </section>;
 }

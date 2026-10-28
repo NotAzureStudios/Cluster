@@ -62,7 +62,7 @@ export async function assertNetworkDeploymentWritable(configPath: string): Promi
 }
 
 /** Must run AFTER the publication journal is durably written, and BEFORE config replacement. */
-export async function stageNetworkDeployment(configPath: string, before: string | null, after: string, id = randomUUID()): Promise<void> {
+export async function stageNetworkDeployment(configPath: string, before: string | null, after: string, id: string = randomUUID()): Promise<void> {
   if (!(await hasPublicationJournal(configPath))) throw new Error('Network rollout requires the durable configuration publication journal.');
   if (before === after) return;
   const plan: Rollout = { schema: 1, id, state: 'staged', createdAt: new Date().toISOString(), before: snapshot(before), after: snapshot(after) };

@@ -135,8 +135,9 @@ export async function reverseSavedCardOperation(prisma: any, input: {
       throw new SavedCardHistoryError("CARD_HISTORY_WRONG_DIRECTION", "This edit is not available for that history action.");
     }
     const operation = parseSavedOperation(row)!;
+    const fields: SavedCardField[] = operation.fields;
     const currentValues = snapshotCardFields(card, operation.fields);
-    if (operation.fields.some((field) => JSON.stringify(currentValues[field]) !== JSON.stringify(operation.after[field]))) {
+    if (fields.some((field: SavedCardField) => JSON.stringify(currentValues[field]) !== JSON.stringify(operation.after[field]))) {
       throw new SavedCardHistoryError("CARD_HISTORY_DIVERGED", "A Card field changed outside this saved operation. No changes were applied.");
     }
     const updated = await tx.card.updateMany({ where: { id: card.id, revision: card.revision },

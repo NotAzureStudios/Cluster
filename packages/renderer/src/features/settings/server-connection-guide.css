@@ -1,0 +1,20 @@
+.cluster-connection-guide-rc46{display:grid;gap:12px;min-width:0;color:var(--text)}
+.cluster-connection-guide-rc46 header{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.cluster-connection-guide-rc46 header h2{margin:3px 0}.cluster-connection-guide-rc46 header p{margin:0;color:var(--soft-text);font-size:.76rem}
+.cluster-connection-progress-rc46{white-space:nowrap;font-size:.72rem;color:var(--soft-text)}
+.cluster-connection-methods-rc46{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cluster-connection-methods-rc46>button{display:flex;align-items:center;gap:9px;min-width:0;padding:11px;color:var(--text);font:inherit;cursor:pointer;background:var(--surface-soft);border:1px solid var(--border);border-radius:10px;font-size:.77rem;text-align:start}
+.cluster-connection-methods-rc46>button.active{border-color:var(--accent,#57c1ff);background:color-mix(in srgb,var(--accent,#57c1ff) 9%,var(--surface));box-shadow:inset 0 0 0 1px var(--accent,#57c1ff)}
+.cluster-connection-methods-rc46>button:focus-visible{outline:2px solid var(--accent,#57c1ff);outline-offset:2px}
+.cluster-connection-guide-subhead-rc46{display:grid;gap:4px}.cluster-connection-guide-subhead-rc46>span{color:var(--soft-text);font-size:.75rem}
+.cluster-connection-steps-rc46{display:grid;gap:7px;list-style:none;margin:0;padding:0;counter-reset:access-step}
+.cluster-connection-steps-rc46 li{padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--surface-soft)}
+.cluster-connection-steps-rc46 label{display:flex;align-items:flex-start;gap:9px;color:var(--text);font-size:.77rem;cursor:pointer}
+.cluster-connection-steps-rc46 input{accent-color:var(--accent,#57c1ff);margin-top:3px;flex-shrink:0}
+.cluster-connection-command-rc46{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--surface-soft);border:1px solid var(--border);border-radius:9px;padding:10px}
+.cluster-connection-command-rc46>code{font-size:.8rem;color:var(--text)}.cluster-connection-command-rc46>small{flex-basis:100%;color:var(--soft-text)}
+.cluster-connection-origin-rc46{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end}
+.cluster-connection-origin-rc46>label{min-width:0;display:grid;gap:4px;font-size:.76rem}.cluster-connection-origin-rc46 input{width:100%;min-width:0}
+.cluster-connection-guide-rc46 a{color:var(--accent,#57c1ff);font-size:.75rem;align-self:center}
+.cluster-connection-caution-rc46{color:var(--soft-text);font-size:.72rem;line-height:1.5;border-top:1px solid var(--border);padding-top:9px;margin:0}
+@media(max-width:720px){.cluster-connection-methods-rc46{grid-template-columns:1fr}.cluster-connection-origin-rc46{grid-template-columns:1fr}}

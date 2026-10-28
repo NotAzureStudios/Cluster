@@ -46,13 +46,14 @@ function fieldId(label: string, index: number) {
   return base || `field_${index + 1}`;
 }
 
-export function StudioSystemsSettingsSection({ targetFormId = null, targetSubmissionId = null, targetApplicationId = null, targetAnnouncementId = null, composeAnnouncement = false, showAnnouncements = false }: { targetFormId?: string | null; targetSubmissionId?: string | null; targetApplicationId?: string | null; targetAnnouncementId?: string | null; composeAnnouncement?: boolean; showAnnouncements?: boolean }) {
+export function StudioSystemsSettingsSection({ targetFormId = null, targetSubmissionId = null, targetApplicationId = null, targetAnnouncementId = null, composeAnnouncement = false, showAnnouncements = false, initialTab = "forms", onTabChange }: { targetFormId?: string | null; targetSubmissionId?: string | null; targetApplicationId?: string | null; targetAnnouncementId?: string | null; composeAnnouncement?: boolean; showAnnouncements?: boolean; initialTab?: string | null; onTabChange?: (tab: string) => void }) {
   const [forms, setForms] = useState<StudioForm[]>([]);
   const [policies, setPolicies] = useState<StudioPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [status, setStatus] = useState("");
-  const [tab, setTab] = useState<"forms" | "policies" | "applications" | "announcements" | "onboarding" | "offboarding" | "access" | "grants" | "packages">("forms");
+  const [tab, setTab] = useState<"forms" | "policies" | "applications" | "announcements" | "onboarding" | "offboarding" | "access" | "grants" | "packages">(initialTab === "policies" || initialTab === "applications" || initialTab === "announcements" ? initialTab : "forms");
+  useEffect(() => { if (initialTab === "forms" || initialTab === "policies" || initialTab === "applications" || initialTab === "announcements") setTab(initialTab); }, [initialTab]);
   const [selectedFormId, setSelectedFormId] = useState("");
   const [selectedPolicyId, setSelectedPolicyId] = useState("");
   const [newForm, setNewForm] = useState({ title: "", key: "", purpose: "general", audience: EVERYONE as StudioAudience });
@@ -215,12 +216,12 @@ export function StudioSystemsSettingsSection({ targetFormId = null, targetSubmis
 
   return <div className="studio-systems-v34f">
     <div className="settings-panel-head-v092 studio-section-intro-v272">
-      <div><p className="eyebrow">Studio systems</p><h2>Forms & policies</h2><p className="muted tight">Reusable Forms are the input layer for applications, onboarding, access requests, equipment, incidents, completion, and release signoff. Studio Policies build on the same versioned form runtime instead of maintaining a second questionnaire engine.</p></div>
+      <div><h2>{tab === "policies" ? "Policies" : tab === "forms" ? "Forms" : tab === "applications" ? "Applications" : tab === "announcements" ? "Announcements" : "Studio systems"}</h2></div>
       <ClusterButton type="button" variant="quiet" size="compact" onClick={() => void load(true)}>Refresh</ClusterButton>
     </div>
     <ClusterSegmentedControl
       value={tab}
-      onChange={setTab}
+      onChange={(value) => { setTab(value); onTabChange?.(value); }}
       label="Studio systems"
       className="studio-systems-tabs-v34f"
       options={[
@@ -239,7 +240,7 @@ export function StudioSystemsSettingsSection({ targetFormId = null, targetSubmis
 
     {tab === "forms" && <div className="studio-systems-layout-v34f">
       <aside className="studio-systems-list-v34f">
-        <div className="studio-create-strip-v272 studio-systems-create-v34f"><div><strong>New form</strong><span>Create the reusable definition first, then publish versioned fields.</span></div><ClusterNativeSelect value={starterTemplateKey} onChange={(event) => setStarterTemplateKey(event.target.value)}>{STUDIO_FORM_TEMPLATES.map((template) => <option key={template.key} value={template.key}>Starter · {template.title}</option>)}</ClusterNativeSelect><ClusterButton type="button" variant="quiet" disabled={!starterTemplateKey} onClick={() => void createStarterForm()}>Create from starter</ClusterButton><ClusterInput value={newForm.title} onChange={(event) => setNewForm((current) => ({ ...current, title: event.target.value, key: !current.key || current.key === slug(current.title) ? slug(event.target.value) : current.key }))} placeholder="Form name" /><ClusterInput value={newForm.key} onChange={(event) => setNewForm((current) => ({ ...current, key: slug(event.target.value) }))} placeholder="form-key" /><ClusterNativeSelect value={newForm.purpose} onChange={(event) => setNewForm((current) => ({ ...current, purpose: event.target.value }))}><option value="general">General</option><option value="policy">Policy</option><option value="application">Application</option><option value="onboarding">Onboarding</option><option value="access_request">Access request</option><option value="equipment">Equipment</option><option value="incident">Incident</option><option value="completion">Completion</option><option value="release_signoff">Release signoff</option></ClusterNativeSelect><StudioAudiencePicker value={newForm.audience} onChange={(audience) => setNewForm((current) => ({ ...current, audience }))} compact /><ClusterButton type="button" variant="secondary" disabled={!newForm.title.trim()} onClick={() => void createForm()}>Create form</ClusterButton></div>
+        <div className="studio-create-strip-v272 studio-systems-create-v34f"><div><strong>New form</strong></div><ClusterNativeSelect value={starterTemplateKey} onChange={(event) => setStarterTemplateKey(event.target.value)}>{STUDIO_FORM_TEMPLATES.map((template) => <option key={template.key} value={template.key}>Starter · {template.title}</option>)}</ClusterNativeSelect><ClusterButton type="button" variant="quiet" disabled={!starterTemplateKey} onClick={() => void createStarterForm()}>Create from starter</ClusterButton><ClusterInput value={newForm.title} onChange={(event) => setNewForm((current) => ({ ...current, title: event.target.value, key: !current.key || current.key === slug(current.title) ? slug(event.target.value) : current.key }))} placeholder="Form name" /><ClusterInput value={newForm.key} onChange={(event) => setNewForm((current) => ({ ...current, key: slug(event.target.value) }))} placeholder="form-key" /><ClusterNativeSelect value={newForm.purpose} onChange={(event) => setNewForm((current) => ({ ...current, purpose: event.target.value }))}><option value="general">General</option><option value="policy">Policy</option><option value="application">Application</option><option value="onboarding">Onboarding</option><option value="access_request">Access request</option><option value="equipment">Equipment</option><option value="incident">Incident</option><option value="completion">Completion</option><option value="release_signoff">Release signoff</option></ClusterNativeSelect><StudioAudiencePicker value={newForm.audience} onChange={(audience) => setNewForm((current) => ({ ...current, audience }))} compact /><ClusterButton type="button" variant="secondary" disabled={!newForm.title.trim()} onClick={() => void createForm()}>Create form</ClusterButton></div>
         <div className="studio-entity-list-v272">{forms.map((form) => <ClusterButton type="button" key={form.id} className={form.id === selectedFormId ? "active" : ""} onClick={() => setSelectedFormId(form.id)}><span className="studio-entity-list-copy-v272"><strong>{form.title}</strong><small>{form.purpose.replaceAll("_", " ")} · {form.status}</small></span><span className="studio-entity-list-meta-v272">{form.versions?.length || 0} versions</span></ClusterButton>)}</div>
       </aside>
       <section className="studio-systems-editor-v34f">{selectedForm ? <>

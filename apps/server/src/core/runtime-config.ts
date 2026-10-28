@@ -323,11 +323,15 @@ export function loadRuntimeConfig(
     60_000,
     { min: 5_000, max: 300_000, integer: true },
   );
-  const apiRateLimitMax = finiteNumber(
-    envOrSetting(env, "CLUSTER_RATE_LIMIT_MAX", bootSettings, "rateLimitMax"),
-    6_000,
-    { min: 10, max: 100_000, integer: true },
-  );
+  // Earlier native/web configuration surfaces persisted 10 or 120 as their
+  // bootstrap defaults. Both values make normal multi-widget navigation unusable.
+  // Correct only those obsolete defaults; an explicit environment override is
+  // intentional and remains authoritative (useful for load/abuse testing).
+  const rawConfiguredApiBudget = envOrSetting(env, "CLUSTER_RATE_LIMIT_MAX", bootSettings, "rateLimitMax");
+  const apiRateLimitMax = !String(env.CLUSTER_RATE_LIMIT_MAX ?? "").trim()
+    && (Number(rawConfiguredApiBudget) === 10 || Number(rawConfiguredApiBudget) === 120)
+    ? 12_000
+    : finiteNumber(rawConfiguredApiBudget, 12_000, { min: 10, max: 100_000, integer: true });
   const apiRateLimitWindowMs = finiteNumber(
     env.CLUSTER_RATE_LIMIT_WINDOW_MS ??
       finiteNumber(setting(bootSettings, "rateLimitWindowMinutes"), 1, {

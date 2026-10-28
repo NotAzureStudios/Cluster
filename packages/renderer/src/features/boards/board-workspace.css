@@ -932,3 +932,33 @@
 .board-archived-columns-v546 .manager-row { min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .board-archived-columns-v546 .manager-row strong { min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
 .board-archived-columns-v546 .manager-row .muted { flex: 0 0 auto; }
+
+/* RC28: Trello-first editor. Keep it inside the app, not a body portal. */
+.board-inline-v28{width:100%;max-width:none;min-width:0;min-height:0;display:flex;flex-direction:column;gap:9px;margin:0;padding:8px clamp(8px,1.1vw,15px);overflow:visible;background:transparent;}
+.board-inline-v28 .board-workspace-header-v256{margin:0;padding:8px 12px;min-height:56px;border:1px solid var(--border);border-radius:12px;background:var(--panel);}
+.board-inline-v28 .board-workspace-header-v256 h1{font-size:clamp(1.15rem,1.7vw,1.6rem);line-height:1.2;max-width:100%;white-space:normal;overflow-wrap:anywhere;}
+.board-inline-v28 .board-workspace-header-v256 .eyebrow{font-size:11px;}
+.board-inline-v28 .project-workspace-body-v489{min-width:0;display:block;flex:1;}
+.board-inline-v28 .board-workspace-chrome-v257{min-height:0;display:flex;flex-direction:column;gap:8px;overflow:visible;}
+.board-inline-v28 .board-workspace-search-v256{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px;background:var(--panel);border:1px solid var(--border);border-radius:12px;}
+.board-inline-v28 .board-search-field{min-width:min(100%,220px);flex:1 1 320px;max-width:640px;}
+.board-inline-v28 .board-view-mode-v489,.board-inline-v28 .board-view-presets-v299,.board-inline-v28 .board-layout-controls-v299,.board-inline-v28 .board-saved-views-v489{display:flex;flex-wrap:wrap;gap:5px;max-width:100%;}
+.board-inline-v28 .board-columns-v257{width:100%;min-width:0;display:flex;align-items:stretch;gap:12px;overflow-x:auto;overflow-y:visible;padding:3px 1px 12px;min-height:calc(100dvh - 325px);scrollbar-width:thin;overscroll-behavior-inline:contain;}
+.board-inline-v28 .board-columns-v257>.board-list{flex:0 0 clamp(260px,24vw,330px);min-height:340px;max-height:calc(100dvh - 270px);display:flex;flex-direction:column;padding:10px;border:1px solid var(--border);border-radius:13px;background:var(--panel);box-shadow:none;}
+.board-inline-v28 .board-columns-v257 .list-cards{flex:1 1 auto;min-height:20px;max-height:none;overflow-y:auto;overflow-x:hidden;}
+.board-inline-v28 .board-columns-v257 .list-header{min-height:36px;padding:2px 4px 9px;}
+.board-inline-v28 .board-columns-v257 .list-header h2{font-size:14px;}
+.board-inline-v28 .board-columns-v257 .task-card{box-shadow:none;transform:none;}
+.board-inline-v28 .board-columns-v257 .task-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.17);transform:none;}
+.board-inline-v28 .board-add-list-v28{flex:0 0 255px;align-self:flex-start;display:flex;align-items:center;gap:8px;min-height:44px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:var(--panel);color:var(--text);font-weight:600;}
+.board-inline-v28 .board-add-list-v28:hover{border-color:var(--accent);background:var(--surface-raised);}
+.board-inline-v28 .board-empty-filter-state-v299{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;min-width:min(100%,320px);max-width:560px;min-height:190px;padding:20px;border:1px dashed var(--border);border-radius:12px;background:var(--panel);text-align:center;}
+.board-inline-v28 .board-empty-filter-state-v299 strong{color:var(--text);font-size:16px;}
+.board-inline-v28 .project-tool-meta-v195{flex:none;}
+@media(max-width:650px){.board-inline-v28 .board-columns-v257>.board-list{flex-basis:min(87vw,350px)}.board-inline-v28 .board-workspace-search-v256{align-items:flex-start}.board-inline-v28 .board-view-mode-v489{overflow-x:auto;flex-wrap:nowrap;max-width:100%}}
+
+.board-simple-create-v28{display:flex;flex-wrap:wrap;align-items:center;gap:9px;}
+.board-simple-create-v28 input{min-width:230px;flex:1;max-width:400px;}
+.board-simple-create-v28 select{min-width:175px;border:1px solid var(--border);padding:9px;border-radius:9px;background:var(--panel);color:var(--text);}
+.board-simple-create-v28 [role=status]{flex-basis:100%;color:var(--text-muted);font-size:12px;}
+@media(max-width:640px){.board-simple-create-v28>*{flex:1 1 100%;max-width:none!important;min-width:0!important;}}

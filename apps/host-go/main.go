@@ -149,7 +149,7 @@ func (h *host) run(ctx context.Context, preferredWebPort, preferredAPIPort int, 
 	}
 	h.apiOrigin = fmt.Sprintf("http://127.0.0.1:%d", apiPort)
 
-	log.Printf("Cluster Host v%s", version)
+	log.Printf("Cluster Host %s", displayReleaseVersion(h.root))
 	log.Printf("Workspace: %s", h.root)
 	log.Printf("Gateway:   Go managed-host profile")
 	log.Printf("Web:       %s", h.origin)

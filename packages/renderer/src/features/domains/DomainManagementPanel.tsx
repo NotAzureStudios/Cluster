@@ -127,8 +127,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   const expiresMs = selected?.expiresOn ? new Date(selected.expiresOn).getTime() : null;
   const daysUntilExpiry = expiresMs !== null && Number.isFinite(expiresMs) ? Math.ceil((expiresMs - Date.now()) / 86400000) : null;
 
-  return <section className="cluster-panel" aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
-    <header><h2>{surface === "studio" ? "Studio domains" : "Server domains & access"}</h2><p>{surface === "studio" ? "Record domains, validate ownership and track registrar renewals. Configure hostname routing in Server Configuration." : "Bind a verified Studio domain to this installation, select a network mode and inspect deployment evidence. Gateway services are not automatically installed."}</p></header>
+  return <section className="cluster-panel cluster-domains-rc46" aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
+    <header><h2>{surface === "studio" ? "Studio domains" : "Server domains & access"}</h2><p>{surface === "studio" ? "Manage ownership and renewals." : "Verify a domain, connect a gateway, and test access."}</p></header>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     {surface === "studio" && <div className="cluster-form-row">
@@ -155,7 +155,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     {selected && <div className="cluster-panel">
       <h3>{selected.domain}</h3>
       <p>Ownership: <strong>{selected.verificationState}</strong> {selected.verifiedAt ? `· verified ${new Date(selected.verifiedAt).toLocaleDateString()}` : ""}</p>
-      {surface === "studio" && <><p>Registrar/renewal information is entered by an administrator; it is not verified against a registrar.</p>
+      {surface === "studio" && <><details className="cluster-domain-help-rc46"><summary>About renewal records</summary><p>Registrar and renewal information is entered by administrators and is not automatically checked against your registrar.</p></details>
       {daysUntilExpiry !== null && <p role={daysUntilExpiry <= 30 ? "alert" : undefined}>{daysUntilExpiry < 0 ? `Reported domain expiry passed ${-daysUntilExpiry} day(s) ago.` : `Reported renewal date is in ${daysUntilExpiry} day(s).`}</p>}
       <label>Registrar <ClusterInput value={registrar} onChange={event => setRegistrar(event.target.value)} placeholder="Optional registrar name" /></label>
       <label>Reported expiration date <input type="date" value={expiresOn} onChange={event => setExpiresOn(event.target.value)} /></label>
@@ -193,7 +193,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         <h3>Attach to this Cluster server</h3>
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
-        <p>Only this server's configured installation ID can be bound. Remote Cluster servers will require a separate identity handshake.</p>
+        <details className="cluster-domain-help-rc46"><summary>How server binding works</summary><p>Only this server's installation ID can be bound. Other Cluster servers require their own identity handshake.</p></details>
         <label>Hostname <ClusterInput value={hostname} onChange={event => setHostname(event.target.value)} placeholder={`cluster.${selected.domain}`} /></label>
         <label>DNS record type <select value={dnsType} onChange={event => { setDnsType(event.target.value as "A" | "AAAA" | "CNAME"); setDnsTarget(""); }}>
           <option value="CNAME">CNAME</option><option value="A">A (IPv4)</option><option value="AAAA">AAAA (IPv6)</option>
