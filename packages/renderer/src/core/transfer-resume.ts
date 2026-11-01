@@ -25,6 +25,15 @@ function retryableStreamError(error: unknown) {
   return error instanceof TypeError || (error instanceof Error && error.message === "TRANSFER_STREAM_INTERRUPTED");
 }
 function interrupted(): Error { return new Error("TRANSFER_STREAM_INTERRUPTED"); }
+/** Respect server backpressure without an unbounded or forged client delay. */
+export function transferRetryDelayMs(attempt: number, retryAfter: string | null = null, now = Date.now()) {
+  const exponential = Math.min(8_000, 250 * (2 ** Math.max(0, attempt - 1)));
+  const seconds = Number(retryAfter);
+  const asSeconds = retryAfter !== null && retryAfter.trim() && Number.isFinite(seconds) && seconds >= 0 ? seconds * 1_000 : 0;
+  const asDate = retryAfter && !Number.isFinite(seconds) ? Math.max(0, Date.parse(retryAfter) - now) : 0;
+  return Math.min(60_000, Math.max(exponential, Number.isFinite(asDate) ? asDate : 0, asSeconds));
+}
+
 async function waitForRetry(ms: number, signal?: AbortSignal) {
   abortIfRequested(signal);
   if (ms <= 0) return;
@@ -90,7 +99,7 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
         if (retries >= maxRetries || !retryableStreamError(error)) throw error;
         retries++;
         options.onRetry?.(retries, offset);
-        await waitForRetry(Math.min(2_000, 250 * (2 ** (retries - 1))), options.signal);
+        await waitForRetry(transferRetryDelayMs(retries), options.signal);
         continue;
       }
       activeResponse = response;
@@ -168,7 +177,7 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
         options.onRetry?.(retries, offset);
         await response.body?.cancel().catch(() => undefined);
         activeResponse = null;
-        await waitForRetry(Math.min(2_000, 250 * (2 ** (retries - 1))), options.signal);
+        await waitForRetry(transferRetryDelayMs(retries, response.headers.get("retry-after")), options.signal);
       } finally {
         activeResponse = null;
       }

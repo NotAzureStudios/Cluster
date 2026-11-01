@@ -23,7 +23,13 @@ const resumeCode=source("packages/renderer/src/core/transfer-resume.ts")
   .replace('import { TransferSha256, verifiedSha256Etag } from "./transfer-sha256";',
   "const { TransferSha256, verifiedSha256Etag } = globalThis.__transferSha;");
 globalThis.__transferSha=sha;
-const { downloadWithVerifiedResume }=await load(resumeCode);
+const { downloadWithVerifiedResume, transferRetryDelayMs }=await load(resumeCode);
+assert.equal(transferRetryDelayMs(1, "2"), 2000);
+assert.equal(transferRetryDelayMs(1, "900"), 60000);
+assert.equal(transferRetryDelayMs(1, null), 250);
+assert.equal(transferRetryDelayMs(2, "bad-header"), 500);
+assert.equal(transferRetryDelayMs(1, "Thu, 01 Jan 1970 00:00:05 GMT", 0), 5000);
+console.log("PASS: bounded Retry-After support for transfer backpressure");
 function sink() {
   const chunks=[];let closed=0,aborted=0;
   return {chunks,get closed(){return closed;},get aborted(){return aborted;},
