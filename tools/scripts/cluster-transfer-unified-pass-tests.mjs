@@ -85,6 +85,28 @@ function interruptedStream() {
  await assert.rejects(downloadWithVerifiedResume(async()=>new Response(payload,{headers:fullHeaders()}),w,{ensureCurrent(){if(++checks>1) throw Error("Account changed");}}),/Account changed/);
  assert.equal(w.aborted,1);
 }
+{
+ const w=sink();
+ let calls=0;
+ await assert.rejects(downloadWithVerifiedResume(async ()=>{
+   calls++;
+   return new Response(interruptedStream(),{headers:{"content-length":String(payload.length),"etag":'W/"legacy"'}});
+ },w,{expectedSha256:digest,maxRetries:2}),/TRANSFER_STREAM_INTERRUPTED/);
+ assert.equal(calls,1,"Metadata checksum must not authorize If-Range using a weak ETag");
+ assert.equal(w.aborted,1);
+}
+{
+ const w=sink();
+ w.write=async()=>{throw new TypeError("Disk full");};
+ let calls=0;
+ await assert.rejects(downloadWithVerifiedResume(async ()=>{
+   calls++;
+   return new Response(payload,{headers:fullHeaders()});
+ },w,{maxRetries:3}),/Local download destination write failed/);
+ assert.equal(calls,1,"Do not retry failed local writes as network errors");
+ assert.equal(w.aborted,1);
+}
+console.log("PASS: weak validators cannot authorize resume; local write failures never retry");
 console.log("PASS: resumed exact ranges, hash mismatch, rejection, cancellation, account ownership");
 
 const policyCode=source("packages/renderer/src/core/transfer-policy.ts")

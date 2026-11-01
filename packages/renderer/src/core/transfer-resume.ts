@@ -121,7 +121,9 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
           if (metadataSha && headerSha && metadataSha !== headerSha) throw new Error("The Library checksum differs from the download response.");
           expectedSha = metadataSha || headerSha;
           // The hash-qualified ETag is the immutable resume validator.
-          if (!expectedSha) sourceEtag = null;
+          // A checksum in Library metadata permits verification, but not HTTP resume.
+          // Only a strong, hash-qualified response ETag may be sent as If-Range.
+          if (!headerSha) sourceEtag = null;
         } else {
           if (response.status !== 206) throw new Error("Resume was refused or the source changed; partial file discarded.");
           if (response.headers.get("etag") !== sourceEtag) throw new Error("Resume ETag changed; partial file discarded.");
@@ -145,7 +147,8 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
             if (!Number.isSafeInteger(offset + value.byteLength) || (totalBytes !== null && offset + value.byteLength > totalBytes)) {
               throw new Error("The server sent bytes outside the declared file length.");
             }
-            await sink.write(value);
+            try { await sink.write(value); }
+            catch (error) { throw new Error("Local download destination write failed.", { cause: error }); }
             hasher.update(value);
             offset += value.byteLength;
             receivedThisResponse += value.byteLength;
