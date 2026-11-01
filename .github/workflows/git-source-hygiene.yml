@@ -35,6 +35,8 @@ jobs:
         run: node --experimental-strip-types tools/scripts/cluster-pdf-print-lifecycle-tests.mjs
       - name: Check source inventory for Windows case collisions
         run: node tools/scripts/cluster-repository-inventory.mjs
+      - name: Durable upload active pause and safe resume
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-upload-live-pause-tests.mjs
       - name: Transfer owner isolation, lifecycle and memory stress
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-runtime-isolation-tests.mjs
       - name: Unified transfer pass (range resume, SHA-256, scheduler)

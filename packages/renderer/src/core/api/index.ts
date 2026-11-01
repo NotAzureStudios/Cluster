@@ -9,6 +9,6 @@ export { api } from "./transport";
 export { queryApi, peekApiQuery } from "./query";
 export { mutateApi } from "./mutation";
 export type { QueueableMutationOptions, QueueableMutationResult } from "./mutation";
-export { uploadApi, flushApiUploads, discardUploadSession } from "./uploads";
+export { uploadApi, flushApiUploads, discardUploadSession, requestPauseActiveOfflineUpload } from "./uploads";
 export type { QueueableUploadOptions, QueueableUploadResult } from "./uploads";
 export { flushApiOutbox, getLastApiOutboxFlushStats, type ApiOutboxFlushStats } from "./outbox";

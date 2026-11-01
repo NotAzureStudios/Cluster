@@ -37,3 +37,11 @@ Exercise 1 MiB, 40 MiB, 1 GiB, 20 GiB (where permitted), and empty files; comple
 - Regression tests cover history isolation, 15 simultaneous visible jobs, a hundred limiter cancellation cycles, owner invalidation, and failure-only rollback.
 
 The native Qt `TransferManager.cpp` already uses QObject-scoped network-reply cleanup and a separate durable journal. These source observations are not proof of a leak-free Windows runtime; no native source was changed during this hardening step.
+
+## Active offline upload pause and retention
+
+Browser uploads that are already sending bytes can now be manually paused. An AbortController tied to the durable queue item cancels the current staged API chunk or direct-storage PUT. The saved IndexedDB Blob, upload session ID and idempotency key are retained. On resume, the existing session is re-inspected and the server's acknowledged byte offset/parts determine the continuation. This is not rollback of bytes the server has already accepted.
+
+The queue worker recognizes an explicit pause rather than scheduling an automatic network retry, and removes its AbortController on exit. The UI exposes Pause for both pending and active uploads. Discarding a currently uploading item is rejected until the operation reaches a safe state; the last local copy must not disappear while the server outcome is ambiguous.
+
+A mocked state-machine regression verifies cancellation, retained Blob and session identity, manual pause state, and successful later continuation. It does not replace a real interrupted PUT/IndexedDB/browser acceptance test.

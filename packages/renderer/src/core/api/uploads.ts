@@ -206,6 +206,18 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
 }
 
 const OFFLINE_UPLOADS_PER_FLUSH = 8;
+type ActiveQueuedUpload = { controller: AbortController; pauseRequested: boolean; owner: ReturnType<typeof getOfflineScopeIdentity> };
+const activeQueuedUploads = new Map<string, ActiveQueuedUpload>();
+
+/** Stop the network, not the saved upload Blob or its server session.
+ * A resumed job must re-inspect the authoritative server offset. */
+export function requestPauseActiveOfflineUpload(id: string) {
+  const running = activeQueuedUploads.get(id);
+  if (!running || !sameOfflineRequestContext(running.owner, getOfflineScopeIdentity())) return false;
+  running.pauseRequested = true;
+  running.controller.abort();
+  return true;
+}
 let uploadFlushPromise: Promise<OfflineUploadRecord[]> | null = null;
 let uploadFlushOwner: ReturnType<typeof getOfflineScopeIdentity> | null = null;
 export async function flushApiUploads(options: { maxUploads?: number } = {}) {
@@ -235,7 +247,10 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
       if (!isCurrent()) return [];
       const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
       await updateOfflineUpload(item.id, { status: "uploading", attempts: item.attempts + 1, lastAttemptAt: Date.now(), lastError: null });
+      const control: ActiveQueuedUpload = { controller: new AbortController(), pauseRequested: false, owner };
+      activeQueuedUploads.set(item.id, control);
       try {
+        if (control.pauseRequested) throw new Error("Upload paused by the user.");
         const headers = new Headers(item.headers || {});
         headers.set("X-Cluster-Idempotency-Key", item.idempotencyKey);
         await finalizeStagedUpload(item.path, {
@@ -246,7 +261,11 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
           headers,
           invalidate: item.invalidatePaths,
           uploadSessionId: item.uploadSessionId || null,
-          ensureCurrent: () => { if (!isCurrent()) throw new Error("Upload context changed; original transfer remains queued for review."); },
+          signal: control.controller.signal,
+          ensureCurrent: () => {
+            if (control.pauseRequested) throw new Error("Upload paused by the user.");
+            if (!isCurrent()) throw new Error("Upload context changed; original transfer remains queued for review.");
+          },
           onUploadSession: async ({ id, transferMode }) => {
             if (!isCurrent()) throw new Error("Upload session changed; the original transfer remains queued for review.");
             await updateOfflineUpload(item.id, {
@@ -261,6 +280,12 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
         recordPerformanceMetric({ name: `offline upload ${item.path}`, category: "sync", durationMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt, startedAt: Date.now(), detail: { sizeBytes: item.sizeBytes, success: true } });
       } catch (error) {
         if (!isCurrent()) return [];
+        if (control.pauseRequested) {
+          await updateOfflineUpload(item.id, {
+            status: "paused", pausedAt: Date.now(), pauseReason: "manual", lastError: null,
+          });
+          break;
+        }
         const status = error instanceof ApiError ? error.status : 0;
         const authPaused = status === 401;
         const reviewPaused = status === 409;
@@ -274,6 +299,8 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
         });
         recordPerformanceMetric({ name: `offline upload ${item.path}`, category: "sync", durationMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt, startedAt: Date.now(), detail: { sizeBytes: item.sizeBytes, success: false, authPaused } });
         if (authPaused || reviewPaused || !terminal) break;
+      } finally {
+        activeQueuedUploads.delete(item.id);
       }
     }
     return isCurrent() ? listOfflineUploads(owner.scope) : [];
