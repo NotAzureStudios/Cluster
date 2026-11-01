@@ -6,7 +6,7 @@ const read = p => readFileSync(p, 'utf8');
 const downloaded = read('packages/renderer/src/core/browser-download-transfers.ts');
 const replaced = downloaded.replace('import { clusterApiFetch } from "@cluster/api-client";', 'const clusterApiFetch = (...args) => globalThis.__mockDownload(...args);')
   .replace('import { API_URL } from "./api/config";', 'const API_URL = "http://localhost:4000";')
-  .replace('import { getOfflineScopeIdentity } from "./offline-storage";', 'const getOfflineScopeIdentity=()=>({scope:"test"});')
+  .replace('import { getOfflineScopeIdentity, subscribeOfflineStorage } from "./offline-storage";', 'const getOfflineScopeIdentity=()=>({scope:"test"});const subscribeOfflineStorage=()=>()=>{};')
   .replace('import { sameOfflineRequestContext } from "./user-state-ownership";', 'const sameOfflineRequestContext=()=>true;')
   .replace('import type { ClusterDownloadSink } from "./browser-download-stream";', '')
   .replace('import { downloadWithVerifiedResume } from "./transfer-resume";', 'const downloadWithVerifiedResume=()=>{throw Error("Not used in legacy fallback test");};')

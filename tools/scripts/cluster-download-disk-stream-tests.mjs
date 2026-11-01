@@ -55,7 +55,7 @@ const input=file("packages/renderer/src/core/browser-download-transfers.ts");
 const replaced=input.replaceAll(/import .*?;\r?\n/g,"");
 const prefixed=`const clusterApiFetch=(...a)=>globalThis.__fetchDownload(...a);
 const API_URL="http://localhost:4000";
-const getOfflineScopeIdentity=()=>({scope:"user1"});
+const getOfflineScopeIdentity=()=>({scope:"user1"});const subscribeOfflineStorage=()=>()=>{};
 const sameOfflineRequestContext=()=>true;
 const downloadWithVerifiedResume=globalThis.__streamResume;
 const browserDiskTransferQueue={setLimit(){},async acquire(){return ()=>{};}};

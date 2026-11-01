@@ -49,6 +49,7 @@ const injected = [
 'const clusterApiFetch=()=>{throw Error("Not used");};',
 'const API_URL="https://cluster.example";',
 'const getOfflineScopeIdentity=()=>globalThis.__transferOwner;',
+'const subscribeOfflineStorage=(listener)=>{globalThis.__scopeListener=listener;return ()=>{if(globalThis.__scopeListener===listener)delete globalThis.__scopeListener;};};',
 'const sameOfflineRequestContext=(start,current)=>start.scope===current.scope&&start.generation===current.generation;',
 'const browserDiskTransferQueue={setLimit(){},async acquire(){return ()=>{};}};',
 'const browserDownloadByteLimiter={async wait(){}};',
@@ -82,6 +83,8 @@ try {
   assert.equal(displayed.filter((item)=>item.state==="saving").length,15,"Active downloads must never be evicted");
   assert.ok(displayed.length<=27,"Finished history must remain bounded even with active jobs");
   owner={scope:"studio-B",generation:1};globalThis.__transferOwner=owner;
+  assert.equal(typeof globalThis.__scopeListener,"function");
+  globalThis.__scopeListener("scope");
   const invisible=transfers.getBrowserDownloadSnapshot();
   assert.deepEqual(invisible,[],"Old account filenames must not remain visible");
   assert.equal(transfers.cancelBrowserDownload(displayed[0].id),false,"New account must not operate the previous session's job");
@@ -91,7 +94,7 @@ try {
   console.log("PASS: 15 concurrent jobs stay visible and become inaccessible after owner change");
 } finally {
   globalThis.window=original.window;globalThis.document=original.document;
-  globalThis.__transferOwner=original.owner;delete globalThis.__mockResumableDownload;
+  globalThis.__transferOwner=original.owner;delete globalThis.__mockResumableDownload;delete globalThis.__scopeListener;
 }
 
 const shaModule=await evaluate(read("packages/renderer/src/core/transfer-sha256.ts"));

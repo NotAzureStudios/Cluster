@@ -45,3 +45,9 @@ Browser uploads that are already sending bytes can now be manually paused. An Ab
 The queue worker recognizes an explicit pause rather than scheduling an automatic network retry, and removes its AbortController on exit. The UI exposes Pause for both pending and active uploads. Discarding a currently uploading item is rejected until the operation reaches a safe state; the last local copy must not disappear while the server outcome is ambiguous.
 
 A mocked state-machine regression verifies cancellation, retained Blob and session identity, manual pause state, and successful later continuation. It does not replace a real interrupted PUT/IndexedDB/browser acceptance test.
+
+## Session teardown and temporary download memory
+
+Transfer Center now subscribes to the existing offline-session scope notifications while it has listeners or live browser download jobs. Signing out or switching account generations aborts any active browser download immediately, including one paused waiting for input. The old account's filenames disappear from Transfer Center, and pending in-memory Blob URLs are revoked and their timers cleared without waiting for the normal retention timeout. The notification listener is itself detached after the last subscriber and active job exit; no polling or accumulating per-download listeners are introduced.
+
+These are browser process/session guarantees. They do not substitute for clearing filesystem or IndexedDB artifacts managed by other providers or for testing Qt's native journal under actual Windows process shutdown.

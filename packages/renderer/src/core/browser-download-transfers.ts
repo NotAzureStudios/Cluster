@@ -1,6 +1,6 @@
 import { clusterApiFetch } from "@cluster/api-client";
 import { API_URL } from "./api/config";
-import { getOfflineScopeIdentity } from "./offline-storage";
+import { getOfflineScopeIdentity, subscribeOfflineStorage } from "./offline-storage";
 import { sameOfflineRequestContext } from "./user-state-ownership";
 import type { ClusterDownloadSink } from "./browser-download-stream";
 import { downloadWithVerifiedResume } from "./transfer-resume";
@@ -24,6 +24,17 @@ const MAX_QUEUED_BROWSER_DOWNLOADS = 24;
 let snapshot: ClusterBrowserDownloadHandoff[] = [];
 let snapshotOwner = getOfflineScopeIdentity();
 const listeners = new Set<() => void>();
+let stopScopeWatcher: (() => void) | null = null;
+function ensureScopeWatcher() {
+  if (!stopScopeWatcher) stopScopeWatcher = subscribeOfflineStorage((area) => {
+    if (area === "scope" || area === "all") prepareDownloadOwner();
+  });
+}
+function maybeStopScopeWatcher() {
+  if (listeners.size || activeStreamControllers.size) return;
+  stopScopeWatcher?.();
+  stopScopeWatcher = null;
+}
 
 function ownerIsCurrent() {
   return sameOfflineRequestContext(snapshotOwner, getOfflineScopeIdentity());
@@ -39,8 +50,16 @@ function prepareDownloadOwner() {
   if (ownerIsCurrent()) return;
   // Session changes invalidate every in-flight browser transfer and its display.
   for (const job of activeStreamControllers.values()) job.controller.abort();
+  // Clear old account-owned, in-memory Blob URLs immediately rather than
+  // retaining their bytes until the normal 60-second timeout.
+  for (const [url, timeout] of pendingBlobUrls) {
+    if (typeof window !== "undefined") window.clearTimeout(timeout);
+    URL.revokeObjectURL(url);
+  }
+  pendingBlobUrls.clear();
   snapshotOwner = getOfflineScopeIdentity();
   snapshot = [];
+  emit();
 }
 
 function emit() {
@@ -55,7 +74,11 @@ export function getBrowserDownloadSnapshot() {
 
 export function subscribeBrowserDownloads(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  ensureScopeWatcher();
+  return () => {
+    listeners.delete(listener);
+    maybeStopScopeWatcher();
+  };
 }
 
 export function recordBrowserDownloadHandoff(input: { fileName: string; url: string; state?: ClusterBrowserDownloadHandoff["state"] }) {
@@ -198,6 +221,7 @@ export async function downloadAuthenticatedClusterFile(input: {
     browserDiskTransferQueue.setLimit(policy.concurrentDiskDownloads);
     const transferId = recordBrowserDownloadHandoff({ fileName, url: apiPath, state: "queued" });
     activeStreamControllers.set(transferId, control);
+    ensureScopeWatcher();
     let releaseSlot: (() => void) | null = null;
     let sink: ClusterDownloadSink | null = null;
     let writerOwnedByStream = false;
@@ -265,6 +289,7 @@ export async function downloadAuthenticatedClusterFile(input: {
     } finally {
       activeStreamControllers.delete(transferId);
       releaseSlot?.();
+      maybeStopScopeWatcher();
       if (ownerIsCurrent()) {
         const next = trimFinishedDownloads(snapshot);
         if (next.length !== snapshot.length) { snapshot = next; emit(); }
