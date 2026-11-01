@@ -5,7 +5,10 @@ import { stripTypeScriptTypes } from 'node:module';
 const read = p => readFileSync(p, 'utf8');
 const downloaded = read('packages/renderer/src/core/browser-download-transfers.ts');
 const replaced = downloaded.replace('import { clusterApiFetch } from "@cluster/api-client";', 'const clusterApiFetch = (...args) => globalThis.__mockDownload(...args);')
-  .replace('await import("./api/config")', '{ API_URL: "http://localhost:4000" }');
+  .replace('import { API_URL } from "./api/config";', 'const API_URL = "http://localhost:4000";')
+  .replace('import { getOfflineScopeIdentity } from "./offline-storage";', 'const getOfflineScopeIdentity=()=>({scope:"test"});')
+  .replace('import { sameOfflineRequestContext } from "./user-state-ownership";', 'const sameOfflineRequestContext=()=>true;')
+  .replace('import { streamDownloadToSink, type ClusterDownloadSink } from "./browser-download-stream";', 'const streamDownloadToSink=()=>{throw Error("Not used in legacy fallback test");};');
 assert.notEqual(replaced, downloaded);
 const code = stripTypeScriptTypes(replaced, { mode:'strip' });
 const original = { window: globalThis.window, document: globalThis.document, create:URL.createObjectURL, revoke:URL.revokeObjectURL };

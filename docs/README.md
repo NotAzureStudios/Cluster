@@ -7,6 +7,7 @@ Documentation here is divided by purpose, not by chat session or ZIP artifact.
 | [Development](development/) | Git workflow, source imports, local setup and validation |
 | [Architecture](architecture/) | Module ownership, source conventions and cleanup targets |
 | [Design](design/) | Product design decisions and UI/UX workstream notes |
+| [Transfer engine upgrade](development/TRANSFER_ENGINE_UPGRADE.md) | Streaming disk downloads, cancellation and remaining gaps |
 | [Upload/download memory audit](development/TRANSFER_MEMORY_AUDIT.md) | Streaming, backpressure and retained-resource review |
 | [Memory and lifecycle audit](development/MEMORY_LIFECYCLE_AUDIT.md) | Source findings and the remaining runtime soak-test plan |
 | [Release readiness](development/RELEASE_CHECKLIST.md) | Acceptance checklist for a certified 1.0 release |

@@ -17,7 +17,7 @@ import {
   retryOfflineUpload,
   subscribeOfflineSync,
 } from "../../core/offline-runtime";
-import { getBrowserDownloadSnapshot, removeBrowserDownloadHandoff, subscribeBrowserDownloads } from "../../core/browser-download-transfers";
+import { cancelBrowserDownload, getBrowserDownloadSnapshot, removeBrowserDownloadHandoff, subscribeBrowserDownloads } from "../../core/browser-download-transfers";
 import {
   cancelNativeTransfer,
   getNativeTransfers,
@@ -119,11 +119,12 @@ export function TaskbarTransferCenter() {
   const otherBrowserUploads = browserUploads.filter((item) => item.status !== "pending");
   const workingNative = activeNative.filter((item) => item.state !== "queued");
   const transferringNative = nativeTransfers.filter((item) => item.state === "running");
-  const completedCount = completedNative.length + browserDownloads.length;
+  const browserSavingCount = browserDownloads.filter((item) => item.state === "saving").length;
+  const completedCount = completedNative.length + browserDownloads.filter((item) => ["saved", "handed-off", "completed"].includes(item.state)).length;
   const visibleSpeed = Date.now() - transferTelemetry.at < 10_000 && transferringNative.length > 0;
   const { activeCount, failedCount, pausedCount, verifyingCount, uploadingCount, downloadingCount, percentage: nativeProgress } =
     transferProgressSummary(browserUploads, nativeTransfers);
-  const showInsights = activeCount > 0 || pausedCount > 0 || transferTelemetry.points.length > 1;
+  const showInsights = activeCount > 0 || browserSavingCount > 0 || pausedCount > 0 || transferTelemetry.points.length > 1;
 
   const nativeJournalInvalid = nativeQueueStatus?.blockedReason === "journal-invalid";
   const nativeJournalWriteFailed = nativeQueueStatus?.blockedReason === "journal-write-failed";
@@ -133,6 +134,7 @@ export function TaskbarTransferCenter() {
     ? `${failedCount} transfer${failedCount === 1 ? "" : "s"} need attention`
     : activeCount
       ? `${activeCount} moving or queued transfer${activeCount === 1 ? "" : "s"}${nativeProgress !== null ? `, ${nativeProgress}% of bytes` : ", progress unavailable"}${verifyingCount ? `, ${verifyingCount} verifying` : ""}`
+      : browserSavingCount ? `${browserSavingCount} download${browserSavingCount === 1 ? "" : "s"} saving to disk`
       : pausedCount ? `${pausedCount} paused transfer${pausedCount === 1 ? "" : "s"}` : "Transfer Center";
 
   async function runAction(id: string, action: () => void | Promise<unknown>) {
@@ -273,11 +275,11 @@ export function TaskbarTransferCenter() {
             <article key={`browser-download-${download.id}`} data-state={download.state}>
               <div className="cluster-transfer-list__body">
                 <strong>{download.fileName}</strong>
-                <span>Browser download · {download.state === "saved" ? "File response received" : "Handed to browser (unverified)"}</span>
-                <small className="cluster-transfer-list__note">{download.state === "saved" ? "The server returned a file and the browser save was requested. Check your browser downloads for the final result." : "Cluster cannot confirm the browser saved this file."}</small>
+                <span>Browser download · {download.state === "saving" ? "Saving to disk" : download.state === "completed" ? "Written to selected file" : download.state === "saved" ? "File response received" : download.state === "failed" ? "Failed" : download.state === "cancelled" ? "Cancelled" : "Handed to browser (unverified)"}{download.state === "saving" && download.receivedBytes != null ? ` · ${formatBytes(download.receivedBytes)}${download.totalBytes ? ` / ${formatBytes(download.totalBytes)}` : ""}` : ""}</span>
+                <small className="cluster-transfer-list__note">{download.error || (download.state === "saving" ? "Streaming directly to your selected file with bounded memory." : download.state === "completed" ? "The file writer closed successfully." : download.state === "saved" ? "The server returned a file; check your browser downloads for the final save result." : download.state === "handed-off" ? "Cluster cannot confirm the browser saved this file." : "Review the transfer before retrying.")}</small>
               </div>
               <div className="cluster-transfer-list__actions">
-                <ClusterButton size="compact" variant="quiet" disabled={Boolean(actionPending)} onClick={() => removeBrowserDownloadHandoff(download.id)}>Remove</ClusterButton>
+                {download.state === "saving" ? <ClusterButton size="compact" variant="quiet" onClick={() => cancelBrowserDownload(download.id)}>Cancel</ClusterButton> : <ClusterButton size="compact" variant="quiet" disabled={Boolean(actionPending)} onClick={() => removeBrowserDownloadHandoff(download.id)}>Remove</ClusterButton>}
               </div>
             </article>
           ))}
