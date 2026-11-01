@@ -28,6 +28,16 @@ import { discardUploadSession, finalizeStagedUpload } from "./upload-session-tra
 
 export { discardUploadSession } from "./upload-session-transport";
 
+/** Upload backpressure is retryable; the staged session and local Blob remain authoritative. */
+function isUploadBackpressure(error: unknown) {
+  return error instanceof ApiError && (error.status === 429 || (error.status === 503 && error.code === "SERVER_SATURATED"));
+}
+function uploadRetryDelay(error: unknown, attempts: number) {
+  const hint = error instanceof ApiError && Number.isFinite(error.retryAfterSeconds)
+    ? Math.max(0, Number(error.retryAfterSeconds)) * 1_000 : 0;
+  return Math.min(10 * 60_000, Math.max(retryDelay(attempts), hint));
+}
+
 function uploadFileName(file: File | Blob, explicit?: string) {
   const requested = String(explicit || "").trim();
   if (requested) return requested;
@@ -87,19 +97,19 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
         invalidate: options.invalidate,
         onUploadSession: async (session) => { ensureCurrent(); directSession = session; await options.onUploadSession?.(session); },
         onProgress: progress,
+        ensureCurrent,
       });
       ensureCurrent();
       return { queued: false, result };
     } catch (error) {
       ensureCurrent();
-      if (!isApiNetworkFailure(error)) throw error;
+      if (!isApiNetworkFailure(error) && !isUploadBackpressure(error)) throw error;
       const durable = await queue();
       ensureCurrent();
-      if (directSession.id) await updateOfflineUpload(durable.id, {
-        uploadSessionId: directSession.id,
-        uploadTransferMode: directSession.transferMode,
-        uploadSessionStartedAt: Date.now(),
+      if (directSession.id || isUploadBackpressure(error)) await updateOfflineUpload(durable.id, {
+        ...(directSession.id ? { uploadSessionId: directSession.id, uploadTransferMode: directSession.transferMode, uploadSessionStartedAt: Date.now() } : {}),
         lastError: error instanceof Error ? error.message : "Upload interrupted.",
+        nextAttemptAt: Date.now() + uploadRetryDelay(error, 1),
       });
       ensureCurrent();
       return { queued: true, upload: durable };
@@ -118,6 +128,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
       invalidate: options.invalidate,
       onUploadSession: async (session) => { ensureCurrent(); await options.onUploadSession?.(session); },
       onProgress: progress,
+      ensureCurrent,
     });
     ensureCurrent();
     return { queued: false, result };
@@ -138,6 +149,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
       invalidate: options.invalidate,
       onUploadSession: async (session) => { ensureCurrent(); await options.onUploadSession?.(session); },
       onProgress: progress,
+      ensureCurrent,
     });
     ensureCurrent();
     return { queued: false, result };
@@ -165,17 +177,18 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
         await options.onUploadSession?.({ id, transferMode });
       },
       onProgress: progress,
+      ensureCurrent,
     });
     ensureCurrent();
     await removeOfflineUpload(durable.id);
     return { queued: false, result };
   } catch (error) {
     ensureCurrent();
-    if (isApiNetworkFailure(error)) {
+    if (isApiNetworkFailure(error) || isUploadBackpressure(error)) {
       const upload = await updateOfflineUpload(durable.id, {
         status: "pending",
         lastError: error instanceof Error ? error.message : "Upload interrupted.",
-        nextAttemptAt: Date.now() + retryDelay(1),
+        nextAttemptAt: Date.now() + uploadRetryDelay(error, 1),
       });
       return { queued: true, upload: upload || durable };
     }
@@ -233,6 +246,7 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
           headers,
           invalidate: item.invalidatePaths,
           uploadSessionId: item.uploadSessionId || null,
+          ensureCurrent: () => { if (!isCurrent()) throw new Error("Upload context changed; original transfer remains queued for review."); },
           onUploadSession: async ({ id, transferMode }) => {
             if (!isCurrent()) throw new Error("Upload session changed; the original transfer remains queued for review.");
             await updateOfflineUpload(item.id, {
@@ -256,7 +270,7 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
           pausedAt: authPaused || reviewPaused ? Date.now() : null,
           pauseReason: authPaused ? "auth" : reviewPaused ? "manual" : null,
           lastError: authPaused ? "Sign in again to resume this upload." : error instanceof Error ? error.message : "Upload failed.",
-          nextAttemptAt: Date.now() + retryDelay(item.attempts + 1),
+          nextAttemptAt: Date.now() + uploadRetryDelay(error, item.attempts + 1),
         });
         recordPerformanceMetric({ name: `offline upload ${item.path}`, category: "sync", durationMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt, startedAt: Date.now(), detail: { sizeBytes: item.sizeBytes, success: false, authPaused } });
         if (authPaused || reviewPaused || !terminal) break;
