@@ -18,15 +18,39 @@ export type ClusterBrowserDownloadHandoff = {
   retryCount?: number;
 };
 
+const EMPTY_DOWNLOAD_SNAPSHOT: ClusterBrowserDownloadHandoff[] = [];
+const MAX_RECENT_BROWSER_DOWNLOADS = 12;
+const MAX_QUEUED_BROWSER_DOWNLOADS = 24;
 let snapshot: ClusterBrowserDownloadHandoff[] = [];
+let snapshotOwner = getOfflineScopeIdentity();
 const listeners = new Set<() => void>();
+
+function ownerIsCurrent() {
+  return sameOfflineRequestContext(snapshotOwner, getOfflineScopeIdentity());
+}
+function trimFinishedDownloads(rows: ClusterBrowserDownloadHandoff[]) {
+  let finished = 0;
+  return rows.filter((row) => {
+    if (activeStreamControllers.has(row.id) || ["queued", "saving", "paused", "retrying", "verifying"].includes(row.state)) return true;
+    return ++finished <= MAX_RECENT_BROWSER_DOWNLOADS;
+  });
+}
+function prepareDownloadOwner() {
+  if (ownerIsCurrent()) return;
+  // Session changes invalidate every in-flight browser transfer and its display.
+  for (const job of activeStreamControllers.values()) job.controller.abort();
+  snapshotOwner = getOfflineScopeIdentity();
+  snapshot = [];
+}
 
 function emit() {
   for (const listener of listeners) listener();
 }
 
 export function getBrowserDownloadSnapshot() {
-  return snapshot;
+  // An old account's filenames must never appear in the new account's UI.
+  // Returning a stable empty snapshot avoids emitting synchronously in React render.
+  return ownerIsCurrent() ? snapshot : EMPTY_DOWNLOAD_SNAPSHOT;
 }
 
 export function subscribeBrowserDownloads(listener: () => void) {
@@ -36,30 +60,31 @@ export function subscribeBrowserDownloads(listener: () => void) {
 
 export function recordBrowserDownloadHandoff(input: { fileName: string; url: string; state?: ClusterBrowserDownloadHandoff["state"] }) {
   const id = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `browser-download-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  snapshot = [{ id, fileName: input.fileName, url: input.url, state: input.state || "handed-off", startedAt: Date.now() }, ...snapshot].slice(0, 12);
+  prepareDownloadOwner();
+  snapshot = trimFinishedDownloads([{ id, fileName: input.fileName, url: input.url, state: input.state || "handed-off", startedAt: Date.now() }, ...snapshot]);
   emit();
   return id;
 }
 
-type ActiveBrowserStream = { controller: AbortController; paused: boolean; waiters: Set<() => void> };
+type ActiveBrowserStream = { controller: AbortController; paused: boolean; waiters: Set<() => void>; owner: ReturnType<typeof getOfflineScopeIdentity> };
 const activeStreamControllers = new Map<string, ActiveBrowserStream>();
 
 export function cancelBrowserDownload(id: string) {
   const job = activeStreamControllers.get(id);
-  if (!job) return false;
+  if (!job || !sameOfflineRequestContext(job.owner, getOfflineScopeIdentity())) return false;
   job.controller.abort();
   return true;
 }
 export function pauseBrowserDownload(id: string) {
   const job = activeStreamControllers.get(id);
-  if (!job || job.paused) return false;
+  if (!job || job.paused || !sameOfflineRequestContext(job.owner, getOfflineScopeIdentity())) return false;
   job.paused = true;
   updateBrowserDownload(id, { state: "paused" });
   return true;
 }
 export function resumeBrowserDownload(id: string) {
   const job = activeStreamControllers.get(id);
-  if (!job || !job.paused) return false;
+  if (!job || !job.paused || !sameOfflineRequestContext(job.owner, getOfflineScopeIdentity())) return false;
   job.paused = false;
   for (const resume of [...job.waiters]) resume();
   updateBrowserDownload(id, { state: "saving" });
@@ -82,12 +107,13 @@ function waitIfPaused(job: ActiveBrowserStream): Promise<void> {
 }
 
 function updateBrowserDownload(id: string, patch: Partial<ClusterBrowserDownloadHandoff>) {
-  snapshot = snapshot.map((row) => row.id === id ? { ...row, ...patch } : row);
+  if (!ownerIsCurrent() || !snapshot.some((row) => row.id === id)) return;
+  snapshot = trimFinishedDownloads(snapshot.map((row) => row.id === id ? { ...row, ...patch } : row));
   emit();
 }
 
 export function removeBrowserDownloadHandoff(id: string) {
-  if (activeStreamControllers.has(id)) return;
+  if (!ownerIsCurrent() || activeStreamControllers.has(id)) return;
   const next = snapshot.filter((item) => item.id !== id);
   if (next.length === snapshot.length) return;
   snapshot = next;
@@ -128,6 +154,11 @@ export async function downloadAuthenticatedClusterFile(input: {
     : undefined;
   // Invoke the picker before the first await so the browser still has the
   // user gesture. Do not silently fall back after the user cancels the dialog.
+  const activeForOwner = [...activeStreamControllers.values()].filter((job) =>
+    sameOfflineRequestContext(job.owner, ownerAtStart)).length;
+  if (typeof picker === "function" && activeForOwner >= MAX_QUEUED_BROWSER_DOWNLOADS) {
+    throw new Error("Browser download queue is full. Finish or cancel a transfer before starting another.");
+  }
   const chosenFile = typeof picker === "function" ? picker.call(window, { suggestedName: fileName }) : null;
 
   const clickLink = (href: string) => {
@@ -162,7 +193,7 @@ export async function downloadAuthenticatedClusterFile(input: {
       throw new Error("Account or server changed while choosing the destination. No file was written.");
     }
     const controller = new AbortController();
-    const control: ActiveBrowserStream = { controller, paused: false, waiters: new Set() };
+    const control: ActiveBrowserStream = { controller, paused: false, waiters: new Set(), owner: ownerAtStart };
     const policy = getTransferPolicy();
     browserDiskTransferQueue.setLimit(policy.concurrentDiskDownloads);
     const transferId = recordBrowserDownloadHandoff({ fileName, url: apiPath, state: "queued" });
@@ -234,6 +265,10 @@ export async function downloadAuthenticatedClusterFile(input: {
     } finally {
       activeStreamControllers.delete(transferId);
       releaseSlot?.();
+      if (ownerIsCurrent()) {
+        const next = trimFinishedDownloads(snapshot);
+        if (next.length !== snapshot.length) { snapshot = next; emit(); }
+      }
     }
   }
 

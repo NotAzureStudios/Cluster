@@ -30,6 +30,7 @@ export function getTransferPolicy() {
       const saved = typeof window !== "undefined" ? window.localStorage?.getItem(STORAGE_PREFIX + scope) : null;
       snapshot = saved ? normalize(JSON.parse(saved)) : DEFAULT;
     } catch { snapshot = DEFAULT; }
+    browserDiskTransferQueue.setLimit(snapshot.concurrentDiskDownloads);
   }
   return snapshot;
 }
@@ -98,31 +99,69 @@ export class TransferAdmissionQueue {
 }
 export const browserDiskTransferQueue = new TransferAdmissionQueue();
 
-/** Aggregate per-window browser download throttle. Reservations are serialized
- * across active disk streams; cancellation removes the waiter's timer/listener.
- * This deliberately does not throttle Qt native or upload connections.
+/** Shared, abortable per-window byte budget. Only one timer owns the budget.
+ * Cancelled reservations are removed, not carried forward into a stale deadline.
+ * No downloaded bytes are held here: only the requested byte count and callbacks.
  */
 export class SharedTransferByteLimiter {
-  private nextReadyAt = 0;
-  async wait(bytes: number, maxMiBPerSecond: number, signal?: AbortSignal) {
-    if (!Number.isFinite(bytes) || bytes <= 0 || maxMiBPerSecond <= 0) return;
-    if (signal?.aborted) throw new DOMException("Transfer cancelled.", "AbortError");
-    const bytesPerSecond = Math.max(1, maxMiBPerSecond) * 1024 * 1024;
-    const now = Date.now();
-    // One reservation can be long for slow connections. Never retain a chunk;
-    // only the async writer and one abortable timer are held.
-    const end = Math.max(now, this.nextReadyAt) + bytes * 1_000 / bytesPerSecond;
-    this.nextReadyAt = end;
-    const delay = Math.max(0, end - now);
-    if (!delay) return;
-    await new Promise<void>((resolve, reject) => {
-      let timeout: ReturnType<typeof setTimeout>;
-      const cleanup = () => { clearTimeout(timeout); signal?.removeEventListener("abort", abort); };
-      const abort = () => { cleanup(); reject(new DOMException("Transfer cancelled.", "AbortError")); };
-      timeout = setTimeout(() => { cleanup(); resolve(); }, delay);
-      signal?.addEventListener("abort", abort, { once: true });
-      if (signal?.aborted) abort();
+  private queue: Array<{
+    bytes: number; maxMiBPerSecond: number; signal?: AbortSignal;
+    resolve: () => void; reject: (reason: Error) => void;
+    abort?: () => void; timer?: ReturnType<typeof setTimeout>;
+  }> = [];
+  private running = false;
+
+  getSnapshot() { return { waiting: this.queue.length, running: this.running }; }
+
+  wait(bytes: number, maxMiBPerSecond: number, signal?: AbortSignal): Promise<void> {
+    if (!Number.isFinite(bytes) || bytes <= 0 || !Number.isFinite(maxMiBPerSecond) || maxMiBPerSecond <= 0) return Promise.resolve();
+    if (signal?.aborted) return Promise.reject(new DOMException("Transfer cancelled.", "AbortError"));
+    return new Promise<void>((resolve, reject) => {
+      const item: (typeof this.queue)[number] = { bytes, maxMiBPerSecond, signal, resolve, reject };
+      item.abort = () => {
+        const index = this.queue.indexOf(item);
+        if (index >= 0) this.queue.splice(index, 1);
+        if (item.timer !== undefined) {
+          clearTimeout(item.timer);
+          item.timer = undefined;
+          this.running = false;
+        }
+        signal?.removeEventListener("abort", item.abort!);
+        reject(new DOMException("Transfer cancelled.", "AbortError"));
+        this.pump();
+      };
+      signal?.addEventListener("abort", item.abort, { once: true });
+      this.queue.push(item);
+      this.pump();
+      if (signal?.aborted) item.abort();
     });
+  }
+
+  private pump() {
+    if (this.running) return;
+    while (this.queue.length) {
+      const item = this.queue[0];
+      if (item.signal?.aborted) {
+        this.queue.shift();
+        item.signal.removeEventListener("abort", item.abort!);
+        item.reject(new DOMException("Transfer cancelled.", "AbortError"));
+        continue;
+      }
+      this.running = true;
+      const delay = Math.min(60_000, Math.max(0, Math.ceil(item.bytes * 1_000 / (item.maxMiBPerSecond * 1024 * 1024))));
+      const finish = () => {
+        // Aborted active reservations may already have removed themselves.
+        if (this.queue[0] !== item) return;
+        this.queue.shift();
+        item.signal?.removeEventListener("abort", item.abort!);
+        item.timer = undefined;
+        this.running = false;
+        item.resolve();
+        this.pump();
+      };
+      item.timer = setTimeout(finish, delay);
+      return;
+    }
   }
 }
 export const browserDownloadByteLimiter = new SharedTransferByteLimiter();

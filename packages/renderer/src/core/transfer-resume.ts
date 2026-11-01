@@ -157,8 +157,15 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
             hasher.update(value);
             offset += value.byteLength;
             receivedThisResponse += value.byteLength;
-            options.onProgress?.(offset, totalBytes);
-            if (options.onRateLimit) await options.onRateLimit(value.byteLength, options.signal);
+            try { options.onProgress?.(offset, totalBytes); }
+            catch (error) { throw new Error("Download progress callback failed.", { cause: error }); }
+            if (options.onRateLimit) {
+              try { await options.onRateLimit(value.byteLength, options.signal); }
+              catch (error) {
+                if (options.signal?.aborted) throw new DOMException("Download cancelled.", "AbortError");
+                throw new Error("Download bandwidth scheduler failed.", { cause: error });
+              }
+            }
             else if (speed > 0) {
               throttleBytes += value.byteLength;
               const expectedMs = throttleBytes * 1_000 / speed;

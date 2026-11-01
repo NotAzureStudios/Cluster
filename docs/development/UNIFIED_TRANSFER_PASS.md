@@ -26,3 +26,14 @@ Cluster has three existing transfer providers: durable browser/IndexedDB uploads
 ## Recommended next acceptance matrix
 
 Exercise 1 MiB, 40 MiB, 1 GiB, 20 GiB (where permitted), and empty files; complete, disconnect midchunk, retry with correct/incorrect If-Range, checksum mismatch, disk-full during write, account/server switch, cancel/pause/resume, browser close, server restart, and recovery of native Qt journal entries. Verify upload session idempotency and the Library version, not only the transfer progress UI.
+
+## Subsequent safety and memory hardening
+
+- Per-account browser transfer history is hidden immediately on account/session change, and starting a transfer under a new owner cancels older live jobs. Control actions cannot operate jobs owned by an earlier session.
+- Recent browser history is capped at twelve **finished** items without evicting live queued/saving/paused/retrying/verifying jobs. Admission is capped at 24 browser jobs to avoid an unbounded queue.
+- The shared browser speed limiter uses an abortable FIFO instead of future time reservations. Cancelled waits release their slot and abort listener immediately, so a cancelled large transfer cannot delay unrelated future downloads.
+- Reopening a different account's settings restores that account's concurrency limit; the previous user's policy no longer carries over into an active queue.
+- UI progress callbacks and rate-limit callbacks are treated as local failures rather than retryable network interruptions. A local exception must not cause a second fetch on a partially written file.
+- Regression tests cover history isolation, 15 simultaneous visible jobs, a hundred limiter cancellation cycles, owner invalidation, and failure-only rollback.
+
+The native Qt `TransferManager.cpp` already uses QObject-scoped network-reply cleanup and a separate durable journal. These source observations are not proof of a leak-free Windows runtime; no native source was changed during this hardening step.
