@@ -8,7 +8,9 @@ const replaced = downloaded.replace('import { clusterApiFetch } from "@cluster/a
   .replace('import { API_URL } from "./api/config";', 'const API_URL = "http://localhost:4000";')
   .replace('import { getOfflineScopeIdentity } from "./offline-storage";', 'const getOfflineScopeIdentity=()=>({scope:"test"});')
   .replace('import { sameOfflineRequestContext } from "./user-state-ownership";', 'const sameOfflineRequestContext=()=>true;')
-  .replace('import { streamDownloadToSink, type ClusterDownloadSink } from "./browser-download-stream";', 'const streamDownloadToSink=()=>{throw Error("Not used in legacy fallback test");};');
+  .replace('import type { ClusterDownloadSink } from "./browser-download-stream";', '')
+  .replace('import { downloadWithVerifiedResume } from "./transfer-resume";', 'const downloadWithVerifiedResume=()=>{throw Error("Not used in legacy fallback test");};')
+  .replace('import { browserDiskTransferQueue, getTransferPolicy } from "./transfer-policy";', 'const browserDiskTransferQueue={setLimit(){},async acquire(){return ()=>{};}};const getTransferPolicy=()=>({concurrentDiskDownloads:2,priority:"normal",maxRetries:2,maxDownloadMiBPerSecond:0});');
 assert.notEqual(replaced, downloaded);
 const code = stripTypeScriptTypes(replaced, { mode:'strip' });
 const original = { window: globalThis.window, document: globalThis.document, create:URL.createObjectURL, revoke:URL.revokeObjectURL };

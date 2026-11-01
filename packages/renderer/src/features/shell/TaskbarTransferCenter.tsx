@@ -3,6 +3,8 @@ import { TransferRateChart } from "../../components/TransferRateChart";
 import { appendTransferTelemetry, EMPTY_TRANSFER_TELEMETRY, transferEtaLabel, transferEtaSeconds } from "./transfer-telemetry";
 import "./transfer-insights.css";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterSelect } from "../../components/ClusterSelect";
+import { getTransferPolicy, setTransferPolicy, subscribeTransferPolicy } from "../../core/transfer-policy";
 import { transferProgressSummary } from "./transfer-progress-summary";
 import { ClusterFloatingSurface } from "../../components/ClusterFloatingSurface";
 import { ClusterIcon } from "../../components/ClusterIcon";
@@ -17,7 +19,7 @@ import {
   retryOfflineUpload,
   subscribeOfflineSync,
 } from "../../core/offline-runtime";
-import { cancelBrowserDownload, getBrowserDownloadSnapshot, removeBrowserDownloadHandoff, subscribeBrowserDownloads } from "../../core/browser-download-transfers";
+import { cancelBrowserDownload, pauseBrowserDownload, resumeBrowserDownload, getBrowserDownloadSnapshot, removeBrowserDownloadHandoff, subscribeBrowserDownloads } from "../../core/browser-download-transfers";
 import {
   cancelNativeTransfer,
   getNativeTransfers,
@@ -65,6 +67,7 @@ function nativeStageLabel(transfer: ClusterNativeTransfer) {
 export function TaskbarTransferCenter() {
   const offline = useSyncExternalStore(subscribeOfflineSync, getOfflineSyncSnapshot, getOfflineSyncSnapshot);
   const browserDownloads = useSyncExternalStore(subscribeBrowserDownloads, getBrowserDownloadSnapshot, getBrowserDownloadSnapshot);
+  const transferPolicy = useSyncExternalStore(subscribeTransferPolicy, getTransferPolicy, getTransferPolicy);
   const [nativeTransfers, setNativeTransfers] = useState<ClusterNativeTransfer[]>([]);
   const [transferTelemetry, setTransferTelemetry] = useState(EMPTY_TRANSFER_TELEMETRY);
   const [nativeQueueStatus, setNativeQueueStatus] = useState<ClusterNativeTransferQueueStatus | null>(null);
@@ -119,11 +122,11 @@ export function TaskbarTransferCenter() {
   const otherBrowserUploads = browserUploads.filter((item) => item.status !== "pending");
   const workingNative = activeNative.filter((item) => item.state !== "queued");
   const transferringNative = nativeTransfers.filter((item) => item.state === "running");
-  const browserSavingCount = browserDownloads.filter((item) => item.state === "saving").length;
+  const browserSavingCount = browserDownloads.filter((item) => ["queued", "saving", "retrying", "verifying"].includes(item.state)).length;
   const completedCount = completedNative.length + browserDownloads.filter((item) => ["saved", "handed-off", "completed"].includes(item.state)).length;
   const visibleSpeed = Date.now() - transferTelemetry.at < 10_000 && transferringNative.length > 0;
   const { activeCount, failedCount, pausedCount, verifyingCount, uploadingCount, downloadingCount, percentage: nativeProgress } =
-    transferProgressSummary(browserUploads, nativeTransfers);
+    transferProgressSummary(browserUploads, nativeTransfers, browserDownloads);
   const showInsights = activeCount > 0 || browserSavingCount > 0 || pausedCount > 0 || transferTelemetry.points.length > 1;
 
   const nativeJournalInvalid = nativeQueueStatus?.blockedReason === "journal-invalid";
@@ -211,6 +214,32 @@ export function TaskbarTransferCenter() {
           })}>Take over</ClusterButton> : null}
           {failedCount && !nativeStandby ? <ClusterButton size="compact" variant="secondary" busy={actionPending === "retry-all"} disabled={Boolean(actionPending)} onClick={() => void runAction("retry-all", retryAll)}>Retry failed</ClusterButton> : null}
         </header>
+        <details className="cluster-transfer-browser-options">
+          <summary>Browser transfer controls</summary>
+          <div className="cluster-transfer-browser-options__grid">
+            <label>Parallel disk downloads
+              <ClusterSelect ariaLabel="Parallel browser disk downloads" value={String(transferPolicy.concurrentDiskDownloads)}
+                onChange={(value) => setTransferPolicy({ concurrentDiskDownloads: Number(value) })}
+                options={[{ value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" }]} />
+            </label>
+            <label>Download speed limit
+              <ClusterSelect ariaLabel="Browser download speed limit" value={String(transferPolicy.maxDownloadMiBPerSecond)}
+                onChange={(value) => setTransferPolicy({ maxDownloadMiBPerSecond: Number(value) })}
+                options={[{ value: "0", label: "Unlimited" }, { value: "5", label: "5 MiB/s" }, { value: "20", label: "20 MiB/s" }, { value: "50", label: "50 MiB/s" }, { value: "100", label: "100 MiB/s" }]} />
+            </label>
+            <label>Reconnect attempts
+              <ClusterSelect ariaLabel="Browser download retry attempts" value={String(transferPolicy.maxRetries)}
+                onChange={(value) => setTransferPolicy({ maxRetries: Number(value) })}
+                options={[{ value: "0", label: "Off" }, { value: "1", label: "1" }, { value: "2", label: "2" }, { value: "3", label: "3" }, { value: "5", label: "5" }]} />
+            </label>
+            <label>Queue priority
+              <ClusterSelect ariaLabel="Browser download queue priority" value={transferPolicy.priority}
+                onChange={(value) => setTransferPolicy({ priority: value as "interactive" | "normal" | "background" })}
+                options={[{ value: "interactive", label: "High" }, { value: "normal", label: "Normal" }, { value: "background", label: "Low" }]} />
+            </label>
+          </div>
+          <small>Applies to browser disk streams. Desktop transfers use their own durable queue and scheduler.</small>
+        </details>
         {showInsights ? <div className="cluster-transfer-metrics" aria-label="Transfer metrics">
           <article><span>Download</span><strong className={!visibleSpeed ? "is-muted" : ""}>{visibleSpeed && transferTelemetry.downBps !== null ? `${formatBytes(transferTelemetry.downBps)}/s` : "—"}</strong></article>
           <article><span>Upload</span><strong className={!visibleSpeed ? "is-muted" : ""}>{visibleSpeed && transferTelemetry.upBps !== null ? `${formatBytes(transferTelemetry.upBps)}/s` : "—"}</strong></article>
@@ -275,11 +304,35 @@ export function TaskbarTransferCenter() {
             <article key={`browser-download-${download.id}`} data-state={download.state}>
               <div className="cluster-transfer-list__body">
                 <strong>{download.fileName}</strong>
-                <span>Browser download · {download.state === "saving" ? "Saving to disk" : download.state === "completed" ? "Written to selected file" : download.state === "saved" ? "File response received" : download.state === "failed" ? "Failed" : download.state === "cancelled" ? "Cancelled" : "Handed to browser (unverified)"}{download.state === "saving" && download.receivedBytes != null ? ` · ${formatBytes(download.receivedBytes)}${download.totalBytes ? ` / ${formatBytes(download.totalBytes)}` : ""}` : ""}</span>
-                <small className="cluster-transfer-list__note">{download.error || (download.state === "saving" ? "Streaming directly to your selected file with bounded memory." : download.state === "completed" ? "The file writer closed successfully." : download.state === "saved" ? "The server returned a file; check your browser downloads for the final save result." : download.state === "handed-off" ? "Cluster cannot confirm the browser saved this file." : "Review the transfer before retrying.")}</small>
+                <span>Browser download · {
+                  download.state === "queued" ? "Waiting for download slot" :
+                  download.state === "saving" ? "Saving to disk" :
+                  download.state === "paused" ? "Paused in this browser session" :
+                  download.state === "retrying" ? `Reconnecting (attempt ${download.retryCount || 1})` :
+                  download.state === "verifying" ? "Verifying file integrity" :
+                  download.state === "completed" ? "Written to selected file" :
+                  download.state === "saved" ? "Save requested" :
+                  download.state === "failed" ? "Failed" :
+                  download.state === "cancelled" ? "Cancelled" : "Handed to browser (unverified)"
+                }{download.receivedBytes != null ? ` · ${formatBytes(download.receivedBytes)}${download.totalBytes ? ` / ${formatBytes(download.totalBytes)}` : ""}` : ""}</span>
+                {download.state === "saving" && Number.isFinite(download.totalBytes) && Number(download.totalBytes) > 0
+                  ? <progress max={Number(download.totalBytes)} value={Math.min(Number(download.totalBytes), Number(download.receivedBytes || 0))} aria-label={`Download progress for ${download.fileName}`} /> : null}
+                <small className="cluster-transfer-list__note">{download.error || (download.state === "completed"
+                  ? download.integrity === "sha256" ? "SHA-256 verified and file writer closed." : "File writer closed successfully; content checksum was not available."
+                  : download.state === "saving" ? "Streaming without retaining the full file in RAM."
+                  : download.state === "paused" ? "Paused while this window remains open. Native desktop transfers support restart recovery."
+                  : download.state === "saved" ? "Check browser downloads to confirm the save."
+                  : download.state === "handed-off" ? "The browser manages this download; Cluster cannot confirm completion."
+                  : "Transfer state is controlled by this browser window.")}</small>
               </div>
               <div className="cluster-transfer-list__actions">
-                {download.state === "saving" ? <ClusterButton size="compact" variant="quiet" onClick={() => cancelBrowserDownload(download.id)}>Cancel</ClusterButton> : <ClusterButton size="compact" variant="quiet" disabled={Boolean(actionPending)} onClick={() => removeBrowserDownloadHandoff(download.id)}>Remove</ClusterButton>}
+                {["saving", "retrying"].includes(download.state)
+                  ? <ClusterButton size="compact" variant="quiet" onClick={() => pauseBrowserDownload(download.id)}>Pause</ClusterButton> : null}
+                {download.state === "paused"
+                  ? <ClusterButton size="compact" variant="secondary" onClick={() => resumeBrowserDownload(download.id)}>Resume</ClusterButton> : null}
+                {["queued", "saving", "retrying", "paused", "verifying"].includes(download.state)
+                  ? <ClusterButton size="compact" variant="quiet" onClick={() => cancelBrowserDownload(download.id)}>Cancel</ClusterButton>
+                  : <ClusterButton size="compact" variant="quiet" disabled={Boolean(actionPending)} onClick={() => removeBrowserDownloadHandoff(download.id)}>Remove</ClusterButton>}
               </div>
             </article>
           ))}
@@ -293,7 +346,7 @@ export function TaskbarTransferCenter() {
         </div>
         {completedNative.length || browserDownloads.length ? (
           <footer className="cluster-transfer-popover__footer">
-            <span>{completedNative.length ? `${completedNative.length} completed Desktop transfer${completedNative.length === 1 ? "" : "s"}` : ""}{completedNative.length && browserDownloads.length ? " · " : ""}{browserDownloads.length ? `${browserDownloads.length} recent browser handoff${browserDownloads.length === 1 ? "" : "s"}` : ""}</span>
+            <span>{completedNative.length ? `${completedNative.length} completed Desktop transfer${completedNative.length === 1 ? "" : "s"}` : ""}{completedNative.length && browserDownloads.length ? " · " : ""}{browserDownloads.length ? `${browserDownloads.length} browser transfer${browserDownloads.length === 1 ? "" : "s"}` : ""}</span>
             {completedNative[0]?.canOpen ? <ClusterButton size="compact" variant="quiet" disabled={Boolean(actionPending)} onClick={() => void runAction(`open-native:${completedNative[0].id}`, () => openNativeTransferResult(completedNative[0].id))}>Open latest</ClusterButton> : null}
           </footer>
         ) : null}

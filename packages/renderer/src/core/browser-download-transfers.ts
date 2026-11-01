@@ -2,16 +2,20 @@ import { clusterApiFetch } from "@cluster/api-client";
 import { API_URL } from "./api/config";
 import { getOfflineScopeIdentity } from "./offline-storage";
 import { sameOfflineRequestContext } from "./user-state-ownership";
-import { streamDownloadToSink, type ClusterDownloadSink } from "./browser-download-stream";
+import type { ClusterDownloadSink } from "./browser-download-stream";
+import { downloadWithVerifiedResume } from "./transfer-resume";
+import { browserDiskTransferQueue, getTransferPolicy } from "./transfer-policy";
 export type ClusterBrowserDownloadHandoff = {
   id: string;
   fileName: string;
   url: string;
-  state: "handed-off" | "saved" | "saving" | "completed" | "failed" | "cancelled";
+  state: "handed-off" | "saved" | "queued" | "saving" | "paused" | "retrying" | "verifying" | "completed" | "failed" | "cancelled";
   startedAt: number;
   receivedBytes?: number;
   totalBytes?: number | null;
   error?: string;
+  integrity?: "sha256" | "size" | "unverified";
+  retryCount?: number;
 };
 
 let snapshot: ClusterBrowserDownloadHandoff[] = [];
@@ -37,14 +41,44 @@ export function recordBrowserDownloadHandoff(input: { fileName: string; url: str
   return id;
 }
 
-const activeStreamControllers = new Map<string, AbortController>();
-const MAX_ACTIVE_FILE_STREAMS = 2;
+type ActiveBrowserStream = { controller: AbortController; paused: boolean; waiters: Set<() => void> };
+const activeStreamControllers = new Map<string, ActiveBrowserStream>();
 
 export function cancelBrowserDownload(id: string) {
-  const controller = activeStreamControllers.get(id);
-  if (!controller) return false;
-  controller.abort();
+  const job = activeStreamControllers.get(id);
+  if (!job) return false;
+  job.controller.abort();
   return true;
+}
+export function pauseBrowserDownload(id: string) {
+  const job = activeStreamControllers.get(id);
+  if (!job || job.paused) return false;
+  job.paused = true;
+  updateBrowserDownload(id, { state: "paused" });
+  return true;
+}
+export function resumeBrowserDownload(id: string) {
+  const job = activeStreamControllers.get(id);
+  if (!job || !job.paused) return false;
+  job.paused = false;
+  for (const resume of [...job.waiters]) resume();
+  updateBrowserDownload(id, { state: "saving" });
+  return true;
+}
+function waitIfPaused(job: ActiveBrowserStream): Promise<void> {
+  if (!job.paused) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      job.waiters.delete(resume);
+      job.controller.signal.removeEventListener("abort", abort);
+    };
+    const resume = () => { cleanup(); resolve(); };
+    const abort = () => { cleanup(); reject(new DOMException("Download cancelled.", "AbortError")); };
+    job.waiters.add(resume);
+    job.controller.signal.addEventListener("abort", abort, { once: true });
+    if (job.controller.signal.aborted) abort();
+    else if (!job.paused) resume();
+  });
 }
 
 function updateBrowserDownload(id: string, patch: Partial<ClusterBrowserDownloadHandoff>) {
@@ -53,6 +87,7 @@ function updateBrowserDownload(id: string, patch: Partial<ClusterBrowserDownload
 }
 
 export function removeBrowserDownloadHandoff(id: string) {
+  if (activeStreamControllers.has(id)) return;
   const next = snapshot.filter((item) => item.id !== id);
   if (next.length === snapshot.length) return;
   snapshot = next;
@@ -76,6 +111,7 @@ export async function downloadAuthenticatedClusterFile(input: {
   url: string;
   fileName: string;
   sizeBytes?: number | null;
+  expectedSha256?: string | null;
   preferDiskStreaming?: boolean;
 }): Promise<{ state: "saved" | "handed-off" | "completed"; transferId: string }> {
   if (typeof document === "undefined") throw new Error("Downloads require an active browser window.");
@@ -86,7 +122,8 @@ export async function downloadAuthenticatedClusterFile(input: {
   }
   const fileName = input.fileName.replace(/[\\/\r\n]/g, "_").trim() || "cluster-download";
   const apiPath = resolved.pathname + resolved.search;
-  const picker = input.preferDiskStreaming && activeStreamControllers.size < MAX_ACTIVE_FILE_STREAMS
+  const ownerAtStart = getOfflineScopeIdentity();
+  const picker = input.preferDiskStreaming
     ? (window as Window & { showSaveFilePicker?: ClusterSavePicker }).showSaveFilePicker
     : undefined;
   // Invoke the picker before the first await so the browser still has the
@@ -120,40 +157,74 @@ export async function downloadAuthenticatedClusterFile(input: {
 
   if (chosenFile) {
     const handle = await chosenFile;
-    const sink = await handle.createWritable();
+    if (!sameOfflineRequestContext(ownerAtStart, getOfflineScopeIdentity())) {
+      throw new Error("Account or server changed while choosing the destination. No file was written.");
+    }
     const controller = new AbortController();
-    const origin = getOfflineScopeIdentity();
-    const ensureCurrent = () => {
-      if (!sameOfflineRequestContext(origin, getOfflineScopeIdentity())) {
-        controller.abort();
-        throw new Error("The signed-in account or server changed during download. The partial file was discarded.");
-      }
-    };
-    const transferId = recordBrowserDownloadHandoff({ fileName, url: apiPath, state: "saving" });
-    activeStreamControllers.set(transferId, controller);
+    const control: ActiveBrowserStream = { controller, paused: false, waiters: new Set() };
+    const policy = getTransferPolicy();
+    browserDiskTransferQueue.setLimit(policy.concurrentDiskDownloads);
+    const transferId = recordBrowserDownloadHandoff({ fileName, url: apiPath, state: "queued" });
+    activeStreamControllers.set(transferId, control);
+    let releaseSlot: (() => void) | null = null;
+    let sink: ClusterDownloadSink | null = null;
     let writerOwnedByStream = false;
     let lastPublished = 0;
+    const ensureCurrent = () => {
+      if (!sameOfflineRequestContext(ownerAtStart, getOfflineScopeIdentity())) {
+        controller.abort();
+        throw new Error("Account or server changed during download. The incomplete file was discarded.");
+      }
+    };
     try {
+      releaseSlot = await browserDiskTransferQueue.acquire(policy.priority, controller.signal);
       ensureCurrent();
-      const response = await clusterApiFetch(apiPath, { credentials: "include", cache: "no-store",
-        signal: controller.signal, headers: { Accept: "application/octet-stream, application/pdf, application/zip, */*" } });
-      await checkResponse(response);
+      if (!control.paused) updateBrowserDownload(transferId, { state: "saving" });
+      await waitIfPaused(control);
       ensureCurrent();
+      sink = await handle.createWritable();
+      const fetcher = async (range: { start: number; etag: string } | null, signal?: AbortSignal) => {
+        ensureCurrent();
+        const headers: Record<string, string> = { Accept: "application/octet-stream, application/pdf, application/zip, */*" };
+        if (range) {
+          headers.Range = `bytes=${range.start}-`;
+          headers["If-Range"] = range.etag;
+        }
+        const response = await clusterApiFetch(apiPath, { credentials: "include", cache: "no-store", signal, headers });
+        const actual = new URL(response.url || resolved.href, resolved.href);
+        if (actual.origin !== expectedOrigin || !actual.pathname.startsWith("/api/")) {
+          await response.body?.cancel().catch(() => undefined);
+          throw new Error("The download redirected outside the authenticated Cluster API.");
+        }
+        return response;
+      };
       writerOwnedByStream = true;
-      const result = await streamDownloadToSink(response, sink, {
+      const result = await downloadWithVerifiedResume(fetcher, sink, {
         signal: controller.signal,
         ensureCurrent,
+        beforeRead: () => waitIfPaused(control),
+        maxRetries: policy.maxRetries,
+        expectedSha256: input.expectedSha256,
+        expectedTotalBytes: input.sizeBytes,
+        maxBytesPerSecond: policy.maxDownloadMiBPerSecond * 1024 * 1024,
+        onRetry(attempt, offset) {
+          if (!control.paused) updateBrowserDownload(transferId, { state: "retrying", retryCount: attempt, receivedBytes: offset });
+        },
+        onVerifying() { updateBrowserDownload(transferId, { state: "verifying" }); },
         onProgress(receivedBytes, totalBytes) {
           const now = Date.now();
           if (now - lastPublished < 160 && totalBytes !== receivedBytes) return;
           lastPublished = now;
-          updateBrowserDownload(transferId, { receivedBytes, totalBytes });
+          if (!control.paused) updateBrowserDownload(transferId, { state: "saving", receivedBytes, totalBytes });
         },
       });
-      updateBrowserDownload(transferId, { state: "completed", receivedBytes: result.bytesWritten, totalBytes: result.totalBytes });
+      updateBrowserDownload(transferId, {
+        state: "completed", receivedBytes: result.bytesWritten, totalBytes: result.totalBytes,
+        integrity: result.verified ? "sha256" : result.totalBytes !== null ? "size" : "unverified",
+      });
       return { state: "completed", transferId };
     } catch (error) {
-      if (!writerOwnedByStream) await sink.abort(error).catch(() => undefined);
+      if (!writerOwnedByStream && sink) await sink.abort(error).catch(() => undefined);
       updateBrowserDownload(transferId, {
         state: controller.signal.aborted ? "cancelled" : "failed",
         error: error instanceof Error ? error.message : "Download failed.",
@@ -161,6 +232,7 @@ export async function downloadAuthenticatedClusterFile(input: {
       throw error;
     } finally {
       activeStreamControllers.delete(transferId);
+      releaseSlot?.();
     }
   }
 

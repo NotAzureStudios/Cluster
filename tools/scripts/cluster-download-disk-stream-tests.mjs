@@ -44,18 +44,27 @@ function sink() {
 }
 console.log("PASS: disk sink checks length, errors, ownership and cancellation");
 
+const hashSource = stripTypeScriptTypes(file("packages/renderer/src/core/transfer-sha256.ts"), { mode: "strip" });
+globalThis.__streamSha = await import("data:text/javascript;base64," + Buffer.from(hashSource).toString("base64"));
+const resumeSource = file("packages/renderer/src/core/transfer-resume.ts").replace(
+  'import { TransferSha256, verifiedSha256Etag } from "./transfer-sha256";',
+  "const { TransferSha256, verifiedSha256Etag } = globalThis.__streamSha;"
+);
+const resume = await import("data:text/javascript;base64," + Buffer.from(stripTypeScriptTypes(resumeSource, {mode:"strip"})).toString("base64"));
 const input=file("packages/renderer/src/core/browser-download-transfers.ts");
 const replaced=input.replaceAll(/import .*?;\r?\n/g,"");
 const prefixed=`const clusterApiFetch=(...a)=>globalThis.__fetchDownload(...a);
 const API_URL="http://localhost:4000";
 const getOfflineScopeIdentity=()=>({scope:"user1"});
 const sameOfflineRequestContext=()=>true;
-const streamDownloadToSink=globalThis.__streamDownloadToSink;
+const downloadWithVerifiedResume=globalThis.__streamResume;
+const browserDiskTransferQueue={setLimit(){},async acquire(){return ()=>{};}};
+const getTransferPolicy=()=>({concurrentDiskDownloads:2,priority:"normal",maxRetries:2,maxDownloadMiBPerSecond:0});
 `+stripTypeScriptTypes(replaced,{mode:"strip"});
 const original={window:globalThis.window,document:globalThis.document,create:URL.createObjectURL,revoke:URL.revokeObjectURL};
 const transfers=[];
 let requests=0,clicks=0,picked=0,closed=0,aborted=0;
-globalThis.__streamDownloadToSink=streamDownloadToSink;
+globalThis.__streamResume=resume.downloadWithVerifiedResume;
 globalThis.__fetchDownload=async()=>{requests++;return new Response(new Uint8Array([4,5,6]),{headers:{"content-length":"3","content-type":"application/octet-stream"}});};
 globalThis.document={body:{append(node){node.mounted=true;}},createElement(){return {mounted:false,click(){assert.ok(this.mounted);clicks++;},remove(){this.mounted=false;}};}};
 globalThis.window={location:{origin:"http://localhost:4000"},setTimeout(fn){transfers.push(fn);return transfers.length;},clearTimeout(){},
@@ -64,7 +73,7 @@ URL.createObjectURL=()=> "blob:stub";
 URL.revokeObjectURL=()=> {};
 try{
   const {downloadAuthenticatedClusterFile,getBrowserDownloadSnapshot}=await import("data:text/javascript;base64,"+Buffer.from(prefixed).toString("base64"));
-  const one=await downloadAuthenticatedClusterFile({url:"http://localhost:4000/api/library/demo/file",fileName:"demo.bin",sizeBytes:123,preferDiskStreaming:true});
+  const one=await downloadAuthenticatedClusterFile({url:"http://localhost:4000/api/library/demo/file",fileName:"demo.bin",sizeBytes:3,preferDiskStreaming:true});
   assert.equal(one.state,"completed");assert.equal(picked,1);assert.equal(requests,1);assert.equal(closed,1);assert.equal(aborted,0);assert.equal(clicks,0);
   assert.equal(getBrowserDownloadSnapshot().find(x=>x.id===one.transferId)?.receivedBytes,3);
   const big=await downloadAuthenticatedClusterFile({url:"http://localhost:4000/api/library/big/file",fileName:"large.zip",sizeBytes:128*1024*1024});
@@ -73,5 +82,5 @@ try{
 } finally {
   globalThis.window=original.window;globalThis.document=original.document;
   URL.createObjectURL=original.create;URL.revokeObjectURL=original.revoke;
-  delete globalThis.__fetchDownload;delete globalThis.__streamDownloadToSink;
+  delete globalThis.__fetchDownload;delete globalThis.__streamResume;delete globalThis.__streamSha;
 }
