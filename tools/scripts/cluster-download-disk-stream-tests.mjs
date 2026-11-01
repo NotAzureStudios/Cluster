@@ -59,6 +59,7 @@ const getOfflineScopeIdentity=()=>({scope:"user1"});
 const sameOfflineRequestContext=()=>true;
 const downloadWithVerifiedResume=globalThis.__streamResume;
 const browserDiskTransferQueue={setLimit(){},async acquire(){return ()=>{};}};
+const browserDownloadByteLimiter={async wait(){}};
 const getTransferPolicy=()=>({concurrentDiskDownloads:2,priority:"normal",maxRetries:2,maxDownloadMiBPerSecond:0});
 `+stripTypeScriptTypes(replaced,{mode:"strip"});
 const original={window:globalThis.window,document:globalThis.document,create:URL.createObjectURL,revoke:URL.revokeObjectURL};

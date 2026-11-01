@@ -14,6 +14,7 @@ export type ResumableDownloadOptions = {
   maxRetries?: number;
   /** Zero means unrestricted; pacing is applied after writing each chunk. */
   maxBytesPerSecond?: number;
+  onRateLimit?: (bytes: number, signal?: AbortSignal) => Promise<void>;
 };
 
 function abortIfRequested(signal?: AbortSignal) {
@@ -140,7 +141,8 @@ export async function downloadWithVerifiedResume(fetcher: RangeFetch, sink: Writ
             offset += value.byteLength;
             receivedThisResponse += value.byteLength;
             options.onProgress?.(offset, totalBytes);
-            if (speed > 0) {
+            if (options.onRateLimit) await options.onRateLimit(value.byteLength, options.signal);
+            else if (speed > 0) {
               throttleBytes += value.byteLength;
               const expectedMs = throttleBytes * 1_000 / speed;
               const spentMs = Date.now() - throttleEpoch;

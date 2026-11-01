@@ -4,7 +4,7 @@ import { getOfflineScopeIdentity } from "./offline-storage";
 import { sameOfflineRequestContext } from "./user-state-ownership";
 import type { ClusterDownloadSink } from "./browser-download-stream";
 import { downloadWithVerifiedResume } from "./transfer-resume";
-import { browserDiskTransferQueue, getTransferPolicy } from "./transfer-policy";
+import { browserDiskTransferQueue, browserDownloadByteLimiter, getTransferPolicy } from "./transfer-policy";
 export type ClusterBrowserDownloadHandoff = {
   id: string;
   fileName: string;
@@ -206,7 +206,7 @@ export async function downloadAuthenticatedClusterFile(input: {
         maxRetries: policy.maxRetries,
         expectedSha256: input.expectedSha256,
         expectedTotalBytes: input.sizeBytes,
-        maxBytesPerSecond: policy.maxDownloadMiBPerSecond * 1024 * 1024,
+        onRateLimit: (bytes, signal) => browserDownloadByteLimiter.wait(bytes, policy.maxDownloadMiBPerSecond, signal),
         onRetry(attempt, offset) {
           if (!control.paused) updateBrowserDownload(transferId, { state: "retrying", retryCount: attempt, receivedBytes: offset });
         },

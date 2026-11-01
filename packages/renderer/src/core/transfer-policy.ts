@@ -37,6 +37,7 @@ export function setTransferPolicy(update: Partial<TransferPolicy>) {
   const scope = getOfflineScopeIdentity().scope;
   const next = normalize({ ...getTransferPolicy(), ...update });
   snapshot = next;
+  browserDiskTransferQueue.setLimit(next.concurrentDiskDownloads);
   try { if (typeof window !== "undefined") window.localStorage?.setItem(STORAGE_PREFIX + scope, JSON.stringify(next)); } catch { /* Private mode */ }
   for (const fn of listeners) fn();
   return next;
@@ -96,3 +97,32 @@ export class TransferAdmissionQueue {
   }
 }
 export const browserDiskTransferQueue = new TransferAdmissionQueue();
+
+/** Aggregate per-window browser download throttle. Reservations are serialized
+ * across active disk streams; cancellation removes the waiter's timer/listener.
+ * This deliberately does not throttle Qt native or upload connections.
+ */
+export class SharedTransferByteLimiter {
+  private nextReadyAt = 0;
+  async wait(bytes: number, maxMiBPerSecond: number, signal?: AbortSignal) {
+    if (!Number.isFinite(bytes) || bytes <= 0 || maxMiBPerSecond <= 0) return;
+    if (signal?.aborted) throw new DOMException("Transfer cancelled.", "AbortError");
+    const bytesPerSecond = Math.max(1, maxMiBPerSecond) * 1024 * 1024;
+    const now = Date.now();
+    // One reservation can be long for slow connections. Never retain a chunk;
+    // only the async writer and one abortable timer are held.
+    const end = Math.max(now, this.nextReadyAt) + bytes * 1_000 / bytesPerSecond;
+    this.nextReadyAt = end;
+    const delay = Math.max(0, end - now);
+    if (!delay) return;
+    await new Promise<void>((resolve, reject) => {
+      let timeout: ReturnType<typeof setTimeout>;
+      const cleanup = () => { clearTimeout(timeout); signal?.removeEventListener("abort", abort); };
+      const abort = () => { cleanup(); reject(new DOMException("Transfer cancelled.", "AbortError")); };
+      timeout = setTimeout(() => { cleanup(); resolve(); }, delay);
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
+    });
+  }
+}
+export const browserDownloadByteLimiter = new SharedTransferByteLimiter();

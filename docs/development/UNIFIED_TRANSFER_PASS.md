@@ -12,7 +12,7 @@ Cluster has three existing transfer providers: durable browser/IndexedDB uploads
 - During a single browser session, transient transport errors can resume at the exact next offset **only** when the server advertises an immutable, strong `"sha256-<64hex>"` ETag. Each continuation sends `Range: bytes=<offset>-` and `If-Range`. HTTP 206, Content-Range, size and matching ETag must agree. Changed/invalid sources abort the partial write.
 - Byte-count and incremental SHA-256 verification complete **before** the file writer closes. The hash may come from the authorized Library metadata or the hash-qualified ETag. If neither is available, the UI accurately reports non-cryptographic completion.
 - Browser downloads can be paused/resumed **while the same page remains open**. Cancellation rejects pending requests and aborts the writable file transaction.
-- Browser download concurrency is limited by an in-memory prioritized admission queue. Account-scoped controls select 1–3 parallel disk streams, optional download speed caps, 0–5 retry attempts, and queue priority. Queue entries and abort listeners are removed on cancellation or completion.
+- Browser download concurrency is limited by an in-memory prioritized admission queue. Account-scoped controls select 1–3 parallel disk streams, an aggregate per-window download speed cap, 0–5 retry attempts, and queue priority. Queue entries and abort listeners are removed on cancellation or completion.
 - For non-supporting browsers, a known large download is delegated directly to the browser rather than initiating two full GETs. This fallback has **unverified final disk status**. Smaller downloads use bounded Blob buffering and URL revocation.
 
 ## Limits and follow-up acceptance
