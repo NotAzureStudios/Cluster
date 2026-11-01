@@ -146,7 +146,8 @@ export async function downloadAuthenticatedClusterFile(input: {
     const actual = new URL(response.url || resolved.href, resolved.href);
     if (response.status !== 200 || actual.origin !== expectedOrigin || !actual.pathname.startsWith("/api/")
       || response.headers.get("content-range")
-      || response.headers.get("content-type")?.toLowerCase().includes("text/html")) {
+      || (response.headers.get("content-type")?.toLowerCase().includes("text/html")
+        && !(response.headers.get("content-disposition") || "").toLowerCase().startsWith("attachment"))) {
       const message = response.status !== 200
         ? "Download failed: server returned HTTP " + response.status + "."
         : "The download response was incomplete or redirected. Verify your session and server address.";

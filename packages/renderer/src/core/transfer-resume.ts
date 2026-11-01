@@ -55,7 +55,12 @@ function contentLength(response: Response) {
 }
 function responseIsFile(response: Response) {
   const type = (response.headers.get("content-type") || "").toLowerCase();
-  if (type.includes("text/html") || type.includes("application/problem+json")) throw new Error("The download returned an error page instead of a file.");
+  const disposition = (response.headers.get("content-disposition") || "").toLowerCase();
+  // HTML can be a legitimate Library attachment. Never accept an auth/login page
+  // without a server-issued attachment disposition.
+  if ((type.includes("text/html") && !disposition.startsWith("attachment")) || type.includes("application/problem+json")) {
+    throw new Error("The download returned an error page instead of a file.");
+  }
 }
 function totalForPartial(response: Response, offset: number) {
   const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get("content-range") || "");

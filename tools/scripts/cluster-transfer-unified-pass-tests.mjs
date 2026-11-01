@@ -106,6 +106,26 @@ function interruptedStream() {
  assert.equal(calls,1,"Do not retry failed local writes as network errors");
  assert.equal(w.aborted,1);
 }
+{
+ const w=sink();
+ const content=Buffer.from("<html>Exported project report</html>");
+ const result=await downloadWithVerifiedResume(async()=>new Response(content,{headers:{
+   "content-type":"text/html; charset=utf-8",
+   "content-disposition":'attachment; filename="report.html"',
+   "content-length":String(content.length)
+ }}),w);
+ assert.equal(result.verified,false);
+ assert.equal(result.bytesWritten,content.length);
+ assert.equal(w.closed,1);assert.equal(w.aborted,0);
+}
+{
+ const w=sink();
+ await assert.rejects(downloadWithVerifiedResume(async()=>new Response("<html>Sign in</html>",{
+   headers:{"content-type":"text/html"}
+ }),w),/error page/);
+ assert.equal(w.aborted,1);
+}
+console.log("PASS: legitimate HTML attachments allowed; login HTML rejected");
 console.log("PASS: weak validators cannot authorize resume; local write failures never retry");
 console.log("PASS: resumed exact ranges, hash mismatch, rejection, cancellation, account ownership");
 

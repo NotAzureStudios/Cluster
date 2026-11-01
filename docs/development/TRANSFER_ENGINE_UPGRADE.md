@@ -9,7 +9,7 @@
 - **Cancellation and identity:** Active disk streams have an AbortController; Transfer Center can cancel them. Account/server identity is checked between chunks. Errors/abort discard the partial writable stream rather than falsely marking the file saved.
 - **Bounded work:** At most two active disk-stream downloads are admitted. Legacy browser Blob buffering remains capped at 32 MiB with at most four retained Blob URLs.
 - **No duplicate known-large request:** When the caller provides a size above 32 MiB and disk streaming is unavailable, Cluster hands the URL directly to the browser instead of downloading bytes merely to inspect Content-Length.
-- **Response validation:** Disk streams reject HTML/problem+json responses, HTTP partial responses and declared Content-Length mismatches. A failed or incomplete write does not get marked completed.
+- **Response validation:** Disk streams reject HTML login/error pages without an attachment disposition and problem+json responses, HTTP partial responses and declared Content-Length mismatches. A failed or incomplete write does not get marked completed.
 
 ## Important constraints
 
