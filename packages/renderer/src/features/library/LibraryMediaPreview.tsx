@@ -196,11 +196,12 @@ export function LibraryModelThumbnail({ item }: { item: LibraryItem }) {
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
+    const controller = new AbortController();
     setFailed(false);
     setImageUrl("");
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = "";
-    void fetch(source, { credentials: "include" }).then(async (response) => {
+    void fetch(source, { credentials: "include", signal: controller.signal }).then(async (response) => {
       if (!response.ok) throw new Error(`Thumbnail request failed (${response.status}).`);
       return response.blob();
     }).then((blob) => {
@@ -210,6 +211,7 @@ export function LibraryModelThumbnail({ item }: { item: LibraryItem }) {
     }).catch(() => { if (!cancelled) setFailed(true); });
     return () => {
       cancelled = true;
+      controller.abort();
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = "";
     };

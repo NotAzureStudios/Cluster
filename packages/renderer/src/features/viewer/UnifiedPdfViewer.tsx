@@ -28,6 +28,7 @@ import { ViewerComparisonBar } from "./ViewerComparisonBar";
 import { resolveViewerResourceSource } from "./viewer-resource-loader";
 import { viewerOverlayCatalogForMedium } from "./viewer-overlay-catalog";
 import { useViewerResourceScope } from "./viewer-resource-scope";
+import { openPdfPrintFrame } from "./pdf-print-frame";
 import type { ViewerAssetSessionInput, ViewerCommandDefinition, ViewerMode } from "./viewer-contracts";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -528,25 +529,19 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
 
   const print = useCallback(async () => {
     if (!source.url) throw new Error("The PDF source is not available for printing.");
-    const response = source.url.startsWith("blob:") || source.url.startsWith("data:")
-      ? await fetch(source.url)
-      : await clusterApiFetch(new URL(source.url, window.location.href).pathname + new URL(source.url, window.location.href).search, { headers: { Accept: "application/pdf" } });
-    if (!response.ok) throw new Error(`PDF printing could not start (${response.status}).`);
-    const blobUrl = URL.createObjectURL(await response.blob());
-    const unregisterUrl = scope.trackObjectUrl(blobUrl);
-    const frame = document.createElement("iframe");
-    frame.src = blobUrl;
-    frame.className = "cluster-static-pdf-print-frame";
-    document.body.append(frame);
-    frame.onload = () => {
-      try { frame.contentWindow?.focus(); frame.contentWindow?.print(); } finally {
-        window.setTimeout(() => {
-          frame.remove();
-          URL.revokeObjectURL(blobUrl);
-          unregisterUrl();
-        }, 1800);
-      }
-    };
+    const controller = new AbortController();
+    const unregisterAbort = scope.registerCleanup(() => controller.abort());
+    try {
+      const response = source.url.startsWith("blob:") || source.url.startsWith("data:")
+        ? await fetch(source.url, { signal: controller.signal })
+        : await clusterApiFetch(new URL(source.url, window.location.href).pathname + new URL(source.url, window.location.href).search, { signal: controller.signal, headers: { Accept: "application/pdf" } });
+      if (!response.ok) throw new Error(`PDF printing could not start (${response.status}).`);
+      const blob = await response.blob();
+      if (controller.signal.aborted) return;
+      openPdfPrintFrame(blob, scope);
+    } finally {
+      unregisterAbort();
+    }
   }, [scope, source.url]);
 
   const copySelection = useCallback(async () => {

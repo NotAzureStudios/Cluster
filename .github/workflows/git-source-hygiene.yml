@@ -31,5 +31,9 @@ jobs:
         run: node tools/scripts/cluster-repo-hygiene-check.mjs
       - name: Check maintained documentation links
         run: node tools/scripts/cluster-repository-docs-check.mjs
+      - name: PDF print resource lifecycle
+        run: node --experimental-strip-types tools/scripts/cluster-pdf-print-lifecycle-tests.mjs
+      - name: Check source inventory for Windows case collisions
+        run: node tools/scripts/cluster-repository-inventory.mjs
       - name: Check release-candidate source metadata (not certification)
         run: node tools/scripts/cluster-rc-preflight.mjs
