@@ -28,7 +28,7 @@ try {
  assert.equal((await m.downloadAuthenticatedClusterFile({url:'http://localhost:4000/api/c',fileName:'c.bin'})).state,'handed-off');
  assert.equal(cancelled,1);assert.equal(released,1);
  response=new Response('<html>Login</html>',{headers:{'content-type':'text/html'}});
- await assert.rejects(m.downloadAuthenticatedClusterFile({url:'http://localhost:4000/api/d',fileName:'d.bin'}),/HTML page/);
+ await assert.rejects(m.downloadAuthenticatedClusterFile({url:'http://localhost:4000/api/d',fileName:'d.bin'}),/incomplete or redirected/);
  await assert.rejects(m.downloadAuthenticatedClusterFile({url:'https://example.invalid/api/f',fileName:'f.bin'}),/authenticated Cluster API/);
  for (const timer of timers) timer();
  assert.equal(revokes,1);
