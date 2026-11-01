@@ -82,6 +82,8 @@ Releases are separate artifacts: verified Windows installers and distributable Z
 ## Documentation and project policies
 
 - [Documentation index](docs/README.md)
+- [Repository architecture](docs/architecture/REPOSITORY_LAYOUT.md)
+- [Release readiness checklist](docs/development/RELEASE_CHECKLIST.md)
 - [Local development and validation](docs/development/LOCAL_SETUP.md)
 - [Source control workflow](docs/development/GIT_WORKFLOW.md)
 - [Snapshot import checklist](docs/development/SOURCE_SNAPSHOT_HYGIENE.md)
