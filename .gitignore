@@ -1,0 +1,73 @@
+# Cluster source repository: keep source and manifests, not local installations.
+# Dependencies, caches, compiled output
+node_modules/
+.pnpm-store/
+.npm/
+.cache/
+.turbo/
+.next/
+.vite/
+coverage/
+dist/
+build/
+out/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt/
+compile_commands.json
+
+# Windows, Qt, Go and other native build artifacts
+.vs/
+.vscode/settings.json
+.idea/
+*.user
+*.suo
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.qmlc
+*.jsc
+*.exe
+*.dll
+*.msi
+
+# Developer and runtime state
+*.log
+*.pid
+*.stackdump
+*.tmp
+*.temp
+*.bak
+*.swp
+Thumbs.db
+.DS_Store
+/Cluster/
+/Cluster-Server/
+/installer.log
+
+# Private settings, credentials, certs and local databases
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.p12
+*.pfx
+*.key
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.npmrc.local
+
+# Distribution artifacts belong in Releases, not source commits.
+/Cluster-*.zip
+/Cluster-*.exe
+/Cluster-*.msi
