@@ -1,10 +1,39 @@
-# Cluster 1.0 RC36 | Source-only release closeout
+# Cluster
 
-This source checkpoint continues RC35, which itself contains the earlier Projects, Boards, Whiteboards, Inventory, Vault, Transfer Center, chart and optimization work. RC36 fixes additional stale-data races in foreground and durable caching, and clears previous-server/session client cooldowns after context changes. It does **not** include an RC36 Windows installer or claim stable certification.
+Cluster is Azure Studios' private studio workspace and server platform. This repository contains the **development source**, not a prebuilt Windows installation.
 
-- See `RC36_RELEASE_NOTES.md` for concrete code changes, regression evidence and limitations.
-- Run `node tools/scripts/cluster-rc36-source-checks.mjs` for the full source-only regression group.
-- See `RC36_WINDOWS_CERTIFICATION.md` for the outstanding build, PostgreSQL, security, transfer and performance acceptance.
-- Existing `RC35_RELEASE_NOTES.md` and `RC35_WINDOWS_CERTIFICATION.md` are preserved for implementation history.
+## Source layout
 
-**Important:** `config/release-candidate.json` still represents the last installable **rc.32** source lineage, not a certified RC36 binary. Release metadata must only be promoted when a matching native Windows installer is actually compiled, verified and packaged. Do not overwrite a running Cluster installation with the development source ZIP.
+| Directory | Contents |
+| --- | --- |
+| `apps/server` | API, background work and PostgreSQL/Prisma implementation |
+| `apps/web` | Browser client |
+| `apps/desktop-qt` | Native C++/Qt desktop client |
+| `apps/*-go` | Native server, updater and workstation helpers |
+| `packages/renderer` | Shared application UI and workspaces |
+| `packages/shared`, `packages/api-client` | Shared contracts and API access |
+| `integrations` | Discord and game/tool integrations |
+| `tools` | Windows packaging, native builds, tests, release checks |
+| `config` | Source toolchain and release-candidate metadata |
+
+## Development and release checks
+
+Use the toolchain pinned in `config/toolchain-versions.json`, including Node.js 24.20.0, and the commands declared in `package.json`. This source tree is **not** a complete Windows server installation.
+
+```sh
+node tools/scripts/cluster-repo-hygiene-check.mjs
+node tools/scripts/cluster-rc-preflight.mjs
+npm run toolchain:check
+```
+
+The first two are dependency-free source checks. Full verification requires the appropriate Node, PostgreSQL, Qt, Go and Windows environments. Do **not** assume the source-only checks certify the installer, server startup, media playback or backup recovery.
+
+**Release blocker:** `package-lock.json` is currently missing. Dependency-backed reproducibility cannot be certified until a lockfile is generated with the pinned toolchain, validated and committed. A normal `npm install` is not a reproducible release build.
+
+The authoritative release metadata for a checked-out revision is `config/release-candidate.json`. Release notes and older roadmap documents in this repository are historical; their filenames are not evidence that a newer release is already merged. The current GitHub source and external RC73/RC74 bundles must be compared before importing any candidate. Do not overwrite `main` with a ZIP snapshot.
+
+## Contribution workflow
+
+Cluster is proprietary and this repository must remain private. Make changes on feature or import branches, preserve Git history, run focused regression checks and review diffs through pull requests. Do not commit credentials, user Library data, databases, local server installations or distribution binaries.
+
+See [Git workflow](docs/development/GIT_WORKFLOW.md) for the import and review process.
