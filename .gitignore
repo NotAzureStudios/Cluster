@@ -71,3 +71,6 @@ Thumbs.db
 /Cluster-*.zip
 /Cluster-*.exe
 /Cluster-*.msi
+
+# This shipped verification certificate is a PUBLIC key, not a private credential.
+!apps/desktop-qt/assets/update-public-key.pem

@@ -1,0 +1,21 @@
+name: Git source hygiene
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  source-only:
+    name: Source metadata and tracked-file hygiene
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.20.0'
+      - name: Verify tracked files and source metadata
+        run: node tools/scripts/cluster-repo-hygiene-check.mjs
+      - name: Run source-only RC preflight (not installer certification)
+        run: node tools/scripts/cluster-rc-preflight.mjs
