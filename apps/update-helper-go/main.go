@@ -203,6 +203,11 @@ func validateManifest(manifest map[string]any) error {
 		if filename == "" || filename == "." || filename == ".." || strings.ContainsAny(filename, `/\\`) {
 			return fmt.Errorf("artifact %d filename is invalid", index)
 		}
+		// A signed Desktop manifest must never select the Windows Server
+		// installer, even if both products share a publisher identity.
+		if !strings.HasPrefix(strings.ToLower(filename), "cluster-desktop-") {
+			return fmt.Errorf("artifact %d is not a Cluster Desktop distribution", index)
+		}
 		rawURL, _ := artifact["url"].(string)
 		parsedURL, parseErr := url.Parse(rawURL)
 		if rawURL == "" || parseErr != nil || parsedURL.User != nil || parsedURL.Fragment != "" {
