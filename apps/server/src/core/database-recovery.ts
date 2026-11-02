@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import path from "node:path";
+import { lstat } from "node:fs/promises";
 import { throwIfAborted } from "./operation-cancellation.js";
 import { runManagedSubprocess } from "./managed-subprocess.js";
 
@@ -117,6 +119,13 @@ export async function runDatabaseRestoreDrill(input: {
 }
 
 
+/**
+ * Destructive restore of an installed PostgreSQL database. This API refuses to
+ * touch the live database until the selected dump successfully restores into
+ * an isolated drill database AND a separate safety backup is verified.
+ *
+ * The Server must be in maintenance with API writers stopped by the caller.
+ */
 export async function replaceDatabaseFromBackup(input: {
   databaseUrl: string;
   dumpPath: string;
@@ -127,21 +136,74 @@ export async function replaceDatabaseFromBackup(input: {
   if (!databaseName || ["postgres", "template0", "template1"].includes(databaseName.toLowerCase())) {
     throw new Error("Refusing to replace a PostgreSQL maintenance/template database.");
   }
+  const safetyDumpPath = String(input.safetyDumpPath || "").trim();
+  if (!safetyDumpPath || path.resolve(safetyDumpPath) === path.resolve(input.dumpPath)) {
+    throw new Error("A separate, explicit safety dump destination is required before replacing a live database.");
+  }
+  const source = await lstat(input.dumpPath);
+  if (!source.isFile() || source.isSymbolicLink() || source.size <= 0) {
+    throw new Error("The selected restore source is not a regular, nonempty PostgreSQL dump.");
+  }
+  // Do not overwrite an existing recovery point even when the destination
+  // is controlled by a privileged maintenance workflow.
+  const existingSafety = await lstat(safetyDumpPath).then(() => true, (error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  });
+  if (existingSafety) throw new Error("Safety backup path already exists; refusing to overwrite recovery evidence.");
+
+  // Validates the dump by executing pg_restore against a disposable database,
+  // not merely by listing the archive's TOC.
+  const drill = await runDatabaseRestoreDrill({ databaseUrl: input.databaseUrl, dumpPath: input.dumpPath });
+  if (!drill.ok || !drill.snapshot.migrations.length) {
+    throw new Error("Selected backup failed isolated PostgreSQL restore/migration verification.");
+  }
+
   const maintenanceUrl = maintenanceDatabaseUrl(input.databaseUrl);
   const maintenanceEnv = postgresEnvironment(maintenanceUrl);
-  if (input.safetyDumpPath) {
-    await command("pg_dump", ["--format=custom", "--compress=6", "--no-owner", "--no-privileges", "--file", input.safetyDumpPath], postgresEnvironment(input.databaseUrl), 30 * 60_000);
+  const liveEnv = postgresEnvironment(input.databaseUrl);
+  const restoreTimeout = 30 * 60_000;
+  await command("pg_dump", ["--format=custom", "--compress=6", "--no-owner", "--no-privileges", "--file", safetyDumpPath], liveEnv, restoreTimeout);
+  const safety = await command("pg_restore", ["--list", safetyDumpPath], liveEnv, restoreTimeout);
+  if (!safety.stdout.includes("TABLE") || (await lstat(safetyDumpPath)).size <= 0) {
+    throw new Error("The new safety backup could not be verified; live database was not touched.");
   }
-  await command("psql", ["--no-psqlrc", "--command", `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${databaseName.replaceAll("'", "''")}' AND pid <> pg_backend_pid();`], maintenanceEnv);
-  await command("psql", ["--no-psqlrc", "--command", `DROP DATABASE IF EXISTS ${sqlIdentifier(databaseName)}; CREATE DATABASE ${sqlIdentifier(databaseName)} TEMPLATE template0;`], maintenanceEnv);
+
+  const resetDatabase = async () => {
+    // psql -c with DROP and CREATE in one string runs as a single implicit
+    // transaction; PostgreSQL rejects CREATE DATABASE in a transaction.
+    // Execute each statement independently and fail on SQL errors.
+    await command("psql", ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--command",
+      `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${databaseName.replaceAll("'", "''")}' AND pid <> pg_backend_pid();`], maintenanceEnv);
+    await command("psql", ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--command",
+      `DROP DATABASE IF EXISTS ${sqlIdentifier(databaseName)};`], maintenanceEnv);
+    await command("psql", ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--command",
+      `CREATE DATABASE ${sqlIdentifier(databaseName)} TEMPLATE template0;`], maintenanceEnv);
+  };
+
+  let destructivePhaseStarted = false;
   try {
-    await command("pg_restore", ["--exit-on-error", "--no-owner", "--no-privileges", input.dumpPath], postgresEnvironment(input.databaseUrl), 30 * 60_000);
-  } catch (error) {
-    if (input.safetyDumpPath) {
-      await command("psql", ["--no-psqlrc", "--command", `DROP DATABASE IF EXISTS ${sqlIdentifier(databaseName)}; CREATE DATABASE ${sqlIdentifier(databaseName)} TEMPLATE template0;`], maintenanceEnv).catch(() => undefined);
-      await command("pg_restore", ["--exit-on-error", "--no-owner", "--no-privileges", input.safetyDumpPath], postgresEnvironment(input.databaseUrl), 30 * 60_000).catch(() => undefined);
+    destructivePhaseStarted = true;
+    await resetDatabase();
+    await command("pg_restore", ["--exit-on-error", "--no-owner", "--no-privileges", input.dumpPath], liveEnv, restoreTimeout);
+    const restored = await databaseRecoverySnapshot(input.databaseUrl);
+    if (!restored.migrations.length || restored.migrations.join("\n") !== drill.snapshot.migrations.join("\n")) {
+      throw new Error("Restored database migration history differs from the verified source.");
     }
-    throw error;
+    return restored;
+  } catch (restoreError) {
+    if (!destructivePhaseStarted) throw restoreError;
+    try {
+      await resetDatabase();
+      await command("pg_restore", ["--exit-on-error", "--no-owner", "--no-privileges", safetyDumpPath], liveEnv, restoreTimeout);
+      // A successful process exit is not enough: verify application schema
+      // and migrations before reporting an effective rollback.
+      const rollback = await databaseRecoverySnapshot(input.databaseUrl);
+      if (!rollback.migrations.length) throw new Error("Safety rollback did not restore the expected Cluster schema.");
+    } catch (rollbackError) {
+      throw new AggregateError([restoreError, rollbackError],
+        `Database restore failed AND safety rollback failed. Do not restart Cluster; inspect verified backup ${safetyDumpPath}.`);
+    }
+    throw new Error(`Database restore failed; the prior database was restored from ${safetyDumpPath}.`, { cause: restoreError });
   }
-  return databaseRecoverySnapshot(input.databaseUrl);
 }
