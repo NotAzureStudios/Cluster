@@ -25,7 +25,7 @@ The Go verifier pins an Ed25519 trust root to reject a forged release feed. It r
 
 The existing Cluster Desktop updater accepts **`cluster-desktop`** manifests instead, and has a separate stable/beta feed policy. Server and Desktop artifacts are not interchangeable. Source branch names are not authorization evidence; a development release must be built, reviewed and signed.
 
-Use `tools/scripts/cluster-sign-server-release.mjs` from a clean, reviewed **main or development** checkout. It requires an already-built Windows installer and the appropriate **offline private Ed25519 release signing key**. The signer checks the public key against the checked-in trusted publisher key and never writes private key material into the repository.
+Use `tools/scripts/cluster-sign-server-release.mjs` from a clean, reviewed **main or development** checkout. First run `cluster-platform-release.mjs --profile server-windows-x64 --channel main|development --build` on the matching branch with a committed lockfile. The signer refuses output without the matching SHA-256 build receipt, reviewed source commit, and appropriate **offline private Ed25519 release signing key**. The signer checks the public key against the checked-in trusted publisher key and never writes private key material into the repository.
 
 Example after building the verified installer:
 
