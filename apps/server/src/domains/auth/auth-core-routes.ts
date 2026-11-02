@@ -7,6 +7,7 @@ import { requestDeviceId } from "../sessions/session-device.js";
 import { factorStrengthSatisfies, normalizeStudioSecurityPolicy, securityPolicyMinimumFactorStrength, securityPolicyRequiresMfa } from "../../core/studio-security-policy.js";
 import { issueSecurityVerification, nextAuthenticationGeneration, nextVerificationGeneration, securityVerificationPolicy, type SecurityVerificationPurpose } from "../../core/security-verification.js";
 import { verifyWebAuthnAssertion, webAuthnRpFromOrigin } from "./webauthn.js";
+import { desktopSessionHandoffAllowed } from "./desktop-session-handoff.js";
 
 export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -27,7 +28,7 @@ export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
   const WEB_ORIGIN = deps.webOrigin;
   const DISCORD_LINK_STATE_LIFETIME_MS = deps.discordLinkStateLifetimeMs;
 
-  const desktopSessionCodes = new Map<string, { userId: string; expiresAt: number }>();
+  const desktopSessionCodes = new Map<string, { userId: string; sourceSessionId: string; expiresAt: number }>();
   const DESKTOP_SESSION_CODE_TTL_MS = 60_000;
   const DESKTOP_SESSION_CODE_LIMIT = 512;
 
@@ -127,9 +128,18 @@ app.get("/api/auth/config", async () => {
 app.post("/api/auth/desktop-session-code", async (request, reply) => {
   const session = await getCurrentSession(request);
   if (!session) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED", error: "Login required." });
+  const security = await mfaPolicyForUser(String(session.userId));
+  if (!desktopSessionHandoffAllowed({
+    userId: String(session.userId), user: session.user, source: session,
+    requireDiscordLink: REQUIRE_DISCORD_LINK, mfaRequired: security.required,
+    sessionDays: security.policy.sessionDays, sessionIdleHours: security.policy.sessionIdleHours,
+  })) return reply.code(403).send({ ok: false, code: "DESKTOP_SESSION_HANDOFF_BLOCKED", error: "Complete your sign-in and account access requirements before opening Desktop." });
   pruneDesktopSessionCodes();
   const code = crypto.randomBytes(32).toString("base64url");
-  desktopSessionCodes.set(hashToken(code), { userId: String(session.userId), expiresAt: Date.now() + DESKTOP_SESSION_CODE_TTL_MS });
+  // The code is single-use and references the authenticated browser SESSION,
+  // not just its user. A subsequent logout, revocation, credential rotation,
+  // or offboarding must invalidate the handoff before redemption.
+  desktopSessionCodes.set(hashToken(code), { userId: String(session.userId), sourceSessionId: String(session.id), expiresAt: Date.now() + DESKTOP_SESSION_CODE_TTL_MS });
   reply.header("Cache-Control", "no-store");
   await logSecurityEvent({ event: "desktop.session_code_issued", actorUserId: session.userId, targetUserId: session.userId, result: "SUCCESS", reasonCode: "DESKTOP_NATIVE_SESSION", request });
   return { ok: true, code, expiresInSeconds: Math.floor(DESKTOP_SESSION_CODE_TTL_MS / 1000) };
@@ -145,10 +155,17 @@ app.post("/api/auth/desktop-session-redeem", async (request, reply) => {
     await logSecurityEvent({ event: "desktop.session_code_rejected", actorUserId: null, targetUserId: null, result: "FAILURE", reasonCode: "DESKTOP_SESSION_CODE_INVALID", request });
     return reply.code(401).send({ ok: false, code: "DESKTOP_SESSION_CODE_INVALID", error: "The Desktop session handoff expired or was already used." });
   }
-  const user = await (prisma as any).user.findUnique({ where: { id: claim.userId } });
-  if (!user || ["SUSPENDED", "DISABLED", "LOCKED", "PRIVACY_ERASED"].includes(String(user.accountState || ""))) {
-    return reply.code(403).send({ ok: false, code: "ACCOUNT_UNAVAILABLE", error: "This account cannot start a Desktop native session." });
+  const source = await (prisma as any).session.findUnique({ where: { id: claim.sourceSessionId }, include: { user: true } });
+  const security = source?.userId === claim.userId ? await mfaPolicyForUser(claim.userId) : null;
+  if (!source || !security || !desktopSessionHandoffAllowed({
+    userId: claim.userId, user: source.user, source,
+    requireDiscordLink: REQUIRE_DISCORD_LINK, mfaRequired: security.required,
+    sessionDays: security.policy.sessionDays, sessionIdleHours: security.policy.sessionIdleHours,
+  })) {
+    await logSecurityEvent({ event: "desktop.session_code_rejected", actorUserId: null, targetUserId: null, result: "FAILURE", reasonCode: "DESKTOP_SOURCE_SESSION_REVOKED", request });
+    return reply.code(401).send({ ok: false, code: "DESKTOP_SESSION_CODE_INVALID", error: "The source login is no longer eligible to open Desktop." });
   }
+  const user = source.user;
   const nativeSession = await createSession(user.id, reply, request, { authMethod: "desktop-native" });
   clearCurrentSessionCache(request);
   reply.header("Cache-Control", "no-store");

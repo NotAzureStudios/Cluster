@@ -739,7 +739,7 @@ func (ui *windowsControlPanel) createControls(instance uintptr) error {
 	procSendMessageW.Call(ui.title, wmSetFont, ui.titleFont, 1)
 	procSendMessageW.Call(ui.logEdit, wmSetFont, ui.monoFont, 1)
 	procSendMessageW.Call(ui.logEdit, emSetLimitText, 2*1024*1024, 0)
-	procSendMessageW.Call(ui.commandEdit, emSetCueBanner, 1, uintptr(unsafe.Pointer(utf16("status, restart, or a local Windows command"))))
+	procSendMessageW.Call(ui.commandEdit, emSetCueBanner, 1, uintptr(unsafe.Pointer(utf16("status, restart, stage-update, or a local Windows command"))))
 	originalCommandEditProc, _, _ = procSetWindowLongPtrW.Call(ui.commandEdit, ^uintptr(3), commandEditCallback)
 	ui.layout(1040, 760)
 	ui.applyTheme(ui.darkMode)
@@ -1652,6 +1652,9 @@ func (c *windowsServerController) RunCommand(value string) {
 	case "repair":
 		c.Start(true)
 		return
+	case "stage-update", "download-update":
+		c.StageServerUpdate()
+		return
 	case "status":
 		state, lastError := c.snapshot()
 		fmt.Printf("Status: %s\n", panelStateLabel(state))
@@ -1763,6 +1766,28 @@ func (ui *windowsControlPanel) updateMetrics() {
 	}
 	ui.gpuSampler.poll()
 	setWindowText(ui.performance, fmt.Sprintf("CPU %.0f%%   |   RAM %d%%   |   Service RSS %s   |   Disk %s\n%s\n%s", snapshot.CPUPercent, snapshot.MemoryPercent, serverRAM, disk, ui.lastPortsSummary, ui.gpuSampler.snapshot()))
+}
+
+// StageServerUpdate downloads a signed, hash-verified Server installer only.
+// No update can be executed or applied by this action.
+func (c *windowsServerController) StageServerUpdate() {
+	c.mu.Lock()
+	if c.updateInFlight { c.mu.Unlock(); return }
+	c.updateInFlight = true
+	c.mu.Unlock()
+	c.ui.postState()
+	go func() {
+		defer func() { c.mu.Lock(); c.updateInFlight = false; c.mu.Unlock(); c.ui.postState() }()
+		prefs := loadNativePanelPreferences(c.options.root)
+		channel := prefs.UpdateChannel
+		if channel != "development" { channel = "main" }
+		feed := configuredUpdateManifestURL(c.options.root)
+		if feed == "" { fmt.Fprintln(os.Stderr, "No signed Server update feed configured for "+channel); return }
+		fmt.Printf("[%s] Verifying and staging %s Server update (no installation)...\n", time.Now().Format("15:04:05"), channel)
+		staged, err := stageServerUpdate(c.options.root, feed, channel)
+		if err != nil { fmt.Fprintf(os.Stderr, "Server update staging rejected: %v\n", err); return }
+		fmt.Printf("Verified Server installer staged at %s; NOT executed. Back up and review before applying.\n", staged)
+	}()
 }
 
 func (c *windowsServerController) CheckForUpdates() {
