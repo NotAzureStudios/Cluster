@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -103,9 +105,9 @@ func (w *nativeLineLogWriter) appendBounded(part []byte) {
 }
 
 func (w *nativeLineLogWriter) flushLocked() error {
-	text := redactNativeLogLine(string(bytes.TrimSuffix(w.pending, []byte{'\r'})))
-	if w.truncated {
-		text += " [line truncated at 64 KiB]"
+	text := "[oversized diagnostic line omitted]"
+	if !w.truncated {
+		text = redactNativeLogLine(string(bytes.TrimSuffix(w.pending, []byte{'\r'})))
 	}
 	text += "\n"
 	if w.size+int64(len(text)) > w.maxBytes {
@@ -181,4 +183,41 @@ func (w *nativeLineLogWriter) Close() error {
 		return pendingErr
 	}
 	return closeErr
+}
+
+func scanBoundedNativeLines(reader io.Reader, emit func(string)) error {
+	buffered := bufio.NewReaderSize(reader, 32*1024)
+	pending := make([]byte, 0, 32*1024)
+	truncated := false
+	for {
+		part, err := buffered.ReadSlice('\n')
+		if err == nil {
+			part = part[:len(part)-1]
+		}
+		available := nativeLogMaxLineBytes - len(pending)
+		if len(part) > available {
+			pending = append(pending, part[:available]...)
+			truncated = true
+		} else {
+			pending = append(pending, part...)
+		}
+		if err == bufio.ErrBufferFull {
+			continue
+		}
+		if len(pending) > 0 || truncated || err == nil {
+			if truncated {
+				emit("[oversized diagnostic line omitted]")
+			} else {
+				emit(string(bytes.TrimSuffix(pending, []byte{'\r'})))
+			}
+		}
+		pending = pending[:0]
+		truncated = false
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
 }

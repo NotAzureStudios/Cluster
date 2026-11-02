@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bufio"
 	nativealerts "cluster.local/native-alerts"
 	processjob "cluster.local/native-process-job"
 	"context"
@@ -2895,13 +2894,13 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)
-		scanner := bufio.NewScanner(reader)
-		scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
-		for scanner.Scan() {
-			line := redactNativeLogLine(scanner.Text())
+		if err := scanBoundedNativeLines(reader, func(raw string) {
+			line := redactNativeLogLine(raw)
 			_, _ = fmt.Fprintln(logFile, line)
 			ui.controller.observeLog(line)
 			ui.postLog(line)
+		}); err != nil {
+			ui.postLog("Native output capture stopped after an I/O error: " + err.Error())
 		}
 	}()
 	return func() {

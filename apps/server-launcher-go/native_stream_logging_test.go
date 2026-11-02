@@ -40,6 +40,15 @@ func TestNativeLineLogWriterBoundsUnterminatedLineMemory(t *testing.T) {
 	if err:=writer.Close();err!=nil {t.Fatal(err)}
 	b,err:=os.ReadFile(path)
 	if err!=nil {t.Fatal(err)}
-	if !strings.Contains(string(b),"[line truncated") {t.Fatal("oversized diagnostic line silently omitted marker")}
+	if !strings.Contains(string(b),"[oversized diagnostic line omitted]") {t.Fatal("oversized diagnostic line silently omitted marker")}
 	if len(b)>70*1024 {t.Fatalf("oversized line exceeded file budget: %d",len(b))}
+}
+
+func TestBoundedPanelOutputContinuesAfterOversizedLine(t *testing.T) {
+	var lines []string
+	content:=strings.Repeat("private-value",250000)+"\n"+"next healthy log line\n"
+	if err:=scanBoundedNativeLines(strings.NewReader(content),func(line string){lines=append(lines,line)});err!=nil {t.Fatal(err)}
+	if len(lines)!=2 {t.Fatalf("expected overlong line and subsequent recovery, got %d",len(lines))}
+	if lines[0]!="[oversized diagnostic line omitted]" {t.Fatalf("oversized line leaked raw data: %.60s",lines[0])}
+	if lines[1]!="next healthy log line" {t.Fatalf("reading stopped after huge line: %q",lines[1])}
 }
