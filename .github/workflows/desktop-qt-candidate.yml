@@ -1,0 +1,106 @@
+name: Windows 1.0 Desktop Qt candidate binaries
+
+on:
+  push:
+    branches: [client/desktop-qt]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-desktop-binaries-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qt-desktop:
+    name: Build Qt 6.11.2 Desktop installer and portable ZIP
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout named Desktop source branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Go 1.27.1
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Install official Qt 6.11.2 MSVC 2022 modules
+        shell: pwsh
+        run: |
+          python -m pip install aqtinstall==3.3.0
+          if ($LASTEXITCODE -ne 0) { throw 'Qt fetch tool installation failed' }
+          aqt install-qt windows desktop 6.11.2 win64_msvc2022_64 --modules qtwebview -O C:\Qt
+          if ($LASTEXITCODE -ne 0) { throw 'Qt 6.11.2 with WebView download failed' }
+          if (!(Test-Path 'C:\Qt\6.11.2\msvc2022_64\lib\cmake\Qt6\Qt6Config.cmake')) { throw 'Qt 6.11.2 toolkit missing' }
+      - name: Install NSIS packaging tools
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS installation failed' }
+          cmake --version
+          if ($LASTEXITCODE -ne 0) { throw 'CMake unavailable' }
+      - name: Download hash-verified private Git and Git LFS
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'bin/runtime/git', 'bin/runtime/git-lfs' | Out-Null
+          $gitUrl = 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip'
+          $lfsUrl = 'https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-windows-amd64-v3.8.1.zip'
+          Invoke-WebRequest -Uri $gitUrl -OutFile "$env:RUNNER_TEMP/mingit.zip"
+          Invoke-WebRequest -Uri $lfsUrl -OutFile "$env:RUNNER_TEMP/git-lfs.zip"
+          if ((Get-FileHash "$env:RUNNER_TEMP/mingit.zip" -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877') { throw 'MinGit publisher hash mismatch' }
+          if ((Get-FileHash "$env:RUNNER_TEMP/git-lfs.zip" -Algorithm SHA256).Hash.ToLowerInvariant() -ne '5bb771c12b3dacc535e912d0270a010c209d4da2e63819c5918e3547c2defed9') { throw 'Git LFS publisher hash mismatch' }
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP/mingit.zip" -DestinationPath 'bin/runtime/git'
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP/git-lfs.zip" -DestinationPath "$env:RUNNER_TEMP/lfs-unpacked"
+          $lfs = Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/lfs-unpacked" -Recurse -File -Filter git-lfs.exe | Select-Object -First 1
+          if ($null -eq $lfs) { throw 'Git LFS executable not found in verified official package' }
+          Copy-Item -LiteralPath $lfs.FullName -Destination 'bin/runtime/git-lfs/git-lfs.exe'
+          node tools/scripts/verify-desktop-git-runtime.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Private Git runtime version check failed' }
+      - name: Verify release source inputs
+        shell: pwsh
+        run: |
+          if ((git branch --show-current).Trim() -ne 'client/desktop-qt') { throw 'Unexpected source branch for Desktop beta' }
+          node tools/scripts/cluster-release-lockfile-check.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Dependency lockfile verification failed' }
+      - name: Build signed-feed-compatible but UNSIGNED Qt distribution
+        shell: pwsh
+        env:
+          QT_ROOT: C:\Qt\6.11.2\msvc2022_64
+          CMAKE_GENERATOR: Visual Studio 17 2022
+          GOTOOLCHAIN: local
+        run: |
+          node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64 --channel beta --build
+          if ($LASTEXITCODE -ne 0) { throw 'Qt Desktop release candidate build failed' }
+      - name: Check Desktop independent artifact identity
+        shell: pwsh
+        run: |
+          $receipt = Get-Content -Raw 'artifacts/release-profiles/desktop-windows-x64/build-receipt.json' | ConvertFrom-Json
+          if ($receipt.profile -ne 'desktop-windows-x64' -or $receipt.product -ne 'cluster-desktop' -or $receipt.channel -ne 'beta' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect Desktop release receipt identity' }
+          if ($receipt.commit -ne (git rev-parse HEAD).Trim()) { throw 'Desktop receipt references different source' }
+          foreach ($entry in $receipt.artifacts) {
+            if (!(Test-Path -LiteralPath $entry.path -PathType Leaf)) { throw "Missing Desktop artifact: $($entry.path)" }
+            if ((Get-FileHash -Algorithm SHA256 $entry.path).Hash.ToLowerInvariant() -ne $entry.sha256) { throw "Bad Desktop artifact hash: $($entry.path)" }
+          }
+          $receipt | ConvertTo-Json -Depth 12 | Write-Output
+      - name: Upload independent unsigned Qt RC artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cluster-desktop-qt-0-482-0-beta-windows-x64-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          path: |
+            apps/desktop-qt/release/Cluster-Desktop-Installer-0.482.0-windows-x64.exe
+            apps/desktop-qt/release/Cluster-Desktop-0.482.0-windows-x64.zip
+            artifacts/release-profiles/desktop-windows-x64/build-receipt.json
+
+# Never promote to stable without Qt runtime parity, install/restart, update
+# health and rollback acceptance. Desktop packages must never contain Server.
