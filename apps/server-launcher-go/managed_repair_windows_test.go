@@ -85,3 +85,20 @@ func TestNodeRepairRejectsExistingUnexpectedBackup(t *testing.T) {
 		t.Fatalf("interrupted repair must halt before downloading any runtime: repaired=%v err=%v",repaired,err)
 	}
 }
+
+func TestManagedRepairRecreatesMissingJunctionsAndIsIdempotent(t *testing.T) {
+	root:=managedRepairFixture(t)
+	count,err:=repairManagedWorkspaceLinks(root)
+	if err!=nil {t.Fatalf("first local junction repair failed: %v",err)}
+	if count!=len(managedWorkspaceLinks) {t.Fatalf("expected %d recreated links, got %d",len(managedWorkspaceLinks),count)}
+	for _,item:=range managedWorkspaceLinks {
+		link:=filepath.Join(root,"node_modules","@cluster",item.Name)
+		expected:=filepath.Join(root,item.Target)
+		got,err:=os.Readlink(link)
+		if err!=nil || !strings.EqualFold(canonicalRepairLink(got),filepath.Clean(expected)) {
+			t.Fatalf("wrong repaired junction for %s: %q %v",item.Name,got,err)
+		}
+	}
+	count,err=repairManagedWorkspaceLinks(root)
+	if err!=nil || count!=0 {t.Fatalf("second repair must not modify healthy installation: %d %v",count,err)}
+}
