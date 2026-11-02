@@ -100,7 +100,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
   }
 
   const serverReady = Boolean(form.serverDisplayName.trim());
-  const accountReady = Boolean(form.ownerUsername.trim() && form.ownerPassword && form.ownerPassword === form.ownerPasswordConfirm && /^\d{4,8}$/.test(form.ownerPin) && form.ownerPin === form.ownerPinConfirm);
+  const accountReady = Boolean(form.ownerUsername.trim() && [...form.ownerPassword.normalize("NFC")].length >= 12 && form.ownerPassword === form.ownerPasswordConfirm && /^\d{4,8}$/.test(form.ownerPin) && form.ownerPin === form.ownerPinConfirm);
   const modeReady = mode !== "import" || Boolean(configuration);
   const studioReady = mode !== "guided" || Boolean(form.studioName.trim());
   const steps = ["Approach", "Server", "Owner", "Domain & Access", "Review"];
@@ -203,11 +203,11 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
           {status && <small>{status.userCount} user(s) · {status.workspaceCount} workspace(s)</small>}
           </div><div className="setup-fields-v473">
             <label className="field"><span>Username</span><ClusterTextInput autoComplete="username" value={form.ownerUsername} onChange={(event) => patch("ownerUsername", event.target.value)} required /></label>
-            <label className="field setup-password-v473"><span>Password</span><div><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={1} maxLength={1024} value={form.ownerPassword} onChange={(event) => patch("ownerPassword", event.target.value)} required /><ClusterButton unstyled type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></label>
-            <label className="field setup-password-v473"><span>Confirm password</span><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={1} maxLength={1024} value={form.ownerPasswordConfirm} onChange={(event) => patch("ownerPasswordConfirm", event.target.value)} required /></label>
+            <label className="field setup-password-v473"><span>Password</span><div><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={1024} value={form.ownerPassword} onChange={(event) => patch("ownerPassword", event.target.value)} required /><ClusterButton unstyled type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></label>
+            <label className="field setup-password-v473"><span>Confirm password</span><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={1024} value={form.ownerPasswordConfirm} onChange={(event) => patch("ownerPasswordConfirm", event.target.value)} required /></label>
             <label className="field"><span>Security PIN · 4–8 digits</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" value={form.ownerPin} onChange={(event) => patch("ownerPin", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
             <label className="field"><span>Confirm PIN</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" value={form.ownerPinConfirm} onChange={(event) => patch("ownerPinConfirm", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
-          </div><p className="setup-inline-note-v473">Initial Owner passwords may be 1–1024 characters; 12 or more is strongly recommended. Member accounts require at least 12 characters. Your PIN protects sensitive actions. Configure MFA and recovery codes after sign-in.</p>
+          </div><p className="setup-inline-note-v473">All accounts, including the initial Owner, require 12–1024 character passwords. Your PIN is separate. Enroll MFA and save recovery codes after sign-in.</p>
         </section>}
         {step === 3 && <section className="setup-section-v473"><div className="setup-section-copy-v473">
           <span>Domain &amp; access</span><h2>How will members connect?</h2>
