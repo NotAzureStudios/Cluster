@@ -14,4 +14,7 @@ assert.match(metrics, /ui\.lastPortsSummary = "Ports: unavailable"/);
 assert.equal((metrics.match(/nativeListenerOwners\(\)/g) || []).length, 1);
 assert.match(metrics, /ui\.lastResourceSnapshot = ui\.resourceSampler\.sample/);
 assert.match(metrics, /time\.Since\(ui\.lastResourceAt\) >= 5\*time\.Second/);
+assert.match(source, /previousPID := c\.servicePID/);
+assert.match(source, /if next != panelRunning \|\| previousPID != c\.servicePID \{/);
+assert.match(source, /c\.serviceProbeAt = time\.Time\{\}/);
 console.log("PASS: native Windows panel uses bounded service and port sampling while preserving 1 Hz uptime updates");
