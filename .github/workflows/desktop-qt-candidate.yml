@@ -34,7 +34,7 @@ jobs:
       - name: Install official Qt 6.11.2 MSVC 2022 modules
         shell: pwsh
         run: |
-          python -m pip install aqtinstall==3.3.0
+          python -m pip install 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
           if ($LASTEXITCODE -ne 0) { throw 'Qt fetch tool installation failed' }
           aqt install-qt windows desktop 6.11.2 win64_msvc2022_64 --modules qtwebview -O C:\Qt
           if ($LASTEXITCODE -ne 0) { throw 'Qt 6.11.2 with WebView download failed' }
