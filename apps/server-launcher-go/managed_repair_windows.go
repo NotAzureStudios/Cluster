@@ -62,8 +62,10 @@ func canonicalRepairLink(p string) string {
 }
 
 func prepareManagedWorkspaceLinks(root string) ([]managedWorkspaceLink, error) {
-	if err := ordinaryRepairDir(filepath.Join(root,"node_modules")); err != nil {
-		return nil, fmt.Errorf("untrusted node_modules directory: %w", err)
+	for _, ancestor := range []string{"apps", "packages", "integrations", "node_modules"} {
+		if err := ordinaryRepairDir(filepath.Join(root,ancestor)); err != nil {
+			return nil,fmt.Errorf("workspace ancestor %s is missing or linked: %w",ancestor,err)
+		}
 	}
 	scope := filepath.Join(root,"node_modules","@cluster")
 	if err := os.Mkdir(scope,0755); err != nil && !os.IsExist(err) { return nil,err }

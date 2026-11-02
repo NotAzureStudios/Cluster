@@ -458,6 +458,12 @@ function PublishRootServerLauncher([string]$installedRoot) {
 
 function ApplyRevision([string]$source, [string]$hash) {
   EnsureUnder $target $WorkRoot
+  # Never allow a packaged release to overwrite preserved operational data.
+  foreach ($protectedName in $preserved) {
+    if (Test-Path -LiteralPath (Join-Path $source $protectedName)) {
+      Fail "Revision payload contains protected $protectedName; refusing to overwrite retained data."
+    }
+  }
   if (Test-Path -LiteralPath $target) {
     if (-not (Test-Path -LiteralPath (Join-Path $target $ownerMarker) -PathType Leaf)) {
       Fail "Refusing to overwrite an unmanaged folder: $target. Existing production servers are never valid targets."
