@@ -12,7 +12,7 @@ import {
 } from "pdfjs-dist";
 import type { TextContent, TextItem } from "pdfjs-dist/types/src/display/api";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
@@ -20,6 +20,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { runtimeStyle } from "../../core/runtime-style";
 import { copyClusterText } from "../../core/clipboard";
 import { ViewerOverlayLayer } from "./ViewerOverlayLayer";
+import { pdfPageIndexAtOffset, pdfPageOffsets, type PdfPageDimensions } from "./pdf-page-layout";
 import { ViewerShell } from "./ViewerShell";
 import { ViewerState } from "./ViewerState";
 import { useViewerAssetSession } from "./use-viewer-asset-session";
@@ -174,6 +175,7 @@ function PdfPageSurface({
   onCoordinate,
   onDraft,
   onSelection,
+  onPageSize,
   canCopyText,
 }: {
   pdf: PDFDocumentProxy;
@@ -188,9 +190,11 @@ function PdfPageSurface({
   onCoordinate: (coordinate: PdfCoordinate | null) => void;
   onDraft: (draft: DraftPdfAnnotation | null) => void;
   onSelection: (text: string) => void;
+  onPageSize: (page: number, size: PdfPageDimensions) => void;
   canCopyText: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pendingCanvasRenderRef = useRef<Promise<void>>(Promise.resolve());
   const textRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragAnnotation | null>(null);
   const [page, setPage] = useState<PDFPageProxy | null>(null);
@@ -204,30 +208,48 @@ function PdfPageSurface({
     setFailed(false);
     setPage(null);
     setTextContent(null);
-    void pdf.getPage(pageNumber).then(async (nextPage) => {
-      const nextText = await nextPage.getTextContent();
+    void pdf.getPage(pageNumber).then((nextPage) => {
       if (cancelled) return;
+      // Text extraction is optional. Failed extraction must not block rendering.
       setPage(nextPage);
-      setTextContent(nextText);
+      const dimensions = nextPage.getViewport({ scale: 1, rotation: 0 });
+      onPageSize(pageNumber, { width: dimensions.width, height: dimensions.height });
+      void nextPage.getTextContent().then((nextText) => {
+        if (!cancelled) setTextContent(nextText);
+      }).catch(() => undefined);
     }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, [pageNumber, pdf, renderAttempt]);
+  }, [pageNumber, pdf, renderAttempt, onPageSize]);
 
   useEffect(() => {
     if (!page || !canvasRef.current) return;
+    const canvas = canvasRef.current;
     const viewport = page.getViewport({ scale, rotation });
     setSize({ width: viewport.width, height: viewport.height });
-    const canvas = canvasRef.current;
-    const outputScale = boundedPdfOutputScale(viewport.width, viewport.height, VIEWER_CLIENT_RESOURCE_BUDGETS.maxPdfCanvasPixels);
-    canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
-    canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
-    canvas.style.width = `${viewport.width}px`;
-    canvas.style.height = `${viewport.height}px`;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) return;
-    const task = page.render({ canvas, canvasContext: context, viewport, transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0] });
-    void task.promise.catch((error) => { if (error?.name !== "RenderingCancelledException") setFailed(true); });
-    return () => task.cancel();
+    let cancelled = false;
+    let task: ReturnType<PDFPageProxy["render"]> | null = null;
+    // PDF.js cancellation is asynchronous. Wait for the previous render to
+    // settle before resizing or repainting this same canvas.
+    const previous = pendingCanvasRenderRef.current;
+    const render = async () => {
+      await previous;
+      if (cancelled) return;
+      const outputScale = boundedPdfOutputScale(viewport.width, viewport.height, VIEWER_CLIENT_RESOURCE_BUDGETS.maxPdfCanvasPixels);
+      canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+      canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) { if (!cancelled) setFailed(true); return; }
+      try {
+        task = page.render({ canvas, canvasContext: context, viewport, transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0] });
+        await task.promise;
+      } catch (error: any) {
+        if (!cancelled && error?.name !== "RenderingCancelledException") setFailed(true);
+      }
+    };
+    pendingCanvasRenderRef.current = render();
+    return () => { cancelled = true; task?.cancel(); };
   }, [page, rotation, scale]);
 
   useEffect(() => {
