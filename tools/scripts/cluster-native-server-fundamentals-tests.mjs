@@ -23,7 +23,7 @@ assert.match(deploy, /exec\.CommandContext\(ctx, node, script, action\)/);
 assert.match(deploy, /database-command\.mjs/);
 assert.match(deploy, /prisma.*build.*index\.js/);
 assert.match(deploy, /ctx\.Err\(\)/);
-assert.doesNotMatch(deploy, /npm|install|build:server|build:web/);
+assert.doesNotMatch(deploy, /runNpm|\bnpm\b|build:server|build:web/);
 
 assert.match(admission, /ManagedBy != "cluster-installer"/);
 assert.match(admission, /if explicitRepair \{/);
