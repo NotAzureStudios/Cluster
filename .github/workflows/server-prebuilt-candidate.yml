@@ -46,7 +46,12 @@ jobs:
           GOTOOLCHAIN: local
         run: |
           node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development --build
-          if ($LASTEXITCODE -ne 0) { throw 'Prebuilt Server candidate build failed' }
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'Tracked file changes produced by compilation:'
+            git diff --name-status
+            git diff --stat
+            throw 'Prebuilt Server candidate build failed'
+          }
       - name: Verify binary identity and source-bound receipt
         shell: pwsh
         run: |
