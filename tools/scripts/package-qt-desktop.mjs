@@ -1,4 +1,5 @@
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { readFileSync, openSync, readSync, closeSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadDesktopToolchain } from "./toolchain-lib.mjs";
@@ -9,7 +10,11 @@ const platform = process.platform === "win32" ? "windows" : process.platform ===
 const architecture = process.arch === "x64" ? "x64" : process.arch;
 const releaseRoot = path.join(root, "apps", "desktop-qt", "release");
 const deployed = path.join(releaseRoot, process.platform === "win32" ? "windows-x64" : `${process.platform}-${process.arch}`);
-const archive = path.join(releaseRoot, `Cluster-Desktop-${manifest.version}-${platform}-${architecture}.zip`);
+const nativeVersion = (JSON.parse(await readFile(path.join(root, "config", "toolchain-versions.json"), "utf8"))).desktop?.parityVersionHold;
+if (!/^\d+\.\d+\.\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop package version is not configured");
+// Desktop update semantics use the independently installed Qt application
+// version. The shared server source version is not a Desktop release version.
+const archive = path.join(releaseRoot, `Cluster-Desktop-${nativeVersion}-${platform}-${architecture}.zip`);
 
 function run(command, args, cwd = root) {
   const result = spawnSync(command, args, { cwd, stdio: "inherit", windowsHide: false, env: process.env });
@@ -42,4 +47,41 @@ await mkdir(releaseRoot, { recursive: true });
 const toolchain = await loadDesktopToolchain();
 run(toolchain?.cmake || "cmake", ["-E", "tar", "cf", archive, "--format=zip", "."], deployed);
 await access(archive);
-console.log(`Cluster Qt Desktop package created: ${archive}`);
+console.log(`Cluster Qt Desktop portable package created: ${archive}`);
+
+// Windows Desktop is an independent installed product. Generate its NSIS
+// installer from the Qt/CPack install rules, not the Server source ZIP.
+// CPack must fail the release build if NSIS is not provisioned; never silently
+// substitute a portable ZIP for an installable update.
+if (process.platform === "win32") {
+  const versions = JSON.parse(await readFile(path.join(root, "config", "toolchain-versions.json"), "utf8"));
+  if (versions.desktop?.parityVersionHold !== nativeVersion) throw new Error("Desktop native version drifted during packaging");
+  if (!/^\d+\.\d+\.\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop version hold is invalid");
+  const cmakeSource = readFileSync(path.join(root, "apps", "desktop-qt", "CMakeLists.txt"), "utf8");
+  if (!cmakeSource.includes(`project(ClusterDesktop VERSION ${nativeVersion} LANGUAGES CXX)`)) {
+    throw new Error("Qt Desktop package identity must match its native CMake project version");
+  }
+  const cpackConfig = path.join(root, "apps", "desktop-qt", "build", "CPackConfig.cmake");
+  await access(cpackConfig);
+  const cpack = toolchain?.cpack || (toolchain?.cmake && path.isAbsolute(toolchain.cmake)
+    ? path.join(path.dirname(toolchain.cmake), "cpack.exe") : "cpack");
+  const prefix = `Cluster-Desktop-${nativeVersion}-`;
+  for (const entry of await readdir(releaseRoot)) {
+    if (entry.startsWith(prefix) && entry.toLowerCase().endsWith(".exe")) await rm(path.join(releaseRoot, entry), {force:true});
+  }
+  run(cpack, ["--config", cpackConfig, "-G", "NSIS", "-C", "Release", "-B", releaseRoot]);
+  const executables = (await readdir(releaseRoot)).filter(p=>p.startsWith(prefix) && p.toLowerCase().endsWith(".exe"));
+  if (executables.length !== 1) throw new Error("CPack must produce exactly one native Desktop installer");
+  const installer = path.join(releaseRoot, `Cluster-Desktop-Installer-${nativeVersion}-windows-x64.exe`);
+  if (path.join(releaseRoot, executables[0]) !== installer) {
+    await rm(installer,{force:true});
+    await rename(path.join(releaseRoot, executables[0]),installer);
+  }
+  await access(installer);
+  const handle = openSync(installer, "r");
+  const header = Buffer.alloc(2);
+  try { readSync(handle, header, 0, 2, 0); } finally { closeSync(handle); }
+  const mz = header.toString("ascii");
+  if (mz !== "MZ") throw new Error("Desktop installer is not a Windows PE executable");
+  console.log(`Cluster Qt Desktop native installer created: ${installer}`);
+}

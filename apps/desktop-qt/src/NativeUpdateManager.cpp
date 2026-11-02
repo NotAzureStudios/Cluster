@@ -576,6 +576,12 @@ bool NativeUpdateManager::validateArtifact(const QJsonObject &artifact, const QU
 
     const QString filename = artifact.value(QStringLiteral("filename")).toString();
     if (filename.isEmpty() || safeFileName(filename) != filename) return false;
+    // Reject Server and unrelated packages even when the feed is misconfigured.
+    // The native verifier independently requires product=cluster-desktop.
+    if (!filename.startsWith(QStringLiteral("Cluster-Desktop-"), Qt::CaseInsensitive)) {
+        if (errorMessage) *errorMessage = QStringLiteral("This artifact is not a Cluster Desktop installer or package.");
+        return false;
+    }
     QUrl artifactUrl = manifestUrl.resolved(QUrl(artifact.value(QStringLiteral("url")).toString()));
     if (!allowedFeedUrl(artifactUrl) || !sameOrigin(artifactUrl, manifestUrl)) {
         if (errorMessage) *errorMessage = QStringLiteral("The signed update references an artifact outside the feed origin.");

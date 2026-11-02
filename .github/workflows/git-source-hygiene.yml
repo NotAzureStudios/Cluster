@@ -1,21 +1,54 @@
 name: Git source hygiene
+
 on:
   push:
-    branches: [main]
+    branches: [development, main]
   pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-hygiene-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  source-only:
-    name: Source metadata and tracked-file hygiene
+  source-hygiene:
+    name: Cluster source hygiene and RC metadata
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.20.0'
-      - name: Verify tracked files and source metadata
+      - name: Check source files
         run: node tools/scripts/cluster-repo-hygiene-check.mjs
-      - name: Run source-only RC preflight (not installer certification)
+      - name: Check maintained documentation links
+        run: node tools/scripts/cluster-repository-docs-check.mjs
+      - name: PDF print resource lifecycle
+        run: node --experimental-strip-types tools/scripts/cluster-pdf-print-lifecycle-tests.mjs
+      - name: Check source inventory for Windows case collisions
+        run: node tools/scripts/cluster-repository-inventory.mjs
+      - name: Canonical Qt journal and deprecated-path gate
+        run: |
+          node tools/scripts/cluster-compatibility-fossil-tests.mjs
+          node --check tools/scripts/database-command.mjs
+          node tools/scripts/cluster-g26-multiwindow-transfer-ownership-tests.mjs
+      - name: Durable upload active pause and safe resume
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-upload-live-pause-tests.mjs
+      - name: Transfer owner isolation, lifecycle and memory stress
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-runtime-isolation-tests.mjs
+      - name: Unified transfer pass (range resume, SHA-256, scheduler)
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-unified-pass-tests.mjs
+      - name: Disk streaming download behavior
+        run: node tools/scripts/cluster-download-disk-stream-tests.mjs
+      - name: Upload/download memory lifecycle
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-memory-smoke.mjs
+      - name: Check release-candidate source metadata (not certification)
         run: node tools/scripts/cluster-rc-preflight.mjs

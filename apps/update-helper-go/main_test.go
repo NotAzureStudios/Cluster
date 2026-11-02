@@ -136,3 +136,16 @@ func TestValidateManifestRejectsUnsafeArtifactMetadata(t *testing.T) {
 		t.Fatal("oversized artifact should be rejected")
 	}
 }
+
+func TestSignedDesktopManifestRejectsServerInstaller(t *testing.T) {
+	manifest := validManifest()
+	artifact := manifest["artifacts"].([]any)[0].(map[string]any)
+	artifact["filename"] = "Cluster-Installer.exe"
+	if err := validateManifest(manifest); err == nil {
+		t.Fatal("Cluster Desktop updater must reject Cluster Server installer")
+	}
+	artifact["filename"] = "Cluster-Desktop-Installer-9.9.9-windows-x64.exe"
+	if err := validateManifest(manifest); err != nil {
+		t.Fatalf("legitimate Desktop installer rejected: %v", err)
+	}
+}

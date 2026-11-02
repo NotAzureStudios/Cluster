@@ -31,3 +31,11 @@
 .cluster-transfer-popover__footer{gap:12px;flex-wrap:wrap}
 @media(max-width:720px){.cluster-transfer-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.cluster-transfer-graph svg{height:115px}.cluster-transfer-popover{max-height:85vh}.cluster-transfer-list article{grid-template-columns:minmax(0,1fr)}}
 @media(prefers-reduced-motion:reduce){.cluster-transfer-graph *,.cluster-transfer-metrics *{animation:none!important;transition:none!important}}
+
+/* Compact transfer tuning, constrained to the Transfer Center surface. */
+.cluster-transfer-browser-options{border-bottom:1px solid var(--cluster-visual-border);padding:8px 12px;background:var(--cluster-visual-surface)}
+.cluster-transfer-browser-options summary{cursor:pointer;font-size:.72rem;font-weight:600}
+.cluster-transfer-browser-options__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;padding-top:10px}
+.cluster-transfer-browser-options__grid label{min-width:0;display:grid;gap:5px;color:var(--cluster-visual-text-muted);font-size:.69rem}
+.cluster-transfer-browser-options small{display:block;color:var(--cluster-visual-text-muted);font-size:.65rem;padding-top:8px;line-height:1.4}
+@media(max-width:540px){.cluster-transfer-browser-options__grid{grid-template-columns:minmax(0,1fr)}}

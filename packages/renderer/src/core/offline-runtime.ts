@@ -1,4 +1,4 @@
-import { API_URL, api, discardUploadSession, flushApiOutbox, flushApiUploads, getLastApiOutboxFlushStats, syncDeviceId } from "./api";
+import { API_URL, api, discardUploadSession, flushApiOutbox, flushApiUploads, getLastApiOutboxFlushStats, requestPauseActiveOfflineUpload, syncDeviceId } from "./api";
 import { computeAdaptiveSyncPlan, type AdaptiveSyncMode } from "./adaptive-sync";
 import { pullDeltaChanges } from "./delta-sync";
 import {
@@ -728,7 +728,11 @@ export async function retryAllOfflineFailures() {
 
 export async function pauseOfflineUpload(id: string) {
   const upload = (await listOfflineUploads()).find((candidate) => candidate.id === id);
-  if (!upload || upload.status !== "pending") return;
+  if (!upload || !["pending", "uploading"].includes(upload.status)) return;
+  if (upload.status === "uploading" && !requestPauseActiveOfflineUpload(id)) {
+    // Do not falsify a pause when the transfer was already committing.
+    throw new Error("The upload is no longer controlled by this browser session. Refresh its state before retrying.");
+  }
   await updateOfflineUpload(id, { status: "paused", pausedAt: Date.now(), pauseReason: "manual" });
   await readQueue();
 }
@@ -775,14 +779,16 @@ export async function resolveQueuedConflict(id: string, action: OfflineConflictA
 
 export async function discardOfflineUpload(id: string) {
   const upload = (await listOfflineUploads()).find((item) => item.id === id);
-  if (upload?.uploadSessionId) await discardUploadSession(upload.uploadSessionId);
+  if (!upload) return;
+  if (upload.status === "uploading") throw new Error("Pause the active upload and wait for acknowledgement before discarding its saved file.");
+  if (upload.uploadSessionId) await discardUploadSession(upload.uploadSessionId);
   await removeOfflineUpload(id);
   await readQueue();
 }
 
 export async function retryOfflineUpload(id: string) {
   const upload = (await listOfflineUploads()).find((item) => item.id === id);
-  if (!upload) return;
+  if (!upload || upload.status === "uploading") return;
   await updateOfflineUpload(id, { status: "pending", attempts: 0, nextAttemptAt: Date.now(), pausedAt: null, pauseReason: null, lastError: null });
   await readQueue();
   await refreshOfflineSyncState({ flush: true, pull: false, forceUploads: true });
@@ -869,8 +875,16 @@ export function initializeOfflineRuntime() {
   document.addEventListener("visibilitychange", onVisibility);
   connection?.addEventListener?.("change", onConnectionChange);
   const unsubscribeServerStatus = window.clusterDesktop?.onServerStatus?.((status) => {
-    setSnapshot({ serverReachable: status.ok, lastCheckedAt: Date.now(), lastError: status.ok ? null : status.message });
-    if (status.ok) scheduleNextSync(100);
+    const wasReachable = snapshot.serverReachable;
+    const changed = wasReachable !== status.ok;
+    const now = Date.now();
+    // Native heartbeat updates may arrive much faster than the adaptive sync
+    // cadence. Do not emit a React snapshot or reset the sync timer on every
+    // identical healthy heartbeat; only transitions warrant an urgent probe.
+    if (changed || !snapshot.lastCheckedAt || now - snapshot.lastCheckedAt >= 30_000) {
+      setSnapshot({ serverReachable: status.ok, lastCheckedAt: now, lastError: status.ok ? null : status.message });
+    }
+    if (changed) scheduleNextSync(status.ok ? 100 : 250);
   });
 
   unsubscribeStorage = subscribeOfflineStorage(scheduleQueueRefresh);

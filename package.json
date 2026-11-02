@@ -15,6 +15,11 @@
     "integrations/discord-bot"
   ],
   "scripts": {
+    "release:profiles": "node tools/scripts/cluster-platform-release.mjs --list",
+    "release:plan:server": "node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development",
+    "release:plan:desktop": "node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64",
+    "release:plan:web": "node tools/scripts/cluster-platform-release.mjs --profile web-responsive --channel development",
+    "release:profiles:test": "node tools/scripts/cluster-platform-release-tests.mjs",
     "cluster:rc37:check": "node tools/scripts/cluster-rc37-source-checks.mjs",
     "cluster:rc:package": "node tools/scripts/package-cluster-rc.mjs",
     "cluster:f2:p4:native-reconciliation": "node tools/scripts/cluster-f2-p4-native-journal-reconciliation-tests.mjs && node tools/scripts/cluster-f3-p3-alert-routing-tests.mjs && node tools/scripts/cluster-f3-p3-policy-atomic-tests.mjs && node tools/scripts/cluster-f3-p2-incident-bridge-tests.mjs && node tools/scripts/cluster-f3-p2-api-tool-readiness-tests.mjs && node tools/scripts/cluster-td6-g27-api-tool-manager-tests.mjs && node tools/scripts/cluster-td6-source-scan.mjs",

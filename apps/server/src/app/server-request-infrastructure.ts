@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import compress from "@fastify/compress";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { API_CONTRACT } from "@cluster/shared";
+import { BoundedWarningGate } from "../core/bounded-warning-gate.js";
 import { apiReadContractFor, evaluateReadBudget } from "../core/api-read-contracts.js";
 import { apiOperationLabel, normalizeApiErrorBody } from "../core/api-response.js";
 import { accountNextStep, accountStateAllowsWorkspace, REAUTH_WINDOW_MS, sessionRecentlyAuthenticated } from "../core/auth.js";
@@ -83,7 +84,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     requestIpAddress, requestUserAgent,
   } = deps;
 
-  const incompatibleClientWarnings = new Set<string>();
+  const requestWarningGate = new BoundedWarningGate(60_000, 256);
   const requestTelemetryStarts = new WeakMap<FastifyRequest, bigint>();
   const requestWorkPolicies = new WeakMap<FastifyRequest, ReturnType<typeof requestWorkPolicy>>();
   const requestWorkReleases = new WeakMap<FastifyRequest, () => void>();
@@ -102,13 +103,15 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       "Accept", "Content-Type", "X-Client-Request-Id", "X-Cluster-Client-Version", "X-Cluster-Client-Host",
       "X-Cluster-Client-Protocol", "X-Cluster-Idempotency-Key", "X-Cluster-Confirmation", "X-Cluster-CSRF",
       "X-Cluster-Device-Id", "X-Cluster-Device-Proof-Timestamp", "X-Cluster-Device-Proof-Signature", "X-Cluster-Device-Proof-Public-Key", "X-Cluster-Device-Proof-Algorithm",
-      "X-Cluster-Base-Revision", "Range", "If-None-Match", "If-Modified-Since",
+      "X-Cluster-Base-Revision", "Range", "If-Range", "Content-Range", "If-None-Match", "If-Modified-Since",
     ],
     exposedHeaders: [
       "X-Request-Id", "X-Client-Request-Id", "X-Cluster-Version", "X-Cluster-Api-Contract",
       "X-Cluster-Minimum-Client-Version", "X-Cluster-Transport-Protocol", "X-Cluster-Client-Compatibility",
       "X-Cluster-Client-Protocol-Compatibility", "X-Cluster-Server-State", "X-Cluster-Server-Mode", "X-Cluster-CSRF-Invalid", "X-Cluster-Resource-Revision",
       "X-Cluster-Correlation-Id", "X-Cluster-Original-Correlation-Id", "X-Cluster-Rate-Limit-Bucket", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "ETag", "Retry-After",
+      "Accept-Ranges", "Content-Range", "Content-Length", "Content-Encoding", "Content-Disposition",
+      "X-Cluster-Saturation", "X-Cluster-Governor", "X-Cluster-Backpressure",
     ],
   });
 
@@ -214,10 +217,8 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
         const rawClientHost = request.headers["x-cluster-client-host"];
         const clientHost = String(Array.isArray(rawClientHost) ? rawClientHost[0] : rawClientHost || "unknown").slice(0, 32);
         const warningKey = `${clientHost}:${clientVersion}:${compatibility.reason}`;
-        if (!incompatibleClientWarnings.has(warningKey)) {
-          incompatibleClientWarnings.add(warningKey);
-          app.log.warn({ clientVersion, clientHost, reason: compatibility.reason }, "Cluster rejected an incompatible client");
-        }
+        const warning = requestWarningGate.check(`client-compat:${warningKey}`);
+        if (warning.emit) app.log.warn({ clientVersion, clientHost, reason: compatibility.reason, suppressedRepeats: warning.suppressedRepeats }, "Cluster rejected an incompatible client");
         reply.code(426).send({ ok: false, code: "CLIENT_UPGRADE_REQUIRED", error: `Cluster ${clientVersion} is not compatible with server ${clusterVersion}.`, action: "Update this client to the server release, then reconnect.", retryable: false, requestId: String(request.id), contractVersion: API_CONTRACT.version, details: { clientVersion: String(clientVersion), serverVersion: clusterVersion, minimumClientVersion: API_CONTRACT.minimumClientVersion, reason: compatibility.reason } });
         return;
       }
@@ -249,7 +250,8 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const originDecision = mutationOriginDecision(request);
     if (!originDecision.allowed) {
       securityTelemetry.record("request.origin_blocked", "FAILURE");
-      request.log.warn({ reason: originDecision.reason, evidence: originDecision.evidence }, "mutation request blocked by request-integrity policy");
+      const warning = requestWarningGate.check(`origin:${request.routeOptions.url || pathname}:${originDecision.reason}`);
+      if (warning.emit) request.log.warn({ reason: originDecision.reason, evidence: originDecision.evidence, suppressedRepeats: warning.suppressedRepeats }, "mutation request blocked by request-integrity policy");
       reply.code(403).send({
         ok: false,
         code: "REQUEST_INTEGRITY_BLOCKED",
@@ -272,7 +274,8 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     if (context.policy.isApi) {
       const traffic = apiTransportRateLimitPolicy({ pathname, method: request.method, apiRateLimitMax });
       if (await rateLimit(request, reply, traffic.bucketName, traffic.limit, apiRateLimitWindowMs, workPolicy.cost)) {
-        request.log.warn({ route: pathname, method: request.method, bucket: traffic.bucketName, cost: workPolicy.cost, limit: traffic.limit, configuredLimit: apiRateLimitMax, windowMs: apiRateLimitWindowMs }, "Cluster API traffic budget exhausted");
+        const warning = requestWarningGate.check(`api-limit:${request.routeOptions.url || traffic.bucketName}:${request.method}:${traffic.bucketName}`);
+        if (warning.emit) request.log.warn({ route: request.routeOptions.url || traffic.bucketName, method: request.method, bucket: traffic.bucketName, cost: workPolicy.cost, limit: traffic.limit, configuredLimit: apiRateLimitMax, windowMs: apiRateLimitWindowMs, suppressedRepeats: warning.suppressedRepeats }, "Cluster API traffic budget exhausted");
         securityTelemetry.record("request.api_rate_limited", "FAILURE");
         return;
       }
@@ -292,7 +295,8 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       if (payloadBytes > readContract.budget.maxPayloadBytes) {
         const detail = `payloadBytes ${payloadBytes}/${readContract.budget.maxPayloadBytes}`;
         databaseDiagnostics.recordBudgetViolation({ contractId: readContract.id, route: readContract.route, kind: "payload", detail });
-        request.log.warn({ contractId: readContract.id, payloadBytes, maximumBytes: readContract.budget.maxPayloadBytes }, "read-model payload budget exceeded");
+        const warning = requestWarningGate.check(`read-payload:${readContract.id}`);
+        if (warning.emit) request.log.warn({ contractId: readContract.id, payloadBytes, maximumBytes: readContract.budget.maxPayloadBytes, suppressedRepeats: warning.suppressedRepeats }, "read-model payload budget exceeded");
       }
     }
     if (reply.statusCode < 400 || !requestContextFor(request).policy.isApi || typeof payload !== "string") return payload;
@@ -320,7 +324,8 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       if (violations.length) {
         const detail = violations.join(", ");
         databaseDiagnostics.recordBudgetViolation({ contractId: readContract.id, route: readContract.route, kind: "query", detail });
-        request.log.warn({ contractId: readContract.id, querySample, budget: readContract.budget, violations }, "read-model query budget exceeded");
+        const warning = requestWarningGate.check(`read-query:${readContract.id}:${violations.join(",")}`);
+        if (warning.emit) request.log.warn({ contractId: readContract.id, querySample, budget: readContract.budget, violations, suppressedRepeats: warning.suppressedRepeats }, "read-model query budget exceeded");
       }
     }
     if (reply.statusCode === 401) securityTelemetry.record("request.unauthorized", "FAILURE");

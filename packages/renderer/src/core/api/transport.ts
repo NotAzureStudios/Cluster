@@ -11,14 +11,18 @@ import { ApiError, apiOperationLabel, type ApiErrorIssue } from "./errors";
 import { invalidateAuthenticatedClientState } from "./cache";
 import { invalidateMutationCache } from "./mutation-cache";
 
-function combineSignals(timeoutSignal: AbortSignal, external?: AbortSignal | null) {
-  if (!external) return timeoutSignal;
-  if (typeof AbortSignal.any === "function") return AbortSignal.any([timeoutSignal, external]);
+function combineSignals(timeoutSignal: AbortSignal, external?: AbortSignal | null): { signal: AbortSignal; cleanup: () => void } {
+  if (!external) return { signal: timeoutSignal, cleanup: () => undefined };
+  if (typeof AbortSignal.any === "function") return { signal: AbortSignal.any([timeoutSignal, external]), cleanup: () => undefined };
   const controller = new AbortController();
   const abort = () => controller.abort();
   timeoutSignal.addEventListener("abort", abort, { once: true });
   external.addEventListener("abort", abort, { once: true });
-  return controller.signal;
+  if (timeoutSignal.aborted || external.aborted) controller.abort();
+  return { signal: controller.signal, cleanup: () => {
+    timeoutSignal.removeEventListener("abort", abort);
+    external.removeEventListener("abort", abort);
+  } };
 }
 
 async function parseResponse(res: Response, context: { method: string; path: string; occurredAt: string }) {
@@ -91,6 +95,7 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
   // Give those retries time to complete without weakening the timeout on writes.
   const requestTimeoutMs = method === "GET" || method === "HEAD" ? API_TIMEOUT_MS + 65_000 : API_TIMEOUT_MS;
   const timeout = typeof window !== "undefined" ? window.setTimeout(() => controller.abort(), requestTimeoutMs) : setTimeout(() => controller.abort(), requestTimeoutMs);
+  const { signal, cleanup: cleanupSignals } = combineSignals(controller.signal, options.signal);
   const headers = new Headers(options.headers || {});
   if (!headers.has("X-Cluster-Device-Id")) headers.set("X-Cluster-Device-Id", installationDeviceId());
   if (!(options.body instanceof FormData) && options.body != null && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
@@ -98,7 +103,7 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
     const res = await clusterApiFetch(path, {
       ...options,
       credentials: "include",
-      signal: combineSignals(controller.signal, options.signal),
+      signal,
       headers,
     });
     responseStatus = res.status;
@@ -126,6 +131,7 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
     }
     throw error;
   } finally {
+    cleanupSignals();
     if (typeof window !== "undefined") window.clearTimeout(timeout as number);
     else clearTimeout(timeout);
     const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();

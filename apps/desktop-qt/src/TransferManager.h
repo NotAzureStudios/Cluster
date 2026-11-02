@@ -73,7 +73,6 @@ private:
     static QByteArray sha256File(const QString &filePath);
 
     QString storagePath() const;
-    QString legacyStoragePath() const;
     void load();
     bool save() const;
     void releaseScopeOwnership();

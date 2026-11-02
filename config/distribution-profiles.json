@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "sourceVersion": "0.546.0",
+  "profiles": {
+    "server-windows-x64": {
+      "product": "cluster-server",
+      "platform": "windows",
+      "arch": "x64",
+      "installKind": "portable-server",
+      "updateChannels": [
+        "main",
+        "development"
+      ],
+      "sourcePaths": [
+        "apps/server",
+        "apps/web",
+        "packages/shared",
+        "packages/api-client",
+        "packages/renderer",
+        "apps/host-go",
+        "apps/server-launcher-go",
+        "apps/update-helper-go",
+        "tools/installer"
+      ],
+      "buildCommand": "cluster:installer:build",
+      "artifacts": [
+        "bin/Cluster-Installer.exe",
+        "bin/Cluster Server.exe"
+      ],
+      "requiresDatabase": true,
+      "includesDesktopApp": false
+    },
+    "desktop-windows-x64": {
+      "product": "cluster-desktop",
+      "platform": "windows",
+      "arch": "x64",
+      "installKind": "native-desktop",
+      "updateChannels": [
+        "stable",
+        "beta"
+      ],
+      "sourcePaths": [
+        "apps/desktop-qt",
+        "packages/renderer",
+        "packages/shared",
+        "packages/api-client",
+        "apps/update-helper-go"
+      ],
+      "buildCommand": "desktop:reconstruction:package",
+      "artifacts": [
+        "apps/desktop-qt/release/Cluster-Desktop-Installer-{desktopVersion}-windows-x64.exe",
+        "apps/desktop-qt/release/Cluster-Desktop-{desktopVersion}-windows-x64.zip"
+      ],
+      "requiresDatabase": false,
+      "includesServerRuntime": false,
+      "desktopNativeVersion": "0.482.0"
+    },
+    "web-responsive": {
+      "product": "cluster-web",
+      "platform": "web",
+      "arch": "any",
+      "installKind": "web-deployment",
+      "updateChannels": [
+        "main",
+        "development"
+      ],
+      "sourcePaths": [
+        "apps/web",
+        "packages/renderer",
+        "packages/shared",
+        "packages/api-client"
+      ],
+      "buildCommand": "build:web",
+      "artifacts": [
+        "apps/web/dist/index.html"
+      ],
+      "requiresDatabase": false,
+      "includesServerRuntime": false
+    },
+    "portal-web": {
+      "product": "cluster-web",
+      "platform": "web",
+      "arch": "any",
+      "installKind": "restricted-web-route",
+      "updateChannels": [
+        "main",
+        "development"
+      ],
+      "sourcePaths": [
+        "apps/web",
+        "packages/renderer",
+        "packages/shared",
+        "packages/api-client"
+      ],
+      "buildCommand": "build:web",
+      "artifacts": [
+        "apps/web/dist/index.html"
+      ],
+      "requiresDatabase": false,
+      "includesServerRuntime": false,
+      "portalPolicy": "server-authorized /portal routes; same browser bundle, not a second backend"
+    }
+  }
+}

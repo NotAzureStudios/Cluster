@@ -622,8 +622,8 @@ bool TransferManager::removeOwnedPartial(const QVariantMap &entry) const
 
 bool TransferManager::reserveQueueEntry()
 {
-    // Legacy imports can exceed today's limit. Preserve every active/failed
-    // item rather than silently truncating the serialized journal at Save.
+    // A pre-existing journal may exceed current admission limits. Preserve
+    // active/failed items instead of truncating saved recovery evidence.
     // Prune only completed/cancelled history, oldest first, and never delete
     // the associated downloaded file.
     while (!cluster::desktop::transfer::mayAdmit(std::size_t(m_transfers.size()))) {
@@ -705,15 +705,6 @@ QString TransferManager::storagePath() const
     return root + QStringLiteral("/transfers-") + QString::fromLatin1(digest) + QStringLiteral(".json");
 }
 
-QString TransferManager::legacyStoragePath() const
-{
-    if (m_scope.isEmpty())
-        return {};
-    const QByteArray digest = QCryptographicHash::hash(m_scope.toUtf8(), QCryptographicHash::Sha256).toHex().left(20);
-    const QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/transfers");
-    return root + QStringLiteral("/transfers-") + QString::fromLatin1(digest) + QStringLiteral(".json");
-}
-
 void TransferManager::releaseScopeOwnership()
 {
     if (m_scopeWatcher) m_scopeWatcher->removePaths(m_scopeWatcher->directories());
@@ -762,15 +753,7 @@ void TransferManager::load()
 {
     m_transfers.clear();
     m_queueReadable = true;
-    QString path = storagePath();
-    bool migrateLegacy = false;
-    if (!path.isEmpty() && !QFileInfo::exists(path)) {
-        const QString legacy = legacyStoragePath();
-        if (!legacy.isEmpty() && QFileInfo::exists(legacy)) {
-            path = legacy;
-            migrateLegacy = true;
-        }
-    }
+    const QString path = storagePath();
     const QFileInfo queueInfo(path);
     if (!path.isEmpty() && (queueInfo.exists() || queueInfo.isSymLink())) {
         QFile file(path);
@@ -818,11 +801,6 @@ void TransferManager::load()
             m_transfers.clear();
             qWarning() << "Cluster transfer queue journal is invalid; refusing writes until repaired";
         }
-    }
-    if (ownsQueue() && migrateLegacy && !m_transfers.isEmpty()) {
-        // Delete the old journal only after the replacement is durable.
-        if (save()) QFile::remove(path);
-        else holdFailedJournalWrite();
     }
     rebuildModel();
     emit countsChanged();

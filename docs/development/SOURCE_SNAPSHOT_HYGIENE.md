@@ -1,17 +1,18 @@
-# Source snapshot hygiene
+# Safe import of historical Cluster source archives
 
-The packaged RC73 bundle includes a separate Windows installer and 2,542 source files covered by a SHA-256 manifest. Its `Source Code` directory does **not** include a Git history, a root README, `.gitignore`, `.gitattributes`, or a dependency lockfile. Never use the bundle as an unconditional replacement for the repository root.
+Legacy RC bundles contain application snapshots and sometimes Windows installers. They are **not** Git working trees and must never be applied as an unconditional replacement for the GitHub repository.
 
-The release metadata inside that archive is `1.0.0-rc.73` with `certification: candidate-unverified`. A later RC74 source archive is also known to exist, but has not been imported into GitHub as part of this source hygiene change.
+The RC73 final-testing bundle contained 2,542 manifest-verified source files. RC74 is newer and exists outside this repository. **Neither source snapshot has been incorporated into the GitHub working branch** at the time of this document.
 
-## Before importing a new archive
+## Review steps
 
-1. Verify every source file against its source manifest and reject unlisted files.
-2. Compare against the latest `main`, and preserve the existing Git history, metadata and historical release notes.
-3. Import only source, configuration and tests. Exclude installer binaries, local runtime state and generated source manifests.
-4. Inspect changed and deleted files, including file names containing secrets, before committing.
-5. Use a separate import branch and PR. Do not force-push `main`.
-6. Run Node 24 source gates and all relevant release tests. The Windows installer, PostgreSQL, backups and real media playback require separate acceptance evidence.
-7. Publish a release tag or installer only after the matching revision is actually verified.
+1. Confirm the source archive is the newest intended source candidate; record its name, SHA-256, release metadata and file manifest.
+2. Verify every source file against the manifest, including unexpected/missing paths.
+3. Start from the latest `development` and create an `import/*` branch.
+4. Compare files and intended deletions by path against the Git tree. Preserve Git metadata, active docs, CI, tests and unrelated post-snapshot changes.
+5. Exclude installer executables, generated source manifests, runtime data, secrets and local machine configuration. Review changes before staging.
+6. Run focused source tests and security checks; separately record Node 24/npm, PostgreSQL/Prisma, Windows native and installer acceptance evidence where available.
+7. Open a PR **into `development`** and review the full diff. Promote to `main` only after the required release verification.
+8. Update current-source README and release metadata only after importing and verifying the matching contents.
 
-The development repo and packaged binaries are different artifacts. A green source-only check is not a stable release sign-off.
+A green static source scan is not a release certification. No commit should be force-pushed to `main` or `development` to make a ZIP look current.
