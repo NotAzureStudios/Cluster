@@ -65,9 +65,9 @@ const core = source("apps/server/src/domains/auth/auth-core-routes.ts");
 const admin = source("apps/server/src/domains/auth/auth-admin-routes.ts");
 const ui = source("packages/renderer/src/features/auth/AuthScreens.tsx");
 assert.match(core, /privilegedMinimumLength: PRIVILEGED_PASSWORD_MIN_LENGTH/);
-assert.match(core, /allowPrivilegedShortPassword: await mayUsePrivilegedShortPassword\(prisma, user\.id\)/);
+assert.match(core, /const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword\(prisma, user\.id\)/);
 assert.match(core, /password: z\.string\(\)\.min\(PRIVILEGED_PASSWORD_MIN_LENGTH\)/);
-assert.match(admin, /allowPrivilegedShortPassword: await mayUsePrivilegedShortPassword\(prisma, target\.id\)/,
+assert.match(admin, /const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword\(prisma, target\.id\)/,
   "Admin setting a member's password must evaluate the TARGET role, never actor role");
 assert.match(admin, /code: "PASSWORD_POLICY_REJECTED"/);
 assert.match(ui, /minimumLength=\{\["owner", "admin"\]\.includes/);
