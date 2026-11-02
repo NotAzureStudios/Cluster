@@ -33,6 +33,8 @@ jobs:
       - name: Compile native Windows control panel
         working-directory: apps/server-launcher-go
         run: go build -o "${{ runner.temp }}/Cluster-Server-poll-test.exe" .
+      - name: Assert native startup, runtime and log safety
+        run: node tools/scripts/cluster-native-server-fundamentals-tests.mjs
       - name: Assert poll budgets
         run: node tools/scripts/cluster-windows-panel-poll-budget-tests.mjs
       - name: Native dashboard and installer first-run contracts

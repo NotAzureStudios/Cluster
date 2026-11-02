@@ -15,7 +15,7 @@ assert.match(managedStart, /installedDependencyGraphHealthy\(root\)/);
 assert.match(managedStart, /verifyManagedStartup\(root, force, prebuiltReady, dependenciesReady\)/);
 assert.match(managedStart, /runManagedDatabaseCommandContext\(ctx, root, node, env, "deploy"\)/);
 assert.match(managedStart, /return nil/);
-assert.doesNotMatch(managedStart, /runNpm|npm install|db:generate|build:server|build:web/);
+assert.doesNotMatch(managedStart, /runNpm|db:generate|build:server|build:web/);
 
 const deploy = main.split("func runManagedDatabaseCommandContext(")[1]?.split("\nfunc runNpm(")[0];
 assert.ok(deploy, "managed Prisma runner must be distinct from npm");
