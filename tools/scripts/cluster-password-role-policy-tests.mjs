@@ -2,75 +2,57 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 
-function source(path) { return readFileSync(path, "utf8"); }
+const source = path => readFileSync(path, "utf8");
 async function loadTs(path) {
   const js = stripTypeScriptTypes(source(path).replace(/^import .*?;\r?\n/gm, ""), { mode: "strip" });
   return import("data:text/javascript;base64," + Buffer.from(js).toString("base64"));
 }
 
 const auth = await loadTs("apps/server/src/core/auth.ts");
-const policy = await loadTs("apps/server/src/domains/auth/password-role-policy.ts");
 assert.equal(auth.PASSWORD_MIN_LENGTH, 12);
-assert.equal(auth.PRIVILEGED_PASSWORD_MIN_LENGTH, 1);
 assert.equal(auth.PASSWORD_MAX_LENGTH, 1024);
+assert.equal(auth.PRIVILEGED_PASSWORD_MIN_LENGTH, undefined, "No privileged bypass constant");
+assert.equal(auth.validateNewPassword("a".repeat(12)), "a".repeat(12));
+assert.equal(auth.validateNewPassword("a".repeat(1024)), "a".repeat(1024));
 
-const standard = "a".repeat(12);
-assert.equal(auth.validateNewPassword(standard), standard);
-for (const length of [0, 1, 8, 11]) {
-  assert.throws(
-    () => auth.validateNewPassword("x".repeat(length), { username: "member" }),
-    /between 12 and 1024 characters/,
-    "Regular users cannot set short passwords (" + length + ")"
-  );
+for (const identity of ["owner", "admin", "member", "contractor", "guest"]) {
+  for (const length of [0, 1, 8, 11]) {
+    assert.throws(
+      () => auth.validateNewPassword("x".repeat(length), { username: identity }),
+      /between 12 and 1024 characters/,
+      identity + " cannot set a " + length + "-character password"
+    );
+  }
+  assert.equal(auth.validateNewPassword("x".repeat(12), { username: identity }), "x".repeat(12));
 }
-assert.equal(auth.validateNewPassword("a", {}, { allowPrivilegedShortPassword: true }), "a");
-assert.throws(() => auth.validateNewPassword("", {}, { allowPrivilegedShortPassword: true }), /between 1 and 1024/);
-assert.throws(() => auth.validateNewPassword("a".repeat(1025), {}, { allowPrivilegedShortPassword: true }), /between 1 and 1024/);
-assert.throws(() => auth.validateNewPassword("a".repeat(1025)), /between 12 and 1024/);
-
-const roles = new Map([
-  ["owner-a", "owner"],
-  ["admin-a", "admin"],
-  ["member-a", "member"],
-  ["contractor-a", "contractor"],
-  ["guest-a", "guest"],
-]);
-const queries = [];
-const prisma = {
-  workspaceMember: {
-    async findFirst({ where, select }) {
-      queries.push({ where, select });
-      assert.deepEqual(where.role.in, ["owner", "admin"]);
-      assert.deepEqual(select, { id: true });
-      return where.role.in.includes(roles.get(where.userId)) ? { id: "membership" } : null;
-    },
-  },
-};
-for (const userId of ["owner-a", "admin-a"]) {
-  assert.equal(await policy.mayUsePrivilegedShortPassword(prisma, userId), true);
-  const allowed = await policy.mayUsePrivilegedShortPassword(prisma, userId);
-  assert.equal(auth.validateNewPassword("x", { username: userId }, { allowPrivilegedShortPassword: allowed }), "x");
-}
-for (const userId of ["member-a", "contractor-a", "guest-a", "missing-a", ""]) {
-  const allowed = await policy.mayUsePrivilegedShortPassword(prisma, userId);
-  assert.equal(allowed, false, userId + " cannot claim privileged password rules");
-  assert.throws(() => auth.validateNewPassword("x", { username: userId }, { allowPrivilegedShortPassword: allowed }), /between 12 and 1024/);
-}
-assert.equal(queries.some(q => q.where.userId === ""), false, "missing user IDs must fail closed without a DB query");
-await assert.rejects(() => policy.mayUsePrivilegedShortPassword({
-  workspaceMember: { async findFirst() { throw new Error("database unavailable"); } },
-}, "admin-a"), /database unavailable/, "DB errors must never grant a one-character exception");
+assert.throws(() => auth.validateNewPassword("x".repeat(1025)), /between 12 and 1024/);
+// JavaScript callers supplying the former third parameter must not reopen the bypass.
+assert.throws(
+  () => auth.validateNewPassword("x", { username: "owner" }, { allowPrivilegedShortPassword: true }),
+  /between 12 and 1024/
+);
+assert.equal(auth.validateNewPassword("é".repeat(12)), "é".repeat(12), "NFC and Unicode codepoints remain supported");
 
 const core = source("apps/server/src/domains/auth/auth-core-routes.ts");
 const admin = source("apps/server/src/domains/auth/auth-admin-routes.ts");
+const owner = source("apps/server/src/app/server-routes-setup.ts");
 const ui = source("packages/renderer/src/features/auth/AuthScreens.tsx");
-assert.match(core, /privilegedMinimumLength: PRIVILEGED_PASSWORD_MIN_LENGTH/);
-assert.match(core, /const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword\(prisma, user\.id\)/);
-assert.match(core, /password: z\.string\(\)\.min\(PRIVILEGED_PASSWORD_MIN_LENGTH\)/);
-assert.match(admin, /const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword\(prisma, target\.id\)/,
-  "Admin setting a member's password must evaluate the TARGET role, never actor role");
+const wizard = source("packages/renderer/src/features/application/modules/ApplicationSetupWizard.tsx");
+
+assert.match(core, /minimumLength: PASSWORD_MIN_LENGTH/);
+assert.match(core, /password: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
+assert.match(core, /validateNewPassword\(body\.password, user\)/);
+assert.match(admin, /password: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
+assert.match(admin, /validateNewPassword\(body\.password, target\)/);
 assert.match(admin, /code: "PASSWORD_POLICY_REJECTED"/);
-assert.match(ui, /minimumLength=\{\["owner", "admin"\]\.includes/);
+assert.match(owner, /ownerPassword: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
+assert.match(owner, /validateNewPassword\(body\.ownerPassword, \{ username: ownerUsername, displayName: ownerUsername \}\)/);
+assert.match(ui, /minimumLength=\{config\?\.passwordPolicy\.minimumLength \?\? 12\}/);
 assert.match(ui, /minLength=\{minimumLength\}/);
-assert.doesNotMatch(ui, /Any non-empty password is accepted/);
-console.log("PASS: member password minimum is 12; owners/admins retain 1; roles server-verified for both password writers");
+assert.match(wizard, /minLength=\{12\}/);
+assert.match(wizard, /\[\.\.\.form\.ownerPassword\.normalize\("NFC"\)\]\.length >= 12/);
+
+for (const [label, text] of Object.entries({ core, admin, owner, ui, wizard, auth: source("apps/server/src/core/auth.ts") })) {
+  assert.doesNotMatch(text, /PRIVILEGED_PASSWORD_MIN_LENGTH|mayUsePrivilegedShortPassword|privilegedMinimumLength|allowPrivilegedShortPassword|Owner passwords may be 1/, label + ": no privileged short-password branch");
+}
+console.log("PASS: one canonical 12-1024 password policy for Owner, admin, member, contractor, guest, and all account password writers");

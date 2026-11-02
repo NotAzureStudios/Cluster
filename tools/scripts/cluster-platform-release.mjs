@@ -71,6 +71,11 @@ if (!args.includes("--build")) {
 assert(process.platform === "win32" || profile.platform === "web", "Native Windows packages require a Windows build runner");
 const lock = path.join(root, "package-lock.json");
 assert(fs.existsSync(lock), "1.0 release packaging requires a validated package-lock.json and npm ci; refusing nonreproducible release build");
+const lockData = JSON.parse(fs.readFileSync(lock, "utf8"));
+const packageData = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+assert(lockData.lockfileVersion >= 3 && lockData.name === packageData.name
+  && lockData.version === packageData.version && lockData.packages?.[""]?.version === packageData.version,
+  "Release lockfile must match the root npm package and supported lockfile schema");
 const git = spawnSync("git", ["branch", "--show-current"], { cwd:root, encoding:"utf8" });
 assert(git.status === 0, "Build requires a Git checkout with a traceable source ref");
 const ref = git.stdout.trim();
@@ -80,7 +85,12 @@ if (channel === "development" && profile.product === "cluster-server") assert(["
 if (profile.product === "cluster-desktop") assert(["development", "client/desktop-qt", "main"].includes(ref), "Desktop build must come from its designated client branch or integrated source");
 const gitsha = spawnSync("git", ["rev-parse", "HEAD"], { cwd:root, encoding:"utf8" });
 assert(gitsha.status === 0 && /^[a-f0-9]{40}$/.test(gitsha.stdout.trim()), "Cannot identify immutable source commit");
-const result = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", profile.buildCommand], { cwd:root, stdio:"inherit" });
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+// Release packaging must not reuse a developer's existing node_modules tree.
+const install = spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"], { cwd:root, stdio:"inherit" });
+if (install.error) throw install.error;
+assert(install.status === 0, "Locked clean npm ci failed; refusing release build");
+const result = spawnSync(npmCommand, ["run", profile.buildCommand], { cwd:root, stdio:"inherit" });
 if (result.error) throw result.error;
 assert(result.status === 0, "Selected platform build failed");
 const hashes = [];

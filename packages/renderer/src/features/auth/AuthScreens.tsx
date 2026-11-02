@@ -35,7 +35,6 @@ export type AuthConfig = {
   setupLauncherName?: string;
   passwordPolicy: {
     minimumLength: number;
-    privilegedMinimumLength?: number;
     maximumLength: number;
   };
 };
@@ -100,7 +99,7 @@ function PasswordFields({
     <div className="field managed-auth-password-v473">
       <label>New password</label>
       <div><ClusterInput type={visible ? "text" : "password"} autoComplete="new-password" minLength={minimumLength} maxLength={maximumLength} value={password} onChange={(event) => onPassword(event.target.value)} required /><ClusterButton unstyled type="button" onClick={() => setVisible((value) => !value)}>{visible ? "Hide" : "Show"}</ClusterButton></div>
-      <small>{minimumLength === 1 ? "Workspace owners and administrators may use a password of any non-zero length. A longer password is strongly recommended." : `Use at least ${minimumLength} characters.`}</small>
+      <small>{`Use at least ${minimumLength} characters.`}</small>
     </div>
     <div className="field managed-auth-password-v473">
       <label>Confirm password</label>
@@ -339,7 +338,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
     <h1>Create your permanent password.</h1>
     <p className="muted">The account <strong>{user.username}</strong> signed in with a temporary password. Replace it before continuing. Existing sessions on other devices will be revoked.</p>
     <form className="managed-auth-form" onSubmit={submit}>
-      <PasswordFields password={password} confirmation={confirmation} minimumLength={["owner", "admin"].includes(String(user.workspaceRole || "").toLowerCase()) ? (config?.passwordPolicy.privilegedMinimumLength ?? 1) : (config?.passwordPolicy.minimumLength ?? 12)} maximumLength={config?.passwordPolicy.maximumLength ?? 1024} onPassword={setPassword} onConfirmation={setConfirmation} />
+      <PasswordFields password={password} confirmation={confirmation} minimumLength={config?.passwordPolicy.minimumLength ?? 12} maximumLength={config?.passwordPolicy.maximumLength ?? 1024} onPassword={setPassword} onConfirmation={setConfirmation} />
       {error && <div className="error-box" role="alert">{error}</div>}
       <ClusterButton className="" disabled={busy} type="submit" variant="primary">{busy ? "Saving…" : "Save password"}</ClusterButton>
       <ClusterButton className="" disabled={busy} type="button" onClick={onLogout} variant="secondary">Sign out</ClusterButton>

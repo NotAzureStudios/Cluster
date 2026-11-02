@@ -2,8 +2,7 @@ import { z } from "zod";
 import type { AuthRouteDependencies } from "./auth-types.js";
 import { nextAuthenticationGeneration, nextVerificationGeneration, revokeUserSecurityVerifications } from "../../core/security-verification.js";
 import { hashSecurityPin } from "../../core/security-pin-credential.js";
-import { mayUsePrivilegedShortPassword } from "./password-role-policy.js";
-import { PRIVILEGED_PASSWORD_MIN_LENGTH } from "../../core/auth.js";
+import { PASSWORD_MIN_LENGTH } from "../../core/auth.js";
 
 export function registerAuthAdminRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -178,17 +177,14 @@ app.put("/api/admin/users/:userId/password", async (request, reply) => {
   const admin = await authorization.requireAdmin(request, reply);
   if (!admin) return;
   const params = z.object({ userId: z.string() }).parse(request.params);
-  const body = z.object({ password: z.string().min(PRIVILEGED_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH) }).parse(request.body);
+  const body = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH) }).parse(request.body);
   const target = await (prisma as any).user.findUnique({ where: { id: params.userId } });
   if (!target) return reply.code(404).send({ ok: false, error: "User not found." });
   if (!(await requireOwnerAuthorityForTarget(admin, target.id, reply))) return;
   if (target.archived || target.accountState === "PRIVACY_ERASED" || (target.accessExpiresAt && new Date(target.accessExpiresAt) <= new Date())) return reply.code(409).send({ ok: false, code: "PEOPLE_LIFECYCLE_GOVERNED", error: "Return or renew access through the governed People lifecycle before provisioning credentials." });
-  // The target account, never the administrator executing the action,
-  // determines whether a short password is allowed.
-  const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword(prisma, target.id);
   let password: string;
   try {
-    password = validateNewPassword(body.password, target, { allowPrivilegedShortPassword });
+    password = validateNewPassword(body.password, target);
   } catch (error) {
     return reply.code(400).send({ ok: false, code: "PASSWORD_POLICY_REJECTED", error: error instanceof Error ? error.message : "Password does not meet account policy." });
   }

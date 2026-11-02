@@ -53,11 +53,13 @@ check("Installer shows honest phases and retains source-build release warning", 
   assert.match(installer, /ApplyRevision \$source \$hash/);
   assert.match(installer, /existing Cluster installation was not replaced/);
 });
-check("Only local first-run Owner is given privileged password exception", () => {
+check("First-run Owner uses the same password minimum as other accounts", () => {
   assert.match(owner, /!existingComplete && !isLoopbackAddress\(request\.ip\)/);
-  assert.match(owner, /ownerPassword: z\.string\(\)\.min\(PRIVILEGED_PASSWORD_MIN_LENGTH\)/);
-  assert.match(owner, /validateNewPassword\(body\.ownerPassword,[^\n]+allowPrivilegedShortPassword: true \}/);
-  assert.match(wizard, /Owner passwords may be 1–1024 characters/);
+  assert.match(owner, /ownerPassword: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
+  assert.match(owner, /validateNewPassword\(body\.ownerPassword, \{ username: ownerUsername, displayName: ownerUsername \}\)/);
+  assert.match(wizard, /All accounts, including the initial Owner, require 12–1024 character passwords/);
+  assert.match(wizard, /minLength=\{12\}/);
+  assert.doesNotMatch(owner + wizard, /PRIVILEGED_PASSWORD_MIN_LENGTH|allowPrivilegedShortPassword|Owner passwords may be 1/);
   assert.match(read("apps/server/src/core/auth.ts"), /export const PASSWORD_MIN_LENGTH = 12/);
 });
 console.log(passed + "/" + passed + " native Server dashboard, installer and Owner setup checks passed");

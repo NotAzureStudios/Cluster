@@ -33,4 +33,9 @@ check(call("--profile","server-windows-x64","--channel","beta").status!==0,"Serv
 check(call("--profile","not-an-install-target").status!==0,"Unknown install target must fail");
 check(server.artifacts.every(p=>!p.includes("Desktop")),"Server artifacts cannot be Desktop bundles");
 check(desktop.artifacts.every(p=>!p.includes("Cluster-Installer.exe")&&!p.includes("Server.exe")),"Desktop artifacts cannot be Server executables");
+const builder=fs.readFileSync(executable,"utf8");
+check(builder.includes('lockData.lockfileVersion >= 3') && builder.includes('lockData.packages?.[""]?.version === packageData.version'),"Release lockfile metadata must match manifest");
+check(builder.includes('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]'),"Release must perform clean npm ci, not reuse existing node_modules");
+check(builder.indexOf('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]') < builder.indexOf('spawnSync(npmCommand, ["run", profile.buildCommand]'),"Locked install must precede selected build");
+check(builder.includes('assert(install.status === 0, "Locked clean npm ci failed; refusing release build")'),"Failed clean install must block packaging");
 console.log(`${checks}/${checks} platform release-profile checks passed`);
