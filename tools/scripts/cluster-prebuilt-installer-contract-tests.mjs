@@ -48,4 +48,11 @@ assert.ok(artifacts.length >= 10, 'Require compiled server, web, Prisma, native 
 for (const artifact of artifacts) {
   assert.ok(installer.includes("'"+artifact+"'"), 'PowerShell must verify packaged artifact ' + artifact);
 }
-console.log('PASS: prebuilt Windows server installer fails closed; developer source builds are explicit and isolated (' + artifacts.length + ' required artifacts)');
+assert.match(bootstrap, /repairSameRelease := len\(os\.Args\) == 2 && os\.Args\[1\] == "--repair"/);
+assert.match(bootstrap, /sameReleaseRepairAllowed\(installed, installedHash, embeddedHash, installedSeq, identity\.Sequence\)/);
+assert.match(bootstrap, /"-RepairInstalled", "-SkipLaunch"/);
+assert.match(installer, /\[switch\]\$RepairInstalled/);
+assert.match(installer, /\$existing\.archiveSha256 -ine \$hash/);
+assert.match(installer, /if \(-not \$RepairInstalled -and \$installed\.archiveSha256 -eq \$hash/);
+assert.match(installer, /Recover the environment file from a verified backup before repair/);
+console.log('PASS: prebuilt installer and exact-revision data-preserving repair contracts (' + artifacts.length + ' required artifacts)');

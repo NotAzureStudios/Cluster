@@ -135,6 +135,12 @@ func chooseEmbeddedRevision(installed, embedded string, installedSequence, candi
 	return installed != embedded && candidateSequence > installedSequence
 }
 
+// Explicit same-revision repair cannot silently change release sequence or
+// apply a different source archive. Normal updates remain separate actions.
+func sameReleaseRepairAllowed(installed bool, installedHash, embeddedHash string, installedSequence, embeddedSequence int) bool {
+	return installed && strings.EqualFold(installedHash, embeddedHash) && installedSequence == embeddedSequence
+}
+
 func managedDirectory(executable string) string {
 	// A single portable root beside the executable. Example:
 	// D:\Cluster-Server\Cluster-Installer.exe -> D:\Cluster-Server\Cluster
@@ -188,8 +194,9 @@ func writePayload(name, destination string) error {
 }
 func run() error {
 	if len(os.Args) > 2 {
-		return errors.New("only one development source ZIP may be supplied")
+		return errors.New("only one developer ZIP or --repair option may be supplied")
 	}
+	repairSameRelease := len(os.Args) == 2 && os.Args[1] == "--repair"
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -216,13 +223,19 @@ func run() error {
 	identity, err := embeddedReleaseInfo(bundled)
 	if err != nil { return err }
 	developerSource := os.Getenv("CLUSTER_INSTALLER_DEV_SOURCE_BUILD") == "1"
+	if repairSameRelease && developerSource {
+		return errors.New("managed in-place repair only accepts prebuilt installer payloads")
+	}
 	if !developerSource {
 		if err := embeddedPrebuiltInfo(bundled, identity); err != nil { return err }
 	}
 	embeddedDigest := sha256.Sum256(bundled)
 	embeddedHash := hex.EncodeToString(embeddedDigest[:])
+	if repairSameRelease && !sameReleaseRepairAllowed(installed, installedHash, embeddedHash, installedSeq, identity.Sequence) {
+		return errors.New("in-place repair requires an installed revision matching this exact prebuilt installer; never downgrade or replace a different revision as repair")
+	}
 	var archive string
-	if len(os.Args) == 2 {
+	if len(os.Args) == 2 && !repairSameRelease {
 		if !developerSource { return errors.New("dragged ZIP installation is disabled for signed production installers; use explicit developer source mode") }
 		archive, err = filepath.Abs(strings.TrimSpace(os.Args[1]))
 		if err != nil {
@@ -231,7 +244,7 @@ func run() error {
 		if !strings.HasSuffix(strings.ToLower(archive), ".zip") {
 			return errors.New("expected a full Cluster source ZIP (not an incremental patch)")
 		}
-	} else if !installed || chooseEmbeddedRevision(installedHash, embeddedHash, installedSeq, identity.Sequence) {
+	} else if repairSameRelease || !installed || chooseEmbeddedRevision(installedHash, embeddedHash, installedSeq, identity.Sequence) {
 		// Use the revision embedded in this EXE, even if a stale ZIP is beside it.
 		revisionDir := filepath.Join(work, "Revisions")
 		if err = os.MkdirAll(revisionDir, 0700); err != nil {
@@ -246,6 +259,7 @@ func run() error {
 	if archive != "" {
 		args = append(args, "-Archive", archive)
 		if developerSource { args = append(args, "-AllowDevSourceBuild") }
+		if repairSameRelease { args = append(args, "-RepairInstalled", "-SkipLaunch") }
 	} else if installed {
 		args = append(args, "-StartInstalled")
 	} else {
@@ -255,6 +269,7 @@ func run() error {
 	fmt.Println("Portable Cluster files:", work)
 	if archive != "" {
 		fmt.Println("Revision:", archive)
+		if repairSameRelease { fmt.Println("Explicit same-revision repair: preserve data, do not auto-launch") }
 	} else {
 		fmt.Println("Existing installation: start without recompiling")
 	}
@@ -269,7 +284,11 @@ func run() error {
 	if err = cmd.Run(); err != nil {
 		return fmt.Errorf("installation did not complete: %w", err)
 	}
-	fmt.Println("Cluster Server Manager launch requested.")
+	if repairSameRelease {
+		fmt.Println("Exact-release application repair completed; Server remains stopped for validation.")
+	} else {
+		fmt.Println("Cluster Server Manager launch requested.")
+	}
 	return nil
 }
 func main() {

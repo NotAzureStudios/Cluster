@@ -10,7 +10,8 @@ param(
   [switch]$SkipLaunch,
   [switch]$AllowUntrustedArchive,
   [switch]$AllowDevSourceBuild,
-  [switch]$StartInstalled
+  [switch]$StartInstalled,
+  [switch]$RepairInstalled
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -457,6 +458,12 @@ function PublishRootServerLauncher([string]$installedRoot) {
 
 function ApplyRevision([string]$source, [string]$hash) {
   EnsureUnder $target $WorkRoot
+  # Never allow a packaged release to overwrite preserved operational data.
+  foreach ($protectedName in $preserved) {
+    if (Test-Path -LiteralPath (Join-Path $source $protectedName)) {
+      Fail "Revision payload contains protected $protectedName; refusing to overwrite retained data."
+    }
+  }
   if (Test-Path -LiteralPath $target) {
     if (-not (Test-Path -LiteralPath (Join-Path $target $ownerMarker) -PathType Leaf)) {
       Fail "Refusing to overwrite an unmanaged folder: $target. Existing production servers are never valid targets."
@@ -550,9 +557,25 @@ try {
   Say "Revision archive SHA-256: $hash"
   Say 'Installer logging: native stdout/stderr retained (credentials redacted)'
   $current = Join-Path $target $ownerMarker
+  if ($RepairInstalled) {
+    if ($AllowDevSourceBuild -or $BuildOnly -or $CheckOnly -or $StartInstalled -or -not $SkipLaunch) {
+      Fail 'Same-release repair requires a trusted prebuilt payload and no automatic server launch.'
+    }
+    if (-not (Test-Path -LiteralPath $current -PathType Leaf)) {
+      Fail 'Same-release repair requires an existing managed Cluster installation.'
+    }
+    $existing = Get-Content -LiteralPath $current -Raw | ConvertFrom-Json
+    if ($existing.managedBy -ne 'cluster-installer' -or $existing.installRoot -ine $WorkRoot -or $existing.archiveSha256 -ine $hash) {
+      Fail 'Repair package does not match this exact managed installation. Use an explicit verified update instead.'
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $target 'apps/server/.env') -PathType Leaf)) {
+      Fail 'Existing Server secrets are missing. Recover the environment file from a verified backup before repair.'
+    }
+    Say 'Exact-match in-place repair authorized. PostgreSQL data, Library, runtime, secrets and settings are preserved.'
+  }
   if (-not $BuildOnly -and -not $CheckOnly -and (Test-Path -LiteralPath $current -PathType Leaf)) {
     $installed = Get-Content -LiteralPath $current -Raw | ConvertFrom-Json
-    if ($installed.archiveSha256 -eq $hash -and $installed.managedBy -eq 'cluster-installer' -and $installed.installRoot -ieq $WorkRoot) {
+    if (-not $RepairInstalled -and $installed.archiveSha256 -eq $hash -and $installed.managedBy -eq 'cluster-installer' -and $installed.installRoot -ieq $WorkRoot) {
       Say 'Installed revision is current; launching without rebuilding.'
       PublishRootServerLauncher $target
       if (-not $SkipLaunch) { LaunchClusterServer $target }
