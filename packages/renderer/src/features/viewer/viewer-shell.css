@@ -15,3 +15,6 @@
 .cluster-viewer-review-decisions li p{margin:3px 0 0;color:var(--cluster-workbench-text);white-space:pre-wrap}
 .cluster-viewer-review-decisions>p{font-size:10px;color:var(--cluster-workbench-muted);margin:0}
 @container (max-width:620px){.cluster-viewer-review-decisions{max-height:126px;padding:7px}.cluster-viewer-review-list{min-height:86px}}
+/* RC73: keep PDF virtual page offsets aligned with the rendered page box. */
+.cluster-static-pdf-page{line-height:13px;}
+.cluster-static-pdf-paper{box-sizing:content-box;}
