@@ -1,0 +1,50 @@
+name: Windows prebuilt installer contracts
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+jobs:
+  installer-source-contracts:
+    name: Prebuilt admission and developer source packaging
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Go 1.27
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: JavaScript syntax
+        run: node --check tools/scripts/build-cluster-installer.mjs
+      - name: Prebuilt release admission contracts
+        run: node tools/scripts/cluster-prebuilt-installer-contract-tests.mjs
+      - name: Existing installer safety regression contracts
+        run: node tools/installer/installer-contract-tests.mjs
+      - name: Explicit developer source packaging and Go unit tests
+        shell: pwsh
+        run: |
+          $env:CLUSTER_INSTALLER_PAYLOAD = 'source'
+          node tools/scripts/build-cluster-installer.mjs
+      - name: Assert developer-mode executable has Windows PE header
+        shell: pwsh
+        run: |
+          $binary = [IO.File]::ReadAllBytes('bin/Cluster-Installer.exe')
+          if ($binary[0] -ne 77 -or $binary[1] -ne 90) { throw 'Installer is not a Windows PE binary' }
+
+# This is source/Go contract evidence only. The production prebuilt payload is
+# intentionally blocked until a committed npm lockfile and full Windows runtime
+# artifacts exist; this workflow does not claim live Windows install acceptance.
