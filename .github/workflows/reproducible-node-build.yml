@@ -1,0 +1,67 @@
+name: Reproducible Node and workspace release build
+
+on:
+  push:
+    branches: [development, main, 'fix/1-0-reproducible-build']
+  pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-locked-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  locked-node-build:
+    name: Locked npm ci and Server/Web compile (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Strict lockfile admission
+        run: node tools/scripts/cluster-release-lockfile-check.mjs
+      - name: Reproduce dependencies from committed lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Prisma client generation from pinned workspace
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Compile actual Server and Web applications
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Assert compiled outputs exist
+        shell: pwsh
+        run: |
+          $required = @(
+            'packages/shared/dist/index.js',
+            'apps/server/dist/index.js',
+            'apps/server/dist/generated/prisma/client.js',
+            'apps/web/dist/index.html'
+          )
+          foreach ($item in $required) {
+            if (!(Test-Path -LiteralPath $item -PathType Leaf)) { throw "Build output missing: $item" }
+          }
+          if (@(Get-ChildItem 'apps/web/dist/assets' -Filter '*.js').Count -lt 1) { throw 'Missing compiled Web JavaScript bundle' }
+      - name: Report source and dependency identity
+        shell: pwsh
+        run: |
+          git rev-parse HEAD
+          node --version
+          npm --version
+          (Get-FileHash -Algorithm SHA256 package-lock.json).Hash

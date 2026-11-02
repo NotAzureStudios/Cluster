@@ -73,6 +73,8 @@ const lock = path.join(root, "package-lock.json");
 assert(fs.existsSync(lock), "1.0 release packaging requires a validated package-lock.json and npm ci; refusing nonreproducible release build");
 const lockData = JSON.parse(fs.readFileSync(lock, "utf8"));
 const packageData = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+const lockfileSha256 = createHash("sha256").update(fs.readFileSync(lock)).digest("hex");
+assert(process.version === "v" + toolchains.node.version, "Release build requires pinned Node " + toolchains.node.version);
 assert(lockData.lockfileVersion >= 3 && lockData.name === packageData.name
   && lockData.version === packageData.version && lockData.packages?.[""]?.version === packageData.version,
   "Release lockfile must match the root npm package and supported lockfile schema");
@@ -85,9 +87,19 @@ if (channel === "development" && profile.product === "cluster-server") assert(["
 if (profile.product === "cluster-desktop") assert(["development", "client/desktop-qt", "main"].includes(ref), "Desktop build must come from its designated client branch or integrated source");
 const gitsha = spawnSync("git", ["rev-parse", "HEAD"], { cwd:root, encoding:"utf8" });
 assert(gitsha.status === 0 && /^[a-f0-9]{40}$/.test(gitsha.stdout.trim()), "Cannot identify immutable source commit");
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+// Execute the npm JavaScript CLI through the pinned Node runtime. Windows cannot
+// reliably spawn npm.cmd via child_process without an unsafe command shell.
+const npmCliCandidates = [
+  process.env.npm_execpath,
+  path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"),
+  path.resolve(path.dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js")
+].filter(Boolean);
+const npmCli = npmCliCandidates.find(p => fs.existsSync(p) && fs.statSync(p).isFile());
+assert(npmCli, "Cannot locate the npm CLI accompanying pinned Node.js");
+const npmCommand = process.execPath;
+const npmArgs = args => [npmCli, ...args];
 // Release packaging must not reuse a developer's existing node_modules tree.
-const install = spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"], { cwd:root, stdio:"inherit" });
+const install = spawnSync(npmCommand, npmArgs(["ci", "--no-audit", "--no-fund"]), { cwd:root, stdio:"inherit" });
 if (install.error) throw install.error;
 assert(install.status === 0, "Locked clean npm ci failed; refusing release build");
 function releaseCommand(executable, cmdArgs, message, env=process.env) {
@@ -111,10 +123,10 @@ if(profile.product==="cluster-server") {
   const buildEnv={...process.env,
     DIRECT_DATABASE_URL:"postgresql://cluster_build:unused@127.0.0.1:1/cluster_build",
     DATABASE_URL:"postgresql://cluster_build:unused@127.0.0.1:1/cluster_build"};
-  releaseCommand(npmCommand,["run","db:generate"],"Prisma client generation failed",buildEnv);
-  releaseCommand(npmCommand,["run","build"],"Server and Web compilation failed",buildEnv);
+  releaseCommand(npmCommand,npmArgs(["run","db:generate"]),"Prisma client generation failed",buildEnv);
+  releaseCommand(npmCommand,npmArgs(["run","build"]),"Server and Web compilation failed",buildEnv);
 }
-releaseCommand(npmCommand, ["run", profile.buildCommand], "Selected platform build failed");
+releaseCommand(npmCommand, npmArgs(["run", profile.buildCommand]), "Selected platform build failed");
 const hashes = [];
 for (const p of artifactPaths) {
   const abs = path.join(root, p);
@@ -132,7 +144,7 @@ for (const p of artifactPaths) {
   } finally { fs.closeSync(stream); }
   hashes.push({ path:p, bytes:stat.size, sha256:hash.digest("hex") });
 }
-const receipt = { ...plan, sourceRef:ref, commit:gitsha.stdout.trim(), built:true, signed:false, certified:false, artifacts:hashes };
+const receipt = { ...plan, sourceRef:ref, commit:gitsha.stdout.trim(), nodeVersion:process.versions.node, lockfileSha256, built:true, signed:false, certified:false, artifacts:hashes };
 const target = path.join(root, "artifacts", "release-profiles", id, "build-receipt.json");
 fs.mkdirSync(path.dirname(target), { recursive:true });
 fs.writeFileSync(target, JSON.stringify(receipt,null,2)+"\n", { mode:0o600 });

@@ -35,13 +35,18 @@ check(server.artifacts.every(p=>!p.includes("Desktop")),"Server artifacts cannot
 check(desktop.artifacts.every(p=>!p.includes("Cluster-Installer.exe")&&!p.includes("Server.exe")),"Desktop artifacts cannot be Server executables");
 const builder=fs.readFileSync(executable,"utf8");
 check(builder.includes('lockData.lockfileVersion >= 3') && builder.includes('lockData.packages?.[""]?.version === packageData.version'),"Release lockfile metadata must match manifest");
-check(builder.includes('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]'),"Release must perform clean npm ci, not reuse existing node_modules");
-check(builder.indexOf('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]') < builder.indexOf('releaseCommand(npmCommand, ["run", profile.buildCommand]'),"Locked install must precede selected build");
+check(builder.includes('spawnSync(npmCommand, npmArgs(["ci", "--no-audit", "--no-fund"])'),"Release must perform clean npm ci, not reuse existing node_modules");
+check(builder.indexOf('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]') < builder.indexOf('releaseCommand(npmCommand, npmArgs(["run", profile.buildCommand])'),"Locked install must precede selected build");
 check(builder.includes('assert(install.status === 0, "Locked clean npm ci failed; refusing release build")'),"Failed clean install must block packaging");
 check(builder.includes('if(profile.product==="cluster-server")'),"Windows server release has build-specific prerequisites");
 for(const step of ["cluster-rc-native-checks.mjs","build-native-host.mjs","build-server-launcher.mjs","build-cluster-server-entry.mjs","build-update-helper.mjs","build-workstation-service.mjs"]) {
  check(builder.includes(step),"Windows release must compile native "+step);
 }
-check(builder.includes('["run","db:generate"]') && builder.includes('["run","build"]'),"Release must generate Prisma and compile Server/Web on build runner");
-check(builder.indexOf('["run","build"]') < builder.indexOf('["run", profile.buildCommand]'),"Server/Web build must precede packaging");
+check(builder.includes('npmArgs(["run","db:generate"])') && builder.includes('npmArgs(["run","build"])'),"Release must generate Prisma and compile Server/Web on build runner");
+check(builder.indexOf('npmArgs(["run","build"])') < builder.indexOf('npmArgs(["run", profile.buildCommand])'),"Server/Web build must precede packaging");
+check(builder.includes('process.version === "v" + toolchains.node.version'),"Release must require exact pinned Node runtime");
+check(builder.includes('lockfileSha256 = createHash("sha256")') && builder.includes('lockfileSha256, built:true'),
+  "Release build receipt must bind to the locked dependency graph");
+check(builder.includes('const npmCommand = process.execPath') && builder.includes('const npmArgs = args => [npmCli, ...args]'),
+  "Release npm commands must execute npm JavaScript CLI under pinned Node");
 console.log(`${checks}/${checks} platform release-profile checks passed`);
