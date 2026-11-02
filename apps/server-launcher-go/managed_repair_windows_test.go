@@ -94,9 +94,8 @@ func TestManagedRepairRecreatesMissingJunctionsAndIsIdempotent(t *testing.T) {
 	for _,item:=range managedWorkspaceLinks {
 		link:=filepath.Join(root,"node_modules","@cluster",item.Name)
 		expected:=filepath.Join(root,item.Target)
-		got,err:=os.Readlink(link)
-		if err!=nil || !strings.EqualFold(canonicalRepairLink(got),filepath.Clean(expected)) {
-			t.Fatalf("wrong repaired junction for %s: %q %v",item.Name,got,err)
+		if !repairJunctionMatches(link,expected) {
+			t.Fatalf("wrong repaired junction for %s",item.Name)
 		}
 	}
 	count,err=repairManagedWorkspaceLinks(root)
