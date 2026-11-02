@@ -1164,15 +1164,19 @@ func (c *windowsServerController) refreshServiceState() {
 			next = panelStopping
 			activity = "Windows Service stopping"
 		}
-		if !c.serviceManaged || c.state != next || c.servicePID != int(info.PID) {
+		previousPID := c.servicePID
+		if !c.serviceManaged || c.state != next || previousPID != int(info.PID) {
 			changed = true
 		}
 		c.serviceManaged = true
 		c.state = next
 		c.activity = activity
 		c.servicePID = int(info.PID)
-		if next != panelRunning || (c.servicePID != int(info.PID)) {
+		if next != panelRunning || previousPID != c.servicePID {
+			// A service restart invalidates the old process's readiness evidence.
+			// Force the next scheduled probe to inspect the new PID.
 			c.serviceProbeSummary = ""
+			c.serviceProbeAt = time.Time{}
 		}
 	} else if c.serviceManaged {
 		c.serviceManaged = false
