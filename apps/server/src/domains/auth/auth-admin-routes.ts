@@ -10,7 +10,6 @@ export function registerAuthAdminRoutes(deps: AuthRouteDependencies) {
   const { app, prisma, authorization, inspectInstanceSetup, isDiscordConfigured, normalizeAuthUsername, verifyPassword, dummyPasswordHash, rateLimitKey, clearRateLimitKey, logSecurityEvent, createSession, decorateUserForClient, accountNextStep, validateNewPassword, hashPassword, generateTemporaryPassword, nextAccountState, getCurrentSession, hashToken, randomOAuthState, oauthStateDigest, fetchWithTimeout, safeAuthenticationReason, requireConfirmation, parseJsonObject, onUserSessionsRevoked } = deps;
   const REQUIRE_DISCORD_LINK = deps.requireDiscordLink;
   const DEV_LOGIN_ENABLED = deps.devLoginEnabled;
-  const PASSWORD_MIN_LENGTH = deps.passwordMinLength;
   const PASSWORD_MAX_LENGTH = deps.passwordMaxLength;
   const AUTH_RATE_LIMIT_MAX = deps.authRateLimitMax;
   const API_RATE_LIMIT_WINDOW_MS = deps.apiRateLimitWindowMs;
