@@ -15,6 +15,8 @@ type DesktopInboxPage = { items?: DesktopInboxItem[] };
 type SeenState = { schema: 1; primed: true; ids: string[]; updatedAt: string };
 
 const POLL_INTERVAL_MS = 120_000; // EventSource is authoritative; polling is recovery-only.
+const MIN_RECOVERY_POLL_GAP_MS = 30_000;
+const MAX_RECOVERY_FAILURE_DELAY_MS = 10 * 60_000;
 const MAX_SEEN_IDS = 256;
 const MAX_BATCH_ITEMS = 40;
 
@@ -120,16 +122,26 @@ export function useDesktopNotificationSync({ enabled, user, settings }: { enable
       });
     };
 
+    let nextAllowedPollAt = 0;
+    let consecutivePollFailures = 0;
     const poll = async () => {
-      if (!alive || requestInFlight || document.visibilityState !== "visible" || !navigator.onLine) return;
+      if (!alive || requestInFlight || document.visibilityState !== "visible" || !navigator.onLine || Date.now() < nextAllowedPollAt) return;
       requestInFlight = true;
+      nextAllowedPollAt = Date.now() + MIN_RECOVERY_POLL_GAP_MS;
       try {
         const page = await api<DesktopInboxPage>(`/api/notifications?limit=${MAX_BATCH_ITEMS}`);
         if (!alive) return;
         const items = Array.isArray(page.items) ? page.items.filter((item) => item && typeof item.id === "string") : [];
         await deliverItems(items, true);
-      } catch {
-        // Polling is a recovery path. Normal connectivity surfaces remain authoritative.
+        consecutivePollFailures = 0;
+      } catch (error) {
+        // Focus, online and read-state events can fire together. Failed recovery
+        // polling must not become a request storm while EventSource reconnects.
+        consecutivePollFailures = Math.min(consecutivePollFailures + 1, 6);
+        const hintedSeconds = Number((error as { retryAfterSeconds?: number })?.retryAfterSeconds);
+        const hintedDelay = Number.isFinite(hintedSeconds) && hintedSeconds > 0 ? hintedSeconds * 1_000 : 0;
+        const exponential = POLL_INTERVAL_MS * 2 ** Math.max(0, consecutivePollFailures - 1);
+        nextAllowedPollAt = Date.now() + Math.min(MAX_RECOVERY_FAILURE_DELAY_MS, Math.max(MIN_RECOVERY_POLL_GAP_MS, hintedDelay, exponential));
       } finally {
         requestInFlight = false;
       }
