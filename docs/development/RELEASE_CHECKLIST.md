@@ -1,9 +1,9 @@
 # Cluster 1.0 release readiness checklist
 
-This checklist is for **future certification**. It does not mean any release candidate has passed. GitHub `development` is the source of truth, currently identified as RC50. No historical ZIP import or nonexistent RC74 reconciliation is required.
+This checklist is for **future distribution certification**. It does not mean any release candidate has passed. As of November 2, 2026, `main` is deliberately consolidated with the tested `development` source, while `config/release-candidate.json` still identifies RC50 (source version `0.546.0`). Do not infer a version bump or successful live Windows validation from the source branch promotion.
 
 ## 1. Reproducible source and build
-- [ ] Intended release commit and its focused changes are reviewed on `development`
+- [ ] Final installer source commit is selected, reviewed, and frozen (branch consolidation is not a binary release)
 - [ ] Toolchain versions and package manifests agree
 - [ ] `package-lock.json` is generated, verified and committed
 - [ ] Clean `npm ci` succeeds on pinned Node/npm
@@ -29,5 +29,7 @@ This checklist is for **future certification**. It does not mean any release can
 - [ ] README, operator documentation, release notes and known limitations are updated
 - [ ] Candidate version and shipped artifacts match the tested revision
 - [ ] Only then create a release tag and publish verified installer artifacts
+
+**Source closeout (November 2, 2026):** The latest consolidation candidate passed eight GitHub workflows, including Windows Go compilation and source contract tests. Real installer/service/restore/upgrade acceptance remains **unverified**, root `package-lock.json` is **absent**, no production release artifact was published, and GitHub branch protection is **not yet enforced**. Track these gates separately in [issue #8](https://github.com/NotAzureStudios/Cluster/issues/8).
 
 **Do not** treat passing source-only CI as completion of any Windows runtime or release acceptance check. Track test evidence and known gaps in the release notes.

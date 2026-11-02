@@ -3,7 +3,7 @@
 **Private studio-management platform for Azure Studios.** Cluster brings projects, work tracking, scheduling, files, documentation and studio operations into one self-hosted workspace, with a web client, native desktop integration and a Windows server manager.
 
 > [!IMPORTANT]
-> **Source status:** The version currently tracked in GitHub is **Cluster 1.0.0-rc.50** (`config/release-candidate.json`), with source/toolchain version `0.546.0`. Later RC73 and RC74 source bundles exist, but have **not been merged** into this repository. This is a development repository, **not a certified 1.0 release or installer download**. Do not deploy a development checkout over a running Cluster server.
+> **Source status (November 2, 2026):** The tracked candidate remains **Cluster 1.0.0-rc.50** (`config/release-candidate.json`), source version `0.546.0`. Subsequent targeted fixes, including PDF/3D viewer changes and Windows Server Manager reliability and self-repair, are incorporated as reviewed Git commits without changing the candidate version. This source consolidation does **not** certify Cluster 1.0 or produce an installable release. Do not deploy a Git checkout over a running Cluster server.
 
 ## What's in Cluster?
 
@@ -71,11 +71,11 @@ These commands have differing prerequisites. The source-only gate is **not** a P
 
 | Branch | Purpose |
 | --- | --- |
-| [`development`](https://github.com/NotAzureStudios/Cluster/tree/development) | **Primary working branch.** Source imports, feature work, cleanup and fixes happen here. |
-| [`main`](https://github.com/NotAzureStudios/Cluster/tree/main) | Reviewed integration/release baseline. Do not commit directly for routine development. |
+| [`development`](https://github.com/NotAzureStudios/Cluster/tree/development) | **Primary working branch.** Source changes and reviewed pull requests land here. |
+| [`main`](https://github.com/NotAzureStudios/Cluster/tree/main) | Source baseline consolidated from `development` on November 2, 2026; not a separately certified binary release. |
 | `feature/*`, `fix/*`, `chore/*` | Optional focused branches targeting `development`. |
 
-Use pull requests and checks to promote reviewed changes from `development` to `main`. Do not force-push either long-lived branch. The GitHub default branch is currently `main` by design; that does **not** make it the working branch.
+Keep routine work on `development` and use reviewed PRs plus required CI before promotion to `main`. The November 2 source consolidation intentionally replaced the previously diverged `main` tip with a tested `development` tip **after creating a retained archive branch**; this is an exceptional one-time history operation, not permission for routine force-pushes. The default GitHub branch remains `main`.
 
 Releases are separate artifacts: verified Windows installers and distributable ZIPs should not be committed as source files. `config/release-candidate.json` is the tracked candidate identity; it does not imply the native installer is certified.
 

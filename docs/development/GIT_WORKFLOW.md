@@ -5,10 +5,10 @@ This repository is the **private source repository** `NotAzureStudios/Cluster`. 
 ## Branch roles
 
 - **`development`**: the authoritative **ongoing integration branch** for code work, cleanup and source imports.
-- **`main`**: the reviewed integration/release baseline, retained as GitHub's default landing branch.
+- **`main`**: the reviewed source baseline, consolidated with `development` on November 2, 2026; retained as GitHub's default landing branch. Not automatically a certified release.
 - **`feature/*`, `fix/*`, `chore/*`, `import/*`**: optional **temporary** work branches based on `development`, targeting `development` by pull request. Once their PR merges, the branch is automatically pruned by `.github/workflows/cluster-branch-housekeeping.yml`. **Only `main` and `development` are permanent branches.**
 
-Prefer reviewable PRs. Normal development does **not** push to `main`; do not force-update `development` or `main`. Promote changes from `development` to `main` only after relevant checks and review. GitHub branch protection and required checks should be configured in Settings separately; documenting a policy does **not** enforce it.
+Prefer reviewable PRs. Normal development does **not** push to `main`; routine force updates to either long-lived branch are forbidden. On November 2, 2026, a specifically authorized source consolidation replaced the diverged `main` tip with the tested `development` revision using force-with-lease and preserved the previous tip under `archive/main-pre-development-consolidation-2026-11-02`. This is a historical exception, not a recurring workflow. Promote future changes only after focused review and passing checks. GitHub branch protection and required checks still require separate configuration; written policy alone does **not** enforce it.
 
 ## Working locally
 
@@ -33,6 +33,6 @@ Publish binaries and installer ZIPs as **version-matched, verified release artif
 
 ## Current source migration state
 
-At the time of this workflow update, `config/release-candidate.json` identifies **1.0.0-rc.50**. Later RC73 and RC74 source bundles exist outside GitHub and **have not yet been integrated**. Do not automatically overwrite the repository with an archive. The absence of `package-lock.json` is a known reproducibility blocker.
+As of November 2, 2026, `config/release-candidate.json` identifies **1.0.0-rc.50** (source `0.546.0`). Later targeted PDF/3D and Server Manager fixes have been reconciled through reviewed Git commits, but importing or assuming parity with whole external ZIP snapshots is **not** justified. Do not automatically overwrite the repository with an archive. The root `package-lock.json` remains untracked, blocking reproducible production installer generation.
 
 See [source snapshot hygiene](SOURCE_SNAPSHOT_HYGIENE.md) for import safeguards.
