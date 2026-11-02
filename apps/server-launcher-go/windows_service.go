@@ -192,10 +192,12 @@ func installClusterService(root string) error {
 	if _, err := os.Stat(filepath.Join(root, "apps", "server")); err != nil {
 		return fmt.Errorf("invalid Cluster service workspace: %w", err)
 	}
-	// IMPORTANT: no broad recursive ACL changes to executable/source folders.
-	// Operators provision the restricted service identity's runtime/data access
-	// with the installer. A direct CLI install rejects unprepared directories.
-	if err := checkServiceWorkspaceMarker(root); err != nil {
+	// Explicit service-install is elevated through the CLI entry point.
+	// Require an installer-owned, complete release before touching permissions.
+	if !fileExists(filepath.Join(root, ".cluster-installer-managed.json")) {
+		return fmt.Errorf("service installation requires a Cluster-Installer.exe managed release")
+	}
+	if err := verifyManagedStartup(root, false, releasePrebuiltReady(root), installedDependencyGraphHealthy(root)); err != nil {
 		return err
 	}
 	if err := serviceRuntimePrerequisites(root); err != nil {
@@ -203,6 +205,15 @@ func installClusterService(root string) error {
 	}
 	if _, err := configuredNativeNetwork(root); err != nil {
 		return fmt.Errorf("service installation refused: %w", err)
+	}
+	// Grant only managed application data and the existing server .env file,
+	// never installed binaries or arbitrary external volumes. Do not create
+	// service registration if any ACL or marker operation fails.
+	if err := provisionClusterServiceWorkspace(root); err != nil {
+		return fmt.Errorf("service installation permission provisioning failed: %w", err)
+	}
+	if err := checkServiceWorkspaceMarker(root); err != nil {
+		return err
 	}
 	manager, _, openErr := apiOpenSCManager.Call(0, 0, scManagerCreateService)
 	if manager == 0 {
@@ -273,8 +284,8 @@ func serviceRuntimePrerequisites(root string) error {
 	return nil
 }
 func checkServiceWorkspaceMarker(root string) error {
-	// Intentional opt-in: the real Windows installer must set owner/ACLs and
-	// create this file after validating least-privileged runtime operations.
+	// Explicit elevated service-install writes this marker after targeted ACL
+	// provisioning. Actual LocalService access is tested at service startup.
 	marker := filepath.Join(root, "data", "system", "config", "windows-service-ready.marker")
 	value, err := os.ReadFile(marker)
 	if err != nil || strings.TrimSpace(string(value)) != "localservice-workspace-v1" {

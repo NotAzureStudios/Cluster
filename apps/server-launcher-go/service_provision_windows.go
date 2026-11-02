@@ -55,13 +55,21 @@ func serviceACLPlan(root string) ([]clusterServiceACL, error) {
 	}
 	data := filepath.Join(root, "data")
 	envFile := filepath.Join(root, "apps", "server", ".env")
-	for _, dir := range []string{data, filepath.Join(root, "apps", "server")} {
+	for _, dir := range []string{data, filepath.Join(root, "data", "system"), filepath.Join(root, "data", "system", "config"), filepath.Join(root, "apps", "server")} {
 		if err := checkServiceProvisionPath(dir, true); err != nil {
 			return nil, err
 		}
 	}
 	if err := checkServiceProvisionPath(envFile, false); err != nil {
 		return nil, fmt.Errorf("run interactive Cluster setup before installing Windows Service: %w", err)
+	}
+	marker := filepath.Join(root, "data", "system", "config", "windows-service-ready.marker")
+	if _, err := os.Lstat(marker); err == nil {
+		if err := checkServiceProvisionPath(marker, false); err != nil {
+			return nil, err
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 	return []clusterServiceACL{
 		{Path: data, Grant: clusterLocalServiceSID + ":(OI)(CI)M"},
@@ -86,19 +94,6 @@ func provisionClusterServiceWorkspace(root string) error {
 		}
 	}
 	marker := filepath.Join(root, "data", "system", "config", "windows-service-ready.marker")
-	if err := os.MkdirAll(filepath.Dir(marker), 0700); err != nil {
-		return err
-	}
-	if err := checkServiceProvisionPath(filepath.Dir(marker), true); err != nil {
-		return err
-	}
-	if _, err := os.Lstat(marker); err == nil {
-		if err := checkServiceProvisionPath(marker, false); err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
 	// Marker confirms ONLY the explicit ACL grant operation, not successful
 	// LocalService access. Service startup still probes actual write access
 	// under the restricted identity and fails closed on inaccessible storage.
