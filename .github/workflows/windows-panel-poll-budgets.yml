@@ -31,3 +31,7 @@ jobs:
         run: go build -o "${{ runner.temp }}/Cluster-Server-poll-test.exe" .
       - name: Assert poll budgets
         run: node tools/scripts/cluster-windows-panel-poll-budget-tests.mjs
+      - name: Native dashboard and installer first-run contracts
+        run: node tools/scripts/cluster-native-server-install-experience-tests.mjs
+      - name: Windows installer contract checks
+        run: node tools/installer/installer-contract-tests.mjs
