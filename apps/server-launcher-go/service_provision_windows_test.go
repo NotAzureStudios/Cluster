@@ -11,7 +11,7 @@ import (
 
 func TestServiceACLPlanRestrictsWritesToDataAndEnvironment(t *testing.T) {
 	root:=t.TempDir()
-	if err:=os.MkdirAll(filepath.Join(root,"data"),0700);err!=nil {t.Fatal(err)}
+	if err:=os.MkdirAll(filepath.Join(root,"data","system","config"),0700);err!=nil {t.Fatal(err)}
 	envDir:=filepath.Join(root,"apps","server")
 	if err:=os.MkdirAll(envDir,0700);err!=nil {t.Fatal(err)}
 	if err:=os.WriteFile(filepath.Join(envDir,".env"),[]byte("CLUSTER_REQUIRE_AUTH=true\n"),0600);err!=nil {t.Fatal(err)}
