@@ -1,0 +1,39 @@
+name: Platform release profile contracts
+
+on:
+  push:
+    branches: [development, main, 'client/**', 'server/**', 'platform/**']
+  pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-profiles-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product-boundaries:
+    name: Verify independent distribution profiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Test profile/channel isolation
+        run: node tools/scripts/cluster-platform-release-tests.mjs
+      - name: Display platform packages without building
+        run: |
+          node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development
+          node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64 --channel stable
+          node tools/scripts/cluster-platform-release.mjs --profile web-responsive --channel development
+          node tools/scripts/cluster-platform-release.mjs --profile portal-web --channel main
+# This workflow validates source contracts only. Real release builds need locked npm
+# dependencies, Windows native runners, signed artifacts and actual runtime tests.
