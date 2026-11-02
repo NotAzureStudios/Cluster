@@ -4,8 +4,7 @@ import { isLoopbackAddress } from "./security.js";
 
 export const GENERIC_AUTH_ERROR = "The username or password is incorrect, or this account is unavailable.";
 export const PASSWORD_MIN_LENGTH = 12;
-// The exception applies only when the server has verified an owner's or
-// administrator's current workspace membership.
+// This deprecated role exception will be removed by the 1.0 unified policy pass.
 export const PRIVILEGED_PASSWORD_MIN_LENGTH = 1;
 export const PASSWORD_MAX_LENGTH = 1024;
 export const LOGIN_FAILURE_LIMIT = 8;
