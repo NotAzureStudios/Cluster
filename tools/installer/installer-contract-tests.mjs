@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 const installer=import.meta.dirname;
 const root=path.resolve(installer,'../..');
-const ps=fs.readFileSync(path.join(installer,'Install-Cluster.ps1'),'utf8');
+// Git for Windows checks out PowerShell files with CRLF. Compare normalized
+// source text rather than failing a valid installer on its line endings.
+const ps=fs.readFileSync(path.join(installer,'Install-Cluster.ps1'),'utf8').replace(/\r\n/g,'\n');
 const src=fs.readFileSync(path.join(installer,'main.go'),'utf8');
 const builder=fs.readFileSync(path.join(root,'tools/scripts/build-cluster-installer.mjs'),'utf8');
 let passed=0;function check(name,condition){assert.ok(condition,name);console.log('PASS',name);passed++;}

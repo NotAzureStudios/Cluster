@@ -23,6 +23,10 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: false
+      - name: Node.js pinned
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
       - name: Go unit tests
         working-directory: apps/server-launcher-go
         run: go test ./...
@@ -31,3 +35,7 @@ jobs:
         run: go build -o "${{ runner.temp }}/Cluster-Server-poll-test.exe" .
       - name: Assert poll budgets
         run: node tools/scripts/cluster-windows-panel-poll-budget-tests.mjs
+      - name: Native dashboard and installer first-run contracts
+        run: node tools/scripts/cluster-native-server-install-experience-tests.mjs
+      - name: Windows installer contract checks
+        run: node tools/installer/installer-contract-tests.mjs

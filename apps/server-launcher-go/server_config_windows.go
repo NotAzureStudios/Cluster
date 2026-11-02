@@ -261,7 +261,7 @@ type nativePanelPreferences struct {
 	Configured          bool   `json:"configured"`
 	UseInterface        bool   `json:"useInterface"`
 	DarkMode            bool   `json:"darkMode"`
-	PerformanceView     bool   `json:"performanceView"`
+	PerformanceView     *bool  `json:"performanceView,omitempty"`
 	AutoScrollLogs      *bool  `json:"autoScrollLogs,omitempty"`
 	StartServerOnLaunch bool   `json:"startServerOnLaunch"`
 	StartWithWindows    bool   `json:"startWithWindows"`
@@ -272,6 +272,12 @@ type nativePanelPreferences struct {
 	UpdateManifestURL   string `json:"updateManifestUrl"`
 	DevelopmentUpdateManifestURL string `json:"developmentUpdateManifestUrl"`
 	UpdateChannel string `json:"updateChannel"`
+}
+
+// New installs expose the performance dashboard by default. An explicit saved
+// false remains respected for people who intentionally hid it.
+func nativePerformanceEnabled(prefs nativePanelPreferences) bool {
+	return prefs.PerformanceView == nil || *prefs.PerformanceView
 }
 
 func nativeAutoScrollEnabled(prefs nativePanelPreferences) bool {

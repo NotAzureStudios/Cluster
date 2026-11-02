@@ -123,6 +123,9 @@ const (
 	idRunCommand         = 1011
 	idThemeToggle        = 1014
 	idPerformanceToggle  = 1015
+	pbmSetPos            = 0x0402
+	pbmSetRange32        = 0x0406
+	pbmSetBarColor       = 0x0409
 	idCopyLogs           = 1016
 	idAutoScroll         = 1017
 	idFilterInfo         = 1018
@@ -204,6 +207,7 @@ var (
 	procRegisterWindowMessageW = user32.NewProc("RegisterWindowMessageW")
 	procLoadIconW              = user32.NewProc("LoadIconW")
 	procGetSysColorBrush       = user32.NewProc("GetSysColorBrush")
+	procInitCommonControlsEx    = syscall.NewLazyDLL("comctl32.dll").NewProc("InitCommonControlsEx")
 	procSetTextColor           = gdi32.NewProc("SetTextColor")
 	procSetBkColor             = gdi32.NewProc("SetBkColor")
 	procSetBkMode              = gdi32.NewProc("SetBkMode")
@@ -347,6 +351,11 @@ type windowsServerController struct {
 	serviceProbeSummary string
 }
 
+type winInitCommonControls struct {
+	dwSize uint32
+	dwICC  uint32
+}
+
 type windowsControlPanel struct {
 	hwnd                  uintptr
 	title                 uintptr
@@ -356,6 +365,15 @@ type windowsControlPanel struct {
 	activity              uintptr
 	metrics               uintptr
 	performance           uintptr
+	performanceTitle      uintptr
+	perfCPU               uintptr
+	perfRAM               uintptr
+	perfDisk              uintptr
+	perfCPUBar            uintptr
+	perfRAMBar            uintptr
+	perfDiskBar           uintptr
+	perfService           uintptr
+	perfPorts             uintptr
 	start                 uintptr
 	stop                  uintptr
 	restart               uintptr
@@ -522,7 +540,7 @@ func runWindowsControlPanel(options launcherOptions) error {
 	}
 
 	prefs := loadNativePanelPreferences(options.root)
-	ui := &windowsControlPanel{darkMode: prefs.DarkMode, performanceVisible: prefs.PerformanceView, autoScroll: nativeAutoScrollEnabled(prefs), showInfo: true, showWarning: true, showError: true, showSuccess: true}
+	ui := &windowsControlPanel{darkMode: prefs.DarkMode, performanceVisible: nativePerformanceEnabled(prefs), autoScroll: nativeAutoScrollEnabled(prefs), showInfo: true, showWarning: true, showError: true, showSuccess: true}
 	controller := &windowsServerController{
 		options:     options,
 		ui:          ui,
@@ -621,6 +639,10 @@ func runWindowsControlPanel(options launcherOptions) error {
 }
 
 func (ui *windowsControlPanel) createControls(instance uintptr) error {
+	commonControls := winInitCommonControls{dwSize: uint32(unsafe.Sizeof(winInitCommonControls{})), dwICC: 0x20} // ICC_PROGRESS_CLASS
+	if ok, _, err := procInitCommonControlsEx.Call(uintptr(unsafe.Pointer(&commonControls))); ok == 0 {
+		return fmt.Errorf("could not initialize native performance meters: %v", err)
+	}
 	// RichEdit lets the native log remain lightweight while still using semantic
 	// severity colors. If the modern control cannot be loaded Windows still has
 	// the regular EDIT fallback below.
@@ -655,9 +677,20 @@ func (ui *windowsControlPanel) createControls(instance uintptr) error {
 	if ui.metrics, err = createControl("STATIC", "Uptime --   |   PID --", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
 		return err
 	}
-	if ui.performance, err = createControl("STATIC", "CPU --   |   RAM --   |   Server RAM --   |   Disk --   |   PostgreSQL --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil {
-		return err
+	if ui.performanceTitle, err = createControl("STATIC", "PERFORMANCE  ·  CPU / memory / disk every 5s  ·  GPU every 30s", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfCPU, err = createControl("STATIC", "CPU --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfRAM, err = createControl("STATIC", "RAM --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfDisk, err = createControl("STATIC", "Disk --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfCPUBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfRAMBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfDiskBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	for _, bar := range []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar} {
+		procSendMessageW.Call(bar, pbmSetRange32, 0, 100)
+		procSendMessageW.Call(bar, pbmSetBarColor, 0, uintptr(rgbColor(87, 193, 255)))
 	}
+	if ui.perfService, err = createControl("STATIC", "Cluster process --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.perfPorts, err = createControl("STATIC", "Ports --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	if ui.performance, err = createControl("STATIC", "GPU --", wsChild|ssLeft, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
 	if ui.start, err = createControl("BUTTON", "Start", wsChild|wsVisible|wsTabStop|bsPushButton, 0, 0, 0, 0, ui.hwnd, idStart, instance); err != nil {
 		return err
 	}
@@ -733,7 +766,7 @@ func (ui *windowsControlPanel) createControls(instance uintptr) error {
 		return err
 	}
 
-	for _, handle := range []uintptr{ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.runCommand} {
+	for _, handle := range []uintptr{ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.runCommand} {
 		procSendMessageW.Call(handle, wmSetFont, ui.defaultFont, 1)
 	}
 	procSendMessageW.Call(ui.title, wmSetFont, ui.titleFont, 1)
@@ -767,12 +800,25 @@ func (ui *windowsControlPanel) layout(width, height int32) {
 	moveWindow(ui.metrics, margin, 72, content, 22)
 
 	performanceOffset := int32(0)
+	performanceLabels := []uintptr{ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.performance}
+	performanceBars := []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar}
 	if ui.performanceVisible {
-		procShowWindow.Call(ui.performance, swShow)
-		moveWindow(ui.performance, margin, 94, content, 44)
-		performanceOffset = 46
+		for _, handle := range performanceLabels { procShowWindow.Call(handle, swShow) }
+		for _, handle := range performanceBars { procShowWindow.Call(handle, swShow) }
+		moveWindow(ui.performanceTitle, margin, 93, content, 20)
+		columnWidth := (content - 32) / 3
+		for index, label := range []uintptr{ui.perfCPU, ui.perfRAM, ui.perfDisk} {
+			columnX := margin + int32(index)*(columnWidth+16)
+			moveWindow(label, columnX, 117, columnWidth, 20)
+			moveWindow(performanceBars[index], columnX, 141, columnWidth, 12)
+		}
+		moveWindow(ui.perfService, margin, 163, content, 20)
+		moveWindow(ui.perfPorts, margin, 184, content, 20)
+		moveWindow(ui.performance, margin, 205, content, 20)
+		performanceOffset = 130
 	} else {
-		procShowWindow.Call(ui.performance, swHide)
+		for _, handle := range performanceLabels { procShowWindow.Call(handle, swHide) }
+		for _, handle := range performanceBars { procShowWindow.Call(handle, swHide) }
 	}
 
 	y := int32(102) + performanceOffset
@@ -819,8 +865,8 @@ func (ui *windowsControlPanel) layout(width, height int32) {
 	commandY := height - 70
 	logTop := logLabelY + 28
 	logHeight := commandY - logTop - 32
-	if logHeight < 240 {
-		logHeight = 240
+	if logHeight < 100 {
+		logHeight = 100
 	}
 	moveWindow(ui.logEdit, margin, logTop, content, logHeight)
 	moveWindow(ui.commandLabel, margin, commandY-22, 220, 20)
@@ -1765,7 +1811,24 @@ func (ui *windowsControlPanel) updateMetrics() {
 		}
 	}
 	ui.gpuSampler.poll()
-	setWindowText(ui.performance, fmt.Sprintf("CPU %.0f%%   |   RAM %d%%   |   Service RSS %s   |   Disk %s\n%s\n%s", snapshot.CPUPercent, snapshot.MemoryPercent, serverRAM, disk, ui.lastPortsSummary, ui.gpuSampler.snapshot()))
+	cpu := int(snapshot.CPUPercent + 0.5)
+	if cpu < 0 { cpu = 0 } else if cpu > 100 { cpu = 100 }
+	ram := int(snapshot.MemoryPercent)
+	if ram > 100 { ram = 100 }
+	diskPercent := 0
+	if snapshot.DiskTotalBytes > 0 && snapshot.DiskFreeBytes <= snapshot.DiskTotalBytes {
+		diskPercent = int((float64(snapshot.DiskTotalBytes - snapshot.DiskFreeBytes) / float64(snapshot.DiskTotalBytes)) * 100 + 0.5)
+		if diskPercent < 0 { diskPercent = 0 } else if diskPercent > 100 { diskPercent = 100 }
+	}
+	setWindowText(ui.perfCPU, fmt.Sprintf("CPU  %d%%", cpu))
+	setWindowText(ui.perfRAM, fmt.Sprintf("System memory  %d%%", ram))
+	setWindowText(ui.perfDisk, fmt.Sprintf("Disk  %s", disk))
+	setWindowText(ui.perfService, "Cluster process memory  "+serverRAM)
+	setWindowText(ui.perfPorts, ui.lastPortsSummary)
+	setWindowText(ui.performance, ui.gpuSampler.snapshot())
+	procSendMessageW.Call(ui.perfCPUBar, pbmSetPos, uintptr(cpu), 0)
+	procSendMessageW.Call(ui.perfRAMBar, pbmSetPos, uintptr(ram), 0)
+	procSendMessageW.Call(ui.perfDiskBar, pbmSetPos, uintptr(diskPercent), 0)
 }
 
 // StageServerUpdate downloads a signed, hash-verified Server installer only.
@@ -2453,7 +2516,7 @@ func (ui *windowsControlPanel) updateLogControlLabels() {
 		setWindowText(ui.themeToggle, "Dark mode")
 	}
 	if ui.performanceVisible {
-		setWindowText(ui.performanceToggle, "Hide performance")
+		setWindowText(ui.performanceToggle, "Hide stats")
 	} else {
 		setWindowText(ui.performanceToggle, "Performance")
 	}
@@ -2484,7 +2547,8 @@ func (ui *windowsControlPanel) toggleAutoScroll() {
 func (ui *windowsControlPanel) togglePerformanceView() {
 	ui.performanceVisible = !ui.performanceVisible
 	prefs := loadNativePanelPreferences(ui.controller.options.root)
-	prefs.PerformanceView = ui.performanceVisible
+	visible := ui.performanceVisible
+	prefs.PerformanceView = &visible
 	_ = saveNativePanelPreferences(ui.controller.options.root, prefs)
 	ui.updateLogControlLabels()
 	var rect winRect
@@ -2652,7 +2716,7 @@ func (ui *windowsControlPanel) applyTheme(enabled bool) {
 	}
 	ui.updateLogControlLabels()
 	ui.renderLogHistory()
-	for _, h := range []uintptr{ui.title, ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.logEdit, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.runCommand} {
+	for _, h := range []uintptr{ui.title, ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.logEdit, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.runCommand} {
 		if h != 0 {
 			procInvalidateRect.Call(h, 0, 1)
 		}

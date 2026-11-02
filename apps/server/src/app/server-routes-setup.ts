@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { hashPassword, nextAccountState, normalizeAuthUsername, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateNewPassword } from "../core/auth.js";
+import { hashPassword, nextAccountState, normalizeAuthUsername, PASSWORD_MAX_LENGTH, PRIVILEGED_PASSWORD_MIN_LENGTH, validateNewPassword } from "../core/auth.js";
 import { isLoopbackAddress } from "../core/security.js";
 import { hashSecurityPin } from "../core/security-pin-credential.js";
 import { inspectInstanceSetup } from "../core/instance-setup.js";
@@ -383,7 +383,7 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     const body = z.object({
       serverDisplayName: z.string().trim().min(1).max(120),
       ownerUsername: z.string().min(3).max(32),
-      ownerPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+      ownerPassword: z.string().min(PRIVILEGED_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
       ownerPin: z.string().regex(/^\d{4,8}$/, "Choose a 4–8 digit PIN."),
       mode: z.enum(["guided", "quick", "import", "skip"]).default("quick"),
       studioName: z.string().trim().min(1).max(120).optional(),
@@ -428,7 +428,9 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
     let ownerPassword = "";
     try {
       ownerUsername = normalizeAuthUsername(body.ownerUsername);
-      ownerPassword = validateNewPassword(body.ownerPassword, { username: ownerUsername, displayName: ownerUsername });
+      // The localhost-only first-run bootstrap creates the initial Owner, so the
+      // same explicit privileged minimum applies here as in later Owner changes.
+      ownerPassword = validateNewPassword(body.ownerPassword, { username: ownerUsername, displayName: ownerUsername }, { allowPrivilegedShortPassword: true });
     } catch (error) {
       return reply.code(400).send({
         ok: false,
