@@ -32,7 +32,6 @@ func TestServerUpdateStagingVerifiesBytesAndKeepsInstallerInert(t *testing.T) {
     "channel":channel,"release":"1.0.0-rc.99","sequence":json.Number("99"),"sourceVersion":"0.546.0",
     "artifact":map[string]any{"kind":"installer","filename":"Cluster-Installer.exe","url":serverURL+"/installer","sha256":hex.EncodeToString(hash[:]),"size":json.Number(strconv.Itoa(len(source)))},
    }
-   manifest["artifact"].(map[string]any)["size"]=json.Number(strings.TrimSpace(string([]byte{}))) // overwritten below with exact size
    signed,signErr:=canonicalServerJSON(manifest)
    if signErr!=nil {http.Error(w,signErr.Error(),500);return}
    manifest["signature"]=base64.StdEncoding.EncodeToString(ed25519.Sign(private,[]byte(signed)))
