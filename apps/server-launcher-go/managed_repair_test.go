@@ -52,3 +52,13 @@ func TestManagedRepairReportIsStructuredAndFailsClosed(t *testing.T) {
 	if err:=writeManagedRepairReport(&out,report);err!=nil {t.Fatal(err)}
 	if !strings.Contains(out.String(),`"ready": false`) {t.Fatalf("JSON result misreported repair outcome: %s",out.String())}
 }
+
+func TestManagedRepairDetectsMissingVolumeWithSavedDatabaseCredentials(t *testing.T) {
+	root := filepath.Join(t.TempDir(),"Cluster","Server")
+	if err:=os.MkdirAll(filepath.Join(root,"data","system","config"),0700);err!=nil {t.Fatal(err)}
+	marker:=filepath.Join(root,".cluster-installer-managed.json")
+	ownership:=`{"managedBy":"cluster-installer","installRoot":`+jsonRepairString(filepath.Dir(root))+`}`
+	if err:=os.WriteFile(marker,[]byte(ownership),0600);err!=nil {t.Fatal(err)}
+	if err:=os.WriteFile(filepath.Join(root,"data","system","config","embedded-postgres.env"),[]byte("PASSWORD=placeholder"),0600);err!=nil {t.Fatal(err)}
+	if err:=validateManagedRepairRoot(root);err==nil || !strings.Contains(err.Error(),"storage is missing") {t.Fatalf("disconnected prior data volume should fail closed: %v",err)}
+}

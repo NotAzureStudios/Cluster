@@ -81,4 +81,7 @@ func TestNodeRepairRejectsExistingUnexpectedBackup(t *testing.T) {
 	// The admission of an existing recovery backup is checked before the
 	// runtime can be installed; preserve it as evidence for manual rollback.
 	if _,err:=os.Lstat(backup);err!=nil {t.Fatal(err)}
+	if repaired,err:=repairPinnedNode(root);err==nil || repaired || !strings.Contains(err.Error(),"previous runtime repair evidence") {
+		t.Fatalf("interrupted repair must halt before downloading any runtime: repaired=%v err=%v",repaired,err)
+	}
 }

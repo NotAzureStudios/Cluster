@@ -185,6 +185,13 @@ func repairPinnedNode(root string) (bool,error) {
 	if _,err := os.Lstat(nodeDir); err == nil {
 		if err := ordinaryRepairDir(nodeDir); err != nil { return false,err }
 	} else if !os.IsNotExist(err) { return false,err }
+	stage := nodeDir+".repair-staging"
+	backup := nodeDir+".repair-previous"
+	for _,p := range []string{stage,backup} {
+		if _,err := os.Lstat(p); err == nil {
+			return false,fmt.Errorf("previous runtime repair evidence exists at %s; inspect before retrying",filepath.Base(p))
+		} else if !os.IsNotExist(err) { return false,err }
+	}
 	cache := filepath.Join(toolRoot,"Downloads")
 	if err := ensureRepairDirectory(cache); err != nil { return false,err }
 	name := "node-v"+privateNodeVersion+"-win-x64.zip"
@@ -200,13 +207,6 @@ func repairPinnedNode(root string) (bool,error) {
 			_ = os.Remove(archive)
 			return false,fmt.Errorf("downloaded private Node failed pinned SHA-256: %w",err)
 		}
-	}
-	stage := nodeDir+".repair-staging"
-	backup := nodeDir+".repair-previous"
-	for _,p := range []string{stage,backup} {
-		if _,err := os.Lstat(p); err == nil {
-			return false,fmt.Errorf("previous runtime repair evidence exists at %s; inspect before retrying",filepath.Base(p))
-		} else if !os.IsNotExist(err) { return false,err }
 	}
 	if err := os.Mkdir(stage,0700); err != nil { return false,err }
 	defer os.RemoveAll(stage)

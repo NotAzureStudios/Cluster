@@ -77,9 +77,27 @@ func validateManagedRepairRoot(root string) error {
 			return fmt.Errorf("cannot safely inspect protected data path: %w", err)
 		}
 	}
+	// If the database disappeared from a previously initialized install,
+	// refuse repair as well as startup. This is frequently a disconnected NAS
+	// or drive, not a reason to create a new empty database.
+	dbPath := filepath.Join(root, "data", "postgresql")
+	if _, err := os.Lstat(dbPath); os.IsNotExist(err) {
+		for _, evidence := range []string{
+			filepath.Join(root, "runtime", "postgresql-data-initialized.marker"),
+			filepath.Join(root, "data", "system", "config", "embedded-postgres.env"),
+		} {
+			if _, evidenceErr := os.Lstat(evidence); evidenceErr == nil {
+				return fmt.Errorf("PostgreSQL storage is missing but prior database initialization evidence exists; restore the original data volume before repair")
+			} else if !os.IsNotExist(evidenceErr) {
+				return fmt.Errorf("cannot inspect historical database evidence: %w", evidenceErr)
+			}
+		}
+	} else if err != nil {
+		return fmt.Errorf("cannot inspect PostgreSQL storage: %w", err)
+	}
 	// A missing PG_VERSION on existing data is a recovery incident. Never
 	// modify the executable environment under a damaged/unknown database.
-	if dataInfo, err := os.Lstat(filepath.Join(root, "data", "postgresql")); err == nil && dataInfo.IsDir() {
+	if dataInfo, err := os.Lstat(dbPath); err == nil && dataInfo.IsDir() {
 		v, err := os.ReadFile(filepath.Join(root, "data", "postgresql", "PG_VERSION"))
 		if err != nil || strings.TrimSpace(string(v)) != "18" {
 			return fmt.Errorf("PostgreSQL data is incomplete or has an incompatible version; repair is blocked until the data is safely recovered")
