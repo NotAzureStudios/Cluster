@@ -247,6 +247,44 @@ function AssertServerStopped([string]$root) {
     Fail "Cluster Server has active processes (PIDs $ids). Stop it before installing revision files."
   }
 }
+# Check the actual target volume and managed-install state before downloading
+# multiple private toolchains or compiling anything. Never change live data.
+function AssertInstallPreflight() {
+  if (-not [Environment]::Is64BitOperatingSystem) { Fail 'Cluster Server requires 64-bit Windows.' }
+  $root = [IO.Path]::GetPathRoot($WorkRoot)
+  if (-not $root) { Fail "Could not resolve the installation drive for $WorkRoot." }
+  try {
+    $drive = [IO.DriveInfo]::new($root)
+    if (-not $drive.IsReady) { Fail "The installation drive $root is not ready." }
+    # Source RC installs currently build Go, Node, Prisma and Web on the target.
+    # This threshold is a preflight safety floor, not a quoted installed size.
+    [long]$minimum = 4GB
+    if ($drive.AvailableFreeSpace -lt $minimum) {
+      Fail ("Not enough free space on $root for a Cluster source-build installation. " +
+        ("Available: {0:N1} GiB; minimum: {1:N1} GiB. Free space or choose another portable folder." -f
+          ($drive.AvailableFreeSpace / 1GB), ($minimum / 1GB)))
+    }
+    Say ("Preflight: {0:N1} GiB free on {1}; source-build minimum 4.0 GiB." -f ($drive.AvailableFreeSpace / 1GB), $root)
+  } catch {
+    if ($_.Exception.Message -match 'Not enough free space|not ready|Could not resolve') { throw }
+    Fail "Cannot inspect installation drive $root: $($_.Exception.Message)"
+  }
+  $probe = Join-Path $WorkRoot ('.cluster-write-test-' + [guid]::NewGuid().ToString('N'))
+  try {
+    [IO.File]::WriteAllText($probe, 'Cluster installation write test')
+  } catch {
+    Fail "Installation folder is not writable: $WorkRoot. $($_.Exception.Message)"
+  } finally {
+    if (Test-Path -LiteralPath $probe -PathType Leaf) { Remove-Item -LiteralPath $probe -Force }
+  }
+  if (-not $BuildOnly -and (Test-Path -LiteralPath $target -PathType Container)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $target $ownerMarker) -PathType Leaf)) {
+      Fail "Installation target exists but is not managed by Cluster: $target. Existing files were not modified."
+    }
+    AssertServerStopped $target
+  }
+  Say 'Preflight passed: destination writable; free space and managed install safety checked.'
+}
 # npm workspaces on Windows use NTFS junctions with absolute staging paths.
 # Relocating node_modules without reconstructing them leaves @cluster/shared,
 # @cluster/server, etc. pointing at the deleted temporary build directory.
@@ -463,6 +501,7 @@ try {
   $stage = Join-Path $buildRoot ('revision-' + $hash.Substring(0,16))
   if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
   New-Item -ItemType Directory -Path $stage -Force | Out-Null
+  Say '[1/6] Verifying the source archive in isolated staging.'
   Say 'Extracting validated source into isolated build directory.'
   [IO.Compression.ZipFile]::ExtractToDirectory($Archive, $stage)
   $source = Join-Path $stage 'source'
@@ -474,11 +513,18 @@ try {
   if ($releaseIdentity.schema -ne 1 -or $releaseIdentity.channel -ne 'rc' -or $releaseIdentity.sequence -lt 1 -or $releaseIdentity.sourceVersion -ne $sourceToolchain.cluster) { Fail 'Invalid release candidate metadata; refuse to install.' }
   Say "Building clean-room candidate $($releaseIdentity.release) (source $($releaseIdentity.sourceVersion))."
   if ($CheckOnly) { Say 'Source archive verified; no installation or build was performed.'; exit 0 }
+  Say '[2/6] Checking installation environment before downloading toolchains.'
+  AssertInstallPreflight
+  if (-not (Test-Path -LiteralPath (Join-Path $source 'package-lock.json') -PathType Leaf)) {
+    Say 'WARNING: this source candidate lacks package-lock.json; installation is development-only, not reproducible stable 1.0.'
+  }
+  Say '[3/6] Preparing private Node and Go build tools.'
   ProvisionPortableTools
   $versions = Get-Content -LiteralPath (Join-Path $source 'config/toolchain-versions.json') -Raw | ConvertFrom-Json
   Say "Building Cluster v$($versions.cluster). Installed server remains untouched until builds succeed."
   $env:GOTOOLCHAIN = 'local'
   $env:CLUSTER_VERSION = [string]$versions.cluster
+  Say '[4/6] Building native Server, API and Web in staging; installed files remain untouched.'
   # RC gate: native binaries are part of the product. Compile/test them BEFORE
   # the slower npm/Vite work so Go source mistakes cannot survive into packaging.
   # Uses the private pinned Go toolchain provisioned above, not system Go.
@@ -513,6 +559,7 @@ try {
   foreach ($requiredFile in @('apps/server/dist/index.js','apps/web/dist/index.html','packages/shared/dist/index.js','bin/ClusterServer.exe','bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe','bin/cluster-workstation-service.exe','node_modules/@prisma/client/package.json')) {
     if (-not (Test-Path -LiteralPath (Join-Path $source $requiredFile) -PathType Leaf)) { Fail "Build missing required output: $requiredFile" }
   }
+  Say '[5/6] Validating compiled artifacts and release integrity.'
   # Validate the actual compiled artifacts before making installation changes.
   Run 'node' @('tools/scripts/cluster-rc-preflight.mjs','--built') $source
   Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
@@ -566,6 +613,7 @@ try {
   }
   Remove-Item -LiteralPath (Join-Path $source 'SOURCE_FILE_MANIFEST.sha256') -Force
   Say "Pruned $pruned development-only files/directories from the installed runtime."
+  Say '[6/6] Applying validated files to the managed installation.'
   ApplyRevision $source $hash
   # Build staging has been consumed by the atomic apply. Eliminate redundant
   # copies to avoid accumulating gigabytes over RC iterations.
