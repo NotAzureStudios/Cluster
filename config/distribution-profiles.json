@@ -48,10 +48,12 @@
       ],
       "buildCommand": "desktop:reconstruction:package",
       "artifacts": [
+        "apps/desktop-qt/release/Cluster-Desktop-Installer-{desktopVersion}-windows-x64.exe",
         "apps/desktop-qt/release/Cluster-Desktop-{version}-windows-x64.zip"
       ],
       "requiresDatabase": false,
-      "includesServerRuntime": false
+      "includesServerRuntime": false,
+      "desktopNativeVersion": "0.482.0"
     },
     "web-responsive": {
       "product": "cluster-web",
