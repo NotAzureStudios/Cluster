@@ -10,7 +10,11 @@ const platform = process.platform === "win32" ? "windows" : process.platform ===
 const architecture = process.arch === "x64" ? "x64" : process.arch;
 const releaseRoot = path.join(root, "apps", "desktop-qt", "release");
 const deployed = path.join(releaseRoot, process.platform === "win32" ? "windows-x64" : `${process.platform}-${process.arch}`);
-const archive = path.join(releaseRoot, `Cluster-Desktop-${manifest.version}-${platform}-${architecture}.zip`);
+const nativeVersion = (JSON.parse(await readFile(path.join(root, "config", "toolchain-versions.json"), "utf8"))).desktop?.parityVersionHold;
+if (!/^\d+\.\d+\.\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop package version is not configured");
+// Desktop update semantics use the independently installed Qt application
+// version. The shared server source version is not a Desktop release version.
+const archive = path.join(releaseRoot, `Cluster-Desktop-${nativeVersion}-${platform}-${architecture}.zip`);
 
 function run(command, args, cwd = root) {
   const result = spawnSync(command, args, { cwd, stdio: "inherit", windowsHide: false, env: process.env });
@@ -51,7 +55,7 @@ console.log(`Cluster Qt Desktop portable package created: ${archive}`);
 // substitute a portable ZIP for an installable update.
 if (process.platform === "win32") {
   const versions = JSON.parse(await readFile(path.join(root, "config", "toolchain-versions.json"), "utf8"));
-  const nativeVersion = versions.desktop?.parityVersionHold;
+  if (versions.desktop?.parityVersionHold !== nativeVersion) throw new Error("Desktop native version drifted during packaging");
   if (!/^\d+\.\d+\.\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop version hold is invalid");
   const cmakeSource = readFileSync(path.join(root, "apps", "desktop-qt", "CMakeLists.txt"), "utf8");
   if (!cmakeSource.includes(`project(ClusterDesktop VERSION ${nativeVersion} LANGUAGES CXX)`)) {
