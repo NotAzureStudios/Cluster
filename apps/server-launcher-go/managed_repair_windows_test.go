@@ -33,7 +33,7 @@ func TestManagedRepairPlansOnlyMissingWorkspaceJunctions(t *testing.T) {
 	if err:=os.Mkdir(untrusted,0755);err!=nil {t.Fatal(err)}
 	proof:=filepath.Join(untrusted,"keep-me")
 	if err:=os.WriteFile(proof,[]byte("user data"),0600);err!=nil {t.Fatal(err)}
-	if _,err:=prepareManagedWorkspaceLinks(root);err==nil || !strings.Contains(err.Error(),"refusing to replace") {
+	if _,err:=prepareManagedWorkspaceLinks(root);err==nil || !strings.Contains(err.Error(),"unexpected link") {
 		t.Fatalf("physical directory was accepted for replacement: %v",err)
 	}
 	if b,err:=os.ReadFile(proof);err!=nil || string(b)!="user data" {t.Fatal("foreign directory mutated")}
