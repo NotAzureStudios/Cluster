@@ -5,6 +5,7 @@ This repository is the **private source repository** `NotAzureStudios/Cluster`. 
 ## Branch roles
 
 - **`development`**: the authoritative **ongoing integration branch** for code work, cleanup and source imports.
+- **`client/web`, `client/desktop-qt`, `server/windows`, `platform/shared`**: maintained client/platform work lanes. Base new work on the current `development` tip and submit reviewed PRs back to `development`; these are not permanent source forks.
 - **`main`**: the reviewed integration/release baseline, retained as GitHub's default landing branch.
 - **`feature/*`, `fix/*`, `chore/*`, `import/*`**: optional short-lived work branches based on `development`, targeting `development` by pull request.
 
@@ -35,4 +36,4 @@ Publish binaries and installer ZIPs as **version-matched, verified release artif
 
 At the time of this workflow update, `config/release-candidate.json` identifies **1.0.0-rc.50**. Later RC73 and RC74 source bundles exist outside GitHub and **have not yet been integrated**. Do not automatically overwrite the repository with an archive. The absence of `package-lock.json` is a known reproducibility blocker.
 
-See [source snapshot hygiene](SOURCE_SNAPSHOT_HYGIENE.md) for import safeguards.
+See [client branch ownership and 1.0 gates](CLIENT_BRANCHES_1_0.md) and [source snapshot hygiene](SOURCE_SNAPSHOT_HYGIENE.md) for workflow and import safeguards.
