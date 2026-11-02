@@ -1,9 +1,9 @@
 # Cluster 1.0 release readiness checklist
 
-This checklist is for **future certification**. It does not mean any release candidate has passed. The current GitHub source is RC50 until a newer verified source import is merged.
+This checklist is for **future certification**. It does not mean any release candidate has passed. GitHub `development` is the source of truth, currently identified as RC50. No historical ZIP import or nonexistent RC74 reconciliation is required.
 
 ## 1. Reproducible source and build
-- [ ] Correct candidate source is integrated and diff-reviewed on `development`
+- [ ] Intended release commit and its focused changes are reviewed on `development`
 - [ ] Toolchain versions and package manifests agree
 - [ ] `package-lock.json` is generated, verified and committed
 - [ ] Clean `npm ci` succeeds on pinned Node/npm
