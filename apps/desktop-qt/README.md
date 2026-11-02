@@ -29,6 +29,14 @@ npm.cmd run desktop:setup
 npm.cmd run desktop:package
 ```
 
+## Independent Windows Desktop installer
+
+`npm run desktop:reconstruction:package` produces the portable Desktop ZIP **and**, on Windows, an independent CPack/NSIS `Cluster-Desktop-Installer-0.482.0-windows-x64.exe`. This is a **Desktop-only** installer. Its native version remains on the `0.482.0` parity hold until Qt release certification.
+
+The Desktop updater accepts only `cluster-desktop` signed manifests with compatible Windows/x64 artifacts named `Cluster-Desktop-*`. It cannot use the Windows Server `main` or `development` installer feed. Desktop update channels are `stable` and `beta` and must be signed with the appropriate release-publisher key. The current updater requires a verified rollback installer before launching a new Desktop installer.
+
+NSIS, CMake/CPack, Qt 6.11.2 and the pinned Go/Workstation dependencies are necessary for a distributable build. If a native installer cannot be produced, packaging **fails** rather than passing off a portable ZIP as a self-updater. Actual Windows installation, app-close/relaunch, health acknowledgement and rollback must be exercised before labeling this certified.
+
 ## Native notifications
 
 Cluster Desktop uses the authenticated shared renderer to read `/api/notifications`, then passes only bounded presentation metadata through the allowlisted native capability broker. Notification delivery honors Cluster notification preferences, suppresses duplicate tags and non-critical foreground toasts, and routes notification clicks back into the relevant Cluster workspace. See `docs/DESKTOP_NATIVE_NOTIFICATIONS.md`.
