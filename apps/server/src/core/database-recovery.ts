@@ -96,8 +96,9 @@ export async function runDatabaseRestoreDrill(input: {
   const drillUrl = drillDatabaseUrl(input.databaseUrl, databaseName);
   const maintenanceEnv = postgresEnvironment(maintenanceUrl);
   let created = false;
+  let restoreError: unknown = null;
   try {
-    await command("psql", ["--no-psqlrc", "--command", `CREATE DATABASE ${sqlIdentifier(databaseName)} TEMPLATE template0;`], maintenanceEnv, COMMAND_TIMEOUT_MS, input.signal);
+    await command("psql", ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--command", `CREATE DATABASE ${sqlIdentifier(databaseName)} TEMPLATE template0;`], maintenanceEnv, COMMAND_TIMEOUT_MS, input.signal);
     created = true;
     await command("pg_restore", ["--exit-on-error", "--no-owner", "--no-privileges", input.dumpPath], postgresEnvironment(drillUrl), COMMAND_TIMEOUT_MS, input.signal);
     const snapshot = await databaseRecoverySnapshot(drillUrl, input.signal);
@@ -111,9 +112,18 @@ export async function runDatabaseRestoreDrill(input: {
       if (restored !== expected) mismatches.push("migration history mismatch");
     }
     return { ok: mismatches.length === 0, databaseName, snapshot, mismatches };
+  } catch (error) {
+    restoreError = error;
+    throw error;
   } finally {
     if (created) {
-      await command("psql", ["--no-psqlrc", "--command", `DROP DATABASE IF EXISTS ${sqlIdentifier(databaseName)} WITH (FORCE);`], maintenanceEnv, COMMAND_TIMEOUT_MS).catch(() => undefined);
+      try {
+        await command("psql", ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--command",
+          `DROP DATABASE IF EXISTS ${sqlIdentifier(databaseName)} WITH (FORCE);`], maintenanceEnv, COMMAND_TIMEOUT_MS);
+      } catch (cleanupError) {
+        if (restoreError) throw new AggregateError([restoreError, cleanupError], "PostgreSQL restore drill and temporary database cleanup both failed.");
+        throw new Error(`PostgreSQL restore drill cleanup failed; inspect temporary database ${databaseName}.`, { cause: cleanupError });
+      }
     }
   }
 }
