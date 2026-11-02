@@ -192,7 +192,12 @@ export function createResourceAuthorizationBoundary(deps: { prisma: any; authori
           reply.code(404).send({ ok: false, code: "RESOURCE_NOT_FOUND", error: "Schedule block not found." });
           return false;
         }
-        if (method !== "GET" && !(await authorization.requireUserScope(request, reply, { ownerUserId: block.userId, tool: "scheduler", minimum: "edit", allowUnowned: true }))) return false;
+        // Projectless blocks are personal Scheduler resources. A direct GET
+        // must not bypass their owner scope simply because no project target
+        // exists. Project-scoped reads retain team/project visibility rules.
+        const personalRead = !block.project && ["GET", "HEAD"].includes(method);
+        if ((personalRead || !["GET", "HEAD"].includes(method)) &&
+          !(await authorization.requireUserScope(request, reply, { ownerUserId: block.userId, tool: "scheduler", minimum: personalRead ? "view" : "edit", allowUnowned: true }))) return false;
         if (block.project && !(await authorization.requireTarget(request, reply, "schedule", block.id, block.project, minimum))) return false;
       }
     }
