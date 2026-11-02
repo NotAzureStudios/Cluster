@@ -12,7 +12,7 @@ import {
 } from "pdfjs-dist";
 import type { TextContent, TextItem } from "pdfjs-dist/types/src/display/api";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
@@ -20,6 +20,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { runtimeStyle } from "../../core/runtime-style";
 import { copyClusterText } from "../../core/clipboard";
 import { ViewerOverlayLayer } from "./ViewerOverlayLayer";
+import { pdfPageIndexAtOffset, pdfPageOffsets, type PdfPageDimensions } from "./pdf-page-layout";
 import { ViewerShell } from "./ViewerShell";
 import { ViewerState } from "./ViewerState";
 import { useViewerAssetSession } from "./use-viewer-asset-session";
@@ -174,6 +175,7 @@ function PdfPageSurface({
   onCoordinate,
   onDraft,
   onSelection,
+  onPageSize,
   canCopyText,
 }: {
   pdf: PDFDocumentProxy;
@@ -188,9 +190,11 @@ function PdfPageSurface({
   onCoordinate: (coordinate: PdfCoordinate | null) => void;
   onDraft: (draft: DraftPdfAnnotation | null) => void;
   onSelection: (text: string) => void;
+  onPageSize: (page: number, size: PdfPageDimensions) => void;
   canCopyText: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pendingCanvasRenderRef = useRef<Promise<void>>(Promise.resolve());
   const textRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragAnnotation | null>(null);
   const [page, setPage] = useState<PDFPageProxy | null>(null);
@@ -204,30 +208,48 @@ function PdfPageSurface({
     setFailed(false);
     setPage(null);
     setTextContent(null);
-    void pdf.getPage(pageNumber).then(async (nextPage) => {
-      const nextText = await nextPage.getTextContent();
+    void pdf.getPage(pageNumber).then((nextPage) => {
       if (cancelled) return;
+      // Text extraction is optional. Failed extraction must not block rendering.
       setPage(nextPage);
-      setTextContent(nextText);
+      const dimensions = nextPage.getViewport({ scale: 1, rotation: 0 });
+      onPageSize(pageNumber, { width: dimensions.width, height: dimensions.height });
+      void nextPage.getTextContent().then((nextText) => {
+        if (!cancelled) setTextContent(nextText);
+      }).catch(() => undefined);
     }).catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, [pageNumber, pdf, renderAttempt]);
+  }, [pageNumber, pdf, renderAttempt, onPageSize]);
 
   useEffect(() => {
     if (!page || !canvasRef.current) return;
+    const canvas = canvasRef.current;
     const viewport = page.getViewport({ scale, rotation });
     setSize({ width: viewport.width, height: viewport.height });
-    const canvas = canvasRef.current;
-    const outputScale = boundedPdfOutputScale(viewport.width, viewport.height, VIEWER_CLIENT_RESOURCE_BUDGETS.maxPdfCanvasPixels);
-    canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
-    canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
-    canvas.style.width = `${viewport.width}px`;
-    canvas.style.height = `${viewport.height}px`;
-    const context = canvas.getContext("2d", { alpha: false });
-    if (!context) return;
-    const task = page.render({ canvas, canvasContext: context, viewport, transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0] });
-    void task.promise.catch((error) => { if (error?.name !== "RenderingCancelledException") setFailed(true); });
-    return () => task.cancel();
+    let cancelled = false;
+    let task: ReturnType<PDFPageProxy["render"]> | null = null;
+    // PDF.js cancellation is asynchronous. Wait for the previous render to
+    // settle before resizing or repainting this same canvas.
+    const previous = pendingCanvasRenderRef.current;
+    const render = async () => {
+      await previous;
+      if (cancelled) return;
+      const outputScale = boundedPdfOutputScale(viewport.width, viewport.height, VIEWER_CLIENT_RESOURCE_BUDGETS.maxPdfCanvasPixels);
+      canvas.width = Math.max(1, Math.floor(viewport.width * outputScale));
+      canvas.height = Math.max(1, Math.floor(viewport.height * outputScale));
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) { if (!cancelled) setFailed(true); return; }
+      try {
+        task = page.render({ canvas, canvasContext: context, viewport, transform: outputScale === 1 ? undefined : [outputScale, 0, 0, outputScale, 0, 0] });
+        await task.promise;
+      } catch (error: any) {
+        if (!cancelled && error?.name !== "RenderingCancelledException") setFailed(true);
+      }
+    };
+    pendingCanvasRenderRef.current = render();
+    return () => { cancelled = true; task?.cancel(); };
   }, [page, rotation, scale]);
 
   useEffect(() => {
@@ -351,6 +373,7 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
   const scope = useViewerResourceScope();
   const source = useMemo(() => resolveViewerResourceSource(session.resource), [session.resource]);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const previousOffsetsRef = useRef<number[] | null>(null);
   const railRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
@@ -361,7 +384,8 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
   const [password, setPassword] = useState("");
   const [pageCount, setPageCount] = useState(0);
   const [activePage, setActivePage] = useState(1);
-  const [pageSize, setPageSize] = useState({ width: 612, height: 792 });
+  const [pageSize, setPageSize] = useState<PdfPageDimensions>({ width: 612, height: 792 });
+  const [pageDimensions, setPageDimensions] = useState<Record<number, PdfPageDimensions>>({});
   const [viewport, setViewport] = useState({ width: 900, height: 700 });
   const [fitMode, setFitMode] = useState<PdfFitMode>("width");
   const [customScale, setCustomScale] = useState(1);
@@ -395,6 +419,9 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
     setError("");
     setPdf(null);
     setPageCount(0);
+    setPageSize({ width: 612, height: 792 });
+    setPageDimensions({});
+    setActivePage(1);
     setPageTexts([]);
     setOutline([]);
     setIndexTruncated(false);
@@ -416,12 +443,18 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
       }
       setPdf(document);
       setPageCount(document.numPages);
-      const first = await document.getPage(1);
-      const firstViewport = first.getViewport({ scale: 1 });
-      if (active) setPageSize({ width: firstViewport.width, height: firstViewport.height });
-      const rawOutline = await document.getOutline().catch(() => null);
-      if (active) setOutline(flattenOutline(rawOutline));
-      if (active) setState("ready");
+      // Opening must not wait on metadata, outline extraction, or a slow first
+      // page before allowing the viewer to display the available document.
+      setState("ready");
+      void document.getPage(1).then((first) => {
+        if (!active) return;
+        const firstViewport = first.getViewport({ scale: 1, rotation: 0 });
+        setPageSize({ width: firstViewport.width, height: firstViewport.height });
+        setPageDimensions((current) => ({ ...current, 1: { width: firstViewport.width, height: firstViewport.height } }));
+      }).catch(() => undefined);
+      void document.getOutline().then((rawOutline) => {
+        if (active) setOutline(flattenOutline(rawOutline));
+      }).catch(() => undefined);
     }).catch((reason) => {
       if (!active) return;
       setState("error");
@@ -446,27 +479,52 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
     return () => observer.disconnect();
   }, [pdf, railOpen]);
 
+  const recordPageSize = useCallback((pageNumber: number, size: PdfPageDimensions) => {
+    if (!Number.isFinite(size.width) || !Number.isFinite(size.height) || size.width <= 0 || size.height <= 0) return;
+    setPageDimensions((current) => {
+      const previous = current[pageNumber];
+      if (previous?.width === size.width && previous?.height === size.height) return current;
+      return { ...current, [pageNumber]: size };
+    });
+  }, []);
+
   const rotated = rotation % 180 !== 0;
   const baseWidth = rotated ? pageSize.height : pageSize.width;
   const baseHeight = rotated ? pageSize.width : pageSize.height;
   const widthScale = clamp((viewport.width - (railOpen ? 32 : 52)) / Math.max(baseWidth, 1), PDF_MIN_SCALE, PDF_MAX_SCALE);
   const pageScale = clamp(Math.min(widthScale, (viewport.height - 52) / Math.max(baseHeight, 1)), PDF_MIN_SCALE, PDF_MAX_SCALE);
   const scale = fitMode === "width" ? widthScale : fitMode === "page" ? pageScale : customScale;
-  const pageStride = Math.max(64, baseHeight * scale + 52);
+  const pageOffsets = useMemo(() => pdfPageOffsets(pageCount, pageSize, pageDimensions, scale, rotation), [pageCount, pageSize, pageDimensions, scale, rotation]);
   const scroller = scrollerRef.current;
   const scrollTop = scroller?.scrollTop || 0;
-  const firstVisibleIndex = clamp(Math.floor(scrollTop / pageStride), 0, Math.max(0, pageCount - 1));
-  const visibleCount = Math.max(1, Math.ceil(viewport.height / pageStride));
+  const firstVisibleIndex = pdfPageIndexAtOffset(pageOffsets, scrollTop);
+  const lastVisibleIndex = pdfPageIndexAtOffset(pageOffsets, scrollTop + viewport.height);
   const renderStart = Math.max(0, firstVisibleIndex - PDF_RENDER_WINDOW);
-  const renderEnd = Math.min(pageCount, firstVisibleIndex + visibleCount + PDF_RENDER_WINDOW + 1);
+  const renderEnd = Math.min(pageCount, lastVisibleIndex + PDF_RENDER_WINDOW + 1);
+  // Anchor the scroller to the same page when actual page measurements arrive,
+  // or when zoom/rotation changes the virtual PDF geometry.
+  useLayoutEffect(() => {
+    const previous = previousOffsetsRef.current;
+    previousOffsetsRef.current = pageOffsets;
+    const node = scrollerRef.current;
+    if (!node || !previous || previous.length !== pageOffsets.length || previous === pageOffsets) return;
+    const currentTop = node.scrollTop;
+    const pageIndex = pdfPageIndexAtOffset(previous, currentTop);
+    const correctedTop = pageOffsets[pageIndex] + Math.max(0, currentTop - previous[pageIndex]);
+    if (Math.abs(correctedTop - currentTop) < 0.5) return;
+    const behavior = node.style.scrollBehavior;
+    node.style.scrollBehavior = "auto";
+    node.scrollTop = correctedTop;
+    node.style.scrollBehavior = behavior;
+  }, [pageOffsets]);
   const renderPages = useMemo(() => Array.from({ length: Math.max(0, renderEnd - renderStart) }, (_, index) => renderStart + index + 1), [renderEnd, renderStart]);
 
   const goToPage = useCallback((requested: number) => {
     const next = clamp(Math.round(requested || 1), 1, Math.max(1, pageCount));
     setActivePage(next);
     const node = scrollerRef.current;
-    if (node) node.scrollTo({ top: (next - 1) * pageStride, behavior: document.documentElement.dataset.motion === "reduced" ? "auto" : "smooth" });
-  }, [pageCount, pageStride]);
+    if (node) node.scrollTo({ top: pageOffsets[next - 1], behavior: document.documentElement.dataset.motion === "reduced" ? "auto" : "smooth" });
+  }, [pageCount, pageOffsets]);
 
   const searchHits = useMemo(() => buildSearchHits(pageTexts, searchQuery), [pageTexts, searchQuery]);
   const comments = reviewComments(session.asset);
@@ -645,12 +703,12 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
       <div className={compareSession ? "cluster-static-pdf-comparison-grid" : "cluster-static-pdf-comparison-grid single"}>
         <div ref={scrollerRef} className="cluster-static-pdf-scroll" onScroll={(event) => {
           const node = event.currentTarget;
-          const page = clamp(Math.floor((node.scrollTop + node.clientHeight * 0.35) / pageStride) + 1, 1, pageCount);
+          const page = clamp(pdfPageIndexAtOffset(pageOffsets, node.scrollTop + node.clientHeight * 0.35) + 1, 1, pageCount);
           setActivePage(page);
         }}>
-          <div style={runtimeStyle({ height: renderStart * pageStride })} />
-          {renderPages.map((pageNumber) => <PdfPageSurface key={pageNumber} pdf={pdf} pageNumber={pageNumber} scale={scale} rotation={rotation} active={activePage === pageNumber} searchQuery={searchQuery} annotations={visibleOverlayIds.includes("review.annotations") || visibleOverlayIds.includes("pdf.review_markers") ? comments : []} annotationMode={annotationMode} draft={draft} onCoordinate={setCoordinate} onDraft={setDraft} onSelection={setSelectedText} canCopyText={Boolean(session.capabilities.copyText)} />)}
-          <div style={runtimeStyle({ height: Math.max(0, (pageCount - renderEnd) * pageStride) })} />
+          <div style={runtimeStyle({ height: pageOffsets[renderStart] })} />
+          {renderPages.map((pageNumber) => <PdfPageSurface key={pageNumber} pdf={pdf} pageNumber={pageNumber} scale={scale} rotation={rotation} active={activePage === pageNumber} searchQuery={searchQuery} annotations={visibleOverlayIds.includes("review.annotations") || visibleOverlayIds.includes("pdf.review_markers") ? comments : []} annotationMode={annotationMode} draft={draft} onCoordinate={setCoordinate} onDraft={setDraft} onSelection={setSelectedText} onPageSize={recordPageSize} canCopyText={Boolean(session.capabilities.copyText)} />)}
+          <div style={runtimeStyle({ height: Math.max(0, pageOffsets[pageCount] - pageOffsets[renderEnd]) })} />
         </div>
         {compareSession ? <PdfComparisonSurface session={compareSession} pageNumber={activePage} scale={scale} rotation={rotation} /> : null}
       </div>

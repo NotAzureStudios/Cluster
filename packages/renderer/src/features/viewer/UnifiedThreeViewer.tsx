@@ -8,6 +8,7 @@ import { ClusterSlider } from "../../components/ClusterSlider";
 import { clusterApiFetch } from "@cluster/api-client";
 import { runtimeStyle } from "../../core/runtime-style";
 import { resolveViewerResourceSource, fetchViewerResourceResponse, absoluteViewerResourceUrl } from "./viewer-resource-loader";
+import { readBoundedViewerBlob } from "./bounded-viewer-blob";
 import { useViewerAssetSession } from "./use-viewer-asset-session";
 import { useReviewComparisonSession } from "./use-review-comparison-session";
 import { ViewerComparisonBar } from "./ViewerComparisonBar";
@@ -176,9 +177,7 @@ async function fetchBoundedBlob(url: string, declaredBytes = 0, signal?: AbortSi
   if (!response.ok) throw new Error(`Model asset request failed (${response.status}).`);
   const length = Number(response.headers.get("content-length") || 0);
   if (length > DEFAULT_RESOURCE_BUDGETS.maxModelSourceBytes) throw new Error(`Model response exceeds the ${humanBytes(DEFAULT_RESOURCE_BUDGETS.maxModelSourceBytes)} viewer source budget.`);
-  const blob = await response.blob();
-  if (blob.size > DEFAULT_RESOURCE_BUDGETS.maxModelSourceBytes) throw new Error(`Model response exceeds the ${humanBytes(DEFAULT_RESOURCE_BUDGETS.maxModelSourceBytes)} viewer source budget.`);
-  return blob;
+  return readBoundedViewerBlob(response, DEFAULT_RESOURCE_BUDGETS.maxModelSourceBytes);
 }
 
 async function loadObject(
@@ -1035,7 +1034,17 @@ export const UnifiedThreeViewer = forwardRef<UnifiedThreeViewerHandle, {
   const { controller: animationController, snapshot: animationSnapshot } = useTimedMediaController(`3d:${resourceIdentity}`);
   const { controller: compareAnimationController } = useTimedMediaController(`3d-compare:${compareIdentity}`);
   const { comparisonSession, comparison } = useReviewComparisonSession({ medium: "3d", userId, identity: resourceIdentity, enabled: Boolean(compareInput) });
-  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const currentSavedViewKey = assetSession.session ? savedViewsKey(userId, assetSession.session.resource.source.id) : null;
+  const [savedViewState, setSavedViewState] = useState<{ key: string | null; views: SavedView[] }>({ key: null, views: [] });
+  const savedViews = currentSavedViewKey && savedViewState.key === currentSavedViewKey ? savedViewState.views : [];
+  const setSavedViews = useCallback((update: SavedView[] | ((current: SavedView[]) => SavedView[])) => {
+    if (!currentSavedViewKey || !assetSession.session) return;
+    const resourceId = assetSession.session.resource.source.id;
+    setSavedViewState((current) => {
+      const previous = current.key === currentSavedViewKey ? current.views : loadSavedViews(userId, resourceId);
+      return { key: currentSavedViewKey, views: typeof update === "function" ? update(previous) : update };
+    });
+  }, [currentSavedViewKey, userId, assetSession.session?.resource.source.id]);
 
   useImperativeHandle(forwardedRef, () => ({
     fit: () => stageRef.current?.fit(),
@@ -1048,8 +1057,14 @@ export const UnifiedThreeViewer = forwardRef<UnifiedThreeViewerHandle, {
   useEffect(() => { activeAnimationIdRef.current = activeAnimationId; }, [activeAnimationId]);
 
   const setMode = useCallback((next: ViewerMode) => { setLocalMode(next); onModeChange?.(next); }, [onModeChange]);
-  useEffect(() => { if (assetSession.session) setSavedViews(loadSavedViews(userId, assetSession.session.resource.source.id)); }, [userId, assetSession.session?.resource.source.id]);
-  useEffect(() => { if (assetSession.session) saveSavedViews(userId, assetSession.session.resource.source.id, savedViews); }, [userId, assetSession.session?.resource.source.id, savedViews]);
+  useEffect(() => {
+    if (!currentSavedViewKey || !assetSession.session) return;
+    setSavedViewState({ key: currentSavedViewKey, views: loadSavedViews(userId, assetSession.session.resource.source.id) });
+  }, [currentSavedViewKey]);
+  useEffect(() => {
+    if (!currentSavedViewKey || savedViewState.key !== currentSavedViewKey || !assetSession.session) return;
+    saveSavedViews(userId, assetSession.session.resource.source.id, savedViewState.views);
+  }, [currentSavedViewKey, savedViewState, userId, assetSession.session?.resource.source.id]);
 
   const comments = reviewComments(assetSession.session?.asset);
   const pins = useMemo<SpatialPin[]>(() => comments.flatMap((comment) => {
