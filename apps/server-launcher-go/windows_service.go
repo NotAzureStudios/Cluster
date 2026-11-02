@@ -390,32 +390,71 @@ func runWindowsService(root string) error {
 	}
 	return nil
 }
+var errServiceHostUnexpectedExit = errors.New("Cluster Host exited without an SCM stop request")
+
+// Retry only AFTER a fully ready Host unexpectedly exits. Startup failures,
+// migration errors, network setup failures and deliberate stops never qualify.
+func serviceHostRecoveryDelay(err error, retries int) (time.Duration, bool) {
+	if !errors.Is(err, errServiceHostUnexpectedExit) {
+		return 0, false
+	}
+	switch retries {
+	case 0:
+		return 5 * time.Second, true
+	case 1:
+		return 20 * time.Second, true
+	default:
+		return 0, false
+	}
+}
+
 func runServiceManaged(ctx context.Context, root string, onReady func()) error {
 	reachedReady := false
-	err := runServiceManagedOnce(ctx, root, func() {
+	notifyReady := func() {
 		reachedReady = true
 		if onReady != nil {
 			onReady()
 		}
-	})
-	// Only a failed FIRST BOOT can trigger this rollback, never a later crash
-	// and never an intentional SCM stop. The exact protected config file must
-	// still match the committed staged snapshot, with no publication in flight.
-	if err == nil || reachedReady || ctx.Err() != nil {
-		return err
 	}
-	restored, rollbackErr := rollbackNativeNetworkDeployment(root)
-	if rollbackErr != nil {
-		recordLauncherEmergency(root, nativealerts.NetworkRollbackBlocked)
-		return fmt.Errorf("service startup failed: %w; guarded network rollback refused: %v", err, rollbackErr)
+	err := runServiceManagedOnce(ctx, root, notifyReady)
+	// Only a failed FIRST BOOT can trigger network-config rollback, never a
+	// later crash and never an intentional SCM stop. One guarded retry maximum.
+	if err != nil && !reachedReady && ctx.Err() == nil {
+		restored, rollbackErr := rollbackNativeNetworkDeployment(root)
+		if rollbackErr != nil {
+			recordLauncherEmergency(root, nativealerts.NetworkRollbackBlocked)
+			return fmt.Errorf("service startup failed: %w; guarded network rollback refused: %v", err, rollbackErr)
+		}
+		if restored {
+			recordLauncherEmergency(root, nativealerts.NetworkRollbackRestored)
+			err = runServiceManagedOnce(ctx, root, notifyReady)
+		}
 	}
-	if !restored {
-		return err
+	// Only a previously ready Host can qualify for crash recovery. The budget
+	// is fixed for this entire service lifetime, not reset by short uptimes.
+	for retries := 0; reachedReady && err != nil && ctx.Err() == nil; retries++ {
+		delay, allowed := serviceHostRecoveryDelay(err, retries)
+		if !allowed {
+			break
+		}
+		recordLauncherEmergency(root, nativealerts.HostUnexpectedExit)
+		fmt.Fprintf(os.Stderr, "Cluster Host crashed after readiness; recovery attempt %d/2 in %s.\n", retries+1, delay)
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() { select {case <-timer.C: default:} }
+			return nil
+		case <-timer.C:
+		}
+		reachedReady = false
+		err = runServiceManagedOnce(ctx, root, notifyReady)
+		// No loops for repeated boot failures, migration errors, or a host
+		// that never confirmed API and web readiness after this attempt.
+		if !reachedReady {
+			return err
+		}
 	}
-	recordLauncherEmergency(root, nativealerts.NetworkRollbackRestored)
-	// Retry ONCE using the previous exact config. Do not loop on bad hardware,
-	// unavailable storage, credentials, migrations, or missing dependencies.
-	return runServiceManagedOnce(ctx, root, onReady)
+	return err
 }
 
 func runServiceManagedOnce(ctx context.Context, root string, onReady func()) error {
@@ -561,7 +600,7 @@ func runServiceManagedOnce(ctx context.Context, root string, onReady func()) err
 	case err = <-done:
 		write(fmt.Sprintf("Host exited: %v", err))
 		if ctx.Err() == nil {
-			return fmt.Errorf("managed Cluster Host exited without a service stop request: %v", err)
+			return fmt.Errorf("%w: %v", errServiceHostUnexpectedExit, err)
 		}
 		return nil
 	case <-ctx.Done():
