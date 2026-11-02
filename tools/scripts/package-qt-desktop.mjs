@@ -1,5 +1,5 @@
 import { access, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
+import { readFileSync, openSync, readSync, closeSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadDesktopToolchain } from "./toolchain-lib.mjs";
@@ -52,7 +52,7 @@ console.log(`Cluster Qt Desktop portable package created: ${archive}`);
 if (process.platform === "win32") {
   const versions = JSON.parse(await readFile(path.join(root, "config", "toolchain-versions.json"), "utf8"));
   const nativeVersion = versions.desktop?.parityVersionHold;
-  if (!/^\\d+\\.\\d+\\.\\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop version hold is invalid");
+  if (!/^\d+\.\d+\.\d+$/.test(nativeVersion || "")) throw new Error("Native Desktop version hold is invalid");
   const cmakeSource = readFileSync(path.join(root, "apps", "desktop-qt", "CMakeLists.txt"), "utf8");
   if (!cmakeSource.includes(`project(ClusterDesktop VERSION ${nativeVersion} LANGUAGES CXX)`)) {
     throw new Error("Qt Desktop package identity must match its native CMake project version");
@@ -74,7 +74,10 @@ if (process.platform === "win32") {
     await rename(path.join(releaseRoot, executables[0]),installer);
   }
   await access(installer);
-  const mz = readFileSync(installer).subarray(0,2).toString("ascii");
+  const handle = openSync(installer, "r");
+  const header = Buffer.alloc(2);
+  try { readSync(handle, header, 0, 2, 0); } finally { closeSync(handle); }
+  const mz = header.toString("ascii");
   if (mz !== "MZ") throw new Error("Desktop installer is not a Windows PE executable");
   console.log(`Cluster Qt Desktop native installer created: ${installer}`);
 }
