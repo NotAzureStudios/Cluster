@@ -40,5 +40,10 @@ assert.match(logging, /func redactNativeLogLine/);
 assert.match(panel, /redactNativeLogLine\(scanner\.Text\(\)\)/);
 assert.match(panel, /rotateNativeSessionLog\(logPath, 32\*1024\*1024, 4\)/);
 assert.match(service, /rotateNativeSessionLog\(logPath, 32\*1024\*1024, 4\)/);
+assert.match(service, /errServiceHostUnexpectedExit/);
+assert.match(service, /serviceHostRecoveryDelay\(err, retries\)/);
+assert.match(service, /case 0:[\s\S]*?5 \* time.Second/);
+assert.match(service, /case 1:[\s\S]*?20 \* time.Second/);
+assert.match(service, /if !reachedReady \{/);
 
 console.log("PASS: managed release startup avoids npm and compiler, reuses installer Node, and protects native diagnostic logs");
