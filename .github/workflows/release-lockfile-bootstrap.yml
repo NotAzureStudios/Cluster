@@ -1,0 +1,50 @@
+name: Bootstrap validated npm lockfile (release workstream)
+
+on:
+  push:
+    branches: ['fix/1-0-reproducible-build']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cluster-bootstrap-lockfile-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout working branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Node.js 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Resolve workspace graph from public npm registry, if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f package-lock.json ]]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          node tools/scripts/cluster-release-lockfile-check.mjs
+      - name: Verify a fresh, immutable npm installation
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Commit validated lockfile only on this isolated branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- package-lock.json
+          if git diff --cached --quiet; then
+            echo 'Validated lockfile is already committed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "build: commit resolved npm workspace lockfile for reproducible releases"
+          git push origin HEAD:fix/1-0-reproducible-build
