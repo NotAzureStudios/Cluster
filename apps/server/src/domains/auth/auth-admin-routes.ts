@@ -183,13 +183,12 @@ app.put("/api/admin/users/:userId/password", async (request, reply) => {
   if (!target) return reply.code(404).send({ ok: false, error: "User not found." });
   if (!(await requireOwnerAuthorityForTarget(admin, target.id, reply))) return;
   if (target.archived || target.accountState === "PRIVACY_ERASED" || (target.accessExpiresAt && new Date(target.accessExpiresAt) <= new Date())) return reply.code(409).send({ ok: false, code: "PEOPLE_LIFECYCLE_GOVERNED", error: "Return or renew access through the governed People lifecycle before provisioning credentials." });
+  // The target account, never the administrator executing the action,
+  // determines whether a short password is allowed.
+  const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword(prisma, target.id);
   let password: string;
   try {
-    password = validateNewPassword(body.password, target, {
-      // The target account, not the administrator executing this action,
-      // determines whether a short password is allowed.
-      allowPrivilegedShortPassword: await mayUsePrivilegedShortPassword(prisma, target.id),
-    });
+    password = validateNewPassword(body.password, target, { allowPrivilegedShortPassword });
   } catch (error) {
     return reply.code(400).send({ ok: false, code: "PASSWORD_POLICY_REJECTED", error: error instanceof Error ? error.message : "Password does not meet account policy." });
   }
