@@ -2,6 +2,13 @@
 
 This checklist is for **future certification**. It does not mean any release candidate has passed. The current GitHub source is RC50 until a newer verified source import is merged.
 
+## 0. Cross-client integration
+- [ ] All active client/platform lanes are reconciled with `development` and reviewed for shared API/renderer drift
+- [ ] Web, Qt Desktop and Windows Server are built from the same candidate commit and version/protocol contract
+- [ ] Any non-shipping client is explicitly excluded with documentation; no silent parity claims
+- [ ] External RC73/RC74 sources are compared and imported only from a verified source archive
+- [ ] The historical `ReleaseCanidate` branch is not mistaken for a current release
+
 ## 1. Reproducible source and build
 - [ ] Correct candidate source is integrated and diff-reviewed on `development`
 - [ ] Toolchain versions and package manifests agree
@@ -30,4 +37,4 @@ This checklist is for **future certification**. It does not mean any release can
 - [ ] Candidate version and shipped artifacts match the tested revision
 - [ ] Only then create a release tag and publish verified installer artifacts
 
-**Do not** treat passing source-only CI as completion of any Windows runtime or release acceptance check. Track test evidence and known gaps in the release notes.
+See [client work lanes and 1.0 gates](CLIENT_BRANCHES_1_0.md). **Do not** treat passing source-only CI as completion of any Windows runtime or release acceptance check. Track test evidence and known gaps in the release notes.
