@@ -37,13 +37,31 @@ assert.match(panel, /runManagedDatabaseCommandContext\(context\.Background\(\), 
 
 assert.match(logging, /func rotateNativeSessionLog/);
 assert.match(logging, /func redactNativeLogLine/);
+assert.match(logging, /func openNativeLineLogWriter/);
+assert.match(logging, /nativeLogMaxLineBytes = 64 \* 1024/);
 assert.match(panel, /redactNativeLogLine\(scanner\.Text\(\)\)/);
-assert.match(panel, /rotateNativeSessionLog\(logPath, 32\*1024\*1024, 4\)/);
-assert.match(service, /rotateNativeSessionLog\(logPath, 32\*1024\*1024, 4\)/);
+assert.match(panel, /openNativeLineLogWriter\(logPath, 32\*1024\*1024, 4\)/);
+assert.match(service, /openNativeLineLogWriter\(logPath, 32\*1024\*1024, 4\)/);
 assert.match(service, /errServiceHostUnexpectedExit/);
 assert.match(service, /serviceHostRecoveryDelay\(err, retries\)/);
 assert.match(service, /case 0:[\s\S]*?5 \* time.Second/);
 assert.match(service, /case 1:[\s\S]*?20 \* time.Second/);
 assert.match(service, /if !reachedReady \{/);
 
-console.log("PASS: managed release startup avoids npm and compiler, reuses installer Node, and protects native diagnostic logs");
+const offline = source("apps/server-launcher-go/offline_diagnostics.go");
+const provision = source("apps/server-launcher-go/service_provision_windows.go");
+assert.match(main, /flag\.Bool\("diagnose"/);
+assert.match(main, /writeNativeOfflineDiagnostics\(os\.Stdout, report\)/);
+assert.match(panel, /collectNativeOfflineDiagnostics\(c\.options\.root\)/);
+assert.match(offline, /os\.Lstat/);
+assert.doesNotMatch(offline, /exec\.Command|os\.WriteFile|os\.RemoveAll|MkdirAll/);
+assert.match(provision, /"icacls\.exe"/);
+assert.match(provision, /"\/grant:r"/);
+assert.doesNotMatch(provision, /"\/T"|LocalSystem/);
+assert.match(service, /provisionClusterServiceWorkspace\(root\)/);
+assert.match(runtime, /inspectEmbeddedPostgresData\(data\)/);
+assert.match(runtime, /publishNewPostgresDataDirectory\(temporary, data\)/);
+const postgresInit = runtime.split("func ensureDatabase(root string)")[1]?.split("if !portFree(port)")[0];
+assert.ok(postgresInit, "Windows PostgreSQL boot path missing");
+assert.doesNotMatch(postgresInit, /stageRuntimeDirectory\(temporary, data\)|os\.RemoveAll\(temporary\)/);
+console.log("PASS: native managed startup, offline diagnostics, data-preserving PostgreSQL init, scoped service provisioning, and rolling logs");
