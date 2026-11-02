@@ -2,7 +2,7 @@ name: Git source hygiene
 
 on:
   push:
-    branches: [development, main]
+    branches: [development, main, 'client/**', 'server/**', 'platform/**']
   pull_request:
     branches: [development, main]
 
