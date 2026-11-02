@@ -547,11 +547,12 @@ app.post("/api/auth/session-password", async (request, reply) => {
       password: z.string().min(PRIVILEGED_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
     })
     .parse(request.body);
+  // A database lookup failure is a server error, not a client password
+  // validation error. Never display database internals as password feedback.
+  const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword(prisma, user.id);
   let password = "";
   try {
-    password = validateNewPassword(body.password, user, {
-      allowPrivilegedShortPassword: await mayUsePrivilegedShortPassword(prisma, user.id),
-    });
+    password = validateNewPassword(body.password, user, { allowPrivilegedShortPassword });
   } catch (error) {
     return reply.code(400).send({
       ok: false,
