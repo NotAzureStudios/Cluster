@@ -328,7 +328,7 @@ function AssertInstallPreflight() {
     Say ("Preflight: {0:N1} GiB free on {1}; source-build minimum 4.0 GiB." -f ($drive.AvailableFreeSpace / 1GB), $root)
   } catch {
     if ($_.Exception.Message -match 'Not enough free space|not ready|Could not resolve') { throw }
-    Fail "Cannot inspect installation drive $root: $($_.Exception.Message)"
+    Fail "Cannot inspect installation drive ${root}: $($_.Exception.Message)"
   }
   $probe = Join-Path $WorkRoot ('.cluster-write-test-' + [guid]::NewGuid().ToString('N'))
   try {
