@@ -26,21 +26,19 @@ func rotateNativeSessionLog(path string, maxBytes int64, backups int) error {
 	if info.Size() < maxBytes {
 		return nil
 	}
-	for index := backups; index >= 1; index-- {
-		target := fmt.Sprintf("%s.%d", path, index)
-		if index == backups {
-			if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+	oldest := fmt.Sprintf("%s.%d", path, backups)
+	if err := os.Remove(oldest); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	for index := backups - 1; index >= 1; index-- {
+		source := fmt.Sprintf("%s.%d", path, index)
+		target := fmt.Sprintf("%s.%d", path, index+1)
+		if _, err := os.Lstat(source); err == nil {
+			if err := os.Rename(source, target); err != nil {
 				return err
 			}
-		} else {
-			source := fmt.Sprintf("%s.%d", path, index)
-			if _, err := os.Lstat(source); err == nil {
-				if err := os.Rename(source, target); err != nil {
-					return err
-				}
-			} else if !os.IsNotExist(err) {
-				return err
-			}
+		} else if !os.IsNotExist(err) {
+			return err
 		}
 	}
 	return os.Rename(path, path+".1")
