@@ -58,3 +58,15 @@ If compiled application files or dependencies are damaged, **reapply a verified 
 If the PostgreSQL data directory is missing, has the wrong major version, or lacks `PG_VERSION`, stop. Recover the data from verified backups first. A fresh empty database is **not** a repair.
 
 Successful self-repair means the installed artifacts pass local admission only. Start Cluster deliberately and confirm API readiness, PostgreSQL health, file downloads, and Library access. Windows service-mode recovery, backup/restore and installer reapplication must still be tested on a real Windows installation.
+
+### Exact-revision installer repair for damaged application files
+
+If the native Manager reports **application payload blocked**, use the **verified prebuilt Cluster-Installer.exe for the exact installed release** and invoke:
+
+```powershell
+& '.\Cluster-Installer.exe' --repair
+```
+
+The installer verifies its bundled release identity against the installed `archiveSha256` and release sequence. It must match **exactly**; it will not downgrade, upgrade, or compile on the repair path. It then validates the embedded archive, rebuilds application files in staging, publishes them into the same managed installation, and preserves `data`, `runtime`, and the original server `.env` file. It keeps the existing rollback snapshot of application files and **does not automatically start the server**. A missing `.env` blocks the operation instead of silently regenerating secrets.
+
+Do not delete the installation folder. Do not run an unverified or different-release installer under the `--repair` flag. Back up the data before performing a full application-file repair and then test startup deliberately.

@@ -135,6 +135,12 @@ func chooseEmbeddedRevision(installed, embedded string, installedSequence, candi
 	return installed != embedded && candidateSequence > installedSequence
 }
 
+// Explicit same-revision repair cannot silently change release sequence or
+// apply a different source archive. Normal updates remain separate actions.
+func sameReleaseRepairAllowed(installed bool, installedHash, embeddedHash string, installedSequence, embeddedSequence int) bool {
+	return installed && strings.EqualFold(installedHash, embeddedHash) && installedSequence == embeddedSequence
+}
+
 func managedDirectory(executable string) string {
 	// A single portable root beside the executable. Example:
 	// D:\Cluster-Server\Cluster-Installer.exe -> D:\Cluster-Server\Cluster
@@ -225,7 +231,7 @@ func run() error {
 	}
 	embeddedDigest := sha256.Sum256(bundled)
 	embeddedHash := hex.EncodeToString(embeddedDigest[:])
-	if repairSameRelease && (!installed || installedHash != embeddedHash || installedSeq != identity.Sequence) {
+	if repairSameRelease && !sameReleaseRepairAllowed(installed, installedHash, embeddedHash, installedSeq, identity.Sequence) {
 		return errors.New("in-place repair requires an installed revision matching this exact prebuilt installer; never downgrade or replace a different revision as repair")
 	}
 	var archive string
