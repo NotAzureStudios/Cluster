@@ -6,7 +6,7 @@ This repository is the **private source repository** `NotAzureStudios/Cluster`. 
 
 - **`development`**: the authoritative **ongoing integration branch** for code work, cleanup and source imports.
 - **`main`**: the reviewed integration/release baseline, retained as GitHub's default landing branch.
-- **`feature/*`, `fix/*`, `chore/*`, `import/*`**: optional short-lived work branches based on `development`, targeting `development` by pull request.
+- **`feature/*`, `fix/*`, `chore/*`, `import/*`**: optional **temporary** work branches based on `development`, targeting `development` by pull request. Once their PR merges, the branch is automatically pruned by `.github/workflows/cluster-branch-housekeeping.yml`. **Only `main` and `development` are permanent branches.**
 
 Prefer reviewable PRs. Normal development does **not** push to `main`; do not force-update `development` or `main`. Promote changes from `development` to `main` only after relevant checks and review. GitHub branch protection and required checks should be configured in Settings separately; documenting a policy does **not** enforce it.
 
