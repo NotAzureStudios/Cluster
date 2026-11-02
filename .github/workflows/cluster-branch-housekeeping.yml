@@ -1,0 +1,54 @@
+name: Cluster branch housekeeping
+
+# Legacy cleanup is only triggered when this reviewed workflow is introduced
+# or updated on main. Individual merged PR heads are cleaned automatically.
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/cluster-branch-housekeeping.yml]
+  pull_request:
+    types: [closed]
+    branches: [development, main]
+
+permissions:
+  contents: write
+
+jobs:
+  clean-up:
+    if: github.repository == 'NotAzureStudios/Cluster' && (github.event_name == 'push' || github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted main branch code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Validate allowlist before repository mutations
+        shell: bash
+        run: |
+          if test -f tools/scripts/cluster-github-branch-prune.mjs; then
+            node tools/scripts/cluster-github-branch-prune.mjs --check
+          else
+            echo "Branch cleanup script not installed on main yet."
+          fi
+      - name: Archive and prune retired branches
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/scripts/cluster-github-branch-prune.mjs --retired
+      - name: Delete only the head of a successfully merged task PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if test -f tools/scripts/cluster-github-branch-prune.mjs; then
+            node tools/scripts/cluster-github-branch-prune.mjs --merged-pr
+          else
+            echo "Branch auto-pruning begins once the reviewed workflow is merged to main."
+          fi
