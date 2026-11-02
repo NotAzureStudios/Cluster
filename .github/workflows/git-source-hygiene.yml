@@ -38,6 +38,7 @@ jobs:
       - name: Canonical Qt journal and deprecated-path gate
         run: |
           node tools/scripts/cluster-compatibility-fossil-tests.mjs
+          node --check tools/scripts/database-command.mjs
           node tools/scripts/cluster-g26-multiwindow-transfer-ownership-tests.mjs
       - name: Durable upload active pause and safe resume
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-upload-live-pause-tests.mjs

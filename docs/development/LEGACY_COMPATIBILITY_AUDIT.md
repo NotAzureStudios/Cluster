@@ -12,6 +12,7 @@ This initial pass removes a positively identified old Qt journal migration fallb
 - **Journal import/removal branch:** `migrateLegacy` and its one-time re-save/delete handling. The current `<profileDataRoot>/transfers/transfers-<scope-hash>.json` journal remains the only authority.
 - **Historical ownership assertion:** A G26 test used to demand the presence of the legacy migration branch. It now checks that the canonical journal is loaded and damaged journals remain blocked.
 - **Outdated explanatory copy:** Queue admission no longer describes oversized journals as legacy imports. The protective nontruncation behavior remains because it is a **current safety guarantee**, not backward compatibility.
+- **RC3-specific PostgreSQL repair:** Removed the `recoverRc3MeetingOccurrenceMigration` hook from normal database deploy/release, its one-off `migration-recovery.mjs` helper and its dedicated `cluster-rc4-migration-tests.mjs` test. This repair existed solely to heal the 63-byte index-name collision in a historical RC3 deployment, and Cluster has no production database requiring that compatibility. Fresh deploy still requires the migrations directory and runs Prisma `migrate deploy`. The actual schema and migrations are not removed.
 
 ## Audited and retained
 
@@ -31,6 +32,7 @@ This initial pass removes a positively identified old Qt journal migration fallb
 ```sh
 node tools/scripts/cluster-compatibility-fossil-tests.mjs
 node tools/scripts/cluster-g26-multiwindow-transfer-ownership-tests.mjs
+node --check tools/scripts/database-command.mjs
 ```
 
 The regression guard asserts absence of the retired path and preservation of current canonical journal ownership and Package transport paths. This is a source contract test, **not** a successful Qt build or Windows crash-recovery test.

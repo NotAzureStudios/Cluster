@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 const source = (path) => readFileSync(new URL("../../" + path, import.meta.url), "utf8");
 const qt = source("apps/desktop-qt/src/TransferManager.cpp");
 const header = source("apps/desktop-qt/src/TransferManager.h");
@@ -30,3 +30,20 @@ assert.match(packageUI, /downloadPackageSegmentsToSink\(/,
 assert.match(packageClient, /export async function downloadPackageSegmentsToSink\(/);
 assert.match(packageClient, /export async function downloadPackageSegments\(/);
 console.log("PASS: legacy Qt journal path retired, canonical safety guards intact, active Package transports preserved");
+
+const databaseCommand = source("tools/scripts/database-command.mjs");
+assert.doesNotMatch(databaseCommand, /recoverRc3MeetingOccurrenceMigration|migration-recovery\.mjs|migrate", "resolve"/,
+  "database deploy must not run RC3-only migration repair");
+const deployStart = databaseCommand.indexOf('} else if (["deploy", "release"].includes(action)) {');
+assert.notEqual(deployStart, -1, "deploy and release must use the canonical Prisma workflow");
+const deployEnd = databaseCommand.indexOf("} else {", deployStart);
+assert.ok(deployEnd > deployStart, "the deploy branch must end normally");
+const deployBranch = databaseCommand.slice(deployStart, deployEnd);
+assert.match(deployBranch, /await requireMigrationHistory\(\);/,
+  "deploy must still verify migration history");
+assert.match(deployBranch, /await run\(process\.execPath, \[prismaCli, "migrate", "deploy", \.\.\.prismaArgs\]\);/,
+  "deploy must call canonical Prisma migrate deploy");
+for (const removed of ["tools/scripts/migration-recovery.mjs", "tools/scripts/cluster-rc4-migration-tests.mjs"]) {
+  assert.equal(existsSync(new URL("../../" + removed, import.meta.url)), false, removed + " must be retired");
+}
+console.log("PASS: no RC3-only database recovery path remains in live startup");
