@@ -20,6 +20,24 @@ const postgresVersion = "18.6"
 const postgresBinariesRevision = "5"
 
 func preparePlatformRuntime(root string) (node string, npm string, cleanup cleanupFunc, err error) {
+	// The prebuilt installer already provisions a hash-verified private Node
+	// distribution. Prefer that single runtime instead of downloading a second
+	// copy for the Manager. Keep the older standalone root/runtime/node fallback
+	// for developer-source work and installations without the shared runtime.
+	if fileExists(filepath.Join(root, ".cluster-installer-managed.json")) {
+		installerNodeRoot := filepath.Join(filepath.Dir(root), "Toolchains", "node-v"+privateNodeVersion)
+		installerNode := filepath.Join(installerNodeRoot, "node.exe")
+		installerNpm := filepath.Join(installerNodeRoot, "node_modules", "npm", "bin", "npm-cli.js")
+		if fileExists(installerNode) && fileExists(installerNpm) {
+			cmd := exec.Command(installerNode, "--version")
+			configureChildProcess(cmd)
+			if output, versionErr := cmd.Output(); versionErr == nil && strings.TrimSpace(string(output)) == "v"+privateNodeVersion {
+				fmt.Println("Using installer-provisioned private Node runtime.")
+				return installerNode, installerNpm, nil, nil
+			}
+			fmt.Println("Installer-provisioned Node runtime is unavailable or invalid; checking server-local runtime.")
+		}
+	}
 	nodeRoot := filepath.Join(root, "runtime", "node")
 	node = filepath.Join(nodeRoot, "node.exe")
 	npm = filepath.Join(nodeRoot, "node_modules", "npm", "bin", "npm-cli.js")

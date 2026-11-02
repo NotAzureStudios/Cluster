@@ -1913,7 +1913,8 @@ func (c *windowsServerController) RunDatabaseDoctor() {
 			return
 		}
 		env := readEnvFile(filepath.Join(c.options.root, "apps", "server", ".env"))
-		if err := runNpm(c.options.root, node, npm, env, "run", "db:doctor"); err != nil {
+		_ = npm // the managed diagnostic runner invokes Prisma directly, not npm.
+		if err := runManagedDatabaseCommandContext(context.Background(), c.options.root, node, env, "doctor"); err != nil {
 			fmt.Fprintf(os.Stderr, "Database doctor failed: %v\n", err)
 			return
 		}

@@ -185,7 +185,31 @@ func prepareApplicationContext(ctx context.Context, root, node, npm string, env 
 	// installation failure; silently running npm here masks missing artifacts,
 	// requires build tools on every machine, and can mutate a live installation.
 	managedInstall := fileExists(filepath.Join(root, ".cluster-installer-managed.json"))
-	if err := verifyManagedStartup(root, force, prebuiltReady, true); err != nil { return err }
+	if managedInstall {
+		// A deployed server is an immutable application, not a development tree.
+		// Verify its local dependency graph and apply database migrations using
+		// the bundled Prisma CLI directly. Never call npm install, generate,
+		// build, or source-repair on the machine hosting a managed release.
+		coreDependenciesPresent := fileExists(filepath.Join(root, "node_modules", "prisma", "package.json")) &&
+			fileExists(filepath.Join(root, "node_modules", "@prisma", "client", "package.json"))
+		dependenciesReady := coreDependenciesPresent && installedDependencyGraphHealthy(root)
+		if err := verifyManagedStartup(root, force, prebuiltReady, dependenciesReady); err != nil {
+			return err
+		}
+		fmt.Println("Using prebuilt Cluster Server and verified installed dependencies.")
+		if err := runManagedDatabaseCommandContext(ctx, root, node, env, "deploy"); err != nil {
+			return err
+		}
+		if strings.TrimSpace(string(markerBytes)) != version {
+			if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(marker, []byte(version+"\n"), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	needsBuild := force || (!prebuiltReady && (strings.TrimSpace(string(markerBytes)) != version || !fileExists(serverEntry) || !fileExists(webEntry)))
 	dependencyMarker := filepath.Join(root, "data", "system", "runtime", "dependencies.sha256")
 	dependencyHash, err := dependencyFingerprint(root)
@@ -195,9 +219,6 @@ func prepareApplicationContext(ctx context.Context, root, node, npm string, env 
 	installedHash, _ := os.ReadFile(dependencyMarker)
 	installedFingerprint := strings.TrimSpace(string(installedHash))
 	coreDependenciesPresent := fileExists(filepath.Join(root, "node_modules", "prisma", "package.json")) && fileExists(filepath.Join(root, "node_modules", "@prisma", "client", "package.json"))
-	if managedInstall && !force {
-		if err := verifyManagedStartup(root, force, prebuiltReady, coreDependenciesPresent && installedDependencyGraphHealthy(root)); err != nil { return err }
-	}
 	dependenciesReady := coreDependenciesPresent && installedFingerprint == dependencyHash
 	if !force && !dependenciesReady && coreDependenciesPresent && installedDependencyGraphHealthy(root) {
 		// Migrate installations created by the old version-based fingerprint without
@@ -417,6 +438,35 @@ func installedPackageVersion(root, manifestDir, name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// Managed releases execute database operations with the packaged Prisma CLI,
+// without spawning the npm command runner or resolving external dependencies.
+func runManagedDatabaseCommandContext(ctx context.Context, root, node string, env map[string]string, action string) error {
+	if action != "deploy" && action != "doctor" {
+		return fmt.Errorf("unsupported managed database command %q", action)
+	}
+	script := filepath.Join(root, "tools", "scripts", "database-command.mjs")
+	cli := filepath.Join(root, "node_modules", "prisma", "build", "index.js")
+	if !fileExists(script) || !fileExists(cli) {
+		return fmt.Errorf("managed database CLI is missing from the installed release; repair with Cluster-Installer.exe")
+	}
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("database %s cancelled: %w", action, err)
+	}
+	cmd := exec.CommandContext(ctx, node, script, action)
+	cmd.Dir = root
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	cmd.Stdin = nil
+	configureChildProcess(cmd)
+	cmd.Env = prependPath(mergeEnvironment(os.Environ(), env), filepath.Dir(node))
+	if err := cmd.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("managed database %s cancelled: %w", action, ctxErr)
+		}
+		return fmt.Errorf("managed database %s failed: %w", action, err)
+	}
+	return nil
 }
 
 func runNpm(root, node, npm string, env map[string]string, args ...string) error {
