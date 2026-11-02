@@ -340,6 +340,7 @@ type windowsServerController struct {
 	activity            string
 	updateInFlight      bool
 	doctorInFlight      bool
+	repairInFlight      bool
 	startupCancel       context.CancelFunc
 	readinessTimer      *time.Timer
 	startupTimedOut     bool
@@ -978,7 +979,7 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 		case idDbDoctor:
 			ui.controller.RunDatabaseDoctor()
 		case idRepair:
-			ui.controller.Start(true)
+			ui.controller.RepairInstallation()
 		case idThemeToggle:
 			ui.toggleTheme()
 		case idPerformanceToggle:
@@ -1296,6 +1297,13 @@ func (c *windowsServerController) ConfirmRestart() {
 }
 
 func (c *windowsServerController) Start(forceRepair bool) {
+	c.mu.Lock()
+	busy := c.repairInFlight
+	c.mu.Unlock()
+	if busy {
+		fmt.Fprintln(os.Stderr, "Start refused: self-repair is still in progress.")
+		return
+	}
 	c.refreshServiceState()
 	c.mu.Lock()
 	managed := c.serviceManaged
@@ -1699,7 +1707,7 @@ func (c *windowsServerController) RunCommand(value string) {
 		c.OpenLogs()
 		return
 	case "repair":
-		c.Start(true)
+		c.RepairInstallation()
 		return
 	case "stage-update", "download-update":
 		c.StageServerUpdate()
@@ -1882,6 +1890,58 @@ func (c *windowsServerController) CheckForUpdates() {
 		}
 		c.ui.updateMu.Unlock()
 		procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
+	}()
+}
+
+// RepairInstallation never restarts or reinstalls a managed server. It repairs
+// trusted local components only after explicit confirmation and a stopped-Host
+// preflight. Missing release binaries still require a verified in-place installer.
+func (c *windowsServerController) RepairInstallation() {
+	root := c.options.root
+	if !fileExists(filepath.Join(root, ".cluster-installer-managed.json")) {
+		c.Start(true) // Developer-source repair remains a separate operation.
+		return
+	}
+	c.refreshServiceState()
+	c.mu.Lock()
+	state := c.state
+	busy := c.repairInFlight || c.doctorInFlight || c.updateInFlight
+	c.mu.Unlock()
+	if busy || (state != panelStopped && state != panelError) {
+		fmt.Fprintln(os.Stderr, "Self-repair requires a stopped Server with no other maintenance task active.")
+		return
+	}
+	if messageBox(c.ui.hwnd, "Repair Cluster Server", "Repair verified local runtime files and missing workspace links? Cluster will not delete databases, Library files, settings, or run application builds. The server must remain stopped.", mbYesNo|mbIconQuestion) != idYes {
+		return
+	}
+	c.mu.Lock()
+	if c.repairInFlight || (c.state != panelStopped && c.state != panelError) {
+		c.mu.Unlock()
+		return
+	}
+	c.repairInFlight = true
+	c.activity = "Offline self-repair in progress"
+	c.mu.Unlock()
+	c.ui.postState()
+	go func() {
+		defer func() {
+			c.mu.Lock()
+			c.repairInFlight = false
+			c.activity = ""
+			c.mu.Unlock()
+			c.refreshServiceState()
+			c.ui.postState()
+		}()
+		fmt.Println("Offline managed repair: preserving PostgreSQL data, Library and configuration.")
+		report, err := repairManagedInstallation(root)
+		for _, action := range report.Actions {
+			fmt.Printf("[Repair %s] %s: %s\n", strings.ToUpper(action.Status), action.Name, action.Detail)
+		}
+		if err != nil || !report.Ready {
+			fmt.Fprintln(os.Stderr, "Self-repair incomplete. Do not remove data. Reapply a verified installer to the SAME managed installation to restore missing application files.")
+			return
+		}
+		fmt.Println("Self-repair completed. Start Cluster manually to verify API and database readiness.")
 	}()
 }
 
@@ -2585,15 +2645,15 @@ func (ui *windowsControlPanel) toggleTheme() {
 	}
 }
 
-func (c *windowsServerController) toolActivity() (updateInFlight, doctorInFlight bool) {
+func (c *windowsServerController) toolActivity() (updateInFlight, doctorInFlight, repairInFlight bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.updateInFlight, c.doctorInFlight
+	return c.updateInFlight, c.doctorInFlight, c.repairInFlight
 }
 
 func (ui *windowsControlPanel) updateStateControls() {
 	state, lastError, _, _, activity := ui.controller.runtimeDetails()
-	updateInFlight, doctorInFlight := ui.controller.toolActivity()
+	updateInFlight, doctorInFlight, repairInFlight := ui.controller.toolActivity()
 	label := panelStateLabel(state)
 	setWindowText(ui.status, label)
 	statusDetail := "Ready"
@@ -2611,12 +2671,18 @@ func (ui *windowsControlPanel) updateStateControls() {
 	}
 	setWindowText(ui.activity, statusDetail)
 	procInvalidateRect.Call(ui.statusDot, 0, 1)
-	enableWindow(ui.start, state == panelStopped || state == panelError)
-	enableWindow(ui.stop, state == panelStarting || state == panelRunning)
-	enableWindow(ui.restart, state == panelRunning)
+	enableWindow(ui.start, !repairInFlight && (state == panelStopped || state == panelError))
+	enableWindow(ui.stop, !repairInFlight && (state == panelStarting || state == panelRunning))
+	enableWindow(ui.restart, !repairInFlight && state == panelRunning)
 	enableWindow(ui.openWeb, state == panelRunning)
-	enableWindow(ui.dbDoctor, (state == panelRunning || state == panelStopped || state == panelError) && !doctorInFlight)
-	enableWindow(ui.repair, !ui.controller.serviceManaged && !fileExists(filepath.Join(ui.controller.options.root, ".cluster-installer-managed.json")) && (state == panelStopped || state == panelError))
+	enableWindow(ui.dbDoctor, (state == panelRunning || state == panelStopped || state == panelError) && !doctorInFlight && !repairInFlight)
+	managedInstallation := fileExists(filepath.Join(ui.controller.options.root, ".cluster-installer-managed.json"))
+	if managedInstallation {
+		setWindowText(ui.repair, "Repair Installation")
+	} else {
+		setWindowText(ui.repair, "Repair & Start")
+	}
+	enableWindow(ui.repair, !repairInFlight && !doctorInFlight && !updateInFlight && (state == panelStopped || state == panelError))
 	enableWindow(ui.settings, state != panelStarting && state != panelStopping)
 	enableWindow(ui.checkUpdates, !updateInFlight)
 }
