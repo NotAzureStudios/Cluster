@@ -72,4 +72,36 @@ assert.match(restore,/DROP DATABASE IF EXISTS \$\{sqlIdentifier\(databaseName\)\
 assert.doesNotMatch(restore,/DROP DATABASE IF EXISTS \$\{sqlIdentifier\(databaseName\)\}; CREATE DATABASE/);
 assert.match(restore,/AggregateError\(\[restoreError, rollbackError\]/);
 assert.match(restore,/Do not restart Cluster/);
+// Execute the real authorization boundary with a tiny request/Prisma fixture.
+const resourceSource = file("apps/server/src/domains/access/resource-authorization-boundary.ts")
+  .replace('import { canAccessCalendarEvent } from "../planning/calendar-access.js";', "const canAccessCalendarEvent=async()=>true;");
+const { createResourceAuthorizationBoundary } = await import("data:text/javascript;base64," +
+  Buffer.from(stripTypeScriptTypes(resourceSource, { mode: "strip" })).toString("base64"));
+let block = { id: "block-1", userId: "owner-a", project: null };
+const calls = [];
+const authorization = {
+  async requireUserScope(_request, reply, params) {
+    calls.push({ kind: "user", ...params });
+    reply.code(403).send({ code: "ACCESS_DENIED" });
+    return false;
+  },
+  async requireTarget() { calls.push({ kind: "target" }); return true; },
+};
+const requireBoundary = createResourceAuthorizationBoundary({
+  prisma: { scheduleBlock: { async findUnique() { return block; } } }, authorization,
+});
+const reply = { code() { return this; }, send() {} };
+const policy = { pathname: "/api/schedule/blocks/block-1", method: "GET", resourceMinimum: "view" };
+const request = { params: { blockId: "block-1" }, method: "GET" };
+assert.equal(await requireBoundary(request, reply, policy), false, "other user cannot read a projectless personal schedule block");
+assert.deepEqual(calls.at(-1), { kind: "user", ownerUserId: "owner-a", tool: "scheduler", minimum: "view", allowUnowned: true });
+calls.length = 0;
+block = { ...block, project: { id: "project-1" } };
+assert.equal(await requireBoundary(request, reply, policy), true, "project-scoped team read uses project authorization");
+assert.deepEqual(calls, [{ kind: "target" }]);
+block = { id: "block-1", userId: "owner-a", project: null };
+calls.length = 0;
+assert.equal(await requireBoundary({ ...request, method: "PATCH" }, reply, { ...policy, method: "PATCH", resourceMinimum: "edit" }), false);
+assert.equal(calls.at(-1)?.minimum, "edit");
+
 console.log("PASS: Desktop version isolation, browser-to-native auth safety and verified database rollback contracts");
