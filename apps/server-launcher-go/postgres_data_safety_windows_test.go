@@ -42,3 +42,16 @@ func TestPublishNewPostgresDataNeverOverwritesExisting(t *testing.T) {
 	if err:=publishNewPostgresDataDirectory(source,destination);err!=nil {t.Fatal(err)}
 	if b,err:=os.ReadFile(filepath.Join(destination,"PG_VERSION"));err!=nil || strings.TrimSpace(string(b))!="18" {t.Fatalf("new database publish failed: %s %v",b,err)}
 }
+
+func TestPostgresFirstBootGuardRejectsMissingPreviousDataVolume(t *testing.T) {
+	root:=t.TempDir()
+	credential:=filepath.Join(root,"embedded-postgres.env")
+	sentinel:=filepath.Join(root,"postgresql-data-initialized.marker")
+	if err:=checkEmbeddedPostgresFirstBoot(true,credential,sentinel);err!=nil {t.Fatalf("fresh first boot blocked: %v",err)}
+	if err:=os.WriteFile(credential,[]byte("POSTGRES_PASSWORD=not-a-real-secret"),0600);err!=nil {t.Fatal(err)}
+	if err:=checkEmbeddedPostgresFirstBoot(true,credential,sentinel);err==nil || !strings.Contains(err.Error(),"refusing to initialize") {t.Fatalf("missing data with existing credentials accepted: %v",err)}
+	if err:=os.Remove(credential);err!=nil {t.Fatal(err)}
+	if err:=os.WriteFile(sentinel,[]byte("postgresql-18.6\n"),0600);err!=nil {t.Fatal(err)}
+	if err:=checkEmbeddedPostgresFirstBoot(true,credential,sentinel);err==nil || !strings.Contains(err.Error(),"refusing to initialize") {t.Fatalf("missing data with sentinel accepted: %v",err)}
+	if err:=checkEmbeddedPostgresFirstBoot(false,credential,sentinel);err!=nil {t.Fatalf("healthy existing database should not be first-boot-blocked: %v",err)}
+}
