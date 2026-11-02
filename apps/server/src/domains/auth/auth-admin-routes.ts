@@ -2,13 +2,14 @@ import { z } from "zod";
 import type { AuthRouteDependencies } from "./auth-types.js";
 import { nextAuthenticationGeneration, nextVerificationGeneration, revokeUserSecurityVerifications } from "../../core/security-verification.js";
 import { hashSecurityPin } from "../../core/security-pin-credential.js";
+import { mayUsePrivilegedShortPassword } from "./password-role-policy.js";
+import { PRIVILEGED_PASSWORD_MIN_LENGTH } from "../../core/auth.js";
 
 export function registerAuthAdminRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
   const { app, prisma, authorization, inspectInstanceSetup, isDiscordConfigured, normalizeAuthUsername, verifyPassword, dummyPasswordHash, rateLimitKey, clearRateLimitKey, logSecurityEvent, createSession, decorateUserForClient, accountNextStep, validateNewPassword, hashPassword, generateTemporaryPassword, nextAccountState, getCurrentSession, hashToken, randomOAuthState, oauthStateDigest, fetchWithTimeout, safeAuthenticationReason, requireConfirmation, parseJsonObject, onUserSessionsRevoked } = deps;
   const REQUIRE_DISCORD_LINK = deps.requireDiscordLink;
   const DEV_LOGIN_ENABLED = deps.devLoginEnabled;
-  const PASSWORD_MIN_LENGTH = deps.passwordMinLength;
   const PASSWORD_MAX_LENGTH = deps.passwordMaxLength;
   const AUTH_RATE_LIMIT_MAX = deps.authRateLimitMax;
   const API_RATE_LIMIT_WINDOW_MS = deps.apiRateLimitWindowMs;
@@ -177,12 +178,20 @@ app.put("/api/admin/users/:userId/password", async (request, reply) => {
   const admin = await authorization.requireAdmin(request, reply);
   if (!admin) return;
   const params = z.object({ userId: z.string() }).parse(request.params);
-  const body = z.object({ password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH) }).parse(request.body);
+  const body = z.object({ password: z.string().min(PRIVILEGED_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH) }).parse(request.body);
   const target = await (prisma as any).user.findUnique({ where: { id: params.userId } });
   if (!target) return reply.code(404).send({ ok: false, error: "User not found." });
   if (!(await requireOwnerAuthorityForTarget(admin, target.id, reply))) return;
   if (target.archived || target.accountState === "PRIVACY_ERASED" || (target.accessExpiresAt && new Date(target.accessExpiresAt) <= new Date())) return reply.code(409).send({ ok: false, code: "PEOPLE_LIFECYCLE_GOVERNED", error: "Return or renew access through the governed People lifecycle before provisioning credentials." });
-  const password = validateNewPassword(body.password, target);
+  // The target account, never the administrator executing the action,
+  // determines whether a short password is allowed.
+  const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword(prisma, target.id);
+  let password: string;
+  try {
+    password = validateNewPassword(body.password, target, { allowPrivilegedShortPassword });
+  } catch (error) {
+    return reply.code(400).send({ ok: false, code: "PASSWORD_POLICY_REJECTED", error: error instanceof Error ? error.message : "Password does not meet account policy." });
+  }
   const now = new Date();
   const updated = await (prisma as any).user.update({
     where: { id: target.id },
