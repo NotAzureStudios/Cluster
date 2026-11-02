@@ -1,0 +1,31 @@
+name: Transfer and request reliability
+
+on:
+  push:
+    branches: [fix/transfer-api-background-noise]
+  pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
+
+jobs:
+  transfer-request-reliability:
+    name: Browser transfers, API CORS and diagnostic bounds
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Transfer and request regression tests
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-request-noise-tests.mjs
+      - name: Existing disk streaming and memory tests
+        run: |
+          node tools/scripts/cluster-download-disk-stream-tests.mjs
+          node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-memory-smoke.mjs
