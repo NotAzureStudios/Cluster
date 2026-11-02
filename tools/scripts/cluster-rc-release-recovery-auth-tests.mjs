@@ -94,7 +94,7 @@ const reply = { code() { return this; }, send() {} };
 const policy = { pathname: "/api/schedule/blocks/block-1", method: "GET", resourceMinimum: "view" };
 const request = { params: { blockId: "block-1" }, method: "GET" };
 assert.equal(await requireBoundary(request, reply, policy), false, "other user cannot read a projectless personal schedule block");
-assert.deepEqual(calls.at(-1), { kind: "user", ownerUserId: "owner-a", tool: "scheduler", minimum: "view", allowUnowned: true });
+assert.deepEqual(calls.at(-1), { kind: "user", ownerUserId: "owner-a", tool: "scheduler", minimum: "view", allowUnowned: false });
 calls.length = 0;
 block = { ...block, project: { id: "project-1" } };
 assert.equal(await requireBoundary(request, reply, policy), true, "project-scoped team read uses project authorization");
