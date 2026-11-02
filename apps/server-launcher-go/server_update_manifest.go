@@ -103,6 +103,16 @@ func sameServerUpdateOrigin(a,b *url.URL) bool {
 }
 
 func verifyServerUpdateManifest(data []byte, feed *url.URL, expectedChannel string) (serverUpdateManifest,error) {
+	block,rest:=pem.Decode([]byte(serverUpdatePublicKeyPEM))
+	if block==nil||len(strings.TrimSpace(string(rest)))!=0{return serverUpdateManifest{},errors.New("invalid embedded trusted key")}
+	rawKey,err:=x509.ParsePKIXPublicKey(block.Bytes)
+	if err!=nil{return serverUpdateManifest{},err}
+	key,ok:=rawKey.(ed25519.PublicKey)
+	if !ok{return serverUpdateManifest{},errors.New("trusted release key is not Ed25519")}
+	return verifyServerUpdateManifestWithKey(data,feed,expectedChannel,key)
+}
+
+func verifyServerUpdateManifestWithKey(data []byte, feed *url.URL, expectedChannel string, key ed25519.PublicKey) (serverUpdateManifest,error) {
 	var m serverUpdateManifest
 	if len(data)==0||len(data)>256*1024{return m,errors.New("release manifest exceeds safety limit")}
 	if expectedChannel!="main"&&expectedChannel!="development"{return m,errors.New("invalid server update channel")}
@@ -120,12 +130,7 @@ func verifyServerUpdateManifest(data []byte, feed *url.URL, expectedChannel stri
 	delete(object,"signature")
 	canonical,err:=canonicalServerJSON(object)
 	if err!=nil{return m,err}
-	block,rest:=pem.Decode([]byte(serverUpdatePublicKeyPEM))
-	if block==nil||len(strings.TrimSpace(string(rest)))!=0{return m,errors.New("invalid embedded trusted key")}
-	rawKey,err:=x509.ParsePKIXPublicKey(block.Bytes)
-	if err!=nil{return m,err}
-	key,ok:=rawKey.(ed25519.PublicKey)
-	if !ok||!ed25519.Verify(key,[]byte(canonical),signature){return m,errors.New("release signature does not match the trusted publisher key")}
+	if len(key)!=ed25519.PublicKeySize||!ed25519.Verify(key,[]byte(canonical),signature){return m,errors.New("release signature does not match the trusted publisher key")}
 	clean,err:=json.Marshal(object)
 	if err!=nil{return m,err}
 	if err=json.Unmarshal(clean,&m);err!=nil{return m,err}
