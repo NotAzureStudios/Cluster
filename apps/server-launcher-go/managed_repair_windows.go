@@ -54,7 +54,11 @@ func ordinaryRepairDir(p string) error {
 }
 
 func canonicalRepairLink(p string) string {
-	return filepath.Clean(strings.TrimPrefix(p, "\\\\?\\"))
+	// Windows can expose junction targets using either Win32 or NT
+	// native path prefixes; normalize only those known prefixes.
+	p = strings.TrimPrefix(p, string([]byte{92,92,63,92}))
+	p = strings.TrimPrefix(p, string([]byte{92,63,63,92}))
+	return filepath.Clean(p)
 }
 
 func prepareManagedWorkspaceLinks(root string) ([]managedWorkspaceLink, error) {
@@ -104,7 +108,7 @@ func createManagedWorkspaceJunction(link,target string) error {
 	if err != nil { return fmt.Errorf("junction creation failed: %w: %s",err,strings.TrimSpace(string(out))) }
 	got,err := os.Readlink(link)
 	if err != nil || !strings.EqualFold(canonicalRepairLink(got),filepath.Clean(target)) {
-		return fmt.Errorf("created junction did not point to its expected package")
+		return fmt.Errorf("junction target mismatch: actual %q expected %q: %v", got, target, err)
 	}
 	return nil
 }
