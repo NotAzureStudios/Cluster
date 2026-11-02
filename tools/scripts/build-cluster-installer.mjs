@@ -29,8 +29,11 @@ function omit(rel) {
   if (parts.some((v,i)=>excludedFolders.has(v) && i!==0)) return true;
   if (parts[0]==='.git'||(!prebuilt&&parts[0]==='node_modules'))return true;
   if(prebuilt&&(parts[0]==='docs'||rel.startsWith('tools/fixtures/')||rel.startsWith('tools/installer/')))return true;
+  if(['data','runtime','backups','Revisions','Rollback','Toolchains','Build'].includes(parts[0]))return true;
+  if(rel.endsWith('.pfx')||rel.endsWith('.p12')||rel.endsWith('.sqlite')||rel.endsWith('.sqlite3')||rel.endsWith('.db')||
+    (parts.some(x=>x==='.env'||(x.startsWith('.env.')&&x!=='.env.example'))))return true;
   if(prebuilt&&rel.startsWith('node_modules/@cluster/'))return true;
-  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||rel==='bin/Cluster Server.exe'||rel==='tools/installer/assets/bundled-source.zip')return true;
+  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||(!prebuilt&&rel==='bin/Cluster Server.exe')||rel==='tools/installer/assets/bundled-source.zip')return true;
   if (rel.startsWith('tools/installer/assets/'))return true;
   if (parts.length===1 && !keepRoot.has(rel))return true; // root historical development evidence, >1000 files
   if (rel.endsWith('.tsbuildinfo')||rel.endsWith('.pyc'))return true;
@@ -104,8 +107,11 @@ function run(){
     };
   }
   const files=collect(root).sort();const manifest=[];const entries=[];
+  let totalBytes=0;
   for(const rel of files){
     const data=fs.readFileSync(path.join(root,...rel.split('/')));
+    totalBytes+=data.length;
+    if(data.length>268435456||totalBytes>2147483648)throw new Error('Installer payload exceeds ZIP safety budget: '+rel);
     manifest.push(createHash('sha256').update(data).digest('hex')+'  '+rel);
     entries.push({name:'source/'+rel,data});
   }

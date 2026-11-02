@@ -636,6 +636,10 @@ try {
   }
   Say '[5/6] Validating compiled artifacts and release integrity.'
   # Validate the actual compiled artifacts before making installation changes.
+  # The prebuilt ZIP deliberately excludes absolute npm workspace junctions.
+  # Reconstruct staging links for smoke tests; ApplyRevision repairs them again
+  # against the final installed root after the directory move.
+  if ($isPrebuilt) { RepairWorkspaceJunctions $source }
   Run 'node' @('tools/scripts/cluster-rc-preflight.mjs','--built') $source
   Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
   # Native startup trusts this marker only as a build-readiness hint, never as a signature.
