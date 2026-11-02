@@ -282,8 +282,10 @@ func repairManagedInstallation(root string) (managedRepairReport,error) {
 		fileExists(filepath.Join(root,"packages","shared","dist","index.js"))
 	if err := verifyManagedStartup(root,false,prebuilt,installedDependencyGraphHealthy(root)); err != nil {
 		report.add("application payload","blocked","Missing compiled artifacts or dependencies; use verified in-place installer repair on this same data-preserving workspace")
+	} else if err := checkManagedReleaseArtifactHashes(root); err != nil {
+		report.add("application payload","blocked","Installed prebuilt file integrity check failed: "+err.Error()+". Reapply matching verified Cluster-Installer.exe --repair without deleting data")
 	} else {
-		report.add("application payload","healthy","Compiled application passes managed startup admission")
+		report.add("application payload","healthy","Installed prebuilt artifacts pass SHA-256 validation and managed startup admission")
 	}
 	if !report.Ready { return report,fmt.Errorf("some self-repair steps remain blocked; preserve data and review report") }
 	return report,nil
