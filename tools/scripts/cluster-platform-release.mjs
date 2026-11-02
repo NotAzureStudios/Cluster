@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "config/distribution-profiles.json"), "utf8"));
 const meta = JSON.parse(fs.readFileSync(path.join(root, "config/release-candidate.json"), "utf8"));
+const toolchains = JSON.parse(fs.readFileSync(path.join(root, "config/toolchain-versions.json"), "utf8"));
 const args = process.argv.slice(2);
 function option(name, fallback = "") {
   const at = args.indexOf(name);
@@ -49,7 +50,10 @@ assert(id && Object.hasOwn(catalog.profiles, id), "Select --profile from: " + Ob
 const profile = catalog.profiles[id];
 const channel = option("--channel", profile.updateChannels[0]);
 assert(profile.updateChannels.includes(channel), `Channel ${channel} is not valid for ${profile.product}`);
-const artifactPaths = profile.artifacts.map(p => p.replaceAll("{version}", meta.sourceVersion));
+if (profile.product === "cluster-desktop") {
+  assert(profile.desktopNativeVersion === toolchains.desktop?.parityVersionHold, "Qt Desktop native version is not aligned with its parity hold");
+}
+const artifactPaths = profile.artifacts.map(p => p.replaceAll("{version}", meta.sourceVersion).replaceAll("{desktopVersion}", profile.desktopNativeVersion || ""));
 const checkInputs = profile.sourcePaths.map(p => ({ path:p, exists:fs.existsSync(path.join(root, p)) }));
 assert(checkInputs.every(x => x.exists), "Missing source paths: " + checkInputs.filter(x => !x.exists).map(x => x.path).join(", "));
 const plan = {
