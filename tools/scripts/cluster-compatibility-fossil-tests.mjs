@@ -46,4 +46,12 @@ assert.match(deployBranch, /await run\(process\.execPath, \[prismaCli, "migrate"
 for (const removed of ["tools/scripts/migration-recovery.mjs", "tools/scripts/cluster-rc4-migration-tests.mjs"]) {
   assert.equal(existsSync(new URL("../../" + removed, import.meta.url)), false, removed + " must be retired");
 }
+const correctedG21Migration = source(
+  "apps/server/prisma/migrations/20261021230000_td6_g21_calendar_meeting_occurrence_responses/migration.sql"
+);
+assert.equal((correctedG21Migration.match(/^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\b/gim) || []).length, 1,
+  "clean migration must create one noncolliding index; do not restore the duplicate prefix index");
+assert.match(correctedG21Migration, /CREATE UNIQUE INDEX "CalendarMeetingOccurrenceResponse_calendarEventId_occurrenceStartsAt_userId_key"/,
+  "canonical unique lookup index remains intact");
+
 console.log("PASS: no RC3-only database recovery path remains in live startup");
