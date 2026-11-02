@@ -4,8 +4,6 @@ import { isLoopbackAddress } from "./security.js";
 
 export const GENERIC_AUTH_ERROR = "The username or password is incorrect, or this account is unavailable.";
 export const PASSWORD_MIN_LENGTH = 12;
-// This deprecated role exception will be removed by the 1.0 unified policy pass.
-export const PRIVILEGED_PASSWORD_MIN_LENGTH = 1;
 export const PASSWORD_MAX_LENGTH = 1024;
 export const LOGIN_FAILURE_LIMIT = 8;
 export const LOGIN_LOCK_MS = 15 * 60 * 1000;
@@ -104,11 +102,10 @@ export function normalizeAuthUsername(value: string) {
 export function validateNewPassword(
   passwordValue: string,
   _identity: { username?: string | null; displayName?: string | null } = {},
-  policy: { allowPrivilegedShortPassword?: boolean } = {},
 ) {
   const password = String(passwordValue ?? "").normalize("NFC");
   const length = [...password].length;
-  const minimum = policy.allowPrivilegedShortPassword ? PRIVILEGED_PASSWORD_MIN_LENGTH : PASSWORD_MIN_LENGTH;
+  const minimum = PASSWORD_MIN_LENGTH;
   if (length < minimum || length > PASSWORD_MAX_LENGTH) {
     throw new Error(`Password must contain between ${minimum} and ${PASSWORD_MAX_LENGTH} characters.`);
   }
