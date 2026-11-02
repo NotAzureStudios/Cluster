@@ -402,6 +402,10 @@ type windowsControlPanel struct {
 	gpuSampler            nativeGpuSampler
 	lastResourceAt        time.Time
 	lastResourceSnapshot  resourceSnapshot
+	lastServiceRefreshAt time.Time
+	lastPortsAt          time.Time
+	lastPortsPID         int
+	lastPortsSummary     string
 	updateMu              sync.Mutex
 	updateMessage         string
 	closing               bool
@@ -969,7 +973,12 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 		ui.updateMetrics()
 		return 0
 	case wmTimer:
-		ui.controller.refreshServiceState()
+		// SCM inspection and listener enumeration do not need the 1 Hz uptime
+		// repaint cadence. Explicit service commands refresh immediately.
+		if ui.lastServiceRefreshAt.IsZero() || time.Since(ui.lastServiceRefreshAt) >= 5*time.Second {
+			ui.lastServiceRefreshAt = time.Now()
+			ui.controller.refreshServiceState()
+		}
 		ui.controller.pollServiceReadiness()
 		ui.updateMetrics()
 		return 0
@@ -1726,23 +1735,30 @@ func (ui *windowsControlPanel) updateMetrics() {
 	if snapshot.DiskTotalBytes > 0 {
 		disk = formatBytesCompact(snapshot.DiskFreeBytes) + " free / " + formatBytesCompact(snapshot.DiskTotalBytes)
 	}
-	ports := "Ports: unavailable"
-	if owners, err := nativeListenerOwners(); err == nil {
-		plan, configErr := configuredNativeNetwork(ui.controller.options.root)
-		if configErr == nil {
-			describe := func(label string, port int) string {
-				for _, listener := range owners {
-					if listener.Port == port {
-						return fmt.Sprintf("%s :%d PID %d", label, port, listener.PID)
+	// GetExtendedTcpTable allocates and enumerates both IP address families.
+	// Cache the read across UI ticks so a visible performance panel cannot
+	// repeatedly query OS listeners and reread network configuration at 1 Hz.
+	if ui.lastPortsAt.IsZero() || time.Since(ui.lastPortsAt) >= 5*time.Second || ui.lastPortsPID != pid {
+		ui.lastPortsAt = time.Now()
+		ui.lastPortsPID = pid
+		ui.lastPortsSummary = "Ports: unavailable"
+		if owners, err := nativeListenerOwners(); err == nil {
+			plan, configErr := configuredNativeNetwork(ui.controller.options.root)
+			if configErr == nil {
+				describe := func(label string, port int) string {
+					for _, listener := range owners {
+						if listener.Port == port {
+							return fmt.Sprintf("%s :%d PID %d", label, port, listener.PID)
+						}
 					}
+					return fmt.Sprintf("%s :%d not listening", label, port)
 				}
-				return fmt.Sprintf("%s :%d not listening", label, port)
+				ui.lastPortsSummary = describe("Web", plan.WebPort) + " | " + describe("API", 4100) + " | " + describe("PG", 54321)
 			}
-			ports = describe("Web", plan.WebPort) + " | " + describe("API", 4100) + " | " + describe("PG", 54321)
 		}
 	}
 	ui.gpuSampler.poll()
-	setWindowText(ui.performance, fmt.Sprintf("CPU %.0f%%   |   RAM %d%%   |   Service RSS %s   |   Disk %s\n%s\n%s", snapshot.CPUPercent, snapshot.MemoryPercent, serverRAM, disk, ports, ui.gpuSampler.snapshot()))
+	setWindowText(ui.performance, fmt.Sprintf("CPU %.0f%%   |   RAM %d%%   |   Service RSS %s   |   Disk %s\n%s\n%s", snapshot.CPUPercent, snapshot.MemoryPercent, serverRAM, disk, ui.lastPortsSummary, ui.gpuSampler.snapshot()))
 }
 
 func (c *windowsServerController) CheckForUpdates() {
