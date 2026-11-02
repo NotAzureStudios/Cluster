@@ -220,7 +220,7 @@ export async function replaceDatabaseFromBackup(input: {
       // and migrations before reporting an effective rollback.
       const rollback = await databaseRecoverySnapshot(input.databaseUrl);
       if (!rollback.migrations.length ||
-        rollback.migrations.join("\\n") !== safetyDrill.snapshot.migrations.join("\\n") ||
+        rollback.migrations.join("\n") !== safetyDrill.snapshot.migrations.join("\n") ||
         JSON.stringify(rollback.counts) !== JSON.stringify(safetyDrill.snapshot.counts)) {
         throw new Error("Safety rollback did not restore verified Cluster schema and row counts.");
       }
