@@ -36,7 +36,7 @@ check(desktop.artifacts.every(p=>!p.includes("Cluster-Installer.exe")&&!p.includ
 const builder=fs.readFileSync(executable,"utf8");
 check(builder.includes('lockData.lockfileVersion >= 3') && builder.includes('lockData.packages?.[""]?.version === packageData.version'),"Release lockfile metadata must match manifest");
 check(builder.includes('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]'),"Release must perform clean npm ci, not reuse existing node_modules");
-check(builder.indexOf('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]') < builder.indexOf('spawnSync(npmCommand, ["run", profile.buildCommand]'),"Locked install must precede selected build");
+check(builder.indexOf('spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"]') < builder.indexOf('releaseCommand(npmCommand, ["run", profile.buildCommand]'),"Locked install must precede selected build");
 check(builder.includes('assert(install.status === 0, "Locked clean npm ci failed; refusing release build")'),"Failed clean install must block packaging");
 check(builder.includes('if(profile.product==="cluster-server")'),"Windows server release has build-specific prerequisites");
 for(const step of ["cluster-rc-native-checks.mjs","build-native-host.mjs","build-server-launcher.mjs","build-cluster-server-entry.mjs","build-update-helper.mjs","build-workstation-service.mjs"]) {
