@@ -61,6 +61,14 @@ func canonicalRepairLink(p string) string {
 	return filepath.Clean(p)
 }
 
+func repairJunctionMatches(link, expected string) bool {
+	actual, err := os.Readlink(link)
+	if err != nil { return false }
+	a, ae := os.Stat(canonicalRepairLink(actual))
+	b, be := os.Stat(expected)
+	return ae == nil && be == nil && os.SameFile(a,b)
+}
+
 func prepareManagedWorkspaceLinks(root string) ([]managedWorkspaceLink, error) {
 	for _, ancestor := range []string{"apps", "packages", "integrations", "node_modules"} {
 		if err := ordinaryRepairDir(filepath.Join(root,ancestor)); err != nil {
@@ -87,9 +95,8 @@ func prepareManagedWorkspaceLinks(root string) ([]managedWorkspaceLink, error) {
 			missing = append(missing,item)
 		} else if err != nil { return nil,err
 		} else {
-			got,err := os.Readlink(link)
-			if err != nil || !strings.EqualFold(canonicalRepairLink(got),filepath.Clean(destination)) {
-				return nil,fmt.Errorf("workspace %s is a physical directory or foreign link; refusing to replace it",item.Name)
+			if !repairJunctionMatches(link,destination) {
+				return nil,fmt.Errorf("workspace %s has an unexpected link; no replacement attempted",item.Name)
 			}
 		}
 	}
@@ -108,9 +115,8 @@ func createManagedWorkspaceJunction(link,target string) error {
 	cmd.Env = append(os.Environ(),"CLUSTER_REPAIR_LINK="+link,"CLUSTER_REPAIR_TARGET="+target)
 	out,err := cmd.CombinedOutput()
 	if err != nil { return fmt.Errorf("junction creation failed: %w: %s",err,strings.TrimSpace(string(out))) }
-	got,err := os.Readlink(link)
-	if err != nil || !strings.EqualFold(canonicalRepairLink(got),filepath.Clean(target)) {
-		return fmt.Errorf("junction target mismatch: actual %q expected %q: %v", got, target, err)
+	if !repairJunctionMatches(link,target) {
+		return fmt.Errorf("created junction target is not the expected directory")
 	}
 	return nil
 }
