@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const source = readFileSync("apps/server-launcher-go/launcher_ui_windows.go", "utf8");
+const nativeTimer = source.match(/case wmTimer:([\s\S]*?)case wmAppTray:/)?.[1] || "";
+assert.match(nativeTimer, /lastServiceRefreshAt/);
+assert.match(nativeTimer, /5\*time\.Second/);
+assert.match(nativeTimer, /ui\.controller\.refreshServiceState\(\)/);
+assert.match(nativeTimer, /ui\.controller\.pollServiceReadiness\(\)/);
+assert.match(nativeTimer, /ui\.updateMetrics\(\)/);
+const metrics = source.match(/func \(ui \*windowsControlPanel\) updateMetrics\(\) \{([\s\S]*?)\n\}\n\nfunc \(c \*windowsServerController\) CheckForUpdates/)?.[1] || "";
+assert.match(metrics, /lastPortsPID != pid/);
+assert.match(metrics, /time\.Since\(ui\.lastPortsAt\) >= 5\*time\.Second/);
+assert.match(metrics, /ui\.lastPortsSummary = "Ports: unavailable"/);
+assert.equal((metrics.match(/nativeListenerOwners\(\)/g) || []).length, 1);
+assert.match(metrics, /ui\.lastResourceSnapshot = ui\.resourceSampler\.sample/);
+assert.match(metrics, /time\.Since\(ui\.lastResourceAt\) >= 5\*time\.Second/);
+console.log("PASS: native Windows panel uses bounded service and port sampling while preserving 1 Hz uptime updates");
