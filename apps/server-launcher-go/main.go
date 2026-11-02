@@ -56,6 +56,7 @@ func main() {
 	installService := flag.Bool("service-install", false, "install dedicated Windows Service after least-privilege provisioning")
 	removeService := flag.Bool("service-remove", false, "remove stopped Windows Service")
 	diagnose := flag.Bool("diagnose", false, "read-only offline installation and PostgreSQL data-directory checks (JSON)")
+	repairManaged := flag.Bool("repair-managed", false, "repair trusted local Windows Server runtime/link components while Server is stopped")
 	flag.Parse()
 
 	root, err := resolveRoot(*rootFlag)
@@ -63,6 +64,22 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *repairManaged {
+		if *diagnose || *repair || *service || *installService || *removeService || *startup || *browser || *interfaceMode || *commandLine || *headless {
+			fmt.Fprintln(os.Stderr, "--repair-managed is an exclusive offline maintenance action")
+			os.Exit(2)
+		}
+		report, repairErr := repairManagedInstallation(root)
+		if err := writeManagedRepairReport(os.Stdout, report); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		if repairErr != nil {
+			fmt.Fprintln(os.Stderr, "Managed self-repair incomplete: "+repairErr.Error())
+			os.Exit(2)
+		}
+		return
+	}
 	if *diagnose {
 		if *service || *installService || *removeService || *repair || *startup {
 			fmt.Fprintln(os.Stderr, "--diagnose cannot be combined with service, startup or repair actions")
