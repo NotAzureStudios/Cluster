@@ -249,6 +249,26 @@ endif()
 install(PROGRAMS "${CLUSTER_WORKSTATION_HELPER_SOURCE}" DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES "${CLUSTER_WORKSTATION_MANIFEST_SOURCE}" DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+# The native Package Stager is part of the Desktop product, not the Server.
+# Install it through CMake so the portable tree and CPack/NSIS contain the
+# same helper and disclosure instead of silently omitting it from NSIS.
+if(WIN32)
+    set(CLUSTER_PACKAGE_STAGER_NAME "cluster-package-stager.exe")
+else()
+    set(CLUSTER_PACKAGE_STAGER_NAME "cluster-package-stager")
+endif()
+set(CLUSTER_PACKAGE_STAGER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../bin/${CLUSTER_PACKAGE_STAGER_NAME}")
+set(CLUSTER_PACKAGE_STAGER_NOTICE "${CMAKE_CURRENT_SOURCE_DIR}/../../bin/PACKAGE_STAGER_SECURITY.txt")
+if(CLUSTER_REQUIRE_PRIVATE_GIT_RUNTIME AND
+   (NOT EXISTS "${CLUSTER_PACKAGE_STAGER_SOURCE}" OR NOT EXISTS "${CLUSTER_PACKAGE_STAGER_NOTICE}"))
+    message(FATAL_ERROR "Distributable Cluster Desktop requires the compiled Package Stager and security notice.")
+endif()
+if(EXISTS "${CLUSTER_PACKAGE_STAGER_SOURCE}" AND EXISTS "${CLUSTER_PACKAGE_STAGER_NOTICE}")
+    install(PROGRAMS "${CLUSTER_PACKAGE_STAGER_SOURCE}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(FILES "${CLUSTER_PACKAGE_STAGER_NOTICE}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+
 if(WIN32)
     set(CLUSTER_PRIVATE_GIT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../bin/runtime/git")
     set(CLUSTER_PRIVATE_GIT_LFS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../bin/runtime/git-lfs")
