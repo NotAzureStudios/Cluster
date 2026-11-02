@@ -197,7 +197,7 @@ export function createResourceAuthorizationBoundary(deps: { prisma: any; authori
         // exists. Project-scoped reads retain team/project visibility rules.
         const personalRead = !block.project && ["GET", "HEAD"].includes(method);
         if ((personalRead || !["GET", "HEAD"].includes(method)) &&
-          !(await authorization.requireUserScope(request, reply, { ownerUserId: block.userId, tool: "scheduler", minimum: personalRead ? "view" : "edit", allowUnowned: true }))) return false;
+          !(await authorization.requireUserScope(request, reply, { ownerUserId: block.userId, tool: "scheduler", minimum: personalRead ? "view" : "edit", allowUnowned: !personalRead }))) return false;
         if (block.project && !(await authorization.requireTarget(request, reply, "schedule", block.id, block.project, minimum))) return false;
       }
     }
