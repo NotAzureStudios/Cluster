@@ -475,10 +475,7 @@ func runServiceManagedOnce(ctx context.Context, root string, onReady func()) err
 		return err
 	}
 	logPath := filepath.Join(logDir, "windows-service.log")
-	if err := rotateNativeSessionLog(logPath, 32*1024*1024, 4); err != nil {
-		return fmt.Errorf("cannot safely rotate Windows Service log: %w", err)
-	}
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	file, err := openNativeLineLogWriter(logPath, 32*1024*1024, 4)
 	if err != nil {
 		return err
 	}

@@ -2880,10 +2880,7 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 		return nil, err
 	}
 	logPath := filepath.Join(logs, "windows-server.log")
-	if err := rotateNativeSessionLog(logPath, 32*1024*1024, 4); err != nil {
-		return nil, fmt.Errorf("cannot safely rotate native diagnostic log: %w", err)
-	}
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logFile, err := openNativeLineLogWriter(logPath, 32*1024*1024, 4)
 	if err != nil {
 		return nil, err
 	}
