@@ -13,7 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"unicode/utf16"
+	utf16enc "unicode/utf16"
 )
 
 const trustedNodeArchiveSHA256 = "6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
@@ -94,7 +94,7 @@ func createManagedWorkspaceJunction(link,target string) error {
 	// Paths enter PowerShell through environment variables, not a shell-built
 	// string, so arbitrary installation folder names cannot inject commands.
 	script := "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:CLUSTER_REPAIR_LINK -Target $env:CLUSTER_REPAIR_TARGET | Out-Null"
-	units := utf16.Encode([]rune(script))
+	units := utf16enc.Encode([]rune(script))
 	encoded := make([]byte,len(units)*2)
 	for i,u := range units { encoded[2*i]=byte(u); encoded[2*i+1]=byte(u>>8) }
 	cmd := exec.Command("powershell.exe","-NoProfile","-NonInteractive","-EncodedCommand",base64.StdEncoding.EncodeToString(encoded))
