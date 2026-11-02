@@ -5,6 +5,7 @@ package main
 import (
 	"archive/zip"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -69,8 +70,10 @@ func prepareManagedWorkspaceLinks(root string) ([]managedWorkspaceLink, error) {
 		if err := ordinaryRepairDir(destination); err != nil {
 			return nil, fmt.Errorf("workspace %s is unsafe: %w", item.Name,err)
 		}
-		manifest,err := readDependencyManifest(root,filepath.Join(item.Target,"package.json"))
-		if err != nil || manifest.Name != "@cluster/"+item.Name {
+		contents,err := os.ReadFile(filepath.Join(destination,"package.json"))
+		if err != nil { return nil,fmt.Errorf("workspace %s package manifest missing: %w",item.Name,err) }
+		var identity struct { Name string `json:"name"` }
+		if err := json.Unmarshal(contents,&identity); err != nil || identity.Name != "@cluster/"+item.Name {
 			return nil, fmt.Errorf("workspace %s has a missing or mismatched package identity",item.Name)
 		}
 		link := filepath.Join(scope,item.Name)
