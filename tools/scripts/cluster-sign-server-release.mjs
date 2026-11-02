@@ -48,6 +48,13 @@ try{
  const mz=Buffer.alloc(2);fs.readSync(file,mz,0,2,0);assert(mz.toString()==="MZ","Not a Windows PE installer");
  let pos=0;for(;;){const n=fs.readSync(file,buf,0,buf.length,pos);if(!n)break;hash.update(buf.subarray(0,n));pos+=n}
 }finally{fs.closeSync(file)}
+assert(fs.existsSync(path.join(root,"package-lock.json")),"Refusing to sign: the repository lacks a reproducible npm lockfile");
+const receiptPath=path.join(root,"artifacts","release-profiles","server-windows-x64","build-receipt.json");
+assert(fs.existsSync(receiptPath),"Refusing to sign: build this exact server target with cluster-platform-release.mjs --build first");
+const receipt=JSON.parse(fs.readFileSync(receiptPath,"utf8"));
+assert(receipt.built===true && receipt.certified===false && receipt.product==="cluster-server"
+  && receipt.profile==="server-windows-x64" && receipt.channel===channel,
+  "Server distribution receipt product/channel mismatch");
 const release=JSON.parse(fs.readFileSync(path.join(root,"config/release-candidate.json"),"utf8"));
 assert(/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)&&release.sequence===Number(release.release.split(".").at(-1)),"Invalid release identity");
 const branch=spawnSync("git",["branch","--show-current"],{cwd:root,encoding:"utf8"});
@@ -58,13 +65,19 @@ for(const command of [["diff","--quiet"],["diff","--cached","--quiet"]]){
 }
 const commit=spawnSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8"});
 assert(commit.status===0&&/^[a-f0-9]{40}$/.test(commit.stdout.trim()),"No traceable source commit");
+const digest=hash.digest("hex");
+assert(receipt.commit===commit.stdout.trim(),"Signed release source commit does not match the built server artifact");
+const matchingArtifacts=(receipt.artifacts||[]).filter(a=>path.resolve(root,a.path)===artifact);
+assert(matchingArtifacts.length===1 && matchingArtifacts[0].sha256===digest
+ && matchingArtifacts[0].bytes===fs.statSync(artifact).size,
+ "Server installer differs from verified platform build receipt");
 const bytes=fs.statSync(artifact).size;
 assert(bytes>0&&bytes<=2*1024*1024*1024,"Installer exceeds release limits");
 const metadata={
  schemaVersion:1,product:"cluster-server",target:"server-windows-x64",channel,
  release:release.release,sequence:release.sequence,sourceVersion:release.sourceVersion,
  commit:commit.stdout.trim(),
- artifact:{kind:"installer",filename,url:artifactURL.href,sha256:hash.digest("hex"),size:bytes}
+ artifact:{kind:"installer",filename,url:artifactURL.href,sha256:digest,size:bytes}
 };
 const signature=sign(null,Buffer.from(canonical(metadata)),key).toString("base64");
 const manifest={...metadata,signature};
