@@ -131,7 +131,7 @@ app.post("/api/auth/desktop-session-code", async (request, reply) => {
   const security = await mfaPolicyForUser(String(session.userId));
   if (!desktopSessionHandoffAllowed({
     userId: String(session.userId), user: session.user, source: session,
-    requireDiscordLink: REQUIRE_DISCORD_LINK,
+    requireDiscordLink: REQUIRE_DISCORD_LINK, mfaRequired: security.required,
     sessionDays: security.policy.sessionDays, sessionIdleHours: security.policy.sessionIdleHours,
   })) return reply.code(403).send({ ok: false, code: "DESKTOP_SESSION_HANDOFF_BLOCKED", error: "Complete your sign-in and account access requirements before opening Desktop." });
   pruneDesktopSessionCodes();
@@ -159,7 +159,7 @@ app.post("/api/auth/desktop-session-redeem", async (request, reply) => {
   const security = source?.userId === claim.userId ? await mfaPolicyForUser(claim.userId) : null;
   if (!source || !security || !desktopSessionHandoffAllowed({
     userId: claim.userId, user: source.user, source,
-    requireDiscordLink: REQUIRE_DISCORD_LINK,
+    requireDiscordLink: REQUIRE_DISCORD_LINK, mfaRequired: security.required,
     sessionDays: security.policy.sessionDays, sessionIdleHours: security.policy.sessionIdleHours,
   })) {
     await logSecurityEvent({ event: "desktop.session_code_rejected", actorUserId: null, targetUserId: null, result: "FAILURE", reasonCode: "DESKTOP_SOURCE_SESSION_REVOKED", request });
