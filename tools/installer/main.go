@@ -284,7 +284,11 @@ func run() error {
 	if err = cmd.Run(); err != nil {
 		return fmt.Errorf("installation did not complete: %w", err)
 	}
-	fmt.Println("Cluster Server Manager launch requested.")
+	if repairSameRelease {
+		fmt.Println("Exact-release application repair completed; Server remains stopped for validation.")
+	} else {
+		fmt.Println("Cluster Server Manager launch requested.")
+	}
 	return nil
 }
 func main() {

@@ -193,9 +193,9 @@ func repairPinnedNode(root string) (bool,error) {
 	toolRoot := filepath.Join(filepath.Dir(root),"Toolchains")
 	if err := ensureRepairDirectory(toolRoot); err != nil { return false,err }
 	nodeDir := filepath.Join(toolRoot,"node-v"+privateNodeVersion)
-	if pinnedNodeHealthy(nodeDir) { return false,nil }
 	if _,err := os.Lstat(nodeDir); err == nil {
 		if err := ordinaryRepairDir(nodeDir); err != nil { return false,err }
+		if pinnedNodeHealthy(nodeDir) { return false,nil }
 	} else if !os.IsNotExist(err) { return false,err }
 	stage := nodeDir+".repair-staging"
 	backup := nodeDir+".repair-previous"
@@ -245,9 +245,10 @@ func repairPinnedNode(root string) (bool,error) {
 
 func repairMissingPostgresBinaries(root string) (bool,error) {
 	pgRoot := filepath.Join(root,"runtime","postgresql")
-	if fileExists(filepath.Join(pgRoot,"bin","postgres.exe")) &&
-		fileExists(filepath.Join(pgRoot,"bin","pg_ctl.exe")) { return false,nil }
 	if _,err := os.Lstat(pgRoot); err == nil {
+		if err := ordinaryRepairDir(pgRoot); err != nil { return false,err }
+		if fileExists(filepath.Join(pgRoot,"bin","postgres.exe")) &&
+			fileExists(filepath.Join(pgRoot,"bin","pg_ctl.exe")) { return false,nil }
 		return false,fmt.Errorf("partial PostgreSQL runtime exists; refusing destructive replacement; use verified in-place installer")
 	} else if !os.IsNotExist(err) { return false,err }
 	if err := installPostgresRuntime(root,pgRoot); err != nil { return false,err }
