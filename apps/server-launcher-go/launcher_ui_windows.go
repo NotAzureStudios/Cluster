@@ -2060,7 +2060,7 @@ func (w *windowsSettingsWindow) saveCurrent(restart bool) {
 	}
 	idx, _, _ := procSendMessageW.Call(w.settingCombo, cbGetCurSel, 0, 0)
 	w.loadSetting(int(idx))
-	if restart && spec.Key != "native.updateManifestUrl" {
+	if restart && !strings.HasPrefix(spec.Key, "native.update") {
 		w.controller.Restart()
 	}
 }

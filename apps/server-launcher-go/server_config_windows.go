@@ -142,7 +142,9 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 			{Key: "native.closeToTray", Label: "Close button hides to notification area", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Leave control panel available in the tray when clicking X. Exit control panel through the tray menu."},
 			{Key: "native.startMinimized", Label: "Start control panel minimized", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Open control panel minimized; with tray minimize enabled it starts hidden in the tray."},
 			{Key: "native.startWithWindows", Label: "Start Cluster Server with Windows", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Open the control panel at Windows sign-in using a Scheduled Task. Optional independently installed Windows Service starts before sign-in; the control panel will attach to it instead of starting a duplicate server."},
-			{Key: "native.updateManifestUrl", Label: "Update manifest URL", Section: "Control panel", Kind: settingText, Default: "", Help: "Credential-free HTTP(S) JSON endpoint used only when Check Updates is pressed. The panel never polls in the background."},
+			{Key: "native.updateChannel", Label: "Server update channel", Section: "Control panel", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Choose reviewed main releases or test development releases for this Windows Server only. Does not change Desktop or Web update channels, and never switches source in place."},
+			{Key: "native.updateManifestUrl", Label: "Main server manifest URL", Section: "Control panel", Kind: settingText, Default: "", Help: "HTTPS signed manifest URL for main Windows Server releases. Never point this at Desktop update metadata."},
+			{Key: "native.developmentUpdateManifestUrl", Label: "Development server manifest URL", Section: "Control panel", Kind: settingText, Default: "", Help: "HTTPS signed manifest URL for development Windows Server releases. Switching channels never modifies the running server or its data."},
 		}
 	}
 	out := []nativeSettingSpec{}
@@ -268,6 +270,8 @@ type nativePanelPreferences struct {
 	CloseToTray         bool   `json:"closeToTray"`
 	StartMinimized      bool   `json:"startMinimized"`
 	UpdateManifestURL   string `json:"updateManifestUrl"`
+	DevelopmentUpdateManifestURL string `json:"developmentUpdateManifestUrl"`
+	UpdateChannel string `json:"updateChannel"`
 }
 
 func nativeAutoScrollEnabled(prefs nativePanelPreferences) bool {
@@ -285,6 +289,9 @@ func loadNativePanelPreferences(root string) nativePanelPreferences {
 	var prefs nativePanelPreferences
 	if json.Unmarshal(raw, &prefs) != nil {
 		return nativePanelPreferences{UseInterface: true}
+	}
+	if prefs.UpdateChannel != "main" && prefs.UpdateChannel != "development" {
+		prefs.UpdateChannel = "main"
 	}
 	if !prefs.Configured {
 		// v0.450 only stored the update URL. Preserve it while making the next
@@ -328,8 +335,12 @@ func settingDisplayValue(root string, spec nativeSettingSpec) (string, bool, err
 			return strconv.FormatBool(prefs.StartMinimized), prefs.Configured, nil
 		case "native.startWithWindows":
 			return strconv.FormatBool(prefs.StartWithWindows), prefs.Configured, nil
+		case "native.updateChannel":
+			return prefs.UpdateChannel, prefs.UpdateChannel != "", nil
 		case "native.updateManifestUrl":
 			return prefs.UpdateManifestURL, prefs.UpdateManifestURL != "", nil
+		case "native.developmentUpdateManifestUrl":
+			return prefs.DevelopmentUpdateManifestURL, prefs.DevelopmentUpdateManifestURL != "", nil
 		}
 	}
 	cfg, err := loadServerConfig(root)
@@ -437,8 +448,12 @@ func saveNativeSetting(root string, spec nativeSettingSpec, raw string, clear bo
 				prefs.StartMinimized = false
 			case "native.startWithWindows":
 				prefs.StartWithWindows = false
+			case "native.updateChannel":
+				prefs.UpdateChannel = "main"
 			case "native.updateManifestUrl":
 				prefs.UpdateManifestURL = ""
+			case "native.developmentUpdateManifestUrl":
+				prefs.DevelopmentUpdateManifestURL = ""
 			}
 		} else {
 			parsed, err := parseNativeSettingValue(spec, raw)
@@ -462,8 +477,12 @@ func saveNativeSetting(root string, spec nativeSettingSpec, raw string, clear bo
 				prefs.StartMinimized = parsed.(bool)
 			case "native.startWithWindows":
 				prefs.StartWithWindows = parsed.(bool)
+			case "native.updateChannel":
+				prefs.UpdateChannel = parsed.(string)
 			case "native.updateManifestUrl":
 				prefs.UpdateManifestURL = strings.TrimSpace(fmt.Sprint(parsed))
+			case "native.developmentUpdateManifestUrl":
+				prefs.DevelopmentUpdateManifestURL = strings.TrimSpace(fmt.Sprint(parsed))
 			}
 		}
 		if err := saveNativePanelPreferences(root, prefs); err != nil {
@@ -539,63 +558,55 @@ type updateCheckResult struct {
 }
 
 func configuredUpdateManifestURL(root string) string {
-	for _, value := range []string{os.Getenv("CLUSTER_UPDATE_MANIFEST_URL"), os.Getenv("CLUSTER_RELEASE_MANIFEST_URL"), loadNativePanelPreferences(root).UpdateManifestURL} {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
+	prefs := loadNativePanelPreferences(root)
+	if prefs.UpdateChannel == "development" {
+		if override := strings.TrimSpace(os.Getenv("CLUSTER_SERVER_DEVELOPMENT_MANIFEST_URL")); override != "" { return override }
+		return strings.TrimSpace(prefs.DevelopmentUpdateManifestURL)
 	}
-	return ""
+	if override := strings.TrimSpace(os.Getenv("CLUSTER_SERVER_MAIN_MANIFEST_URL")); override != "" { return override }
+	if legacy := strings.TrimSpace(os.Getenv("CLUSTER_UPDATE_MANIFEST_URL")); legacy != "" { return legacy }
+	return strings.TrimSpace(prefs.UpdateManifestURL)
 }
 
 func checkUpdateManifest(root string) updateCheckResult {
+	prefs := loadNativePanelPreferences(root)
+	channel := prefs.UpdateChannel
+	if channel != "development" { channel = "main" }
 	source := configuredUpdateManifestURL(root)
 	if source == "" {
-		return updateCheckResult{Message: "No update manifest URL is configured. Open Settings → Control panel and set Update manifest URL."}
+		return updateCheckResult{Message: fmt.Sprintf("No %s Windows Server release feed is configured. Configure its signed manifest URL in Settings → Control panel.", channel)}
 	}
 	parsed, err := url.Parse(source)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		return updateCheckResult{Message: "The configured update manifest URL is invalid."}
+	if err != nil || !allowedServerUpdateURL(parsed) {
+		return updateCheckResult{Message: "Invalid release feed: use credential-free HTTPS (localhost HTTP only)."}
 	}
-	client := &http.Client{Timeout: 8 * time.Second}
-	req, _ := http.NewRequest(http.MethodGet, source, nil)
+	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 5 || !sameServerUpdateOrigin(parsed, req.URL) { return errors.New("update feed redirected to another origin") }
+		return nil
+	}}
+	req, err := http.NewRequest(http.MethodGet, source, nil)
+	if err != nil { return updateCheckResult{Message: "Invalid update request: " + err.Error()} }
 	req.Header.Set("User-Agent", "ClusterServer/"+version)
 	response, err := client.Do(req)
-	if err != nil {
-		return updateCheckResult{Message: "Update check failed: " + err.Error()}
-	}
+	if err != nil { return updateCheckResult{Message: "Update check failed: " + err.Error()} }
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return updateCheckResult{Message: fmt.Sprintf("Update check returned HTTP %d.", response.StatusCode)}
 	}
-	raw, err := io.ReadAll(io.LimitReader(response.Body, 1024*1024+1))
-	if err != nil {
-		return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()}
-	}
-	if len(raw) > 1024*1024 {
-		return updateCheckResult{Message: "Update manifest exceeded the 1 MiB safety limit."}
-	}
-	var manifest map[string]any
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		return updateCheckResult{Message: "Update manifest is not valid JSON."}
-	}
-	latest := firstManifestString(manifest, "clusterVersion", "latestVersion", "version", "serverVersion")
-	if latest == "" {
-		if release, ok := manifest["release"].(map[string]any); ok {
-			latest = firstManifestString(release, "clusterVersion", "version")
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 256*1024+1))
+	if err != nil { return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()} }
+	if len(raw) > 256*1024 { return updateCheckResult{Message: "Update manifest exceeds the 256 KiB limit."} }
+	manifest, err := verifyServerUpdateManifest(raw, parsed, channel)
+	if err != nil { return updateCheckResult{Message: "Server update rejected: " + err.Error()} }
+	current := installedServerReleaseSequence(root)
+	if manifest.Sequence > current {
+		return updateCheckResult{
+			Message: fmt.Sprintf("%s Windows Server channel: signed Cluster %s (sequence %d) available; currently %s (sequence %d). Download only a matching verified installer.", channel, manifest.Release, manifest.Sequence, displayReleaseVersion(root), current),
+			DownloadURL: manifest.Artifact.URL, Available:true,
 		}
 	}
-	if latest == "" {
-		return updateCheckResult{Message: "Update manifest did not contain a Cluster version."}
-	}
-	download := firstManifestString(manifest, "downloadUrl", "url")
-	comparison := compareVersions(latest, version)
-	if comparison > 0 {
-		return updateCheckResult{Message: fmt.Sprintf("Cluster %s is available. This server is %s.", latest, displayReleaseVersion(root)), DownloadURL: download, Available: true}
-	}
-	if comparison == 0 {
-		return updateCheckResult{Message: fmt.Sprintf("Cluster Server is up to date (%s).", displayReleaseVersion(root))}
-	}
-	return updateCheckResult{Message: fmt.Sprintf("This server (%s) is newer than the manifest (%s).", displayReleaseVersion(root), latest)}
+	if manifest.Sequence == current { return updateCheckResult{Message: fmt.Sprintf("%s Windows Server channel is current (%s).", channel, displayReleaseVersion(root))} }
+	return updateCheckResult{Message: fmt.Sprintf("Selected %s release %s is older than installed %s; automatic downgrades are disabled.",channel,manifest.Release,displayReleaseVersion(root))}
 }
 
 func firstManifestString(m map[string]any, keys ...string) string {
