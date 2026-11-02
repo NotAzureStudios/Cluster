@@ -1339,6 +1339,10 @@ func (c *windowsServerController) Start(forceRepair bool) {
 func (c *windowsServerController) startWorker(ctx context.Context, forceRepair bool) {
 	options := c.options
 	fmt.Printf("[%s] Starting Cluster Server...\n", time.Now().Format("15:04:05"))
+	if forceRepair && fileExists(filepath.Join(options.root, ".cluster-installer-managed.json")) {
+		c.failStart(fmt.Errorf("managed release repair must use Cluster-Installer.exe; source recompilation is prohibited"))
+		return
+	}
 	c.setActivity("Preparing private runtime")
 	node, npm, cleanupRuntime, err := preparePlatformRuntime(options.root)
 	if err != nil {
@@ -1904,7 +1908,7 @@ func (c *windowsServerController) RunDatabaseDoctor() {
 			c.mu.Unlock()
 			c.ui.postState()
 		}()
-		node, npm, cleanup, err := preparePlatformRuntime(c.options.root)
+		node, _, cleanup, err := preparePlatformRuntime(c.options.root)
 		if cleanup != nil {
 			defer cleanup()
 		}
@@ -1913,7 +1917,7 @@ func (c *windowsServerController) RunDatabaseDoctor() {
 			return
 		}
 		env := readEnvFile(filepath.Join(c.options.root, "apps", "server", ".env"))
-		if err := runNpm(c.options.root, node, npm, env, "run", "db:doctor"); err != nil {
+		if err := runManagedDatabaseCommandContext(context.Background(), c.options.root, node, env, "doctor"); err != nil {
 			fmt.Fprintf(os.Stderr, "Database doctor failed: %v\n", err)
 			return
 		}
@@ -2861,7 +2865,11 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 	if err := os.MkdirAll(logs, 0o755); err != nil {
 		return nil, err
 	}
-	logFile, err := os.OpenFile(filepath.Join(logs, "windows-server.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logPath := filepath.Join(logs, "windows-server.log")
+	if err := rotateNativeSessionLog(logPath, 32*1024*1024, 4); err != nil {
+		return nil, fmt.Errorf("cannot safely rotate native diagnostic log: %w", err)
+	}
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		return nil, err
 	}
@@ -2879,7 +2887,7 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 		scanner := bufio.NewScanner(reader)
 		scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
 		for scanner.Scan() {
-			line := scanner.Text()
+			line := redactNativeLogLine(scanner.Text())
 			_, _ = fmt.Fprintln(logFile, line)
 			ui.controller.observeLog(line)
 			ui.postLog(line)

@@ -20,6 +20,25 @@ const postgresVersion = "18.6"
 const postgresBinariesRevision = "5"
 
 func preparePlatformRuntime(root string) (node string, npm string, cleanup cleanupFunc, err error) {
+	managed := fileExists(filepath.Join(root, ".cluster-installer-managed.json"))
+	// The prebuilt installer already provisions a hash-verified private Node
+	// distribution. Prefer that single runtime instead of downloading a second
+	// copy for the Manager. Keep the older standalone root/runtime/node fallback
+	// for developer-source work and installations without the shared runtime.
+	if managed {
+		installerNodeRoot := filepath.Join(filepath.Dir(root), "Toolchains", "node-v"+privateNodeVersion)
+		installerNode := filepath.Join(installerNodeRoot, "node.exe")
+		installerNpm := filepath.Join(installerNodeRoot, "node_modules", "npm", "bin", "npm-cli.js")
+		if fileExists(installerNode) && fileExists(installerNpm) {
+			cmd := exec.Command(installerNode, "--version")
+			configureChildProcess(cmd)
+			if output, versionErr := cmd.Output(); versionErr == nil && strings.TrimSpace(string(output)) == "v"+privateNodeVersion {
+				fmt.Println("Using installer-provisioned private Node runtime.")
+				return installerNode, installerNpm, nil, nil
+			}
+			fmt.Println("Installer-provisioned Node runtime is unavailable or invalid; checking server-local runtime.")
+		}
+	}
 	nodeRoot := filepath.Join(root, "runtime", "node")
 	node = filepath.Join(nodeRoot, "node.exe")
 	npm = filepath.Join(nodeRoot, "node_modules", "npm", "bin", "npm-cli.js")
@@ -30,8 +49,14 @@ func preparePlatformRuntime(root string) (node string, npm string, cleanup clean
 		if versionErr == nil && strings.TrimSpace(string(out)) == "v"+privateNodeVersion {
 			return node, npm, nil, nil
 		}
+		if managed {
+			return "", "", nil, fmt.Errorf("installed private Node.js runtime version is invalid; run Cluster-Installer.exe to repair (normal startup will not replace runtimes)")
+		}
 		fmt.Printf("Private Node.js runtime is stale or invalid; refreshing v%s...\n", privateNodeVersion)
 		_ = os.RemoveAll(nodeRoot)
+	}
+	if managed {
+		return "", "", nil, fmt.Errorf("managed Cluster Node.js runtime is missing; run Cluster-Installer.exe to repair (normal startup will not download runtimes)")
 	}
 	fmt.Printf("Downloading private Node.js %s runtime...\n", privateNodeVersion)
 	cache := filepath.Join(root, "runtime", "cache")
