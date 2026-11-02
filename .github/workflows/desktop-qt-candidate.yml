@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         env:
           QT_ROOT: C:\Qt\6.11.2\msvc2022_64
-          CMAKE_GENERATOR: Visual Studio 17 2022
+          CMAKE_GENERATOR: Visual Studio 18 2026
           GOTOOLCHAIN: local
         run: |
           node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64 --channel beta --build
