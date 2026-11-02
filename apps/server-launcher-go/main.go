@@ -88,6 +88,9 @@ func main() {
 func runServerHeadless(options launcherOptions) error {
 	root := options.root
 	fmt.Printf("Cluster Server %s\nWorkspace: %s\n\n", displayReleaseVersion(root), root)
+	if options.repair && fileExists(filepath.Join(root, ".cluster-installer-managed.json")) {
+		return fmt.Errorf("managed releases cannot be repaired by compiling on startup; run Cluster-Installer.exe")
+	}
 
 	node, npm, cleanupRuntime, err := preparePlatformRuntime(root)
 	if err != nil {

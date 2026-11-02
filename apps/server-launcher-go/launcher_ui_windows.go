@@ -1339,6 +1339,10 @@ func (c *windowsServerController) Start(forceRepair bool) {
 func (c *windowsServerController) startWorker(ctx context.Context, forceRepair bool) {
 	options := c.options
 	fmt.Printf("[%s] Starting Cluster Server...\n", time.Now().Format("15:04:05"))
+	if forceRepair && fileExists(filepath.Join(options.root, ".cluster-installer-managed.json")) {
+		c.failStart(fmt.Errorf("managed release repair must use Cluster-Installer.exe; source recompilation is prohibited"))
+		return
+	}
 	c.setActivity("Preparing private runtime")
 	node, npm, cleanupRuntime, err := preparePlatformRuntime(options.root)
 	if err != nil {
