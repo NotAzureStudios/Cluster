@@ -1,6 +1,8 @@
 #pragma once
 
 #include "DesktopPreferences.h"
+#include "GlobalShortcutManager.h"
+#include "LibraryMountManager.h"
 #include "NativeCapabilityBroker.h"
 #include "NativeUpdateManager.h"
 #include "ServerProfileStore.h"
