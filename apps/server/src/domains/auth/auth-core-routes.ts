@@ -8,8 +8,7 @@ import { factorStrengthSatisfies, normalizeStudioSecurityPolicy, securityPolicyM
 import { issueSecurityVerification, nextAuthenticationGeneration, nextVerificationGeneration, securityVerificationPolicy, type SecurityVerificationPurpose } from "../../core/security-verification.js";
 import { verifyWebAuthnAssertion, webAuthnRpFromOrigin } from "./webauthn.js";
 import { desktopSessionHandoffAllowed } from "./desktop-session-handoff.js";
-import { mayUsePrivilegedShortPassword } from "./password-role-policy.js";
-import { PRIVILEGED_PASSWORD_MIN_LENGTH } from "../../core/auth.js";
+import { PASSWORD_MIN_LENGTH } from "../../core/auth.js";
 
 export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -122,7 +121,6 @@ app.get("/api/auth/config", async () => {
     setupLauncherName: process.platform === "win32" ? "ClusterServer.exe --recover-owner" : "docker compose logs cluster",
     passwordPolicy: {
       minimumLength: PASSWORD_MIN_LENGTH,
-      privilegedMinimumLength: PRIVILEGED_PASSWORD_MIN_LENGTH,
       maximumLength: PASSWORD_MAX_LENGTH,
     },
   };
@@ -544,15 +542,12 @@ app.post("/api/auth/session-password", async (request, reply) => {
   }
   const body = z
     .object({
-      password: z.string().min(PRIVILEGED_PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+      password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
     })
     .parse(request.body);
-  // A database lookup failure is a server error, not a client password
-  // validation error. Never display database internals as password feedback.
-  const allowPrivilegedShortPassword = await mayUsePrivilegedShortPassword(prisma, user.id);
   let password = "";
   try {
-    password = validateNewPassword(body.password, user, { allowPrivilegedShortPassword });
+    password = validateNewPassword(body.password, user);
   } catch (error) {
     return reply.code(400).send({
       ok: false,
