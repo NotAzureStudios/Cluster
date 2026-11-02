@@ -17,6 +17,14 @@ function applyInitialTheme() {
 
 applyInitialTheme();
 
+// Web is a deployment surface, not a local installer. Mark the surface for
+// responsive shell styling and telemetry without treating it as an auth rule.
+// Portal permissions and route isolation remain server-authoritative.
+const webPath = window.location.pathname.replace(/\\/g, "/");
+const portalSurface = webPath === "/portal" || webPath.startsWith("/portal/");
+document.documentElement.dataset.clusterPlatform = "web";
+document.documentElement.dataset.clusterSurface = portalSurface ? "portal" : "workspace";
+
 import { mountClusterRenderer } from "@cluster/renderer";
 
 const root = document.getElementById("root");
