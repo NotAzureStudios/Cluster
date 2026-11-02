@@ -34,4 +34,4 @@ The 1.0 release is **not certified** by passing source tests. Development merges
 
 `release-recovery-security.yml` runs Node 24 platform contract and auth/restore-source regressions plus Go Server update signing and staging tests on both Windows and Linux. Source hygiene tests continue independently. Passing this does **not** certify NSIS installation, Windows update application, a real PostgreSQL restore or multiuser authorization.
 
-The next release step is a source reconciliation with newer RC73/RC74 packages, committing the reproducible npm lockfile, building **both** actual installers on Windows, and executing backup/restore and offboarding acceptance drills.
+Next release work: commit a validated reproducible npm lockfile, build **both** real installers on Windows, exercise same-release in-place Server repair plus signed update/rollback, and execute PostgreSQL restore, Desktop integration and multiuser/offboarding acceptance drills. Targeted later-source fixes have already been merged into the tracked RC50 source; do not invent an RC74 branch or claim full external ZIP parity without evidence.
