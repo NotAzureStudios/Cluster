@@ -71,11 +71,15 @@ These commands have differing prerequisites. The source-only gate is **not** a P
 
 | Branch | Purpose |
 | --- | --- |
-| [`development`](https://github.com/NotAzureStudios/Cluster/tree/development) | **Primary working branch.** Source imports, feature work, cleanup and fixes happen here. |
-| [`main`](https://github.com/NotAzureStudios/Cluster/tree/main) | Reviewed integration/release baseline. Do not commit directly for routine development. |
-| `feature/*`, `fix/*`, `chore/*` | Optional focused branches targeting `development`. |
+| [`development`](https://github.com/NotAzureStudios/Cluster/tree/development) | **Primary integration branch.** Client branches submit reviewed changes here. |
+| [`client/web`](https://github.com/NotAzureStudios/Cluster/tree/client/web) | Browser and responsive Web client, including the external portal. |
+| [`client/desktop-qt`](https://github.com/NotAzureStudios/Cluster/tree/client/desktop-qt) | Qt desktop host, native integrations, workstation and offline behavior. |
+| [`server/windows`](https://github.com/NotAzureStudios/Cluster/tree/server/windows) | API, PostgreSQL, Windows server, installer, supervisor and recovery. |
+| [`platform/shared`](https://github.com/NotAzureStudios/Cluster/tree/platform/shared) | Canonical renderer, shared UI, API client and contracts. |
+| [`main`](https://github.com/NotAzureStudios/Cluster/tree/main) | Reviewed integration/release baseline. Never commit directly for routine work. |
+| `feature/*`, `fix/*`, `chore/*`, `import/*` | Short-lived focused branches targeting `development`. |
 
-Use pull requests and checks to promote reviewed changes from `development` to `main`. Do not force-push either long-lived branch. The GitHub default branch is currently `main` by design; that does **not** make it the working branch.
+Use pull requests and checks to merge client/shared work into `development`, then promote reviewed changes from `development` to `main`. Do not force-push shared branches. See [client branches and 1.0 integration](docs/development/CLIENT_BRANCHES_1_0.md) for ownership, sync rules and client release gates. The GitHub default branch is currently `main` by design; that does **not** make it the working branch.
 
 Releases are separate artifacts: verified Windows installers and distributable ZIPs should not be committed as source files. `config/release-candidate.json` is the tracked candidate identity; it does not imply the native installer is certified.
 
