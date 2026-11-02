@@ -55,7 +55,7 @@ func serviceACLPlan(root string) ([]clusterServiceACL, error) {
 	}
 	data := filepath.Join(root, "data")
 	envFile := filepath.Join(root, "apps", "server", ".env")
-	for _, dir := range []string{data, filepath.Join(root, "data", "system"), filepath.Join(root, "data", "system", "config"), filepath.Join(root, "apps", "server")} {
+	for _, dir := range []string{data, filepath.Join(root, "data", "system"), filepath.Join(root, "data", "system", "config"), filepath.Join(root, "apps"), filepath.Join(root, "apps", "server")} {
 		if err := checkServiceProvisionPath(dir, true); err != nil {
 			return nil, err
 		}
