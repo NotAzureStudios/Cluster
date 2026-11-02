@@ -17,6 +17,12 @@ const valid = () => ({
 });
 const allowed = desktopSessionHandoffAllowed;
 assert.equal(allowed(valid()), true, "fully authenticated, current browser session is eligible");
+{
+  const v = valid(); v.source.authMethod = "password"; v.mfaRequired = true;
+  assert.equal(allowed(v), false, "MFA-required accounts cannot hand off a password-only session");
+  v.source.authMethod = "password+totp";
+  assert.equal(allowed(v), true, "A completed MFA session can still open Desktop");
+}
 for (const mutation of [
   v => { v.source.revokedAt = new Date(now - 1); },
   v => { v.source.authMethod = "mfa-enrollment-pending"; },
