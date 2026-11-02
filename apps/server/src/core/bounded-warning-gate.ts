@@ -5,11 +5,15 @@
  */
 export class BoundedWarningGate {
   private readonly entries = new Map<string, { nextAt: number; suppressed: number }>();
+  private readonly intervalMs: number;
+  private readonly maxKeys: number;
 
-  constructor(private readonly intervalMs = 60_000, private readonly maxKeys = 256) {
+  constructor(intervalMs = 60_000, maxKeys = 256) {
     if (!Number.isFinite(intervalMs) || intervalMs < 1 || !Number.isInteger(maxKeys) || maxKeys < 1) {
       throw new Error("Invalid warning gate bounds.");
     }
+    this.intervalMs = intervalMs;
+    this.maxKeys = maxKeys;
   }
 
   check(key: string, now = Date.now()): { emit: boolean; suppressedRepeats: number } {
