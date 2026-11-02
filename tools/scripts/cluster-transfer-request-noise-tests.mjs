@@ -32,6 +32,10 @@ const notificationSource = source("packages/renderer/src/features/notifications/
 assert.match(notificationSource, /Date\.now\(\) < nextAllowedPollAt/);
 assert.match(notificationSource, /consecutivePollFailures/);
 assert.match(notificationSource, /MIN_RECOVERY_POLL_GAP_MS/);
+const offlineRuntime = source("packages/renderer/src/core/offline-runtime.ts");
+assert.match(offlineRuntime, /const changed = wasReachable !== status\.ok/);
+assert.match(offlineRuntime, /if \(changed\) scheduleNextSync\(status\.ok \? 100 : 250\)/);
+assert.match(offlineRuntime, /now - snapshot\.lastCheckedAt >= 30_000/);
 
 const original = {
   document: globalThis.document,
