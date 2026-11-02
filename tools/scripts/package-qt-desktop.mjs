@@ -22,17 +22,16 @@ function run(command, args, cwd = root) {
   if (result.status !== 0) throw new Error(`${command} exited with code ${result.status ?? "unknown"}.`);
 }
 
-run(process.execPath, [path.join(root, "tools", "scripts", "build-qt-desktop.mjs"), "--clean", "--package"]);
-await access(deployed);
-// The independently pinned, nonprivileged Go Package stager is part of the
-// Desktop distribution, but is NEVER started by the renderer or treated as an
-// OS installer. A future authenticated native agent must revalidate current
-// server entitlement before selecting any staged content.
-const packageStager = path.join(deployed, process.platform === "win32" ? "cluster-package-stager.exe" : "cluster-package-stager");
-const goArgs = ["-C", path.join(root, "tools", "native", "package-stager-go"), "build", "-trimpath", "-o", packageStager, "."];
-run("go", goArgs);
+// Stage the Go helper BEFORE CMake configure/install. CPack replays CMake's
+// install rules, so adding a file only to the portable folder would omit it
+// from the actual NSIS installer.
+const stagerName = process.platform === "win32" ? "cluster-package-stager.exe" : "cluster-package-stager";
+const packageStager = path.join(root, "bin", stagerName);
+await mkdir(path.dirname(packageStager), { recursive: true });
+run("go", ["-C", path.join(root, "tools", "native", "package-stager-go"), "build", "-trimpath", "-o", packageStager, "."]);
 await access(packageStager);
-await writeFile(path.join(deployed, "PACKAGE_STAGER_SECURITY.txt"), [
+const stagerNotice = path.join(root, "bin", "PACKAGE_STAGER_SECURITY.txt");
+await writeFile(stagerNotice, [
   "Cluster Package stager: signed content verification and staging ONLY.",
   "This helper does not install, execute, automatically activate or attest software.",
   "It requires a SHA-256 DER/SPKI signing key fingerprint provisioned independently",
@@ -42,6 +41,33 @@ await writeFile(path.join(deployed, "PACKAGE_STAGER_SECURITY.txt"), [
   "See tools/native/package-stager-go/README.md in the development source.",
   "",
 ].join("\n"));
+run(process.execPath, [path.join(root, "tools", "scripts", "build-qt-desktop.mjs"), "--clean", "--package"]);
+await access(deployed);
+if (process.platform === "win32") {
+  // Confirm the portable install tree contains the same product-owned pieces
+  // required by CMake/CPack. No Server service/database/installer may leak in.
+  const required = [
+    "bin/Cluster.exe",
+    "bin/cluster-update-helper.exe",
+    "bin/cluster-workstation-service.exe",
+    "bin/cluster-workstation-service.manifest.json",
+    "bin/cluster-package-stager.exe",
+    "bin/PACKAGE_STAGER_SECURITY.txt",
+    "bin/update-public-key.pem",
+    "bin/runtime/git/cmd/git.exe",
+    "bin/runtime/git-lfs/git-lfs.exe",
+  ];
+  for (const relative of required) await access(path.join(deployed, ...relative.split("/")));
+  for (const relative of ["bin/cluster-host.exe", "bin/ClusterServer.exe", "bin/Cluster Server.exe"]) {
+    try {
+      await access(path.join(deployed, ...relative.split("/")));
+    } catch (error) {
+      if (error?.code === "ENOENT") continue;
+      throw error;
+    }
+    throw new Error("Server executable leaked into the Desktop distribution: " + relative);
+  }
+}
 await rm(archive, { force: true });
 await mkdir(releaseRoot, { recursive: true });
 const toolchain = await loadDesktopToolchain();

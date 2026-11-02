@@ -31,10 +31,12 @@ Windows Server release distribution requires a separate signed `cluster-server` 
 
 ## Current limitations
 
-- The Git source currently tracks RC50; later RC73/RC74 bundles require verified import.
+- The Git source tracks RC50; selected later PDF/3D viewer fixes have already been merged through reviewed PRs. Historical ZIPs do not supersede the Git source.
 - The npm lockfile is not committed. `--build` intentionally rejects reproducibility claims without it.
-- The legacy Windows Server installer still source-builds on the installation machine. Shipping prebuilt verified runtime packages is a **1.0 release blocker**.
-- Qt Desktop's new NSIS step requires CPack + NSIS and an actual Windows/Qt build. It has not been Windows runtime-certified.
+- The Server packager defaults to prebuilt mode, validates compiled artifacts, and rejects an unlocked release. Developer-only source compilation is explicit, never the normal distribution path. A real prebuilt Windows installer has **not yet been produced or certified**.
+- The prebuilt Server payload explicitly excludes Qt Desktop source, the Desktop executable and the Desktop-only Package Stager. This is a package-enforced boundary, not merely a profile label.
+- Qt Desktop CMake install rules include the native Package Stager and its security notice in both portable and CPack/NSIS packages; packaging checks required native helpers and disallows Server binaries. A real Windows/Qt/NSIS build remains required after the lockfile workstream.
+- The independent Desktop installer still requires verified native Qt 6.11.2, CPack and NSIS toolchains and retains its 0.482.0 parity hold.
 - The Server's channel-aware Check Updates only verifies and reports signed metadata; safe unattended download, stop/drain, apply, and restore testing remains incomplete.
 - Web and Portal must enforce all authorization through the server, regardless of client-side surface styling.
 

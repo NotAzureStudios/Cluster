@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { isDesktopOnlyDistributionPath } from './cluster-distribution-scope.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const installer=path.join(root,'tools','installer');
 const embedded=path.join(installer,'assets','bundled-source.zip');
@@ -25,6 +26,7 @@ const requiredRuntime=[
 ];
 const excludedFolders=new Set(prebuilt?['.git','.cache','__pycache__']:['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);
 function omit(rel) {
+  if(prebuilt&&isDesktopOnlyDistributionPath(rel))return true;
   const parts=rel.split('/');
   if (parts.some((v,i)=>excludedFolders.has(v) && i!==0)) return true;
   if (parts[0]==='.git'||parts[0]==='build'||(!prebuilt&&parts[0]==='node_modules'))return true;
@@ -46,7 +48,7 @@ function collect(folder,out=[]){
       if(prebuilt&&rel.startsWith('node_modules/@cluster/'))continue;
       throw new Error('Unexpected symlink or junction in installer payload: '+rel);
     }
-    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name)&&!(prebuilt&&rel==='docs'))collect(p,out);continue;}
+    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name)&&!(prebuilt&&(rel==='docs'||isDesktopOnlyDistributionPath(rel))))collect(p,out);continue;}
     if(entry.isFile()&&!omit(rel))out.push(rel);
   }
   return out;

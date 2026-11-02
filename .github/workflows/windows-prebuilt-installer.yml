@@ -37,6 +37,8 @@ jobs:
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'tools/installer/Install-Cluster.ps1').Path, [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) { throw (($parseErrors | ForEach-Object { $_.ToString() }) -join '; ') }
+      - name: Server/Desktop payload boundary regression
+        run: node tools/scripts/cluster-distribution-scope-tests.mjs
       - name: Prebuilt release admission contracts
         run: node tools/scripts/cluster-prebuilt-installer-contract-tests.mjs
       - name: Existing installer safety regression contracts
