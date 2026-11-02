@@ -23,11 +23,11 @@ const requiredRuntime=[
  'bin/cluster-workstation-service.exe','tools/scripts/cluster-rc-preflight.mjs',
  'tools/scripts/cluster-rc-smoke.mjs','tools/scripts/cluster-rc-runtime-admission.mjs'
 ];
-const excludedFolders=new Set(['.git','.cache','build','.next','coverage','__pycache__',...(prebuilt?[]:['node_modules','dist'])]);
+const excludedFolders=new Set(prebuilt?['.git','.cache','__pycache__']:['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);
 function omit(rel) {
   const parts=rel.split('/');
   if (parts.some((v,i)=>excludedFolders.has(v) && i!==0)) return true;
-  if (parts[0]==='.git'||(!prebuilt&&parts[0]==='node_modules'))return true;
+  if (parts[0]==='.git'||parts[0]==='build'||(!prebuilt&&parts[0]==='node_modules'))return true;
   if(prebuilt&&(parts[0]==='docs'||rel.startsWith('tools/fixtures/')||rel.startsWith('tools/installer/')))return true;
   if(['data','runtime','backups','Revisions','Rollback','Toolchains','Build'].includes(parts[0]))return true;
   if(rel.endsWith('.pfx')||rel.endsWith('.p12')||rel.endsWith('.sqlite')||rel.endsWith('.sqlite3')||rel.endsWith('.db')||
