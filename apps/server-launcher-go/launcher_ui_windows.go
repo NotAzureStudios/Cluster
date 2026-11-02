@@ -1816,7 +1816,7 @@ func (ui *windowsControlPanel) updateMetrics() {
 	ram := int(snapshot.MemoryPercent)
 	if ram > 100 { ram = 100 }
 	diskPercent := 0
-	if snapshot.DiskTotalBytes > 0 {
+	if snapshot.DiskTotalBytes > 0 && snapshot.DiskFreeBytes <= snapshot.DiskTotalBytes {
 		diskPercent = int((float64(snapshot.DiskTotalBytes - snapshot.DiskFreeBytes) / float64(snapshot.DiskTotalBytes)) * 100 + 0.5)
 		if diskPercent < 0 { diskPercent = 0 } else if diskPercent > 100 { diskPercent = 100 }
 	}
@@ -2516,7 +2516,7 @@ func (ui *windowsControlPanel) updateLogControlLabels() {
 		setWindowText(ui.themeToggle, "Dark mode")
 	}
 	if ui.performanceVisible {
-		setWindowText(ui.performanceToggle, "Hide performance")
+		setWindowText(ui.performanceToggle, "Hide stats")
 	} else {
 		setWindowText(ui.performanceToggle, "Performance")
 	}
