@@ -48,7 +48,7 @@ function collect(folder,out=[]){
       if(prebuilt&&rel.startsWith('node_modules/@cluster/'))continue;
       throw new Error('Unexpected symlink or junction in installer payload: '+rel);
     }
-    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name)&&!omit(rel))collect(p,out);continue;}
+    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name)&&!(prebuilt&&(rel==='docs'||isDesktopOnlyDistributionPath(rel))))collect(p,out);continue;}
     if(entry.isFile()&&!omit(rel))out.push(rel);
   }
   return out;
