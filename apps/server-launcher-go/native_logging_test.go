@@ -29,7 +29,10 @@ func TestNativeLogRedactsSecrets(t *testing.T) {
 	for _, secret := range []string{"someone:secret","123456","Bearer-token"} {
 		if strings.Contains(logged, secret) {t.Fatalf("secret leaked into log: %s",logged)}
 	}
-	if !strings.Contains(logged, "localhost:54321/cluster") {t.Fatalf("redaction removed useful endpoint diagnostics: %s",logged)}
+	uri := redactNativeLogLine("Cannot connect to postgresql://someone:secret@localhost:54321/cluster")
+	if !strings.Contains(uri, "localhost:54321/cluster") || strings.Contains(uri, "someone:secret") {
+		t.Fatalf("database URI redaction lost host diagnostics or leaked credentials: %s", uri)
+	}
 }
 
 func TestManagedDatabaseRunnerRejectsMissingOrUnknownCommands(t *testing.T) {
