@@ -90,9 +90,31 @@ const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const install = spawnSync(npmCommand, ["ci", "--no-audit", "--no-fund"], { cwd:root, stdio:"inherit" });
 if (install.error) throw install.error;
 assert(install.status === 0, "Locked clean npm ci failed; refusing release build");
-const result = spawnSync(npmCommand, ["run", profile.buildCommand], { cwd:root, stdio:"inherit" });
-if (result.error) throw result.error;
-assert(result.status === 0, "Selected platform build failed");
+function releaseCommand(executable, cmdArgs, message, env=process.env) {
+  const result=spawnSync(executable,cmdArgs,{cwd:root,stdio:"inherit",env});
+  if(result.error)throw result.error;
+  assert(result.status===0,message);
+}
+// A release profile packages compiled artifacts; CI must build those outputs
+// from the current commit, not reuse binaries left by a developer workstation.
+if(profile.product==="cluster-server") {
+  const nativeSteps=[
+    "cluster-rc-native-checks.mjs",
+    "build-native-host.mjs",
+    "build-server-launcher.mjs",
+    "build-cluster-server-entry.mjs",
+    "build-update-helper.mjs",
+    "build-workstation-service.mjs"
+  ];
+  for(const script of nativeSteps)
+    releaseCommand(process.execPath,["tools/scripts/"+script],"Native Server release build failed: "+script);
+  const buildEnv={...process.env,
+    DIRECT_DATABASE_URL:"postgresql://cluster_build:unused@127.0.0.1:1/cluster_build",
+    DATABASE_URL:"postgresql://cluster_build:unused@127.0.0.1:1/cluster_build"};
+  releaseCommand(npmCommand,["run","db:generate"],"Prisma client generation failed",buildEnv);
+  releaseCommand(npmCommand,["run","build"],"Server and Web compilation failed",buildEnv);
+}
+releaseCommand(npmCommand, ["run", profile.buildCommand], "Selected platform build failed");
 const hashes = [];
 for (const p of artifactPaths) {
   const abs = path.join(root, p);

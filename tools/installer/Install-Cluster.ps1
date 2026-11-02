@@ -9,6 +9,7 @@ param(
   [switch]$CheckOnly,
   [switch]$SkipLaunch,
   [switch]$AllowUntrustedArchive,
+  [switch]$AllowDevSourceBuild,
   [switch]$StartInstalled
 )
 Set-StrictMode -Version Latest
@@ -59,7 +60,7 @@ function GetVerifiedDownload([string]$url, [string]$archive, [string]$hash) {
     if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
   }
 }
-function ProvisionPortableTools() {
+function ProvisionPortableTools([switch]$RuntimeOnly) {
   if (-not [Environment]::Is64BitOperatingSystem) { Fail 'Cluster Installer requires 64-bit Windows.' }
   $toolRoot = Join-Path $WorkRoot 'Toolchains'
   $cache = Join-Path $toolRoot 'Downloads'
@@ -83,6 +84,11 @@ function ProvisionPortableTools() {
   }
   $nodeResult = (& $node --version 2>&1 | Out-String).Trim()
   if ($LASTEXITCODE -ne 0 -or $nodeResult -ne 'v24.20.0') { Fail "Private Node verification failed: $nodeResult" }
+  if ($RuntimeOnly) {
+    $env:PATH = (Split-Path -Parent $node) + ';' + $env:PATH
+    Say 'Verified private Node runtime is ready. No npm install, Go download, or compilation is needed.'
+    return
+  }
   $goVersion = '1.27.1'
   $goFile = "go$goVersion.windows-amd64.zip"
   $go = Join-Path $toolRoot "go-$goVersion\go\bin\go.exe"
@@ -211,6 +217,61 @@ function TestManifest([string]$source) {
   }
   Say "Verified $checked source-file hashes and complete manifest allowlist."
 }
+function TestPrebuiltRuntime([string]$source) {
+  $metadataFile = Join-Path $source 'config/prebuilt-runtime.json'
+  if (-not (Test-Path -LiteralPath $metadataFile -PathType Leaf)) { Fail 'Prebuilt runtime metadata missing; refusing an uncompiled release.' }
+  $metadata = Get-Content -LiteralPath $metadataFile -Raw | ConvertFrom-Json
+  if ($metadata.schema -ne 1 -or $metadata.product -ne 'cluster-server' -or
+      $metadata.kind -ne 'prebuilt-windows-x64' -or
+      $metadata.release -ne $releaseIdentity.release -or
+      $metadata.sequence -ne $releaseIdentity.sequence -or
+      $metadata.sourceVersion -ne $releaseIdentity.sourceVersion -or
+      [string]$metadata.commit -notmatch '^[a-f0-9]{40}$') {
+    Fail 'Prebuilt runtime identity does not match the packaged release.'
+  }
+  $required = @(
+    'packages/shared/dist/index.js',
+    'apps/server/dist/index.js',
+    'apps/server/dist/generated/prisma/client.js',
+    'apps/web/dist/index.html',
+    'node_modules/@prisma/client/package.json',
+    'bin/ClusterServer.exe',
+    'bin/Cluster Server.exe',
+    'bin/cluster-host.exe',
+    'bin/cluster-update-helper.exe',
+    'bin/cluster-workstation-service.exe',
+    'tools/scripts/cluster-rc-preflight.mjs',
+    'tools/scripts/cluster-rc-smoke.mjs',
+    'tools/scripts/cluster-rc-runtime-admission.mjs'
+  )
+  if ($null -eq $metadata.requiredArtifacts) { Fail 'Prebuilt runtime has no artifact integrity record.' }
+  foreach ($relative in $required) {
+    $property = $metadata.requiredArtifacts.PSObject.Properties[$relative]
+    if ($null -eq $property -or [string]$property.Value -notmatch '^[a-f0-9]{64}$') {
+      Fail "Missing or invalid prebuilt artifact digest: $relative"
+    }
+    $candidate = Join-Path $source $relative
+    EnsureUnder $candidate $source
+    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { Fail "Prebuilt artifact missing: $relative" }
+    $actual = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -cne [string]$property.Value) { Fail "Prebuilt artifact integrity failure: $relative" }
+    if ($relative.EndsWith('.exe', [StringComparison]::OrdinalIgnoreCase)) {
+      $stream = [IO.File]::OpenRead($candidate)
+      try {
+        if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { Fail "Prebuilt Windows executable has invalid PE header: $relative" }
+      } finally { $stream.Dispose() }
+    }
+  }
+  if (-not (Test-Path -LiteralPath (Join-Path $source 'package-lock.json') -PathType Leaf)) {
+    Fail 'Prebuilt runtime requires the exact validated npm package-lock.json.'
+  }
+  $webAssets = Join-Path $source 'apps/web/dist/assets'
+  if (-not (Test-Path -LiteralPath $webAssets -PathType Container) -or
+      @(Get-ChildItem -LiteralPath $webAssets -Filter '*.js' -File).Count -lt 1) {
+    Fail 'Prebuilt runtime missing compiled web assets.'
+  }
+  Say "Validated $($required.Count) prebuilt artifact digests for $($metadata.commit)."
+}
 function LaunchClusterServer([string]$root) {
   # The current Cluster 0.546 native launcher uses default PostgreSQL
   # 54321 and may attach to the global ClusterStudioServer service.
@@ -267,7 +328,7 @@ function AssertInstallPreflight() {
     Say ("Preflight: {0:N1} GiB free on {1}; source-build minimum 4.0 GiB." -f ($drive.AvailableFreeSpace / 1GB), $root)
   } catch {
     if ($_.Exception.Message -match 'Not enough free space|not ready|Could not resolve') { throw }
-    Fail "Cannot inspect installation drive $root: $($_.Exception.Message)"
+    Fail "Cannot inspect installation drive ${root}: $($_.Exception.Message)"
   }
   $probe = Join-Path $WorkRoot ('.cluster-write-test-' + [guid]::NewGuid().ToString('N'))
   try {
@@ -290,7 +351,8 @@ function AssertInstallPreflight() {
 # @cluster/server, etc. pointing at the deleted temporary build directory.
 function RepairWorkspaceJunctions([string]$installedRoot) {
   $scope = Join-Path $installedRoot 'node_modules/@cluster'
-  if (-not (Test-Path -LiteralPath $scope -PathType Container)) { Fail 'Built runtime missing node_modules/@cluster; cannot start safely.' }
+  if (-not (Test-Path -LiteralPath $scope -PathType Container)) { New-Item -ItemType Directory -Path $scope -Force | Out-Null }
+  if ((Get-Item -LiteralPath $scope -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { Fail 'Workspace link root cannot be a reparse point.' }
   $workspaces = @('apps/server','apps/web','packages/shared','packages/api-client','packages/renderer','integrations/discord-bot')
   foreach ($relative in $workspaces) {
     $destination = Join-Path $installedRoot $relative
@@ -515,6 +577,16 @@ try {
   if ($CheckOnly) { Say 'Source archive verified; no installation or build was performed.'; exit 0 }
   Say '[2/6] Checking installation environment before downloading toolchains.'
   AssertInstallPreflight
+  $versions = $sourceToolchain
+  $isPrebuilt = Test-Path -LiteralPath (Join-Path $source 'config/prebuilt-runtime.json') -PathType Leaf
+  if ($isPrebuilt) {
+    Say '[3/6] Verifying prebuilt Windows runtime and private Node runtime.'
+    TestPrebuiltRuntime $source
+    ProvisionPortableTools -RuntimeOnly
+    $env:CLUSTER_VERSION = [string]$releaseIdentity.sourceVersion
+    Say '[4/6] Runtime already compiled on the release build machine. No npm install, Prisma generation, or native compilation.'
+  } elseif ($AllowDevSourceBuild) {
+    Say 'DEVELOPER MODE: compiling unverified full source on this machine. This is not a normal installation.'
   if (-not (Test-Path -LiteralPath (Join-Path $source 'package-lock.json') -PathType Leaf)) {
     Say 'WARNING: this source candidate lacks package-lock.json; installation is development-only, not reproducible stable 1.0.'
   }
@@ -555,12 +627,19 @@ try {
     $env:DATABASE_URL = $oldDatabase
   }
   Run 'npm.cmd' @('run','build') $source
+  } else {
+    Fail 'Standard Cluster Installer requires a prebuilt runtime. Source compilation is developer-only.'
+  }
   # Auxiliary binaries are optional for web/server testing; not silently declared certified.
   foreach ($requiredFile in @('apps/server/dist/index.js','apps/web/dist/index.html','packages/shared/dist/index.js','bin/ClusterServer.exe','bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe','bin/cluster-workstation-service.exe','node_modules/@prisma/client/package.json')) {
     if (-not (Test-Path -LiteralPath (Join-Path $source $requiredFile) -PathType Leaf)) { Fail "Build missing required output: $requiredFile" }
   }
   Say '[5/6] Validating compiled artifacts and release integrity.'
   # Validate the actual compiled artifacts before making installation changes.
+  # The prebuilt ZIP deliberately excludes absolute npm workspace junctions.
+  # Reconstruct staging links for smoke tests; ApplyRevision repairs them again
+  # against the final installed root after the directory move.
+  if ($isPrebuilt) { RepairWorkspaceJunctions $source }
   Run 'node' @('tools/scripts/cluster-rc-preflight.mjs','--built') $source
   Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
   # Native startup trusts this marker only as a build-readiness hint, never as a signature.

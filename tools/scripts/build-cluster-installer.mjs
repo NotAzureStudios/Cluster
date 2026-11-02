@@ -12,12 +12,28 @@ const installer=path.join(root,'tools','installer');
 const embedded=path.join(installer,'assets','bundled-source.zip');
 const binary=path.join(root,'bin','Cluster-Installer.exe');
 const keepRoot=new Set(['package.json','package-lock.json','.npmrc','prisma.config.ts']);
-const excludedFolders=new Set(['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);
+const mode=process.env.CLUSTER_INSTALLER_PAYLOAD||'prebuilt';
+if(!['prebuilt','source'].includes(mode))throw new Error('CLUSTER_INSTALLER_PAYLOAD must be prebuilt or source');
+const prebuilt=mode==='prebuilt';
+const requiredRuntime=[
+ 'packages/shared/dist/index.js','apps/server/dist/index.js',
+ 'apps/server/dist/generated/prisma/client.js','apps/web/dist/index.html',
+ 'node_modules/@prisma/client/package.json','bin/ClusterServer.exe',
+ 'bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe',
+ 'bin/cluster-workstation-service.exe','tools/scripts/cluster-rc-preflight.mjs',
+ 'tools/scripts/cluster-rc-smoke.mjs','tools/scripts/cluster-rc-runtime-admission.mjs'
+];
+const excludedFolders=new Set(prebuilt?['.git','.cache','__pycache__']:['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);
 function omit(rel) {
   const parts=rel.split('/');
   if (parts.some((v,i)=>excludedFolders.has(v) && i!==0)) return true;
-  if (parts[0]==='node_modules'||parts[0]==='.git')return true;
-  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||rel==='bin/Cluster Server.exe'||rel==='tools/installer/assets/bundled-source.zip')return true;
+  if (parts[0]==='.git'||parts[0]==='build'||(!prebuilt&&parts[0]==='node_modules'))return true;
+  if(prebuilt&&(parts[0]==='docs'||rel.startsWith('tools/fixtures/')||rel.startsWith('tools/installer/')))return true;
+  if(['data','runtime','backups','Revisions','Rollback','Toolchains','Build'].includes(parts[0]))return true;
+  if(rel.endsWith('.pfx')||rel.endsWith('.p12')||rel.endsWith('.sqlite')||rel.endsWith('.sqlite3')||rel.endsWith('.db')||
+    (parts.some(x=>x==='.env'||(x.startsWith('.env.')&&x!=='.env.example'))))return true;
+  if(prebuilt&&rel.startsWith('node_modules/@cluster/'))return true;
+  if (rel==='SOURCE_FILE_MANIFEST.sha256'||rel==='bin/Cluster-Installer.exe'||(!prebuilt&&rel==='bin/Cluster Server.exe')||rel==='tools/installer/assets/bundled-source.zip')return true;
   if (rel.startsWith('tools/installer/assets/'))return true;
   if (parts.length===1 && !keepRoot.has(rel))return true; // root historical development evidence, >1000 files
   if (rel.endsWith('.tsbuildinfo')||rel.endsWith('.pyc'))return true;
@@ -26,8 +42,11 @@ function omit(rel) {
 function collect(folder,out=[]){
   for(const entry of fs.readdirSync(folder,{withFileTypes:true})){
     const p=path.join(folder,entry.name);const rel=path.relative(root,p).split(path.sep).join('/');
-    if(entry.isSymbolicLink())throw new Error('Symlinks cannot be included in Cluster Installer: '+rel);
-    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name))collect(p,out);continue;}
+    if(entry.isSymbolicLink()){
+      if(prebuilt&&rel.startsWith('node_modules/@cluster/'))continue;
+      throw new Error('Unexpected symlink or junction in installer payload: '+rel);
+    }
+    if(entry.isDirectory()) {if(!excludedFolders.has(entry.name)&&!(prebuilt&&rel==='docs'))collect(p,out);continue;}
     if(entry.isFile()&&!omit(rel))out.push(rel);
   }
   return out;
@@ -52,9 +71,55 @@ function makeZip(entries){
   return Buffer.concat([...locals,center,end]);
 }
 function run(){
+  let prebuiltMetadata=null;
+  if(prebuilt){
+    if(process.platform!=='win32'||process.arch!=='x64')throw new Error('Prebuilt Windows installer requires a Windows x64 build runner');
+    const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+    const lockFile=path.join(root,'package-lock.json');
+    if(!fs.existsSync(lockFile))throw new Error('Prebuilt installer BLOCKED: package-lock.json is missing');
+    const lock=JSON.parse(fs.readFileSync(lockFile,'utf8'));
+    if(lock.lockfileVersion<3||lock.name!==pkg.name||lock.version!==pkg.version||lock.packages?.['']?.version!==pkg.version)
+      throw new Error('Prebuilt installer BLOCKED: package-lock.json does not match root package');
+    const release=JSON.parse(fs.readFileSync(path.join(root,'config/release-candidate.json'),'utf8'));
+    if(release.sourceVersion!==pkg.version||!/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)||release.sequence!==Number(release.release.split('.').at(-1)))
+      throw new Error('Prebuilt installer BLOCKED: release metadata mismatch');
+    const commit=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
+    if(commit.status!==0||!/^[a-f0-9]{40}$/.test(commit.stdout.trim()))throw new Error('Prebuilt installer requires a traceable commit');
+    const hashes={};
+    for(const rel of requiredRuntime){
+      const file=path.join(root,...rel.split('/'));
+      if(!fs.existsSync(file)||!fs.statSync(file).isFile()||fs.statSync(file).size===0)
+        throw new Error('Prebuilt installer missing compiled runtime artifact: '+rel);
+      const data=fs.readFileSync(file);
+      if(rel.toLowerCase().endsWith('.exe')&&data.subarray(0,2).toString('ascii')!=='MZ')
+        throw new Error('Invalid Windows PE binary: '+rel);
+      hashes[rel]=createHash('sha256').update(data).digest('hex');
+    }
+    if(!fs.existsSync(path.join(root,'apps/web/dist/assets'))||
+       !fs.readdirSync(path.join(root,'apps/web/dist/assets')).some(name=>name.endsWith('.js')))
+      throw new Error('Prebuilt installer missing compiled web assets');
+    const gitStatus=spawnSync('git',['diff','--quiet'],{cwd:root});
+    const stagedStatus=spawnSync('git',['diff','--cached','--quiet'],{cwd:root});
+    if(gitStatus.status!==0||stagedStatus.status!==0)throw new Error('Prebuilt release must be produced from clean tracked source');
+    prebuiltMetadata={
+      schema:1,product:'cluster-server',kind:'prebuilt-windows-x64',
+      release:release.release,sequence:release.sequence,sourceVersion:release.sourceVersion,
+      commit:commit.stdout.trim(),requiredArtifacts:hashes
+    };
+  }
   const files=collect(root).sort();const manifest=[];const entries=[];
+  let totalBytes=0;
   for(const rel of files){
     const data=fs.readFileSync(path.join(root,...rel.split('/')));
+    totalBytes+=data.length;
+    if(data.length>268435456||totalBytes>2147483648)throw new Error('Installer payload exceeds ZIP safety budget: '+rel);
+    manifest.push(createHash('sha256').update(data).digest('hex')+'  '+rel);
+    entries.push({name:'source/'+rel,data});
+  }
+  if(prebuilt){
+    const rel='config/prebuilt-runtime.json';
+    if(files.includes(rel))throw new Error('Generated runtime metadata must not exist in source tree');
+    const data=Buffer.from(JSON.stringify(prebuiltMetadata,null,2)+'\n');
     manifest.push(createHash('sha256').update(data).digest('hex')+'  '+rel);
     entries.push({name:'source/'+rel,data});
   }
@@ -72,6 +137,6 @@ function run(){
   const build=spawnSync(go,['build','-trimpath','-ldflags=-s -w','-o',binary,'.'],{cwd:installer,env,encoding:'utf8',timeout:180000});
   if(build.status!==0)throw new Error(`Cluster Installer build failed: ${build.stdout}\n${build.stderr}`);
   const header=fs.readFileSync(binary).subarray(0,2).toString('ascii');if(header!=='MZ')throw new Error('Expected PE Windows executable');
-  console.log(JSON.stringify({installer:binary,sourceFiles:files.length,payloadBytes:zipped.length,sha256:sha,executableBytes:fs.statSync(binary).size,goTests:'passed'},null,2));
+  console.log(JSON.stringify({installer:binary,mode,sourceFiles:files.length,payloadBytes:zipped.length,sha256:sha,executableBytes:fs.statSync(binary).size,goTests:'passed',certified:false},null,2));
 }
 try{run();}finally {try{fs.rmSync(embedded,{force:true});}catch{}}

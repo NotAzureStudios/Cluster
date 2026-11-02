@@ -1,5 +1,5 @@
-// Cluster Installer: portable, self-contained Windows source-build installer.
-// No Node, Go, or PostgreSQL system installation is required on the target PC.
+// Cluster Installer: portable, prebuilt Windows Server deployment.
+// Source compilation is available only as an explicit developer override.
 package main
 
 import (
@@ -29,7 +29,7 @@ var payload embed.FS
 const installerName = "Cluster Installer"
 const markerName = ".cluster-installer-managed.json"
 
-// Release identity comes from the embedded, hash-verified full source. It is
+// Release identity comes from the embedded, hash-verified payload. It is
 // intentionally independent of timestamps, neighboring files and old installs.
 type releaseIdentity struct {
 	Schema        int    `json:"schema"`
@@ -76,6 +76,42 @@ func embeddedReleaseInfo(bundle []byte) (releaseIdentity, error) {
 		return release, nil
 	}
 	return release, errors.New("installer source missing release candidate identity")
+}
+// The packaged Windows installer must contain a built-runtime admission receipt.
+// The installer cannot silently fall back to compiling a source snapshot.
+func embeddedPrebuiltInfo(bundle []byte, release releaseIdentity) error {
+ archive, err := zip.NewReader(bytes.NewReader(bundle), int64(len(bundle)))
+ if err != nil { return err }
+ for _, item := range archive.File {
+  if item.Name != "source/config/prebuilt-runtime.json" { continue }
+  if item.UncompressedSize64 > 32768 { return errors.New("prebuilt metadata is too large") }
+  r, err := item.Open()
+  if err != nil { return err }
+  body, err := io.ReadAll(io.LimitReader(r, 32769))
+  closeErr := r.Close()
+  if err != nil { return err }
+  if closeErr != nil { return closeErr }
+  if len(body) > 32768 { return errors.New("prebuilt metadata is too large") }
+  var metadata struct {
+   Schema int `json:"schema"`
+   Product string `json:"product"`
+   Kind string `json:"kind"`
+   Release string `json:"release"`
+   Sequence int `json:"sequence"`
+   SourceVersion string `json:"sourceVersion"`
+   Commit string `json:"commit"`
+   RequiredArtifacts map[string]string `json:"requiredArtifacts"`
+  }
+  if err := json.Unmarshal(body, &metadata); err != nil { return err }
+  if metadata.Schema != 1 || metadata.Product != "cluster-server" ||
+   metadata.Kind != "prebuilt-windows-x64" || metadata.Release != release.Release ||
+   metadata.Sequence != release.Sequence || metadata.SourceVersion != release.SourceVersion ||
+   len(metadata.Commit) != 40 || len(metadata.RequiredArtifacts) < 10 {
+    return errors.New("prebuilt installer metadata does not match its release")
+   }
+  return nil
+ }
+ return errors.New("prebuilt Windows runtime is missing; ordinary installation cannot compile source")
 }
 func readManagedSequence(marker string) (int, string) {
 	body, err := os.ReadFile(marker)
@@ -152,7 +188,7 @@ func writePayload(name, destination string) error {
 }
 func run() error {
 	if len(os.Args) > 2 {
-		return errors.New("drag only one complete Cluster source ZIP onto the installer")
+		return errors.New("only one development source ZIP may be supplied")
 	}
 	exe, err := os.Executable()
 	if err != nil {
@@ -178,13 +214,16 @@ func run() error {
 		return err
 	}
 	identity, err := embeddedReleaseInfo(bundled)
-	if err != nil {
-		return err
+	if err != nil { return err }
+	developerSource := os.Getenv("CLUSTER_INSTALLER_DEV_SOURCE_BUILD") == "1"
+	if !developerSource {
+		if err := embeddedPrebuiltInfo(bundled, identity); err != nil { return err }
 	}
 	embeddedDigest := sha256.Sum256(bundled)
 	embeddedHash := hex.EncodeToString(embeddedDigest[:])
 	var archive string
 	if len(os.Args) == 2 {
+		if !developerSource { return errors.New("dragged ZIP installation is disabled for signed production installers; use explicit developer source mode") }
 		archive, err = filepath.Abs(strings.TrimSpace(os.Args[1]))
 		if err != nil {
 			return err
@@ -206,6 +245,7 @@ func run() error {
 	args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps, "-WorkRoot", work}
 	if archive != "" {
 		args = append(args, "-Archive", archive)
+		if developerSource { args = append(args, "-AllowDevSourceBuild") }
 	} else if installed {
 		args = append(args, "-StartInstalled")
 	} else {
@@ -218,7 +258,11 @@ func run() error {
 	} else {
 		fmt.Println("Existing installation: start without recompiling")
 	}
-	fmt.Println("Downloads and builds are automatic; no manual toolchain setup.")
+	if developerSource {
+  fmt.Println("DEVELOPER ONLY: source compilation is enabled. Not for production releases.")
+ } else {
+  fmt.Println("Verified prebuilt runtime: no Node/Go compilation on installation.")
+ }
 	fmt.Println("Log:", filepath.Join(work, "installer.log"))
 	cmd := exec.Command("powershell.exe", args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
