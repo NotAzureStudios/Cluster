@@ -45,9 +45,11 @@ func rotateNativeSessionLog(path string, maxBytes int64, backups int) error {
 }
 
 var nativeCredentialURL = regexp.MustCompile(`(?i)\b(postgres(?:ql)?|mysql|mongodb(?:\+srv)?):\/\/[^\s@]+@`)
+var nativeAuthorizationHeader = regexp.MustCompile(`(?i)\bAuthorization\s*:\s*(?:Bearer|Basic)\s+[^\s,;]+`)
 var nativeSecretSetting = regexp.MustCompile(`(?i)\b(DATABASE_URL|DIRECT_DATABASE_URL|POSTGRES_PASSWORD|SESSION_SECRET|CLUSTER_AUTH_SECRET|CLUSTER_SECRET_KEY|CLUSTER_UPDATE_TOKEN|AUTHORIZATION)\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s,;]+)`)
 
 func redactNativeLogLine(line string) string {
 	line = nativeCredentialURL.ReplaceAllString(line, "${1}://[REDACTED]@")
+	line = nativeAuthorizationHeader.ReplaceAllString(line, "Authorization: [REDACTED]")
 	return nativeSecretSetting.ReplaceAllString(line, "${1}=[REDACTED]")
 }

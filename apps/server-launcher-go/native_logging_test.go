@@ -33,6 +33,10 @@ func TestNativeLogRedactsSecrets(t *testing.T) {
 	if !strings.Contains(uri, "localhost:54321/cluster") || strings.Contains(uri, "someone:secret") {
 		t.Fatalf("database URI redaction lost host diagnostics or leaked credentials: %s", uri)
 	}
+	for _, method := range []string{"Bearer", "Basic"} {
+		header := redactNativeLogLine("Authorization: " + method + " token.very-secret")
+		if strings.Contains(header, "token.very-secret") { t.Fatalf("authorization header leaked: %s", header) }
+	}
 }
 
 func TestManagedDatabaseRunnerRejectsMissingOrUnknownCommands(t *testing.T) {
