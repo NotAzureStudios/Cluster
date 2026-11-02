@@ -2,7 +2,7 @@ name: Transfer and request reliability
 
 on:
   push:
-    branches: [fix/transfer-api-background-noise]
+    branches: [development, main, fix/transfer-api-background-noise]
   pull_request:
     branches: [development, main]
 
