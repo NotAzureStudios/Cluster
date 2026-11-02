@@ -108,7 +108,74 @@ func stageRuntimeDirectory(source, destination string) error {
 	return nil
 }
 
+// A missing PG_VERSION does not mean that an existing data directory is empty.
+// Never initialize into, replace, or delete an unknown PostgreSQL directory.
+func inspectEmbeddedPostgresData(data string) (initialize bool, err error) {
+	info, err := os.Lstat(data)
+	if os.IsNotExist(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("cannot inspect PostgreSQL data directory: %w", err)
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return false, fmt.Errorf("PostgreSQL data path is not a regular directory; refusing initialization")
+	}
+	contents, err := os.ReadFile(filepath.Join(data, "PG_VERSION"))
+	if err != nil {
+		return false, fmt.Errorf("existing PostgreSQL data directory is missing readable PG_VERSION; refusing to overwrite or initialize it: %w", err)
+	}
+	if strings.TrimSpace(string(contents)) != strings.SplitN(postgresVersion, ".", 2)[0] {
+		return false, fmt.Errorf("PostgreSQL data directory is not version %s; refusing to start a mismatched server or migrate automatically", postgresVersion)
+	}
+	return false, nil
+}
+
+// Atomic, create-only publication. Unlike runtime binary staging, persistent
+// database data can NEVER use RemoveAll or a copy-overwrite fallback.
+func publishNewPostgresDataDirectory(source, destination string) error {
+	if _, err := os.Lstat(destination); err == nil {
+		return fmt.Errorf("PostgreSQL destination already exists; refusing to replace it")
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.Rename(source, destination); err != nil {
+		return fmt.Errorf("could not publish new PostgreSQL data without replacing existing files: %w", err)
+	}
+	return nil
+}
+
+// A missing data volume must not look like a first boot after Cluster has
+// already initialized a database. The sentinel lives outside /data and is
+// preserved by the managed installer during release replacement.
+func checkEmbeddedPostgresFirstBoot(initializing bool, credentialFile, sentinel string) error {
+	if !initializing {
+		return nil
+	}
+	for _, item := range []struct{ path, label string }{
+		{sentinel, "a previous initialized PostgreSQL instance"},
+		{credentialFile, "existing PostgreSQL credentials"},
+	} {
+		if _, err := os.Lstat(item.path); err == nil {
+			return fmt.Errorf("PostgreSQL data directory is missing but %s remains; refusing to initialize a replacement database", item.label)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("cannot safely inspect PostgreSQL first-boot evidence: %w", err)
+		}
+	}
+	return nil
+}
+
 func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
+	data := filepath.Join(root, "data", "postgresql")
+	initialize, inspectErr := inspectEmbeddedPostgresData(data)
+	if inspectErr != nil {
+		return databaseConfig{}, nil, inspectErr
+	}
+	config := filepath.Join(root, "data", "system", "config", "embedded-postgres.env")
+	dbSentinel := filepath.Join(root, "runtime", "postgresql-data-initialized.marker")
+	if err := checkEmbeddedPostgresFirstBoot(initialize, config, dbSentinel); err != nil {
+		return databaseConfig{}, nil, err
+	}
 	pgRoot := filepath.Join(root, "runtime", "postgresql")
 	bin := filepath.Join(pgRoot, "bin")
 	if !fileExists(filepath.Join(bin, "postgres.exe")) {
@@ -117,33 +184,47 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 			return databaseConfig{}, nil, err
 		}
 	}
-	data := filepath.Join(root, "data", "postgresql")
-	config := filepath.Join(root, "data", "system", "config", "embedded-postgres.env")
 	values := readEnvFile(config)
 	password := values["POSTGRES_PASSWORD"]
 	port := 54321
 	if password == "" {
+		if !initialize {
+			return databaseConfig{}, nil, fmt.Errorf("existing PostgreSQL data has no saved credentials; refusing to replace the password or initialize a new database")
+		}
 		password = randomSecret(36)
 	}
-	if !fileExists(filepath.Join(data, "PG_VERSION")) {
+	if initialize {
 		fmt.Println("Initializing private PostgreSQL database as SQL role \"cluster\"...")
 		if err := os.MkdirAll(filepath.Dir(data), 0o755); err != nil {
 			return databaseConfig{}, nil, err
 		}
 		temporary := data + ".initializing"
-		_ = os.RemoveAll(temporary)
-		pwfile := filepath.Join(root, "data", "system", "runtime", "postgres-password.txt")
-		if err := os.MkdirAll(filepath.Dir(pwfile), 0o755); err != nil {
+		if _, err := os.Lstat(temporary); err == nil {
+			return databaseConfig{}, nil, fmt.Errorf("unfinished PostgreSQL initialization directory exists; preserving %s for recovery inspection", temporary)
+		} else if !os.IsNotExist(err) {
 			return databaseConfig{}, nil, err
 		}
-		if err := os.WriteFile(pwfile, []byte(password+"\n"), 0o600); err != nil {
+		passwordDir := filepath.Join(root, "data", "system", "runtime")
+		if err := os.MkdirAll(passwordDir, 0o700); err != nil {
+			return databaseConfig{}, nil, err
+		}
+		pw, err := os.CreateTemp(passwordDir, "postgres-password-*.tmp")
+		if err != nil {
+			return databaseConfig{}, nil, err
+		}
+		pwfile := pw.Name()
+		defer os.Remove(pwfile)
+		if _, err := pw.WriteString(password+"\n"); err != nil {
+			_ = pw.Close()
+			return databaseConfig{}, nil, err
+		}
+		if err := pw.Close(); err != nil {
 			return databaseConfig{}, nil, err
 		}
 		args := []string{"-D", temporary, "--username=cluster", "--pwfile=" + pwfile, "--auth=scram-sha-256", "--encoding=UTF8", "--locale=C"}
 		if err := runCommand(root, nil, filepath.Join(bin, "initdb.exe"), args...); err != nil {
 			return databaseConfig{}, nil, err
 		}
-		_ = os.Remove(pwfile)
 		postgresqlConf := filepath.Join(temporary, "postgresql.conf")
 		f, err := os.OpenFile(postgresqlConf, os.O_APPEND|os.O_WRONLY, 0o600)
 		if err != nil {
@@ -151,8 +232,14 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 		}
 		fmt.Fprintf(f, "\n# Managed by Cluster Server\nlisten_addresses = '127.0.0.1'\nport = %d\nmax_connections = 100\nshared_buffers = '128MB'\ntimezone = 'UTC'\n", port)
 		_ = f.Close()
-		if err := stageRuntimeDirectory(temporary, data); err != nil {
-			return databaseConfig{}, nil, fmt.Errorf("could not stage private PostgreSQL data directory: %w", err)
+		if err := publishNewPostgresDataDirectory(temporary, data); err != nil {
+			return databaseConfig{}, nil, err
+		}
+		// Persist the generated password as soon as the new cluster is
+		// committed. A subsequent pg_ctl or createdb failure must not orphan
+		// the only credential needed to recover the initialized directory.
+		if err := writeEnvFile(config, map[string]string{"POSTGRES_PASSWORD": password}); err != nil {
+			return databaseConfig{}, nil, fmt.Errorf("PostgreSQL data initialized but credential publication failed; preserve the data directory: %w", err)
 		}
 	}
 	if !portFree(port) {
@@ -203,7 +290,10 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 		return databaseConfig{}, nil, fmt.Errorf("PostgreSQL spawned no job-owned server process (active=%d, error=%v); refusing detached database", active, err)
 	}
 	pgEnv := map[string]string{"PGHOST": "127.0.0.1", "PGPORT": fmt.Sprint(port), "PGUSER": "cluster", "PGPASSWORD": password}
-	existsOut, _ := commandOutput(root, pgEnv, filepath.Join(bin, "psql.exe"), "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname='cluster'")
+	existsOut, lookupErr := commandOutput(root, pgEnv, filepath.Join(bin, "psql.exe"), "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname='cluster'")
+	if lookupErr != nil {
+		return databaseConfig{}, nil, fmt.Errorf("PostgreSQL database inspection failed; refusing to create or overwrite a database: %w", lookupErr)
+	}
 	if strings.TrimSpace(existsOut) != "1" {
 		fmt.Println("Creating Cluster database...")
 		if err := runCommand(root, pgEnv, filepath.Join(bin, "createdb.exe"), "-O", "cluster", "cluster"); err != nil {
@@ -212,6 +302,11 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 	}
 	if err := writeEnvFile(config, map[string]string{"POSTGRES_PASSWORD": password}); err != nil {
 		return databaseConfig{}, nil, err
+	}
+	if !fileExists(dbSentinel) {
+		if err := os.WriteFile(dbSentinel, []byte("postgresql-"+postgresVersion+"\n"), 0600); err != nil {
+			return databaseConfig{}, nil, fmt.Errorf("database started but could not persist anti-reinitialization sentinel: %w", err)
+		}
 	}
 	cleanup := func() {
 		// PostgreSQL gets its normal fast stop first. Only after its exit do

@@ -55,6 +55,7 @@ func main() {
 	service := flag.Bool("service", false, "run under Windows Service Control Manager")
 	installService := flag.Bool("service-install", false, "install dedicated Windows Service after least-privilege provisioning")
 	removeService := flag.Bool("service-remove", false, "remove stopped Windows Service")
+	diagnose := flag.Bool("diagnose", false, "read-only offline installation and PostgreSQL data-directory checks (JSON)")
 	flag.Parse()
 
 	root, err := resolveRoot(*rootFlag)
@@ -62,6 +63,21 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *diagnose {
+		if *service || *installService || *removeService || *repair || *startup {
+			fmt.Fprintln(os.Stderr, "--diagnose cannot be combined with service, startup or repair actions")
+			os.Exit(2)
+		}
+		report := collectNativeOfflineDiagnostics(root)
+		if err := writeNativeOfflineDiagnostics(os.Stdout, report); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		if !report.Healthy {
+			os.Exit(2)
+		}
+		return
+	}
 	if *service || *installService || *removeService {
 		if err := runPlatformServiceAction(root, *service, *installService, *removeService); err != nil {
 			fatal(err)

@@ -3,7 +3,6 @@
 package main
 
 import (
-	"bufio"
 	nativealerts "cluster.local/native-alerts"
 	processjob "cluster.local/native-process-job"
 	"context"
@@ -1888,11 +1887,12 @@ func (c *windowsServerController) CheckForUpdates() {
 
 func (c *windowsServerController) RunDatabaseDoctor() {
 	c.mu.Lock()
-	if c.state != panelRunning {
+	if c.state == panelStarting || c.state == panelStopping {
 		c.mu.Unlock()
-		messageBox(c.ui.hwnd, "Database Doctor", "Start Cluster Server before running the database doctor.", mbIconError)
+		messageBox(c.ui.hwnd, "Database Doctor", "Database diagnostics cannot run during startup or shutdown.", mbIconError)
 		return
 	}
+	offline := c.state != panelRunning
 	if c.doctorInFlight {
 		c.mu.Unlock()
 		return
@@ -1908,6 +1908,19 @@ func (c *windowsServerController) RunDatabaseDoctor() {
 			c.mu.Unlock()
 			c.ui.postState()
 		}()
+		if offline {
+			fmt.Println("Read-only offline diagnostic: no PostgreSQL process, migrations, downloads or file repairs will run.")
+			report := collectNativeOfflineDiagnostics(c.options.root)
+			for _, check := range report.Checks {
+				fmt.Printf("[%s] %s: %s\n", strings.ToUpper(check.Status), check.Name, check.Detail)
+			}
+			if !report.Healthy {
+				fmt.Fprintln(os.Stderr, "Offline diagnostics detected blocked startup prerequisites. Preserve data before attempting repair.")
+			} else {
+				fmt.Println("Offline file checks complete; live PostgreSQL consistency and restore verification still required.")
+			}
+			return
+		}
 		node, _, cleanup, err := preparePlatformRuntime(c.options.root)
 		if cleanup != nil {
 			defer cleanup()
@@ -2602,8 +2615,8 @@ func (ui *windowsControlPanel) updateStateControls() {
 	enableWindow(ui.stop, state == panelStarting || state == panelRunning)
 	enableWindow(ui.restart, state == panelRunning)
 	enableWindow(ui.openWeb, state == panelRunning)
-	enableWindow(ui.dbDoctor, state == panelRunning && !doctorInFlight)
-	enableWindow(ui.repair, !ui.controller.serviceManaged && (state == panelStopped || state == panelError))
+	enableWindow(ui.dbDoctor, (state == panelRunning || state == panelStopped || state == panelError) && !doctorInFlight)
+	enableWindow(ui.repair, !ui.controller.serviceManaged && !fileExists(filepath.Join(ui.controller.options.root, ".cluster-installer-managed.json")) && (state == panelStopped || state == panelError))
 	enableWindow(ui.settings, state != panelStarting && state != panelStopping)
 	enableWindow(ui.checkUpdates, !updateInFlight)
 }
@@ -2866,10 +2879,7 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 		return nil, err
 	}
 	logPath := filepath.Join(logs, "windows-server.log")
-	if err := rotateNativeSessionLog(logPath, 32*1024*1024, 4); err != nil {
-		return nil, fmt.Errorf("cannot safely rotate native diagnostic log: %w", err)
-	}
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	logFile, err := openNativeLineLogWriter(logPath, 32*1024*1024, 4)
 	if err != nil {
 		return nil, err
 	}
@@ -2884,13 +2894,13 @@ func installWindowsOutputCapture(root string, ui *windowsControlPanel) (func(), 
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)
-		scanner := bufio.NewScanner(reader)
-		scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
-		for scanner.Scan() {
-			line := redactNativeLogLine(scanner.Text())
+		if err := scanBoundedNativeLines(reader, func(raw string) {
+			line := redactNativeLogLine(raw)
 			_, _ = fmt.Fprintln(logFile, line)
 			ui.controller.observeLog(line)
 			ui.postLog(line)
+		}); err != nil {
+			ui.postLog("Native output capture stopped after an I/O error: " + err.Error())
 		}
 	}()
 	return func() {
