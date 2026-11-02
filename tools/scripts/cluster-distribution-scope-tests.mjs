@@ -33,8 +33,10 @@ check(builder.includes("import { isDesktopOnlyDistributionPath } from './cluster
   "Server packager must import the shared scope guard");
 check(builder.includes("if(prebuilt&&isDesktopOnlyDistributionPath(rel))return true;"),
   "Desktop files must be filtered only from real prebuilt Server distributions");
-check(builder.includes("!excludedFolders.has(entry.name)&&!omit(rel)"),
-  "Desktop directories must be pruned before recursive packaging");
+check(builder.includes("!excludedFolders.has(entry.name)&&!(prebuilt&&(rel==='docs'||isDesktopOnlyDistributionPath(rel)))"),
+  "Only Desktop-only directories may be pruned in prebuilt packaging");
+check(!builder.includes("!excludedFolders.has(entry.name)&&!omit(rel)"),
+  "Developer source mode must not prune its required root directories");
 check(builder.includes("const mode=process.env.CLUSTER_INSTALLER_PAYLOAD||'prebuilt';"),
   "Production Server packaging must remain prebuilt by default");
 check(builder.includes("package-lock.json is missing"),
