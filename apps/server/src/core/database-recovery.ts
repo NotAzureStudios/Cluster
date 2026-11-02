@@ -173,10 +173,20 @@ export async function replaceDatabaseFromBackup(input: {
   const maintenanceEnv = postgresEnvironment(maintenanceUrl);
   const liveEnv = postgresEnvironment(input.databaseUrl);
   const restoreTimeout = 30 * 60_000;
+  // A TOC-only inspection cannot prove we could roll back. Capture the live
+  // data contract and restore the safety dump into its own isolated database.
+  const original = await databaseRecoverySnapshot(input.databaseUrl);
   await command("pg_dump", ["--format=custom", "--compress=6", "--no-owner", "--no-privileges", "--file", safetyDumpPath], liveEnv, restoreTimeout);
   const safety = await command("pg_restore", ["--list", safetyDumpPath], liveEnv, restoreTimeout);
   if (!safety.stdout.includes("TABLE") || (await lstat(safetyDumpPath)).size <= 0) {
     throw new Error("The new safety backup could not be verified; live database was not touched.");
+  }
+  const safetyDrill = await runDatabaseRestoreDrill({
+    databaseUrl: input.databaseUrl, dumpPath: safetyDumpPath,
+    expected: { counts: original.counts, migrations: original.migrations },
+  });
+  if (!safetyDrill.ok) {
+    throw new Error("Safety dump could not reproduce the live database during isolated restore: " + safetyDrill.mismatches.join("; "));
   }
 
   const resetDatabase = async () => {
@@ -209,7 +219,11 @@ export async function replaceDatabaseFromBackup(input: {
       // A successful process exit is not enough: verify application schema
       // and migrations before reporting an effective rollback.
       const rollback = await databaseRecoverySnapshot(input.databaseUrl);
-      if (!rollback.migrations.length) throw new Error("Safety rollback did not restore the expected Cluster schema.");
+      if (!rollback.migrations.length ||
+        rollback.migrations.join("\\n") !== safetyDrill.snapshot.migrations.join("\\n") ||
+        JSON.stringify(rollback.counts) !== JSON.stringify(safetyDrill.snapshot.counts)) {
+        throw new Error("Safety rollback did not restore verified Cluster schema and row counts.");
+      }
     } catch (rollbackError) {
       throw new AggregateError([restoreError, rollbackError],
         `Database restore failed AND safety rollback failed. Do not restart Cluster; inspect verified backup ${safetyDumpPath}.`);
