@@ -424,12 +424,16 @@ func runServiceManagedOnce(ctx context.Context, root string, onReady func()) err
 	if err := os.MkdirAll(logDir, 0700); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(filepath.Join(logDir, "windows-service.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	logPath := filepath.Join(logDir, "windows-service.log")
+	if err := rotateNativeSessionLog(logPath, 32*1024*1024, 4); err != nil {
+		return fmt.Errorf("cannot safely rotate Windows Service log: %w", err)
+	}
+	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	write := func(s string) { fmt.Fprintf(file, "%s %s\n", time.Now().Format(time.RFC3339), s); _ = file.Sync() }
+	write := func(s string) { fmt.Fprintf(file, "%s %s\n", time.Now().Format(time.RFC3339), redactNativeLogLine(s)); _ = file.Sync() }
 	write("Native service starting")
 	if err := serviceRuntimePrerequisites(root); err != nil {
 		write("Service preflight blocked: " + err.Error())
