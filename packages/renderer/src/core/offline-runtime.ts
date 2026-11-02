@@ -875,8 +875,16 @@ export function initializeOfflineRuntime() {
   document.addEventListener("visibilitychange", onVisibility);
   connection?.addEventListener?.("change", onConnectionChange);
   const unsubscribeServerStatus = window.clusterDesktop?.onServerStatus?.((status) => {
-    setSnapshot({ serverReachable: status.ok, lastCheckedAt: Date.now(), lastError: status.ok ? null : status.message });
-    if (status.ok) scheduleNextSync(100);
+    const wasReachable = snapshot.serverReachable;
+    const changed = wasReachable !== status.ok;
+    const now = Date.now();
+    // Native heartbeat updates may arrive much faster than the adaptive sync
+    // cadence. Do not emit a React snapshot or reset the sync timer on every
+    // identical healthy heartbeat; only transitions warrant an urgent probe.
+    if (changed || !snapshot.lastCheckedAt || now - snapshot.lastCheckedAt >= 30_000) {
+      setSnapshot({ serverReachable: status.ok, lastCheckedAt: now, lastError: status.ok ? null : status.message });
+    }
+    if (changed) scheduleNextSync(status.ok ? 100 : 250);
   });
 
   unsubscribeStorage = subscribeOfflineStorage(scheduleQueueRefresh);

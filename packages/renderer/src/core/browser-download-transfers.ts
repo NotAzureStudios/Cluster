@@ -200,6 +200,7 @@ export async function downloadAuthenticatedClusterFile(input: {
     const actual = new URL(response.url || resolved.href, resolved.href);
     if (response.status !== 200 || actual.origin !== expectedOrigin || !actual.pathname.startsWith("/api/")
       || response.headers.get("content-range")
+      || (response.headers.get("content-type") || "").toLowerCase().includes("application/problem+json")
       || (response.headers.get("content-type")?.toLowerCase().includes("text/html")
         && !(response.headers.get("content-disposition") || "").toLowerCase().startsWith("attachment"))) {
       const message = response.status !== 200
@@ -337,6 +338,20 @@ export async function downloadAuthenticatedClusterFile(input: {
     throw error;
   } finally {
     reader.releaseLock();
+  }
+  // A 200 response can still end early. Never claim to have saved a corrupt
+  // truncated Blob, even if the browser did not throw while reading it.
+  const declaredLength = Number(response.headers.get("content-length"));
+  const contentEncoding = (response.headers.get("content-encoding") || "identity").toLowerCase();
+  if (contentEncoding === "identity" && response.headers.has("content-length") &&
+    Number.isSafeInteger(declaredLength) && declaredLength >= 0 && size !== declaredLength) {
+    throw new Error(`Download incomplete: received ${size} of ${declaredLength} bytes.`);
+  }
+  if (input.sizeBytes != null && Number.isSafeInteger(input.sizeBytes) && input.sizeBytes >= 0 && size !== input.sizeBytes) {
+    throw new Error(`Download incomplete: expected ${input.sizeBytes} bytes, received ${size}.`);
+  }
+  if (!sameOfflineRequestContext(ownerAtStart, getOfflineScopeIdentity())) {
+    throw new Error("Account or server changed during download. File was not saved.");
   }
   const blob = new Blob(chunks as BlobPart[], { type: response.headers.get("content-type") || "application/octet-stream" });
   const blobUrl = URL.createObjectURL(blob);
