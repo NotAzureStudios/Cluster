@@ -1,0 +1,81 @@
+name: Windows 1.0 Server prebuilt candidate binaries
+
+on:
+  push:
+    branches: [server/windows]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-server-prebuilt-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prebuilt-server:
+    name: Compile and archive independent Server candidate
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout source and preserve named branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Go 1.27.1
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Verify immutable candidate build inputs
+        shell: pwsh
+        run: |
+          if ((git branch --show-current).Trim() -ne 'server/windows') { throw 'Unexpected branch: release channel identity cannot be invented' }
+          node tools/scripts/cluster-release-lockfile-check.mjs
+          node tools/scripts/cluster-platform-release-tests.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release profile source admission failed' }
+          git status --short
+      - name: Build compiled Server and self-contained prebuilt installer
+        shell: pwsh
+        env:
+          CLUSTER_INSTALLER_PAYLOAD: prebuilt
+          GOTOOLCHAIN: local
+        run: |
+          node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development --build
+          if ($LASTEXITCODE -ne 0) { throw 'Prebuilt Server candidate build failed' }
+      - name: Verify binary identity and source-bound receipt
+        shell: pwsh
+        run: |
+          $receiptPath = 'artifacts/release-profiles/server-windows-x64/build-receipt.json'
+          $receipt = Get-Content -Raw $receiptPath | ConvertFrom-Json
+          if ($receipt.product -ne 'cluster-server' -or $receipt.profile -ne 'server-windows-x64' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect release receipt status or product' }
+          if ($receipt.commit -ne (git rev-parse HEAD).Trim()) { throw 'Release receipt references different source' }
+          if ($receipt.lockfileSha256 -ne (Get-FileHash package-lock.json -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'Lockfile hash mismatch' }
+          $required = @('bin/Cluster-Installer.exe', 'bin/Cluster Server.exe')
+          foreach ($path in $required) {
+            $entry = $receipt.artifacts | Where-Object { $_.path -eq $path }
+            if (@($entry).Count -ne 1) { throw "Release receipt missing $path" }
+            if ($entry.sha256 -ne (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()) { throw "Binary hash mismatch: $path" }
+            $bytes = [IO.File]::ReadAllBytes((Resolve-Path $path))
+            if ($bytes.Length -lt 512 -or $bytes[0] -ne 77 -or $bytes[1] -ne 90) { throw "Invalid Windows PE: $path" }
+          }
+          $receipt | ConvertTo-Json -Depth 12 | Write-Output
+      - name: Upload quarantined unsigned RC artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cluster-server-rc50-prebuilt-windows-x64-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          path: |
+            bin/Cluster-Installer.exe
+            bin/Cluster Server.exe
+            artifacts/release-profiles/server-windows-x64/build-receipt.json
+
+# This builds a test candidate only, not a production release or a signed update.
+# Do not publish/tag as 1.0.0 stable without Windows installation, update, restore,
+# security, authorization, and Desktop acceptance evidence.
