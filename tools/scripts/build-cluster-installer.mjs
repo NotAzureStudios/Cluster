@@ -73,6 +73,7 @@ function makeZip(entries){
 function run(){
   let prebuiltMetadata=null;
   if(prebuilt){
+    if(process.platform!=='win32'||process.arch!=='x64')throw new Error('Prebuilt Windows installer requires a Windows x64 build runner');
     const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
     const lockFile=path.join(root,'package-lock.json');
     if(!fs.existsSync(lockFile))throw new Error('Prebuilt installer BLOCKED: package-lock.json is missing');
