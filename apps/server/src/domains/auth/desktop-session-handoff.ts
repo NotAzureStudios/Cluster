@@ -6,6 +6,7 @@ export type DesktopSessionHandoffContext = {
   user: { id?: string; accountState?: string | null; archived?: boolean | null; authenticationGeneration?: number | null; accessExpiresAt?: Date | string | null };
   source: { id?: string; userId?: string; authMethod?: string | null; authenticationGeneration?: number | null; revokedAt?: Date | string | null; expiresAt?: Date | string | null; createdAt?: Date | string | null; lastSeenAt?: Date | string | null };
   requireDiscordLink: boolean;
+  mfaRequired?: boolean;
   sessionDays?: number;
   sessionIdleHours?: number;
   now?: number;
@@ -21,7 +22,11 @@ export function desktopSessionHandoffAllowed(input: DesktopSessionHandoffContext
   if (!user || !source || !source.id || !input.userId || source.userId !== input.userId || user.id !== input.userId) return false;
   if (user.archived || source.revokedAt) return false;
   if (user.accountState !== "ACTIVE" && !(user.accountState === "DISCORD_LINK_REQUIRED" && !input.requireDiscordLink)) return false;
-  if (/pending|enrollment/i.test(String(source.authMethod || ""))) return false;
+  const method = String(source.authMethod || "");
+  if (/pending/i.test(method)) return false;
+  // A password-only session established before MFA policy was strengthened
+  // cannot be promoted to a new native login without satisfying that policy.
+  if (input.mfaRequired && !/(?:mfa|totp|passkey|security-key|recovery)/i.test(method)) return false;
   if ((user.authenticationGeneration ?? 1) !== (source.authenticationGeneration ?? 1)) return false;
   const expiresAt = time(source.expiresAt);
   const lastSeenAt = time(source.lastSeenAt);
