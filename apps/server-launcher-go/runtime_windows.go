@@ -145,11 +145,36 @@ func publishNewPostgresDataDirectory(source, destination string) error {
 	return nil
 }
 
+// A missing data volume must not look like a first boot after Cluster has
+// already initialized a database. The sentinel lives outside /data and is
+// preserved by the managed installer during release replacement.
+func checkEmbeddedPostgresFirstBoot(initializing bool, credentialFile, sentinel string) error {
+	if !initializing {
+		return nil
+	}
+	for _, item := range []struct{ path, label string }{
+		{sentinel, "a previous initialized PostgreSQL instance"},
+		{credentialFile, "existing PostgreSQL credentials"},
+	} {
+		if _, err := os.Lstat(item.path); err == nil {
+			return fmt.Errorf("PostgreSQL data directory is missing but %s remains; refusing to initialize a replacement database", item.label)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("cannot safely inspect PostgreSQL first-boot evidence: %w", err)
+		}
+	}
+	return nil
+}
+
 func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 	data := filepath.Join(root, "data", "postgresql")
 	initialize, inspectErr := inspectEmbeddedPostgresData(data)
 	if inspectErr != nil {
 		return databaseConfig{}, nil, inspectErr
+	}
+	config := filepath.Join(root, "data", "system", "config", "embedded-postgres.env")
+	dbSentinel := filepath.Join(root, "runtime", "postgresql-data-initialized.marker")
+	if err := checkEmbeddedPostgresFirstBoot(initialize, config, dbSentinel); err != nil {
+		return databaseConfig{}, nil, err
 	}
 	pgRoot := filepath.Join(root, "runtime", "postgresql")
 	bin := filepath.Join(pgRoot, "bin")
@@ -159,7 +184,6 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 			return databaseConfig{}, nil, err
 		}
 	}
-	config := filepath.Join(root, "data", "system", "config", "embedded-postgres.env")
 	values := readEnvFile(config)
 	password := values["POSTGRES_PASSWORD"]
 	port := 54321
@@ -278,6 +302,11 @@ func ensureDatabase(root string) (databaseConfig, cleanupFunc, error) {
 	}
 	if err := writeEnvFile(config, map[string]string{"POSTGRES_PASSWORD": password}); err != nil {
 		return databaseConfig{}, nil, err
+	}
+	if !fileExists(dbSentinel) {
+		if err := os.WriteFile(dbSentinel, []byte("postgresql-"+postgresVersion+"\n"), 0600); err != nil {
+			return databaseConfig{}, nil, fmt.Errorf("database started but could not persist anti-reinitialization sentinel: %w", err)
+		}
 	}
 	cleanup := func() {
 		// PostgreSQL gets its normal fast stop first. Only after its exit do
