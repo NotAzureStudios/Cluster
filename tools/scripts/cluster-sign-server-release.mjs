@@ -56,8 +56,8 @@ assert(receipt.built===true && receipt.certified===false && receipt.product==="c
   && receipt.profile==="server-windows-x64" && receipt.channel===channel,
   "Server distribution receipt product/channel mismatch");
 const release=JSON.parse(fs.readFileSync(path.join(root,"config/release-candidate.json"),"utf8"));
-const stablePatch = /^1\\.0\\.([1-9][0-9]*)$/.exec(release.release);
-const rcSequence = /^1\\.0\\.0-rc\\.([1-9][0-9]*)$/.exec(release.release);
+const stablePatch = /^1\.0\.([1-9][0-9]*)$/.exec(release.release);
+const rcSequence = /^1\.0\.0-rc\.([1-9][0-9]*)$/.exec(release.release);
 const validStable = channel === "main" && stablePatch && Number(stablePatch[1]) + 50 === release.sequence;
 const validRC = channel === "development" && rcSequence && Number(rcSequence[1]) === release.sequence;
 assert(Boolean(validStable || validRC), "Signed Server update identity must match main stable or development RC release sequence");
