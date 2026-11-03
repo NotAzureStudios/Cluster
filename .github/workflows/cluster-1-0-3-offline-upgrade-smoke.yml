@@ -50,14 +50,35 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw '1.0.3 version contract failed' }
           node tools/scripts/cluster-release-lockfile-check.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Lockfile verification failed' }
-      - name: Build unsigned, precompiled candidate installer
+      - name: Build unsigned candidate without bypassing main release branch protection
         shell: pwsh
         env:
           CLUSTER_INSTALLER_PAYLOAD: prebuilt
           GOTOOLCHAIN: local
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
         run: |
-          node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel main --build
-          if ($LASTEXITCODE -ne 0) { throw 'Candidate prebuilt Windows package failed' }
+          # This is a PR test, not release packaging. The release packager
+          # deliberately refuses detached/PR refs, and that guard stays intact.
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
+          foreach ($script in @(
+            'cluster-rc-native-checks.mjs',
+            'build-native-host.mjs',
+            'build-server-launcher.mjs',
+            'build-cluster-server-entry.mjs',
+            'build-update-helper.mjs',
+            'build-workstation-service.mjs'
+          )) {
+            node (Join-Path 'tools/scripts' $script)
+            if ($LASTEXITCODE -ne 0) { throw "Native candidate build failed: $script" }
+          }
+          npm run db:generate
+          if ($LASTEXITCODE -ne 0) { throw 'Prisma generation failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Server/Web compilation failed' }
+          npm run cluster:installer:build
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned test installer packaging failed' }
           if (!(Test-Path bin/Cluster-Installer.exe)) { throw 'No candidate installer' }
       - name: Fetch published 1.0.2 installer from THIS repository
         shell: pwsh
