@@ -15,6 +15,7 @@ const handoff=read("apps/server-launcher-go/server_update_installer_handoff.go")
 const readiness=read("apps/server-launcher-go/server_update_readiness.go");
 const launcher=read("apps/server-launcher-go/main.go");
 const journal=read("apps/server-launcher-go/server_update_journal.go");
+const authorization=read("apps/server-launcher-go/server_update_authorization.go");
 
 const cases=[
  ["publisher-signed manifest retained at staging",stage.includes('manifestPath:=target+".manifest.json"')&&stage.includes('ManifestSHA256 string')&&stage.includes('FeedURL string')],
@@ -42,6 +43,11 @@ const cases=[
  ["independent update journal survives Server folder replacement",journal.includes('filepath.Join(parent,"UpdateProgress")')&&journal.includes('os.O_CREATE|os.O_EXCL')],
  ["journal phases are enumerated and fsynced",journal.includes('case updatePhaseAuthorized,updatePhaseWriteHold')&&journal.includes('return j.file.Sync()')],
  ["journal records no arbitrary operator-supplied error text",journal.includes('type nativeServerUpdateJournalEvent struct')&&!journal.includes('json:"message"')],
+ ["native update intent is strict and one shot",authorization.includes('os.Rename(source,claim)')&&authorization.includes('decoder.DisallowUnknownFields()')],
+ ["authorization is bound to config and exact signed artifact",authorization.includes('ConfigSHA256')&&authorization.includes('InstallerSHA256')&&authorization.includes('candidate.Release!=req.Release')],
+ ["no update while restart or another hold exists",authorization.includes('nativeServerUpdateHoldPath(root)')&&authorization.includes('cluster-restart-request.json')],
+ ["unclaimed authority cannot perform process actions",!authorization.includes('exec.Command')&&!authorization.includes('stopClusterService')],
+
 
 
 ];
