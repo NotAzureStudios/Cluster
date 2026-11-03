@@ -540,7 +540,17 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       body.publicWebUrl = safeUrl(body.publicWebUrl, "Public web URL", ["http:", "https:"]).replace(/\/$/, "");
     }
     if (body.corsOrigins !== undefined) body.corsOrigins = validateCorsOrigins(body.corsOrigins);
-    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) databaseProviderFromUrl(body.databaseUrlOverride);
+    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) {
+      try {
+        databaseProviderFromUrl(body.databaseUrlOverride);
+      } catch {
+        // An invalid override is a bad input, not an internal server failure.
+        // Never echo the value: PostgreSQL URLs may contain credentials.
+        return reply.code(400).send({ ok: false, code: "INVALID_DATABASE_URL_OVERRIDE",
+          field: "databaseUrlOverride",
+          error: "Database URL override must be a complete postgresql:// or postgres:// connection URL. Existing database configuration was not changed." });
+      }
+    }
     const weakensSecurity = (AUTH_REQUIRED && body.authRequired === false) || (!DEV_LOGIN_ENABLED && body.devLoginEnabled === true) || (REQUIRE_DISCORD_LINK && body.requireDiscordLink === false) || (SESSION_SECURE && body.sessionSecure === false) || (RATE_LIMIT_ENABLED && body.rateLimitEnabled === false) || (SECURITY_HEADERS_ENABLED && body.securityHeadersEnabled === false) || (REQUIRE_MUTATION_ORIGIN && body.requireMutationOrigin === false) || (!ALLOW_EXECUTABLE_UPLOADS && body.allowExecutableUploads === true);
     const merged: SettingPayload = {
       ...existing,
@@ -844,7 +854,15 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       body.publicWebUrl = safeUrl(body.publicWebUrl, "Public web URL", ["http:", "https:"]).replace(/\/$/, "");
     }
     if (body.corsOrigins !== undefined) body.corsOrigins = validateCorsOrigins(body.corsOrigins);
-    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) databaseProviderFromUrl(body.databaseUrlOverride);
+    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) {
+      try {
+        databaseProviderFromUrl(body.databaseUrlOverride);
+      } catch {
+        return reply.code(400).send({ ok: false, code: "INVALID_DATABASE_URL_OVERRIDE",
+          field: "databaseUrlOverride",
+          error: "Database URL override must be a complete postgresql:// or postgres:// connection URL. Existing database configuration was not changed." });
+      }
+    }
     const expectedSettings = body.expectedSettings;
     delete body.expectedSettings;
     const safeBody = stripServerManagedSettings(body);
