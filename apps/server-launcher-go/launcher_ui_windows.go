@@ -1771,6 +1771,17 @@ func (c *windowsServerController) RunCommand(value string) {
 	case "stage-update", "download-update":
 		c.StageServerUpdate()
 		return
+	case "inspect-update":
+		prefs := loadNativePanelPreferences(c.options.root)
+		channel := prefs.UpdateChannel
+		if channel != "development" { channel = "main" }
+		candidate, err := inspectStagedServerUpdate(c.options.root, channel)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Signed Server update is not ready to apply: %v\n", err)
+		} else {
+			fmt.Printf("Publisher-signed staged Server release %s (%s, sequence %d) passed second-pass SHA-256 and ownership checks. Installer has NOT been executed.\n",candidate.Release,candidate.Channel,candidate.Sequence)
+		}
+		return
 	case "status":
 		state, lastError := c.snapshot()
 		fmt.Printf("Status: %s\n", panelStateLabel(state))
@@ -1919,7 +1930,12 @@ func (c *windowsServerController) StageServerUpdate() {
 		fmt.Printf("[%s] Verifying and staging %s Server update (no installation)...\n", time.Now().Format("15:04:05"), channel)
 		staged, err := stageServerUpdate(c.options.root, feed, channel)
 		if err != nil { fmt.Fprintf(os.Stderr, "Server update staging rejected: %v\n", err); return }
-		fmt.Printf("Verified Server installer staged at %s; NOT executed. Back up and review before applying.\n", staged)
+		candidate,err:=inspectStagedServerUpdate(c.options.root,channel)
+		if err!=nil {
+			fmt.Fprintf(os.Stderr,"Installer staged but independent verification failed: %v. Installation is blocked.\n",err)
+			return
+		}
+		fmt.Printf("Verified signed Server %s installer staged at %s (sequence %d). It remains inert until native update authorization and verified backup/recovery are available.\n",candidate.Release,staged,candidate.Sequence)
 	}()
 }
 
