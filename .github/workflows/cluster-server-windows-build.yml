@@ -33,11 +33,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: cluster-1-0-3-server-${{ github.ref }}
+  group: cluster-server-windows-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  server-1-0-3:
+  windows-server-build:
     name: Compile and verify native Server 1.0.4
     # GitHub-hosted runners may be blocked by private-repository billing/limits.
     # The manual self-hosted route requires a trusted, isolated Windows x64
