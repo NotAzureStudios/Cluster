@@ -1,27 +1,30 @@
-# Cluster 1.0.1
+# Cluster
 
 **Cluster** is Azure Studios' private, self-hosted studio workspace for project management, collaboration and production. It brings Projects, Boards, Tickets, Whiteboards, Timeline, Calendar and time tracking, Library storage and media viewers, Packets documentation, QA/builds, people management and studio administration into one system.
 
-**Latest version: [Cluster 1.0.1](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.1)** · [Install](docs/INSTALLATION.md) · [Release notes](docs/releases/CLUSTER_1_0_1.md) · [Documentation](docs/README.md)
+**[Latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest)** · [Install](docs/INSTALLATION.md) · [Release notes](https://github.com/NotAzureStudios/Cluster/releases/latest) · [Documentation](docs/README.md)
 
-## Download and install
+## Download
 
-The packaged target is **Windows x64**. Install the Server on the studio's Windows Server machine, then connect using the browser or the independent Qt Desktop client.
+The links below **follow GitHub's latest stable release automatically**. You won't need to edit the README every time the version changes.
 
 | Download | Use |
 | --- | --- |
-| **[Cluster Server Installer (1.0.1)](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Installer.exe)** | Installs the managed Server, API, hosted Web UI and native Server Manager |
-| **[Cluster Desktop Installer](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-Installer-0.482.0-windows-x64.exe)** | Installs the separate native Qt Windows client |
-| [Portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-0.482.0-windows-x64.zip) | Unpacked Desktop alternative |
+| **[Download latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows x64 Server, API, hosted Web and native Server Manager |
+| **[Download latest Cluster Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest)** | Under **Assets**, choose the Windows Desktop installer |
+| [Portable Desktop download](https://github.com/NotAzureStudios/Cluster/releases/latest) | Under **Assets**, choose the portable Desktop ZIP |
 
-1. Download `Cluster-Installer.exe` and place it in a new, writable Server installation folder, such as `D:\Cluster-Server\`.
-2. Run it and follow the Server Manager setup. The installer places its managed files in a `Cluster\` subfolder beside the installer.
-3. Configure the Server, complete the initial Owner setup locally, and confirm Server health.
-4. Open the hosted Web UI, or install Desktop and connect it to the Server address with a studio account.
+GitHub supports permanent direct-download links when a release asset has the same filename. The Server installer already uses the stable name `Cluster-Installer.exe`. The currently published Desktop file names contain their native version, so their links go to the **latest release page** instead of guessing a future filename. [Release naming policy](docs/development/RELEASE_ASSET_NAMING.md).
 
-Read the [Windows installation guide](docs/INSTALLATION.md) for setup paths, checksums, troubleshooting and recovery precautions.
+## Install
 
-**Windows publisher warning:** These Windows binaries are not Authenticode-signed. The Server executable was compiled in the pinned Windows build pipeline, and the published installer SHA-256 is `2719e1b1336144773c0e5ad9b361fae2d73109c08b2495592f04a92ccc9968f7`. The 1.0.1 Server build has not yet completed an actual workstation installation and startup acceptance test. Verify the file before running it, and back up any existing database or Library data before replacing an installation.
+1. Download the latest Server installer and put it in a new, writable folder on your Windows Server.
+2. Run it, configure the native Server Manager and complete initial Owner setup.
+3. Connect through the hosted Web UI or the separate Desktop application.
+
+Use the [current Windows installation guide](docs/INSTALLATION.md) for setup, file verification and data-preservation instructions. For existing deployments, back up PostgreSQL data and Library files before replacing anything.
+
+The published Windows binaries are not currently signed with a trusted publisher certificate. See [Windows code signing](docs/development/WINDOWS_CODE_SIGNING.md) for the internal and publicly trusted signing options. Signing is independent of whether the compiled application passes real Windows installation and runtime checks.
 
 ## Components
 
@@ -32,7 +35,7 @@ Read the [Windows installation guide](docs/INSTALLATION.md) for setup paths, che
 | **Cluster Desktop** | Native C++/Qt client with isolated Server profiles, tray and desktop integration, native notifications and workstation/file capabilities |
 | **Integrations** | Studio integrations including Discord, configured independently |
 
-**Versioning:** The suite and Server/Web source are **1.0.1**. Native Desktop retains its independent binary version **0.482.0**; it is included in this release unchanged. The [1.0.1 release notes](docs/releases/CLUSTER_1_0_1.md) record the actual binary source commits and SHA-256 hashes.
+**Versioning:** Cluster's suite/Server version follows the latest release. The Qt Desktop binary has its own version. Use the [latest release notes](https://github.com/NotAzureStudios/Cluster/releases/latest) for component versions, build provenance and SHA-256 hashes.
 
 ## Develop from source
 
@@ -50,7 +53,7 @@ npm run build
 
 To start a configured **development** environment (not the studio's installed Server), use `npm run dev`. The committed root `package-lock.json` covers the six npm workspaces; use `npm ci` for reproducible builds.
 
-For an independently reproducible Windows Server package, run the [1.0.1 Windows build script](tools/windows/Build-Cluster-1.0.1.ps1) on a clean Windows x64 machine with the pinned tools. The [Windows Actions build](https://github.com/NotAzureStudios/Cluster/actions/runs/41565552099) is the verified source for the release Server binary.
+For a Windows Server release build, use the pinned toolchain and [distribution profile](docs/development/DISTRIBUTION_PROFILES.md). The native build and release verification pipeline are maintained separately from README downloads.
 
 ## Repository
 
@@ -64,10 +67,10 @@ For an independently reproducible Windows Server package, run the [1.0.1 Windows
 | `tools/`, `config/` | Release/build tooling, tests and pinned configuration |
 | `docs/` | Installation, operations, developer and release documentation |
 
-Changes go through reviewed development work and then `main`. The immutable `v1.0.1` tag identifies this release; prior versions and resolved defects are documented in Git history and earlier release notes.
+Changes go through reviewed development work and then `main`. Published release tags preserve their original source and binary provenance. Historical fixes remain available in the Git history and corresponding release notes.
 
 ## Documentation and policies
 
-[Installation](docs/INSTALLATION.md) · [Documentation index](docs/README.md) · [Release notes](docs/releases/CLUSTER_1_0_1.md) · [Server recovery](docs/development/NATIVE_WINDOWS_SERVER_RECOVERY.md) · [Local development](docs/development/LOCAL_SETUP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md)
+[Installation](docs/INSTALLATION.md) · [Documentation index](docs/README.md) · [Latest release notes](https://github.com/NotAzureStudios/Cluster/releases/latest) · [Server recovery](docs/development/NATIVE_WINDOWS_SERVER_RECOVERY.md) · [Local development](docs/development/LOCAL_SETUP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md)
 
 **Access:** Proprietary internal-use Azure Studios software. Repository access does not grant redistribution rights.
