@@ -10,6 +10,7 @@ import (
  "context"
  "crypto/sha256"
  "encoding/hex"
+ "encoding/json"
  "errors"
  "fmt"
  "os"
@@ -195,7 +196,26 @@ func runNativeServerUpdateInstall(root,channel string)error{
   },
   StopCandidate:func(ctx context.Context)error{return stopOwnedClusterUpdateService(root)},
   RestoreSnapshot:func(ctx context.Context)error{
-   if err:=restorePreviousServerApplication(root,id);err!=nil{return err}
+   // The prebuilt installer can fail before applying any files, or may
+   // already have rolled itself back. Never assume its previous-* snapshot
+   // contains a complete application in either case.
+   if installedServerReleaseSequence(root)==previousSequence {
+    previousRelease,releaseErr:=serverMarkerDigest(filepath.Join(root,"CLUSTER_RELEASE.json"))
+    baselinePath,pathErr:=serverApplicationRollbackBaselinePath(root,id)
+    if releaseErr!=nil||pathErr!=nil{return errors.New("cannot verify original Server after failed install")}
+    data,readErr:=os.ReadFile(baselinePath)
+    if readErr!=nil{return readErr}
+    var baseline serverApplicationRollbackBaseline
+    if err:=json.Unmarshal(data,&baseline);err!=nil{return err}
+    previousOwner,ownerErr:=serverMarkerDigest(filepath.Join(root,".cluster-installer-managed.json"))
+    if ownerErr!=nil||!strings.EqualFold(previousRelease,baseline.PreviousReleaseSHA256)||
+     !strings.EqualFold(previousOwner,baseline.PreviousOwnerSHA256) ||
+     !fileExists(filepath.Join(root,"bin","ClusterServer.exe")){
+     return errors.New("installer reports original release but application identity could not be verified; refuse unsafe restore")
+    }
+   } else {
+    if err:=restorePreviousServerApplication(root,id);err!=nil{return err}
+   }
    return restoreColdPostgresSnapshot(root,id)
   },
   StartPrevious:func(ctx context.Context)error{return startOwnedClusterUpdateService(root)},
