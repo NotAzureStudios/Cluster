@@ -7,6 +7,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const documents = [
   'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'SUPPORT.md',
   'docs/README.md', 'docs/INSTALLATION.md', 'docs/releases/CLUSTER_1_0_0.md',
+  'docs/releases/CLUSTER_1_0_1.md',
+  'docs/development/WINDOWS_CODE_SIGNING.md',
+  'docs/development/RELEASE_ASSET_NAMING.md',
   'docs/development/LOCAL_SETUP.md', 'docs/development/GIT_WORKFLOW.md',
   'docs/development/SOURCE_SNAPSHOT_HYGIENE.md',
   'docs/development/DISTRIBUTION_PROFILES.md',
