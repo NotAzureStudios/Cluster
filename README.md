@@ -6,6 +6,8 @@
 
 > **Release scope:** Cluster 1.0 is an owner-approved **private studio release**. Both Windows installers and the portable Desktop ZIP were compiled and hash-verified in GitHub Actions. These packages are **unsigned** and have **not** passed real-workstation installation, upgrade, restore, or recovery acceptance. Preserve existing data and do not overwrite a running Server. See the [release notes](docs/releases/CLUSTER_1_0_0.md) for the precise limitations.
 
+> **Known issue in v1.0.0 Server installer:** The published Windows Server EXE rejects its own prebuilt runtime because its source-only admission step requires an installer script deliberately excluded from the payload. A second source-only smoke step would also fail. See [installer fix PR #31](https://github.com/NotAzureStudios/Cluster/pull/31). **Do not retry or replace existing Server data with the unchanged v1.0.0 EXE.** A corrected binary has not been published yet. The separate Desktop artifact is not implicated by this particular failure.
+
 ## Install Cluster 1.0
 
 **Windows x64** is the packaged target. You do not need to clone this repository to install the application.
