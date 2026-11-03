@@ -12,6 +12,9 @@ on:
       - 'tools/scripts/cluster-f2-p5-network-port-review-tests.mjs'
       - 'tools/scripts/cluster-network-local-diagnostics-tests.mjs'
       - 'apps/server/src/core/server-network-local-diagnostics.ts'
+      - 'apps/server/src/domains/domains/domain-connection-plans.ts'
+      - 'apps/server/src/domains/domains/domain-deployment-readiness.ts'
+      - 'tools/scripts/cluster-td6-g27-domain-network-tests.mjs'
       - '.github/workflows/network-configuration-regressions.yml'
 
 permissions:
@@ -59,5 +62,7 @@ jobs:
         run: node tools/scripts/cluster-f2-p5-network-port-review-tests.mjs
       - name: Verify local-only listener diagnostics and the admin UI
         run: node tools/scripts/cluster-network-local-diagnostics-tests.mjs
+      - name: Verify domain setup templates never bypass the managed gateway
+        run: node tools/scripts/cluster-td6-g27-domain-network-tests.mjs
       - name: Verify Server Configuration navigation and restart UX
         run: node tools/scripts/cluster-1-0-3-server-config-polish-tests.mjs
