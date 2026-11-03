@@ -190,7 +190,7 @@ func (h *host) hostAllowed(rawHost string) bool {
 			requestedPort = map[bool]string{true: "443", false: "80"}[h.scheme == "https"]
 		}
 		if expectedPort == "" {
-			expectedPort = map[bool]string{true: "443", false: "80"}[h.secure]
+			expectedPort = map[bool]string{true: "443", false: "80"}[h.scheme == "https"]
 		}
 		return requestedPort == expectedPort
 	}
