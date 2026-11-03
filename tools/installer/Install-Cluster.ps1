@@ -664,7 +664,17 @@ try {
   # against the final installed root after the directory move.
   if ($isPrebuilt) { RepairWorkspaceJunctions $source }
   Run 'node' @('tools/scripts/cluster-rc-preflight.mjs','--built') $source
-  Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
+  if ($isPrebuilt) {
+    # The source-only smoke matrix includes tools/installer and fixtures which
+    # are deliberately NOT distributed with prebuilt Windows runtime payloads.
+    # Verify the actual compiled API, web assets and reconstructed workspace
+    # links here; the same admission is run again after moving to the final
+    # installed directory, with automatic application-file rollback on failure.
+    Say 'Prebuilt release: validating staged runtime dependencies (source-only tests stay on the build runner).'
+    Run 'node' @('tools/scripts/cluster-rc-runtime-admission.mjs') $source
+  } else {
+    Run 'node' @('tools/scripts/cluster-rc-smoke.mjs') $source
+  }
   # Native startup trusts this marker only as a build-readiness hint, never as a signature.
   # Without it, Cluster's launcher recompiles the already-built source on first start.
   $releaseMarker = @{
