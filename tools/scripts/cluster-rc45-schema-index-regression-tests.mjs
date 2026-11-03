@@ -18,7 +18,7 @@ const fixedName='DiscordRoleProjection_owner_key';
 const newMigration='20261114000000_rc45_discord_role_index_name';
 let checks=0;
 async function test(label,fn){await fn(); console.log(`PASS ${++checks}: ${label}`);}
-await test('RC45 schema fix remains part of a compatible newer release',()=>{assert(release.sequence>=45);assert.equal(release.release,`1.0.0-rc.${release.sequence}`);assert.equal(release.sourceVersion,'0.546.0');});
+await test('RC45 schema fix remains part of a compatible newer release',()=>{assert(release.sequence>=45);assert.equal(release.channel,'stable');assert.match(release.release,/^1\.0\.[1-9][0-9]*$/);assert.equal(release.release,release.sourceVersion);});
 await test('root cause: original unique index exceeded PostgreSQL 63-byte identifier limit',()=>{assert.equal(Buffer.byteLength(beforeName),67);assert.equal(Buffer.byteLength(truncatedName),63);assert(original.includes(beforeName));});
 await test('RC45 renames actual truncated index without rebuild or data loss',()=>{
  assert(migration.includes(`ALTER INDEX "${truncatedName}"`));
