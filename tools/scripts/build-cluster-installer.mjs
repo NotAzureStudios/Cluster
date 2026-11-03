@@ -83,7 +83,11 @@ function run(){
     if(lock.lockfileVersion<3||lock.name!==pkg.name||lock.version!==pkg.version||lock.packages?.['']?.version!==pkg.version)
       throw new Error('Prebuilt installer BLOCKED: package-lock.json does not match root package');
     const release=JSON.parse(fs.readFileSync(path.join(root,'config/release-candidate.json'),'utf8'));
-    if(release.sourceVersion!==pkg.version||!/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)||release.sequence!==Number(release.release.split('.').at(-1)))
+    const stableRelease=release.channel==='stable'&&/^1\.0\.[1-9][0-9]*$/.test(release.release)&&
+      release.release===release.sourceVersion&&Number.isInteger(release.sequence)&&release.sequence>=51;
+    const legacyRC=release.channel==='rc'&&/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)&&
+      release.sequence===Number(release.release.split('.').at(-1));
+    if(release.sourceVersion!==pkg.version||!(stableRelease||legacyRC))
       throw new Error('Prebuilt installer BLOCKED: release metadata mismatch');
     const commit=spawnSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'});
     if(commit.status!==0||!/^[a-f0-9]{40}$/.test(commit.stdout.trim()))throw new Error('Prebuilt installer requires a traceable commit');
