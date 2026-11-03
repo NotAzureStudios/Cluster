@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"mime"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -54,7 +55,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 	}
 	webRoot := filepath.Join(h.root, "apps", "web", "dist")
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if !h.hostAllowed(request.Host) {
+		if !h.hostAllowed(request.Host) && !h.localHealthProbeAllowed(request) {
 			writeJSON(response, http.StatusMisdirectedRequest, map[string]any{"ok": false, "error": "Cluster rejected an unexpected Host header.", "code": "HOST_NOT_ALLOWED"})
 			return
 		}
@@ -168,6 +169,57 @@ func applyWebSecurityHeaders(response http.ResponseWriter, secure bool) {
 	if secure {
 		response.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 	}
+}
+
+// Allow native recovery and readiness probes on a listener bound to a
+// non-loopback interface without permitting the same Host alias for normal
+// application pages or API calls. The TCP peer must be on this machine.
+func (h *host) localHealthProbeAllowed(request *http.Request) bool {
+	if request.Method != http.MethodGet && request.Method != http.MethodHead {
+		return false
+	}
+	if request.URL.Path != "/host/health" && request.URL.Path != "/health/ready" {
+		return false
+	}
+	remoteHost, _, err := net.SplitHostPort(request.RemoteAddr)
+	if err != nil {
+		return false
+	}
+	remoteIP := net.ParseIP(remoteHost)
+	if remoteIP == nil {
+		return false
+	}
+	localPeer := remoteIP.IsLoopback()
+	if !localPeer {
+		interfaces, err := net.InterfaceAddrs()
+		if err != nil {
+			return false
+		}
+		for _, address := range interfaces {
+			if network, ok := address.(*net.IPNet); ok && network.IP.Equal(remoteIP) {
+				localPeer = true
+				break
+			}
+		}
+	}
+	if !localPeer {
+		return false
+	}
+	parsed, err := url.Parse("//" + request.Host)
+	if err != nil || parsed.Hostname() == "" {
+		return false
+	}
+	host := parsed.Hostname()
+	hostIP := net.ParseIP(host)
+	if !strings.EqualFold(host, "localhost") && (hostIP == nil ||
+		(!hostIP.IsLoopback() && !strings.EqualFold(host, h.bindAddress))) {
+		return false
+	}
+	requestedPort := parsed.Port()
+	if requestedPort == "" {
+		requestedPort = map[bool]string{true: "443", false: "80"}[h.secure]
+	}
+	return requestedPort == strconv.Itoa(h.webPort)
 }
 
 func (h *host) hostAllowed(rawHost string) bool {
