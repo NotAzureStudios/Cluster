@@ -1771,16 +1771,16 @@ func (c *windowsServerController) RunCommand(value string) {
 	case "stage-update", "download-update":
 		c.StageServerUpdate()
 		return
-	case "inspect-update":
+	case "inspect-update", "update-readiness":
 		prefs := loadNativePanelPreferences(c.options.root)
 		channel := prefs.UpdateChannel
 		if channel != "development" { channel = "main" }
-		candidate, err := inspectStagedServerUpdate(c.options.root, channel)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Signed Server update is not ready to apply: %v\n", err)
-		} else {
-			fmt.Printf("Publisher-signed staged Server release %s (%s, sequence %d) passed second-pass SHA-256 and ownership checks. Installer has NOT been executed.\n",candidate.Release,candidate.Channel,candidate.Sequence)
+		report := inspectServerUpdateReadiness(c.options.root,channel,inspectStagedServerUpdate)
+		if report.StageVerified {
+			fmt.Printf("Signed staged Server update: %s (%s, sequence %d); SHA-256 %s\n",report.Release,report.Channel,report.Sequence,report.InstallerSHA256)
 		}
+		for _,reason := range report.Reasons { fmt.Printf("Update blocker: %s\n",reason) }
+		fmt.Println("This check does not execute an installer or restart PostgreSQL.")
 		return
 	case "status":
 		state, lastError := c.snapshot()
