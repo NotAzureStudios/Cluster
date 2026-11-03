@@ -33,6 +33,8 @@ jobs:
         run: node tools/scripts/cluster-repo-hygiene-check.mjs
       - name: Check maintained documentation links
         run: node tools/scripts/cluster-repository-docs-check.mjs
+      - name: Ensure README always downloads latest release
+        run: node tools/scripts/cluster-evergreen-release-links-tests.mjs
       - name: RC73 PDF and 3D viewer hardening regression
         run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-rc73-viewer-reconciliation-tests.mjs
       - name: PDF print resource lifecycle
