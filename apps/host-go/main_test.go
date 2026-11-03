@@ -423,3 +423,40 @@ func TestPasskeyCanonicalLoopbackNavigationRedirectIsSafe(t *testing.T) {
     handler.ServeHTTP(rec, health)
     if rec.Code != http.StatusOK { t.Fatalf("native health check must still work (%d)", rec.Code) }
 }
+
+func TestExternalHTTPSWithPrivateHTTPAndNativeReadiness(t *testing.T) {
+	public, err := resolvePublicOrigin("https://cluster.example.test", "127.0.0.1", 3234, "http", false)
+	if err != nil || public != "https://cluster.example.test" {
+		t.Fatalf("public HTTPS origin was not preserved: %q %v", public, err)
+	}
+	if _, err := resolvePublicOrigin("https://cluster.example.test", "0.0.0.0", 3234, "http", true); err == nil {
+		t.Fatal("publicly bound plaintext Host bypassed TLS enforcement")
+	}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-Proto") != "https" ||
+			r.Header.Get("X-Cluster-Host-Secure") != "true" {
+			t.Errorf("public TLS was not forwarded to Node: %v", r.Header)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+	target, _ := url.Parse(backend.URL)
+	h := &host{origin: public, scheme: "https", secure: false, bindAddress: "127.0.0.1",
+		webPort: 3234, apiOrigin: backend.URL, root: t.TempDir(), startedAt: time.Now()}
+	if h.apiEnvironment(4000)["SESSION_SECURE"] != "true" {
+		t.Fatal("externally terminated HTTPS must set Secure session cookies")
+	}
+	external := httptest.NewRequest(http.MethodGet, "http://cluster.example.test/health/ready", nil)
+	external.Header.Set("Origin", "https://cluster.example.test")
+	r := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(r, external)
+	if r.Code != http.StatusOK { t.Fatalf("public HTTPS via tunnel failed: %d %s", r.Code, r.Body.String()) }
+	local := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3234/host/health", nil)
+	localResult := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(localResult, local)
+	if localResult.Code != http.StatusOK { t.Fatalf("native health failed behind TLS tunnel: %d", localResult.Code) }
+	attacker := httptest.NewRequest(http.MethodGet, "http://evil.example.test/health/ready", nil)
+	denied := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(denied, attacker)
+	if denied.Code != http.StatusMisdirectedRequest { t.Fatalf("unapproved host was accepted: %d", denied.Code) }
+}
