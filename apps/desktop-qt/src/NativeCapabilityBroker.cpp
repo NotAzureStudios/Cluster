@@ -1268,7 +1268,11 @@ QJsonValue NativeCapabilityBroker::dispatch(const QString &capability, const QJs
             options.insert(QStringLiteral("layout"), boundedText(payload.value(QStringLiteral("layout")), 16));
             options.insert(QStringLiteral("organization"), boundedText(payload.value(QStringLiteral("organization")), 16));
             options.insert(QStringLiteral("location"), boundedText(payload.value(QStringLiteral("location")), 180));
-            if (!manager->start(options)) return fail(QStringLiteral("MOUNT_START_FAILED"), manager->status().value(QStringLiteral("lastError")).toMap().value(QStringLiteral("message")).toString(QStringLiteral("Mounted Libraries could not start.")));
+            if (!manager->start(options)) {
+                const QString reason = manager->status().value(QStringLiteral("lastError")).toMap().value(QStringLiteral("message")).toString();
+                return fail(QStringLiteral("MOUNT_START_FAILED"), reason.isEmpty()
+                    ? QStringLiteral("Mounted Libraries could not start.") : reason);
+            }
             return QJsonObject::fromVariantMap(manager->status());
         }
         if (capability == QStringLiteral("library.mount.stop")) { if (!manager->stop()) return fail(QStringLiteral("MOUNT_REQUIRED_BY_SERVER"), manager->status().value(QStringLiteral("lastError")).toMap().value(QStringLiteral("message")).toString()); return QJsonObject::fromVariantMap(manager->status()); }
@@ -2818,7 +2822,7 @@ QJsonValue NativeCapabilityBroker::dispatch(const QString &capability, const QJs
                         && evidence.value(QStringLiteral("priorProductVersion")).toString() != evidence.value(QStringLiteral("targetProductVersion")).toString()
                         && !evidence.value(QStringLiteral("priorMsiPath")).toString().isEmpty()
                         && QRegularExpression(QStringLiteral("^[a-f0-9]{64}$")).match(evidence.value(QStringLiteral("priorMsiSha256")).toString()).hasMatch())
-                        : (state == QStringLiteral("msi_verified_not_executed") && evidence.value(QStringLiteral("readOnly")).toBool())));
+                        : (state == QStringLiteral("msi_verified_not_executed") && evidence.value(QStringLiteral("readOnly")).toBool()));
                 const bool existingStateValid = fileOperation
                     ? (fileReadOnly ? evidence.value(QStringLiteral("readOnly")).toBool() && !evidence.value(QStringLiteral("executed")).toBool(true)
                         : (state == QStringLiteral("destination_updated_files_not_executed")

@@ -22,13 +22,13 @@ find_package(PkgConfig QUIET)
 set(CLUSTER_FUSE3_FOUND FALSE)
 if(WIN32)
     find_path(CLUSTER_FUSE3_INCLUDE_DIR fuse3/fuse.h
-        HINTS "$ENV{ProgramFiles}/WinFsp/inc" "$ENV{ProgramFiles(x86)}/WinFsp/inc")
+        HINTS "$ENV{ProgramFiles}/WinFsp/inc" "C:/Program Files (x86)/WinFsp/inc")
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
         find_library(CLUSTER_FUSE3_LIBRARY NAMES winfsp-x64 winfsp
-            HINTS "$ENV{ProgramFiles}/WinFsp/lib" "$ENV{ProgramFiles(x86)}/WinFsp/lib")
+            HINTS "$ENV{ProgramFiles}/WinFsp/lib" "C:/Program Files (x86)/WinFsp/lib")
     else()
         find_library(CLUSTER_FUSE3_LIBRARY NAMES winfsp-x86 winfsp
-            HINTS "$ENV{ProgramFiles}/WinFsp/lib" "$ENV{ProgramFiles(x86)}/WinFsp/lib")
+            HINTS "$ENV{ProgramFiles}/WinFsp/lib" "C:/Program Files (x86)/WinFsp/lib")
     endif()
     if(CLUSTER_FUSE3_INCLUDE_DIR AND CLUSTER_FUSE3_LIBRARY)
         set(CLUSTER_FUSE3_FOUND TRUE)

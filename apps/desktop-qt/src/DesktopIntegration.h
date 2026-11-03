@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 
+class QAction;
+
 class AppController;
 class QMenu;
 class QSystemTrayIcon;
