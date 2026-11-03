@@ -35,6 +35,21 @@ for(const workspace of workspaces){
 }
 assert.equal(distribution.profiles['desktop-windows-x64'].desktopNativeVersion,toolchain.desktop.parityVersionHold,
  'Native Qt Desktop parity version remains independently pinned');
+// The suite version must be present in active runtime code, not just metadata.
+// Old RC50 fixture strings may remain in historical regression tests.
+for (const rel of [
+  'apps/server/src/core/runtime-config.ts',
+  'apps/host-go/main.go',
+  'apps/server-launcher-go/main.go',
+  'apps/workstation-go/main.go',
+  'integrations/discord-bot/src/index.mjs',
+  'integrations/discord-bot/src/register-commands.mjs',
+  'packages/shared/src/index.ts'
+]) {
+  const content=fs.readFileSync(path.join(root,rel),'utf8');
+  assert.ok(content.includes(version),rel+' must use '+version);
+  assert.ok(!content.includes('0.546.0'),rel+' still contains RC50 source version');
+}
 const bootstrap=fs.readFileSync(path.join(root,'tools/installer/Install-Cluster.ps1'),'utf8');
 assert.match(bootstrap,/\$releaseIdentity\.channel -notin @\('rc','stable'\)/,
  'PowerShell must admit stable release identity');
