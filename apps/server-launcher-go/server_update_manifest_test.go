@@ -116,3 +116,40 @@ func TestServerUpdateFeedLinkHintRejectsInstallerAndReleasePage(t *testing.T) {
 		})
 	}
 }
+
+func TestSignedStableServerUpdateRequiresMainAndMatchingSequence(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil { t.Fatal(err) }
+	feed, _ := url.Parse("https://updates.example.test/main/release.json")
+	valid := fixtureSignedServerUpdate(t, func(m map[string]any) {
+		m["channel"] = "main"
+		m["release"] = "1.0.3"
+		m["sequence"] = json.Number("53")
+		m["artifact"].(map[string]any)["url"] = "https://updates.example.test/main/Cluster-Server-Installer.exe"
+	}, priv)
+	if _, err := verifyServerUpdateManifestWithKey(valid, feed, "main", pub); err != nil {
+		t.Fatalf("properly signed stable release rejected: %v", err)
+	}
+	if _, err := verifyServerUpdateManifestWithKey(valid, feed, "development", pub); err == nil {
+		t.Fatal("stable release accepted through development channel")
+	}
+	invalid := fixtureSignedServerUpdate(t, func(m map[string]any) {
+		m["channel"] = "main"
+		m["release"] = "1.0.3"
+		m["sequence"] = json.Number("52")
+		m["artifact"].(map[string]any)["url"] = "https://updates.example.test/main/Cluster-Server-Installer.exe"
+	}, priv)
+	if _, err := verifyServerUpdateManifestWithKey(invalid, feed, "main", pub); err == nil {
+		t.Fatal("stable release with wrong sequence accepted")
+	}
+}
+
+func TestInstalledStableServerSequence(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "CLUSTER_RELEASE.json")
+	valid := []byte(`{"schema":1,"managedInstaller":true,"releaseChannel":"stable","releaseCandidate":"1.0.2","releaseSequence":52}`)
+	if err := os.WriteFile(file, valid, 0600); err != nil { t.Fatal(err) }
+	if got := installedServerReleaseSequence(root); got != 52 { t.Fatalf("stable sequence: %d", got) }
+	if err := os.WriteFile(file, []byte(strings.Replace(string(valid), "1.0.2", "1.0.3", 1)), 0600); err != nil { t.Fatal(err) }
+	if got := installedServerReleaseSequence(root); got != 0 { t.Fatalf("mismatched stable sequence accepted: %d", got) }
+}
