@@ -47,7 +47,7 @@ type NetworkReview = {
 type MaintenanceWindowPreview = { enabled: boolean; timezone: string; days: string[]; localStart: string; durationMinutes: number; checkedAt: string; windows: Array<{startAt: string; endAt: string; localDate: string; active: boolean}>; executable: false; note: string };
 type MaintenancePreflight = { ok: boolean; intent: string; checkedAt: string; blockers: Array<{code: string; detail: string; category: string}>; warnings: Array<{code: string; detail: string; category: string}>; observed: { runningTasks: number | null; runningJobs: number | null; heavyInFlight: number | null; criticalInFlight: number | null; mode: string; window: { enabled: boolean; active: boolean; nextStartAt: string | null } | null; recovery: { state: string; evidenceAt: string | null } | null }; executable: false; note: string };
 type NetworkDeploymentStatus = { ok: boolean; state: "none" | "staged" | "verified" | "rolled_back"; createdAt?: string; requiresManagedRestart: boolean; configMatch?: "candidate" | "previous" | "unexpected"; publicationPending?: boolean; advisory?: string };
-const NETWORK_REVIEW_FIELDS = ["serverHost", "serverPort", "webHost", "webPort", "publicApiUrl", "publicWebUrl", "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled"] as const;
+const NETWORK_REVIEW_FIELDS = ["serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled"] as const;
 
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
 
@@ -89,7 +89,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
   },
   {
     key: "serverPort",
-    label: "Private API preferred port",
+    label: "Internal API port",
     section: "network",
     group: "Bind addresses",
     type: "number",
@@ -108,13 +108,41 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
   },
   {
     key: "webPort",
-    label: "Gateway port",
+    label: "Web gateway port",
     section: "network",
     group: "Bind addresses",
     type: "number",
     min: 1,
     max: 65535,
     restart: true,
+  },
+  {
+    key: "allowInsecureLanHttp",
+    label: "Allow plain HTTP on a private LAN",
+    section: "network",
+    group: "Transport & TLS",
+    type: "boolean",
+    restart: true,
+  },
+  {
+    key: "webTlsCertFile",
+    label: "Direct HTTPS certificate file",
+    section: "network",
+    group: "Transport & TLS",
+    type: "text",
+    placeholder: "C:\\Cluster\\Certificates\\server.crt",
+    restart: true,
+    wide: true,
+  },
+  {
+    key: "webTlsKeyFile",
+    label: "Direct HTTPS private key file",
+    section: "network",
+    group: "Transport & TLS",
+    type: "text",
+    placeholder: "C:\\Cluster\\Certificates\\server.key",
+    restart: true,
+    wide: true,
   },
   {
     key: "publicApiUrl",
@@ -510,9 +538,12 @@ const SERVER_CONFIG_HELP: Partial<Record<keyof Settings, string>> = {
   serverDisplayName: "A human-readable name shown to Cluster clients after they verify this server. The immutable server identity is generated during bootstrap.",
   lanDiscoveryEnabled: "Reply to local-network Cluster discovery probes with public connection metadata. Discovery never authenticates a client and exposes no credentials.",
   serverHost: "Managed Cluster keeps the Node API on loopback. LAN access is controlled by the gateway bind host instead.",
-  serverPort: "TCP port used by the Cluster API. Changing it also requires matching public URLs, firewall rules, and reverse-proxy routes.",
+  serverPort: "Private Node API listener. Managed Cluster proxies API traffic through the web gateway; do not expose this port in Windows Firewall or Cloudflare.",
   webHost: "Network interface used by the managed Web/API gateway. Keep 127.0.0.1 for local-only access or use 0.0.0.0 for trusted-LAN hosting.",
-  webPort: "TCP port used by the Cluster web client.",
+  webPort: "Local TCP port for the single Web + API gateway. LAN, VPN, reverse proxy and Cloudflare origin routes must point to this port.",
+  allowInsecureLanHttp: "Explicitly allow HTTP on one private LAN interface only. Requires a trusted network and a restricted Windows Firewall rule; passwords travel without TLS.",
+  webTlsCertFile: "Absolute path to the PEM certificate for native direct HTTPS. The Windows service must be able to read it. Leave blank for loopback proxy/tunnel HTTPS termination.",
+  webTlsKeyFile: "Absolute path to the matching PEM private key. This field is a file path, never paste a private key here.",
   publicApiUrl: "Browser-visible API address used outside the server machine. Set this to the reverse-proxy or LAN URL used by clients.",
   publicWebUrl: "Canonical address users open for Cluster. Used in generated links and integration callbacks.",
   corsOrigins: "Comma-separated browser origins allowed to call the API. Only list trusted Cluster web addresses.",
@@ -1171,8 +1202,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       </label>
     );
   }
-  function renderSectionFields(target: ServerConfigField["section"]) {
-    const fields = SERVER_CONFIG_FIELDS.filter((field) => field.section === target);
+  function renderSectionFields(target: ServerConfigField["section"], excludedKeys: readonly string[] = []) {
+    const fields = SERVER_CONFIG_FIELDS.filter((field) => field.section === target && !excludedKeys.includes(String(field.key)));
     const groups = Array.from(new Set(fields.map((field) => field.group)));
     return (
       <div className="server-config-groups-v238">
@@ -1469,6 +1500,18 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
 
       {section === "network" && (
         <>
+          <section className="panel server-config-group-v238" aria-label="Web and API port settings">
+            <div className="server-config-group-head-v238">
+              <div><h2><ClusterIcon name="cloud" aria-hidden="true" /> Ports &amp; listeners</h2>
+                <p className="muted tight">The web port serves the browser and proxies requests to the private API port. Both are configurable and require a managed restart to take effect.</p>
+              </div>
+              <SettingsStateChip tone="neutral" icon="lock">API stays private</SettingsStateChip>
+            </div>
+            <div className="server-config-fields-v238">
+              {SERVER_CONFIG_FIELDS.filter((field) => field.key === "webPort" || field.key === "serverPort").map(renderField)}
+            </div>
+            <p className="muted tight">For tunnels and reverse proxies, route public HTTPS to the loopback web port. Never route a public hostname to the private API or PostgreSQL port.</p>
+          </section>
           <ServerNetworkTopology
             publicWebUrl={String(settings.publicWebUrl || "")}
             publicApiUrl={String(settings.publicApiUrl || "")}
@@ -1479,7 +1522,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             deploymentState={networkDeployment?.state}
             hasDraftChanges={changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)))}
           />
-          <ServerConnectionGuide busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
+          <ServerConnectionGuide webPort={Number(settings.webPort || 3000)} busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
             // Stage only public HTTPS routing metadata. Listener and firewall policy
             // remain unchanged; the existing protected Save requires a PIN.
             setSettings((current) => ({ ...current, publicWebUrl: origin, publicApiUrl: origin, sessionSecure: true,
@@ -1487,7 +1530,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             setNetworkReview(null);
             setStatus("HTTPS address staged. Review network changes before saving; external access is not active yet.");
           }} />
-          {renderSectionFields("network")}
+          {renderSectionFields("network", ["webPort", "serverPort"])}
           <section className="panel server-config-operations-v238" aria-label="Network deployment status">
             <div className="server-config-group-head-v238"><div><h2><ClusterIcon name="sync" aria-hidden="true" /> Managed network deployment</h2><p className="muted tight">After Save, a staged network change is checked on the next independent Windows startup. Only a matching, unmodified configuration can be rolled back automatically.</p></div><SettingsStateChip tone={networkDeployment?.state === "verified" ? "success" : networkDeployment?.state === "staged" ? "warning" : networkDeployment?.state === "rolled_back" ? "warning" : "neutral"} icon={networkDeployment?.state === "verified" ? "check" : "refresh"}>{networkDeployment?.state === "verified" ? "Local startup verified" : networkDeployment?.state === "staged" ? "Awaiting restart" : networkDeployment?.state === "rolled_back" ? "Rolled back" : "Not staged"}</SettingsStateChip></div>
             {networkDeploymentError ? <p className="muted">Cannot inspect the deployment record: {networkDeploymentError}</p> : null}
