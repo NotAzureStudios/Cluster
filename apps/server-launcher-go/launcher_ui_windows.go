@@ -358,6 +358,7 @@ type windowsServerController struct {
 	serviceProbePending bool
 	serviceProbeAt      time.Time
 	serviceProbeSummary string
+	authorizedRestartID string
 }
 
 type winInitCommonControls struct {
@@ -1305,12 +1306,24 @@ func (c *windowsServerController) ConfirmStop() {
 // The Win32 control panel is the independent process lifetime owner in
 // interactive mode. A web request only submits an authenticated local intent.
 func (c *windowsServerController) pollAuthorizedRestart() {
+	c.mu.Lock()
+	managed := c.serviceManaged
+	state := c.state
+	activeRestart := c.authorizedRestartID != ""
+	c.mu.Unlock()
+	// The installed Windows Service consumes its own requests. The panel must
+	// never steal them and trigger a competing SCM stop/restart transaction.
+	if managed || activeRestart || state == panelStarting || state == panelStopping { return }
+	if service, err := queryClusterService(); err == nil && service.Installed { return }
 	id, err := consumeAuthorizedRestart(c.options.root, time.Now().UTC())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Native restart request ignored: %v\n", err)
 		return
 	}
 	if id == "" { return }
+	c.mu.Lock()
+	c.authorizedRestartID = id
+	c.mu.Unlock()
 	fmt.Printf("[%s] Authorized Server Configuration restart %s; draining and restarting owned Cluster processes.\n", time.Now().Format("15:04:05"), id)
 	c.Restart()
 }
@@ -1548,7 +1561,10 @@ func (c *windowsServerController) armReadinessWatchdog(cmd *exec.Cmd) {
 func (c *windowsServerController) failStart(err error) {
 	c.mu.Lock()
 	stage := strings.TrimSpace(c.activity)
+	restartID := c.authorizedRestartID
+	c.authorizedRestartID = ""
 	c.mu.Unlock()
+	if restartID != "" { _ = writeNativeRestartReceipt(c.options.root, restartID, "failed") }
 	if stage == "" {
 		stage = "Startup"
 	}
@@ -2506,8 +2522,22 @@ func (c *windowsServerController) observeLog(line string) {
 			if err := verifyNativeNetworkDeployment(c.options.root); err != nil {
 				fmt.Fprintf(os.Stderr, "Native network startup verification refused: %v\n", err)
 				recordLauncherEmergency(c.options.root, nativealerts.NetworkRollbackBlocked)
+				c.mu.Lock()
+				restartID := c.authorizedRestartID
+				c.authorizedRestartID = ""
+				c.mu.Unlock()
+				if restartID != "" { _ = writeNativeRestartReceipt(c.options.root, restartID, "failed") }
 				c.RequestStop()
 				return
+			}
+			c.mu.Lock()
+			restartID := c.authorizedRestartID
+			c.authorizedRestartID = ""
+			c.mu.Unlock()
+			if restartID != "" {
+				if err := writeNativeRestartReceipt(c.options.root, restartID, "ready"); err != nil {
+					fmt.Fprintf(os.Stderr, "Cannot publish interactive restart readiness: %v\n", err)
+				}
 			}
 			fmt.Printf("[%s] Cluster Server is ready.\n", time.Now().Format("15:04:05"))
 			c.transition(panelRunning, "")
