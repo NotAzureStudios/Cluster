@@ -577,7 +577,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         // A successful native verification or guarded rollback releases the
         // save interlock. Do not leave the previous 409 permanently disabling
         // the UI after the operator refreshes deployment status.
-        setSaveError((current) => current instanceof ApiError &&
+        setSaveError((current: unknown) => current instanceof ApiError &&
           current.status === 409 && (current.payload as any)?.code === "NETWORK_DEPLOYMENT_PENDING"
           ? null : current);
         if (status.state === "rolled_back") {
