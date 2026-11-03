@@ -14,6 +14,7 @@ const installer=read("tools/installer/main.go");
 const handoff=read("apps/server-launcher-go/server_update_installer_handoff.go");
 const readiness=read("apps/server-launcher-go/server_update_readiness.go");
 const launcher=read("apps/server-launcher-go/main.go");
+const journal=read("apps/server-launcher-go/server_update_journal.go");
 
 const cases=[
  ["publisher-signed manifest retained at staging",stage.includes('manifestPath:=target+".manifest.json"')&&stage.includes('ManifestSHA256 string')&&stage.includes('FeedURL string')],
@@ -38,6 +39,10 @@ const cases=[
  ["update readiness exposed read only",launcher.includes('updateReadiness := flag.Bool("--update-readiness"'.replace('--update-readiness','update-readiness'))&&launcher.includes('inspectServerUpdateReadiness(root,*updateChannel,inspectStagedServerUpdate)')],
  ["update installer supports guarded, no-auto-launch application",installer.includes('supervisedInstallerUpgradeAllowed(')&&installer.includes('if ciInstallOnly || skipLaunchAfterUpgrade {')],
  ["main auto-apply remains blocked until independent owner is certified",!launcher.includes('apply-staged-update')&&!installer.includes('--apply-staged-update')],
+ ["independent update journal survives Server folder replacement",journal.includes('filepath.Join(parent,"UpdateProgress")')&&journal.includes('os.O_CREATE|os.O_EXCL')],
+ ["journal phases are enumerated and fsynced",journal.includes('case updatePhaseAuthorized,updatePhaseWriteHold')&&journal.includes('return j.file.Sync()')],
+ ["journal records no arbitrary operator-supplied error text",journal.includes('type nativeServerUpdateJournalEvent struct')&&!journal.includes('json:"message"')],
+
 
 ];
 for(const [label,ok]of cases)assert.ok(ok,label);
