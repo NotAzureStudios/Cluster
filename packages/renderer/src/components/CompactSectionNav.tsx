@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterIcon, type ClusterIconName } from "./ClusterIcon";
 import { ClusterFloatingSurface } from "./ClusterFloatingSurface";
@@ -17,6 +17,7 @@ type Props<Id extends string> = {
   activeId: Id;
   onChange: (id: Id) => void;
   primaryIds?: readonly Id[];
+  showGroupHeadings?: boolean;
   label: string;
   moreLabel?: string;
   className?: string;
@@ -27,6 +28,7 @@ export function CompactSectionNav<Id extends string>({
   activeId,
   onChange,
   primaryIds,
+  showGroupHeadings = false,
   label,
   moreLabel = "More",
   className = "",
@@ -86,9 +88,12 @@ export function CompactSectionNav<Id extends string>({
     <nav className={`compact-section-nav-v204 cluster-section-nav-v391 ${className}`.trim()} aria-label={label}>
       <div className="compact-section-primary-v204">
         {primary.map((item, index) => (
+          <Fragment key={item.id}>
+          {showGroupHeadings && item.group && (index === 0 || primary[index - 1]?.group !== item.group) && (
+            <div className="compact-section-group-heading-v103" role="presentation">{item.group}</div>
+          )}
           <ClusterButton unstyled
             type="button"
-            key={item.id}
             ref={(node) => { buttonRefs.current[index] = node; }}
             aria-current={activeId === item.id ? "page" : undefined}
             aria-label={item.detail ? `${item.label}, ${item.detail}` : item.label}
@@ -102,6 +107,7 @@ export function CompactSectionNav<Id extends string>({
             <strong>{item.label}</strong>
             {item.detail ? <span aria-hidden="true">{item.detail}</span> : null}
           </ClusterButton>
+          </Fragment>
         ))}
       </div>
       {secondary.length > 0 ? (
