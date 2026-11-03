@@ -2147,19 +2147,37 @@ func (w *windowsSettingsWindow) layout(width, height int32) {
 	moveWindow(w.sectionCombo, margin, 90, railWidth, height-160)
 	moveWindow(w.searchLabel, right, 63, rightWidth, 20)
 	moveWindow(w.searchEdit, right, 87, rightWidth, 32)
+	shrink := int32(0)
+	if height < 640 {
+		shrink = (640 - height) / 2
+	}
+	selectedLabelY := int32(325) - shrink
+	helpY := int32(426) - shrink
+	restartY := height - 104
+	helpHeight := restartY - helpY - 12
+	if helpHeight < 24 {
+		helpHeight = 24
+	}
 	moveWindow(w.settingLabel, right, 128, rightWidth, 20)
-	moveWindow(w.settingCombo, right, 150, rightWidth, 160)
-	moveWindow(w.valueLabel, right, 325, rightWidth, 20)
-	moveWindow(w.valueEdit, right, 350, rightWidth, 32)
-	moveWindow(w.secretEdit, right, 350, rightWidth, 32)
-	moveWindow(w.currentLabel, right, 393, rightWidth, 22)
-	moveWindow(w.helpLabel, right, 426, rightWidth, height-548)
-	moveWindow(w.restartLabel, right, height-104, rightWidth, 24)
+	moveWindow(w.settingCombo, right, 150, rightWidth, 160-shrink)
+	moveWindow(w.valueLabel, right, selectedLabelY, rightWidth, 20)
+	moveWindow(w.valueEdit, right, selectedLabelY+25, rightWidth, 32)
+	moveWindow(w.secretEdit, right, selectedLabelY+25, rightWidth, 32)
+	moveWindow(w.currentLabel, right, selectedLabelY+68, rightWidth, 22)
+	moveWindow(w.helpLabel, right, helpY, rightWidth, helpHeight)
+	moveWindow(w.restartLabel, right, restartY, rightWidth, 24)
 	y := height - 58
 	moveWindow(w.save, right, y, 78, 32)
 	moveWindow(w.saveRestart, right+86, y, 124, 32)
 	moveWindow(w.clear, right+218, y, 108, 32)
-	moveWindow(w.openConfig, right+334, y, 126, 32)
+	if rightWidth >= 610 {
+		procShowWindow.Call(w.openConfig, swShow)
+		moveWindow(w.openConfig, right+334, y, 126, 32)
+	} else {
+		// Keep the native close button and protected Save actions reachable
+		// on narrower remote desktop windows.
+		procShowWindow.Call(w.openConfig, swHide)
+	}
 	moveWindow(w.close, width-margin-80, y, 80, 32)
 }
 
@@ -2383,6 +2401,10 @@ func windowsSettingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) ui
 		}
 		if id == idSettingSection && notify == lbnSelChange {
 			idx, _, _ := procSendMessageW.Call(w.sectionCombo, lbGetCurSel, 0, 0)
+			// Switching to a category leaves global-search mode explicitly.
+			if strings.TrimSpace(getWindowText(w.searchEdit)) != "" {
+				setWindowText(w.searchEdit, "")
+			}
 			w.populateSettings(int(idx))
 			return 0
 		}
