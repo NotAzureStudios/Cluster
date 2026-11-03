@@ -10,7 +10,7 @@ const providers: Record<ConnectionMode, readonly ConnectionProvider[]> = {
   lan: ["manual", "caddy", "nginx"],
   private_vpn: ["tailscale", "wireguard", "custom"],
   reverse_proxy: ["caddy", "nginx", "custom"],
-  direct_https: ["caddy", "nginx"],
+  direct_https: ["manual", "caddy", "nginx"],
   managed_tunnel: ["cloudflare", "custom"],
 };
 export function validateConnectionConfiguration(value: ConnectionConfiguration): ConnectionConfiguration {
@@ -34,6 +34,7 @@ export function buildDomainConnectionPlan(host: string, settings: ConnectionConf
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(host) || host.length > 253 || host.split(".").some(label => !label || label.length > 63)) throw new Error("Invalid bound hostname");
   const { mode, provider, apiPort, webPort, publicPort } = settings;
   const isLanHttp = mode === "lan";
+  const nativeDirectHttps = mode === "direct_https" && provider === "manual";
   const canonicalUrl = `${isLanHttp ? "http" : "https"}://${host}${publicPort === (isLanHttp ? 80 : 443) ? "" : `:${publicPort}`}`;
   const instructions: string[] = [
     `Cluster's managed Web/API gateway listens on loopback port ${webPort}; Node API stays private on loopback port ${apiPort}. All ingress routes, including /api and /health, must target the Web gateway only.`,
@@ -86,6 +87,25 @@ cloudflared --config ./cloudflared-config.yml tunnel run YOUR_TUNNEL_UUID
     } else {
       instructions.push(`Configure the custom tunnel's single HTTP origin as http://127.0.0.1:${webPort} for all request paths. Do not configure a second direct-to-API ingress route.`);
     }
+  } else if (nativeDirectHttps) {
+    instructions.unshift("Native direct HTTPS: the Go Host terminates TLS itself, without Caddy/nginx or Cloudflare.");
+    instructions.push("Set webHost to an explicit Windows interface IP, webTlsCertFile and webTlsKeyFile to existing readable PEM files, and leave allowInsecureLanHttp disabled.");
+    instructions.push(`Forward only external TCP 443 to the selected Web gateway port ${webPort} when public router access is deliberately enabled. Firewall rules must allow the approved source networks; never open the private Node API or database port.`);
+    instructions.push("Replace the placeholders in the generated Server Config example, review with a security PIN, and restart using the native Windows supervisor. No certificates or firewall rules are provisioned automatically.");
+    artifacts.push({ filename: "native-https-setup.txt", contents: `# Native Go Host direct HTTPS, Windows.
+# REQUIRED: choose an actual interface IP assigned to this Windows server.
+webHost = <YOUR_WINDOWS_INTERFACE_IP>
+webPort = ${webPort}
+serverHost = 127.0.0.1
+serverPort = ${apiPort}
+publicWebUrl = ${canonicalUrl}
+publicApiUrl = ${canonicalUrl}
+allowInsecureLanHttp = false
+webTlsCertFile = <FULL_PATH_TO_CERTIFICATE_PEM>
+webTlsKeyFile = <FULL_PATH_TO_PRIVATE_KEY_PEM>
+# Certificates and access rules must be provisioned separately.
+# The service account must have read permission to both PEM files.
+`, purpose: "Native TLS settings that must be completed in Server Configuration" });
   } else {
     const useCaddy = provider === "caddy";
     artifacts.push({ filename: useCaddy ? "Caddyfile" : "cluster-nginx.conf", contents: useCaddy ? gatewayCaddy(host, webPort, apiPort, false) : gatewayNginx(host, webPort, apiPort, false), purpose: "HTTPS ingress for both web and API" });
@@ -94,7 +114,13 @@ cloudflared --config ./cloudflared-config.yml tunnel run YOUR_TUNNEL_UUID
     if (mode === "direct_https") instructions.push("Direct public HTTPS requires a public IP, inbound TCP 443 firewall/NAT forwarding to the TLS gateway, and a trusted certificate. Keep both application origins private.");
     else instructions.push("Deploy the reverse proxy at the ingress host; allow inbound HTTPS to the proxy only, not directly to the Cluster API, frontend, PostgreSQL or NAS.");
   }
-  const expectedServerConfig = { serverHost: "127.0.0.1", serverPort: apiPort, webHost: "127.0.0.1", webPort, publicApiUrl: canonicalUrl, publicWebUrl: canonicalUrl, corsOrigins: canonicalUrl, trustedProxy: provider !== "manual", sessionSecure: !isLanHttp };
+  const expectedServerConfig = {
+    serverHost: "127.0.0.1", serverPort: apiPort,
+    webHost: nativeDirectHttps ? "REPLACE_WITH_WINDOWS_INTERFACE_IP" : "127.0.0.1", webPort,
+    ...(nativeDirectHttps ? { webTlsCertFile: "REPLACE_WITH_CERTIFICATE_PEM_PATH", webTlsKeyFile: "REPLACE_WITH_PRIVATE_KEY_PEM_PATH", allowInsecureLanHttp: false } : {}),
+    publicApiUrl: canonicalUrl, publicWebUrl: canonicalUrl, corsOrigins: canonicalUrl,
+    trustedProxy: provider !== "manual", sessionSecure: !isLanHttp,
+  };
   artifacts.push({ filename: "cluster-network-settings.json", contents: JSON.stringify(expectedServerConfig, null, 2) + "\n", purpose: "Review and apply these fields in Server Config, then restart Cluster (not a complete import)" });
   artifacts.push({ filename: "connection-check.ps1", contents: `$ErrorActionPreference = 'Stop'\n$base = '${canonicalUrl}'\ntry {\n  $u = [uri]$base\n  if ($u.Scheme -ne '${isLanHttp ? "http" : "https"}') { throw 'Unexpected URL scheme' }\n  $r = Invoke-WebRequest -Uri ($base + '/health') -TimeoutSec 10 -UseBasicParsing\n  Write-Host ('HTTP response: ' + [int]$r.StatusCode)\n  Write-Host 'Check login, SSE/realtime, file transfer and Desktop manually.'\n} catch { Write-Error ('Outside-client reachability failed: ' + $_); exit 1 }\n`, purpose: "Run from a DIFFERENT machine/network after deployment (checks HTTPS certificate validation by default)" });
   instructions.push("Apply the generated Cluster Server Config fields after review. Changes to server listeners, origin policy, cookies and frontend deployment require service restart.");
