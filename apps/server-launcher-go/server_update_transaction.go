@@ -7,6 +7,7 @@ import (
  "context"
  "errors"
  "fmt"
+ "time"
 )
 
 type serverUpdatePhase string
@@ -61,7 +62,6 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
   if action==nil {return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:errors.New("Server update transaction has an unimplemented safety step")}}
  }
  if hooks.Record==nil {return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:errors.New("Server update transaction requires durable progress recording")}}
- }
  record:=hooks.Record
  stages:=[]struct{phase serverUpdatePhase;run func(context.Context)error}{
   {updatePhaseAuthorized,hooks.ConfirmAuthorization},
@@ -97,7 +97,8 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
  if cause==nil {return serverUpdateTransactionResult{Phase:updatePhaseCommitted}}
  // Recovery deliberately uses a new bounded context, because the initiating
  // browser could disconnect or cancel while system recovery is required.
- recoveryCtx:=context.WithoutCancel(ctx)
+ recoveryCtx,cancelRecovery:=context.WithTimeout(context.WithoutCancel(ctx),10*time.Minute)
+ defer cancelRecovery()
  record(updatePhaseRollingBack,"started")
  for _,step:=range []struct{name string;run func(context.Context)error}{
   {"stop candidate",hooks.StopCandidate},
