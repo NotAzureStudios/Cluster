@@ -2,7 +2,7 @@ import { isIP } from "node:net";
 
 /** Policy-only review. Never binds a socket, changes a firewall, or applies a configuration. */
 export const NETWORK_REVIEW_KEYS = [
-  "serverHost", "serverPort", "webHost", "webPort", "publicApiUrl", "publicWebUrl",
+  "serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl",
   "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled",
 ] as const;
 export type NetworkReviewKey = (typeof NETWORK_REVIEW_KEYS)[number];
@@ -16,6 +16,16 @@ function hostKind(value: unknown): "loopback" | "wildcard" | "explicit" | "inval
   if (host === "0.0.0.0" || host === "::") return "wildcard";
   if (isIP(host)) return "explicit";
   return "invalid"; // No ambiguous DNS names or zone-indexed IPv6 in a listener bind.
+}
+function explicitPrivateLAN(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if (isIP(value) === 4) {
+    const octets = value.split(".").map(Number);
+    return octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168);
+  }
+  if (isIP(value) === 6) return /^(?:fc|fd)/i.test(value);
+  return false;
 }
 function validPort(value: unknown): value is number { return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535; }
 function originOf(value: unknown): { origin: string; host: string; protocol: string; local: boolean } | null {
@@ -60,6 +70,21 @@ export function reviewNetworkChange(
     if (candidate.serverPort === pgPort) issue("block", "POSTGRESQL_PORT_COLLISION", "serverPort", "API port conflicts with managed private PostgreSQL.");
     if (candidate.webPort === pgPort) issue("block", "POSTGRESQL_PORT_COLLISION", "webPort", "Gateway port conflicts with managed private PostgreSQL.");
   }
+  const allowInsecureLAN = candidate.allowInsecureLanHttp === true;
+  if (candidate.allowInsecureLanHttp !== undefined && typeof candidate.allowInsecureLanHttp !== "boolean") {
+    issue("block", "INVALID_LAN_ACKNOWLEDGEMENT", "allowInsecureLanHttp", "LAN HTTP acknowledgement must be a boolean.");
+  }
+  const certPath = candidate.webTlsCertFile;
+  const keyPath = candidate.webTlsKeyFile;
+  for (const [field, value] of [["webTlsCertFile", certPath], ["webTlsKeyFile", keyPath]] as const) {
+    if (value !== undefined && (typeof value !== "string" || value.length > 2048 || value.includes("\u0000") || value.includes("://"))) {
+      issue("block", "INVALID_TLS_FILE_PATH", field, "Provide a local certificate/key file path, not a URL or certificate contents.");
+    }
+  }
+  const hasCert = typeof certPath === "string" && certPath.trim().length > 0;
+  const hasKey = typeof keyPath === "string" && keyPath.trim().length > 0;
+  if (hasCert !== hasKey) issue("block", "INCOMPLETE_TLS_PAIR", "webTlsKeyFile", "Direct HTTPS requires both certificate and private key file paths.");
+  if (allowInsecureLAN && hasCert) issue("block", "CONFLICTING_TRANSPORT", "allowInsecureLanHttp", "Choose direct TLS or acknowledged LAN HTTP, not both.");
   const apiUrl = originOf(candidate.publicApiUrl);
   const webUrl = originOf(candidate.publicWebUrl);
   for (const [key, url] of [["publicApiUrl", apiUrl], ["publicWebUrl", webUrl]] as const) {
@@ -70,8 +95,22 @@ export function reviewNetworkChange(
     if (candidate.sessionSecure !== true) issue("block", "HTTPS_REQUIRES_SECURE_COOKIE", "sessionSecure", "Enable secure session cookies for externally addressed HTTPS origins.");
   }
   if (webHost !== "loopback" && webHost !== "invalid") {
+    if (!webUrl || webUrl.local) {
+      issue("block", "REMOTE_GATEWAY_ORIGIN_REQUIRED", "publicWebUrl", "An exposed listener requires an explicit member-facing non-loopback web origin.");
+    }
+    if (allowInsecureLAN) {
+      if (!explicitPrivateLAN(candidate.webHost)) issue("block", "INSECURE_LAN_NOT_PRIVATE", "webHost", "Plain HTTP is permitted only on a specific RFC1918/ULA private interface, never a wildcard or public bind.");
+      if (webUrl?.protocol !== "http:") issue("block", "LAN_HTTP_ORIGIN_MISMATCH", "publicWebUrl", "Plain LAN HTTP requires an HTTP web origin.");
+      issue("warn", "LAN_HTTP_RISK", "allowInsecureLanHttp", "LAN HTTP sends credentials without TLS. Use only on a trusted network with a restricted Windows Firewall rule.");
+    } else if (!hasCert || !hasKey) {
+      issue("block", "REMOTE_TLS_REQUIRED", "webTlsCertFile", "A non-loopback gateway requires a direct TLS certificate/key pair or explicit private-LAN HTTP acknowledgement.");
+    }
+    if (hasCert && hasKey && webUrl?.protocol !== "https:") issue("block", "DIRECT_TLS_REQUIRES_HTTPS", "publicWebUrl", "Direct TLS requires an HTTPS public web origin.");
     issue("warn", "GATEWAY_EXPOSED", "webHost", "Gateway may be reachable beyond localhost. Managed Host requires explicit remote-access authorization and a trusted TLS certificate, or a separately approved insecure-LAN policy. Inspect Windows Firewall and gateway reachability before restart.");
     if (candidate.trustedProxy === true) issue("block", "PUBLIC_PROXY_HEADER_TRUST", "trustedProxy", "Do not trust arbitrary forwarded headers on a directly reachable gateway. Bind behind a restricted trusted proxy.");
+  }
+  if (webHost === "loopback" && allowInsecureLAN) {
+    issue("warn", "INACTIVE_LAN_HTTP", "allowInsecureLanHttp", "LAN HTTP acknowledgement is inactive while the gateway is bound to loopback.");
   }
   if (candidate.lanDiscoveryEnabled === true && webHost !== "loopback") issue("warn", "LAN_DISCOVERY", "lanDiscoveryEnabled", "LAN discovery advertises server connection metadata to other devices on the local network.");
   if (candidate.corsOrigins !== undefined && candidate.corsOrigins !== null) {
@@ -93,8 +132,8 @@ export function reviewNetworkChange(
     warnings,
     exposure: { api: apiHost === "loopback" ? "loopback" : apiHost, gateway: webHost, windowsFirewall: "not_checked", routerForwarding: "not_checked", externalTls: "not_checked", clientReachability: "not_checked" },
     requiresRestart: editedKeys.some(key => key !== "lanDiscoveryEnabled"),
-    requiresExposureConfirmation: editedKeys.some(key => ["webHost", "publicApiUrl", "publicWebUrl", "trustedProxy", "sessionSecure"].includes(key)) &&
-      (webHost === "wildcard" || webHost === "explicit" || Boolean(apiUrl && !apiUrl.local && apiUrl.protocol === "http:") || Boolean(webUrl && !webUrl.local && webUrl.protocol === "http:")),
+    requiresExposureConfirmation: editedKeys.some(key => ["webHost", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "trustedProxy", "sessionSecure"].includes(key)) &&
+      (allowInsecureLAN || webHost === "wildcard" || webHost === "explicit" || Boolean(apiUrl && !apiUrl.local && apiUrl.protocol === "http:") || Boolean(webUrl && !webUrl.local && webUrl.protocol === "http:")),
     note: "Policy-only preview: no listeners, firewalls, DNS, proxies, TLS certificates or runtime services were modified or probed. Saved settings are not deployed until managed restart.",
   };
 }
