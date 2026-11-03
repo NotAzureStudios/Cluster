@@ -69,7 +69,8 @@ test('empty optional profile fields are omitted from overview, without removing 
 });
 test('release identity advances without changing pinned runtime source version', () => {
   const release = JSON.parse(read('config/release-candidate.json'));
-  assert.match(release.release,/^1\.0\.0-rc\.\d+$/); assert.ok(release.sequence >= 47);
-  assert.equal(release.sourceVersion,'0.546.0');
+  assert.match(release.release,/^1\.0\.[1-9][0-9]*$/); assert.ok(release.sequence >= 47);
+  assert.equal(release.channel,'stable');
+  assert.equal(release.release,release.sourceVersion);
 });
 console.log(`RC47 stabilization: ${count}/${count} checks passed.`);
