@@ -13,6 +13,15 @@ on:
       - 'tools/scripts/cluster-prebuilt-install-gate-tests.mjs'
       - '.github/workflows/cluster-1-0-1-server-build.yml'
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Windows build runner (dedicated self-hosted requires cluster-build label)'
+        required: true
+        type: choice
+        default: 'github-hosted'
+        options:
+          - 'github-hosted'
+          - 'self-hosted'
 
 permissions:
   contents: read
@@ -24,7 +33,10 @@ concurrency:
 jobs:
   server-1-0-1:
     name: Compile and verify native Server 1.0.1
-    runs-on: windows-latest
+    # GitHub-hosted runners may be blocked by private-repository billing/limits.
+    # The manual self-hosted route requires a trusted, isolated Windows x64
+    # machine with a custom cluster-build label, not the live Cluster Server.
+    runs-on: ${{ inputs.runner == 'self-hosted' && fromJSON('["self-hosted","Windows","X64","cluster-build"]') || 'windows-latest' }}
     timeout-minutes: 90
     steps:
       - name: Checkout reviewed main revision
