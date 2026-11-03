@@ -89,3 +89,30 @@ func TestInstalledServerSequenceIgnoresUntrustedMarker(t *testing.T) {
 	if err:=os.WriteFile(marker,[]byte(strings.Replace(valid,`"releaseSequence":75`,`"releaseSequence":76`,1)),0600);err!=nil{t.Fatal(err)}
 	if got:=installedServerReleaseSequence(root);got!=0{t.Fatalf("mismatched marker accepted: %d",got)}
 }
+
+func TestServerUpdateFeedLinkHintRejectsInstallerAndReleasePage(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{"direct exe", "https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe", true},
+		{"direct zip", "https://example.com/releases/server.zip", true},
+		{"release page", "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.2", true},
+		{"latest release page", "https://github.com/NotAzureStudios/Cluster/releases/latest", true},
+		{"signed json", "https://updates.example.test/main/manifest.json", false},
+		{"extensionless signed feed", "https://updates.example.test/main/feed", false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			uri, err := url.Parse(test.raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := serverUpdateFeedLinkHint(uri)
+			if (got != "") != test.want {
+				t.Fatalf("hint for %q = %q; want flag %v", test.raw, got, test.want)
+			}
+		})
+	}
+}
