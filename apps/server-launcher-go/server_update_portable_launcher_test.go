@@ -67,3 +67,27 @@ func TestPortableLauncherSnapshotRequiresExactInstalledBinary(t *testing.T){
  writeManagedPortableLauncher(t,root,"MZ root version differs")
  if err:=capturePreviousPortableServerLauncher(root,id);err==nil{t.Fatal("root/native executable drift was accepted")}
 }
+
+func TestRollbackRemovesOnlyInstallerOwnedRootLauncherCreatedDuringUpdate(t *testing.T){
+ root,id:=appRollbackFixture(t)
+ if err:=capturePreviousPortableServerLauncher(root,id);err!=nil{t.Fatal(err)}
+ recovered:=filepath.Join(filepath.Dir(root),"UpdateRecovery",id)
+ absence,err:=os.ReadFile(filepath.Join(recovered,"previous-root-launcher.absent"))
+ if err!=nil||!strings.Contains(string(absence),"absent-v1"){t.Fatal("root shortcut absence evidence missing")}
+ writeManagedPortableLauncher(t,root,"MZ installer created portable Server")
+ if err:=restorePreviousPortableServerLauncher(root,id);err!=nil{t.Fatal(err)}
+ launcher,manifest:=serverPortableLauncherPaths(root)
+ if _,err:=os.Lstat(launcher);!os.IsNotExist(err){t.Fatalf("newly generated shortcut still published: %v",err)}
+ if _,err:=os.Lstat(manifest);!os.IsNotExist(err){t.Fatalf("newly generated manifest still published: %v",err)}
+ if _,err:=os.Stat(filepath.Join(recovered,"failed-root-launcher.exe"));err!=nil{t.Fatalf("candidate shortcut was not quarantined: %v",err)}
+}
+func TestRollbackDoesNotQuarantineExternallyOwnedShortcutWhenOriginalWasAbsent(t *testing.T){
+ root,id:=appRollbackFixture(t)
+ if err:=capturePreviousPortableServerLauncher(root,id);err!=nil{t.Fatal(err)}
+ launcher,_:=serverPortableLauncherPaths(root)
+ if err:=os.WriteFile(launcher,[]byte("MZ manual shortcut"),0600);err!=nil{t.Fatal(err)}
+ if err:=restorePreviousPortableServerLauncher(root,id);err==nil{t.Fatal("unowned newly introduced launcher was quarantined")}
+ if contents,err:=os.ReadFile(launcher);err!=nil||string(contents)!="MZ manual shortcut"{
+  t.Fatal("externally owned shortcut was changed")
+ }
+}
