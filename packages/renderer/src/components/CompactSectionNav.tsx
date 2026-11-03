@@ -8,6 +8,7 @@ export type CompactSectionNavItem<Id extends string = string> = {
   id: Id;
   label: string;
   detail?: string;
+  detailTone?: "neutral" | "info" | "success" | "warning" | "danger";
   icon?: ClusterIconName;
   group?: string;
 };
@@ -98,6 +99,7 @@ export function CompactSectionNav<Id extends string>({
             aria-current={activeId === item.id ? "page" : undefined}
             aria-label={item.detail ? `${item.label}, ${item.detail}` : item.label}
             data-cluster-state={activeId === item.id ? "selected" : "default"}
+            data-detail-tone={item.detailTone || "neutral"}
             tabIndex={activeId === item.id || (!primary.some((entry) => entry.id === activeId) && index === 0) ? 0 : -1}
             className={activeId === item.id ? "active" : ""}
             onClick={() => select(item.id)}
