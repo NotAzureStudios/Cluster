@@ -217,7 +217,9 @@ func resolvePublicOrigin(value, bindAddress string, port int, scheme string, rem
 	// A persisted older local public-origin setting may still name 127.0.0.1.
 	// Canonicalize only loopback IP literals, never a network/LAN address.
 	// Remote origin and transport validation above remain authoritative.
-	if !remote && isLoopbackBind(bindAddress) && net.ParseIP(parsed.Hostname()) != nil && isLocalOnlyHostname(parsed.Hostname()) {
+	if !remote && isLoopbackBind(bindAddress) && isLocalOnlyHostname(parsed.Hostname()) {
+		// Local bookmarks follow the actual configured gateway port rather
+		// than becoming stale after a managed network port change.
 		parsed.Host = net.JoinHostPort("localhost", strconv.Itoa(port))
 	}
 	parsed.Path = ""
