@@ -26,7 +26,84 @@ const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
 -----END PUBLIC KEY-----`
 
-var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
+var serverReleasePattern = regexp.MustCompile(`^1\\.0\\.0-rc\\.([1-9][0-9]*)package main
+
+// Server update metadata is deliberately separate from Cluster Desktop's updater.
+// A channel changes the eligible server installer, not the source checkout or database.
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
+-----END PUBLIC KEY-----`
+
+)
+var serverStableReleasePattern = regexp.MustCompile(`^1\\.0\\.([1-9][0-9]*)package main
+
+// Server update metadata is deliberately separate from Cluster Desktop's updater.
+// A channel changes the eligible server installer, not the source checkout or database.
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
+-----END PUBLIC KEY-----`
+
+)
+
+// Stable patch releases follow the installer sequence established by the
+// first shipped 1.0.x versions: v1.0.1=51, v1.0.2=52, v1.0.3=53.
+// Development RC identifiers remain isolated from the main channel.
+func serverUpdateSequence(release, channel string) (int, bool) {
+	if channel == "main" {
+		match := serverStableReleasePattern.FindStringSubmatch(release)
+		if match == nil { return 0, false }
+		patch, err := strconv.Atoi(match[1])
+		if err != nil || patch > 10000 { return 0, false }
+		return 50 + patch, true
+	}
+	if channel == "development" {
+		match := serverReleasePattern.FindStringSubmatch(release)
+		if match == nil { return 0, false }
+		sequence, err := strconv.Atoi(match[1])
+		return sequence, err == nil
+	}
+	return 0, false
+}
 var serverArtifactHashPattern = regexp.MustCompile(`^[a-fA-F0-9]{64}$`)
 
 type serverUpdateArtifact struct {
@@ -156,10 +233,8 @@ func verifyServerUpdateManifestWithKey(data []byte, feed *url.URL, expectedChann
 	if m.SchemaVersion!=1||m.Product!="cluster-server"||m.Target!="server-windows-x64"||m.Channel!=expectedChannel {
 		return m,errors.New("release targets a different product, platform or channel")
 	}
-	match:=serverReleasePattern.FindStringSubmatch(m.Release)
-	if match==nil||m.Sequence<1{return m,errors.New("invalid release candidate identity")}
-	sequence,err:=strconv.Atoi(match[1])
-	if err!=nil||sequence!=m.Sequence{return m,errors.New("release sequence mismatch")}
+	sequence, valid := serverUpdateSequence(m.Release, expectedChannel)
+	if !valid || m.Sequence != sequence { return m, errors.New("invalid release identity or release sequence mismatch") }
 	art:=m.Artifact
 	if art.Kind!="installer"||art.Filename==""||strings.ContainsAny(art.Filename,"/\\:")||!strings.HasSuffix(strings.ToLower(art.Filename),".exe") {
 		return m,errors.New("release has no Windows Server installer")
@@ -181,10 +256,14 @@ func installedServerReleaseSequence(root string) int {
 		ReleaseCandidate string `json:"releaseCandidate"`
 		ReleaseSequence int `json:"releaseSequence"`
 	}
-	if json.Unmarshal(raw,&marker)!=nil||marker.Schema!=1||!marker.ManagedInstaller||marker.ReleaseChannel!="rc" {return 0}
-	match:=serverReleasePattern.FindStringSubmatch(marker.ReleaseCandidate)
-	if match==nil{return 0}
-	sequence,err:=strconv.Atoi(match[1])
-	if err!=nil||sequence!=marker.ReleaseSequence{return 0}
+	if json.Unmarshal(raw,&marker)!=nil||marker.Schema!=1||!marker.ManagedInstaller {return 0}
+	channel := ""
+	switch marker.ReleaseChannel {
+	case "stable": channel = "main"
+	case "rc": channel = "development"
+	default: return 0
+	}
+	sequence, ok := serverUpdateSequence(marker.ReleaseCandidate, channel)
+	if !ok || sequence != marker.ReleaseSequence { return 0 }
 	return sequence
 }
