@@ -1888,3 +1888,15 @@
 .server-config-console-v238 .server-config-toggle-v238 > span .settings-state-chip-v103 {
   justify-self: start;
 }
+
+
+/* Legacy generic span rules must not erase semantic chip foreground colors. */
+.server-config-console-v238 .server-config-group-head-v238 > .settings-state-chip-v103,
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 {
+  color: var(--chip-color);
+}
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 > span,
+.cluster-domains-rc46 .cluster-domain-progress-v103 .settings-state-chip-v103 > span {
+  color: inherit;
+  font-size: inherit;
+}
