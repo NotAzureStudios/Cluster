@@ -38,3 +38,18 @@ A testable supervised transaction model now requires a separate authenticated au
 Cold PostgreSQL snapshot and restore primitives copy into the installation's external `UpdateRecovery/<transaction-uuid>` directory, verify per-file SHA-256 and completeness, and quarantine the failed candidate database when restoring. They **do not themselves stop PostgreSQL**, do **not** execute an installer, and must be invoked only by a native owner that has proved database shutdown. These tests use isolated fixture data, not a live database.
 
 **Still blocked:** Implement and certify the independent Windows update worker (SCM/interactive ownership, durable intent, UAC/privileges, stop/start, installer application, health and rollback), enforce the temporary write hold in API/Host and background jobs, verify disk/backup capacity, publish the signed main update feed using the protected signing key, and run a real 1.0.2→1.0.3 Windows database upgrade/restore drill. The 1.0.3 release cannot be called self-updating or recovery-certified until those pass. No published 1.0.2 artifacts were modified.
+
+
+## Native updater safety pass (pre-release)
+
+- `--update-readiness` is now a **read-only** JSON report. It independently re-verifies the pinned signed staged update, checks an existing write hold or pending restart, and identifies the managed PostgreSQL backup prerequisite. It explicitly reports that unattended installation remains unavailable.
+- `inspect-update` / `update-readiness` in the native panel console shows the same admission blockers without changing any settings.
+- A production handoff can copy a pinned-signature-verified installer to `Cluster-Update-<sequence>-<digest>.exe` beside the original managed `Cluster` folder. This avoids the portable installer's location-dependent **nested-installation risk**. The copy is exclusive, SHA-256 checked twice, and does not execute the installer.
+- The Windows installer now supports an **upgrade-only** `--skip-launch` mode to be used by the future independent owner. It refuses unowned/fresh installs, downgrades and replays. The independent owner is still responsible for starting/probing the candidate and finalizing or rolling back the transaction.
+- Go tests cover copy authenticity, collision, path trust, an existing recovery hold, update-readiness semantics, and skip-launch admission. Source contracts enforce no auto-apply before owner certification.
+
+### Still release-blocking
+
+**Do not** claim that clicking Check Updates installs anything. The current runtime has no independent privileged Windows update executor that authorizes a PIN-selected release, drains its Service/interactive owner, snapshots PostgreSQL, runs the new EXE while the old Server folder is fully unlocked, probes application + network state, and restores the prior release on failure. A real, signed 1.0.3 update manifest/feed must also be published before automatic update discovery can stage this release.
+
+The 1.0.2→1.0.3 in-place Windows upgrade and failed-start recovery still require live Windows test evidence. Never run the handoff installer from `Server/data/system/updates`.
