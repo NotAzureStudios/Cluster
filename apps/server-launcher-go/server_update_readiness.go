@@ -69,8 +69,14 @@ func inspectServerUpdateReadiness(root,channel string,inspect func(string,string
  if fi,err:=os.Lstat(db);err!=nil || !fi.IsDir() || fi.Mode()&os.ModeSymlink!=0 {
   result.Reasons=append(result.Reasons,"Managed PostgreSQL data folder is missing or unsafe for a cold snapshot")
  }
- // False until the separate, independently supervised native application +
- // authenticated authorization and recovery owner are actually implemented.
- result.Reasons=append(result.Reasons,"Automatic installer execution and rollback are not yet implemented")
+ // A signed and staged release is not itself a runnable update. Only the
+ // Windows SCM-owned Server with an independent worker, intact installation,
+ // adequate snapshot capacity and no pending holds can report native support.
+ // UAC confirmation and a verified cold snapshot are required at apply time.
+ if supported,reason:=nativeServerUpdateExecutorSupport(root,candidate.Size);!supported{
+  result.Reasons=append(result.Reasons,reason)
+ }else if len(result.Reasons)==0{
+  result.NativeInstallationSupported=true
+ }
  return result
 }
