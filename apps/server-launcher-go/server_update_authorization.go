@@ -10,6 +10,7 @@ import (
  "encoding/json"
  "errors"
  "fmt"
+ "io"
  "os"
  "path/filepath"
  "strings"
@@ -55,7 +56,13 @@ func claimAuthorizedServerUpdate(root string,now time.Time,inspect func(string,s
  data,err:=os.ReadFile(claim)
  if err!=nil{return result,err}
  var req authorizedServerUpdateRequest
- if err:=json.Unmarshal(data,&req);err!=nil{return result,errors.New("malformed update authorization")}
+ decoder:=json.NewDecoder(strings.NewReader(string(data)))
+ decoder.DisallowUnknownFields()
+ if err:=decoder.Decode(&req);err!=nil{return result,errors.New("malformed update authorization")}
+ var trailing any
+ if err:=decoder.Decode(&trailing);!errors.Is(err,io.EOF){
+  return result,errors.New("update authorization contains trailing content")
+ }
  if req.Schema!=1 || req.Action!="install-signed-server-update" ||
   !serverUpdateIDPattern.MatchString(req.TransactionID) ||
   (req.Channel!="main" && req.Channel!="development") || req.Sequence<=0 ||
