@@ -1,58 +1,42 @@
 # Cluster 1.0.1
 
-**Private, self-hosted studio workspace for Azure Studios.** Cluster combines projects, boards, tickets, whiteboards, timelines, calendars, time tracking, Library files, Packets documentation, QA/builds, people management, and studio administration. It includes a browser client, a native Windows Desktop client, and a Windows Server Manager.
+**Cluster** is Azure Studios' private, self-hosted studio workspace for project management, collaboration and production. It brings Projects, Boards, Tickets, Whiteboards, Timeline, Calendar and time tracking, Library storage and media viewers, Packets documentation, QA/builds, people management and studio administration into one system.
 
-**Current source:** **Cluster 1.0.1** on `main` / `development`. **Latest published binaries:** [historical v1.0.0](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0), whose Server installer is known to fail. **A CI-built, hash-verified 1.0.1 Server test installer is now available from [GitHub Actions](https://github.com/NotAzureStudios/Cluster/actions/runs/41565552099); it has not passed an actual Windows installation test or been published as a GitHub Release.** [Installation guide](docs/INSTALLATION.md) · [1.0.1 source status](docs/releases/CLUSTER_1_0_1_SOURCE.md)
+**Latest version: [Cluster 1.0.1](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.1)** · [Install](docs/INSTALLATION.md) · [Release notes](docs/releases/CLUSTER_1_0_1.md) · [Documentation](docs/README.md)
 
-> **Release scope:** Cluster 1.0 is an owner-approved **private studio release**. Both Windows installers and the portable Desktop ZIP were compiled and hash-verified in GitHub Actions. These packages are **unsigned** and have **not** passed real-workstation installation, upgrade, restore, or recovery acceptance. Preserve existing data and do not overwrite a running Server. See the [release notes](docs/releases/CLUSTER_1_0_0.md) for the precise limitations.
+## Download and install
 
-> **Known issue in v1.0.0 Server installer:** The published Windows Server EXE rejects its own prebuilt runtime because its source-only admission step requires an installer script deliberately excluded from the payload. A second source-only smoke step would also fail. See [installer fix PR #31](https://github.com/NotAzureStudios/Cluster/pull/31). **Do not retry or replace existing Server data with the unchanged v1.0.0 EXE.** A corrected **CI test artifact** is available now; no standalone 1.0.1 GitHub Release has been published yet. The separate Desktop artifact is not implicated by this particular failure.
+The packaged target is **Windows x64**. Install the Server on the studio's Windows Server machine, then connect using the browser or the independent Qt Desktop client.
 
-## Install Cluster 1.0
-
-**Windows x64** is the packaged target. The 1.0.1 Server installer has passed the pinned Windows CI build and SHA-256 checks, but **real Windows installation remains untested**. The v1.0.0 Server EXE is broken and must not be used for a fresh installation.
-
-| Download | Purpose |
+| Download | Use |
 | --- | --- |
-| [Cluster Server 1.0.1 Windows test build](https://github.com/NotAzureStudios/Cluster/actions/runs/41565552099) | **Unsigned, hash-verified test artifact.** Download the workflow artifact ZIP; use its `bin/Cluster-Installer.exe` in a new empty folder |
-| [Cluster-Installer.exe (v1.0.0, broken)](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Installer.exe) | **Do not install.** Historical release with a confirmed installer defect |
-| [Cluster-Desktop-Installer-0.482.0-windows-x64.exe](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-Installer-0.482.0-windows-x64.exe) | Installs the separate native **Cluster Desktop** client |
-| [Cluster-Desktop-0.482.0-windows-x64.zip](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-0.482.0-windows-x64.zip) | Portable Desktop alternative, not a Server installer |
+| **[Cluster Server Installer (1.0.1)](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Installer.exe)** | Installs the managed Server, API, hosted Web UI and native Server Manager |
+| **[Cluster Desktop Installer](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-Installer-0.482.0-windows-x64.exe)** | Installs the separate native Qt Windows client |
+| [Portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-0.482.0-windows-x64.zip) | Unpacked Desktop alternative |
 
-**New installation:** follow the [Windows Server and Desktop setup instructions](docs/INSTALLATION.md). The Server must be running and reachable before users can connect through Desktop or a browser. Accounts are created by the studio administrator.
+1. Download `Cluster-Installer.exe` and place it in a new, writable Server installation folder, such as `D:\Cluster-Server\`.
+2. Run it and follow the Server Manager setup. The installer places its managed files in a `Cluster\` subfolder beside the installer.
+3. Configure the Server, complete the initial Owner setup locally, and confirm Server health.
+4. Open the hosted Web UI, or install Desktop and connect it to the Server address with a studio account.
 
-**Already running Cluster?** Do **not** place the 1.0 installer over your existing Server installation until you have a verified PostgreSQL and Library backup and a tested upgrade procedure. Automatic update application and rollback have not been accepted.
+Read the [Windows installation guide](docs/INSTALLATION.md) for setup paths, checksums, troubleshooting and recovery precautions.
 
-> **Source versus binary:** `main` now identifies Server, Web and six npm workspaces as **1.0.1**. The already-published **v1.0.0** Server EXE still reports its historical RC50 / `0.546.0` identity and is broken. Native Qt Desktop remains **`0.482.0`** until separately rebuilt and tested. Never relabel old binaries as 1.0.1.
+**Windows publisher warning:** These Windows binaries are not Authenticode-signed. The Server executable was compiled in the pinned Windows build pipeline, and the published installer SHA-256 is `2719e1b1336144773c0e5ad9b361fae2d73109c08b2495592f04a92ccc9968f7`. The 1.0.1 Server build has not yet completed an actual workstation installation and startup acceptance test. Verify the file before running it, and back up any existing database or Library data before replacing an installation.
 
-**Verified 1.0.1 test installer SHA-256:** `2719e1b1336144773c0e5ad9b361fae2d73109c08b2495592f04a92ccc9968f7`. Build source commit: `747832c6cdf53a97c0923e045c04c08e8b17d5a0`. Test the installed application before replacing a studio deployment.
+## Components
 
-## Product layout
-
-| Component | Purpose |
+| Product | Description |
 | --- | --- |
-| **Cluster Server** | Fastify API, PostgreSQL/Prisma data, background jobs, storage, native Server Manager and hosted Web UI |
-| **Cluster Web** | Browser-based shared React interface served by the Server |
-| **Cluster Desktop** | Qt 6.11 native host for shared UI, isolated server profiles, tray integration and native file/workstation capabilities |
-| **Integrations** | Discord and production-tool integration sources, configured separately |
+| **Cluster Server** | Fastify API, PostgreSQL/Prisma data, background tasks, Library file services, hosted Web and native Windows Server Manager |
+| **Cluster Web** | Browser interface for authorized studio users |
+| **Cluster Desktop** | Native C++/Qt client with isolated Server profiles, tray and desktop integration, native notifications and workstation/file capabilities |
+| **Integrations** | Studio integrations including Discord, configured independently |
 
-Desktop does not include a Server, database, or Server update feed. The Web and restricted Portal routes are served from the Server deployment, not through separate downloadable desktop installers.
-
-## Rebuild the Windows Server 1.0.1 installer
-
-The [official pinned Windows CI build](https://github.com/NotAzureStudios/Cluster/actions/runs/41565552099) now succeeds with all ten related workflows passing. It produces an unsigned test installer, not an installation-certified public release. A clean Windows x64 developer machine can reproduce the build without touching the installed Server:
-
-```powershell
-git switch main
-git pull --ff-only origin main
-powershell -NoProfile -File .\tools\windows\Build-Cluster-1.0.1.ps1
-```
-
-Requires Node `24.20.0`, Go `1.27.1`, Git and internet for `npm ci`. Successful output is under `artifacts/cluster-1.0.1-windows-x64/` with the unsigned EXE, SHA-256 receipt and Server Manager. See [1.0.1 build recovery](docs/releases/CLUSTER_1_0_1_SOURCE.md), including the optional dedicated Windows self-hosted Actions runner route. Do not rename or redistribute the broken v1.0.0 Server EXE as a hotfix.
+**Versioning:** The suite and Server/Web source are **1.0.1**. Native Desktop retains its independent binary version **0.482.0**; it is included in this release unchanged. The [1.0.1 release notes](docs/releases/CLUSTER_1_0_1.md) record the actual binary source commits and SHA-256 hashes.
 
 ## Develop from source
 
-Development requires the pinned versions in [`config/toolchain-versions.json`](config/toolchain-versions.json), including **Node.js 24.20.0**, **Prisma 7.9.1**, **PostgreSQL 18.6**, **Go 1.27.1** for native tooling, and **Qt 6.11.2** for native Desktop. Windows native distribution builds also require CMake, MSVC and NSIS.
+This is a private source repository. Use the pinned toolchain versions in [`config/toolchain-versions.json`](config/toolchain-versions.json), including Node.js **24.20.0**, Prisma **7.9.1**, PostgreSQL **18.6**, Go **1.27.1**, and Qt **6.11.2** for native Desktop builds.
 
 ```sh
 git clone https://github.com/NotAzureStudios/Cluster.git
@@ -64,30 +48,26 @@ npm run db:generate
 npm run build
 ```
 
-Use a **configured development environment**, not the studio's production data, for application startup:
+To start a configured **development** environment (not the studio's installed Server), use `npm run dev`. The committed root `package-lock.json` covers the six npm workspaces; use `npm ci` for reproducible builds.
 
-```sh
-npm run dev
-```
+For an independently reproducible Windows Server package, run the [1.0.1 Windows build script](tools/windows/Build-Cluster-1.0.1.ps1) on a clean Windows x64 machine with the pinned tools. The [Windows Actions build](https://github.com/NotAzureStudios/Cluster/actions/runs/41565552099) is the verified source for the release Server binary.
 
-The committed root `package-lock.json` is authoritative. Use `npm ci` for reproducible installs; do not regenerate dependencies during a release build. See [development setup](docs/development/LOCAL_SETUP.md), [distribution profiles](docs/development/DISTRIBUTION_PROFILES.md), and [Git workflow](docs/development/GIT_WORKFLOW.md).
-
-## Source map
+## Repository
 
 | Path | Contents |
 | --- | --- |
 | `apps/server/`, `apps/web/` | API and browser app |
-| `apps/desktop-qt/` | Native Qt client |
-| `apps/*-go/` | Windows native server and workstation helpers |
+| `apps/desktop-qt/` | Native Qt Desktop |
+| `apps/*-go/` | Windows-native Server/workstation components |
 | `packages/` | Shared contracts, API client and React renderer |
 | `integrations/` | Optional studio integrations |
-| `tools/`, `config/` | Build tooling, regression checks, and pinned configuration |
-| `docs/` | Installation, operations, development and release notes |
+| `tools/`, `config/` | Release/build tooling, tests and pinned configuration |
+| `docs/` | Installation, operations, developer and release documentation |
 
-Source changes should enter `development` through focused reviewed pull requests, then be promoted to `main`. The [v1.0.0 tag](https://github.com/NotAzureStudios/Cluster/tree/v1.0.0) is the published source baseline; original binary build SHAs are documented separately.
+Changes go through reviewed development work and then `main`. The immutable `v1.0.1` tag identifies this release; prior versions and resolved defects are documented in Git history and earlier release notes.
 
 ## Documentation and policies
 
-[Installation](docs/INSTALLATION.md) · [Documentation index](docs/README.md) · [Release notes](docs/releases/CLUSTER_1_0_0.md) · [Server recovery](docs/development/NATIVE_WINDOWS_SERVER_RECOVERY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md)
+[Installation](docs/INSTALLATION.md) · [Documentation index](docs/README.md) · [Release notes](docs/releases/CLUSTER_1_0_1.md) · [Server recovery](docs/development/NATIVE_WINDOWS_SERVER_RECOVERY.md) · [Local development](docs/development/LOCAL_SETUP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Support](SUPPORT.md)
 
-**Copyright / access:** Proprietary internal-use Azure Studios software. Access to this private repository or release artifacts does not grant redistribution rights.
+**Access:** Proprietary internal-use Azure Studios software. Repository access does not grant redistribution rights.
