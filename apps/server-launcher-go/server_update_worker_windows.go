@@ -165,7 +165,20 @@ func runNativeServerUpdateInstall(root,channel string)error{
    installCtx,cancel:=context.WithTimeout(ctx,serverUpdateInstallTimeout)
    defer cancel()
    command:=exec.CommandContext(installCtx,installer,"--skip-launch")
-   command.Dir=filepath.Dir(root)
+   command.Dir=filepath.Dir(filepath.Dir(root))
+   // The exact publisher-signed prebuilt payload is mandatory. Do not inherit
+   // developer-source, smoke or version overrides from an interactive parent.
+   environment:=make([]string,0,len(os.Environ())+2)
+   for _,item:=range os.Environ(){
+    key,_,_:=strings.Cut(item,"=")
+    switch strings.ToUpper(key){
+    case "CLUSTER_INSTALLER_DEV_SOURCE_BUILD","CLUSTER_INSTALLER_CI_INSTALL_ONLY",
+     "CLUSTER_ALLOW_PREBUILT_NATIVE","CLUSTER_ALLOW_PREBUILT_WORKSTATION","CLUSTER_VERSION":
+     continue
+    }
+    environment=append(environment,item)
+   }
+   command.Env=append(environment,"CLUSTER_INSTALLER_DEV_SOURCE_BUILD=0","CLUSTER_INSTALLER_CI_INSTALL_ONLY=0")
    output,err:=command.CombinedOutput()
    if err!=nil{return fmt.Errorf("verified signed Windows Server installer failed: %w (output: %s)",err,limitedNativeUpdateOutput(output))}
    if installedServerReleaseSequence(root)!=claimed.Candidate.Sequence{
