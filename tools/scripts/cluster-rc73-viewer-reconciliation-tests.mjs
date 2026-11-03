@@ -78,7 +78,9 @@ await check("PDF page chrome matches virtual geometry", () => {
 });
 await check("Existing newer release metadata is not replaced by RC73", () => {
   const release=JSON.parse(readFileSync(resolve(root,"config/release-candidate.json"),"utf8"));
-  assert.equal(release.release,"1.0.0-rc.50");
-  assert.equal(release.certification,"candidate-unverified");
+  assert.equal(release.channel,"stable");
+  assert.equal(release.release,release.sourceVersion);
+  assert.match(release.release,/^1\.0\.[1-9][0-9]*$/);
+  assert.equal(release.certification,"install-test-pending");
 });
 console.log(count + "/10 targeted RC73 viewer reconciliation checks passed");
