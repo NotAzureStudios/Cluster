@@ -1,4 +1,4 @@
-# Build a complete Cluster 1.0.1 Server distribution on an isolated Windows x64
+# Build a complete Cluster 1.0.2 Server distribution on an isolated Windows x64
 # workstation when GitHub-hosted Actions are unavailable. Builds only; never installs.
 # Requires: Git checkout of main, Node 24.20.0, Go 1.27.1, internet for npm ci.
 [CmdletBinding()]
@@ -39,7 +39,7 @@ try {
   }
   $branch = (& git branch --show-current).Trim()
   if ($LASTEXITCODE -ne 0 -or $branch -ne "main") {
-    throw "The 1.0.1 Server installer must be built from the reviewed main branch, not $branch."
+    throw "The 1.0.2 Server installer must be built from the reviewed main branch, not $branch."
   }
   $commit = (& git rev-parse HEAD).Trim()
   if ($LASTEXITCODE -ne 0 -or $commit -notmatch "^[a-f0-9]{40}$") {
@@ -60,12 +60,12 @@ try {
   }
 
   $identity = Get-Content -LiteralPath "config/release-candidate.json" -Raw | ConvertFrom-Json
-  if ($identity.release -ne "1.0.1" -or $identity.channel -ne "stable" -or $identity.sourceVersion -ne "1.0.1") {
-    throw "The checked-out source does not declare Cluster Server 1.0.1 stable."
+  if ($identity.release -ne "1.0.2" -or $identity.channel -ne "stable" -or $identity.sourceVersion -ne "1.0.2") {
+    throw "The checked-out source does not declare Cluster Server 1.0.2 stable."
   }
 
-  Write-Host "Checking 1.0.1 release identity, lockfile and both installer admission paths..."
-  Invoke-Checked node @("tools/scripts/cluster-1-0-1-version-contract.mjs")
+  Write-Host "Checking 1.0.2 release identity, lockfile and both installer admission paths..."
+  Invoke-Checked node @("tools/scripts/cluster-1-0-2-version-contract.mjs")
   Invoke-Checked node @("tools/scripts/cluster-release-lockfile-check.mjs")
   Invoke-Checked node @("tools/scripts/cluster-prebuilt-install-gate-tests.mjs")
   Invoke-Checked node @("tools/scripts/cluster-platform-release-tests.mjs")
@@ -89,8 +89,8 @@ try {
   }
   $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
   if ($receipt.product -ne "cluster-server" -or $receipt.profile -ne "server-windows-x64" -or
-      $receipt.channel -ne "main" -or $receipt.release -ne "1.0.1" -or
-      $receipt.sourceVersion -ne "1.0.1" -or $receipt.commit -ne $commit -or
+      $receipt.channel -ne "main" -or $receipt.release -ne "1.0.2" -or
+      $receipt.sourceVersion -ne "1.0.2" -or $receipt.commit -ne $commit -or
       -not $receipt.built -or $receipt.signed -or $receipt.certified) {
     throw "The build receipt has incorrect product, identity or verification state."
   }
@@ -117,22 +117,22 @@ try {
     } finally { $stream.Dispose() }
   }
 
-  if (-not $OutputDirectory) { $OutputDirectory = Join-Path $root "artifacts/cluster-1.0.1-windows-x64" }
+  if (-not $OutputDirectory) { $OutputDirectory = Join-Path $root "artifacts/cluster-1.0.2-windows-x64" }
   $destination = [IO.Path]::GetFullPath($OutputDirectory)
   New-Item -ItemType Directory -Path $destination -Force | Out-Null
-  $installerDestination = Join-Path $destination "Cluster-Installer-1.0.1-UNSIGNED.exe"
+  $installerDestination = Join-Path $destination "Cluster-Installer-1.0.2-UNSIGNED.exe"
   $managerDestination = Join-Path $destination "Cluster Server.exe"
   Copy-Item -LiteralPath "bin/Cluster-Installer.exe" -Destination $installerDestination -Force
   Copy-Item -LiteralPath "bin/Cluster Server.exe" -Destination $managerDestination -Force
   Copy-Item -LiteralPath $receiptPath -Destination (Join-Path $destination "build-receipt.json") -Force
 
   $sums = @(
-    "$((Get-FileHash -LiteralPath $installerDestination -Algorithm SHA256).Hash.ToLowerInvariant())  Cluster-Installer-1.0.1-UNSIGNED.exe"
+    "$((Get-FileHash -LiteralPath $installerDestination -Algorithm SHA256).Hash.ToLowerInvariant())  Cluster-Installer-1.0.2-UNSIGNED.exe"
     "$((Get-FileHash -LiteralPath $managerDestination -Algorithm SHA256).Hash.ToLowerInvariant())  Cluster Server.exe"
   )
   [IO.File]::WriteAllLines((Join-Path $destination "SHA256SUMS.txt"), $sums)
   Write-Host ""
-  Write-Host "COMPLETE: unsigned Cluster Server 1.0.1 build, source $commit"
+  Write-Host "COMPLETE: unsigned Cluster Server 1.0.2 build, source $commit"
   Write-Host "Output: $destination"
   Write-Host "The binary is not signed, Windows-installed, or certified by this script."
   Write-Host "Test it in a new empty directory before using it with studio data."

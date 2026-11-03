@@ -255,6 +255,9 @@ func run() error {
 			return err
 		}
 	}
+	// Used exclusively for a real clean-install smoke on a disposable Windows runner.
+	// Normal studio installations always request the native Server launch.
+	ciInstallOnly := os.Getenv("CLUSTER_INSTALLER_CI_INSTALL_ONLY") == "1"
 	args := []string{"-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps, "-WorkRoot", work}
 	if archive != "" {
 		args = append(args, "-Archive", archive)
@@ -264,6 +267,12 @@ func run() error {
 		args = append(args, "-StartInstalled")
 	} else {
 		return errors.New("no embedded Cluster source selected for a fresh install")
+	}
+	if ciInstallOnly && archive == "" {
+		return errors.New("isolated installation smoke requires a new bundled revision")
+	}
+	if ciInstallOnly {
+		args = append(args, "-SkipLaunch")
 	}
 	fmt.Println(installerName, identity.Release)
 	fmt.Println("Portable Cluster files:", work)
@@ -286,6 +295,8 @@ func run() error {
 	}
 	if repairSameRelease {
 		fmt.Println("Exact-release application repair completed; Server remains stopped for validation.")
+	} else if ciInstallOnly {
+		fmt.Println("Isolated Windows install smoke completed; native Server not started.")
 	} else {
 		fmt.Println("Cluster Server Manager launch requested.")
 	}
