@@ -1134,6 +1134,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         <label className={`${className} server-config-toggle-v238`} key={String(field.key)}>
           <span>
             <strong>{field.label}</strong>
+            {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
+            {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
             <small>{help}</small>
             <code>{String(field.key)}</code>
           </span>
@@ -1159,7 +1161,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       <label className={className} key={String(field.key)}>
         <span>
           <strong>{field.label}</strong>
-          {field.restart && <em>Restart</em>}
+          {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
+          {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>
         </span>
         <small>{help}</small>
         {control}
