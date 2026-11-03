@@ -25,6 +25,25 @@ If replacing an installation from scratch, stop the existing Cluster Server Mana
 
 When an official verified 1.0.1 Server EXE is available, put it in a **new empty writable folder**, verify its published SHA-256 hash, run it and inspect `Cluster\installer.log`. Do not assume an extracted source directory or a renamed RC50 EXE is a fixed 1.0.1 installer.
 
+
+## Build recovery if GitHub cannot allocate runners
+
+As of the November 2, 2026 investigation, hosted Windows **and Ubuntu** jobs are being rejected before any steps start; the failed Server build had `runner_id=0` and `steps=[]` on both the first attempt and a retry. This does **not** prove a Cluster compiler error or prove a particular billing cause.
+
+- Check the failure message on [the 1.0.1 Actions run](https://github.com/NotAzureStudios/Cluster/actions/runs/41562376258), then review the GitHub repository owner's **Billing & licensing → Budgets and alerts / Actions usage**, payment restrictions and repository Actions settings. Billing holds and exhausted private-repository budgets can cause this pattern. Only an authorized account owner can change those settings.
+- **Local Windows fallback:** on a separate development PC/VM with a clean `main` clone, pinned Node.js `24.20.0`, pinned Go `1.27.1`, Git and internet for npm packages, run:
+
+  ```powershell
+  git switch main
+  git pull --ff-only origin main
+  powershell -NoProfile -File .\tools\windows\Build-Cluster-1.0.1.ps1
+  ```
+
+  This compiles the complete native Server, Prisma and Web application from the current Git commit, then checks the source-bound hashes and creates `artifacts/cluster-1.0.1-windows-x64/Cluster-Installer-1.0.1-UNSIGNED.exe` plus the Manager, receipt and checksum list. **It does not install anything or claim the app passed Windows runtime acceptance.**
+- **Self-hosted Actions fallback:** register an isolated **Windows x64** runner in the private repository under **Settings → Actions → Runners**. Give it the custom `cluster-build` label (in addition to `self-hosted`, `Windows`, `X64`). Run **Build Cluster 1.0.1 Windows Server installer** using **Run workflow → runner: self-hosted**. This workflow is otherwise the same pinned clean-source build and uploads a verified artifact. Do **not** use a live studio database Server as a disposable runner.
+
+**Branch cleanup:** `main` and `development` are the two working branches. The merged documentation, installer-fix, historical release and source-bump branches can be removed after checking they have not changed. The special `archive/main-pre-development-consolidation-2026-11-02` branch contains unique commits and should be retained until those commits are separately preserved.
+
 ## Evidence still missing
 
 The underlying source fix is merged in [PR #31](https://github.com/NotAzureStudios/Cluster/pull/31). The local prebuilt fixture regression tests exercised both reported admission failures. GitHub Windows runners have been terminating before executing job steps, so no pinned-toolchain replacement binary has passed CI yet. Real Windows install, launch, sign-in and data handling must still be checked on a representative machine.
