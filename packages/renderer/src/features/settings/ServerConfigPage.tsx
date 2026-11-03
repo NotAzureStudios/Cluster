@@ -1267,34 +1267,34 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         <div className="server-config-overview-v238">
           <div className="server-config-metrics-v238">
             <ClusterButton unstyled type="button" onClick={() => selectSection("security")}>
-              <span>Security</span>
-              <strong>{securityDiagnostics?.ok ? "Healthy" : "Review"}</strong>
-              <em>{securityDiagnostics?.notes?.length || 0} notes</em>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="lock" aria-hidden="true" /><span>Security</span></div>
+              <strong>{securityDiagnostics ? securityDiagnostics.ok ? "Reported OK" : "Needs review" : "Not checked"}</strong>
+              <SettingsStateChip tone={!securityDiagnostics ? "neutral" : securityDiagnostics.ok && !(securityDiagnostics.notes?.length) ? "success" : "warning"}>{!securityDiagnostics ? "No diagnostics yet" : `${securityDiagnostics.notes?.length || 0} diagnostic notes`}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("sessions")}>
-              <span>Sessions</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="users" aria-hidden="true" /><span>Sessions</span></div>
               <strong>{serverSessions.length}</strong>
-              <em>{securityDiagnostics?.activeSessions ?? serverSessions.length} active</em>
+              <SettingsStateChip tone="neutral" icon="user">{securityDiagnostics?.activeSessions ?? serverSessions.length} reported active</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("backups")}>
-              <span>Backups</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="archive" aria-hidden="true" /><span>Backups</span></div>
               <strong>{serverBackups.length}</strong>
-              <em>{securityDiagnostics?.latestBackup?.verification?.ok === true ? "Latest verified" : securityDiagnostics?.latestBackup ? "Needs verification" : "None created"}</em>
+              <SettingsStateChip tone={securityDiagnostics?.latestBackup?.verification?.ok === true ? "success" : securityDiagnostics?.latestBackup ? "warning" : "neutral"}>{securityDiagnostics?.latestBackup?.verification?.ok === true ? "Latest verified" : securityDiagnostics?.latestBackup ? "Verification needed" : "No backup evidence"}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("integrations")}>
-              <span>API & webhooks</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="code" aria-hidden="true" /><span>API &amp; webhooks</span></div>
               <strong>{configuredExtensionCount}</strong>
-              <em>active webhook endpoints</em>
+              <SettingsStateChip tone="neutral" icon="link">Enabled endpoints</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("advanced")}>
-              <span>Editable settings</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="settings" aria-hidden="true" /><span>Editable settings</span></div>
               <strong>{serverManagedKeys.length}</strong>
-              <em>{changedFields.length} unsaved</em>
+              <SettingsStateChip tone={changedFields.length ? "warning" : "neutral"} icon={changedFields.length ? "note" : "check"}>{changedFields.length ? `${changedFields.length} unsaved changes` : "No draft changes"}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("network")}>
-              <span>Private API</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="cloud" aria-hidden="true" /><span>Private API</span></div>
               <strong>{settings.serverPort || 4000}</strong>
-              <em>{settings.serverHost || "127.0.0.1"}</em>
+              <SettingsStateChip tone={settings.serverHost && !["127.0.0.1", "localhost", "::1"].includes(settings.serverHost) ? "warning" : "neutral"} icon="lock">Configured host: {settings.serverHost || "127.0.0.1"}</SettingsStateChip>
             </ClusterButton>
           </div>
 
