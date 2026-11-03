@@ -28,6 +28,8 @@ func TestRestorePriorPortableServerLauncherAfterFailedCandidate(t *testing.T){
  if err:=os.WriteFile(native,[]byte(old),0600);err!=nil{t.Fatal(err)}
  writeManagedPortableLauncher(t,root,old)
  if err:=capturePreviousPortableServerLauncher(root,id);err!=nil{t.Fatal(err)}
+ snapshot:=filepath.Join(filepath.Dir(root),"UpdateRecovery",id,"previous-root-launcher.manifest.json")
+ if _,err:=os.Stat(snapshot);err!=nil{t.Fatalf("portable launcher baseline was not retained: %v",err)}
  if err:=os.WriteFile(native,[]byte(newServer),0600);err!=nil{t.Fatal(err)}
  writeManagedPortableLauncher(t,root,newServer)
  if err:=os.WriteFile(native,[]byte(old),0600);err!=nil{t.Fatal(err)}
