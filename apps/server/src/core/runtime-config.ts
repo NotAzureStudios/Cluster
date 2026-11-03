@@ -457,6 +457,7 @@ export function loadRuntimeConfig(
     rateLimitEnabled,
     securityHeadersEnabled,
     requireMutationOrigin,
+    allowInsecureManagedHostHttp: runtimeProfile === "managed-host" && env.CLUSTER_MANAGED_HOST_ALLOW_INSECURE_LAN_HTTP === "true",
     requireDiscordLink,
     discordClientId: env.DISCORD_CLIENT_ID,
     discordClientSecret: env.DISCORD_CLIENT_SECRET,
