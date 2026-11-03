@@ -738,7 +738,37 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   }, []);
   function patch(key: keyof Settings, value: unknown) {
     if (String(key).startsWith("maintenanceWindow")) setMaintenanceWindows(null);
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => {
+      const next: Settings = { ...prev, [key]: value };
+      // Changing the local Web gateway port must also update browser-facing
+      // loopback URLs and CORS entries. External proxy/tunnel origins are left
+      // completely unchanged because their public port may be 443.
+      if (key === "webPort" && typeof value === "number" && Number.isInteger(value) &&
+        value >= 1 && value <= 65535) {
+        const oldWebPort = Number(prev.webPort || 3000);
+        const oldApiPort = Number(prev.serverPort || 4000);
+        const relocateLocalOrigin = (raw: string, includePrivateApi = false) => {
+          try {
+            const url = new URL(raw);
+            const localHost = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname.toLowerCase());
+            if (localHost && url.protocol === "http:" &&
+              (Number(url.port || "80") === oldWebPort ||
+                (includePrivateApi && Number(url.port || "80") === oldApiPort))) {
+              url.port = String(value);
+              return url.origin;
+            }
+          } catch { /* Keep non-URL or unrelated operator configuration intact. */ }
+          return raw;
+        };
+        next.publicWebUrl = relocateLocalOrigin(String(prev.publicWebUrl || ""));
+        next.publicApiUrl = relocateLocalOrigin(String(prev.publicApiUrl || ""), true);
+        if (typeof prev.corsOrigins === "string") {
+          next.corsOrigins = prev.corsOrigins.split(/[,\n]/).map((origin) =>
+            relocateLocalOrigin(origin.trim())).filter(Boolean).join(", ");
+        }
+      }
+      return next;
+    });
     if ((NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(key))) {
       setNetworkReview(null);
       setNetworkReviewError("");
