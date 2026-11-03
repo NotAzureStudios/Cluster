@@ -59,7 +59,7 @@ func inspectServerUpdateReadiness(root,channel string,inspect func(string,string
  } else if !errors.Is(err,os.ErrNotExist) {
   result.Reasons=append(result.Reasons,"Cannot inspect existing native update hold")
  }
- restart:=nativeRestartRequestPath(root)
+ restart:=filepath.Join(root,"data","system","runtime","cluster-restart-request.json")
  if _,err:=os.Lstat(restart);err==nil {
   result.Reasons=append(result.Reasons,"A managed restart request is pending; finish it before updating")
  } else if !errors.Is(err,os.ErrNotExist) {
