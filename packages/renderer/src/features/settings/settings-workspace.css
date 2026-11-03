@@ -1732,3 +1732,145 @@
     min-width: 0;
   }
 }
+
+
+/* 1.0.3 visual semantics: icons and restrained colors convey operational state,
+   never infer public connectivity from saved configuration. */
+.server-config-console-v238 .server-config-section-title-v103 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.server-config-section-title-v103 > svg,
+.server-config-section-title-v103 > .iconify {
+  flex: 0 0 20px;
+  inline-size: 20px;
+  block-size: 20px;
+  color: var(--accent);
+}
+.server-config-console-v238 .server-config-section-status-v103 {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.server-config-section-status-v103 h2 { margin: 0; }
+.server-config-console-v238 .cluster-sectioned-nav .compact-section-primary-v204 > button .cluster-section-nav-glyph {
+  flex: 0 0 18px;
+  inline-size: 18px;
+  block-size: 18px;
+  color: var(--muted);
+}
+.server-config-console-v238 .cluster-sectioned-nav .compact-section-primary-v204 > button.active .cluster-section-nav-glyph {
+  color: var(--accent);
+}
+.server-config-console-v238 .compact-section-primary-v204 > button > span:last-child:not(.cluster-section-nav-glyph) {
+  font-size: .66rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.server-config-console-v238 .compact-section-primary-v204 > button[data-detail-tone="warning"] > span:last-child {
+  color: var(--warning);
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--cluster-border));
+  background: color-mix(in srgb, var(--warning) 9%, var(--cluster-surface-1));
+  border-radius: 999px;
+}
+.server-config-console-v238 .server-config-group-head-v238 h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.server-config-console-v238 .server-config-group-head-v238 h2 > svg,
+.server-config-console-v238 .server-config-group-head-v238 h2 > .iconify {
+  color: var(--accent);
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+}
+.server-config-console-v238 .server-config-metrics-v238 button {
+  gap: 8px;
+  min-height: 113px;
+  padding: 13px;
+  align-content: start;
+}
+.server-config-console-v238 .server-config-metrics-v238 button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.server-config-console-v238 .server-config-stat-head-v103 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.server-config-console-v238 .server-config-stat-head-v103 > svg,
+.server-config-console-v238 .server-config-stat-head-v103 > .iconify {
+  color: var(--accent);
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+}
+.server-config-console-v238 .server-config-stat-head-v103 > span {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 {
+  font-size: .65rem;
+  max-width: 100%;
+}
+.cluster-domains-rc46 .cluster-domain-header-v103 > .settings-state-chip-v103 {
+  flex: 0 1 auto;
+}
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 600;
+}
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 > svg,
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 > .iconify {
+  inline-size: 17px;
+  block-size: 17px;
+  flex: 0 0 17px;
+  color: var(--accent);
+}
+.cluster-domains-rc46 .cluster-domain-progress-v103 > div {
+  gap: 10px;
+  align-content: start;
+}
+.cluster-domains-rc46 .cluster-domain-progress-v103 .settings-state-chip-v103 {
+  align-self: start;
+}
+.cluster-domains-rc46 .cluster-domain-step-header-v103 > .settings-state-chip-v103 {
+  margin-inline-start: auto;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+.cluster-domains-rc46 .cluster-domain-step-index-v103 > svg,
+.cluster-domains-rc46 .cluster-domain-step-index-v103 > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+}
+.cluster-domains-rc46 .cluster-domain-check-results-v103 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cluster-domains-rc46 .cluster-domain-deployment-v103 .settings-state-chip-v103 { margin: 3px; }
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 button > svg,
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 button > .iconify {
+  inline-size: 17px;
+  block-size: 17px;
+}
+@media (max-width: 780px) {
+  .cluster-domains-rc46 .cluster-domain-step-header-v103 { flex-wrap: wrap; }
+  .cluster-domains-rc46 .cluster-domain-step-header-v103 > .settings-state-chip-v103 {
+    margin-inline-start: 0;
+  }
+}
