@@ -1,0 +1,59 @@
+name: Managed network access regressions
+
+on:
+  pull_request:
+    branches: [main, development]
+    paths:
+      - 'apps/host-go/**'
+      - 'apps/server-launcher-go/**'
+      - 'apps/server/src/core/server-network-change-review.ts'
+      - 'apps/server/src/app/server-routes-configuration-integrations.ts'
+      - 'packages/renderer/src/features/settings/**'
+      - 'tools/scripts/cluster-f2-p5-network-port-review-tests.mjs'
+      - '.github/workflows/network-configuration-regressions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-network:
+    name: Native network tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Verify native web/API gateway
+        working-directory: apps/host-go
+        run: go test ./...
+      - name: Verify launcher ports, TLS and rollout safety
+        working-directory: apps/server-launcher-go
+        run: go test ./...
+
+  network-settings:
+    name: Network configuration policy and UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+          cache: npm
+      - name: Install locked TypeScript dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify server port and exposure policy
+        run: node tools/scripts/cluster-f2-p5-network-port-review-tests.mjs
+      - name: Verify Server Configuration navigation and restart UX
+        run: node tools/scripts/cluster-1-0-3-server-config-polish-tests.mjs
