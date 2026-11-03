@@ -82,6 +82,25 @@ func canonicalServerJSON(v any) (string,error) {
 	}
 }
 
+// serverUpdateFeedLinkHint explains common operator copy/paste mistakes
+// without relaxing the signed-manifest trust boundary. A valid feed may use
+// any HTTPS path; this only rejects URLs that are unambiguously not a feed.
+func serverUpdateFeedLinkHint(uri *url.URL) string {
+	if uri == nil {
+		return ""
+	}
+	path := strings.ToLower(uri.EscapedPath())
+	for _, extension := range []string{".exe", ".msi", ".zip"} {
+		if strings.HasSuffix(path, extension) {
+			return "That URL downloads an installer/archive, not a signed JSON Server update manifest. Use a signed manifest feed URL here. To upgrade manually, use the official GitHub release installer after backing up and stopping Cluster."
+		}
+	}
+	if strings.Contains(path, "/releases/tag/") || strings.HasSuffix(path, "/releases/latest") {
+		return "That URL opens a GitHub release page, not a signed Server update manifest. Use a signed manifest feed URL here or upgrade manually using the official installer."
+	}
+	return ""
+}
+
 func allowedServerUpdateURL(uri *url.URL) bool {
 	if uri==nil || uri.Hostname()=="" || uri.User!=nil || uri.Fragment!="" || uri.Opaque!="" {return false}
 	if uri.Scheme=="https" {return true}

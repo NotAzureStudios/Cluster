@@ -120,7 +120,7 @@ var nativeServerSettings = []nativeSettingSpec{
 
 func nativeSettingSections() []string {
 	seen := map[string]bool{}
-	result := make([]string, 0, 8)
+	result := []string{"Updates"}
 	for _, spec := range nativeServerSettings {
 		if !seen[spec.Section] {
 			seen[spec.Section] = true
@@ -132,6 +132,13 @@ func nativeSettingSections() []string {
 }
 
 func nativeSettingsForSection(section string) []nativeSettingSpec {
+	if section == "Updates" {
+		return []nativeSettingSpec{
+			{Key: "native.updateChannel", Label: "Server update channel", Section: "Updates", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Main uses reviewed Server releases; development uses test releases. This never changes Desktop or Web update channels."},
+			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a signed JSON Cluster Server update manifest, NOT a .exe download URL or GitHub release page. An official manual installer is separate from a feed."},
+			{Key: "native.developmentUpdateManifestUrl", Label: "Development: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a development-channel signed JSON Cluster Server manifest. Do not paste an installer, repository or release page."},
+		}
+	}
 	if section == "Control panel" {
 		return []nativeSettingSpec{
 			{Key: "native.useInterface", Label: "Use visual interface", Section: "Control panel", Kind: settingBoolean, Default: true, Options: []string{"No", "Yes"}, Help: "Choose whether ClusterServer.exe opens the lightweight native control panel. No uses command-line mode."},
@@ -142,9 +149,6 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 			{Key: "native.closeToTray", Label: "Close button hides to notification area", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Leave control panel available in the tray when clicking X. Exit control panel through the tray menu."},
 			{Key: "native.startMinimized", Label: "Start control panel minimized", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Open control panel minimized; with tray minimize enabled it starts hidden in the tray."},
 			{Key: "native.startWithWindows", Label: "Start Cluster Server with Windows", Section: "Control panel", Kind: settingBoolean, Default: false, Options: []string{"false", "true"}, Help: "Open the control panel at Windows sign-in using a Scheduled Task. Optional independently installed Windows Service starts before sign-in; the control panel will attach to it instead of starting a duplicate server."},
-			{Key: "native.updateChannel", Label: "Server update channel", Section: "Control panel", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Choose reviewed main releases or test development releases for this Windows Server only. Does not change Desktop or Web update channels, and never switches source in place."},
-			{Key: "native.updateManifestUrl", Label: "Main server manifest URL", Section: "Control panel", Kind: settingText, Default: "", Help: "HTTPS signed manifest URL for main Windows Server releases. Never point this at Desktop update metadata."},
-			{Key: "native.developmentUpdateManifestUrl", Label: "Development server manifest URL", Section: "Control panel", Kind: settingText, Default: "", Help: "HTTPS signed manifest URL for development Windows Server releases. Switching channels never modifies the running server or its data."},
 		}
 	}
 	out := []nativeSettingSpec{}
@@ -158,9 +162,11 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 
 func findNativeSetting(key string) (nativeSettingSpec, bool) {
 	if strings.HasPrefix(key, "native.") {
-		for _, spec := range nativeSettingsForSection("Control panel") {
-			if spec.Key == key {
-				return spec, true
+		for _, section := range []string{"Updates", "Control panel"} {
+			for _, spec := range nativeSettingsForSection(section) {
+				if spec.Key == key {
+					return spec, true
+				}
 			}
 		}
 	}
@@ -380,6 +386,17 @@ func settingDisplayValue(root string, spec nativeSettingSpec) (string, bool, err
 
 func parseNativeSettingValue(spec nativeSettingSpec, raw string) (any, error) {
 	value := strings.TrimSpace(raw)
+	// A release EXE is not a JSON feed. Reject this mistake at Save instead
+	// of downloading megabytes just to show an opaque 256 KiB error.
+	if (spec.Key == "native.updateManifestUrl" || spec.Key == "native.developmentUpdateManifestUrl") && value != "" {
+		uri, err := url.Parse(value)
+		if err != nil || !allowedServerUpdateURL(uri) {
+			return nil, fmt.Errorf("Server update feeds require credential-free HTTPS (localhost HTTP only)")
+		}
+		if hint := serverUpdateFeedLinkHint(uri); hint != "" {
+			return nil, errors.New(hint)
+		}
+	}
 	if spec.Kind == settingSecret || spec.Kind == settingText || spec.Kind == settingTextarea {
 		if strings.HasSuffix(strings.ToLower(spec.Key), "url") && value != "" {
 			parsed, err := url.Parse(value)
@@ -580,11 +597,14 @@ func checkUpdateManifest(root string) updateCheckResult {
 	if channel != "development" { channel = "main" }
 	source := configuredUpdateManifestURL(root)
 	if source == "" {
-		return updateCheckResult{Message: fmt.Sprintf("No %s Windows Server release feed is configured. Configure its signed manifest URL in Settings → Control panel.", channel)}
+		return updateCheckResult{Message: fmt.Sprintf("No %s Windows Server release feed is configured. Configure its signed JSON manifest URL in Settings → Updates.", channel)}
 	}
 	parsed, err := url.Parse(source)
 	if err != nil || !allowedServerUpdateURL(parsed) {
 		return updateCheckResult{Message: "Invalid release feed: use credential-free HTTPS (localhost HTTP only)."}
+	}
+	if hint := serverUpdateFeedLinkHint(parsed); hint != "" {
+		return updateCheckResult{Message: hint}
 	}
 	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 5 || !sameServerUpdateOrigin(parsed, req.URL) { return errors.New("update feed redirected to another origin") }
@@ -601,7 +621,10 @@ func checkUpdateManifest(root string) updateCheckResult {
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 256*1024+1))
 	if err != nil { return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()} }
-	if len(raw) > 256*1024 { return updateCheckResult{Message: "Update manifest exceeds the 256 KiB limit."} }
+	if len(raw) > 256*1024 { return updateCheckResult{Message: "The update feed response is larger than the 256 KiB JSON manifest limit. Check that you pasted a signed JSON manifest URL, not a .exe installer download or a GitHub release page."} }
+	if bytes := strings.TrimSpace(string(raw[:min(len(raw), 96)])); strings.HasPrefix(bytes, "MZ") || strings.HasPrefix(bytes, "PK") || strings.HasPrefix(strings.ToLower(bytes), "<!doctype") || strings.HasPrefix(strings.ToLower(bytes), "<html") {
+		return updateCheckResult{Message: "The update URL returned an executable/archive or HTML page, not a signed JSON manifest. Configure the signed feed URL under Settings → Updates."}
+	}
 	manifest, err := verifyServerUpdateManifest(raw, parsed, channel)
 	if err != nil { return updateCheckResult{Message: "Server update rejected: " + err.Error()} }
 	current := installedServerReleaseSequence(root)

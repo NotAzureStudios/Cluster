@@ -144,6 +144,15 @@ const (
 	idSettingClear       = 2005
 	idSettingOpenFile    = 2006
 	idSettingClose       = 2007
+	idSettingSearch      = 2008
+	lbAddString          = 0x0180
+	lbResetContent       = 0x0184
+	lbSetCurSel          = 0x0186
+	lbGetCurSel          = 0x0188
+	lbsNotify            = 0x0001
+	lbnSelChange         = 1
+	enChange             = 0x0300
+	wmCtlColorListbox    = 0x0134
 )
 
 var (
@@ -434,6 +443,8 @@ type windowsControlPanel struct {
 type windowsSettingsWindow struct {
 	hwnd           uintptr
 	title          uintptr
+	searchLabel    uintptr
+	searchEdit     uintptr
 	sectionLabel   uintptr
 	sectionCombo   uintptr
 	settingLabel   uintptr
@@ -1817,7 +1828,7 @@ func (ui *windowsControlPanel) updateMetrics() {
 					}
 					return fmt.Sprintf("%s :%d not listening", label, port)
 				}
-				ui.lastPortsSummary = describe("Web", plan.WebPort) + " | " + describe("API", 4100) + " | " + describe("PG", 54321)
+				ui.lastPortsSummary = describe("Web", plan.WebPort) + " | " + describe("API", plan.PublicAPIPort) + " | " + describe("PG", plan.PrivatePostgresPort)
 			}
 		}
 	}
@@ -2021,7 +2032,7 @@ func openWindowsServerSettings(controller *windowsServerController) error {
 	}
 	window := &windowsSettingsWindow{controller: controller, sections: nativeSettingSections(), darkMode: controller.ui.darkMode}
 	activeSettingsWindow = window
-	hwnd, _, err := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16("Cluster Windows Server Settings"))), wsOverlappedWin|wsClipChildren, 180, 140, 780, 500, controller.ui.hwnd, 0, instance, 0)
+	hwnd, _, err := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(utf16("Cluster Windows Server Settings"))), wsOverlappedWin|wsClipChildren, 155, 115, 960, 640, controller.ui.hwnd, 0, instance, 0)
 	if hwnd == 0 {
 		activeSettingsWindow = nil
 		return fmt.Errorf("could not create settings window: %v", err)
@@ -2050,22 +2061,29 @@ func (w *windowsSettingsWindow) createControls(instance uintptr) error {
 		w.titleFont = stock
 	}
 	var err error
-	if w.title, err = createControl("STATIC", "Server configuration", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
+	if w.title, err = createControl("STATIC", "Cluster Server Settings", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
 		return err
 	}
-	if w.sectionLabel, err = createControl("STATIC", "Section", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
+	if w.searchLabel, err = createControl("STATIC", "SEARCH ACROSS SERVER SETTINGS", wsChild|wsVisible|ssLeft, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
 		return err
 	}
-	if w.sectionCombo, err = createControl("COMBOBOX", "", wsChild|wsVisible|wsTabStop|cbsDropdownList, 0, 0, 0, 0, w.hwnd, idSettingSection, instance); err != nil {
+	if w.searchEdit, err = createControl("EDIT", "", wsChild|wsVisible|wsTabStop|wsBorder|esAutoHScroll, 0, 0, 0, 0, w.hwnd, idSettingSearch, instance); err != nil {
 		return err
 	}
-	if w.settingLabel, err = createControl("STATIC", "Setting", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
+	procSendMessageW.Call(w.searchEdit, emSetCueBanner, 1, uintptr(unsafe.Pointer(utf16("Search name, category or setting key..."))))
+	if w.sectionLabel, err = createControl("STATIC", "CATEGORIES", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
 		return err
 	}
-	if w.settingCombo, err = createControl("COMBOBOX", "", wsChild|wsVisible|wsTabStop|cbsDropdownList, 0, 0, 0, 0, w.hwnd, idSettingName, instance); err != nil {
+	if w.sectionCombo, err = createControl("LISTBOX", "", wsChild|wsVisible|wsTabStop|wsBorder|wsVScroll|lbsNotify, 0, 0, 0, 0, w.hwnd, idSettingSection, instance); err != nil {
 		return err
 	}
-	if w.valueLabel, err = createControl("STATIC", "Value", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
+	if w.settingLabel, err = createControl("STATIC", "SETTINGS", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
+		return err
+	}
+	if w.settingCombo, err = createControl("LISTBOX", "", wsChild|wsVisible|wsTabStop|wsBorder|wsVScroll|lbsNotify, 0, 0, 0, 0, w.hwnd, idSettingName, instance); err != nil {
+		return err
+	}
+	if w.valueLabel, err = createControl("STATIC", "Selected setting", wsChild|wsVisible, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
 		return err
 	}
 	if w.valueEdit, err = createControl("EDIT", "", wsChild|wsVisible|wsTabStop|wsBorder|esAutoHScroll, 0, 0, 0, 0, w.hwnd, 0, instance); err != nil {
@@ -2098,45 +2116,69 @@ func (w *windowsSettingsWindow) createControls(instance uintptr) error {
 	if w.close, err = createControl("BUTTON", "Close", wsChild|wsVisible|wsTabStop|bsPushButton, 0, 0, 0, 0, w.hwnd, idSettingClose, instance); err != nil {
 		return err
 	}
-	for _, h := range []uintptr{w.sectionLabel, w.sectionCombo, w.settingLabel, w.settingCombo, w.valueLabel, w.valueEdit, w.secretEdit, w.currentLabel, w.helpLabel, w.restartLabel, w.save, w.saveRestart, w.clear, w.openConfig, w.close} {
+	for _, h := range []uintptr{w.searchLabel, w.searchEdit, w.sectionLabel, w.sectionCombo, w.settingLabel, w.settingCombo, w.valueLabel, w.valueEdit, w.secretEdit, w.currentLabel, w.helpLabel, w.restartLabel, w.save, w.saveRestart, w.clear, w.openConfig, w.close} {
 		procSendMessageW.Call(h, wmSetFont, w.defaultFont, 1)
 	}
 	procSendMessageW.Call(w.title, wmSetFont, w.titleFont, 1)
 	for _, section := range w.sections {
-		comboAddString(w.sectionCombo, section)
+		listAddString(w.sectionCombo, section)
 	}
-	procSendMessageW.Call(w.sectionCombo, cbSetCurSel, 0, 0)
+	procSendMessageW.Call(w.sectionCombo, lbSetCurSel, 0, 0)
 	w.populateSettings(0)
 	w.layout(780, 500)
 	return nil
 }
 
 func (w *windowsSettingsWindow) layout(width, height int32) {
-	if width < 680 {
-		width = 680
+	if width < 760 {
+		width = 760
 	}
-	if height < 430 {
-		height = 430
+	if height < 520 {
+		height = 520
 	}
-	m := int32(18)
-	content := width - m*2
-	moveWindow(w.title, m, 14, content, 28)
-	moveWindow(w.sectionLabel, m, 55, 110, 20)
-	moveWindow(w.sectionCombo, m, 76, content, 200)
-	moveWindow(w.settingLabel, m, 112, 110, 20)
-	moveWindow(w.settingCombo, m, 133, content, 260)
-	moveWindow(w.valueLabel, m, 172, 110, 20)
-	moveWindow(w.valueEdit, m, 193, content, 30)
-	moveWindow(w.secretEdit, m, 193, content, 30)
-	moveWindow(w.currentLabel, m, 230, content, 22)
-	moveWindow(w.helpLabel, m, 258, content, height-350)
-	moveWindow(w.restartLabel, m, height-86, content, 22)
-	y := height - 54
-	moveWindow(w.save, m, y, 80, 30)
-	moveWindow(w.saveRestart, m+88, y, 118, 30)
-	moveWindow(w.clear, m+214, y, 105, 30)
-	moveWindow(w.openConfig, m+327, y, 118, 30)
-	moveWindow(w.close, width-m-76, y, 76, 30)
+	const margin int32 = 18
+	railWidth := int32(224)
+	right := margin + railWidth + 20
+	rightWidth := width - right - margin
+
+	// Navigation is always visible. No nested dropdown hunt for an update URL.
+	moveWindow(w.title, margin, 14, width-margin*2, 32)
+	moveWindow(w.sectionLabel, margin, 65, railWidth, 20)
+	moveWindow(w.sectionCombo, margin, 90, railWidth, height-160)
+	moveWindow(w.searchLabel, right, 63, rightWidth, 20)
+	moveWindow(w.searchEdit, right, 87, rightWidth, 32)
+	shrink := int32(0)
+	if height < 640 {
+		shrink = (640 - height) / 2
+	}
+	selectedLabelY := int32(325) - shrink
+	helpY := int32(426) - shrink
+	restartY := height - 104
+	helpHeight := restartY - helpY - 12
+	if helpHeight < 24 {
+		helpHeight = 24
+	}
+	moveWindow(w.settingLabel, right, 128, rightWidth, 20)
+	moveWindow(w.settingCombo, right, 150, rightWidth, 160-shrink)
+	moveWindow(w.valueLabel, right, selectedLabelY, rightWidth, 20)
+	moveWindow(w.valueEdit, right, selectedLabelY+25, rightWidth, 32)
+	moveWindow(w.secretEdit, right, selectedLabelY+25, rightWidth, 32)
+	moveWindow(w.currentLabel, right, selectedLabelY+68, rightWidth, 22)
+	moveWindow(w.helpLabel, right, helpY, rightWidth, helpHeight)
+	moveWindow(w.restartLabel, right, restartY, rightWidth, 24)
+	y := height - 58
+	moveWindow(w.save, right, y, 78, 32)
+	moveWindow(w.saveRestart, right+86, y, 124, 32)
+	moveWindow(w.clear, right+218, y, 108, 32)
+	if rightWidth >= 610 {
+		procShowWindow.Call(w.openConfig, swShow)
+		moveWindow(w.openConfig, right+334, y, 126, 32)
+	} else {
+		// Keep the native close button and protected Save actions reachable
+		// on narrower remote desktop windows.
+		procShowWindow.Call(w.openConfig, swHide)
+	}
+	moveWindow(w.close, width-margin-80, y, 80, 32)
 }
 
 func (w *windowsSettingsWindow) applyTheme(enabled bool) {
@@ -2160,12 +2202,12 @@ func (w *windowsSettingsWindow) applyTheme(enabled bool) {
 			procSetWindowTheme.Call(h, uintptr(unsafe.Pointer(utf16(""))), 0)
 		}
 	}
-	for _, h := range []uintptr{w.sectionCombo, w.settingCombo, w.valueEdit, w.secretEdit} {
+	for _, h := range []uintptr{w.sectionCombo, w.settingCombo, w.searchEdit, w.valueEdit, w.secretEdit} {
 		if h != 0 {
 			applyImmersiveDarkMode(h, enabled)
 		}
 	}
-	for _, h := range []uintptr{w.title, w.sectionLabel, w.sectionCombo, w.settingLabel, w.settingCombo, w.valueLabel, w.valueEdit, w.secretEdit, w.currentLabel, w.helpLabel, w.restartLabel, w.save, w.saveRestart, w.clear, w.openConfig, w.close} {
+	for _, h := range []uintptr{w.title, w.searchLabel, w.searchEdit, w.sectionLabel, w.sectionCombo, w.settingLabel, w.settingCombo, w.valueLabel, w.valueEdit, w.secretEdit, w.currentLabel, w.helpLabel, w.restartLabel, w.save, w.saveRestart, w.clear, w.openConfig, w.close} {
 		if h != 0 {
 			procInvalidateRect.Call(h, 0, 1)
 		}
@@ -2177,15 +2219,45 @@ func (w *windowsSettingsWindow) populateSettings(sectionIndex int) {
 	if sectionIndex < 0 || sectionIndex >= len(w.sections) {
 		sectionIndex = 0
 	}
-	w.currentSpecs = nativeSettingsForSection(w.sections[sectionIndex])
-	procSendMessageW.Call(w.settingCombo, cbResetContent, 0, 0)
+	query := strings.ToLower(strings.TrimSpace(getWindowText(w.searchEdit)))
+	w.currentSpecs = nil
+	if query == "" {
+		w.currentSpecs = nativeSettingsForSection(w.sections[sectionIndex])
+	} else {
+		for _, section := range w.sections {
+			for _, spec := range nativeSettingsForSection(section) {
+				haystack := strings.ToLower(section + " " + spec.Label + " " + spec.Key + " " + spec.Help)
+				if strings.Contains(haystack, query) {
+					w.currentSpecs = append(w.currentSpecs, spec)
+				}
+			}
+		}
+	}
+	procSendMessageW.Call(w.settingCombo, lbResetContent, 0, 0)
 	for _, spec := range w.currentSpecs {
-		comboAddString(w.settingCombo, spec.Label)
+		label := spec.Label
+		if query != "" {
+			label = spec.Section + "  /  " + spec.Label
+		}
+		listAddString(w.settingCombo, label)
 	}
 	if len(w.currentSpecs) > 0 {
-		procSendMessageW.Call(w.settingCombo, cbSetCurSel, 0, 0)
+		procSendMessageW.Call(w.settingCombo, lbSetCurSel, 0, 0)
 		w.loadSetting(0)
+		return
 	}
+	// Never leave a hidden, previously selected setting writable when there
+	// are zero matches. This also avoids accidentally saving the wrong key.
+	w.currentSpec = nativeSettingSpec{}
+	setWindowText(w.valueLabel, "No matching settings")
+	setWindowText(w.currentLabel, "Adjust your search or choose another category.")
+	setWindowText(w.valueEdit, "")
+	setWindowText(w.secretEdit, "")
+	setWindowText(w.helpLabel, "")
+	setWindowText(w.restartLabel, "")
+	enableWindow(w.save, false)
+	enableWindow(w.saveRestart, false)
+	enableWindow(w.clear, false)
 }
 
 func (w *windowsSettingsWindow) loadSetting(index int) {
@@ -2194,6 +2266,10 @@ func (w *windowsSettingsWindow) loadSetting(index int) {
 	}
 	spec := w.currentSpecs[index]
 	w.currentSpec = spec
+	setWindowText(w.valueLabel, spec.Label)
+	enableWindow(w.save, true)
+	enableWindow(w.saveRestart, true)
+	enableWindow(w.clear, true)
 	value, configured, err := settingDisplayValue(w.controller.options.root, spec)
 	if err != nil {
 		setWindowText(w.currentLabel, "Read error: "+err.Error())
@@ -2243,7 +2319,7 @@ func (w *windowsSettingsWindow) saveCurrent(restart bool) {
 	if spec.Sensitive {
 		setWindowText(w.secretEdit, "")
 	}
-	idx, _, _ := procSendMessageW.Call(w.settingCombo, cbGetCurSel, 0, 0)
+	idx, _, _ := procSendMessageW.Call(w.settingCombo, lbGetCurSel, 0, 0)
 	w.loadSetting(int(idx))
 	if restart && !strings.HasPrefix(spec.Key, "native.update") {
 		w.controller.Restart()
@@ -2262,7 +2338,7 @@ func (w *windowsSettingsWindow) clearCurrent() {
 		messageBox(w.hwnd, "Server Settings", err.Error(), mbIconError)
 		return
 	}
-	idx, _, _ := procSendMessageW.Call(w.settingCombo, cbGetCurSel, 0, 0)
+	idx, _, _ := procSendMessageW.Call(w.settingCombo, lbGetCurSel, 0, 0)
 	w.loadSetting(int(idx))
 }
 
@@ -2290,6 +2366,12 @@ func windowsSettingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) ui
 			}
 			return w.darkBrush
 		}
+	case wmCtlColorListbox:
+		if w.darkMode {
+			procSetTextColor.Call(wParam, uintptr(rgbColor(232, 237, 244)))
+			procSetBkColor.Call(wParam, uintptr(rgbColor(24, 28, 34)))
+			return w.darkFieldBrush
+		}
 	case wmCtlColorEdit:
 		if w.darkMode {
 			procSetTextColor.Call(wParam, uintptr(rgbColor(232, 237, 244)))
@@ -2312,13 +2394,22 @@ func windowsSettingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) ui
 	case wmCommand:
 		id := int(wParam & 0xffff)
 		notify := int((wParam >> 16) & 0xffff)
-		if id == idSettingSection && notify == cbnSelChange {
-			idx, _, _ := procSendMessageW.Call(w.sectionCombo, cbGetCurSel, 0, 0)
+		if id == idSettingSearch && notify == enChange {
+			idx, _, _ := procSendMessageW.Call(w.sectionCombo, lbGetCurSel, 0, 0)
 			w.populateSettings(int(idx))
 			return 0
 		}
-		if id == idSettingName && notify == cbnSelChange {
-			idx, _, _ := procSendMessageW.Call(w.settingCombo, cbGetCurSel, 0, 0)
+		if id == idSettingSection && notify == lbnSelChange {
+			idx, _, _ := procSendMessageW.Call(w.sectionCombo, lbGetCurSel, 0, 0)
+			// Switching to a category leaves global-search mode explicitly.
+			if strings.TrimSpace(getWindowText(w.searchEdit)) != "" {
+				setWindowText(w.searchEdit, "")
+			}
+			w.populateSettings(int(idx))
+			return 0
+		}
+		if id == idSettingName && notify == lbnSelChange {
+			idx, _, _ := procSendMessageW.Call(w.settingCombo, lbGetCurSel, 0, 0)
 			w.loadSetting(int(idx))
 			return 0
 		}
@@ -2360,6 +2451,10 @@ func windowsSettingsWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) ui
 	}
 	result, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
 	return result
+}
+
+func listAddString(hwnd uintptr, value string) {
+	procSendMessageW.Call(hwnd, lbAddString, 0, uintptr(unsafe.Pointer(utf16(value))))
 }
 
 func comboAddString(hwnd uintptr, value string) {
