@@ -464,3 +464,14 @@ func TestExternalHTTPSWithPrivateHTTPAndNativeReadiness(t *testing.T) {
 	h.handler(target).ServeHTTP(denied, attacker)
 	if denied.Code != http.StatusMisdirectedRequest { t.Fatalf("unapproved host was accepted: %d", denied.Code) }
 }
+
+func TestLocalWebPortChangeUpdatesCanonicalOrigin(t *testing.T) {
+	origin, err := resolvePublicOrigin("http://localhost:3000", "127.0.0.1", 3333, "http", false)
+	if err != nil || origin != "http://localhost:3333" {
+		t.Fatalf("stale local port must not survive managed restart: %q %v", origin, err)
+	}
+	external, err := resolvePublicOrigin("https://cluster.example.test", "127.0.0.1", 3333, "http", false)
+	if err != nil || external != "https://cluster.example.test" {
+		t.Fatalf("public HTTPS proxy must retain its independent port: %q %v", external, err)
+	}
+}
