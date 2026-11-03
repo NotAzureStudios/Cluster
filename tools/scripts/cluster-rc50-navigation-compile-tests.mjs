@@ -28,9 +28,10 @@ check('board-origin tracking still handles entering and leaving boards', () => {
   assert.match(application, /boardReturnOriginRef\.current = \{ screen: previous === "whiteboard" \? "projects" : previous, projectId \}/);
   assert.match(application, /lastVisitedScreenRef\.current = screen;/);
 });
-check('RC50 release is newer than the failed RC49 build', () => {
-  assert.equal(candidate.release, '1.0.0-rc.50');
-  assert.equal(candidate.sequence, 50);
-  assert.equal(candidate.sourceVersion, '0.546.0');
+check('1.0.x patch source retains the RC50 navigation fixes', () => {
+  assert.ok(candidate.sequence >= 50);
+  assert.equal(candidate.channel, 'stable');
+  assert.match(candidate.release, /^1\.0\.[1-9][0-9]*$/);
+  assert.equal(candidate.release, candidate.sourceVersion);
 });
 console.log(`RC50 renderer navigation contract: ${passed}/${passed} checks passed`);
