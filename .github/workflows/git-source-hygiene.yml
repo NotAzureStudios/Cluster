@@ -56,6 +56,8 @@ jobs:
         run: node tools/scripts/cluster-download-disk-stream-tests.mjs
       - name: Upload/download memory lifecycle
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-memory-smoke.mjs
+      - name: Verify managed PostgreSQL URL is located without manual setup
+        run: node tools/scripts/cluster-managed-db-env-tests.mjs
       - name: Verify prebuilt installer bootstrap and source smoke separation
         run: node tools/scripts/cluster-prebuilt-install-gate-tests.mjs
       - name: Check release-candidate source metadata (not certification)
