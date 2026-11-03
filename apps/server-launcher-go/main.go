@@ -197,6 +197,15 @@ func managedHostCommand(options launcherOptions, node string, env map[string]str
 		return nil, fmt.Errorf("invalid native network configuration: %w", err)
 	}
 	args = append(args, "--web-port", fmt.Sprint(network.WebPort), "--api-port", fmt.Sprint(network.PublicAPIPort), "--bind", network.WebHost)
+	if network.PublicWebOrigin != "" {
+		args = append(args, "--public-origin", network.PublicWebOrigin)
+	}
+	if network.TLSCertFile != "" {
+		args = append(args, "--tls-cert", network.TLSCertFile, "--tls-key", network.TLSKeyFile)
+	}
+	if network.AllowInsecureLANHTTP {
+		args = append(args, "--allow-insecure-http")
+	}
 	// Network binding is an explicit operator configuration. The Host retains
 	// its own TLS/remote-access enforcement and will reject unsafe exposure.
 	if network.WebHost != "127.0.0.1" && network.WebHost != "::1" {
