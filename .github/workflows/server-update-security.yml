@@ -31,8 +31,12 @@ jobs:
         run: go -C apps/server-launcher-go test ./...
       - name: Verify staged-install and maintenance-hold source contracts
         run: node tools/scripts/cluster-1-0-3-update-safety-contract-tests.mjs
-      - name: Cross-compile Windows Server launcher
-        run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go -C apps/server-launcher-go build -o "${{ runner.temp }}/ClusterServer.exe" .
+      - name: Compile Windows Server launcher
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: go -C apps/server-launcher-go build -o "${{ runner.temp }}/ClusterServer.exe" .
       - name: Node.js pinned
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
