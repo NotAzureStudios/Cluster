@@ -189,7 +189,7 @@ export function loadRuntimeConfig(
 ): RuntimeConfig {
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
-  const clusterVersion = options.version ?? "0.546.0";
+  const clusterVersion = options.version ?? "1.0.1";
   const nodeEnv =
     String(env.NODE_ENV || "development")
       .trim()
