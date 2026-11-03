@@ -1,0 +1,35 @@
+/* Status color is reserved for actual state, not arbitrary section identity.
+   Contrast comes from border, text AND icon, so color is never the only cue. */
+.settings-state-chip-v103 {
+  --chip-color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  width: fit-content;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--chip-color) 44%, var(--cluster-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-color) 11%, var(--cluster-surface-1));
+  color: var(--chip-color);
+  font-size: .69rem;
+  line-height: 1.3;
+  font-weight: 650;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.settings-state-chip-v103 > svg,
+.settings-state-chip-v103 > .iconify {
+  flex: 0 0 14px;
+  inline-size: 14px;
+  block-size: 14px;
+}
+.settings-state-chip-v103 > span:last-child { min-width: 0; }
+.settings-state-chip-v103.tone-neutral { --chip-color: var(--muted); }
+.settings-state-chip-v103.tone-info { --chip-color: var(--info, var(--accent)); }
+.settings-state-chip-v103.tone-success { --chip-color: var(--success, #54b995); }
+.settings-state-chip-v103.tone-warning { --chip-color: var(--warning, #e5ac65); }
+.settings-state-chip-v103.tone-danger { --chip-color: var(--danger, #df7373); }
+@media (prefers-reduced-motion: reduce) {
+  .settings-state-chip-v103 { transition: none; }
+}

@@ -358,6 +358,7 @@ type windowsServerController struct {
 	serviceProbePending bool
 	serviceProbeAt      time.Time
 	serviceProbeSummary string
+	authorizedRestartID string
 }
 
 type winInitCommonControls struct {
@@ -430,6 +431,7 @@ type windowsControlPanel struct {
 	lastResourceAt        time.Time
 	lastResourceSnapshot  resourceSnapshot
 	lastServiceRefreshAt time.Time
+	lastAuthorizedRestartCheckAt time.Time
 	lastPortsAt          time.Time
 	lastPortsPID         int
 	lastPortsSummary     string
@@ -1037,6 +1039,10 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 			ui.controller.refreshServiceState()
 		}
 		ui.controller.pollServiceReadiness()
+		if ui.lastAuthorizedRestartCheckAt.IsZero() || time.Since(ui.lastAuthorizedRestartCheckAt) >= 2*time.Second {
+			ui.lastAuthorizedRestartCheckAt = time.Now()
+			go ui.controller.pollAuthorizedRestart()
+		}
 		ui.updateMetrics()
 		return 0
 	case wmAppTray:
@@ -1297,6 +1303,33 @@ func (c *windowsServerController) ConfirmStop() {
 		c.RequestStop()
 	}
 }
+// The Win32 control panel is the independent process lifetime owner in
+// interactive mode. A web request only submits an authenticated local intent.
+func (c *windowsServerController) pollAuthorizedRestart() {
+	c.mu.Lock()
+	managed := c.serviceManaged
+	state := c.state
+	activeRestart := c.authorizedRestartID != ""
+	c.mu.Unlock()
+	// The installed Windows Service consumes its own requests. The panel must
+	// never steal them and trigger a competing SCM stop/restart transaction.
+	if managed || activeRestart || state == panelStarting || state == panelStopping { return }
+	// No need to query SCM every two seconds while there is no request.
+	if _, err := os.Lstat(nativeRestartRequestPath(c.options.root)); err != nil { return }
+	if service, err := queryClusterService(); err == nil && service.Installed { return }
+	id, err := consumeAuthorizedRestart(c.options.root, time.Now().UTC())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Native restart request ignored: %v\n", err)
+		return
+	}
+	if id == "" { return }
+	c.mu.Lock()
+	c.authorizedRestartID = id
+	c.mu.Unlock()
+	fmt.Printf("[%s] Authorized Server Configuration restart %s; draining and restarting owned Cluster processes.\n", time.Now().Format("15:04:05"), id)
+	c.Restart()
+}
+
 func (c *windowsServerController) ConfirmRestart() {
 	state, _ := c.snapshot()
 	if state == panelRunning || state == panelStarting {
@@ -1469,6 +1502,7 @@ func (c *windowsServerController) startWorker(ctx context.Context, forceRepair b
 	}
 	c.mu.Unlock()
 	if timedOut {
+		c.failActiveAuthorizedRestart()
 		recordLauncherEmergency(options.root, nativealerts.HostReadinessTimeout)
 		c.transition(panelError, "Cluster Host did not become ready within 75 seconds. Check windows-server.log and run Repair & Start.")
 		return
@@ -1479,6 +1513,7 @@ func (c *windowsServerController) startWorker(ctx context.Context, forceRepair b
 		return
 	}
 	if waitErr != nil {
+		c.failActiveAuthorizedRestart()
 		recordLauncherEmergency(options.root, nativealerts.HostUnexpectedExit)
 		c.transition(panelError, fmt.Sprintf("Cluster Host stopped unexpectedly: %v", waitErr))
 		fmt.Fprintf(os.Stderr, "Cluster Host stopped unexpectedly: %v\n", waitErr)
@@ -1527,10 +1562,23 @@ func (c *windowsServerController) armReadinessWatchdog(cmd *exec.Cmd) {
 	c.mu.Unlock()
 }
 
+func (c *windowsServerController) failActiveAuthorizedRestart() {
+	c.mu.Lock()
+	id := c.authorizedRestartID
+	c.authorizedRestartID = ""
+	c.mu.Unlock()
+	if id != "" {
+		if err := writeNativeRestartReceipt(c.options.root, id, "failed"); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot publish restart failure: %v\n", err)
+		}
+	}
+}
+
 func (c *windowsServerController) failStart(err error) {
 	c.mu.Lock()
 	stage := strings.TrimSpace(c.activity)
 	c.mu.Unlock()
+	c.failActiveAuthorizedRestart()
 	if stage == "" {
 		stage = "Startup"
 	}
@@ -1723,6 +1771,17 @@ func (c *windowsServerController) RunCommand(value string) {
 	case "stage-update", "download-update":
 		c.StageServerUpdate()
 		return
+	case "inspect-update", "update-readiness":
+		prefs := loadNativePanelPreferences(c.options.root)
+		channel := prefs.UpdateChannel
+		if channel != "development" { channel = "main" }
+		report := inspectServerUpdateReadiness(c.options.root,channel,inspectStagedServerUpdate)
+		if report.StageVerified {
+			fmt.Printf("Signed staged Server update: %s (%s, sequence %d); SHA-256 %s\n",report.Release,report.Channel,report.Sequence,report.InstallerSHA256)
+		}
+		for _,reason := range report.Reasons { fmt.Printf("Update blocker: %s\n",reason) }
+		fmt.Println("This check does not execute an installer or restart PostgreSQL.")
+		return
 	case "status":
 		state, lastError := c.snapshot()
 		fmt.Printf("Status: %s\n", panelStateLabel(state))
@@ -1871,7 +1930,12 @@ func (c *windowsServerController) StageServerUpdate() {
 		fmt.Printf("[%s] Verifying and staging %s Server update (no installation)...\n", time.Now().Format("15:04:05"), channel)
 		staged, err := stageServerUpdate(c.options.root, feed, channel)
 		if err != nil { fmt.Fprintf(os.Stderr, "Server update staging rejected: %v\n", err); return }
-		fmt.Printf("Verified Server installer staged at %s; NOT executed. Back up and review before applying.\n", staged)
+		candidate,err:=inspectStagedServerUpdate(c.options.root,channel)
+		if err!=nil {
+			fmt.Fprintf(os.Stderr,"Installer staged but independent verification failed: %v. Installation is blocked.\n",err)
+			return
+		}
+		fmt.Printf("Verified signed Server %s installer staged at %s (sequence %d). It remains inert until native update authorization and verified backup/recovery are available.\n",candidate.Release,staged,candidate.Sequence)
 	}()
 }
 
@@ -2480,6 +2544,27 @@ func (c *windowsServerController) observeLog(line string) {
 	if ready {
 		state, _ := c.snapshot()
 		if state == panelStarting {
+			// Interactive mode must settle the same immutable staged network
+			// transaction as the Windows Service. Previously only the SCM path
+			// called verifyNativeNetworkDeployment, leaving interactive installs
+			// permanently blocked by NETWORK_DEPLOYMENT_PENDING even after a
+			// successful restart. Never mark a mismatched config verified.
+			if err := verifyNativeNetworkDeployment(c.options.root); err != nil {
+				fmt.Fprintf(os.Stderr, "Native network startup verification refused: %v\n", err)
+				recordLauncherEmergency(c.options.root, nativealerts.NetworkRollbackBlocked)
+				c.failActiveAuthorizedRestart()
+				c.RequestStop()
+				return
+			}
+			c.mu.Lock()
+			restartID := c.authorizedRestartID
+			c.authorizedRestartID = ""
+			c.mu.Unlock()
+			if restartID != "" {
+				if err := writeNativeRestartReceipt(c.options.root, restartID, "ready"); err != nil {
+					fmt.Fprintf(os.Stderr, "Cannot publish interactive restart readiness: %v\n", err)
+				}
+			}
 			fmt.Printf("[%s] Cluster Server is ready.\n", time.Now().Format("15:04:05"))
 			c.transition(panelRunning, "")
 		}

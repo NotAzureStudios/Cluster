@@ -371,7 +371,7 @@ var serviceMainCallback = syscall.NewCallback(func(argc uintptr, argv uintptr) u
 		}
 	}()
 	// The SCM supervises this persistent process independently of user logon.
-	err := runServiceManaged(ctx, root, func() {
+	err := runServiceWithAuthorizedRestarts(ctx, root, func() {
 		if ctx.Err() == nil {
 			reportServiceState(serviceRunning, serviceAcceptStop|serviceAcceptShutdown)
 		}
@@ -388,6 +388,61 @@ var serviceMainCallback = syscall.NewCallback(func(argc uintptr, argv uintptr) u
 	cancel()
 	return 0
 })
+
+// Keep the Windows service alive during an authorized application restart.
+// SCM stop still wins; each generation owns exactly one Host/Job Object, and
+// the next generation starts only after the previous one fully exits.
+func runServiceWithAuthorizedRestarts(ctx context.Context, root string, onReady func()) error {
+	pendingReceipt := ""
+	for {
+		childCtx, cancel := context.WithCancel(ctx)
+		done := make(chan error, 1)
+		receiptForThisBoot := pendingReceipt
+		go func() {
+			done <- runServiceManaged(childCtx, root, func() {
+				if receiptForThisBoot != "" {
+					if err := writeNativeRestartReceipt(root, receiptForThisBoot, "ready"); err != nil {
+						fmt.Fprintf(os.Stderr, "Cannot publish restart readiness: %v\n", err)
+					}
+				}
+				if onReady != nil { onReady() }
+			})
+		}()
+		ticker := time.NewTicker(2 * time.Second)
+		restart := false
+		for !restart {
+			select {
+			case err := <-done:
+				ticker.Stop()
+				cancel()
+				if receiptForThisBoot != "" && err != nil { _ = writeNativeRestartReceipt(root, receiptForThisBoot, "failed") }
+				return err
+			case <-ctx.Done():
+				ticker.Stop()
+				cancel()
+				return <-done
+			case <-ticker.C:
+				id, err := consumeAuthorizedRestart(root, time.Now().UTC())
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Native restart request ignored: %v\n", err)
+					continue
+				}
+				if id == "" { continue }
+				ticker.Stop()
+				fmt.Fprintf(os.Stderr, "Authenticated server restart accepted: %s\n", id)
+				cancel()
+				err = <-done // Wait for all previous child processes to exit.
+				if err != nil {
+					_ = writeNativeRestartReceipt(root, id, "failed")
+					return fmt.Errorf("server could not drain before managed restart: %w", err)
+				}
+				pendingReceipt = id
+				restart = true
+			}
+		}
+		if ctx.Err() != nil { return nil } // SCM shutdown wins over pending restart.
+	}
+}
 
 func runWindowsService(root string) error {
 	serviceContext.Lock()

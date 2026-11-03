@@ -1,0 +1,103 @@
+name: Cluster 1.0.3 offline Windows upgrade smoke
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/installer/**'
+      - 'apps/server-launcher-go/**'
+      - 'apps/server/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'config/release-candidate.json'
+      - 'config/toolchain-versions.json'
+      - 'config/distribution-profiles.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/cluster-1-0-3-offline-upgrade-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-1-0-3-offline-upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    name: Preserve data during an offline Windows 1.0.2 to 1.0.3 upgrade
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Set up pinned Go 1.27.1
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Verify source and lockfile
+        shell: pwsh
+        run: |
+          node tools/scripts/cluster-1-0-3-version-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw '1.0.3 version contract failed' }
+          node tools/scripts/cluster-release-lockfile-check.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Lockfile verification failed' }
+      - name: Build unsigned candidate without bypassing main release branch protection
+        shell: pwsh
+        env:
+          CLUSTER_INSTALLER_PAYLOAD: prebuilt
+          GOTOOLCHAIN: local
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+        run: |
+          # This is a PR test, not release packaging. The release packager
+          # deliberately refuses detached/PR refs, and that guard stays intact.
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'Locked dependency installation failed' }
+          foreach ($script in @(
+            'cluster-rc-native-checks.mjs',
+            'build-native-host.mjs',
+            'build-server-launcher.mjs',
+            'build-cluster-server-entry.mjs',
+            'build-update-helper.mjs',
+            'build-workstation-service.mjs'
+          )) {
+            node (Join-Path 'tools/scripts' $script)
+            if ($LASTEXITCODE -ne 0) { throw "Native candidate build failed: $script" }
+          }
+          npm run db:generate
+          if ($LASTEXITCODE -ne 0) { throw 'Prisma generation failed' }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw 'Server/Web compilation failed' }
+          npm run cluster:installer:build
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned test installer packaging failed' }
+          if (!(Test-Path bin/Cluster-Installer.exe)) { throw 'No candidate installer' }
+      - name: Fetch published 1.0.2 installer from THIS repository
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.2'
+          New-Item -ItemType Directory -Force -Path $prior | Out-Null
+          gh release download v1.0.2 --repo ${{ github.repository }} --pattern 'Cluster-Installer.exe' --dir $prior
+          if ($LASTEXITCODE -ne 0) { throw 'Published v1.0.2 Server installer could not be retrieved' }
+          if (!(Test-Path (Join-Path $prior 'Cluster-Installer.exe'))) { throw 'Published Server installer missing' }
+      - name: Execute disposable offline in-place upgrade and preservation test
+        shell: pwsh
+        run: |
+          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.2\Cluster-Installer.exe'
+          $candidate = Join-Path (Get-Location).Path 'bin\Cluster-Installer.exe'
+          & pwsh -NoProfile -NonInteractive -File tools/installer/Smoke-Cluster-Windows-Upgrade.ps1 -PriorInstaller $prior -CandidateInstaller $candidate
+          if ($LASTEXITCODE -ne 0) { throw 'Offline 1.0.2 -> 1.0.3 upgrade or preservation failed' }
+
+# This is a disposable OFFLINE, no-PostgreSQL-running smoke. It is not
+# authorization to expose automatic install, bypass the publisher signature,
+# merge a release, or certify live Windows Service recovery.

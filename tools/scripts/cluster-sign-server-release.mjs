@@ -56,7 +56,11 @@ assert(receipt.built===true && receipt.certified===false && receipt.product==="c
   && receipt.profile==="server-windows-x64" && receipt.channel===channel,
   "Server distribution receipt product/channel mismatch");
 const release=JSON.parse(fs.readFileSync(path.join(root,"config/release-candidate.json"),"utf8"));
-assert(/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)&&release.sequence===Number(release.release.split(".").at(-1)),"Invalid release identity");
+const stablePatch = /^1\\.0\\.([1-9][0-9]*)$/.exec(release.release);
+const rcSequence = /^1\\.0\\.0-rc\\.([1-9][0-9]*)$/.exec(release.release);
+const validStable = channel === "main" && stablePatch && Number(stablePatch[1]) + 50 === release.sequence;
+const validRC = channel === "development" && rcSequence && Number(rcSequence[1]) === release.sequence;
+assert(Boolean(validStable || validRC), "Signed Server update identity must match main stable or development RC release sequence");
 const branch=spawnSync("git",["branch","--show-current"],{cwd:root,encoding:"utf8"});
 assert(branch.status===0&&branch.stdout.trim()===(channel==="main"?"main":"development"),"Publisher must sign from the matching reviewed main/development branch");
 for(const command of [["diff","--quiet"],["diff","--cached","--quiet"]]){

@@ -1,5 +1,6 @@
 
 import fs from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { type FastifyInstance } from "fastify";
 
@@ -298,6 +299,80 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     return { ...review, boundDomainProfiles, checkedAt: new Date().toISOString() };
   });
 
+  // A restart is a separate, PIN-authorized action. The API commits no
+  // arbitrary commands and never terminates its own process. The independent
+  // Windows supervisor claims this one-shot private request, verifies the
+  // on-disk configuration fingerprint, drains owned children, then relaunches.
+  app.post("/api/server-config/restart", async (request, reply) => {
+    const operator = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(operator);
+    if (!operator || (!decorated?.isAdmin && !hasToolPermission(operator, decorated?.workspaceRole, "serverConfig", "manage"))) {
+      return reply.code(403).send({ ok: false, code: "SERVER_RESTART_FORBIDDEN", error: "Server Configuration manage permission is required." });
+    }
+    const parsed = z.object({
+      securityPin: z.string().min(1),
+      confirmation: z.literal("RESTART CLUSTER SERVER"),
+    }).strict().safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ ok: false, code: "SERVER_RESTART_CONFIRMATION_REQUIRED", error: "Explicit confirmation and Security PIN are required for a server restart." });
+    }
+    await verifyUserPin(operator, parsed.data.securityPin, "apply_server_configuration", request);
+    if (process.platform !== "win32") {
+      return reply.code(409).send({ ok: false, code: "WINDOWS_SUPERVISOR_REQUIRED", error: "Web-controlled restart requires the native Windows Server supervisor." });
+    }
+    const dir = path.join(DATA_ROOT, "system", "runtime");
+    const requestFile = path.join(dir, "cluster-restart-request.json");
+    const receiptFile = path.join(dir, "cluster-restart-result.json");
+    try {
+      // An accepted request must not be superseded during the drain window.
+      try {
+        const last = JSON.parse(await fs.readFile(receiptFile, "utf8")) as {state?: string; updatedAt?: string};
+        const at = Date.parse(String(last.updatedAt ?? ""));
+        if (last.state === "accepted" && Number.isFinite(at) && Date.now() - at < 180_000) {
+          return reply.code(409).send({ ok: false, code: "SERVER_RESTART_IN_PROGRESS", error: "A native server restart is already in progress." });
+        }
+      } catch (error: any) {
+        if (error?.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
+      }
+      const config = await fs.readFile(CONFIG_FILE_PATH);
+      const configSha256 = createHash("sha256").update(config).digest("hex");
+      const requestId = randomUUID();
+      const body = JSON.stringify({ schema: 1, action: "restart", requestId,
+        createdAt: new Date().toISOString(), configSha256 });
+      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+      // O_EXCL protects against duplicate restart submissions. Credentials
+      // and PINs never enter this file, and no user-supplied path is accepted.
+      const handle = await fs.open(requestFile, "wx", 0o600);
+      try { await handle.writeFile(body, "utf8"); await handle.sync(); }
+      finally { await handle.close(); }
+      return reply.code(202).send({ ok: true, code: "SERVER_RESTART_ACCEPTED", requestId,
+        message: "Native supervisor restart requested. This session may disconnect while Cluster drains and restarts." });
+    } catch (error: any) {
+      if (error?.code === "EEXIST") {
+        return reply.code(409).send({ ok: false, code: "SERVER_RESTART_PENDING", error: "A restart request is already pending native supervision." });
+      }
+      return reply.code(503).send({ ok: false, code: "SERVER_RESTART_UNAVAILABLE",
+        error: "Unable to publish the restart request to the local Windows supervisor. The configuration remains saved; restart using the native Server Manager." });
+    }
+  });
+
+  app.get("/api/server-config/restart/status", async (request, reply) => {
+    const operator = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(operator);
+    if (!operator || (!decorated?.isAdmin && !hasToolPermission(operator, decorated?.workspaceRole, "serverConfig", "manage"))) {
+      return reply.code(403).send({ ok: false, code: "SERVER_RESTART_FORBIDDEN" });
+    }
+    const dir = path.join(DATA_ROOT, "system", "runtime");
+    try {
+      const bytes = await fs.readFile(path.join(dir, "cluster-restart-result.json"), "utf8");
+      const receipt = z.object({ schema: z.literal(1), requestId: z.string().uuid(),
+        state: z.enum(["accepted", "ready", "failed"]), updatedAt: z.string() }).parse(JSON.parse(bytes));
+      return { ok: true, ...receipt };
+    } catch {
+      return { ok: true, state: "none" };
+    }
+  });
+
   app.put("/api/server-config", async (request, reply) => {
     const user = await getCurrentUser(request);
     const decorated = await decorateUserForClient(user);
@@ -540,7 +615,17 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       body.publicWebUrl = safeUrl(body.publicWebUrl, "Public web URL", ["http:", "https:"]).replace(/\/$/, "");
     }
     if (body.corsOrigins !== undefined) body.corsOrigins = validateCorsOrigins(body.corsOrigins);
-    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) databaseProviderFromUrl(body.databaseUrlOverride);
+    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) {
+      try {
+        databaseProviderFromUrl(body.databaseUrlOverride);
+      } catch {
+        // An invalid override is a bad input, not an internal server failure.
+        // Never echo the value: PostgreSQL URLs may contain credentials.
+        return reply.code(400).send({ ok: false, code: "INVALID_DATABASE_URL_OVERRIDE",
+          field: "databaseUrlOverride",
+          error: "Database URL override must be a complete postgresql:// or postgres:// connection URL. Existing database configuration was not changed." });
+      }
+    }
     const weakensSecurity = (AUTH_REQUIRED && body.authRequired === false) || (!DEV_LOGIN_ENABLED && body.devLoginEnabled === true) || (REQUIRE_DISCORD_LINK && body.requireDiscordLink === false) || (SESSION_SECURE && body.sessionSecure === false) || (RATE_LIMIT_ENABLED && body.rateLimitEnabled === false) || (SECURITY_HEADERS_ENABLED && body.securityHeadersEnabled === false) || (REQUIRE_MUTATION_ORIGIN && body.requireMutationOrigin === false) || (!ALLOW_EXECUTABLE_UPLOADS && body.allowExecutableUploads === true);
     const merged: SettingPayload = {
       ...existing,
@@ -844,7 +929,15 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       body.publicWebUrl = safeUrl(body.publicWebUrl, "Public web URL", ["http:", "https:"]).replace(/\/$/, "");
     }
     if (body.corsOrigins !== undefined) body.corsOrigins = validateCorsOrigins(body.corsOrigins);
-    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) databaseProviderFromUrl(body.databaseUrlOverride);
+    if (body.databaseUrlOverride && body.databaseUrlOverride !== MASKED_SECRET) {
+      try {
+        databaseProviderFromUrl(body.databaseUrlOverride);
+      } catch {
+        return reply.code(400).send({ ok: false, code: "INVALID_DATABASE_URL_OVERRIDE",
+          field: "databaseUrlOverride",
+          error: "Database URL override must be a complete postgresql:// or postgres:// connection URL. Existing database configuration was not changed." });
+      }
+    }
     const expectedSettings = body.expectedSettings;
     delete body.expectedSettings;
     const safeBody = stripServerManagedSettings(body);

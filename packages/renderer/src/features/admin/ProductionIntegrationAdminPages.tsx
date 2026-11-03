@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PRODUCT_CONNECTION_STATES, PRODUCT_OPERATION_STATES } from "@cluster/shared";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
@@ -79,6 +80,23 @@ function connectionStateLabel(value: string | null | undefined) {
   if (["disabled"].includes(state)) return PRODUCT_CONNECTION_STATES.disabled;
   if (["unavailable"].includes(state)) return PRODUCT_CONNECTION_STATES.unavailable;
   return PRODUCT_CONNECTION_STATES.notConfigured;
+}
+
+function integrationStateTone(value: string | null | undefined): SettingsStateTone {
+  const state = String(value || "").toLowerCase();
+  if (state === "healthy") return "success";
+  if (state === "failed") return "danger";
+  if (["warning", "degraded", "missing"].includes(state)) return "warning";
+  if (["connected", "configured", "checking", "running"].includes(state)) return "info";
+  return "neutral";
+}
+
+function integrationStateIcon(value: string | null | undefined) {
+  const state = String(value || "").toLowerCase();
+  return state === "healthy" ? "check" as const :
+    ["failed", "warning", "degraded", "missing"].includes(state) ? "warning" as const :
+    ["connected", "configured", "running", "checking"].includes(state) ? "activity" as const :
+    "minus" as const;
 }
 
 function repositoryStateLabel(repository: Repository) {
@@ -713,8 +731,8 @@ export function IntegrationsAdminPage() {
   const connectedIntegrationColumns = useMemo<ClusterDataTableColumn<Connection>[]>(() => [
     { id: "connection", header: "Connection", hideable: false, pinnable: true, defaultWidth: 240, sortValue: (connection) => connection.displayName, cell: (connection) => <strong>{connection.displayName}</strong> },
     { id: "provider", header: "Provider", defaultWidth: 190, sortValue: (connection) => providerLabel(connection.providerId), cell: (connection) => providerLabel(connection.providerId) },
-    { id: "status", header: "Status", defaultWidth: 160, sortValue: (connection) => connection.status, cell: (connection) => <span className={`soft-pill ${connection.status === "configured" ? "good" : "warning"}`}>{connectionStateLabel(connection.status)}</span> },
-    { id: "health", header: "Health", defaultWidth: 260, sortValue: (connection) => connection.healthState, cell: (connection) => <span><strong>{connectionStateLabel(connection.healthState)}</strong><small>{connection.healthMessage || "No connection health message"}</small></span> },
+    { id: "status", header: "Status", defaultWidth: 160, sortValue: (connection) => connection.status, cell: (connection) => <SettingsStateChip tone={integrationStateTone(connection.status)} icon={integrationStateIcon(connection.status)}>{connectionStateLabel(connection.status)}</SettingsStateChip> },
+    { id: "health", header: "Health", defaultWidth: 260, sortValue: (connection) => connection.healthState, cell: (connection) => <span className="admin-integration-health-cell-v103"><SettingsStateChip tone={integrationStateTone(connection.healthState)} icon={integrationStateIcon(connection.healthState)}>{connection.healthState === "healthy" ? "Last check healthy" : connectionStateLabel(connection.healthState)}</SettingsStateChip><small>{connection.healthMessage || "No connection health message"}</small>{connection.lastCheckedAt && <small>Checked {new Date(connection.lastCheckedAt).toLocaleString()}</small>}</span> },
   ], [providers]);
   const discordFailureColumns = useMemo<ClusterDataTableColumn<DiscordDeliveryFailure>[]>(() => [
     { id: "failure", header: "Failure", hideable: false, pinnable: true, defaultWidth: 360, sortValue: (failure) => failure.error, cell: (failure) => <span><strong>{failure.error}</strong><small>{failure.channelId ? `Destination ${failure.channelId}` : "No destination recorded"}</small></span> },
@@ -727,8 +745,8 @@ export function IntegrationsAdminPage() {
   return (
     <AdminSurface title="Integrations" description="Connect external services around Cluster. Native Source Control stays inside Projects and Tool Infrastructure." status={status}>
       <div className="admin-integration-nav-v535"><ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} /></div>
-      {integrationView !== "discord" ? <ClusterMetricStrip label="Integration summary" items={[{ label: "Connected", value: connections.length, detail: "external service connections" }, { label: "Providers", value: integrationProviders.filter((provider) => provider.implementation === "active").length, detail: "active providers" }, { label: "Discord", value: discordProvider?.implementation === "active" ? PRODUCT_CONNECTION_STATES.healthy : PRODUCT_CONNECTION_STATES.unavailable, detail: botTokenConfigured || webhookConfigured ? "credentials configured" : "setup available", tone: discordProvider?.implementation === "active" ? "good" : "warning" }, { label: "Project routes", value: deliverySummary?.routeCount || 0, detail: `${deliverySummary?.projectCount || 0} linked projects` }]} /> : null}
-      {integrationView === "connected" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Connected integrations</h3><p>Connection health and setup state. Provider diagnostics stay in the integration detail.</p></div><ClusterButton variant="secondary" size="compact" onClick={() => setIntegrationView("catalog")}>Browse catalog</ClusterButton></div><ClusterDataTable rows={connections} columns={connectedIntegrationColumns} rowKey={(connection) => connection.id} rowLabel={(connection) => connection.displayName} label="Connected integrations" configurableColumns persistKey="admin-connected-integrations" onRowActivate={(connection) => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }} empty={<ClusterEmptyState title="No integrations connected" description="Open the catalog to see available external providers." actions={<ClusterButton variant="primary" onClick={() => setIntegrationView("catalog")}>Open catalog</ClusterButton>} />} /></section> : null}
+      {integrationView !== "discord" ? <ClusterMetricStrip label="Integration summary" items={[{ label: "Connected", value: connections.length, detail: "external service connections" }, { label: "Providers", value: integrationProviders.filter((provider) => provider.implementation === "active").length, detail: "active providers" }, { label: "Discord provider", value: discordProvider?.implementation === "active" ? "Available" : "Unavailable", detail: botTokenConfigured || webhookConfigured ? "Credentials configured · health unverified" : "Setup available", tone: discordProvider?.implementation === "active" ? "neutral" : "warning" }, { label: "Project routes", value: deliverySummary?.routeCount || 0, detail: `${deliverySummary?.projectCount || 0} linked projects` }]} /> : null}
+      {integrationView === "connected" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3><ClusterIcon name="link" aria-hidden="true" /> Connected integrations</h3><p>Saved connections and the latest observed health. A configured integration isn't necessarily reachable.</p></div><ClusterButton variant="secondary" size="compact" onClick={() => setIntegrationView("catalog")}><ClusterIcon name="plus" aria-hidden="true" /> Browse catalog</ClusterButton></div><ClusterDataTable rows={connections} columns={connectedIntegrationColumns} rowKey={(connection) => connection.id} rowLabel={(connection) => connection.displayName} label="Connected integrations" configurableColumns persistKey="admin-connected-integrations" onRowActivate={(connection) => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }} empty={<ClusterEmptyState title="No integrations connected" description="Open the catalog to see available external providers." actions={<ClusterButton variant="primary" onClick={() => setIntegrationView("catalog")}>Open catalog</ClusterButton>} />} /></section> : null}
       {integrationView === "catalog" ? <IntegrationProvidersPanel excludeCategories={["source-control"]} /> : null}
       {integrationView === "discord" ? <>
       <section className="admin-panel-v243 cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
@@ -739,10 +757,10 @@ export function IntegrationsAdminPage() {
         ]} />
         {discordWorkspaceView === "dashboard" ? <>
           <div className="cluster-discord-health-grid-v548">
-            <div><span>Gateway</span><strong className={discordBotState?.state === "connected" ? "good" : ""}>{discordBotState?.state || "Unknown"}</strong><small>{discordBotState?.managed ? "Managed by Cluster" : "Not running under Cluster"}</small></div>
-            <div><span>OAuth linking</span><strong>{discordOAuthReady && discordOAuthAppMatches ? "Ready" : "Needs setup"}</strong><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID mismatch" : discordOAuthReady ? "User linking available" : "Identity linking unavailable"}</small></div>
-            <div><span>Approved servers</span><strong>{discordGuilds.length}</strong><small>{discordGuilds.filter((g) => g.reachable === false).length} unreachable</small></div>
-            <div><span>Project routes</span><strong>{deliverySummary?.routeCount ?? "—"}</strong><small>{deliverySummary?.projectCount ?? 0} connected projects</small></div>
+            <div><span><ClusterIcon name="cloud" aria-hidden="true" /> Gateway</span><SettingsStateChip tone={discordBotState?.state === "connected" ? "success" : discordBotState?.state === "failed" ? "danger" : "neutral"} icon={discordBotState?.state === "connected" ? "check" : "activity"}>{discordBotState?.state === "connected" ? "Last check connected" : discordBotState?.state || "Not checked"}</SettingsStateChip><small>{discordBotState?.managed ? "Managed by Cluster" : "Not running under Cluster"}</small></div>
+            <div><span><ClusterIcon name="lock" aria-hidden="true" /> OAuth linking</span><SettingsStateChip tone={discordOAuthReady && discordOAuthAppMatches ? "info" : "warning"} icon="lock">{discordOAuthReady && discordOAuthAppMatches ? "Configured" : "Needs setup"}</SettingsStateChip><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID mismatch" : discordOAuthReady ? "Configuration present · test account linking" : "Identity linking unavailable"}</small></div>
+            <div><span><ClusterIcon name="users" aria-hidden="true" /> Approved servers</span><strong>{discordGuilds.length}</strong><SettingsStateChip tone={discordGuilds.some((g) => g.reachable === false) ? "warning" : "neutral"}>{discordGuilds.filter((g) => g.reachable === false).length} reported unreachable</SettingsStateChip></div>
+            <div><span><ClusterIcon name="link" aria-hidden="true" /> Project routes</span><strong>{deliverySummary?.routeCount ?? "—"}</strong><small>{deliverySummary?.projectCount ?? 0} linked projects</small></div>
           </div>
           {discordLinkCoverage ? <ClusterVisualComposition label="Active accounts linked to Discord" total={discordLinkCoverage.active} parts={[
             { label: "Linked", value: discordLinkCoverage.linked, tone: "good" },

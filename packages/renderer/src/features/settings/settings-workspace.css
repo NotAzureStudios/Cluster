@@ -1432,3 +1432,620 @@
 .cluster-discord-identity-row-v548 > div { display: grid; gap: 3px; min-width: 0; }
 .cluster-discord-identity-row-v548 > div span { color: var(--cluster-text-muted, #a8b1bb); overflow-wrap: anywhere; font-size: .84rem; }
 .cluster-discord-identity-v548 .button-row { flex-wrap: wrap; }
+
+
+/* Cluster 1.0.3 Server Configuration: a persistent, grouped left navigation.
+   Do not render the old five-step PipelineRail inside the content pane. */
+.server-config-console-v238 .cluster-sectioned-nav {
+  align-self: start;
+  min-width: 0;
+}
+.server-config-console-v238 .compact-section-group-heading-v103 {
+  margin: 13px 6px 5px;
+  padding: 7px 8px 3px;
+  border-top: 1px solid var(--border-subtle, var(--cluster-border));
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.server-config-console-v238 .compact-section-group-heading-v103:first-child {
+  margin-top: 0;
+  border-top: 0;
+}
+.server-config-console-v238 .compact-section-primary-v204 {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.server-config-console-v238 .compact-section-primary-v204 > button {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  gap: 9px;
+  text-align: left;
+  border-radius: 9px;
+}
+.server-config-console-v238 .compact-section-primary-v204 > button strong {
+  font-weight: 600;
+  font-size: .81rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.server-config-console-v238 .compact-section-primary-v204 > button.active {
+  background: var(--cluster-surface-2, var(--surface));
+}
+.server-config-console-v238 .server-config-context-v15 {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--cluster-surface-1, var(--panel));
+}
+.server-config-console-v238 .server-config-rollout-guard-v103 {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 15px;
+  border-color: var(--warning, #dfaa54);
+  background: var(--cluster-surface-1, var(--panel));
+}
+.server-config-console-v238 .server-config-rollout-guard-v103 h2,
+.server-config-console-v238 .server-config-rollout-guard-v103 p {
+  margin: 0;
+}
+
+/* The domain workflow was sitting directly on the patterned workspace
+   background. Explicit opaque surfaces also keep form fields legible. */
+.cluster-domains-rc46 {
+  --domain-surface: var(--cluster-surface-1, var(--panel));
+  --domain-raised: var(--cluster-surface-2, var(--surface));
+  display: grid;
+  gap: 15px;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  padding: clamp(12px, 1.5vw, 22px);
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: var(--cluster-radius-card, 13px);
+  background: var(--domain-surface);
+  box-sizing: border-box;
+}
+.cluster-domains-rc46 .cluster-domain-header-v103 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--cluster-border, var(--border));
+}
+.cluster-domain-header-v103 > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.cluster-domain-header-v103 .eyebrow {
+  margin: 0;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: .67rem;
+  letter-spacing: .08em;
+}
+.cluster-domains-rc46 .cluster-domain-header-v103 h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.cluster-domains-rc46 .cluster-domain-header-v103 p {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.cluster-domain-header-status-v103 {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cluster-border, var(--border));
+  background: var(--domain-raised);
+  color: var(--muted);
+  font-size: .72rem;
+}
+.cluster-domain-header-status-v103.is-ready {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cluster-domains-rc46 .cluster-domain-browser-v103,
+.cluster-domains-rc46 .cluster-domain-detail-v103,
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103,
+.cluster-domains-rc46 .cluster-domain-deployment-v103 {
+  min-width: 0;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 12px;
+  background: var(--domain-raised);
+  box-sizing: border-box;
+}
+.cluster-domains-rc46 .cluster-domain-browser-v103 {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+.cluster-domains-rc46 .cluster-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+.cluster-domains-rc46 .cluster-form-row > label {
+  flex: 1 1 220px;
+  min-width: min(100%, 200px);
+}
+.cluster-domains-rc46 label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: inherit;
+  font-size: .76rem;
+  font-weight: 600;
+}
+.cluster-domains-rc46 input,
+.cluster-domains-rc46 select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cluster-domains-rc46 p,
+.cluster-domains-rc46 code,
+.cluster-domains-rc46 pre {
+  overflow-wrap: anywhere;
+}
+.cluster-domains-rc46 .cluster-domain-message-v103,
+.cluster-domains-rc46 .cluster-domain-empty-v103 {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 10px;
+  background: var(--domain-raised);
+}
+.cluster-domains-rc46 .cluster-domain-message-v103.is-error {
+  border-color: var(--danger, #dd646a);
+}
+.cluster-domains-rc46 .cluster-domain-empty-v103 h3,
+.cluster-domains-rc46 .cluster-domain-empty-v103 p {
+  margin: 0;
+}
+.cluster-domains-rc46 .cluster-domain-progress-v103 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+.cluster-domain-progress-v103 > div {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-height: 74px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 10px;
+  background: var(--domain-raised);
+}
+.cluster-domain-progress-v103 span {
+  font-size: .67rem;
+  color: var(--muted);
+}
+.cluster-domain-progress-v103 strong {
+  font-size: .8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.cluster-domains-rc46 .cluster-domain-detail-v103 {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  background: var(--domain-surface);
+}
+.cluster-domains-rc46 .cluster-domain-detail-v103 > h3,
+.cluster-domains-rc46 .cluster-domain-detail-v103 > p {
+  margin: 0;
+}
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 {
+  display: grid;
+  gap: 12px;
+  padding: clamp(12px, 1.4vw, 18px);
+}
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 > p {
+  margin: 0;
+  line-height: 1.55;
+}
+.cluster-domain-step-header-v103 {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--cluster-border, var(--border));
+}
+.cluster-domain-step-header-v103 > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.cluster-domain-step-header-v103 h3,
+.cluster-domain-step-header-v103 p {
+  margin: 0;
+}
+.cluster-domain-step-header-v103 p {
+  font-size: .76rem;
+  color: var(--muted);
+}
+.cluster-domain-step-index-v103 {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 31px;
+  height: 31px;
+  border-radius: 8px;
+  border: 1px solid var(--cluster-border, var(--border));
+  background: var(--domain-surface);
+  color: var(--accent);
+  font-size: .77rem;
+  font-weight: 700;
+}
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 > .cluster-panel,
+.cluster-domains-rc46 .cluster-domain-deployment-v103 {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin: 0;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 10px;
+  background: var(--domain-surface);
+}
+.cluster-domains-rc46 .cluster-domain-instructions-v103 {
+  display: grid;
+  gap: 11px;
+  padding-left: 22px;
+}
+.cluster-domains-rc46 .cluster-domain-instructions-v103 li {
+  padding-left: 4px;
+  line-height: 1.55;
+}
+.cluster-domains-rc46 .cluster-panel > pre {
+  max-width: 100%;
+}
+@media (max-width: 1100px) {
+  .cluster-domains-rc46 .cluster-domain-progress-v103 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .cluster-domains-rc46 .cluster-domain-progress-v103 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cluster-domains-rc46 .cluster-domain-header-v103 {
+    flex-direction: column;
+  }
+  .cluster-domains-rc46 .cluster-form-row > label {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+
+
+/* 1.0.3 visual semantics: icons and restrained colors convey operational state,
+   never infer public connectivity from saved configuration. */
+.server-config-console-v238 .server-config-section-title-v103 {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.server-config-section-title-v103 > svg,
+.server-config-section-title-v103 > .iconify {
+  flex: 0 0 20px;
+  inline-size: 20px;
+  block-size: 20px;
+  color: var(--accent);
+}
+.server-config-console-v238 .server-config-section-status-v103 {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.server-config-section-status-v103 h2 { margin: 0; }
+.server-config-console-v238 .cluster-sectioned-nav .compact-section-primary-v204 > button .cluster-section-nav-glyph {
+  flex: 0 0 18px;
+  inline-size: 18px;
+  block-size: 18px;
+  color: var(--muted);
+}
+.server-config-console-v238 .cluster-sectioned-nav .compact-section-primary-v204 > button.active .cluster-section-nav-glyph {
+  color: var(--accent);
+}
+.server-config-console-v238 .compact-section-primary-v204 > button > span:last-child:not(.cluster-section-nav-glyph) {
+  font-size: .66rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.server-config-console-v238 .compact-section-primary-v204 > button[data-detail-tone="warning"] > span:last-child {
+  color: var(--warning);
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--cluster-border));
+  background: color-mix(in srgb, var(--warning) 9%, var(--cluster-surface-1));
+  border-radius: 999px;
+}
+.server-config-console-v238 .server-config-group-head-v238 h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.server-config-console-v238 .server-config-group-head-v238 h2 > svg,
+.server-config-console-v238 .server-config-group-head-v238 h2 > .iconify {
+  color: var(--accent);
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+}
+.server-config-console-v238 .server-config-metrics-v238 button {
+  gap: 8px;
+  min-height: 113px;
+  padding: 13px;
+  align-content: start;
+}
+.server-config-console-v238 .server-config-metrics-v238 button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.server-config-console-v238 .server-config-stat-head-v103 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.server-config-console-v238 .server-config-stat-head-v103 > svg,
+.server-config-console-v238 .server-config-stat-head-v103 > .iconify {
+  color: var(--accent);
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+}
+.server-config-console-v238 .server-config-stat-head-v103 > span {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 {
+  font-size: .65rem;
+  max-width: 100%;
+}
+.cluster-domains-rc46 .cluster-domain-header-v103 > .settings-state-chip-v103 {
+  flex: 0 1 auto;
+}
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 600;
+}
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 > svg,
+.cluster-domains-rc46 .cluster-domain-stage-label-v103 > .iconify {
+  inline-size: 17px;
+  block-size: 17px;
+  flex: 0 0 17px;
+  color: var(--accent);
+}
+.cluster-domains-rc46 .cluster-domain-progress-v103 > div {
+  gap: 10px;
+  align-content: start;
+}
+.cluster-domains-rc46 .cluster-domain-progress-v103 .settings-state-chip-v103 {
+  align-self: start;
+}
+.cluster-domains-rc46 .cluster-domain-step-header-v103 > .settings-state-chip-v103 {
+  margin-inline-start: auto;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+.cluster-domains-rc46 .cluster-domain-step-index-v103 > svg,
+.cluster-domains-rc46 .cluster-domain-step-index-v103 > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+}
+.cluster-domains-rc46 .cluster-domain-check-results-v103 {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cluster-domains-rc46 .cluster-domain-deployment-v103 .settings-state-chip-v103 { margin: 3px; }
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 button > svg,
+.cluster-domains-rc46 .cluster-domain-workflow-card-v103 button > .iconify {
+  inline-size: 17px;
+  block-size: 17px;
+}
+@media (max-width: 780px) {
+  .cluster-domains-rc46 .cluster-domain-step-header-v103 { flex-wrap: wrap; }
+  .cluster-domains-rc46 .cluster-domain-step-header-v103 > .settings-state-chip-v103 {
+    margin-inline-start: 0;
+  }
+}
+
+
+.server-config-console-v238 .server-config-field-v238 > span {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.server-config-console-v238 .server-config-field-v238 .settings-state-chip-v103 {
+  font-size: .6rem;
+  padding: 3px 7px;
+  flex: 0 0 auto;
+}
+.server-config-console-v238 .server-config-toggle-v238 > span .settings-state-chip-v103 {
+  justify-self: start;
+}
+
+
+/* Legacy generic span rules must not erase semantic chip foreground colors. */
+.server-config-console-v238 .server-config-group-head-v238 > .settings-state-chip-v103,
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 {
+  color: var(--chip-color);
+}
+.server-config-console-v238 .server-config-metrics-v238 .settings-state-chip-v103 > span,
+.cluster-domains-rc46 .cluster-domain-progress-v103 .settings-state-chip-v103 > span {
+  color: inherit;
+  font-size: inherit;
+}
+
+
+/* Shared visual summaries for Forms, Policies and personal form assignments. */
+.studio-systems-status-overview-v103 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.studio-systems-status-overview-v103 > article {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  min-height: 100px;
+  padding: 13px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 12px;
+  background: var(--cluster-surface-1, var(--surface));
+}
+.studio-systems-status-overview-v103 > article > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.studio-systems-status-overview-v103 > article > div > svg,
+.studio-systems-status-overview-v103 > article > div > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+  color: var(--accent);
+}
+.studio-systems-status-overview-v103 > article > strong {
+  font-size: 1.25rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.studio-systems-heading-visual-v103,
+.studio-entity-editor-head-v272 h3,
+.settings-section-v092:has(.studio-form-entity-list-v103) .settings-panel-head-v092 h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.studio-systems-heading-visual-v103 > svg,
+.studio-systems-heading-visual-v103 > .iconify,
+.studio-entity-editor-head-v272 h3 > svg,
+.studio-entity-editor-head-v272 h3 > .iconify {
+  inline-size: 19px;
+  block-size: 19px;
+  flex: 0 0 19px;
+  color: var(--accent);
+}
+.studio-systems-v34f .studio-entity-list-v272 strong,
+.studio-form-entity-list-v103 strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.studio-systems-v34f .studio-entity-list-v272 strong > svg,
+.studio-systems-v34f .studio-entity-list-v272 strong > .iconify,
+.studio-form-entity-list-v103 strong > svg,
+.studio-form-entity-list-v103 strong > .iconify {
+  flex: 0 0 15px;
+  inline-size: 15px;
+  block-size: 15px;
+  color: var(--accent);
+}
+.studio-systems-v34f .studio-entity-list-meta-v272 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: end;
+  gap: 4px;
+  min-width: 0;
+  text-align: right;
+}
+.studio-systems-v34f .studio-entity-list-meta-v272 > small { color: var(--muted); font-size: .68rem; }
+.studio-form-entity-list-v103 > button { display: flex; gap: 10px; align-items: center; }
+.studio-form-entity-list-v103 .settings-state-chip-v103 {
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  min-width: 0;
+}
+.studio-systems-policy-status-v103 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+.studio-systems-v34f .studio-entity-editor-head-v272 .settings-state-chip-v103 {
+  margin-top: 5px;
+}
+@media (max-width: 860px) {
+  .studio-systems-status-overview-v103 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .studio-systems-status-overview-v103 { grid-template-columns: 1fr; }
+  .studio-form-entity-list-v103 > button { align-items: flex-start; flex-wrap: wrap; }
+  .studio-form-entity-list-v103 .settings-state-chip-v103 { margin-inline-start: 0; }
+}
+
+
+.studio-defaults-preview-heading-v103 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.studio-defaults-preview-heading-v103 h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+.studio-defaults-preview-heading-v103 h3 > svg,
+.studio-defaults-preview-heading-v103 h3 > .iconify {
+  flex: 0 0 18px;
+  inline-size: 18px;
+  block-size: 18px;
+  color: var(--accent);
+}
+.studio-project-defaults-preview-v103 {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.studio-project-defaults-preview-v103 > article > strong {
+  font-size: clamp(.95rem, 1.5vw, 1.17rem);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.studio-project-defaults-disclaimer-v103 {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+.studio-settings-section-v272 .settings-panel-head-v092 h2 > svg,
+.studio-settings-section-v272 .settings-panel-head-v092 h2 > .iconify {
+  flex: 0 0 20px;
+  inline-size: 20px;
+  block-size: 20px;
+  color: var(--accent);
+}

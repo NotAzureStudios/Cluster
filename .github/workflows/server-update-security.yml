@@ -25,6 +25,8 @@ jobs:
           cache: false
       - name: Verify server update signatures, channel boundaries and installed sequence
         run: go -C apps/server-launcher-go test ./...
+      - name: Verify staged-install and maintenance-hold source contracts
+        run: node tools/scripts/cluster-1-0-3-update-safety-contract-tests.mjs
       - name: Cross-compile Windows Server launcher
         run: GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go -C apps/server-launcher-go build -o "${{ runner.temp }}/ClusterServer.exe" .
       - name: Node.js pinned

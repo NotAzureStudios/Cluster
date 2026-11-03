@@ -15,6 +15,7 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
@@ -886,9 +887,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       title="Studio Settings"
       icon="settings"
       actions={
-        <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
-          {dirty ? "Save changes" : "Saved"}
-        </ClusterButton>
+        <>
+          {heldStudioDraft && <SettingsStateChip tone="warning" icon="note">Stored draft requires review</SettingsStateChip>}
+          <SettingsStateChip tone={dirty ? "warning" : "neutral"} icon={dirty ? "note" : "check"}>{dirty ? "Unsaved studio changes" : "No pending edits"}</SettingsStateChip>
+          <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
+            <ClusterIcon name={dirty ? "check" : "settings"} aria-hidden="true" /> {dirty ? "Save changes" : "Saved"}
+          </ClusterButton>
+        </>
       }
       status={status}
       navLabel="Studio settings sections"
@@ -1291,12 +1296,24 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Projects</p>
-                  <h2>Project defaults</h2>
+                  <h2><ClusterIcon name="project" aria-hidden="true" /> Project defaults</h2>
                   <p className="muted tight">Set the initial values and starter structure used by project creation. Project type presets can still replace fields that are specific to a production platform.</p>
                 </div>
-                <ClusterButton type="button" variant="secondary" onClick={() => setSection("projectTypes")}>Manage project types</ClusterButton>
+                <ClusterButton type="button" variant="secondary" onClick={() => setSection("projectTypes")}><ClusterIcon name="settings" aria-hidden="true" /> Manage project types</ClusterButton>
               </div>
 
+              <div className="studio-defaults-preview-heading-v103">
+                <h3><ClusterIcon name="grid" aria-hidden="true" /> New project starter preview</h3>
+                <SettingsStateChip tone={dirty ? "warning" : "neutral"} icon={dirty ? "note" : "check"}>{dirty ? "Contains unsaved changes" : "Current draft matches saved settings"}</SettingsStateChip>
+              </div>
+              <div className="studio-systems-status-overview-v103 studio-project-defaults-preview-v103" aria-label="New project configuration preview">
+                <article><div><ClusterIcon name="project" aria-hidden="true" /><span>Project type</span></div><strong>{projectTypePresets.find((preset) => preset.id === (settings.defaultProjectTypeId || projectTypePresets[0]?.id))?.label || "General"}</strong><SettingsStateChip tone="info" icon="settings">{settings.defaultProjectSource === "external" ? "External project source" : "Internal project source"}</SettingsStateChip></article>
+                <article><div><ClusterIcon name="lock" aria-hidden="true" /><span>Initial visibility</span></div><strong>{settings.defaultProjectVisibility === "private" ? "Private" : settings.defaultProjectVisibility === "external_review" ? "External review" : "Studio"}</strong><SettingsStateChip tone="neutral" icon="lock">Permissions apply separately</SettingsStateChip></article>
+                <article><div><ClusterIcon name="list" aria-hidden="true" /><span>Starter board</span></div><strong>{settings.defaultCreateStarterBoard !== false ? "Included" : "Skipped"}</strong><SettingsStateChip tone={settings.defaultCreateStarterBoard !== false ? "info" : "neutral"} icon={settings.defaultCreateStarterBoard !== false ? "check" : "minus"}>{settings.defaultCreateStarterBoard !== false ? "Created by default" : "Opted out"}</SettingsStateChip></article>
+                <article><div><ClusterIcon name="palette" aria-hidden="true" /><span>Starter whiteboard</span></div><strong>{settings.defaultCreateStarterWhiteboard !== false ? "Included" : "Skipped"}</strong><SettingsStateChip tone={settings.defaultCreateStarterWhiteboard !== false ? "info" : "neutral"} icon={settings.defaultCreateStarterWhiteboard !== false ? "check" : "minus"}>{settings.defaultCreateStarterWhiteboard !== false ? "Created by default" : "Opted out"}</SettingsStateChip></article>
+                <article><div><ClusterIcon name="folder" aria-hidden="true" /><span>Library folder</span></div><strong>Included</strong><SettingsStateChip tone="neutral" icon="lock">Protected project folder</SettingsStateChip></article>
+              </div>
+              <p className="muted tight studio-project-defaults-disclaimer-v103">Preview of the currently selected defaults. Project-type presets, object permissions and creation rules still determine the final project; this panel does not create anything.</p>
               <div className="studio-defaults-layout-v272">
                 <section className="studio-settings-block-v272">
                   <header><div><strong>Creation defaults</strong><span>Initial classification and visibility for every new project.</span></div></header>

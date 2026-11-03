@@ -7,15 +7,16 @@ import { TIMEZONE_OPTIONS, WORKING_DAY_OPTIONS, optionsWithCurrent } from "../..
 import { compactDateTime } from "../../core/date-time";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
-import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { PipelineRail } from "../../components/ClusterVisualIntelligence";
 import type { SecurityDiagnostics, ServerBackupRecord, ServerBackupVerification, ServerConfigField, ServerConfigSection, ServerSessionRecord, Settings } from "../application/application-models";
 import "./settings-workspace.css";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
 import { ServerConnectionGuide } from "./ServerConnectionGuide";
+import { ServerNetworkTopology } from "./ServerNetworkTopology";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { RequestErrorState } from "../../components/RequestState";
 
@@ -565,6 +566,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [restartRequestPending, setRestartRequestPending] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [networkDeployment, setNetworkDeployment] = useState<NetworkDeploymentStatus | null>(null);
   const [networkDeploymentError, setNetworkDeploymentError] = useState("");
@@ -573,6 +575,17 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       const status = await api<NetworkDeploymentStatus>("/api/server-config/network/deployment");
       setNetworkDeployment(status);
       setNetworkDeploymentError("");
+      if (status.state === "verified" || status.state === "rolled_back") {
+        // A successful native verification or guarded rollback releases the
+        // save interlock. Do not leave the previous 409 permanently disabling
+        // the UI after the operator refreshes deployment status.
+        setSaveError((current: unknown) => current instanceof ApiError &&
+          current.status === 409 && (current.payload as any)?.code === "NETWORK_DEPLOYMENT_PENDING"
+          ? null : current);
+        if (status.state === "rolled_back") {
+          setStatus("The native supervisor restored the previous network configuration. Refresh Server Configuration and review your local draft before attempting another save.");
+        }
+      }
     } catch (error) {
       setNetworkDeployment(null);
       setNetworkDeploymentError(error instanceof Error ? error.message : "Cannot inspect the network deployment record.");
@@ -759,7 +772,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setStatus("Latest server configuration loaded. Review your retained edits before saving.");
     } catch (error) { setSaveError(error); }
   }
-  async function save(confirmation?: string, pinOverride?: string): Promise<boolean> {
+  async function save(confirmation?: string, pinOverride?: string, restartAfter = false): Promise<boolean> {
     // Staged network rollback is file-only while PostgreSQL may be offline.
     // Don't ask for a PIN just to reject a mixed database/network transaction.
     const selectedKeys = Object.keys(settings).filter(key =>
@@ -769,6 +782,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setStatus("Save networking changes separately from other settings so a failed service restart can restore the complete network transaction.");
       return false;
     }
+    // Confirm the interruption before asking for the Security PIN. The
+    // authenticated restart is issued only if the server Save succeeds.
+    if (restartAfter && !pinOverride &&
+      !window.confirm("Save these settings and restart Cluster Server? Active sessions will temporarily disconnect while the native Windows supervisor drains and relaunches the server.")) return false;
     const pin = pinOverride || (currentUser.pinConfigured
       ? await requestSecurityPin({
           title: "Apply Server Configuration",
@@ -816,9 +833,24 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setNetworkReview(null);
       setServerConfigConflict(false);
       onSettingsSaved?.({ ...persisted, appDisplayName: "Cluster" });
-      setStatus(selectedKeys.some(key => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(key))
-        ? "Networking changes saved. The Windows Service must verify the new configuration; if first startup fails, guarded rollback may restore the previous settings."
-        : "Server configuration saved. Maintenance window planning never initiates an automatic restart or update.");
+      if (restartAfter) {
+        try {
+          // Use the PIN already provided for this exact operator action.
+          // The API writes a one-shot request; the independent native supervisor
+          // owns stopping, draining, starting, and guarded network rollback.
+          await api("/api/server-config/restart", {
+            method: "POST",
+            body: JSON.stringify({ securityPin: pin, confirmation: "RESTART CLUSTER SERVER" }),
+          });
+          setStatus("Settings saved. Restart accepted by the Windows supervisor; the page may disconnect while Cluster is restarting.");
+        } catch (restartError) {
+          setStatus("Settings saved, but the native restart request was not accepted. Use the Restart button in Cluster Server Manager. " + (restartError instanceof Error ? restartError.message : ""));
+        }
+      } else {
+        setStatus(selectedKeys.some(key => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(key))
+          ? "Networking changes saved. Apply the staged profile through an authorized native restart; the supervisor can roll back if the new listener fails."
+          : "Server configuration saved." );
+      }
       void refreshNetworkDeployment();
       void Promise.all([fetchSecurityDiagnostics(true).then(setSecurityDiagnostics), refreshSecurityPosture(true)]);
       return true;
@@ -826,7 +858,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       if (error instanceof ApiError && error.status === 412) {
         const expected = String((error.payload as any)?.confirmation || "APPLY INSECURE CONFIG");
         const typed = await promptCluster({ title: expected === "CONFIRM NETWORK EXPOSURE" ? "Confirm network exposure" : "Confirm security-sensitive change", message: expected === "CONFIRM NETWORK EXPOSURE" ? "This network change may make your gateway accessible outside localhost. Review firewall, proxy and TLS settings before confirming." : "This change weakens a security control.", label: "Required confirmation", expectedValue: expected, confirmLabel: "Apply change", tone: "danger" }) || "";
-        if (typed === expected) return save(expected, pin);
+        if (typed === expected) return save(expected, pin, restartAfter);
         setStatus("Security-sensitive change cancelled.");
         return false;
       }
@@ -836,6 +868,42 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       return false;
     } finally {
       setSavingConfig(false);
+    }
+  }
+  async function authorizePendingRestart() {
+    if (restartRequestPending) return;
+    // Network rollout was staged by a previous, successful configuration save.
+    // A 409 is a safety interlock, not a request to retry that same PUT.
+    if (!window.confirm(
+      "Restart the managed Cluster Server to verify the staged network change? " +
+      "Existing unsaved edits will NOT be applied and may be lost if this page reloads. " +
+      "Active sessions and background work will be interrupted temporarily."
+    )) return;
+    const pin = currentUser.pinConfigured
+      ? await requestSecurityPin({
+          title: "Restart Cluster Server",
+          description: "Authorize the native Windows supervisor to apply the staged network change.",
+          purpose: "apply_server_configuration",
+          confirmLabel: "Authorize restart",
+        })
+      : await requestSecurityPinSetup({
+          title: "Create security PIN",
+          description: "Create a security PIN before authorizing a managed restart.",
+          purpose: "setup_for_apply_server_configuration",
+        });
+    if (!pin) return;
+    setRestartRequestPending(true);
+    try {
+      await api("/api/server-config/restart", {
+        method: "POST",
+        body: JSON.stringify({ securityPin: pin, confirmation: "RESTART CLUSTER SERVER" }),
+      });
+      setStatus("Managed restart accepted. Wait for local API readiness, then refresh the deployment status. External DNS/TLS still needs a separate check.");
+      setSaveError(null);
+    } catch (error) {
+      setStatus("Native restart request unavailable. Restart from Cluster Windows Server Manager, then reload configuration. " + (error instanceof Error ? error.message : ""));
+    } finally {
+      setRestartRequestPending(false);
     }
   }
   async function fetchSecurityDiagnostics(force = false) {
@@ -1050,6 +1118,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const configuredExtensionCount = webhookEndpoints.filter((endpoint) => endpoint.enabled).length;
   const changedFields = SERVER_CONFIG_FIELDS.filter((field) => JSON.stringify(settings[field.key]) !== JSON.stringify(savedSettings[field.key]));
   const restartDirtyCount = changedFields.filter((field) => field.restart).length;
+  const networkDeploymentPending = networkDeployment?.state === "staged" ||
+    (saveError instanceof ApiError && saveError.status === 409 && (saveError.payload as any)?.code === "NETWORK_DEPLOYMENT_PENDING");
   const integrationOwnedKeys = new Set(["discordWebhookUrl", "discordVoiceUrl", "discordMessagePrefix", "discordBotToken", "discordGuildId", "discordForumChannelId", "discordChatChannelId", "discordAdminRoleId"]);
   const serverManagedKeys = (settings.serverManagedSettingKeys?.length ? settings.serverManagedSettingKeys : SERVER_MANAGED_SETTING_KEYS.map(String)).filter((key) => !integrationOwnedKeys.has(String(key)));
   const missingMetadataKeys = serverManagedKeys.filter((key) => !SERVER_CONFIG_FIELDS.some((field) => field.key === key));
@@ -1065,6 +1135,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         <label className={`${className} server-config-toggle-v238`} key={String(field.key)}>
           <span>
             <strong>{field.label}</strong>
+            {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
+            {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
             <small>{help}</small>
             <code>{String(field.key)}</code>
           </span>
@@ -1090,7 +1162,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       <label className={className} key={String(field.key)}>
         <span>
           <strong>{field.label}</strong>
-          {field.restart && <em>Restart</em>}
+          {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
+          {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
         </span>
         <small>{help}</small>
         {control}
@@ -1120,17 +1193,18 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     label: string;
     group: "Runtime" | "Security & Access" | "Data & Recovery" | "Extensions";
     count?: number;
+    icon: ClusterIconName;
   }> = [
-    { id: "overview", label: "Overview", group: "Runtime" },
-    { id: "maintenance", label: "Maintenance", group: "Runtime", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
-    { id: "network", label: "Network", group: "Runtime", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
-    { id: "domains", label: "Domains & gateways", group: "Runtime" },
-    { id: "advanced", label: "All settings", group: "Runtime", count: serverManagedKeys.length },
-    { id: "security", label: "Security", group: "Security & Access", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "security").length },
-    { id: "sessions", label: "Sessions", group: "Security & Access", count: serverSessions.length },
-    { id: "storage", label: "Storage", group: "Data & Recovery", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "storage").length },
-    { id: "backups", label: "Backups", group: "Data & Recovery", count: serverBackups.length },
-    { id: "integrations", label: "API & webhooks", group: "Extensions", count: configuredExtensionCount },
+    { id: "overview", label: "Overview", group: "Runtime", icon: "home" },
+    { id: "maintenance", label: "Maintenance", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
+    { id: "network", label: "Network", group: "Runtime", icon: "cloud", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
+    { id: "domains", label: "Domains & gateways", group: "Runtime", icon: "link" },
+    { id: "advanced", label: "All settings", group: "Runtime", icon: "settings", count: serverManagedKeys.length },
+    { id: "security", label: "Security", group: "Security & Access", icon: "lock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "security").length },
+    { id: "sessions", label: "Sessions", group: "Security & Access", icon: "users", count: serverSessions.length },
+    { id: "storage", label: "Storage", group: "Data & Recovery", icon: "folder", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "storage").length },
+    { id: "backups", label: "Backups", group: "Data & Recovery", icon: "archive", count: serverBackups.length },
+    { id: "integrations", label: "API & webhooks", group: "Extensions", icon: "code", count: configuredExtensionCount },
   ];
   const serverConfigGroups = [
     { id: "overview" as const, label: "Runtime", description: "Server identity, network posture, and lower-level configuration." },
@@ -1141,7 +1215,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const serverGroupForSection = (target: ServerConfigSection) => target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
   const activeServerGroupId = serverGroupForSection(section);
   const activeServerGroup = serverConfigGroups.find((group) => group.id === activeServerGroupId) || serverConfigGroups[0];
-  const activeServerSections = sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId);
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
@@ -1150,61 +1223,82 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       description={`${settings.settingsSource || "config file"} · ${settings.configPath || "cluster.config.json"}`}
       actions={
         <>
-          {changedFields.length > 0 && <span className="settings-save-state-v469 dirty">{changedFields.length} unsaved{restartDirtyCount ? ` · ${restartDirtyCount} restart` : ""}</span>}
+          {changedFields.length > 0 && <SettingsStateChip tone="warning" icon="note">{changedFields.length} unsaved{restartDirtyCount ? ` · ${restartDirtyCount} require restart` : ""}</SettingsStateChip>}
+          {networkDeployment?.state === "staged" && <SettingsStateChip tone="warning" icon="refresh">Network restart pending</SettingsStateChip>}
           <ClusterButton type="button" variant="secondary" onClick={() => void loadOperationalData()} disabled={operationsLoading}>
             <ClusterIcon name="refresh" />
             <span>{operationsLoading ? "Refreshing" : "Refresh"}</span>
           </ClusterButton>
-          <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || !changedFields.length}>Save configuration</ClusterButton>
+          {restartDirtyCount > 0 && <ClusterButton type="button" variant="secondary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save(undefined, undefined, true)} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>
+            Save &amp; restart
+          </ClusterButton>}
+          <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>Save configuration</ClusterButton>
         </>
       }
       status={status}
-      navLabel="Server configuration domains"
-      activeId={activeServerGroupId}
-      onChange={(next) => selectSection(next as ServerConfigSection)}
-      primaryIds={serverConfigGroups.map((group) => group.id)}
-      items={serverConfigGroups.map((group) => ({ id: group.id, label: group.label }))}
+      navLabel="Server configuration sections"
+      activeId={section}
+      onChange={selectSection}
+      primaryIds={sectionLabels.map((item) => item.id)}
+      showGroupHeadings
+      items={sectionLabels.map((item) => ({
+        id: item.id, label: item.label, group: item.group, icon: item.icon,
+        detail: item.id === "network" && networkDeploymentPending ? "Restart" : undefined,
+        detailTone: item.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
+      }))}
     >
 
-      {saveError ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
+      {networkDeploymentPending && (
+        <section className="panel server-config-rollout-guard-v103" aria-label="Network deployment awaiting managed restart" role="status">
+          <div className="server-config-section-status-v103"><h2>Network change awaiting restart</h2><SettingsStateChip tone="warning" icon="refresh">Staged · action needed</SettingsStateChip></div>
+          <p>The previous network configuration save was staged successfully. Further settings changes are blocked until the independent Windows supervisor starts Cluster, verifies readiness and settles the rollout. Repeating Save will not clear this lock.</p>
+          {networkDeployment?.configMatch === "unexpected" && <p role="alert">The active configuration matches neither staged snapshot. Do not force a new save. Inspect the native Server Manager and recovery logs.</p>}
+          <div className="button-row">
+            <ClusterButton type="button" variant="secondary" onClick={() => selectSection("network")}>Review network deployment</ClusterButton>
+            <ClusterButton type="button" variant="secondary" onClick={() => void refreshNetworkDeployment()}>Refresh rollout state</ClusterButton>
+            <ClusterButton type="button" variant="primary" disabled={restartRequestPending || networkDeployment?.configMatch === "unexpected"} busy={restartRequestPending} busyLabel="Authorizing…" onClick={() => void authorizePendingRestart()}>Authorize managed restart</ClusterButton>
+          </div>
+          <p className="muted tight">On older installations without web-managed restart, use Restart in the native Cluster Server control panel. Keep a local console session available while changing network settings.</p>
+        </section>
+      )}
+      {saveError && !networkDeploymentPending ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
 
       <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
-        <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div><span className="soft-pill">{activeServerSections.length} areas</span></div>
-        <PipelineRail density="compact" label={`${activeServerGroup.label} areas`} items={activeServerSections.map((item) => ({ id: item.id, label: item.label, detail: item.id === section ? "Current" : item.count === undefined ? undefined : String(item.count), tone: item.id === section ? "accent" : "neutral" }))} onSelect={({ datumId }) => selectSection(datumId as ServerConfigSection)} />
+        <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2 className="server-config-section-title-v103"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" />{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div></div>
       </section>
 
       {section === "overview" && (
         <div className="server-config-overview-v238">
           <div className="server-config-metrics-v238">
             <ClusterButton unstyled type="button" onClick={() => selectSection("security")}>
-              <span>Security</span>
-              <strong>{securityDiagnostics?.ok ? "Healthy" : "Review"}</strong>
-              <em>{securityDiagnostics?.notes?.length || 0} notes</em>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="lock" aria-hidden="true" /><span>Security</span></div>
+              <strong>{securityDiagnostics ? securityDiagnostics.ok ? "Reported OK" : "Needs review" : "Not checked"}</strong>
+              <SettingsStateChip tone={!securityDiagnostics ? "neutral" : securityDiagnostics.ok && !(securityDiagnostics.notes?.length) ? "success" : "warning"}>{!securityDiagnostics ? "No diagnostics yet" : `${securityDiagnostics.notes?.length || 0} diagnostic notes`}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("sessions")}>
-              <span>Sessions</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="users" aria-hidden="true" /><span>Sessions</span></div>
               <strong>{serverSessions.length}</strong>
-              <em>{securityDiagnostics?.activeSessions ?? serverSessions.length} active</em>
+              <SettingsStateChip tone="neutral" icon="user">{securityDiagnostics?.activeSessions ?? serverSessions.length} reported active</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("backups")}>
-              <span>Backups</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="archive" aria-hidden="true" /><span>Backups</span></div>
               <strong>{serverBackups.length}</strong>
-              <em>{securityDiagnostics?.latestBackup?.verification?.ok === true ? "Latest verified" : securityDiagnostics?.latestBackup ? "Needs verification" : "None created"}</em>
+              <SettingsStateChip tone={securityDiagnostics?.latestBackup?.verification?.ok === true ? "success" : securityDiagnostics?.latestBackup ? "warning" : "neutral"}>{securityDiagnostics?.latestBackup?.verification?.ok === true ? "Latest verified" : securityDiagnostics?.latestBackup ? "Verification needed" : "No backup evidence"}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("integrations")}>
-              <span>API & webhooks</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="code" aria-hidden="true" /><span>API &amp; webhooks</span></div>
               <strong>{configuredExtensionCount}</strong>
-              <em>active webhook endpoints</em>
+              <SettingsStateChip tone="neutral" icon="link">Enabled endpoints</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("advanced")}>
-              <span>Editable settings</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="settings" aria-hidden="true" /><span>Editable settings</span></div>
               <strong>{serverManagedKeys.length}</strong>
-              <em>{changedFields.length} unsaved</em>
+              <SettingsStateChip tone={changedFields.length ? "warning" : "neutral"} icon={changedFields.length ? "note" : "check"}>{changedFields.length ? `${changedFields.length} unsaved changes` : "No draft changes"}</SettingsStateChip>
             </ClusterButton>
             <ClusterButton unstyled type="button" onClick={() => selectSection("network")}>
-              <span>Private API</span>
+              <div className="server-config-stat-head-v103"><ClusterIcon name="cloud" aria-hidden="true" /><span>Private API</span></div>
               <strong>{settings.serverPort || 4000}</strong>
-              <em>{settings.serverHost || "127.0.0.1"}</em>
+              <SettingsStateChip tone={settings.serverHost && !["127.0.0.1", "localhost", "::1"].includes(settings.serverHost) ? "warning" : "neutral"} icon="lock">Configured host: {settings.serverHost || "127.0.0.1"}</SettingsStateChip>
             </ClusterButton>
           </div>
 
@@ -1375,6 +1469,16 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
 
       {section === "network" && (
         <>
+          <ServerNetworkTopology
+            publicWebUrl={String(settings.publicWebUrl || "")}
+            publicApiUrl={String(settings.publicApiUrl || "")}
+            webHost={String(settings.webHost || "127.0.0.1")}
+            webPort={Number(settings.webPort || 3000)}
+            apiHost={String(settings.serverHost || "127.0.0.1")}
+            apiPort={Number(settings.serverPort || 4000)}
+            deploymentState={networkDeployment?.state}
+            hasDraftChanges={changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)))}
+          />
           <ServerConnectionGuide busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
             // Stage only public HTTPS routing metadata. Listener and firewall policy
             // remain unchanged; the existing protected Save requires a PIN.
@@ -1385,7 +1489,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           }} />
           {renderSectionFields("network")}
           <section className="panel server-config-operations-v238" aria-label="Network deployment status">
-            <div className="server-config-group-head-v238"><div><h2>Managed network deployment</h2><p className="muted tight">After Save, a staged network change is checked on the next independent Windows Service startup. Only a matching, unmodified configuration can be rolled back automatically.</p></div><span>{networkDeployment?.state || "Unknown"}</span></div>
+            <div className="server-config-group-head-v238"><div><h2><ClusterIcon name="sync" aria-hidden="true" /> Managed network deployment</h2><p className="muted tight">After Save, a staged network change is checked on the next independent Windows startup. Only a matching, unmodified configuration can be rolled back automatically.</p></div><SettingsStateChip tone={networkDeployment?.state === "verified" ? "success" : networkDeployment?.state === "staged" ? "warning" : networkDeployment?.state === "rolled_back" ? "warning" : "neutral"} icon={networkDeployment?.state === "verified" ? "check" : "refresh"}>{networkDeployment?.state === "verified" ? "Local startup verified" : networkDeployment?.state === "staged" ? "Awaiting restart" : networkDeployment?.state === "rolled_back" ? "Rolled back" : "Not staged"}</SettingsStateChip></div>
             {networkDeploymentError ? <p className="muted">Cannot inspect the deployment record: {networkDeploymentError}</p> : null}
             {networkDeployment?.state === "staged" ? <p className="muted">Pending verification. {networkDeployment.advisory} Further protected Server Config saves are held until the rollout is settled.</p> : null}
             {networkDeployment?.state === "verified" ? <p className="muted">Native managed startup confirmed local application readiness. External DNS, TLS, Windows Firewall and client connectivity still require independent verification.</p> : null}

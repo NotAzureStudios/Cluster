@@ -24,10 +24,12 @@ import { enforceMfaEnrollmentRestriction, enforceStudioMfaPolicyBoundary } from 
 import { requestContextFor, setRequestActorContext } from "../domains/access/request-context.js";
 import { isConfigurableToolCapability } from "../domains/access/configurable-tool-availability.js";
 import { setRequestDeviceProof, verifyDeviceProofForRequest } from "../domains/sessions/device-proof.js";
+import { serverUpdateMaintenanceHeld } from "../core/server-update-maintenance.js";
 
 type ServerRequestInfrastructureDeps = {
   app: FastifyInstance;
   prisma: any;
+  dataRoot: string;
   runtimeConfig: any;
   configuredCorsOrigins: ReadonlySet<string>;
   sessionSecret: string;
@@ -74,7 +76,7 @@ type ServerRequestInfrastructureDeps = {
 
 export async function registerServerRequestInfrastructure(deps: ServerRequestInfrastructureDeps) {
   const {
-    app, prisma, runtimeConfig, configuredCorsOrigins, sessionSecret, clusterVersion, authRequired, requireDiscordLink,
+    app, prisma, dataRoot, runtimeConfig, configuredCorsOrigins, sessionSecret, clusterVersion, authRequired, requireDiscordLink,
     sessionDays, sessionIdleHours, sessionMaxPerUser, apiRateLimitMax, apiRateLimitWindowMs, authRateLimitMax,
     uploadLimitBytes, avatarUploadLimitBytes,
     concurrentWorkLimiter, resourceGovernor, runtimeTelemetry, securityTelemetry, databaseDiagnostics, auditService, getServerState,
@@ -154,6 +156,14 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     reply.header("X-Cluster-Api-Contract", API_CONTRACT.version);
     reply.header("X-Cluster-Minimum-Client-Version", API_CONTRACT.minimumClientVersion);
     reply.header("X-Cluster-Transport-Protocol", API_CONTRACT.clients.transportProtocolVersion);
+    if (!pathname.startsWith("/health") && serverUpdateMaintenanceHeld(dataRoot)) {
+      reply.header("Cache-Control", "no-store");
+      reply.header("Retry-After", "5");
+      reply.header("X-Cluster-Server-State", "maintenance");
+      reply.code(503).send({ ok: false, code: "SERVER_UPDATE_HOLD",
+        error: "Cluster is verifying a managed Server update. API access is temporarily held.", retryable: true });
+      return;
+    }
     const serverState = getServerState();
     reply.header("X-Cluster-Server-State", publicServerRuntimeState(serverState));
     reply.header("X-Cluster-Server-Mode", serverState.mode);
