@@ -57,9 +57,31 @@ export function buildDomainConnectionPlan(host: string, settings: ConnectionConf
     }
   } else if (mode === "managed_tunnel") {
     if (provider === "cloudflare") {
-      artifacts.push({ filename: "cloudflared-config.yml", contents: `# Replace the placeholders; keep the tunnel credentials file private.\ntunnel: YOUR_TUNNEL_UUID\ncredentials-file: /secure/path/TUNNEL_UUID.json\ningress:\n  - hostname: ${host}\n    service: http://127.0.0.1:${webPort}\n  - service: http_status:404\n`, purpose: "Cloudflare locally-managed tunnel ingress" });
-      artifacts.push({ filename: "cloudflared-setup.txt", contents: `# Use your Cloudflare account and an interactive admin shell.\n# Never paste a tunnel token or JSON credentials into the Studio Domain Registry.\ncloudflared tunnel login\ncloudflared tunnel create cluster-studio\n# Copy the resulting tunnel UUID and credentials-file path into cloudflared-config.yml.\ncloudflared tunnel route dns YOUR_TUNNEL_UUID ${host}\ncloudflared tunnel ingress validate\ncloudflared tunnel run YOUR_TUNNEL_UUID\n# Configure persistent service startup separately after manual verification.\n`, purpose: "Provider authorization, DNS route and outbound tunnel setup" });
-      instructions.push("Create the tunnel and hostname route with Cloudflare, install cloudflared as a managed service, and validate ingress rules. No router port forwarding required.");
+      artifacts.push({ filename: "cloudflared-config.yml", contents: `# Replace the placeholders; keep the tunnel credentials file private.\ntunnel: YOUR_TUNNEL_UUID\ncredentials-file: C:/REPLACE_WITH_ACTUAL_PATH/TUNNEL_UUID.json\ningress:\n  - hostname: ${host}\n    service: http://127.0.0.1:${webPort}\n  - service: http_status:404\n`, purpose: "Cloudflare locally-managed tunnel ingress" });
+      artifacts.push({ filename: "cloudflared-setup.txt", contents: `# Locally-managed Cloudflare Tunnel, Windows PowerShell (separate from Dashboard-managed tunnels).
+# Ensure cloudflared.exe is installed and on PATH.
+cloudflared tunnel login
+cloudflared tunnel create cluster-studio
+# Replace the UUID and credentials-file in cloudflared-config.yml with the printed values.
+# Use the config file explicitly; a custom filename is NOT discovered automatically.
+cloudflared tunnel route dns YOUR_TUNNEL_UUID ${host}
+cloudflared --config ./cloudflared-config.yml tunnel ingress validate
+cloudflared --config ./cloudflared-config.yml tunnel run YOUR_TUNNEL_UUID
+# For permanent service startup, follow Cloudflare's Windows Service instructions.
+# Make configuration and tunnel credentials readable by that service identity.
+# Never paste credential JSON, tunnel tokens or Access secrets into Cluster.
+`, purpose: "Windows locally-managed tunnel setup and configuration validation" });
+      artifacts.push({ filename: "cloudflare-dashboard-setup.txt", contents: `# Recommended Cloudflare Dashboard-managed tunnel (Windows).
+# 1. Cloudflare dashboard > Networks > Tunnels > Create Tunnel.
+# 2. Install the Windows connector as a service using Cloudflare's provided command.
+# 3. Set this published application hostname: ${host}
+# 4. Set the HTTP service/origin URL: http://127.0.0.1:${webPort}
+# 5. Add Cloudflare Access policies and MFA before inviting studio users.
+# 6. Confirm the connector is healthy; test login, API and transfers remotely.
+# Do NOT also run a locally-managed tunnel for the same hostname.
+# Never paste installation tokens into the Cluster domain registry.
+`, purpose: "Dashboard-managed connector setup without exposing secrets to Cluster" });
+            instructions.push("Create the tunnel and hostname route with Cloudflare, install cloudflared as a managed service, and validate ingress rules. No router port forwarding required.");
       instructions.push("Cloudflare Access policies must account for Desktop-client authentication. Check Cloudflare request-size limits for Library transfers.");
     } else {
       instructions.push(`Configure the custom tunnel's single HTTP origin as http://127.0.0.1:${webPort} for all request paths. Do not configure a second direct-to-API ingress route.`);
