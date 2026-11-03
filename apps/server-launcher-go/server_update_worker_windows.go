@@ -1,0 +1,230 @@
+//go:build windows
+
+package main
+
+// This one-shot worker runs from a verified copy of the native launcher in the
+// portable parent directory, never from the Server/ tree being replaced.
+// Its first implementation supports the Windows SCM-owned Server, not an
+// unsupervised interactive PostgreSQL process.
+import (
+ "context"
+ "crypto/sha256"
+ "encoding/hex"
+ "errors"
+ "fmt"
+ "os"
+ "os/exec"
+ "path/filepath"
+ "strings"
+ "time"
+)
+
+const serverUpdateStopTimeout = managedHostStopGrace + 20*time.Second
+const serverUpdateInstallTimeout = 75*time.Minute
+const serverUpdateReadinessTimeout = 4*time.Minute
+
+// A process with an administrative token still cannot update a different
+// installation with the globally named ClusterStudioServer service.
+func requireOwnedClusterUpdateService(root string)error{
+ state,err:=queryClusterService()
+ if err!=nil{return err}
+ if !state.Installed{return errors.New("automatic Server installation currently requires the managed ClusterStudioServer Windows Service")}
+ expected:=filepath.Join(root,"bin","ClusterServer.exe")
+ if _,err:=os.Stat(expected);err!=nil{return fmt.Errorf("managed Windows Service executable missing: %w",err)}
+ script:=`$s = Get-CimInstance Win32_Service -Filter "Name='ClusterStudioServer'" -ErrorAction Stop; if (!$s) { exit 2 }; Write-Output $s.PathName`
+ output,err:=exec.Command("powershell.exe","-NoProfile","-NonInteractive","-Command",script).Output()
+ if err!=nil{return fmt.Errorf("cannot independently verify Windows Service ownership: %w",err)}
+ command:=strings.TrimSpace(string(output))
+ prefix:="\""+expected+"\""
+ // The native service's canonical path is quoted; refuse shell aliases and
+ // foreign service binaries even if they carry the same service name.
+ if !strings.HasPrefix(strings.ToLower(command),strings.ToLower(prefix)) ||
+  !strings.Contains(strings.ToLower(command),strings.ToLower("--root")) ||
+  !strings.Contains(strings.ToLower(command),strings.ToLower(root)) {
+  return errors.New("Cluster Windows Service belongs to another installation or has an unexpected image path")
+ }
+ return nil
+}
+func stopOwnedClusterUpdateService(root string)error{
+ if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
+ state,err:=queryClusterService()
+ if err!=nil{return err}
+ if state.State!=serviceStopped{
+  if err:=stopClusterService();err!=nil{return err}
+  if err:=waitClusterService(serviceStopped,serverUpdateStopTimeout);err!=nil{return err}
+ }
+ if _,err:=os.Stat(filepath.Join(root,"data","postgresql","postmaster.pid"));err==nil{
+  return errors.New("PostgreSQL is still marked running after Windows Service stopped")
+ }else if !os.IsNotExist(err){return err}
+ return nil
+}
+func startOwnedClusterUpdateService(root string)error{
+ if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
+ if err:=startClusterService();err!=nil{return err}
+ return waitClusterService(serviceRunning,serverUpdateReadinessTimeout)
+}
+func nativeUpdateWorkerExecutableID(root string)(string,error){
+ executable,err:=os.Executable()
+ if err!=nil{return "",err}
+ executable,err=filepath.Abs(executable)
+ if err!=nil{return "",err}
+ parent,err:=filepath.Abs(filepath.Dir(root))
+ if err!=nil{return "",err}
+ if !strings.EqualFold(filepath.Dir(executable),parent){
+  return "",errors.New("native update worker must run outside the replaceable Server/ tree, directly in the portable parent")
+ }
+ base:=filepath.Base(executable)
+ const prefix="Cluster-Update-Worker-"
+ if !strings.HasPrefix(base,prefix)||!strings.HasSuffix(strings.ToLower(base),".exe"){
+  return "",errors.New("native updater is not a one-shot worker executable")
+ }
+ id:=strings.TrimSuffix(strings.TrimPrefix(base,prefix),filepath.Ext(base))
+ if !serverUpdateIDPattern.MatchString(id){return "",errors.New("invalid native update worker transaction ID")}
+ return id,nil
+}
+func runNativeServerUpdateInstall(root,channel string)error{
+ elevated,err:=windowsProcessElevated()
+ if err!=nil{return err}
+ if !elevated{return errors.New("native Server installation requires Windows UAC administrator approval")}
+ if err:=validateManagedRepairRoot(root);err!=nil{return err}
+ id,err:=nativeUpdateWorkerExecutableID(root)
+ if err!=nil{return err}
+ if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
+ claimed,err:=claimAuthorizedServerUpdate(root,time.Now().UTC(),inspectStagedServerUpdate)
+ if err!=nil{return fmt.Errorf("native signed update authorization rejected: %w",err)}
+ if claimed.Request.TransactionID!=id || claimed.Request.Channel!=channel{
+  return errors.New("native update worker identity does not match one-time signed authorization")
+ }
+ if messageBox(0,"Cluster Server: Confirm Installation",
+  fmt.Sprintf("Install publisher-signed Cluster Server %s?\n\nThe managed Windows Service will stop. A verified cold PostgreSQL snapshot will be created before any installer runs. Cluster will then restart and verify the candidate. On failure it will attempt recovery.\n\nKeep this machine powered on.",claimed.Candidate.Release),
+  mbYesNo|mbIconQuestion)!=idYes{
+  if err:=os.Remove(claimed.ClaimPath);err!=nil{return fmt.Errorf("cancelled but request claim cannot be removed: %w",err)}
+  return errors.New("update cancelled by Windows administrator; no Server files were changed")
+ }
+ journal,err:=openNativeServerUpdateJournal(root,id)
+ if err!=nil{return err}
+ defer journal.close()
+ var journalError error
+ checkJournal:=func()error{
+  if journalError!=nil{return fmt.Errorf("native update journal is not durable: %w",journalError)}
+  return nil
+ }
+ record:=func(phase serverUpdatePhase,state string){
+  if journalError!=nil{return}
+  allowed:="completed"
+  switch {
+  case state=="started":allowed="started"
+  case strings.HasPrefix(state,"failed"):allowed="failed"
+  case strings.Contains(state,"recovery")||strings.Contains(state,"rolling"):allowed="recovering"
+  case strings.Contains(state,"blocked")||strings.Contains(state,"uncertain"):allowed="blocked"
+  }
+  if err:=journal.append(phase,allowed);err!=nil{journalError=err}
+ }
+ installer:=""
+ previousSequence:=installedServerReleaseSequence(root)
+ if previousSequence==0{return errors.New("installed Server release could not be verified before native update")}
+ hooks:=serverUpdateTransactionHooks{
+  ConfirmAuthorization:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   if claimed.Candidate.Sequence<=previousSequence{return errors.New("signed Server update must advance installed release")}
+   return requireOwnedClusterUpdateService(root)
+  },
+  AcquireWriteHold:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   return acquireNativeServerUpdateHold(root,id)
+  },
+  StopOwnedServer:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   return stopOwnedClusterUpdateService(root)
+  },
+  SnapshotAndVerify:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   path,err:=copyColdPostgresSnapshot(root,id)
+   if err!=nil{return err}
+   if err:=verifyColdPostgresSnapshot(path);err!=nil{return err}
+   if err:=preservePreviousServerOwner(root,id);err!=nil{return err}
+   return captureServerApplicationRollback(root,id)
+  },
+  ApplySignedInstaller:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
+   state,err:=queryClusterService()
+   if err!=nil{return err}
+   if state.State!=serviceStopped{return errors.New("refusing installer while Windows Server Service is not stopped")}
+   if _,err:=os.Lstat(filepath.Join(root,"data","postgresql","postmaster.pid"));err==nil{
+    return errors.New("PostgreSQL became active after cold snapshot; installer blocked")
+   }else if !os.IsNotExist(err){return err}
+   installer,err=prepareSignedServerInstaller(root,channel)
+   if err!=nil{return err}
+   installCtx,cancel:=context.WithTimeout(ctx,serverUpdateInstallTimeout)
+   defer cancel()
+   command:=exec.CommandContext(installCtx,installer,"--skip-launch")
+   command.Dir=filepath.Dir(root)
+   output,err:=command.CombinedOutput()
+   if err!=nil{return fmt.Errorf("verified signed Windows Server installer failed: %w (output: %s)",err,limitedNativeUpdateOutput(output))}
+   if installedServerReleaseSequence(root)!=claimed.Candidate.Sequence{
+    return errors.New("installed Server release marker does not match authorized signed candidate")
+   }
+   if _,_,err:=inspectServerApplicationRollback(root,id);err!=nil{return fmt.Errorf("application rollback was not retained: %w",err)}
+   return nil
+  },
+  StartCandidate:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   return startOwnedClusterUpdateService(root)
+  },
+  ProbeCandidate:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   if installedServerReleaseSequence(root)!=claimed.Candidate.Sequence{return errors.New("candidate Server release identity changed after startup")}
+   state,err:=queryClusterService()
+   if err!=nil{return err}
+   if state.State!=serviceRunning{return errors.New("candidate Windows Server Service did not remain running")}
+   return nil
+  },
+  CommitCandidate:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   if _,_,err:=inspectServerApplicationRollback(root,id);err!=nil{return err}
+   return nil
+  },
+  ReleaseCandidateHold:func(ctx context.Context)error{
+   if err:=checkJournal();err!=nil{return err}
+   return releaseNativeServerUpdateHold(root,id)
+  },
+  StopCandidate:func(ctx context.Context)error{return stopOwnedClusterUpdateService(root)},
+  RestoreSnapshot:func(ctx context.Context)error{
+   if err:=restorePreviousServerApplication(root,id);err!=nil{return err}
+   return restoreColdPostgresSnapshot(root,id)
+  },
+  StartPrevious:func(ctx context.Context)error{return startOwnedClusterUpdateService(root)},
+  ProbePrevious:func(ctx context.Context)error{
+   if installedServerReleaseSequence(root)!=previousSequence{return errors.New("prior Server release identity was not restored")}
+   state,err:=queryClusterService()
+   if err!=nil{return err}
+   if state.State!=serviceRunning{return errors.New("previous Windows Server Service is not ready")}
+   return nil
+  },
+  ReleasePreviousHold:func(ctx context.Context)error{return releaseNativeServerUpdateHold(root,id)},
+  Record:record,
+ }
+ transaction:=runServerUpdateTransaction(context.Background(),hooks)
+ if transaction.Err!=nil{
+  if transaction.Recovered{
+   messageBox(0,"Cluster Server Update Recovered",
+    "The new Server could not be installed or verified. The previous Server was restarted and verified. Review the UpdateProgress journal before retrying.",mbIconError)
+  }else{
+   messageBox(0,"Cluster Server Update Blocked",
+    "The update failed and safe recovery could not be completed automatically. Cluster has retained the write hold, snapshots and journal. Do not remove them or restart the Server until recovery is reviewed.",mbIconError)
+  }
+  return transaction.Err
+ }
+ if journalError!=nil{return journalError}
+ if transaction.Phase!=updatePhaseCommitted{return errors.New("native update transaction did not commit")}
+ messageBox(0,"Cluster Server Updated",
+  fmt.Sprintf("Cluster Server %s installed, Windows Service restarted and healthy, and the update write hold released. Rollback evidence remains preserved.",claimed.Candidate.Release),0)
+ return nil
+}
+func limitedNativeUpdateOutput(data []byte)string{
+ // Avoid logging installer output containing credentials or environment values.
+ // The installer has its own redacted installer.log in the portable folder.
+ sum:=sha256.Sum256(data)
+ return fmt.Sprintf("%d bytes of installer output (SHA-256 %s); inspect the protected installer.log",len(data),hex.EncodeToString(sum[:]))
+}
