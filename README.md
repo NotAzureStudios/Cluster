@@ -11,7 +11,7 @@
 | Download | Use |
 | --- | --- |
 | **[Download Cluster Server 1.0.4 Windows installer ZIP](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185/artifacts/13276086331)** | Actual Windows x64 **1.0.4 test build** from commit `6acd48ea`; unzip and use the included `bin/Cluster-Installer.exe`. GitHub Actions artifacts expire (this one: **November 17, 2026**). |
-| [All Windows Server builds (https://github.com/NotAzureStudios/Cluster/actions/workflows/cluster-server-windows-build.yml)](https://github.com/NotAzureStudios/Cluster/actions/workflows/cluster-server-windows-build.yml) | Find the latest successful `main` run and its `cluster-server-unsigned-windows-x64-...` artifact when the above link expires. |
+| [All Windows Server build runs](https://github.com/NotAzureStudios/Cluster/actions/workflows/cluster-server-windows-build.yml) | Find the latest successful `main` run and its `cluster-server-unsigned-windows-x64-...` artifact when the above link expires. |
 | [Latest **published** Cluster release](https://github.com/NotAzureStudios/Cluster/releases/latest) | Currently **1.0.2**. This is **not** the 1.0.4 Server build. |
 | [Published Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Windows Qt Desktop client, distributed separately. |
 | [Published portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop client. |

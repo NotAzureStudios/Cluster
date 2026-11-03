@@ -27,7 +27,7 @@ For **published** releases, compare with the release's checksum/receipt. For the
 ## 1. Prepare a Windows Server
 
 - Choose an authorized Windows x64 machine with sufficient disk space for the application, managed runtimes, PostgreSQL and Library storage.
-- Put the Server installer in a **new writable directory**, for example `D:\Cluster-Server\` or `C:\Cluster-Server\`. Do **not** place it directly at `C:\` or another drive root; dedicated installation folders avoid Windows ACL and launcher-placement problems.
+- For **new installs**, put the Server installer in a dedicated writable directory, such as `D:\Cluster-Server\` or `C:\Cluster-Server\`. Avoid drive roots for new installs. **Exception:** upgrading an existing `C:\Cluster\Server` specifically requires the installer at `C:\Cluster-Installer.exe`, with appropriate administrator permissions, because the target is always beside the installer; the optional drive-root shortcut may remain stale.
 - Initial setup may download pinned private Node.js and PostgreSQL runtimes. Global Node/PostgreSQL installations are not required for normal packaged use.
 - If replacing an existing Cluster installation, back up any PostgreSQL, Library, configuration and credentials you need before deleting the old install. Fresh installation does not automatically restore existing data.
 - Keep Owner enrollment restricted to the local/trusted studio network.
