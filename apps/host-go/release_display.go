@@ -7,30 +7,11 @@ import (
 	"regexp"
 )
 
-var rcDisplayPattern = regexp.MustCompile(`^1\.0\.0-rc\.[1-9][0-9]*package main
+var rcDisplayPattern = regexp.MustCompile(`^1\.0\.0-rc\.[1-9][0-9]*$`)
+var stableDisplayPattern = regexp.MustCompile(`^1\.0\.[1-9][0-9]*$`)
 
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"regexp"
-)
-
-)
-var stableDisplayPattern = regexp.MustCompile(`^1\.0\.[1-9][0-9]*package main
-
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"regexp"
-)
-
-)
-
-// displayReleaseVersion reads the signed-off installer candidate label from
-// the installed release marker. The internal API/toolchain version is separate.
-// Never display a release label from an unrelated or stale installation.
+// displayReleaseVersion reads the installer-managed identity from the installed
+// runtime marker. Never display a stale or cross-product release label.
 func displayReleaseVersion(root string) string {
 	fallback := "v" + version
 	contents, err := os.ReadFile(filepath.Join(root, "CLUSTER_RELEASE.json"))
