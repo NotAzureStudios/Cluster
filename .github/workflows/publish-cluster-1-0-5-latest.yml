@@ -43,8 +43,8 @@ jobs:
           import json
           m=json.load(open('config/release-candidate.json',encoding='utf-8'))
           assert m['release']=='1.0.5' and m['sourceVersion']=='1.0.5'
-          assert m['sequence']==54 and m['channel']=='stable'
-          print('Release identity: 1.0.5 / sequence 54')
+          assert m['sequence']==55 and m['channel']=='stable'
+          print('Release identity: 1.0.5 / sequence 55')
           PY
           # This publisher is a one-time, version-pinned workflow. Wait for the
           # exact already-started main Windows build; never publish from an
