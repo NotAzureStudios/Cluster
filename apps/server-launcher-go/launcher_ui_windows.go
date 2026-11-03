@@ -1991,6 +1991,11 @@ func (c *windowsServerController) StageServerUpdate() {
 		prefs := loadNativePanelPreferences(c.options.root)
 		channel := prefs.UpdateChannel
 		if channel != "development" { channel = "main" }
+  if existing,err:=inspectStagedServerUpdate(c.options.root,channel);err==nil {
+   message:=fmt.Sprintf("Signed Cluster Server %s is already downloaded and independently verified.\r\n\r\nStaged: %s\r\n\r\nInstall this verified release using the supervised Windows Service updater?",existing.Release,existing.InstallerPath)
+   c.reportServerUpdateInstallOffer(message)
+   return
+  }
 		feed := configuredUpdateManifestURL(c.options.root)
 		if feed == "" {
    message := "No signed Server update feed configured for " + channel
@@ -2039,6 +2044,7 @@ func (c *windowsServerController) CheckForUpdates() {
 		c.ui.updateMu.Lock()
 		c.ui.updateMessage = result.Message
 		c.ui.updateOfferDownload = result.Available && result.DownloadURL != ""
+  c.ui.updateOfferInstall = false
 		c.ui.updateMu.Unlock()
 		procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
 	}()
