@@ -44,7 +44,7 @@ rejected({webOrigin:"file:///C:/Cluster/Server"},/clean HTTP\(S\) URL/,"no inval
 rejected({listenHost:"0.0.0.0"},/private API to bind to loopback/,"Node must remain private");
 rejected({discordRedirectUri:"http://some-host.example/oauth"},/requires HTTPS/,"Discord remote OAuth must still use HTTPS");
 accepted({discordRedirectUri:"https://cluster.azurestudios.dev/api/oauth/discord/callback"},"public HTTPS Discord redirect accepted");
-rejected({runtimeProfile:"direct-production",webOrigin:"http://127.0.0.1:3000"},/requires HTTPS/,"direct-production policy stays strict");
+rejected({runtimeProfile:"direct-production",webOrigin:"http://127.0.0.1:3000"},/must use HTTPS/,"direct-production policy stays strict");
 const runtime = readFileSync("apps/server/src/core/runtime-config.ts","utf8");
 const go = readFileSync("apps/host-go/api_process.go","utf8");
 const native = readFileSync("apps/host-go/main.go","utf8");
