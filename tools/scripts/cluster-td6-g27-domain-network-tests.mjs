@@ -41,10 +41,13 @@ const nginx = plans.buildDomainConnectionPlan(host, profile('reverse_proxy','ngi
 ok(nginx.includes('listen 443 ssl') && nginx.includes('proxy_pass http://127.0.0.1:3000') && !nginx.includes('127.0.0.1:4000'), 'NGINX HTTPS routes through managed gateway');
 const cf = plans.buildDomainConnectionPlan(host, profile('managed_tunnel','cloudflare')).artifacts.find(a=>a.filename==='cloudflared-config.yml').contents;
 ok(cf.includes('http_status:404') && cf.includes(`hostname: ${host}`) && cf.includes('service: http://127.0.0.1:3000') && !cf.includes('127.0.0.1:4000'), 'Cloudflare routes all paths to managed gateway');
+const cfArtifacts = plans.buildDomainConnectionPlan(host, profile('managed_tunnel','cloudflare')).artifacts;
+ok(cfArtifacts.some(a=>a.filename==='cloudflared-setup.txt' && a.contents.includes('--config ./cloudflared-config.yml tunnel ingress validate')), 'locally-managed Cloudflare explicit config path');
+ok(cfArtifacts.some(a=>a.filename==='cloudflare-dashboard-setup.txt' && a.contents.includes('http://127.0.0.1:3000')), 'Cloudflare dashboard managed origin instructions');
 const tsPlan = plans.buildDomainConnectionPlan(host, profile('private_vpn','tailscale'));
 ok(tsPlan.artifacts.some(a=>a.filename==='tailscale-serve.txt' && a.contents.includes('tailscale serve --bg 3000')), 'Tailscale targets managed gateway directly');
 ok(!tsPlan.artifacts.some(a=>a.filename==='Caddyfile'), 'Tailscale does not require a second routing proxy');
-ok(tsPlan.instructions.some(line=>line.includes('actual canonical URL')), 'Tailscale custom domain warning');
+ok(tsPlan.instructions.some(line=>line.includes('actual HTTPS address')), 'Tailscale custom domain warning');
 const lan = plans.buildDomainConnectionPlan(host, profile('lan','caddy',80));
 ok(lan.canonicalUrl.startsWith('http://') && !lan.artifacts.find(a=>a.filename==='Caddyfile').contents.includes('https://'), 'LAN mode accurately HTTP');
 ok(plans.buildDomainConnectionPlan(host, profile('lan','manual',80)).instructions.some(text=>text.includes('port 80') && text.includes('3000')), 'LAN manual includes real proxy and configured-port instructions');
