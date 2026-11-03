@@ -11,6 +11,9 @@ const api=read("apps/server/src/app/server-request-infrastructure.ts");
 const admission=read("apps/server/src/core/server-update-maintenance.ts");
 const app=read("apps/server/src/app/cluster-server.ts");
 const installer=read("tools/installer/main.go");
+const handoff=read("apps/server-launcher-go/server_update_installer_handoff.go");
+const readiness=read("apps/server-launcher-go/server_update_readiness.go");
+const launcher=read("apps/server-launcher-go/main.go");
 
 const cases=[
  ["publisher-signed manifest retained at staging",stage.includes('manifestPath:=target+".manifest.json"')&&stage.includes('ManifestSHA256 string')&&stage.includes('FeedURL string')],
@@ -28,6 +31,14 @@ const cases=[
  ["direct API holds requests too",api.includes("serverUpdateMaintenanceHeld(dataRoot)")&&api.includes('"SERVER_UPDATE_HOLD"')&&app.includes("dataRoot: DATA_ROOT")],
  ["maintenance file read fails closed",admission.includes('code !== "ENOENT"')],
  ["installer execution is not falsely exposed",!installer.includes("--apply-staged-update")],
+ ["copy targets original installer parent",handoff.includes('parent,err:=filepath.Abs(filepath.Dir(root))') && handoff.includes('Cluster-Update-%d-%s.exe')],
+ ["production handoff rechecks pinned publisher signature",handoff.includes('candidate,err:=inspectStagedServerUpdate(root,channel)')],
+ ["handoff is no-execute, exclusive and hash-verified",handoff.includes('os.O_CREATE|os.O_EXCL|os.O_WRONLY')&&handoff.includes('finalDigest:=sha256.New()')&&!handoff.includes('exec.Command')],
+ ["update readiness states missing auto owner honestly",readiness.includes('NativeInstallationSupported:false')&&readiness.includes('Automatic installer execution and rollback are not yet implemented')],
+ ["update readiness exposed read only",launcher.includes('updateReadiness := flag.Bool("--update-readiness"'.replace('--update-readiness','update-readiness'))&&launcher.includes('inspectServerUpdateReadiness(root,*updateChannel,inspectStagedServerUpdate)')],
+ ["update installer supports guarded, no-auto-launch application",installer.includes('supervisedInstallerUpgradeAllowed(')&&installer.includes('if ciInstallOnly || skipLaunchAfterUpgrade {')],
+ ["main auto-apply remains blocked until independent owner is certified",!launcher.includes('apply-staged-update')&&!installer.includes('--apply-staged-update')],
+
 ];
 for(const [label,ok]of cases)assert.ok(ok,label);
 console.log(`Cluster 1.0.3 signed update safety contracts: ${cases.length} passed.`);
