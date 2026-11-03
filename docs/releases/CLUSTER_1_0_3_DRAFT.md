@@ -19,3 +19,22 @@
 - The updater still **does not execute** staged installers. Completing end-to-end installation, snapshots, automatic rollback, and in-product update delivery is a separate security-critical engineering task.
 - Publishing a signed JSON update manifest requires the existing protected Ed25519 signing key. Never move it into source or the server installation.
 - Run full Windows x64 native + web regression tests, a real in-place **1.0.2 → 1.0.3** upgrade, migrations, PostgreSQL/Library backup/restore checks and external HTTPS tunnel acceptance before promoting.
+
+
+## Automatic-update hardening in progress (before 1.0.3 promotion)
+
+The signed Server update flow now retains the exact signed JSON manifest beside its staged installer. The native Server launcher independently verifies the pinned Ed25519 signature, signed release/channel/sequence, matching receipt, application PE header, managed install ownership and exact SHA-256 bytes before admitting the staged candidate. Invalid, stale, ambiguous or substituted files are rejected without stopping the running server.
+
+Read-only operator inspection of a staged release:
+
+```powershell
+& '.\Cluster Server.exe' --root 'C:\Cluster\Server' --inspect-staged-update --update-channel main
+```
+
+The native Manager's `stage-update` command also runs this second-pass verification after downloading. Do not run the EXE from the staging folder: it is not an authorized installation entry point.
+
+A testable supervised transaction model now requires a separate authenticated authorization, write/access hold, fully stopped owned processes, verified offline PostgreSQL snapshot, installer application, new-release health check, and commit before releasing access. On failure it specifies stop, rollback, previous-release health verification and release of the hold. Missing hooks fail closed.
+
+Cold PostgreSQL snapshot and restore primitives copy into the installation's external `UpdateRecovery/<transaction-uuid>` directory, verify per-file SHA-256 and completeness, and quarantine the failed candidate database when restoring. They **do not themselves stop PostgreSQL**, do **not** execute an installer, and must be invoked only by a native owner that has proved database shutdown. These tests use isolated fixture data, not a live database.
+
+**Still blocked:** Implement and certify the independent Windows update worker (SCM/interactive ownership, durable intent, UAC/privileges, stop/start, installer application, health and rollback), enforce the temporary write hold in API/Host and background jobs, verify disk/backup capacity, publish the signed main update feed using the protected signing key, and run a real 1.0.2→1.0.3 Windows database upgrade/restore drill. The 1.0.3 release cannot be called self-updating or recovery-certified until those pass. No published 1.0.2 artifacts were modified.
