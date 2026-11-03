@@ -24,8 +24,9 @@ function bodyAfter(s,needle,endNeedle) {
 }
 check('RC44 is a newer managed installer candidate and preserves source version',()=>{
   assert(release.sequence>=44);
-  assert.equal(release.release,`1.0.0-rc.${release.sequence}`);
-  assert.equal(release.sourceVersion,'0.546.0');
+  assert.equal(release.channel,'stable');
+  assert.match(release.release,/^1\.0\.[1-9][0-9]*$/);
+  assert.equal(release.release,release.sourceVersion);
 });
 check('Whiteboard draft is based on editable whiteboard state, not undefined function arguments',()=>{
   const body=bodyAfter(wb,'function currentWhiteboardDraft(', 'function applyWhiteboardWorkingCopy(');
