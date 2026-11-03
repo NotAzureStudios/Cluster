@@ -18,6 +18,17 @@ New-Item -ItemType Directory -Path $scratch -ErrorAction Stop | Out-Null
 $managed = Join-Path $scratch 'Cluster\Server'
 $exe = Join-Path $scratch 'Cluster-Installer.exe'
 $previousCI = $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY
+$previousModulePath = $env:PSModulePath
+# The released 1.0.2 installer invokes Windows PowerShell 5.1 even when this
+# test uses pwsh 7. CI must expose the built-in WinPS Utility module (which
+# contains Get-FileHash) to that child instead of inheriting only pwsh 7 paths.
+$windowsPowerShellModules = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
+if (!(Test-Path -LiteralPath $windowsPowerShellModules -PathType Container)) {
+  throw "Windows PowerShell system modules not found at $windowsPowerShellModules"
+}
+$env:PSModulePath = "$windowsPowerShellModules;$previousModulePath"
+& powershell.exe -NoProfile -NonInteractive -Command 'Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop; Get-Command Get-FileHash -ErrorAction Stop | Out-Null'
+if ($LASTEXITCODE -ne 0) { throw 'Published 1.0.2 installer requires Windows PowerShell Get-FileHash' }
 $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY = '1'
 function Invoke-BundledInstaller([string]$source) {
   Copy-Item -LiteralPath $source -Destination $exe -Force -ErrorAction Stop
@@ -75,6 +86,7 @@ try {
   Write-Host 'PASS: real 1.0.2->1.0.4 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
   Write-Host "Disposable smoke root: $scratch"
 } finally {
+  $env:PSModulePath = $previousModulePath
   if ($null -eq $previousCI) { Remove-Item Env:CLUSTER_INSTALLER_CI_INSTALL_ONLY -ErrorAction SilentlyContinue }
   else { $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY = $previousCI }
 }
