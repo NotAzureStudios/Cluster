@@ -68,3 +68,19 @@ func TestLegacyUTF8BOMInstallerMarker(t *testing.T) {
     seq, version := readManagedSequence(p)
     if seq != 8 || version != "1.0.0-rc.8" { t.Fatalf("unexpected identity %d %s",seq,version) }
 }
+
+func TestSupervisedUpgradeNoLaunchRequiresNewerManagedRelease(t *testing.T) {
+ cases:=[]struct{name string;managed bool;old,new string;oldSeq,newSeq int;want bool}{
+  {"real in-place upgrade",true,"previous-hash","next-hash",52,53,true},
+  {"fresh install",false,"","next-hash",0,53,false},
+  {"same version replay",true,"old","next",53,53,false},
+  {"older release",true,"old","next",54,53,false},
+  {"same payload",true,"same","same",52,53,false},
+ }
+ for _,test:=range cases{
+  t.Run(test.name,func(t *testing.T){
+   got:=supervisedInstallerUpgradeAllowed(test.managed,test.old,test.new,test.oldSeq,test.newSeq)
+   if got!=test.want{t.Fatalf("supervised update allowed=%v; want %v",got,test.want)}
+  })
+ }
+}
