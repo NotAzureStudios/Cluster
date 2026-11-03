@@ -475,3 +475,34 @@ func TestLocalWebPortChangeUpdatesCanonicalOrigin(t *testing.T) {
 		t.Fatalf("public HTTPS proxy must retain its independent port: %q %v", external, err)
 	}
 }
+
+func TestDirectTLSLocalHealthDoesNotExposeOtherRoutes(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+	target, _ := url.Parse(backend.URL)
+	h := &host{root: t.TempDir(), origin: "https://cluster.example.test", scheme: "https",
+		secure: true, remoteAccess: true, bindAddress: "192.168.50.22", webPort: 3443,
+		apiOrigin: backend.URL, startedAt: time.Now()}
+	handler := h.handler(target)
+	makeRequest := func(path, remote string) int {
+		req := httptest.NewRequest(http.MethodGet, "https://127.0.0.1:3443"+path, nil)
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if got := makeRequest("/host/health", "127.0.0.1:12345"); got != http.StatusOK {
+		t.Fatalf("direct TLS local health rejected: %d", got)
+	}
+	if got := makeRequest("/health/ready", "127.0.0.1:12345"); got != http.StatusOK {
+		t.Fatalf("direct TLS local readiness rejected: %d", got)
+	}
+	if got := makeRequest("/api/auth/login", "127.0.0.1:12345"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("private application route accepted alias Host: %d", got)
+	}
+	if got := makeRequest("/host/health", "198.51.100.18:12345"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("remote peer accepted loopback health alias: %d", got)
+	}
+}
