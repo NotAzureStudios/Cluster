@@ -1828,7 +1828,7 @@ func (ui *windowsControlPanel) updateMetrics() {
 					}
 					return fmt.Sprintf("%s :%d not listening", label, port)
 				}
-				ui.lastPortsSummary = describe("Web", plan.WebPort) + " | " + describe("API", 4100) + " | " + describe("PG", 54321)
+				ui.lastPortsSummary = describe("Web", plan.WebPort) + " | " + describe("API", plan.PublicAPIPort) + " | " + describe("PG", plan.PrivatePostgresPort)
 			}
 		}
 	}
