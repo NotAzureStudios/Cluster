@@ -1,8 +1,8 @@
-# Cluster 1.0
+# Cluster 1.0.1
 
 **Private, self-hosted studio workspace for Azure Studios.** Cluster combines projects, boards, tickets, whiteboards, timelines, calendars, time tracking, Library files, Packets documentation, QA/builds, people management, and studio administration. It includes a browser client, a native Windows Desktop client, and a Windows Server Manager.
 
-**Latest published release:** [Cluster v1.0.0](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0) · [Installation guide](docs/INSTALLATION.md) · [Release notes](docs/releases/CLUSTER_1_0_0.md)
+**Current source:** **Cluster 1.0.1** on `main` / `development`. **Latest published binaries:** [historical v1.0.0](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0), whose Server installer is known to fail. **1.0.1 official Windows Server installer is not published yet.** [Installation guide](docs/INSTALLATION.md) · [1.0.1 source status](docs/releases/CLUSTER_1_0_1_SOURCE.md)
 
 > **Release scope:** Cluster 1.0 is an owner-approved **private studio release**. Both Windows installers and the portable Desktop ZIP were compiled and hash-verified in GitHub Actions. These packages are **unsigned** and have **not** passed real-workstation installation, upgrade, restore, or recovery acceptance. Preserve existing data and do not overwrite a running Server. See the [release notes](docs/releases/CLUSTER_1_0_0.md) for the precise limitations.
 
@@ -10,11 +10,11 @@
 
 ## Install Cluster 1.0
 
-**Windows x64** is the packaged target. You do not need to clone this repository to install the application.
+**Windows x64** is the packaged target. The Server 1.0.1 source is fixed, but no official 1.0.1 Server binary is available yet. The v1.0.0 Server EXE below is kept for historical provenance and **must not be used for a fresh installation**.
 
 | Download | Purpose |
 | --- | --- |
-| [Cluster-Installer.exe](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Installer.exe) | Installs the portable **Cluster Server** and its web/API components |
+| [Cluster-Installer.exe (v1.0.0, broken)](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Installer.exe) | **Do not install.** Superseded by 1.0.1 source, rebuilt installer pending verification |
 | [Cluster-Desktop-Installer-0.482.0-windows-x64.exe](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-Installer-0.482.0-windows-x64.exe) | Installs the separate native **Cluster Desktop** client |
 | [Cluster-Desktop-0.482.0-windows-x64.zip](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-0.482.0-windows-x64.zip) | Portable Desktop alternative, not a Server installer |
 
@@ -22,7 +22,7 @@
 
 **Already running Cluster?** Do **not** place the 1.0 installer over your existing Server installation until you have a verified PostgreSQL and Library backup and a tested upgrade procedure. Automatic update application and rollback have not been accepted.
 
-> The suite release is **1.0.0**. The packaged Server still reports its original **RC50 / source `0.546.0`** internal build identity, and native Desktop reports **`0.482.0`**. The binaries were not rebuilt or silently relabeled after publishing. They are separate product versions and must not be confused with the release title.
+> **Source versus binary:** `main` now identifies Server, Web and six npm workspaces as **1.0.1**. The already-published **v1.0.0** Server EXE still reports its historical RC50 / `0.546.0` identity and is broken. Native Qt Desktop remains **`0.482.0`** until separately rebuilt and tested. Never relabel old binaries as 1.0.1.
 
 ## Product layout
 
