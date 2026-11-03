@@ -9,7 +9,6 @@ import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { PipelineRail } from "../../components/ClusterVisualIntelligence";
 import type { SecurityDiagnostics, ServerBackupRecord, ServerBackupVerification, ServerConfigField, ServerConfigSection, ServerSessionRecord, Settings } from "../application/application-models";
 import "./settings-workspace.css";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -1160,7 +1159,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const serverGroupForSection = (target: ServerConfigSection) => target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
   const activeServerGroupId = serverGroupForSection(section);
   const activeServerGroup = serverConfigGroups.find((group) => group.id === activeServerGroupId) || serverConfigGroups[0];
-  const activeServerSections = sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId);
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
@@ -1181,18 +1179,18 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         </>
       }
       status={status}
-      navLabel="Server configuration domains"
-      activeId={activeServerGroupId}
-      onChange={(next) => selectSection(next as ServerConfigSection)}
-      primaryIds={serverConfigGroups.map((group) => group.id)}
-      items={serverConfigGroups.map((group) => ({ id: group.id, label: group.label }))}
+      navLabel="Server configuration sections"
+      activeId={section}
+      onChange={selectSection}
+      primaryIds={sectionLabels.map((item) => item.id)}
+      showGroupHeadings
+      items={sectionLabels.map((item) => ({ id: item.id, label: item.label, group: item.group }))}
     >
 
       {saveError ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
 
       <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
-        <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div><span className="soft-pill">{activeServerSections.length} areas</span></div>
-        <PipelineRail density="compact" label={`${activeServerGroup.label} areas`} items={activeServerSections.map((item) => ({ id: item.id, label: item.label, detail: item.id === section ? "Current" : item.count === undefined ? undefined : String(item.count), tone: item.id === section ? "accent" : "neutral" }))} onSelect={({ datumId }) => selectSection(datumId as ServerConfigSection)} />
+        <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div></div>
       </section>
 
       {section === "overview" && (
