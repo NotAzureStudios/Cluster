@@ -11,10 +11,10 @@ The links below **follow GitHub's latest stable release automatically**. You won
 | Download | Use |
 | --- | --- |
 | **[Download latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows x64 Server, API, hosted Web and native Server Manager |
-| **[Download latest Cluster Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest)** | Under **Assets**, choose the Windows Desktop installer |
-| [Portable Desktop download](https://github.com/NotAzureStudios/Cluster/releases/latest) | Under **Assets**, choose the portable Desktop ZIP |
+| **[Download latest Cluster Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe)** | Windows x64 native Qt Desktop client |
+| [Download latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Standalone portable Qt Desktop files |
 
-GitHub supports permanent direct-download links when a release asset has the same filename. The Server installer already uses the stable name `Cluster-Installer.exe`. The currently published Desktop file names contain their native version, so their links go to the **latest release page** instead of guessing a future filename. [Release naming policy](docs/development/RELEASE_ASSET_NAMING.md).
+Beginning with **v1.0.2**, all three download links use stable filenames on GitHub's latest release. Future publishers must preserve those asset names, including when the Desktop binary version changes. [Release naming policy](docs/development/RELEASE_ASSET_NAMING.md).
 
 ## Install
 
