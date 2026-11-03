@@ -17,7 +17,7 @@ GitHub supports `https://github.com/NotAzureStudios/Cluster/releases/latest` and
 
 **Important historical exception:** The published, immutable `v1.0.1` release uses `Cluster-Desktop-Installer-0.482.0-windows-x64.exe` and `Cluster-Desktop-0.482.0-windows-x64.zip`. GitHub rejected uploading new filename aliases to that release with `422 Cannot upload assets to an immutable release`. **Never overwrite or recreate that release** for cosmetic renaming.
 
-Consequently the README can provide a permanent **direct** Server installer link now, but uses the **latest stable release page** for Desktop until the next properly packaged release includes stable Desktop aliases. That is deliberate and avoids broken links after a future Desktop version change.
+**Resolved in v1.0.2:** the new immutable release was published with both stable Desktop aliases (`Cluster-Desktop-Installer.exe` and `Cluster-Desktop-Portable.zip`) alongside its original, independently versioned Desktop files. All README and installation guide downloads now use permanent direct `/releases/latest/download/` links. The older v1.0.1 release remains intact, without retroactive asset edits.
 
 ## Future release requirements
 
