@@ -595,7 +595,10 @@ try {
   if (-not (Test-Path -LiteralPath $releaseFile -PathType Leaf)) { Fail 'Installer source lacks release-candidate identity.' }
   $releaseIdentity = Get-Content -LiteralPath $releaseFile -Raw | ConvertFrom-Json
   $sourceToolchain = Get-Content -LiteralPath (Join-Path $source 'config/toolchain-versions.json') -Raw | ConvertFrom-Json
-  if ($releaseIdentity.schema -ne 1 -or $releaseIdentity.channel -ne 'rc' -or $releaseIdentity.sequence -lt 1 -or $releaseIdentity.sourceVersion -ne $sourceToolchain.cluster) { Fail 'Invalid release candidate metadata; refuse to install.' }
+  if ($releaseIdentity.schema -ne 1 -or $releaseIdentity.channel -notin @('rc','stable') -or $releaseIdentity.sequence -lt 1 -or $releaseIdentity.sourceVersion -ne $sourceToolchain.cluster -or
+      ($releaseIdentity.channel -eq 'stable' -and $releaseIdentity.release -ne $releaseIdentity.sourceVersion)) {
+    Fail 'Invalid Cluster release identity; refusing to install.'
+  }
   Say "Building clean-room candidate $($releaseIdentity.release) (source $($releaseIdentity.sourceVersion))."
   if ($CheckOnly) { Say 'Source archive verified; no installation or build was performed.'; exit 0 }
   Say '[2/6] Checking installation environment before downloading toolchains.'
@@ -682,10 +685,10 @@ try {
     clusterVersion = [string]$versions.cluster
     prebuilt = @{ server = $true; web = $true; shared = $true }
     managedInstaller = $true
-    releaseChannel = 'rc'
+    releaseChannel = [string]$releaseIdentity.channel
     releaseCandidate = [string]$releaseIdentity.release
     releaseSequence = [int]$releaseIdentity.sequence
-    certification = 'candidate-unverified'
+    certification = 'install-test-pending'
     archiveSha256 = $hash
   }
   # Windows PowerShell 5.1 Set-Content UTF8 adds a BOM; Go's JSON decoder rejects it.
