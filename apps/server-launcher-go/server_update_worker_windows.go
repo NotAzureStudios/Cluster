@@ -32,7 +32,9 @@ func requireOwnedClusterUpdateService(root string)error{
  if err!=nil{return err}
  if !state.Installed{return errors.New("automatic Server installation currently requires the managed ClusterStudioServer Windows Service")}
  expected:=filepath.Join(root,"bin","ClusterServer.exe")
- if _,err:=os.Stat(expected);err!=nil{return fmt.Errorf("managed Windows Service executable missing: %w",err)}
+ // Path identity is independent of the candidate's existence: a failed
+ // installer may have left its EXE missing, and recovery MUST still be
+ // capable of stopping an SCM instance without trusting its broken files.
  script:=`$s = Get-CimInstance Win32_Service -Filter "Name='ClusterStudioServer'" -ErrorAction Stop; if (!$s) { exit 2 }; Write-Output $s.PathName`
  output,err:=exec.Command("powershell.exe","-NoProfile","-NonInteractive","-Command",script).Output()
  if err!=nil{return fmt.Errorf("cannot independently verify Windows Service ownership: %w",err)}
@@ -65,6 +67,9 @@ func stopOwnedClusterUpdateService(root string)error{
 }
 func startOwnedClusterUpdateService(root string)error{
  if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
+ if !fileExists(filepath.Join(root,"bin","ClusterServer.exe")){
+  return errors.New("cannot start managed Windows Service without a verified ClusterServer.exe")
+ }
  if err:=startClusterService();err!=nil{return err}
  return waitClusterService(serviceRunning,serverUpdateReadinessTimeout)
 }
@@ -133,6 +138,7 @@ func runNativeServerUpdateInstall(root,channel string)error{
    if err:=checkJournal();err!=nil{return err}
    if claimed.Candidate.Sequence<=previousSequence{return errors.New("signed Server update must advance installed release")}
    if err:=ensureNativeServerUpdateDiskSpace(root,claimed.Candidate.Size);err!=nil{return err}
+   if !fileExists(filepath.Join(root,"bin","ClusterServer.exe")){return errors.New("installed native Server executable is missing")}
    return requireOwnedClusterUpdateService(root)
   },
   AcquireWriteHold:func(ctx context.Context)error{
@@ -268,6 +274,9 @@ func limitedNativeUpdateOutput(data []byte)string{
 }
 
 func nativeServerUpdateExecutorSupport(root string,installerBytes int64)(bool,string){
+ if !fileExists(filepath.Join(root,"bin","ClusterServer.exe")){
+  return false,"Managed native Windows Service binary is missing"
+ }
  if err:=requireOwnedClusterUpdateService(root);err!=nil{
   return false,"Native update is available only for the Windows Service installed for this exact Cluster root: "+err.Error()
  }
