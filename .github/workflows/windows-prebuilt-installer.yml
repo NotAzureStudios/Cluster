@@ -44,6 +44,9 @@ jobs:
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'tools/windows/Sign-Cluster-Executables.ps1').Path, [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) { throw (($parseErrors | ForEach-Object { $_.ToString() }) -join '; ') }
+      - name: Drive-root launcher placement regression
+        shell: powershell
+        run: .\tools\installer\root-launcher-placement-tests.ps1
       - name: Server/Desktop payload boundary regression
         run: node tools/scripts/cluster-distribution-scope-tests.mjs
       - name: Prebuilt release admission contracts
