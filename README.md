@@ -35,6 +35,18 @@
 
 Desktop does not include a Server, database, or Server update feed. The Web and restricted Portal routes are served from the Server deployment, not through separate downloadable desktop installers.
 
+## Rebuild the Windows Server 1.0.1 installer
+
+The GitHub-hosted Windows build is currently blocked **before any runner starts**, so no official 1.0.1 EXE has been published. The same build can run from a clean, pinned-toolchain Windows x64 workstation without touching an installed Server:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+powershell -NoProfile -File .\tools\windows\Build-Cluster-1.0.1.ps1
+```
+
+Requires Node `24.20.0`, Go `1.27.1`, Git and internet for `npm ci`. Successful output is under `artifacts/cluster-1.0.1-windows-x64/` with the unsigned EXE, SHA-256 receipt and Server Manager. See [1.0.1 build recovery](docs/releases/CLUSTER_1_0_1_SOURCE.md), including the optional dedicated Windows self-hosted Actions runner route. Do not rename or redistribute the broken v1.0.0 Server EXE as a hotfix.
+
 ## Develop from source
 
 Development requires the pinned versions in [`config/toolchain-versions.json`](config/toolchain-versions.json), including **Node.js 24.20.0**, **Prisma 7.9.1**, **PostgreSQL 18.6**, **Go 1.27.1** for native tooling, and **Qt 6.11.2** for native Desktop. Windows native distribution builds also require CMake, MSVC and NSIS.
