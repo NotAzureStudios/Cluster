@@ -659,8 +659,11 @@ func checkUpdateManifest(root string) updateCheckResult {
 	if err != nil { return updateCheckResult{Message: "Update check failed: " + err.Error()} }
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return updateCheckResult{Message: fmt.Sprintf("Update check returned HTTP %d.", response.StatusCode)}
-	}
+  if source == defaultOfficialMainServerUpdateFeedURL && response.StatusCode == http.StatusNotFound {
+   return updateCheckResult{Message: "Cluster Server's official signed main update channel has not been published yet. The Windows Server build exists, but a protected publisher must sign and publish it before Check Updates can offer it. No unsigned installer was downloaded."}
+  }
+  return updateCheckResult{Message: fmt.Sprintf("Signed Server update feed returned HTTP %d; update discovery is not available.",response.StatusCode)}
+ }
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 256*1024+1))
 	if err != nil { return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()} }
 	if len(raw) > 256*1024 { return updateCheckResult{Message: "The update feed response is larger than the 256 KiB JSON manifest limit. Check that you pasted a signed JSON manifest URL, not a .exe installer download or a GitHub release page."} }
