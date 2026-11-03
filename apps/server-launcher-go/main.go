@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-var version = "0.546.0-dev"
+var version = "1.0.1-dev"
 
 const privateNodeVersion = "24.20.0"
 
