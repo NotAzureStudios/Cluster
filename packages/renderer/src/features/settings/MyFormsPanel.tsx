@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, queryApi } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { StudioFormRunner, type StudioFormDocument } from "../studio-systems/StudioFormRunner";
 import { StudioFormSubmissionsPanel } from "./StudioFormSubmissionsPanel";
 import { formInspectorFromSearch } from "../workflow/delegated-form-navigation";
@@ -15,6 +17,16 @@ type AvailableForm = StudioFormDocument & {
   dueAt?: string | null;
   dueState?: "none" | "upcoming" | "overdue" | "completed";
 };
+
+function personalFormState(item: AvailableForm): {label: string; tone: SettingsStateTone} {
+  if (item.dueState === "completed") return {label: "Completed", tone: "success"};
+  if (item.dueState === "overdue" && item.acceptingResponses) return {label: "Overdue · submissions open", tone: "warning"};
+  if (item.savedDraft?.stale) return {label: "Older draft · review", tone: "warning"};
+  if (item.savedDraft) return {label: "Saved draft", tone: "info"};
+  if (!item.acceptingResponses || !item.canSubmit) return {label: "Not accepting responses", tone: "neutral"};
+  if (item.required) return {label: "Required", tone: "info"};
+  return {label: "Available", tone: "neutral"};
+}
 
 export function MyFormsPanel() {
   const [forms, setForms] = useState<AvailableForm[]>([]);
@@ -105,16 +117,21 @@ export function MyFormsPanel() {
   const selected = forms.find((entry) => entry.form.id === selectedId);
 
   return <section className="settings-section-v092">
-    <div className="settings-panel-head-v092"><div><p className="eyebrow">Studio resources</p><h2>My forms</h2><p className="muted tight">Forms currently published to your account. Only you can view your response status here.</p></div><ClusterButton type="button" size="compact" onClick={() => void refresh()} disabled={loading}>{loading ? "Refreshing…" : "Refresh"}</ClusterButton></div>
+    <div className="settings-panel-head-v092"><div><p className="eyebrow">Studio resources</p><h2><ClusterIcon name="file" aria-hidden="true" /> My forms</h2><p className="muted tight">Forms currently published to your account. Only you can view your response status here.</p></div><ClusterButton type="button" size="compact" onClick={() => void refresh()} disabled={loading}><ClusterIcon name="refresh" aria-hidden="true" /> {loading ? "Refreshing…" : "Refresh"}</ClusterButton></div>
+    <div className="studio-systems-status-overview-v103" aria-label="Your forms summary">
+      <article><div><ClusterIcon name="file" aria-hidden="true" /><span>Available to you</span></div><strong>{forms.length}</strong><SettingsStateChip tone="neutral">Published audience</SettingsStateChip></article>
+      <article><div><ClusterIcon name="warning" aria-hidden="true" /><span>Overdue</span></div><strong>{forms.filter((item) => item.dueState === "overdue" && item.acceptingResponses).length}</strong><SettingsStateChip tone={forms.some((item) => item.dueState === "overdue" && item.acceptingResponses) ? "warning" : "neutral"}>Still accepting</SettingsStateChip></article>
+      <article><div><ClusterIcon name="users" aria-hidden="true" /><span>Review assignments</span></div><strong>{reviewForms.length}</strong><SettingsStateChip tone="neutral">Separate permission</SettingsStateChip></article>
+    </div>
     {error && <div className="error-box" role="alert">{error} <ClusterButton type="button" size="compact" onClick={() => void refresh()}>Retry</ClusterButton></div>}
-    {!loading && !forms.length && !error && <div className="settings-card-v092"><strong>No forms to complete</strong><p className="muted tight">There are no published forms available to your studio audience. Delegated review assignments appear separately.</p></div>}
+    {!loading && !forms.length && !error && <div className="settings-card-v092"><strong><ClusterIcon name="check" aria-hidden="true" /> No forms to complete</strong><p className="muted tight">There are no published forms available to your studio audience. Delegated review assignments appear separately.</p></div>}
     {reviewError && <div className="error-box" role="alert">{reviewError}</div>}
     {reviewLinkError && <div className="error-box" role="alert">{reviewLinkError}</div>}
     {reviewForms.length > 0 && <div className="settings-card-v092"><div className="settings-card-head-v092"><div><h3>Review assignments</h3><p className="muted tight">Private access to selected Forms. You cannot edit form structure or Studio policies here.</p></div></div><div className="button-row">{reviewForms.map((form) => <ClusterButton key={form.id} type="button" variant={reviewFormId === form.id ? "primary" : "secondary"} size="compact" onClick={() => chooseReviewForm(form.id)}>{form.title}</ClusterButton>)}</div>{reviewFormId && <StudioFormSubmissionsPanel key={reviewFormId} formId={reviewFormId} targetSubmissionId={targetInspector?.scope === "form-submission" ? targetInspector.id : null} delegatedReview />}</div>}
     <div className="settings-layout">
-      <div className="settings-card-v092"><h3>Available forms</h3><div className="studio-entity-list-v272">{forms.map((item) => <ClusterButton type="button" key={item.form.id} className={selectedId === item.form.id ? "active" : ""} onClick={() => setSelectedId(item.form.id!)}><span className="studio-entity-list-copy-v272"><strong>{item.form.title}</strong><small>{item.lastSubmission ? `${item.lastSubmission.status} · ${new Date(item.lastSubmission.submittedAt).toLocaleDateString()}` : item.savedDraft && item.canSubmit ? item.savedDraft.stale ? "Older saved draft · needs review" : `Saved draft · ${new Date(item.savedDraft.updatedAt).toLocaleDateString()}` : item.dueState === "overdue" ? "Overdue · response still accepted" : item.acceptingResponses ? item.assigned ? `${item.required ? "Assigned · required" : "Assigned · optional"}${item.dueAt ? ` · due ${new Date(item.dueAt).toLocaleDateString()}` : ""}` : "Ready to complete" : "Responses closed"}</small></span></ClusterButton>)}</div></div>
+      <div className="settings-card-v092"><h3><ClusterIcon name="list" aria-hidden="true" /> Available forms</h3><div className="studio-entity-list-v272 studio-form-entity-list-v103">{forms.map((item) => <ClusterButton type="button" key={item.form.id} className={selectedId === item.form.id ? "active" : ""} onClick={() => setSelectedId(item.form.id!)}><span className="studio-entity-list-copy-v272"><strong><ClusterIcon name="file" aria-hidden="true" /> {item.form.title}</strong><small>{item.lastSubmission ? `${item.lastSubmission.status} · ${new Date(item.lastSubmission.submittedAt).toLocaleDateString()}` : item.savedDraft && item.canSubmit ? item.savedDraft.stale ? "Older saved draft · needs review" : `Saved draft · ${new Date(item.savedDraft.updatedAt).toLocaleDateString()}` : item.dueState === "overdue" ? "Overdue · response still accepted" : item.acceptingResponses ? item.assigned ? `${item.required ? "Assigned · required" : "Assigned · optional"}${item.dueAt ? ` · due ${new Date(item.dueAt).toLocaleDateString()}` : ""}` : "Ready to complete" : "Responses closed"}</small></span><SettingsStateChip tone={personalFormState(item).tone}>{personalFormState(item).label}</SettingsStateChip></ClusterButton>)}</div></div>
       <div>{selected && <>
-        {selected.dueAt && <div className="settings-card-v092" role="status"><strong>{selected.dueState === "completed" ? "Completed" : selected.dueState === "overdue" ? "Form overdue" : "Form deadline"}</strong><p className="muted tight">{new Date(selected.dueAt).toLocaleString()}{selected.dueState === "overdue" && selected.acceptingResponses ? " · Late submissions are still accepted." : ""}</p></div>}
+        {selected.dueAt && <div className="settings-card-v092" role="status"><SettingsStateChip tone={selected.dueState === "completed" ? "success" : selected.dueState === "overdue" ? "warning" : "info"}>{selected.dueState === "completed" ? "Completed" : selected.dueState === "overdue" ? "Form overdue" : "Upcoming form deadline"}</SettingsStateChip><p className="muted tight">{new Date(selected.dueAt).toLocaleString()}{selected.dueState === "overdue" && selected.acceptingResponses ? " · Late submissions are still accepted." : ""}</p></div>}
         {selected.canSubmit ? <StudioFormRunner key={`${selected.form.id}:${selected.version.id}`} document={selected} submitLabel="Submit form" submit={(payload) => api(`/api/forms/${selected.form.key}/submissions`, { method: "POST", body: JSON.stringify(payload) })} onSubmitted={() => void refresh()} /> : <div className="settings-card-v092"><h3>{selected.form.title}</h3><p className="muted tight">{selected.form.description}</p><strong>{selected.lastSubmission ? `Latest response: ${selected.lastSubmission.status.replaceAll("_", " ")}` : "Responses are closed"}</strong><p className="muted tight">{selected.lastSubmission ? `Submitted ${new Date(selected.lastSubmission.submittedAt).toLocaleString()}.` : "This form is not accepting responses."}</p></div>}
       </>}</div>
     </div>
