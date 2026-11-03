@@ -104,12 +104,30 @@ func stageServerUpdateWithKey(root,feedText,channel string,key ed25519.PublicKey
   Sequence int `json:"sequence"`
   SHA256 string `json:"sha256"`
   Size int64 `json:"size"`
+  ManifestSHA256 string `json:"manifestSha256"`
+  FeedURL string `json:"feedUrl"`
   StagedAt string `json:"stagedAt"`
   Executed bool `json:"executed"`
- }{"cluster-server",channel,manifest.Release,manifest.Sequence,manifest.Artifact.SHA256,written,time.Now().UTC().Format(time.RFC3339),false}
+ }{"cluster-server",channel,manifest.Release,manifest.Sequence,manifest.Artifact.SHA256,written,fmt.Sprintf("%x",sha256.Sum256(raw)),feed.String(),time.Now().UTC().Format(time.RFC3339),false}
  receiptBytes,err:=json.MarshalIndent(receipt,"","  ")
  if err!=nil{return target,err}
+ // Retain the *signed* manifest for a second independent verification at
+ // application time. A JSON receipt alone is not authority to run an EXE.
+ // O_EXCL prevents replacing a previously staged manifest or receipt.
+ manifestPath:=target+".manifest.json"
  receiptPath:=target+".receipt.json"
- if err=os.WriteFile(receiptPath,append(receiptBytes,'\n'),0600);err!=nil{return target,fmt.Errorf("staged installer verified but receipt failed: %w",err)}
+ for _,name:=range []string{manifestPath,receiptPath}{
+  if _,err=os.Lstat(name);err==nil{return target,errors.New("signed staging evidence already exists; refuse overwrite")}
+  if !errors.Is(err,os.ErrNotExist){return target,err}
+ }
+ writeExclusive:=func(name string,data []byte)error{
+  handle,err:=os.OpenFile(name,os.O_WRONLY|os.O_CREATE|os.O_EXCL,0600)
+  if err!=nil{return err}
+  defer handle.Close()
+  if _,err=handle.Write(data);err!=nil{return err}
+  return handle.Sync()
+ }
+ if err=writeExclusive(manifestPath,raw);err!=nil{return target,fmt.Errorf("signed manifest evidence not retained: %w",err)}
+ if err=writeExclusive(receiptPath,append(receiptBytes,'\n'));err!=nil{return target,fmt.Errorf("staged installer receipt not retained: %w",err)}
  return target,nil
 }
