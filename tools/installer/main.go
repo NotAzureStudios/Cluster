@@ -137,6 +137,12 @@ func chooseEmbeddedRevision(installed, embedded string, installedSequence, candi
 
 // Explicit same-revision repair cannot silently change release sequence or
 // apply a different source archive. Normal updates remain separate actions.
+// The native update owner can install without auto-launch only when upgrading
+// a managed existing Server; arbitrary fresh installs and replays are blocked.
+func supervisedInstallerUpgradeAllowed(installed bool, installedHash, embeddedHash string, installedSequence, embeddedSequence int) bool {
+ return installed && chooseEmbeddedRevision(installedHash, embeddedHash, installedSequence, embeddedSequence)
+}
+
 func sameReleaseRepairAllowed(installed bool, installedHash, embeddedHash string, installedSequence, embeddedSequence int) bool {
 	return installed && strings.EqualFold(installedHash, embeddedHash) && installedSequence == embeddedSequence
 }
@@ -238,7 +244,7 @@ func run() error {
 	// A separate native update owner must restart and probe the candidate.
 	// The public installer never receives an arbitrary install root: the
 	// executable's parent remains the only way to select a managed target.
-	if skipLaunchAfterUpgrade && (!installed || !chooseEmbeddedRevision(installedHash, embeddedHash, installedSeq, identity.Sequence)) {
+	if skipLaunchAfterUpgrade && !supervisedInstallerUpgradeAllowed(installed, installedHash, embeddedHash, installedSeq, identity.Sequence) {
 		return errors.New("--skip-launch requires a strictly newer embedded release and an existing managed Server")
 	}
 	var archive string
