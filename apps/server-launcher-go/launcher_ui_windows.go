@@ -1314,6 +1314,8 @@ func (c *windowsServerController) pollAuthorizedRestart() {
 	// The installed Windows Service consumes its own requests. The panel must
 	// never steal them and trigger a competing SCM stop/restart transaction.
 	if managed || activeRestart || state == panelStarting || state == panelStopping { return }
+	// No need to query SCM every two seconds while there is no request.
+	if _, err := os.Lstat(nativeRestartRequestPath(c.options.root)); err != nil { return }
 	if service, err := queryClusterService(); err == nil && service.Installed { return }
 	id, err := consumeAuthorizedRestart(c.options.root, time.Now().UTC())
 	if err != nil {
