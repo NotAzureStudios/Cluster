@@ -759,7 +759,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setStatus("Latest server configuration loaded. Review your retained edits before saving.");
     } catch (error) { setSaveError(error); }
   }
-  async function save(confirmation?: string, pinOverride?: string): Promise<boolean> {
+  async function save(confirmation?: string, pinOverride?: string, restartAfter = false): Promise<boolean> {
     // Staged network rollback is file-only while PostgreSQL may be offline.
     // Don't ask for a PIN just to reject a mixed database/network transaction.
     const selectedKeys = Object.keys(settings).filter(key =>
@@ -769,6 +769,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setStatus("Save networking changes separately from other settings so a failed service restart can restore the complete network transaction.");
       return false;
     }
+    // Confirm the interruption before asking for the Security PIN. The
+    // authenticated restart is issued only if the server Save succeeds.
+    if (restartAfter && !pinOverride &&
+      !window.confirm("Save these settings and restart Cluster Server? Active sessions will temporarily disconnect while the native Windows supervisor drains and relaunches the server.")) return false;
     const pin = pinOverride || (currentUser.pinConfigured
       ? await requestSecurityPin({
           title: "Apply Server Configuration",
@@ -816,9 +820,24 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setNetworkReview(null);
       setServerConfigConflict(false);
       onSettingsSaved?.({ ...persisted, appDisplayName: "Cluster" });
-      setStatus(selectedKeys.some(key => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(key))
-        ? "Networking changes saved. The Windows Service must verify the new configuration; if first startup fails, guarded rollback may restore the previous settings."
-        : "Server configuration saved. Maintenance window planning never initiates an automatic restart or update.");
+      if (restartAfter) {
+        try {
+          // Use the PIN already provided for this exact operator action.
+          // The API writes a one-shot request; the independent native supervisor
+          // owns stopping, draining, starting, and guarded network rollback.
+          await api("/api/server-config/restart", {
+            method: "POST",
+            body: JSON.stringify({ securityPin: pin, confirmation: "RESTART CLUSTER SERVER" }),
+          });
+          setStatus("Settings saved. Restart accepted by the Windows supervisor; the page may disconnect while Cluster is restarting.");
+        } catch (restartError) {
+          setStatus("Settings saved, but the native restart request was not accepted. Use the Restart button in Cluster Server Manager. " + (restartError instanceof Error ? restartError.message : ""));
+        }
+      } else {
+        setStatus(selectedKeys.some(key => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(key))
+          ? "Networking changes saved. Apply the staged profile through an authorized native restart; the supervisor can roll back if the new listener fails."
+          : "Server configuration saved." );
+      }
       void refreshNetworkDeployment();
       void Promise.all([fetchSecurityDiagnostics(true).then(setSecurityDiagnostics), refreshSecurityPosture(true)]);
       return true;
@@ -826,7 +845,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       if (error instanceof ApiError && error.status === 412) {
         const expected = String((error.payload as any)?.confirmation || "APPLY INSECURE CONFIG");
         const typed = await promptCluster({ title: expected === "CONFIRM NETWORK EXPOSURE" ? "Confirm network exposure" : "Confirm security-sensitive change", message: expected === "CONFIRM NETWORK EXPOSURE" ? "This network change may make your gateway accessible outside localhost. Review firewall, proxy and TLS settings before confirming." : "This change weakens a security control.", label: "Required confirmation", expectedValue: expected, confirmLabel: "Apply change", tone: "danger" }) || "";
-        if (typed === expected) return save(expected, pin);
+        if (typed === expected) return save(expected, pin, restartAfter);
         setStatus("Security-sensitive change cancelled.");
         return false;
       }
@@ -1155,6 +1174,9 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             <ClusterIcon name="refresh" />
             <span>{operationsLoading ? "Refreshing" : "Refresh"}</span>
           </ClusterButton>
+          {restartDirtyCount > 0 && <ClusterButton type="button" variant="secondary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save(undefined, undefined, true)} disabled={savingConfig || !changedFields.length}>
+            Save &amp; restart
+          </ClusterButton>}
           <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || !changedFields.length}>Save configuration</ClusterButton>
         </>
       }
