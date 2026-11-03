@@ -16,6 +16,7 @@ export function SettingsWorkspaceShell<Id extends string>({
   activeId,
   onChange,
   primaryIds,
+  showGroupHeadings = false,
   items,
   children,
 }: {
@@ -30,6 +31,7 @@ export function SettingsWorkspaceShell<Id extends string>({
   activeId: Id;
   onChange: (id: Id) => void;
   primaryIds?: readonly Id[];
+  showGroupHeadings?: boolean;
   items: CompactSectionNavItem<Id>[];
   children: ReactNode;
 }) {
@@ -48,6 +50,7 @@ export function SettingsWorkspaceShell<Id extends string>({
       activeId={activeId}
       onChange={onChange}
       primaryIds={primaryIds}
+      showGroupHeadings={showGroupHeadings}
       items={items}
     >
       {children}
