@@ -1,43 +1,27 @@
-# Windows Server release channels and safe updates
+# Cluster Server update channels
 
-**Only Windows Server can select `main` / `development` update channels.**
-This option changes which **signed server installer manifest** the native control panel checks. It never checks out Git branches, downloads Desktop source, installs a Desktop package or changes the running database.
+Cluster Server Manager can select **`main`** (reviewed channel) or **`development`** (test channel) for **signed Server update feed verification**. These are Server feed channels, not git checkout instructions, and they are **not** the independent native Desktop's `stable`/`beta` channels.
 
-## Native settings
+## Server Manager
 
-In **Cluster Server Manager → Settings → Control panel**:
+Under **Settings → Control panel**, the operator can configure:
 
-- **Server update channel:** `main` (default, reviewed) or `development` (test builds).
-- **Main server manifest URL:** HTTPS address for signed main server releases.
-- **Development server manifest URL:** separate HTTPS address for test releases.
+- Server update channel: `main` or `development`.
+- Signed main/development release-manifest HTTPS URLs.
+- An on-demand **Check Updates** operation.
 
-Check Updates remains on-demand. Selecting a channel is not an install operation and never triggers a downgrade. Each configured URL must remain credential-free HTTPS; only local loopback may use HTTP for development. Environment overrides `CLUSTER_SERVER_MAIN_MANIFEST_URL` and `CLUSTER_SERVER_DEVELOPMENT_MANIFEST_URL` can be used by managed deployments. Historical `CLUSTER_UPDATE_MANIFEST_URL` applies to main only.
+A selected channel does not reinstall, downgrade, drain, or restart the running application. Manifest URLs must be credential-free HTTPS except explicitly permitted loopback development cases. Managed environments may supply `CLUSTER_SERVER_MAIN_MANIFEST_URL` and `CLUSTER_SERVER_DEVELOPMENT_MANIFEST_URL`.
 
-## Signed server release schema
+## Signed feed verification
 
-The Go verifier pins an Ed25519 trust root to reject a forged release feed. It requires all of:
+The native Go verifier enforces an Ed25519 trust root, product `cluster-server`, Windows x64 target, exact selected channel, a matching release identity and sequence, and a signed artifact URL with its expected size and SHA-256 digest. It rejects Desktop feed identity and cross-channel artifacts.
 
-- `schemaVersion: 1`, `product: "cluster-server"`, `target: "server-windows-x64"`.
-- `channel` exactly equal to selected `main` or `development`.
-- Matching `release: "1.0.0-rc.N"` and integer `sequence: N`.
-- A Windows installer artifact with HTTPS URL on the same origin as the signed manifest, exact byte size and SHA-256 digest.
-- Valid `signature` from the trusted publisher key over the canonical JSON object excluding the signature.
+**Build receipt is not a publisher signature.** The original Cluster 1.0 Windows Server installer and Desktop installer were built and hash-verified, but are **unsigned**, and the release does **not** contain a signed update feed. The v1.0.0 release does **not** make automatic installer apply or rollback available.
 
-The existing Cluster Desktop updater accepts **`cluster-desktop`** manifests instead, and has a separate stable/beta feed policy. Server and Desktop artifacts are not interchangeable. Source branch names are not authorization evidence; a development release must be built, reviewed and signed.
+## Release status
 
-Use `tools/scripts/cluster-sign-server-release.mjs` from a clean, reviewed **main or development** checkout. First run `cluster-platform-release.mjs --profile server-windows-x64 --channel main|development --build` on the matching branch with a committed lockfile. The signer refuses output without the matching SHA-256 build receipt, reviewed source commit, and appropriate **offline private Ed25519 release signing key**. The signer checks the public key against the checked-in trusted publisher key and never writes private key material into the repository.
+The [Cluster v1.0.0](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0) artifacts and separate compiled-source SHAs are recorded in [release notes](../releases/CLUSTER_1_0_0.md). Its Server binary retains embedded `1.0.0-rc.50`/`0.546.0` internal identity because that was the validated build input. Do not relabel an old binary or manually create signed-feed metadata claiming a different source identity.
 
-Example after building the verified installer:
+A future Server update feed must use the source-matched receipt and a controlled offline Ed25519 signing key, and must keep its Server channel distinct from native Desktop. See `tools/scripts/cluster-sign-server-release.mjs` for the maintained signing tool. A new feed alone will **not** implement the full backup, stop/drain, apply, health or rollback workflow.
 
-```powershell
-$env:CLUSTER_SERVER_SIGNING_KEY_FILE = 'D:\Secure\cluster-release-ed25519-private.pem'
-node tools/scripts/cluster-sign-server-release.mjs --channel development --artifact bin/Cluster-Installer.exe --feed-url https://updates.example.com/cluster/development/server.json --artifact-url https://updates.example.com/cluster/development/Cluster-Installer.exe --output artifacts/release/server-development.json
-```
-
-The example domain is illustrative, **not** a live update service.
-
-## What remains before unattended updates
-
-The present native Check Updates command verifies and **shows** the eligible signed release. It does not download, deploy, install or restart services. The existing managed Installer performs build/replacement and rollback staging, but is still source-building on the target machine. End-to-end safe unattended updates require an external stop/drain supervisor, prebuilt release artifact provisioning, verified backup/restore, transactional activation and post-start health/rollback tests. Do not claim these are certified yet.
-
-**For 1.0:** move the release pipeline to prebuilt Windows Server binaries with `npm ci`, sign matching channel manifests, then validate real Windows upgrades and restores. The source currently lacks a committed `package-lock.json`; distribution signing is intentionally blocked until the release build is reproducible.
+For ordinary 1.0 installation, use the [published installation guide](../INSTALLATION.md). For safe Server repair, see [Windows recovery procedures](NATIVE_WINDOWS_SERVER_RECOVERY.md).
