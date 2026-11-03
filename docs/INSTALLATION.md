@@ -6,6 +6,8 @@ This guide covers the **published private studio v1.0.0 distribution**. The serv
 
 > **Before using it:** These Windows x64 artifacts were compiled and checksum-verified, but have **not** completed a live clean-machine installation or in-place upgrade acceptance test. Both installers are **unsigned**. Use an authorized studio machine, verify the downloaded file hashes, and retain independent backups. Do not replace a working installation as an experiment.
 
+> **Critical known v1.0.0 Server installer defect:** On a real Windows install, `Cluster-Installer.exe` fails its prebuilt runtime gate with `Source: tools/installer/Install-Cluster.ps1`; the tool intentionally excluded that source file but the preflight still required it. It also contains a second source-only smoke test that cannot run from the packaged payload. This is a **release packaging defect** tracked in [PR #31](https://github.com/NotAzureStudios/Cluster/pull/31), not a request to reinstall Windows, wipe your data, or install a global Node runtime. **Do not retry the unchanged Server v1.0.0 EXE expecting it to work.** No corrected Windows Server executable has been published yet. Preserve `installer.log` and any existing Server data, then use a newly built and validated installer once available. Desktop is a separate package.
+
 ## What to download
 
 | File | Install on | What it contains |

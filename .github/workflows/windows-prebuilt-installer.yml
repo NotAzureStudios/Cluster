@@ -41,6 +41,8 @@ jobs:
         run: node tools/scripts/cluster-distribution-scope-tests.mjs
       - name: Prebuilt release admission contracts
         run: node tools/scripts/cluster-prebuilt-installer-contract-tests.mjs
+      - name: Run first-install prebuilt payload admission regression
+        run: node tools/scripts/cluster-prebuilt-install-gate-tests.mjs
       - name: Existing installer safety regression contracts
         run: node tools/installer/installer-contract-tests.mjs
       - name: Explicit developer source packaging and Go unit tests
