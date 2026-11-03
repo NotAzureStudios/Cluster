@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cluster-1-0-3-offline-upgrade-${{ github.ref }}
+  group: cluster-server-offline-upgrade-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
