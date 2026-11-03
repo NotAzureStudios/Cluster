@@ -31,6 +31,8 @@ jobs:
         run: node tools/scripts/cluster-1-0-3-version-contract.mjs
       - name: Prevent Server Configuration navigation and rollout regressions
         run: node tools/scripts/cluster-1-0-3-server-config-polish-tests.mjs
+      - name: Verify app-wide settings status visual contracts
+        run: node tools/scripts/cluster-1-0-3-settings-visual-contract-tests.mjs
       - name: Test profile/channel isolation
         run: node tools/scripts/cluster-platform-release-tests.mjs
       - name: Display platform packages without building
