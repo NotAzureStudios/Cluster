@@ -53,8 +53,12 @@ func TestManagedUpdateNeverAppliesIfBackupFails(t *testing.T) {
  hooks,calls:=updateHookFixture()
  hooks.SnapshotAndVerify=func(context.Context)error{*calls=append(*calls,"backup failed");return errors.New("backup integrity failed")}
  result:=runServerUpdateTransaction(context.Background(),hooks)
- if result.Phase!=updatePhaseBlocked || result.Err==nil {t.Fatalf("should block: %#v",result)}
- for _,item:=range *calls {if item=="apply"||item=="start candidate" {t.Fatal("installer ran without verified backup")}}
+ if result.Phase!=updatePhaseRecovered || !result.Recovered || result.Err==nil {t.Fatalf("previous server was not recovered after failed backup: %#v",result)}
+ expected:=[]string{"authorize","hold writes","stop","backup failed","stop candidate","start previous","probe previous","release old hold"}
+ actual:=[]string{}
+ for _,item:=range *calls {if len(item)>=7 && item[:7]=="record " {continue};actual=append(actual,item)}
+ if !reflect.DeepEqual(actual,expected) {t.Fatalf("pre-install recovery sequence wrong: %v",actual)}
+ for _,item:=range *calls {if item=="apply" || item=="restore" {t.Fatal("installer or DB restore ran despite no verified backup")}}
 }
 func TestManagedUpdateFailureRestoresPriorVersionBeforeReopeningWrites(t *testing.T) {
  hooks,calls:=updateHookFixture()
@@ -84,4 +88,27 @@ func TestManagedUpdateCanceledRequestStillAttemptsRecovery(t *testing.T) {
  }
  result:=runServerUpdateTransaction(ctx,hooks)
  if !result.Recovered || result.Phase!=updatePhaseRecovered {t.Fatalf("request cancellation broke recovery: %#v",result)}
+}
+
+func TestManagedUpdateStopFailureDoesNotLeavePriorServiceHeld(t *testing.T) {
+ hooks,calls:=updateHookFixture()
+ hooks.StopOwnedServer=func(context.Context)error{return errors.New("Windows SCM did not stop")}
+ result:=runServerUpdateTransaction(context.Background(),hooks)
+ if result.Phase!=updatePhaseRecovered || !result.Recovered {t.Fatalf("stop failure did not recover: %#v",result)}
+ for _,call:=range *calls {if call=="apply" || call=="restore" {t.Fatalf("unsafe install/restore after stop failure: %s",call)}}
+}
+func TestManagedUpdatePreInstallRecoveryFailureRemainsBlocked(t *testing.T) {
+ hooks,calls:=updateHookFixture()
+ hooks.SnapshotAndVerify=func(context.Context)error{return errors.New("no backup capacity")}
+ hooks.ProbePrevious=func(context.Context)error{return errors.New("previous API unavailable")}
+ result:=runServerUpdateTransaction(context.Background(),hooks)
+ if result.Phase!=updatePhaseBlocked || result.Recovered || result.Err==nil {t.Fatalf("incorrectly claimed recovery: %#v",result)}
+ for _,call:=range *calls {if call=="release old hold" || call=="apply" {t.Fatalf("unsafe release/installer after failed pre-install recovery: %s",call)}}
+}
+func TestManagedUpdateAuthorizationFailureDoesNotApplyOrCreateHold(t *testing.T) {
+ hooks,calls:=updateHookFixture()
+ hooks.ConfirmAuthorization=func(context.Context)error{return errors.New("authorization denied")}
+ result:=runServerUpdateTransaction(context.Background(),hooks)
+ if result.Phase!=updatePhaseBlocked || result.Err==nil || result.Recovered {t.Fatalf("bad authorization accepted: %#v",result)}
+ for _,call:=range *calls {if call=="hold writes" || call=="stop" || call=="apply" {t.Fatalf("executed after denied authorization: %s",call)}}
 }
