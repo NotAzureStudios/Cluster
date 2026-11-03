@@ -10,6 +10,8 @@ on:
       - 'apps/server/src/app/server-routes-configuration-integrations.ts'
       - 'packages/renderer/src/features/settings/**'
       - 'tools/scripts/cluster-f2-p5-network-port-review-tests.mjs'
+      - 'tools/scripts/cluster-network-local-diagnostics-tests.mjs'
+      - 'apps/server/src/core/server-network-local-diagnostics.ts'
       - '.github/workflows/network-configuration-regressions.yml'
 
 permissions:
@@ -55,5 +57,7 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify server port and exposure policy
         run: node tools/scripts/cluster-f2-p5-network-port-review-tests.mjs
+      - name: Verify local-only listener diagnostics and the admin UI
+        run: node tools/scripts/cluster-network-local-diagnostics-tests.mjs
       - name: Verify Server Configuration navigation and restart UX
         run: node tools/scripts/cluster-1-0-3-server-config-polish-tests.mjs
