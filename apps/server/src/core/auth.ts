@@ -71,7 +71,7 @@ export function validateProductionAuthConfiguration(config: ProductionAuthConfig
           (label === "WEB_ORIGIN" && parsed.pathname !== "/")) {
         throw new Error(`Managed-host production ${label} must use a clean HTTP(S) URL.`);
       }
-      const loopback = isLoopbackAddress(parsed.hostname);
+      const loopback = isLoopbackAddress(parsed.hostname.replace(/^\[|\]$/g, ""));
       if (!loopback && parsed.protocol !== "https:" &&
           !(label === "WEB_ORIGIN" && config.allowInsecureManagedHostHttp)) {
         throw new Error(`Managed-host production ${label} requires HTTPS for remote access (trusted-LAN HTTP must be explicitly enabled in the Go Host).`);
