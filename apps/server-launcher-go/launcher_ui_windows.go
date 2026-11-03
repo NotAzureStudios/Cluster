@@ -438,6 +438,7 @@ type windowsControlPanel struct {
 	updateMu              sync.Mutex
 	updateMessage         string
 	updateOfferDownload   bool
+ updateOfferInstall    bool
 	closing               bool
 	trayRegistered        bool
 	taskbarCreatedMessage uint32
@@ -1058,8 +1059,10 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 		ui.updateMu.Lock()
 		message := ui.updateMessage
 		offerDownload := ui.updateOfferDownload
+  offerInstall := ui.updateOfferInstall
 		ui.updateMessage = ""
 		ui.updateOfferDownload = false
+  ui.updateOfferInstall = false
 		ui.updateMu.Unlock()
 		if message != "" {
 			if offerDownload {
@@ -1067,6 +1070,11 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 				if messageBox(hwnd, "Cluster Server Update Available", question, mbYesNo|mbIconQuestion) == idYes {
 					ui.controller.StageServerUpdate()
 				}
+   } else if offerInstall {
+    question := message + "\r\n\r\nInstall this verified update now? Windows will request administrator approval, the control panel will close, Cluster will stop, and an independent recovery worker will perform the update. A verified database backup is required before installation."
+    if messageBox(hwnd,"Install Signed Cluster Server Update",question,mbYesNo|mbIconQuestion)==idYes {
+     ui.controller.BeginSignedServerInstallation()
+    }
 			} else {
 				messageBox(hwnd, "Cluster Server Updates", message, 0)
 			}
@@ -1927,8 +1935,47 @@ func (c *windowsServerController) reportServerUpdateResult(message string) {
  c.ui.updateMu.Lock()
  c.ui.updateMessage = message
  c.ui.updateOfferDownload = false
+ c.ui.updateOfferInstall = false
  c.ui.updateMu.Unlock()
  procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
+}
+
+func (c *windowsServerController) reportServerUpdateInstallOffer(message string) {
+ if c.ui==nil{return}
+ c.ui.updateMu.Lock()
+ c.ui.updateMessage=message
+ c.ui.updateOfferInstall=true
+ c.ui.updateOfferDownload=false
+ c.ui.updateMu.Unlock()
+ procPostMessageW.Call(c.ui.hwnd,wmAppUpdate,0,0)
+}
+
+// BeginSignedServerInstallation starts a separate elevated, explicitly
+// authorized worker and exits this UI. It never launches an installer inside
+// the API or replaceable Server directory.
+func (c *windowsServerController) BeginSignedServerInstallation(){
+ c.refreshServiceState()
+ c.mu.Lock()
+ managed:=c.serviceManaged
+ busy:=c.updateInFlight || c.repairInFlight || c.doctorInFlight
+ c.mu.Unlock()
+ if busy {
+  messageBox(c.ui.hwnd,"Cluster Server Update","Another Server maintenance operation is still running. Finish it before installing.",mbIconError)
+  return
+ }
+ if !managed {
+  messageBox(c.ui.hwnd,"Cluster Server Update","Automatic installation currently requires the dedicated ClusterStudioServer Windows Service. Interactive-only Server installations remain on the verified manual-upgrade path.",mbIconError)
+  return
+ }
+ prefs:=loadNativePanelPreferences(c.options.root)
+ channel:=prefs.UpdateChannel
+ if channel!="development"{channel="main"}
+ if err:=launchNativeServerUpdate(c.options.root,channel);err!=nil{
+  messageBox(c.ui.hwnd,"Cluster Server Update","The independent updater could not be launched. Cluster remains unchanged. "+err.Error(),mbIconError)
+  return
+ }
+ // The SCM owner remains alive until the independent worker stops it.
+ procPostMessageW.Call(c.ui.hwnd,wmAppExit,0,0)
 }
 
 // StageServerUpdate downloads a signed, hash-verified Server installer only.
@@ -1966,9 +2013,9 @@ func (c *windowsServerController) StageServerUpdate() {
    c.reportServerUpdateResult(message)
    return
 		}
-		message:=fmt.Sprintf("Signed Cluster Server %s (sequence %d) downloaded and verified.\r\n\r\nStaged: %s\r\n\r\nInstallation and restart remain blocked until the independent Windows backup and recovery worker is certified.",candidate.Release,candidate.Sequence,staged)
+		message:=fmt.Sprintf("Signed Cluster Server %s (sequence %d) downloaded and verified.\r\n\r\nStaged: %s\r\n\r\nThe Windows Service update worker can make a cold backup, install and verify the new release, and recover the previous release on failure.",candidate.Release,candidate.Sequence,staged)
   fmt.Println(message)
-  c.reportServerUpdateResult(message)
+  c.reportServerUpdateInstallOffer(message)
 	}()
 }
 
