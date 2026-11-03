@@ -19,7 +19,9 @@ func snapshotTestRoot(t *testing.T)string{
  if err:=os.WriteFile(filepath.Join(root,".cluster-installer-managed.json"),owner,0600);err!=nil{t.Fatal(err)}
  for _,name:=range []string{"PG_VERSION","base/5/1234"}{
   target:=filepath.Join(root,"data","postgresql",filepath.FromSlash(name))
-  if err:=os.WriteFile(target,[]byte("PostgreSQL cold backup fixture "+name),0600);err!=nil{t.Fatal(err)}
+  body:=[]byte("PostgreSQL cold backup fixture "+name)
+  if name=="PG_VERSION" { body=[]byte("18\n") }
+  if err:=os.WriteFile(target,body,0600);err!=nil{t.Fatal(err)}
  }
  return root
 }
