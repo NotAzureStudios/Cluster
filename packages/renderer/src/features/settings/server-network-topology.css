@@ -1,0 +1,128 @@
+.cluster-network-topology-v103 {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: clamp(13px, 1.5vw, 21px);
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: var(--cluster-radius-card, 12px);
+  background: var(--cluster-surface-1, var(--panel));
+}
+.cluster-network-topology-v103 > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.cluster-network-topology-v103 > header > div:first-child { display: grid; gap: 5px; min-width: 0; }
+.cluster-network-topology-v103 .eyebrow { margin: 0; }
+.cluster-network-topology-v103 h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 1rem;
+}
+.cluster-network-topology-v103 h2 > svg,
+.cluster-network-topology-v103 h2 > .iconify {
+  inline-size: 19px;
+  block-size: 19px;
+  color: var(--accent);
+}
+.cluster-network-topology-v103 header p,
+.cluster-network-topology-v103 footer p {
+  margin: 0;
+  max-width: 82ch;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+.cluster-network-topology-tags-v103 {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cluster-network-route-v103 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  min-width: 0;
+}
+.cluster-network-node-v103 {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  position: relative;
+  min-width: 0;
+  min-height: 174px;
+  padding: 14px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 11px;
+  background: var(--cluster-surface-2, var(--surface));
+}
+.cluster-network-node-v103:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  top: 43%;
+  right: -18px;
+  font-size: 19px;
+  color: var(--muted);
+}
+.cluster-network-node-head-v103 {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 650;
+  min-width: 0;
+}
+.cluster-network-node-head-v103 > svg,
+.cluster-network-node-head-v103 > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+  color: var(--accent);
+}
+.cluster-network-node-v103 > strong {
+  min-width: 0;
+  font-size: clamp(.78rem, 1.15vw, .9rem);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.cluster-network-node-v103 > small {
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.cluster-network-node-v103 > .settings-state-chip-v103 {
+  align-self: end;
+  margin-top: auto;
+  max-width: 100%;
+}
+.cluster-network-topology-v103 > footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid var(--cluster-border, var(--border));
+  padding-top: 13px;
+}
+@media (max-width: 1100px) {
+  .cluster-network-route-v103 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cluster-network-node-v103:nth-child(2)::after { display: none; }
+}
+@media (max-width: 680px) {
+  .cluster-network-route-v103 { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .cluster-network-node-v103 { min-height: 0; }
+  .cluster-network-node-v103:not(:last-child)::after {
+    content: "↓";
+    top: auto;
+    right: 50%;
+    bottom: -21px;
+    transform: translateX(50%);
+  }
+  .cluster-network-node-v103:nth-child(2)::after { display: block; }
+}
