@@ -20,7 +20,8 @@ func updateHookFixture() (serverUpdateTransactionHooks,*[]string) {
   ApplySignedInstaller:run("apply"),
   StartCandidate:run("start candidate"),
   ProbeCandidate:run("probe candidate"),
-  CommitAndReleaseHold:run("commit"),
+  CommitCandidate:run("commit"),
+  ReleaseCandidateHold:run("reopen access"),
   StopCandidate:run("stop candidate"),
   RestoreSnapshot:run("restore"),
   StartPrevious:run("start previous"),
@@ -44,7 +45,7 @@ func TestManagedUpdateCommitsAfterBackupAndProbe(t *testing.T) {
  if result.Err!=nil || result.Phase!=updatePhaseCommitted || result.Recovered {
   t.Fatalf("valid transaction failed: %#v",result)
  }
- expected:=[]string{"authorize","hold writes","stop","verified backup","apply","start candidate","probe candidate","commit"}
+ expected:=[]string{"authorize","hold writes","stop","verified backup","apply","start candidate","probe candidate","commit","reopen access"}
  actual:=[]string{}
  for _,item:=range *calls {if len(item)>=7 && item[:7]=="record " {continue};actual=append(actual,item)}
  if !reflect.DeepEqual(actual,expected) {t.Fatalf("wrong sequence: %v",actual)}
@@ -111,4 +112,26 @@ func TestManagedUpdateAuthorizationFailureDoesNotApplyOrCreateHold(t *testing.T)
  result:=runServerUpdateTransaction(context.Background(),hooks)
  if result.Phase!=updatePhaseBlocked || result.Err==nil || result.Recovered {t.Fatalf("bad authorization accepted: %#v",result)}
  for _,call:=range *calls {if call=="hold writes" || call=="stop" || call=="apply" {t.Fatalf("executed after denied authorization: %s",call)}}
+}
+
+func TestManagedUpdateHoldReleaseFailureMustNotRollBackAfterPotentialWrites(t *testing.T){
+ hooks,calls:=updateHookFixture()
+ hooks.ReleaseCandidateHold=func(context.Context)error{return errors.New("maintenance hold removal status uncertain")}
+ result:=runServerUpdateTransaction(context.Background(),hooks)
+ if result.Phase!=updatePhaseBlocked || result.Recovered || result.Err==nil {
+  t.Fatalf("incorrectly rolled back after access might have resumed: %#v",result)
+ }
+ for _,item:=range *calls {
+  if item=="restore" || item=="start previous" || item=="stop candidate" {
+   t.Fatalf("unsafe rollback after candidate access might be available: %s",item)
+  }
+ }
+}
+func TestManagedUpdateCommitFailureRollsBackWhileHoldRemains(t *testing.T){
+ hooks,_:=updateHookFixture()
+ hooks.CommitCandidate=func(context.Context)error{return errors.New("failed to commit while access still blocked")}
+ result:=runServerUpdateTransaction(context.Background(),hooks)
+ if result.Phase!=updatePhaseRecovered || !result.Recovered || result.Err==nil {
+  t.Fatalf("commit failure did not recover previous release: %#v",result)
+ }
 }
