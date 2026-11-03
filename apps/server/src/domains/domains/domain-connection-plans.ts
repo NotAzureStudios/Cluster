@@ -34,7 +34,6 @@ export function buildDomainConnectionPlan(host: string, settings: ConnectionConf
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(host) || host.length > 253 || host.split(".").some(label => !label || label.length > 63)) throw new Error("Invalid bound hostname");
   const { mode, provider, apiPort, webPort, publicPort } = settings;
   const isLanHttp = mode === "lan";
-  const isPrivateTailscale = mode === "private_vpn" && provider === "tailscale";
   const canonicalUrl = `${isLanHttp ? "http" : "https"}://${host}${publicPort === (isLanHttp ? 80 : 443) ? "" : `:${publicPort}`}`;
   const instructions: string[] = [
     `Cluster's managed Web/API gateway listens on loopback port ${webPort}; Node API stays private on loopback port ${apiPort}. All ingress routes, including /api and /health, must target the Web gateway only.`,
@@ -45,7 +44,7 @@ export function buildDomainConnectionPlan(host: string, settings: ConnectionConf
   const artifacts: { filename: string; contents: string; purpose: string }[] = [];
   if (mode === "lan") {
     instructions.unshift("LAN access must stay inside a trusted private network. Never port-forward a plaintext HTTP origin.");
-    if (provider === "manual") instructions.push("Use an existing LAN proxy on port ${publicPort} to forward every route to the loopback Web gateway port ${webPort}. If using Cluster's native direct-LAN listener instead, configure an explicit private interface and use the real Web port in the public URL. Never forward to the private API port.");
+    if (provider === "manual") instructions.push(`Use an existing LAN proxy on port ${publicPort} to forward every route to the loopback Web gateway port ${webPort}. If using Cluster's native direct-LAN listener instead, configure an explicit private interface and use the real Web port in the public URL. Never forward to the private API port.`);
     else artifacts.push({ filename: provider === "caddy" ? "Caddyfile" : "cluster-nginx.conf", contents: provider === "caddy" ? gatewayCaddy(host, webPort, apiPort, true) : gatewayNginx(host, webPort, apiPort, true), purpose: "LAN-only reverse proxy" });
   } else if (mode === "private_vpn") {
     instructions.unshift("VPN clients must authenticate to the private network before reaching Cluster; Cluster account authentication remains mandatory.");
