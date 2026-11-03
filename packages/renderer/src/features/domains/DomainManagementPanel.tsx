@@ -278,6 +278,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         {dnsStatus && <div className="cluster-panel" role="status">
           <p>Checked {new Date(dnsStatus.checkedAt).toLocaleString()}</p>
           <p>TXT ownership: <strong>{dnsStatus.ownership}</strong> · Intended DNS routing: <strong>{dnsStatus.routing}</strong></p>
+          {dnsStatus.routing === "not_configured" && <p role="alert">Domain ownership is recorded, but the hostname routing record has not been configured. Enter the actual gateway DNS target, save the verified server binding, and publish the record at your DNS provider.</p>}
+          {dnsStatus.routing === "mismatch" && <p role="alert">The live DNS record does not match Cluster's saved target. Verify the CNAME or IP at your DNS provider; do not change the server listener to compensate.</p>}
           <p>TLS: not checked · Cluster reachability: not checked. Matching DNS does not mean this hostname is publicly accessible or secure.</p>
         </div>}
       </div>
