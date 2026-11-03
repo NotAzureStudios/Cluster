@@ -75,6 +75,12 @@ func copyColdPostgresSnapshot(root,id string) (string,error) {
  info,err:=os.Lstat(source)
  if err!=nil{return "",fmt.Errorf("existing PostgreSQL data is not available for a cold backup: %w",err)}
  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0{return "",errors.New("PostgreSQL data folder is linked or not a real directory")}
+ // postmaster.pid is a critical fail-closed marker. A stale PID is a recovery
+ // incident to investigate, not permission to copy a potentially live DB.
+ // The independent owner must additionally verify shutdown via SCM/processes.
+ if _,pidErr:=os.Lstat(filepath.Join(source,"postmaster.pid"));pidErr==nil {
+  return "",errors.New("PostgreSQL has a postmaster.pid; cold snapshot refused until independent offline verification")
+ } else if !errors.Is(pidErr,os.ErrNotExist) {return "",pidErr}
  backupRoot:=filepath.Dir(dest)
  if info,err:=os.Lstat(backupRoot);err==nil {
   if !info.IsDir() || info.Mode()&os.ModeSymlink!=0 {return "",errors.New("update recovery parent is linked or not a real directory")}
