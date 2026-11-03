@@ -13,6 +13,8 @@ const studio = read("packages/renderer/src/features/settings/StudioSettingsPage.
 const settingsCss = read("packages/renderer/src/features/settings/settings-workspace.css");
 const automationCss = read("packages/renderer/src/features/application/styles/automation-settings.css");
 const adminCss = read("packages/renderer/src/features/admin/admin.css");
+const topology = read("packages/renderer/src/features/settings/ServerNetworkTopology.tsx");
+const topologyCss = read("packages/renderer/src/features/settings/server-network-topology.css");
 
 const checks = [
   ["semantic status tones", chips.includes('"neutral" | "info" | "success" | "warning" | "danger"')],
@@ -36,6 +38,12 @@ const checks = [
   ["project preview is driven from current settings draft", studio.includes("studio-project-defaults-preview-v103") && studio.includes("settings.defaultCreateStarterBoard !== false")],
   ["project visibility not effective permissions", studio.includes("Permissions apply separately") && studio.includes("does not create anything")],
   ["project default responsive preview", settingsCss.includes(".studio-project-defaults-preview-v103")],
+  ["network topology renders configured origin", topology.includes("publicWebUrl.trim()") && topology.includes('NetworkNode icon="cloud"')],
+  ["network topology warns all-interface API binds", topology.includes("All-interface bind · review exposure")],
+  ["network diagram explicitly disclaims external verification", topology.includes("External test not run") && topology.includes("Public DNS, TLS and external reachability not verified here")],
+  ["network topology is responsive without live probe requests", topologyCss.includes("@media (max-width: 680px)") && !topology.includes("fetch(") && !topology.includes("api(")],
+  ["network topology reflects draft and rollout state", server.includes("<ServerNetworkTopology") && server.includes("hasDraftChanges={changedFields.some")],
+
 ];
 
 for (const [description, passed] of checks) assert.ok(passed, description);
