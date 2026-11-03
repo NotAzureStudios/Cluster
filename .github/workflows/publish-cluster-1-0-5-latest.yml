@@ -1,0 +1,163 @@
+name: Publish Cluster 1.0.5 Windows installers as Latest
+
+# One-time, explicitly unsigned publication of the previously verified
+# v1.0.5 main-branch build. Do NOT silently sign or recompile another revision.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-cluster-1-0-5-latest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: cluster-1-0-5-unsigned-latest-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'NotAzureStudios/Cluster'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SERVER_RUN: '41742163678'
+      SERVER_SHA: '07c615387042bc31902338b34849dcc28571d1e0'
+      SERVER_ARTIFACT: 'cluster-server-unsigned-windows-x64-07c615387042bc31902338b34849dcc28571d1e0'
+    steps:
+      - name: Checkout main source without storing credentials
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify release version, source ancestry and successful build
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$SERVER_SHA" HEAD
+          python3 - <<'PY'
+          import json
+          m=json.load(open('config/release-candidate.json',encoding='utf-8'))
+          assert m['release']=='1.0.5' and m['sourceVersion']=='1.0.5'
+          assert m['sequence']==54 and m['channel']=='stable'
+          print('Release identity: 1.0.5 / sequence 54')
+          PY
+          # This publisher is a one-time, version-pinned workflow. Wait for the
+          # exact already-started main Windows build; never publish from an
+          # incomplete or failed test artifact.
+          gh run watch "$SERVER_RUN" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10
+          read -r run_sha run_result <<< "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '[.head_sha,.conclusion] | join(" ")')"
+          test "$run_sha" = "$SERVER_SHA"
+          test "$run_result" = "success"
+          if gh release view v1.0.5 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v1.0.5 already exists. Refusing to replace a release or its files.' >&2
+            exit 1
+          fi
+
+      - name: Download verified 1.0.5 Windows Server build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cluster-server" "$RUNNER_TEMP/release"
+          gh run download "$SERVER_RUN" --repo "$GITHUB_REPOSITORY" --name "$SERVER_ARTIFACT" --dir "$RUNNER_TEMP/cluster-server"
+          python3 - <<'PY'
+          import json,hashlib,os,pathlib,shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          src=root/'cluster-server'
+          receipt=json.loads((src/'artifacts/release-profiles/server-windows-x64/build-receipt.json').read_text())
+          assert receipt['product']=='cluster-server'
+          assert receipt['profile']=='server-windows-x64'
+          assert receipt['release']=='1.0.5' and receipt['sourceVersion']=='1.0.5'
+          assert receipt['channel']=='main' and receipt['commit']==os.environ['SERVER_SHA']
+          assert receipt['built'] is True and receipt['signed'] is False
+          assert receipt['certified'] is False
+          for path,dest in [('bin/Cluster-Installer.exe','Cluster-Installer.exe'),
+                            ('bin/Cluster Server.exe','Cluster-Server.exe')]:
+              matches=[a for a in receipt['artifacts'] if a['path']==path]
+              assert len(matches)==1, ('wrong receipt artifact count',path)
+              p=src/path
+              assert p.is_file() and p.open('rb').read(2)==b'MZ'
+              digest=hashlib.file_digest(p.open('rb'),'sha256').hexdigest()
+              assert digest==matches[0]['sha256'] and p.stat().st_size==matches[0]['bytes'],path
+              shutil.copyfile(p,root/'release'/dest)
+          shutil.copyfile(src/'artifacts/release-profiles/server-windows-x64/build-receipt.json',
+                          root/'release'/'Cluster-server-build-receipt.json')
+          print('Server 1.0.5 installer and launcher match authenticated build receipt.')
+          PY
+
+      - name: Preserve existing Qt Desktop downloads under latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cluster-desktop"
+          gh release download v1.0.4 --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Cluster-Desktop-0.482.0-windows-x64.zip' \
+            --pattern 'Cluster-desktop-build-receipt.json' \
+            --pattern 'Cluster-Desktop-Installer-0.482.0-windows-x64.exe' \
+            --pattern 'Cluster-Desktop-Installer.exe' \
+            --pattern 'Cluster-Desktop-Portable.zip' \
+            --dir "$RUNNER_TEMP/cluster-desktop"
+          python3 - <<'PY'
+          import hashlib,os,pathlib,shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          pinned={
+            'Cluster-Desktop-0.482.0-windows-x64.zip':'30b0d3cd64ea2c787a4eb87bfb5ba5bb50b19dd566e89a70746dee8f15242862',
+            'Cluster-desktop-build-receipt.json':'697114bb9c5abcfa84938244edefcbd2923cb0ddb26bbb456633c87dd6035ec5',
+            'Cluster-Desktop-Installer-0.482.0-windows-x64.exe':'0e983320e440ff0b25cd56b8e14b6fcc76d565188e59245ca90923ec58537a05',
+            'Cluster-Desktop-Installer.exe':'0e983320e440ff0b25cd56b8e14b6fcc76d565188e59245ca90923ec58537a05',
+            'Cluster-Desktop-Portable.zip':'30b0d3cd64ea2c787a4eb87bfb5ba5bb50b19dd566e89a70746dee8f15242862'
+          }
+          for name,sha in pinned.items():
+              p=root/'cluster-desktop'/name
+              assert p.is_file(),name
+              assert hashlib.file_digest(p.open('rb'),'sha256').hexdigest()==sha,('Desktop SHA-256 mismatch',name)
+              shutil.copyfile(p,root/'release'/name)
+          print('All previous Desktop download filenames retained with verified unchanged 0.482.0 binaries.')
+          PY
+
+      - name: Publish unsigned 1.0.5 as GitHub Latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/cluster-1-0-5-notes.md" <<'NOTES'
+          ## Cluster Server 1.0.5 (Windows x64)
+
+          This release publishes the prebuilt **unsigned** Cluster Server 1.0.5 installer from successful GitHub Actions run 41742163678 (source commit `07c615387042bc31902338b34849dcc28571d1e0`).
+
+          **Download:** `Cluster-Installer.exe`. The standalone `Cluster-Server.exe` is also provided. Verify SHA-256 using `Cluster-server-build-receipt.json`.
+
+          **Upgrade caution:** clean-install smoke tests passed, but in-place upgrade/rollback with existing populated PostgreSQL data has not been fully certified. Back up PostgreSQL, Library, configuration and credentials and stop the Server before attempting an upgrade.
+
+          **Installer location determines the target.** For an installed Server at `C:\Cluster\Server`, run the downloaded installer from `C:\Cluster-Installer.exe` with appropriate Windows permissions. After installation, start the managed `C:\Cluster\Server\bin\Cluster Server.exe`, not an old shortcut. The root-level launcher may remain unchanged at drive root.
+
+          **Desktop:** Qt Desktop version **0.482.0** is unchanged and has been carried forward byte-for-byte from release 1.0.2, retaining the standard Desktop download names.
+
+          **Signing:** The installers are not Windows Authenticode signed; the Server update feed is not published by this workflow. This is a direct GitHub installer release, not an automatic signed update.
+          NOTES
+          gh release create v1.0.5 --repo "$GITHUB_REPOSITORY" \
+            --target "$SERVER_SHA" \
+            --title 'Cluster 1.0.5 | Azure Studios' \
+            --notes-file "$RUNNER_TEMP/cluster-1-0-5-notes.md" \
+            --draft
+          for name in \
+            Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
+            Cluster-Desktop-0.482.0-windows-x64.zip Cluster-desktop-build-receipt.json \
+            Cluster-Desktop-Installer-0.482.0-windows-x64.exe \
+            Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
+            test -s "$RUNNER_TEMP/release/$name"
+            gh release upload v1.0.5 "$RUNNER_TEMP/release/$name" --repo "$GITHUB_REPOSITORY"
+          done
+          gh release view v1.0.5 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/released-assets.txt"
+          for name in Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
+            Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
+            grep -Fx "$name" "$RUNNER_TEMP/released-assets.txt"
+          done
+          test "$(wc -l < "$RUNNER_TEMP/released-assets.txt")" -eq 8
+          # Publish only AFTER all eight checked files have reached GitHub.
+          gh release edit v1.0.5 --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = v1.0.5
+          echo 'Cluster 1.0.5 is now the GitHub Latest release.'
