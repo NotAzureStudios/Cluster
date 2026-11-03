@@ -105,3 +105,48 @@
 .cluster-discord-health-grid-v548 strong.good { color: #58c7a1; }
 @media (max-width: 920px) { .cluster-discord-health-grid-v548 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .cluster-discord-health-grid-v548 { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* 1.0.3 integration state language. Keep warnings meaningful and avoid
+   styling configured credentials as if an external connection was tested. */
+.admin-integration-health-cell-v103 {
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+.admin-integration-health-cell-v103 small {
+  max-width: 100%;
+  color: var(--muted);
+  font-size: .69rem;
+  overflow-wrap: anywhere;
+}
+.admin-page-v243 .admin-section-heading-v243 h3 > svg,
+.admin-page-v243 .admin-section-heading-v243 h3 > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+  color: var(--accent);
+  vertical-align: -.18em;
+}
+.admin-page-v243 .cluster-discord-health-grid-v548 > div > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.admin-page-v243 .cluster-discord-health-grid-v548 > div > span:first-child > svg,
+.admin-page-v243 .cluster-discord-health-grid-v548 > div > span:first-child > .iconify {
+  flex: 0 0 16px;
+  inline-size: 16px;
+  block-size: 16px;
+  color: var(--accent);
+}
+.admin-page-v243 .cluster-discord-health-grid-v548 .settings-state-chip-v103 {
+  justify-self: start;
+  max-width: 100%;
+  line-height: 1.25;
+}
+.admin-page-v243 .cluster-discord-health-grid-v548 > div {
+  align-content: start;
+  min-width: 0;
+}
