@@ -573,6 +573,17 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       const status = await api<NetworkDeploymentStatus>("/api/server-config/network/deployment");
       setNetworkDeployment(status);
       setNetworkDeploymentError("");
+      if (status.state === "verified" || status.state === "rolled_back") {
+        // A successful native verification or guarded rollback releases the
+        // save interlock. Do not leave the previous 409 permanently disabling
+        // the UI after the operator refreshes deployment status.
+        setSaveError((current) => current instanceof ApiError &&
+          current.status === 409 && (current.payload as any)?.code === "NETWORK_DEPLOYMENT_PENDING"
+          ? null : current);
+        if (status.state === "rolled_back") {
+          setStatus("The native supervisor restored the previous network configuration. Refresh Server Configuration and review your local draft before attempting another save.");
+        }
+      }
     } catch (error) {
       setNetworkDeployment(null);
       setNetworkDeploymentError(error instanceof Error ? error.message : "Cannot inspect the network deployment record.");
