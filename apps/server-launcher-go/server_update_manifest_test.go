@@ -153,3 +153,48 @@ func TestInstalledStableServerSequence(t *testing.T) {
 	if err := os.WriteFile(file, []byte(strings.Replace(string(valid), "1.0.2", "1.0.3", 1)), 0600); err != nil { t.Fatal(err) }
 	if got := installedServerReleaseSequence(root); got != 0 { t.Fatalf("mismatched stable sequence accepted: %d", got) }
 }
+
+func TestOfficialServerMainFeedAndRedirectBoundaries(t *testing.T) {
+	const expected = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
+	if defaultOfficialMainServerUpdateFeedURL != expected {
+		t.Fatalf("official Server feed differs from published channel contract: %q", defaultOfficialMainServerUpdateFeedURL)
+	}
+	official, _ := url.Parse(defaultOfficialMainServerUpdateFeedURL)
+	if serverUpdateFeedLinkHint(official) != "" || !allowedServerUpdateURL(official) {
+		t.Fatal("official signed JSON Server feed rejected by URL policy")
+	}
+	allowed := []string{
+		"https://github.com/NotAzureStudios/Cluster/releases/download/server-v1.0.4/Cluster-Installer.exe",
+		"https://release-assets.githubusercontent.com/github-production-release-asset/1431753697/bundle?token=opaque",
+	}
+	denied := []string{
+		"http://release-assets.githubusercontent.com/github-production-release-asset/1431753697/bundle",
+		"https://release-assets.githubusercontent.com:8443/github-production-release-asset/1431753697/bundle",
+		"https://other.githubusercontent.com/github-production-release-asset/1431753697/bundle",
+		"https://release-assets.githubusercontent.com/github-production-release-asset/9999999/bundle",
+		"https://release-assets.githubusercontent.com.evil.test/github-production-release-asset/1431753697/bundle",
+		"https://user:secret@release-assets.githubusercontent.com/github-production-release-asset/1431753697/bundle",
+		"https://release-assets.githubusercontent.com/github-production-release-asset/1431753697/bundle#fragment",
+		"http://169.254.169.254/latest/meta-data",
+	}
+	for _, raw := range allowed {
+		dest, err := url.Parse(raw)
+		if err != nil || !serverUpdateRedirectAllowed(official, dest) {
+			t.Errorf("approved official GitHub asset redirect was rejected: %s", raw)
+		}
+	}
+	for _, raw := range denied {
+		dest, err := url.Parse(raw)
+		if err == nil && serverUpdateRedirectAllowed(official, dest) {
+			t.Errorf("unsafe official GitHub asset redirect accepted: %s", raw)
+		}
+	}
+	custom, _ := url.Parse("https://updates.example.test/server/main.json")
+	cdn, _ := url.Parse(allowed[1])
+	if serverUpdateRedirectAllowed(custom, cdn) {
+		t.Fatal("custom server feed accepted third-party GitHub CDN redirect")
+	}
+	if !serverUpdateRedirectAllowed(custom, custom) {
+		t.Fatal("trusted same-origin custom feed was rejected")
+	}
+}
