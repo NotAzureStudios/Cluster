@@ -39,6 +39,35 @@ func coldServerUpdateSnapshotPath(root,id string) (string,error) {
  return filepath.Join(filepath.Dir(root),"UpdateRecovery",id),nil
 }
 
+// Recovery cannot require PG_VERSION from the *failed candidate*, which may
+// be corrupt. Instead it strictly checks the managed owner and snapshot path.
+func coldServerUpdateRecoveryPath(root,id string) (string,error) {
+ if !serverUpdateIDPattern.MatchString(id){return "",errors.New("invalid recovery transaction ID")}
+ resolved,err:=filepath.Abs(root)
+ if err!=nil{return "",err}
+ rootInfo,err:=os.Lstat(resolved)
+ if err!=nil{return "",err}
+ if !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink!=0 {return "",errors.New("untrusted managed Server root for restore")}
+ ownerFile:=filepath.Join(resolved,".cluster-installer-managed.json")
+ info,err:=os.Lstat(ownerFile)
+ if err!=nil{return "",err}
+ if !info.Mode().IsRegular() || info.Size()>16384 {return "",errors.New("invalid recovery owner marker")}
+ raw,err:=os.ReadFile(ownerFile)
+ if err!=nil{return "",err}
+ var owner struct {ManagedBy string `json:"managedBy"`;InstallRoot string `json:"installRoot"`}
+ if err=json.Unmarshal(raw,&owner);err!=nil || owner.ManagedBy!="cluster-installer" ||
+  !strings.EqualFold(filepath.Clean(owner.InstallRoot),filepath.Dir(resolved)) {
+  return "",errors.New("recovery owner marker does not identify this managed installation")
+ }
+ for _,part:=range []string{filepath.Join(resolved,"data"),filepath.Join(filepath.Dir(resolved),"UpdateRecovery"),
+  filepath.Join(filepath.Dir(resolved),"UpdateRecovery",id)}{
+  info,err:=os.Lstat(part)
+  if err!=nil{return "",err}
+  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0{return "",errors.New("recovery path contains a linked or missing directory")}
+ }
+ return filepath.Join(filepath.Dir(resolved),"UpdateRecovery",id),nil
+}
+
 func copyColdPostgresSnapshot(root,id string) (string,error) {
  dest,err:=coldServerUpdateSnapshotPath(root,id)
  if err!=nil{return "",err}
