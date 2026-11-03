@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts = require('typescript');
 const root = new URL('../../apps/server/src/domains/domains/', import.meta.url);
 function load(name, mods) {
   const src = fs.readFileSync(new URL(name, root), 'utf8');
@@ -36,16 +36,23 @@ for (const conf of variants) {
   ok(!plan.artifacts.some(a=>/private key|BEGIN.*PRIVATE/.test(a.contents)), 'no secret output');
 }
 const caddy = plans.buildDomainConnectionPlan(host, profile('direct_https','caddy')).artifacts.find(a=>a.filename==='Caddyfile').contents;
-ok(caddy.includes('reverse_proxy @api 127.0.0.1:4000') && caddy.includes('reverse_proxy 127.0.0.1:3000'), 'Caddy both origins');
+ok(caddy.includes('reverse_proxy 127.0.0.1:3000') && !caddy.includes('127.0.0.1:4000'), 'Caddy proxies all paths through managed gateway');
 const nginx = plans.buildDomainConnectionPlan(host, profile('reverse_proxy','nginx')).artifacts.find(a=>a.filename==='cluster-nginx.conf').contents;
-ok(nginx.includes('listen 443 ssl') && nginx.includes('proxy_pass http://127.0.0.1:4000'), 'NGINX HTTPS and API');
+ok(nginx.includes('listen 443 ssl') && nginx.includes('proxy_pass http://127.0.0.1:3000') && !nginx.includes('127.0.0.1:4000'), 'NGINX HTTPS routes through managed gateway');
 const cf = plans.buildDomainConnectionPlan(host, profile('managed_tunnel','cloudflare')).artifacts.find(a=>a.filename==='cloudflared-config.yml').contents;
-ok(cf.includes('http_status:404') && cf.includes(`hostname: ${host}`), 'Cloudflare ingress and catchall');
+ok(cf.includes('http_status:404') && cf.includes(`hostname: ${host}`) && cf.includes('service: http://127.0.0.1:3000') && !cf.includes('127.0.0.1:4000'), 'Cloudflare routes all paths to managed gateway');
 const tsPlan = plans.buildDomainConnectionPlan(host, profile('private_vpn','tailscale'));
-ok(tsPlan.artifacts.some(a=>a.filename==='tailscale-serve.txt' && a.contents.includes('127.0.0.1:8088')), 'Tailscale gateway');
+ok(tsPlan.artifacts.some(a=>a.filename==='tailscale-serve.txt' && a.contents.includes('tailscale serve --bg 3000')), 'Tailscale targets managed gateway directly');
+ok(!tsPlan.artifacts.some(a=>a.filename==='Caddyfile'), 'Tailscale does not require a second routing proxy');
 ok(tsPlan.instructions.some(line=>line.includes('actual canonical URL')), 'Tailscale custom domain warning');
 const lan = plans.buildDomainConnectionPlan(host, profile('lan','caddy',80));
 ok(lan.canonicalUrl.startsWith('http://') && !lan.artifacts.find(a=>a.filename==='Caddyfile').contents.includes('https://'), 'LAN mode accurately HTTP');
+ok(plans.buildDomainConnectionPlan(host, profile('lan','manual',80)).instructions.some(text=>text.includes('port 80') && text.includes('3000')), 'LAN manual includes real proxy and configured-port instructions');
+for (const conf of variants) {
+  const plan = plans.buildDomainConnectionPlan(host, conf);
+  const text = plan.artifacts.map(a=>a.contents).join('\n');
+  ok(!text.includes('reverse_proxy @api') && !text.includes('proxy_pass http://127.0.0.1:4000') && !text.includes('service: http://127.0.0.1:4000'), 'no connection plan forwards to the private Node API');
+}
 for (const [invalid, why] of [
   [{...profile('managed_tunnel','cloudflare'),publicPort:80}, 'invalid public TLS port'],
   [profile('direct_https','manual'), 'not a valid direct provider'],
