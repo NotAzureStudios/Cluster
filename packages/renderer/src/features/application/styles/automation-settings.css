@@ -12,3 +12,53 @@
 .studio-permission-effective-v272 { text-transform: capitalize; }
 @media (max-width: 980px) { .studio-permission-row-v272 { grid-template-columns: minmax(0, 1fr) 160px; } .studio-permission-effective-v272 { display: none; } }
 @media (max-width: 680px) { .studio-permission-row-v272 { grid-template-columns: 1fr; } }
+
+
+/* Visual automation telemetry complements the editor; counts only represent
+   currently fetched rules and bounded queue samples, never lifetime totals. */
+.automation-manager-v199 .automation-overview-v103 {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.automation-manager-v199 .settings-card-head-v092 h3,
+.automation-manager-v199 .automation-rule-list-v195 strong,
+.automation-manager-v199 .automation-run-list-v196 strong {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.automation-manager-v199 .settings-card-head-v092 h3 > svg,
+.automation-manager-v199 .settings-card-head-v092 h3 > .iconify,
+.automation-manager-v199 .automation-rule-list-v195 strong > svg,
+.automation-manager-v199 .automation-rule-list-v195 strong > .iconify,
+.automation-manager-v199 .automation-run-list-v196 strong > svg,
+.automation-manager-v199 .automation-run-list-v196 strong > .iconify {
+  inline-size: 17px;
+  block-size: 17px;
+  flex: 0 0 17px;
+  color: var(--accent);
+}
+.automation-manager-v199 .automation-rule-meta-v103 {
+  margin: 5px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.automation-manager-v199 .automation-queue-list-v199 .settings-state-chip-v103 {
+  margin-top: 5px;
+}
+.automation-manager-v199 .settings-card-head-v092 .settings-state-chip-v103 {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+@media (max-width: 1080px) {
+  .automation-manager-v199 .automation-overview-v103 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .automation-manager-v199 .automation-overview-v103 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
