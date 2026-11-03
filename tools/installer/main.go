@@ -70,12 +70,12 @@ func embeddedReleaseInfo(bundle []byte) (releaseIdentity, error) {
 		if err = json.Unmarshal(body, &release); err != nil {
 			return release, err
 		}
-		if release.Schema != 1 || release.Channel != "rc" || release.Release == "" || release.Sequence < 1 || release.SourceVersion == "" {
-			return release, errors.New("invalid RC release identity")
+		if release.Schema != 1 || (release.Channel != "rc" && release.Channel != "stable") || release.Release == "" || release.Sequence < 1 || release.SourceVersion == "" || (release.Channel == "stable" && release.Release != release.SourceVersion) {
+			return release, errors.New("invalid Cluster release identity")
 		}
 		return release, nil
 	}
-	return release, errors.New("installer source missing release candidate identity")
+	return release, errors.New("installer source missing release identity")
 }
 // The packaged Windows installer must contain a built-runtime admission receipt.
 // The installer cannot silently fall back to compiling a source snapshot.

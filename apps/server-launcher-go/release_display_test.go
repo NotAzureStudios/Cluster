@@ -27,4 +27,15 @@ func TestDisplayReleaseVersion(t *testing.T) {
 			t.Fatalf("got %s wanted %s", got, tc.expected)
 		}
 	}
+	// Fresh Cluster 1.0.1 uses a stable marker; an invalid or mismatched
+	// marker must never misrepresent the installed application.
+	version = "1.0.1"
+	for _, tc := range []struct{ marker, expected string }{
+		{`{"schema":1,"clusterVersion":"1.0.1","releaseChannel":"stable","releaseCandidate":"1.0.1","managedInstaller":true}`, "1.0.1"},
+		{`{"schema":1,"clusterVersion":"1.0.1","releaseChannel":"stable","releaseCandidate":"1.0.0","managedInstaller":true}`, "v1.0.1"},
+		{`{"schema":1,"clusterVersion":"1.0.0","releaseChannel":"stable","releaseCandidate":"1.0.1","managedInstaller":true}`, "v1.0.1"},
+	} {
+		if err := os.WriteFile(filepath.Join(root, "CLUSTER_RELEASE.json"), []byte(tc.marker), 0600); err != nil { t.Fatal(err) }
+		if got := displayReleaseVersion(root); got != tc.expected { t.Fatalf("stable: got %s wanted %s", got, tc.expected) }
+	}
 }
