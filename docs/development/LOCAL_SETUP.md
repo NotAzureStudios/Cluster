@@ -1,55 +1,52 @@
-# Cluster local development and validation
+# Develop Cluster 1.0 locally
 
-This guide describes **source development**, not installing a verified Cluster release. It is based on the existing GitHub checkout and its scripts; it does not claim the full build has run here.
+This guide describes the **source checkout**, not how to install the published application. Use [the Windows installation guide](../INSTALLATION.md) for the release binaries.
 
-## Toolchain
+## Requirements
 
-Consult `config/toolchain-versions.json` before setup. The tracked candidate currently declares:
+- **Node.js 24.20.0**, committed root `package-lock.json`, npm compatible with the pinned Node version.
+- **PostgreSQL 18.6** for a running API and development data. **Prisma 7.9.1** is locked in the npm workspace dependencies.
+- **Go 1.27.1** for the Windows Server Manager and native helper builds.
+- **Qt 6.11.2**, CMake 3.31+ (4.4.4 recommended), a compatible MSVC compiler and NSIS for Windows Desktop packaging.
+- Windows x64 for **real Windows native installers**; shared Server/Web TypeScript compilation also runs on Ubuntu.
 
-| Component | Pinned or recommended version |
-| --- | --- |
-| Node.js | 24.20.0 |
-| PostgreSQL | 18.6 |
-| Prisma | 7.9.1 |
-| Qt | 6.11.2 |
-| Go | 1.27.1 |
-| CMake | 4.4.4 recommended |
+Check [toolchain configuration](../../config/toolchain-versions.json) for the exact versions before rebuilding.
 
-Windows-native, Qt and portable installer builds require their dedicated platform toolchains. The Qt desktop is on its documented **0.482.0 parity hold**, even though the shared source package version is `0.546.0`.
-
-## Checkout and source checks
+## Clone and build
 
 ```sh
 git clone https://github.com/NotAzureStudios/Cluster.git
 cd Cluster
 git switch development
-node tools/scripts/cluster-repo-hygiene-check.mjs
-node tools/scripts/cluster-rc-preflight.mjs
-npm run toolchain:check
+node tools/scripts/cluster-release-lockfile-check.mjs
+npm ci --no-audit --no-fund
+npm run db:generate
+npm run build
 ```
 
-The RC preflight without `--built` checks file presence, candidate identity and metadata alignment; it does **not** exercise a running server or native binaries.
+`npm ci` is the release-safe installation mode. The committed npm v3 lockfile covers all six workspaces; do not use `npm install` in CI to silently rewrite it. The compiled Server/Web targets and Prisma client are verified on Windows and Linux runners.
 
-## Dependency-backed development
+## Running a development instance
 
-The repository uses npm workspaces. With the correct toolchain and a configured local database/server environment:
+Configure `apps/server/config/cluster.config.example.json` as the basis of a **separate local configuration**, with local PostgreSQL/database connection settings and new secrets. Keep secrets, `.env`, Library data and database files out of Git.
 
 ```sh
-npm install
-npm run db:generate
 npm run dev
 ```
 
-`npm run dev:server`, `npm run dev:web`, `npm run build:server`, `npm run build:web` and `npm run verify` exist for targeted tasks. See root `package.json` for other focused regression commands.
+To build just Server or Web:
 
-**Current blocker:** no committed `package-lock.json`. Dependency installation is not reproducible, and `npm ci` will not work until an aligned lockfile exists. Do not treat an unpinned `npm install` as a release pipeline. Generate and verify the lockfile on the pinned Node/npm environment and then adopt `npm ci` for CI and packaging.
+```sh
+npm run build:server
+npm run build:web
+```
 
-Server settings are represented by the checked-in example at `apps/server/config/cluster.config.example.json`. Keep populated settings, external credentials and data roots outside Git. Do not substitute the example's localhost URLs or insecure development values for an exposed production deployment.
+Do not point development or tests at a running studio Server's database or Library storage.
 
-## Native builds and release acceptance
+## Native builds
 
-The source includes `apps/desktop-qt/CMakeLists.txt`, Go modules, `tools/installer/`, and Windows build scripts. The source-only workflow does not exercise these components. A release needs its own clean Windows build, Node dependency validation, Prisma/PostgreSQL migration checks, native binary smoke tests, install/update/rollback testing, and application-level access controls/transfer checks.
+For a real Windows Server prebuilt candidate on a provisioned Windows toolchain, use the release-profile instructions in [distribution profiles](DISTRIBUTION_PROFILES.md). Qt Desktop is compiled and packaged separately; see [the Desktop README](../../apps/desktop-qt/README.md). Reproducing a build is not the same as completing installation or rollback acceptance.
 
-Never run upgrade or recovery operations against live user data without a separate verified backup and rollback path. Do not promote `config/release-candidate.json` merely because source checks pass.
+## Code changes
 
-See [Git workflow](GIT_WORKFLOW.md) and [snapshot import requirements](SOURCE_SNAPSHOT_HYGIENE.md).
+Submit focused changes to `development`, preserve the committed lockfile, run the relevant package/source checks, and promote reviewed changes to `main` for a subsequent release. The stable `v1.0.0` tag is immutable historical release evidence; **do not alter or force-move it**.
