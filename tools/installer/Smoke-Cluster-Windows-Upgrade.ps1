@@ -1,5 +1,5 @@
 # Disposable OFFLINE in-place upgrade test for the Cluster Windows installer.
-# Exercises the real published 1.0.2 installer and prebuilt 1.0.3 candidate.
+# Exercises the real published 1.0.2 installer and prebuilt 1.0.4 candidate.
 # Does not run a database or certify the native update executor.
 [CmdletBinding()]
 param(
@@ -18,6 +18,17 @@ New-Item -ItemType Directory -Path $scratch -ErrorAction Stop | Out-Null
 $managed = Join-Path $scratch 'Cluster\Server'
 $exe = Join-Path $scratch 'Cluster-Installer.exe'
 $previousCI = $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY
+$previousModulePath = $env:PSModulePath
+# The released 1.0.2 installer invokes Windows PowerShell 5.1 even when this
+# test uses pwsh 7. CI must expose the built-in WinPS Utility module (which
+# contains Get-FileHash) to that child instead of inheriting only pwsh 7 paths.
+$windowsPowerShellModules = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
+if (!(Test-Path -LiteralPath $windowsPowerShellModules -PathType Container)) {
+  throw "Windows PowerShell system modules not found at $windowsPowerShellModules"
+}
+$env:PSModulePath = "$windowsPowerShellModules;$previousModulePath"
+& powershell.exe -NoProfile -NonInteractive -Command 'Import-Module Microsoft.PowerShell.Utility -ErrorAction Stop; Get-Command Get-FileHash -ErrorAction Stop | Out-Null'
+if ($LASTEXITCODE -ne 0) { throw 'Published 1.0.2 installer requires Windows PowerShell Get-FileHash' }
 $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY = '1'
 function Invoke-BundledInstaller([string]$source) {
   Copy-Item -LiteralPath $source -Destination $exe -Force -ErrorAction Stop
@@ -51,9 +62,9 @@ try {
   $libHash = (Get-FileHash -LiteralPath (Join-Path $libDir 'keep.txt') -Algorithm SHA256).Hash
   $envHash = (Get-FileHash -LiteralPath $envPath -Algorithm SHA256).Hash
 
-  Write-Host 'Upgrading the SAME managed installation to 1.0.3 with auto-start disabled...'
+  Write-Host 'Upgrading the SAME managed installation to 1.0.4 with auto-start disabled...'
   Invoke-BundledInstaller $CandidateInstaller
-  Confirm-Release 53
+  Confirm-Release 54
 
   foreach ($pair in @(
       @{File=(Join-Path $pgDir 'CI-SENTINEL');Hash=$pgHash},
@@ -72,9 +83,10 @@ try {
   if (Test-Path -LiteralPath (Join-Path $managed 'Cluster\Server')) {
     throw 'Unexpected nested Server installation'
   }
-  Write-Host 'PASS: real 1.0.2->1.0.3 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
+  Write-Host 'PASS: real 1.0.2->1.0.4 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
   Write-Host "Disposable smoke root: $scratch"
 } finally {
+  $env:PSModulePath = $previousModulePath
   if ($null -eq $previousCI) { Remove-Item Env:CLUSTER_INSTALLER_CI_INSTALL_ONLY -ErrorAction SilentlyContinue }
   else { $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY = $previousCI }
 }
