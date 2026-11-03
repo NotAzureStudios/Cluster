@@ -20,6 +20,7 @@ const (
  updatePhaseStarting serverUpdatePhase = "starting"
  updatePhaseProbing serverUpdatePhase = "health_verification"
  updatePhaseCommitted serverUpdatePhase = "committed"
+ updatePhaseReopenAccess serverUpdatePhase = "reopen_access"
  updatePhaseRollingBack serverUpdatePhase = "rolling_back"
  updatePhaseRecovered serverUpdatePhase = "previous_release_recovered"
  updatePhaseBlocked serverUpdatePhase = "blocked"
@@ -35,7 +36,8 @@ type serverUpdateTransactionHooks struct {
  ApplySignedInstaller func(context.Context) error
  StartCandidate func(context.Context) error
  ProbeCandidate func(context.Context) error
- CommitAndReleaseHold func(context.Context) error
+ CommitCandidate func(context.Context) error
+ ReleaseCandidateHold func(context.Context) error
  StopCandidate func(context.Context) error
  RestoreSnapshot func(context.Context) error
  StartPrevious func(context.Context) error
@@ -54,7 +56,7 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
  required:=[]func(context.Context)error{
   hooks.ConfirmAuthorization, hooks.AcquireWriteHold, hooks.StopOwnedServer,
   hooks.SnapshotAndVerify, hooks.ApplySignedInstaller, hooks.StartCandidate,
-  hooks.ProbeCandidate, hooks.CommitAndReleaseHold, hooks.StopCandidate,
+  hooks.ProbeCandidate, hooks.CommitCandidate, hooks.ReleaseCandidateHold, hooks.StopCandidate,
   hooks.RestoreSnapshot, hooks.StartPrevious, hooks.ProbePrevious,
   hooks.ReleasePreviousHold,
  }
@@ -109,7 +111,7 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
   {updatePhaseApplying,hooks.ApplySignedInstaller},
   {updatePhaseStarting,hooks.StartCandidate},
   {updatePhaseProbing,hooks.ProbeCandidate},
-  {updatePhaseCommitted,hooks.CommitAndReleaseHold},
+  {updatePhaseCommitted,hooks.CommitCandidate},
  }{
   record(step.phase,"started")
   if err:=step.run(ctx);err!=nil {
@@ -119,7 +121,18 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
   }
   record(step.phase,"completed")
  }
- if cause==nil {return serverUpdateTransactionResult{Phase:updatePhaseCommitted}}
+ if cause==nil {
+  // Access is a one-way boundary. If the release hold operation partially
+  // succeeds, the new version might receive writes immediately. Therefore
+  // failure while reopening access must NEVER rewind its database or files.
+  record(updatePhaseReopenAccess,"started")
+  if err:=hooks.ReleaseCandidateHold(ctx);err!=nil {
+   record(updatePhaseBlocked,"candidate access release uncertain: "+err.Error())
+   return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:fmt.Errorf("candidate access release has uncertain outcome; do not roll back after possible writes: %w",err)}
+  }
+  record(updatePhaseReopenAccess,"completed")
+  return serverUpdateTransactionResult{Phase:updatePhaseCommitted}
+ }
  // Recovery deliberately uses a new bounded context, because the initiating
  // browser could disconnect or cancel while system recovery is required.
  recoveryCtx,cancelRecovery:=context.WithTimeout(context.WithoutCancel(ctx),10*time.Minute)
