@@ -47,6 +47,8 @@ type NetworkReview = {
 type MaintenanceWindowPreview = { enabled: boolean; timezone: string; days: string[]; localStart: string; durationMinutes: number; checkedAt: string; windows: Array<{startAt: string; endAt: string; localDate: string; active: boolean}>; executable: false; note: string };
 type MaintenancePreflight = { ok: boolean; intent: string; checkedAt: string; blockers: Array<{code: string; detail: string; category: string}>; warnings: Array<{code: string; detail: string; category: string}>; observed: { runningTasks: number | null; runningJobs: number | null; heavyInFlight: number | null; criticalInFlight: number | null; mode: string; window: { enabled: boolean; active: boolean; nextStartAt: string | null } | null; recovery: { state: string; evidenceAt: string | null } | null }; executable: false; note: string };
 type NetworkDeploymentStatus = { ok: boolean; state: "none" | "staged" | "verified" | "rolled_back"; createdAt?: string; requiresManagedRestart: boolean; configMatch?: "candidate" | "previous" | "unexpected"; publicationPending?: boolean; advisory?: string };
+type LocalListenerDiagnostic = { configuredHost: string; port: number; probeHost: string | null; status: "tcp_open" | "tcp_closed" | "not_local" | "invalid" };
+type LocalNetworkDiagnostics = { ok: boolean; checkedAt: string; web: LocalListenerDiagnostic; api: LocalListenerDiagnostic; external: "not_checked"; note: string };
 const NETWORK_REVIEW_FIELDS = ["serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled"] as const;
 
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
@@ -624,6 +626,22 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   }
   const [networkReview, setNetworkReview] = useState<{ fingerprint: string; result: NetworkReview } | null>(null);
   const [networkReviewPending, setNetworkReviewPending] = useState(false);
+  const [localNetworkDiagnostics, setLocalNetworkDiagnostics] = useState<LocalNetworkDiagnostics | null>(null);
+  const [localNetworkChecking, setLocalNetworkChecking] = useState(false);
+  const [localNetworkError, setLocalNetworkError] = useState("");
+  async function checkLocalNetwork() {
+    setLocalNetworkChecking(true);
+    setLocalNetworkError("");
+    try {
+      const result = await api<LocalNetworkDiagnostics>("/api/server-config/network/local-diagnostics");
+      setLocalNetworkDiagnostics(result);
+    } catch (error) {
+      setLocalNetworkDiagnostics(null);
+      setLocalNetworkError(error instanceof Error ? error.message : "Could not inspect local listeners.");
+    } finally {
+      setLocalNetworkChecking(false);
+    }
+  }
   const [networkReviewError, setNetworkReviewError] = useState("");
   const [securityDiagnostics, setSecurityDiagnostics] = useState<SecurityDiagnostics | null>(null);
   const [serverSessions, setServerSessions] = useState<ServerSessionRecord[]>([]);
@@ -1552,6 +1570,34 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             deploymentState={networkDeployment?.state}
             hasDraftChanges={changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)))}
           />
+          <section className="panel server-config-group-v238" aria-label="Local network listener diagnostics">
+            <div className="server-config-group-head-v238">
+              <div>
+                <h2><ClusterIcon name="check" aria-hidden="true" /> Check local ports</h2>
+                <p className="muted tight">Test whether the saved Web and API ports accept local TCP connections. No external URLs are requested and no firewall or service settings are changed.</p>
+              </div>
+              <ClusterButton type="button" variant="secondary" onClick={() => void checkLocalNetwork()} busy={localNetworkChecking} busyLabel="Checking…" disabled={localNetworkChecking || savingConfig}>Check listeners</ClusterButton>
+            </div>
+            {localNetworkError && <p role="alert">{localNetworkError}</p>}
+            {localNetworkDiagnostics && (
+              <div aria-live="polite">
+                {([["Web gateway", localNetworkDiagnostics.web], ["Private API", localNetworkDiagnostics.api]] as const).map(([label, result]) => (
+                  <p key={label}>
+                    <strong>{label}:</strong> {result.configuredHost}:{result.port}{" "}
+                    <SettingsStateChip tone={result.status === "tcp_open" ? "info" : result.status === "tcp_closed" ? "warning" : "neutral"}>
+                      {result.status === "tcp_open" ? "TCP port accepts connections" : result.status === "tcp_closed" ? "TCP connection failed" : result.status === "not_local" ? "Bind address not assigned to this machine" : "Invalid port"}
+                    </SettingsStateChip>
+                    {result.probeHost && result.probeHost !== result.configuredHost ? <small> · checked via {result.probeHost}</small> : null}
+                  </p>
+                ))}
+                <p className="muted tight">{localNetworkDiagnostics.note}</p>
+                <p className="muted tight">Checked {compactDateTime(localNetworkDiagnostics.checkedAt)}. Public DNS, TLS, remote access and Cloudflare/Tailscale are not tested.</p>
+              </div>
+            )}
+            {changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key))) && (
+              <p className="muted tight">Unsaved network edits are not checked. Apply and complete the managed restart before testing the new ports.</p>
+            )}
+          </section>
           <ServerConnectionGuide webPort={Number(settings.webPort || 3000)} busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
             // Stage only public HTTPS routing metadata. Listener and firewall policy
             // remain unchanged; the existing protected Save requires a PIN.
