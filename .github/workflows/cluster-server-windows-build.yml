@@ -1,4 +1,4 @@
-name: Build Cluster 1.0.3 Windows Server installer
+name: Build Cluster 1.0.4 Windows Server installer
 
 on:
   push:
@@ -9,9 +9,15 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tools/installer/**'
+      - 'apps/host-go/**'
+      - 'apps/server-launcher-go/**'
+      - 'apps/server/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'tools/scripts/cluster-suite-version-contract.mjs'
       - 'tools/scripts/cluster-rc-preflight.mjs'
       - 'tools/scripts/cluster-prebuilt-install-gate-tests.mjs'
-      - '.github/workflows/cluster-1-0-3-server-build.yml'
+      - '.github/workflows/cluster-server-windows-build.yml'
   workflow_dispatch:
     inputs:
       runner:
@@ -32,7 +38,7 @@ concurrency:
 
 jobs:
   server-1-0-3:
-    name: Compile and verify native Server 1.0.3
+    name: Compile and verify native Server 1.0.4
     # GitHub-hosted runners may be blocked by private-repository billing/limits.
     # The manual self-hosted route requires a trusted, isolated Windows x64
     # machine with a custom cluster-build label, not the live Cluster Server.
@@ -52,18 +58,18 @@ jobs:
         with:
           go-version: '1.27.1'
           cache: false
-      - name: Verify authentic 1.0.3 source and installer admission fix
+      - name: Verify authentic 1.0.4 source and installer admission fix
         shell: pwsh
         run: |
-          if ((git branch --show-current).Trim() -ne 'main') { throw 'The 1.0.3 Server build must come from main' }
-          node --check tools/scripts/cluster-1-0-3-version-contract.mjs
+          if ((git branch --show-current).Trim() -ne 'main') { throw 'The 1.0.4 Server build must come from main' }
+          node --check tools/scripts/cluster-suite-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source version contract contains invalid JavaScript' }
           node --check tools/scripts/build-cluster-installer.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Prebuilt packager contains invalid JavaScript' }
-          node tools/scripts/cluster-1-0-3-version-contract.mjs
+          node tools/scripts/cluster-suite-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source versions do not agree' }
           node tools/scripts/cluster-release-lockfile-check.mjs
-          if ($LASTEXITCODE -ne 0) { throw 'Root npm lockfile does not match 1.0.3' }
+          if ($LASTEXITCODE -ne 0) { throw 'Root npm lockfile does not match 1.0.4' }
           node tools/scripts/cluster-managed-db-env-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Managed database URL bootstrap regression failed' }
           node tools/scripts/cluster-prebuilt-install-gate-tests.mjs
@@ -79,13 +85,13 @@ jobs:
           node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel main --build
           if ($LASTEXITCODE -ne 0) {
             git diff --name-status
-            throw 'Cluster 1.0.3 release compilation/packaging failed'
+            throw 'Cluster 1.0.4 release compilation/packaging failed'
           }
       - name: Verify release commit, binaries and SHA-256 receipt
         shell: pwsh
         run: |
           $receipt = Get-Content -Raw 'artifacts/release-profiles/server-windows-x64/build-receipt.json' | ConvertFrom-Json
-          if ($receipt.product -ne 'cluster-server' -or $receipt.profile -ne 'server-windows-x64' -or $receipt.channel -ne 'main' -or $receipt.release -ne '1.0.3' -or $receipt.sourceVersion -ne '1.0.3' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect 1.0.3 receipt' }
+          if ($receipt.product -ne 'cluster-server' -or $receipt.profile -ne 'server-windows-x64' -or $receipt.channel -ne 'main' -or $receipt.release -ne '1.0.4' -or $receipt.sourceVersion -ne '1.0.4' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect 1.0.4 receipt' }
           if ($receipt.commit -ne (git rev-parse HEAD).Trim()) { throw 'Receipt commit mismatch' }
           if ($receipt.lockfileSha256 -ne (Get-FileHash package-lock.json -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'Dependency lockfile hash mismatch' }
           foreach ($name in @('bin/Cluster-Installer.exe','bin/Cluster Server.exe')) {
@@ -102,10 +108,10 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools/installer/Smoke-Cluster-Windows-Install.ps1 -InstallerPath bin/Cluster-Installer.exe
           if ($LASTEXITCODE -ne 0) { throw 'Compiled Windows installer failed actual first-install smoke' }
-      - name: Retain unsigned Server 1.0.3 test binaries
+      - name: Retain unsigned Server 1.0.4 test binaries
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: cluster-server-1.0.3-unsigned-windows-x64-${{ github.sha }}
+          name: cluster-server-1.0.4-unsigned-windows-x64-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -114,7 +120,7 @@ jobs:
             bin/Cluster Server.exe
             artifacts/release-profiles/server-windows-x64/build-receipt.json
 
-# Produces unsigned first-install test artifacts. Does NOT publish a v1.0.3 tag
+# Produces unsigned first-install test artifacts. Does NOT publish a v1.0.4 tag
 # or overwrite a previously published binary. This job runs a real clean
 # Windows installation smoke; full database startup and studio acceptance
 # are still separate from isolated package installation.

@@ -1,4 +1,4 @@
-name: Cluster 1.0.3 offline Windows upgrade smoke
+name: Cluster 1.0.4 offline Windows upgrade smoke
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ on:
       - 'config/distribution-profiles.json'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/cluster-1-0-3-offline-upgrade-smoke.yml'
+      - '.github/workflows/cluster-server-offline-upgrade-smoke.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   upgrade:
-    name: Preserve data during an offline Windows 1.0.2 to 1.0.3 upgrade
+    name: Preserve data during an offline Windows 1.0.2 to 1.0.4 upgrade
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -46,8 +46,8 @@ jobs:
       - name: Verify source and lockfile
         shell: pwsh
         run: |
-          node tools/scripts/cluster-1-0-3-version-contract.mjs
-          if ($LASTEXITCODE -ne 0) { throw '1.0.3 version contract failed' }
+          node tools/scripts/cluster-suite-version-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw '1.0.4 version contract failed' }
           node tools/scripts/cluster-release-lockfile-check.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Lockfile verification failed' }
       - name: Build unsigned candidate without bypassing main release branch protection
@@ -96,7 +96,7 @@ jobs:
           $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.2\Cluster-Installer.exe'
           $candidate = Join-Path (Get-Location).Path 'bin\Cluster-Installer.exe'
           & pwsh -NoProfile -NonInteractive -File tools/installer/Smoke-Cluster-Windows-Upgrade.ps1 -PriorInstaller $prior -CandidateInstaller $candidate
-          if ($LASTEXITCODE -ne 0) { throw 'Offline 1.0.2 -> 1.0.3 upgrade or preservation failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Offline 1.0.2 -> 1.0.4 upgrade or preservation failed' }
 
 # This is a disposable OFFLINE, no-PostgreSQL-running smoke. It is not
 # authorization to expose automatic install, bypass the publisher signature,
