@@ -4,7 +4,7 @@
 
 An installed managed Server checks its official signed **Server main** release feed automatically, without an operator pasting a URL. The supported target is **Check Updates → Download & Install → managed restart/verification**. Cluster Desktop's own update release selector stays separate.
 
-**Current engineering status:** feed defaults, a signed publisher pipeline, and read-only check plus explicit verified download/staging are implemented in this workstream. **Automatic installation is NOT enabled** until an independent Windows update worker has been tested under both interactive and Windows Service ownership, including a real PostgreSQL backup/restore and rollback drill. Do not label a downloaded installer as installed.
+**Current engineering status:** the signed publisher, automatic Server-main feed discovery, and native download/installation handoff are implemented on PR #45. A distinct UAC-elevated Windows updater executes from outside the replaceable Server/ tree, verifies an exact authorized signed installer, confirms SCM ownership, checks disk capacity, takes a cold PostgreSQL snapshot, uses the installer --skip-launch, probes SCM readiness, and can restore the previous application, portable launcher, and database. The install path currently supports **Windows Service-managed installations only**. This is still an **uncertified candidate**, not an update already deployed or a guarantee of recovery: a full real Windows in-place upgrade and induced-failure rollback with nonempty PostgreSQL data must pass before production enabling.
 
 ## Feed, tags and permissions
 
@@ -29,13 +29,13 @@ Existing 1.0.3 builds predate the default feed and independent native installer 
 
 Never run a downloaded installer from `Server/data/system/updates` because a portable installer resolves the install root relative to its EXE. Before any manual upgrade, back up and verify PostgreSQL, Library, settings and credentials; stop the managed Server and PostgreSQL; verify the installation parent; preserve the rollback revision.
 
-### Remaining install-side work
+### Remaining acceptance work
 
-1. Native privileged worker outside the replaceable Server folder, with an exact owner-authorized signed update and durable transaction journal.
-2. Enforce write barriers and shutdown on the correct interactive/SCM-owned Server and PostgreSQL processes.
-3. Verified cold database snapshot plus disk-space and restore validation, all before installer execution.
-4. Invoke the pinned installer using `--skip-launch` beside the existing managed folder; start, probe and commit the candidate before reopening writes.
-5. On failure, restore the previous application/database safely and prove previous-release readiness. Require manual recovery if the write-release boundary is uncertain.
-6. Windows 1.0.3 → 1.0.4 live in-place upgrade and rollback certification.
+1. **Real Windows Server upgrade:** Run an isolated, nonempty 1.0.3 → signed 1.0.4 update through **Check Updates → Download → Install** with the native SCM service. Confirm the same data, Library, secrets, settings, and network endpoints are preserved after reboot. Published v1.0.4 must use a genuinely publisher-signed release manifest.
+2. **Deliberate failure/rollback:** Test an installer failure, failed candidate startup, interrupted update journal, and database recovery using real PostgreSQL. Verify the previous application and portable launcher, and that a failed recovery keeps access closed.
+3. **Interactive-mode parity:** Interactive-only Server installations cannot yet use one-click Apply. Implement a separate owner handoff capable of exiting the interactive parent and its full supervised process tree before touching PostgreSQL. Never pretend stopping an SCM service is equivalent.
+4. **Protected publishing:** Set up the existing Ed25519 signing key in the `server-release` GitHub environment, confirm release branch permissions and variable `CLUSTER_SERVER_AUTO_PUBLISH=true`, and verify both immutable Server tags and the Server-only rolling manifest.
+5. **Bootstrap and release policy:** One manual upgrade is required for users on the old 1.0.3 control panel. Every subsequent installable Server release must advance the stable patch version/sequence; unchanged versions cannot be republished as a replacement.
+6. **Release governance:** Keep PR #45 a draft and its release publisher opt-in until the full above acceptance passes. Signed staged updates without a verified, eligible owner remain download-only.
 
-Do not bypass PIN/UAC, publisher signing or these recovery gates to make the button work sooner.
+Never disable backup, PIN/UAC, signature checks, monotonic versioning, or the write-hold barrier just to make the button appear functional.
