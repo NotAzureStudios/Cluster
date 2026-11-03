@@ -25,7 +25,7 @@ Use the SHA-256 listed in the current [GitHub release](https://github.com/NotAzu
 ## 1. Prepare a Windows Server
 
 - Choose an authorized Windows x64 machine with sufficient disk space for the application, managed runtimes, PostgreSQL and Library storage.
-- Put the Server installer in a **new writable directory**, for example `D:\Cluster-Server\`.
+- Put the Server installer in a **new writable directory**, for example `D:\Cluster-Server\` or `C:\Cluster-Server\`. Do **not** place it directly at `C:\` or another drive root; dedicated installation folders avoid Windows ACL and launcher-placement problems.
 - Initial setup may download pinned private Node.js and PostgreSQL runtimes. Global Node/PostgreSQL installations are not required for normal packaged use.
 - If replacing an existing Cluster installation, back up any PostgreSQL, Library, configuration and credentials you need before deleting the old install. Fresh installation does not automatically restore existing data.
 - Keep Owner enrollment restricted to the local/trusted studio network.
@@ -40,6 +40,8 @@ Use the SHA-256 listed in the current [GitHub release](https://github.com/NotAzu
 6. Finish the initial Owner setup locally and open the configured Web URL.
 
 Do not assume a hard-coded public port or Web address; use the actual Server settings.
+
+**PostgreSQL setup:** For a normal managed Server installation, Cluster downloads and initializes a private PostgreSQL runtime, creates its database and credentials, and generates `DATABASE_URL`/`DIRECT_DATABASE_URL` during Server Manager startup. You do **not** need to supply a database URL manually. If a direct Prisma or developer command reports a missing URL, start Cluster through the installed Server Manager instead. If the managed Server Manager itself reports this error, retain its redacted bootstrap log: it indicates a separate startup/configuration failure, not a request to guess credentials.
 
 ## 3. Install Desktop (optional)
 
