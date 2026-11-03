@@ -16,7 +16,7 @@ import (
 )
 
 func restoreColdPostgresSnapshot(root,id string)error {
- snapshot,err:=coldServerUpdateSnapshotPath(root,id)
+ snapshot,err:=coldServerUpdateRecoveryPath(root,id)
  if err!=nil{return err}
  if err:=verifyColdPostgresSnapshot(snapshot);err!=nil{return fmt.Errorf("refusing restore from an unverified cold snapshot: %w",err)}
  current:=filepath.Join(root,"data","postgresql")
@@ -71,9 +71,8 @@ func restoreColdPostgresSnapshot(root,id string)error {
    return errors.New("restored PostgreSQL file differs from verified snapshot")
   }
  }
- // Verify the new database tree, not just the original snapshot.
- restoredManifestPath:=filepath.Join(snapshot,"snapshot.json")
- _=restoredManifestPath // The recovery manifest is retained separately.
+ // Verify restored file metadata; original checksums were checked during
+ // copy. The original snapshot and quarantined candidate remain untouched.
  for _,entry:=range manifest.Files{
   file:=filepath.Join(current,filepath.FromSlash(entry.Path))
   info,err:=os.Lstat(file)
