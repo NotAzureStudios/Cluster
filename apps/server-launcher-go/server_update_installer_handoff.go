@@ -17,6 +17,15 @@ import (
  "strings"
 )
 
+// Production entry point: never trust a caller-supplied digest or receipt.
+// The original staged manifest must verify under the pinned publisher key
+// immediately before copying any executable to the portable parent.
+func prepareSignedServerInstaller(root, channel string) (string,error) {
+ candidate,err:=inspectStagedServerUpdate(root,channel)
+ if err!=nil{return "",err}
+ return prepareOfflineServerInstaller(root,candidate)
+}
+
 func prepareOfflineServerInstaller(root string, candidate inspectedStagedServerUpdate) (string,error) {
  if err:=validateManagedRepairRoot(root);err!=nil{return "",err}
  if candidate.Sequence<=0 || candidate.Release=="" || candidate.Size<=0 ||
