@@ -1874,3 +1874,17 @@
     margin-inline-start: 0;
   }
 }
+
+
+.server-config-console-v238 .server-config-field-v238 > span {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.server-config-console-v238 .server-config-field-v238 .settings-state-chip-v103 {
+  font-size: .6rem;
+  padding: 3px 7px;
+  flex: 0 0 auto;
+}
+.server-config-console-v238 .server-config-toggle-v238 > span .settings-state-chip-v103 {
+  justify-self: start;
+}
