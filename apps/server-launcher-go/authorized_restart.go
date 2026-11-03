@@ -1,3 +1,5 @@
+//go:build windows
+
 package main
 
 // Private, one-shot restart requests bridge the authenticated API to the
