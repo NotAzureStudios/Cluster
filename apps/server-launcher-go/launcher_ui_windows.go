@@ -2498,6 +2498,17 @@ func (c *windowsServerController) observeLog(line string) {
 	if ready {
 		state, _ := c.snapshot()
 		if state == panelStarting {
+			// Interactive mode must settle the same immutable staged network
+			// transaction as the Windows Service. Previously only the SCM path
+			// called verifyNativeNetworkDeployment, leaving interactive installs
+			// permanently blocked by NETWORK_DEPLOYMENT_PENDING even after a
+			// successful restart. Never mark a mismatched config verified.
+			if err := verifyNativeNetworkDeployment(c.options.root); err != nil {
+				fmt.Fprintf(os.Stderr, "Native network startup verification refused: %v\n", err)
+				recordLauncherEmergency(c.options.root, nativealerts.NetworkRollbackBlocked)
+				c.RequestStop()
+				return
+			}
 			fmt.Printf("[%s] Cluster Server is ready.\n", time.Now().Format("15:04:05"))
 			c.transition(panelRunning, "")
 		}
