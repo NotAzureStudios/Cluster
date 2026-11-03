@@ -77,3 +77,38 @@ func TestColdSnapshotRejectsExtraUnmanifestedFile(t *testing.T){
  if err:=os.WriteFile(filepath.Join(snapshot,"postgresql","rogue.tmp"),[]byte("unexpected"),0600);err!=nil{t.Fatal(err)}
  if err:=verifyColdPostgresSnapshot(snapshot);err==nil{t.Fatal("unmanifested recovery file accepted")}
 }
+
+
+func TestColdRestoreQuarantinesCandidateAndRestoresVerifiedVersion(t *testing.T){
+ root:=snapshotTestRoot(t)
+ snapshot,err:=copyColdPostgresSnapshot(root,snapshotFixtureID)
+ if err!=nil{t.Fatal(err)}
+ current:=filepath.Join(root,"data","postgresql")
+ file:=filepath.Join(current,"base","5","1234")
+ if err:=os.WriteFile(file,[]byte("new release incompatible database contents"),0600);err!=nil{t.Fatal(err)}
+ if err:=restoreColdPostgresSnapshot(root,snapshotFixtureID);err!=nil{t.Fatal(err)}
+ old,err:=os.ReadFile(file)
+ if err!=nil||!strings.HasPrefix(string(old),"PostgreSQL cold backup fixture"){t.Fatalf("previous DB not restored: %v %s",err,old)}
+ quarantined,err:=os.ReadFile(filepath.Join(snapshot,"postgresql-after-failed-update","base","5","1234"))
+ if err!=nil||string(quarantined)!="new release incompatible database contents"{t.Fatalf("failed DB not retained: %v %s",err,quarantined)}
+}
+func TestColdRestoreRefusesCorruptSnapshotWithoutMovingCurrentDatabase(t *testing.T){
+ root:=snapshotTestRoot(t)
+ snapshot,err:=copyColdPostgresSnapshot(root,snapshotFixtureID)
+ if err!=nil{t.Fatal(err)}
+ current:=filepath.Join(root,"data","postgresql","PG_VERSION")
+ if err:=os.WriteFile(filepath.Join(snapshot,"postgresql","PG_VERSION"),[]byte("19\n"),0600);err!=nil{t.Fatal(err)}
+ if err:=restoreColdPostgresSnapshot(root,snapshotFixtureID);err==nil{t.Fatal("corrupt snapshot restored")}
+ data,err:=os.ReadFile(current)
+ if err!=nil||string(data)!="18\n"{t.Fatalf("current DB modified before verifying snapshot: %v %s",err,data)}
+}
+func TestColdRestoreAllowsDamagedCandidatePostgresVersion(t *testing.T){
+ root:=snapshotTestRoot(t)
+ _,err:=copyColdPostgresSnapshot(root,snapshotFixtureID)
+ if err!=nil{t.Fatal(err)}
+ current:=filepath.Join(root,"data","postgresql","PG_VERSION")
+ if err:=os.Remove(current);err!=nil{t.Fatal(err)}
+ if err:=restoreColdPostgresSnapshot(root,snapshotFixtureID);err!=nil{t.Fatalf("should recover broken PG_VERSION: %v",err)}
+ restored,err:=os.ReadFile(current)
+ if err!=nil||string(restored)!="18\n"{t.Fatalf("valid prior version not restored: %v %s",err,restored)}
+}
