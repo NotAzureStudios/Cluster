@@ -98,6 +98,24 @@ export async function loadDatabaseConfiguration(rootDirectory = process.cwd(), o
     : path.join(rootDirectory, "apps", "server", ".env");
   let fileValues = {};
   try { fileValues = parseEnv(await fs.readFile(envPath, "utf8")); } catch {}
+  // The Windows managed source-layout launcher writes its generated, private
+  // PostgreSQL URL to apps/server/.env. Portable app/db deployments use
+  // data/Runtime/server.env instead. The read-only database CLI needs to
+  // support BOTH without inventing credentials or connecting to an unknown DB.
+  // Require the installer ownership marker before reading the managed fallback.
+  let resolvedEnvPath = envPath;
+  const managedSourceEnv = path.join(rootDirectory, "apps", "server", ".env");
+  if (packaged && await exists(path.join(rootDirectory, ".cluster-installer-managed.json")) &&
+      !(fileValues.DATABASE_URL || fileValues.DIRECT_DATABASE_URL) &&
+      await exists(path.join(rootDirectory, SOURCE_SCHEMA))) {
+    try {
+      const managedValues = parseEnv(await fs.readFile(managedSourceEnv, "utf8"));
+      if (managedValues.DATABASE_URL || managedValues.DIRECT_DATABASE_URL) {
+        fileValues = managedValues;
+        resolvedEnvPath = managedSourceEnv;
+      }
+    } catch {}
+  }
   const databaseUrl = overrides.databaseUrl || process.env.DATABASE_URL || fileValues.DATABASE_URL || "";
   requirePostgresqlUrl(databaseUrl);
   const directUrl = process.env.DIRECT_DATABASE_URL || fileValues.DIRECT_DATABASE_URL || databaseUrl;
@@ -106,7 +124,7 @@ export async function loadDatabaseConfiguration(rootDirectory = process.cwd(), o
     provider: "postgresql",
     databaseUrl,
     directUrl,
-    envPath,
+    envPath: resolvedEnvPath,
     portable: packaged,
     schemaPath: path.join(rootDirectory, portableSchemaExists ? PORTABLE_SCHEMA : packaged && bootstrapSchemaExists ? BOOTSTRAP_SCHEMA : SOURCE_SCHEMA),
     configPath: portableSchemaExists

@@ -387,6 +387,16 @@ function RepairWorkspaceJunctions([string]$installedRoot) {
 # D:\Cluster-Server\Cluster\Server; this is a tiny entry point, not a second server.
 function PublishRootServerLauncher([string]$installedRoot) {
   $portableRoot = Split-Path -Parent $WorkRoot
+  # If Cluster-Installer.exe was run from C:\ (or any drive root), this
+  # convenience launcher would be staged at C:\Cluster Server.exe.cluster-staging.
+  # Standard users cannot write there, although the verified installation
+  # under C:\Cluster\Server is already complete. Do not fail the release
+  # because a nonessential drive-root shortcut cannot be created.
+  $portableVolume = [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($portableRoot))
+  if ($portableRoot.TrimEnd('\','/') -ieq $portableVolume.TrimEnd('\','/')) {
+    Say "Skipping optional Server launcher beside installer: $portableRoot is a Windows drive root. Use the managed Server Manager under $installedRoot\bin instead."
+    return
+  }
   $entry = Join-Path $installedRoot 'bin/Cluster Server.exe'
   $launcher = Join-Path $portableRoot 'Cluster Server.exe'
   $ownershipFile = Join-Path $WorkRoot 'root-launcher.manifest.json'
@@ -739,7 +749,7 @@ try {
   # successful verified deployment. Never overwrite an unrelated root EXE.
   PublishRootServerLauncher $target
   if (-not $SkipLaunch) { LaunchClusterServer $target }
-  Say 'Cluster RC installed. Later candidates are delivered by newer installers; explicitly drag full source ZIPs for development overrides.'
+  Say 'Cluster managed release installed. The installed Server Manager remains available under Server\bin.'
   exit 0
 } catch {
   Write-Host ('[Cluster Installer] FAILED: ' + $_.Exception.Message) -ForegroundColor Red
