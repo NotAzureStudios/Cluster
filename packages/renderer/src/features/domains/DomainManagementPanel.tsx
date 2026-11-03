@@ -24,6 +24,20 @@ const connectionProviders: Record<ConnectionMode, ConnectionProvider[]> = {
 type Challenge = { host: string; type: "TXT"; value: string };
 type DnsStatus = { checkedAt: string; ownership: "present" | "missing" | "unavailable"; routing: "matching" | "mismatch" | "unavailable" | "not_configured"; tls: "not_checked"; connectivity: "not_checked"; serverIdentityRecorded: boolean };
 
+/** Accept the common paste of an HTTPS origin, but never silently discard
+ * paths, credentials, ports or query fragments. The server remains authoritative. */
+export function bindingHostnameFromDraft(value: string): string {
+  const raw = value.trim();
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      if (!url.username && !url.password && !url.port && url.pathname === "/" && !url.search && !url.hash)
+        return url.hostname.toLowerCase().replace(/\.$/, "");
+    } catch { /* Leave invalid input visible for correction. */ }
+  }
+  return raw.toLowerCase().replace(/\.$/, "");
+}
+
 /** Studio owns registration and proof. Server Configuration owns routing.
  * Vault is only an inventory reference and contains no domain mutations. */
 export function StudioDomainsPanel() { return <DomainsAdministrationPanel surface="studio" />; }
@@ -194,15 +208,18 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
         <details className="cluster-domain-help-rc46"><summary>How server binding works</summary><p>Only this server's installation ID can be bound. Other Cluster servers require their own identity handshake.</p></details>
-        <label>Hostname <ClusterInput value={hostname} onChange={event => setHostname(event.target.value)} placeholder={`cluster.${selected.domain}`} /></label>
+        <label>Hostname <ClusterInput value={hostname} onChange={event => setHostname(event.target.value)} onBlur={() => setHostname(bindingHostnameFromDraft(hostname))} placeholder={`cluster.${selected.domain}`} /></label>
+        <p className="muted tight">Enter the hostname only, without <code>https://</code>. A pasted plain HTTPS origin is reduced to its hostname on blur. Do not enter localhost or a path.</p>
+        {/^[a-z]+:\/\//i.test(hostname) || /[/?#]/.test(hostname) ? <p role="alert">Use only a DNS hostname such as <code>cluster.{selected.domain}</code>.</p> : null}
         <label>DNS record type <select value={dnsType} onChange={event => { setDnsType(event.target.value as "A" | "AAAA" | "CNAME"); setDnsTarget(""); }}>
           <option value="CNAME">CNAME</option><option value="A">A (IPv4)</option><option value="AAAA">AAAA (IPv6)</option>
         </select></label>
-        <label>DNS target <ClusterInput value={dnsTarget} onChange={event => setDnsTarget(event.target.value)} placeholder={dnsType === "CNAME" ? "server.example.net" : dnsType === "A" ? "203.0.113.10" : "2001:db8::10"} /></label>
+        <label>DNS target <ClusterInput value={dnsTarget} onChange={event => setDnsTarget(event.target.value)} placeholder={dnsType === "CNAME" ? "your-tunnel-id.cfargotunnel.com" : dnsType === "A" ? "203.0.113.10" : "2001:db8::10"} /></label>
+        {dnsType === "CNAME" && <p className="muted tight">For Cloudflare Tunnel use the actual CNAME target Cloudflare assigned to this tunnel, not your public URL or this example. Tunnel routing and TLS are configured separately.</p>}
         <p>Required manual record: <code>{hostname || "hostname"} {dnsType} {dnsTarget || "target"}</code></p>
         <ClusterButton disabled={!hostname.trim() || !dnsTarget.trim()} onClick={() => copyClusterText(`${hostname} ${dnsType} ${dnsTarget}`)}>Copy DNS instruction</ClusterButton>
         <ClusterButton disabled={busy || selected.verificationState !== "verified" || !hostname.trim() || !dnsTarget.trim()} onClick={() => void mutate(async () => {
-          const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/bind`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision, hostname, dnsType, dnsTarget }) });
+          const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/bind`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision, hostname: bindingHostnameFromDraft(hostname), dnsType, dnsTarget }) });
           setNotice("Hostname attached to this Cluster installation. Publish DNS and configure TLS separately."); return response;
         })}>Save verified binding</ClusterButton>
         {selected.bindingHostname && <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
