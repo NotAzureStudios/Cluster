@@ -28,10 +28,10 @@ jobs:
       contents: write
       actions: read
     env:
-      GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-      BUILT_SHA: \${{ github.event.workflow_run.head_sha }}
-      BUILT_RUN_ID: \${{ github.event.workflow_run.id }}
-      CLUSTER_SERVER_SIGNING_KEY_PEM: \${{ secrets.CLUSTER_SERVER_SIGNING_KEY_PEM }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+      BUILT_RUN_ID: ${{ github.event.workflow_run.id }}
+      CLUSTER_SERVER_SIGNING_KEY_PEM: ${{ secrets.CLUSTER_SERVER_SIGNING_KEY_PEM }}
     steps:
       - name: Checkout the current reviewed main source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
