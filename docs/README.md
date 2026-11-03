@@ -1,20 +1,17 @@
 # Cluster documentation
 
-Documentation here is divided by purpose, not by chat session or ZIP artifact.
+Start with the [Cluster 1.0 README](../README.md). These are the **current** operator and developer references for the first published private studio release.
 
-| Area | Purpose |
+| Guide | Purpose |
 | --- | --- |
-| [Development](development/) | Git workflow, source imports, local setup and validation |
-| [Architecture](architecture/) | Module ownership, source conventions and cleanup targets |
-| [Design](design/) | Product design decisions and UI/UX workstream notes |
-| [Unified transfer pass](development/UNIFIED_TRANSFER_PASS.md) | Priority, range recovery, streaming hash verification, limits |
-| [Transfer engine upgrade](development/TRANSFER_ENGINE_UPGRADE.md) | Streaming disk downloads, cancellation and remaining gaps |
-| [Upload/download memory audit](development/TRANSFER_MEMORY_AUDIT.md) | Streaming, backpressure and retained-resource review |
-| [Memory and lifecycle audit](development/MEMORY_LIFECYCLE_AUDIT.md) | Source findings and the remaining runtime soak-test plan |
-| [Compatibility fossil cleanup](development/LEGACY_COMPATIBILITY_AUDIT.md) | Removed Qt journal migration path and decisions on remaining candidates |
-| [Release readiness](development/RELEASE_CHECKLIST.md) | Acceptance checklist for a certified 1.0 release |
-| [Release and checkpoint history](history/) | Historical release candidate notes, roadmaps and audits preserved from older repository snapshots |
+| [Install Cluster 1.0](INSTALLATION.md) | Download, hash-verify, install and connect Server and Desktop on Windows x64 |
+| [1.0 release notes](releases/CLUSTER_1_0_0.md) | Published components, binary provenance, SHA-256 hashes and limitations |
+| [Windows Server recovery](development/NATIVE_WINDOWS_SERVER_RECOVERY.md) | Service, repair and data-preserving recovery procedures |
+| [Local development](development/LOCAL_SETUP.md) | Pinned toolchain, `npm ci`, database setup and build commands |
+| [Release builds](development/REPRODUCIBLE_BUILD_1_0.md) | Locked npm workspace builds and source-bound receipts |
+| [Distribution profiles](development/DISTRIBUTION_PROFILES.md) | Server/Desktop/Web boundaries and update channels |
+| [Git workflow](development/GIT_WORKFLOW.md) | Branches, pull requests and 1.0.x maintenance |
+| [Architecture](architecture/REPOSITORY_LAYOUT.md) | Active source directories and system ownership |
+| [Release verification](development/RELEASE_CHECKLIST.md) | What was tested versus what remains a known limitation |
 
-**Start with the root [README](../README.md)** for current branch policy, source status and architecture. Release documents describe the state of a specific source checkpoint; they do not supersede `config/release-candidate.json` in a checked-out revision.
-
-Historical documents are retained for traceability. Do not treat their earlier proposed roadmaps or certification claims as current work instructions without verifying them against the latest code.
+The historical RC roadmaps, design-pass plans and superseded one-time release preparation documents are available in Git history instead of the current operator documentation tree. **Published 1.0 is not the same as signed or runtime-certified.**
