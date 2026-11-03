@@ -63,7 +63,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
     "serverInstanceId", "serverDataEpoch", "serverDisplayName", "lanDiscoveryEnabled",
     "discordWebhookUrl", "discordVoiceUrl", "discordMessagePrefix", "discordBotToken", "discordGuildId",
     "discordForumChannelId", "discordChatChannelId", "discordAdminRoleId", "discordApplicationId", "discordApplicationPublicKey",
-    "serverHost", "serverPort", "webHost", "webPort", "publicApiUrl", "publicWebUrl", "corsOrigins",
+    "serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins",
     "requestBodyLimitMb", "uploadLimitMb", "requestTimeoutSeconds", "authRequired", "devLoginEnabled",
     "requireDiscordLink", "sessionDays", "sessionSecure", "rateLimitEnabled", "rateLimitMax",
     "rateLimitWindowMinutes", "authRateLimitMax", "sessionIdleHours", "sessionMaxPerUser",
