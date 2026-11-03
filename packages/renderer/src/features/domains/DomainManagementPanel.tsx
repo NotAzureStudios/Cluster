@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, formatApiError } from "../../core/api";
 import { copyClusterText } from "../../core/clipboard";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ClusterInput } from "../../components/ClusterNativeControls";
 
 type Domain = {
@@ -162,6 +164,10 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   const bindingVerified = ownershipVerified && connectionBound && Boolean(selected?.bindingHostname);
   const gatewayPlanSaved = Boolean(connectionPlan && connectionBound);
   const dnsRoutingChecked = Boolean(dnsStatus);
+  const dnsRoutingTone = dnsStatus?.routing === "matching" ? "success"
+    : dnsStatus?.routing === "mismatch" ? "danger"
+    : dnsStatus?.routing === "not_configured" || dnsStatus?.routing === "unavailable" ? "warning"
+    : "neutral";
 
   return <section className={`cluster-panel cluster-domains-rc46 ${surface === "server" ? "cluster-server-domains-v103" : "cluster-studio-domains-v103"}`} aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
     <header className="cluster-domain-header-v103">
@@ -169,7 +175,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         <h2>{surface === "studio" ? "Studio domains" : "Connect a domain"}</h2>
         <p>{surface === "studio" ? "Register domains, record ownership, and verify control with DNS TXT records." : "Bind a verified hostname to this installation, configure its gateway, and independently verify the live route."}</p>
       </div>
-      {surface === "server" && <span className={`cluster-domain-header-status-v103 ${bindingVerified ? "is-ready" : ""}`}>{bindingVerified ? "Hostname bound" : "Setup incomplete"}</span>}
+      {surface === "server" && <SettingsStateChip tone={bindingVerified ? "success" : "warning"} icon={bindingVerified ? "check" : "link"}>{bindingVerified ? "Hostname bound · public access unverified" : "Setup incomplete"}</SettingsStateChip>}
     </header>
     {error && <div className="cluster-domain-message-v103 is-error" role="alert">{error}</div>}
     {notice && <div className="cluster-domain-message-v103" role="status">{notice}</div>}
@@ -206,10 +212,10 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     </div>}
     </div>
     {surface === "server" && selected && <div className="cluster-domain-progress-v103" aria-label="Domain setup status">
-      <div><span>01 · Ownership</span><strong>{ownershipVerified ? "Verified" : "Requires verification"}</strong></div>
-      <div><span>02 · Server binding</span><strong>{bindingVerified ? "Bound to this server" : "Not verified"}</strong></div>
-      <div><span>03 · Gateway profile</span><strong>{gatewayPlanSaved ? "Plan saved" : "Not configured"}</strong></div>
-      <div><span>04 · DNS routing</span><strong>{!dnsRoutingChecked ? "Not checked" : dnsStatus?.routing === "matching" ? "Matching" : dnsStatus?.routing || "Unavailable"}</strong></div>
+      <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="lock" aria-hidden="true" /> 01 · Ownership</span><SettingsStateChip tone={ownershipVerified ? "success" : "warning"}>{ownershipVerified ? "TXT verified" : "Verification needed"}</SettingsStateChip></div>
+      <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="link" aria-hidden="true" /> 02 · Server binding</span><SettingsStateChip tone={bindingVerified ? "success" : "warning"}>{bindingVerified ? "Bound locally" : "Binding needed"}</SettingsStateChip></div>
+      <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="cloud" aria-hidden="true" /> 03 · Gateway profile</span><SettingsStateChip tone={gatewayPlanSaved ? "info" : "neutral"} icon={gatewayPlanSaved ? "file" : "minus"}>{gatewayPlanSaved ? "Plan saved · not deployed" : "Not configured"}</SettingsStateChip></div>
+      <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="activity" aria-hidden="true" /> 04 · DNS routing</span><SettingsStateChip tone={dnsRoutingTone} icon={dnsStatus?.routing === "matching" ? "check" : dnsStatus?.routing === "mismatch" ? "warning" : "minus"}>{!dnsRoutingChecked ? "Not checked" : dnsStatus?.routing === "matching" ? "DNS matches" : dnsStatus?.routing === "not_configured" ? "DNS not configured" : dnsStatus?.routing === "mismatch" ? "DNS mismatch" : "DNS check unavailable"}</SettingsStateChip></div>
     </div>}
     {selected && <div className="cluster-panel cluster-domain-detail-v103">
       <h3>{selected.domain}</h3>
@@ -249,7 +255,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         }}>Rotate ownership proof</ClusterButton>
       </div></>}
       {surface === "server" && <><div className="cluster-panel cluster-domain-workflow-card-v103">
-        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">02</span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div></div>
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103"><ClusterIcon name="link" aria-hidden="true" /></span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div><SettingsStateChip tone={bindingVerified ? "success" : "warning"}>{bindingVerified ? "Bound" : "Action needed"}</SettingsStateChip></div>
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
         <details className="cluster-domain-help-rc46"><summary>How server binding works</summary><p>Only this server's installation ID can be bound. Other Cluster servers require their own identity handshake.</p></details>
@@ -266,7 +272,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         <ClusterButton disabled={busy || selected.verificationState !== "verified" || !hostname.trim() || !dnsTarget.trim()} onClick={() => void mutate(async () => {
           const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/bind`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision, hostname: bindingHostnameFromDraft(hostname), dnsType, dnsTarget }) });
           setNotice("Hostname attached to this Cluster installation. Publish DNS and configure TLS separately."); return response;
-        })}>Save verified binding</ClusterButton>
+        })}><ClusterIcon name="link" aria-hidden="true" /> Save verified binding</ClusterButton>
         {selected.bindingHostname && <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
           const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/unbind`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision }) });
           setNotice("Binding removed. Existing DNS and TLS records require manual cleanup."); return response;
@@ -274,17 +280,17 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
           const response = await api<DnsStatus>(`/api/admin/domains/${encodeURIComponent(selected.id)}/dns-status`);
           setDnsStatus(response); setNotice("Read-only DNS check completed.");
-        })}>Check DNS status</ClusterButton>
+        })}><ClusterIcon name="refresh" aria-hidden="true" /> Check DNS status</ClusterButton>
         {dnsStatus && <div className="cluster-panel" role="status">
           <p>Checked {new Date(dnsStatus.checkedAt).toLocaleString()}</p>
-          <p>TXT ownership: <strong>{dnsStatus.ownership}</strong> · Intended DNS routing: <strong>{dnsStatus.routing}</strong></p>
+          <div className="cluster-domain-check-results-v103"><SettingsStateChip tone={dnsStatus.ownership === "present" ? "success" : dnsStatus.ownership === "missing" ? "warning" : "neutral"}>TXT ownership: {dnsStatus.ownership}</SettingsStateChip><SettingsStateChip tone={dnsRoutingTone}>DNS routing: {dnsStatus.routing.replaceAll("_", " ")}</SettingsStateChip><SettingsStateChip tone="neutral">TLS not checked</SettingsStateChip><SettingsStateChip tone="neutral">External reachability not checked</SettingsStateChip></div>
           {dnsStatus.routing === "not_configured" && <p role="alert">Domain ownership is recorded, but the hostname routing record has not been configured. Enter the actual gateway DNS target, save the verified server binding, and publish the record at your DNS provider.</p>}
           {dnsStatus.routing === "mismatch" && <p role="alert">The live DNS record does not match Cluster's saved target. Verify the CNAME or IP at your DNS provider; do not change the server listener to compensate.</p>}
           <p>TLS: not checked · Cluster reachability: not checked. Matching DNS does not mean this hostname is publicly accessible or secure.</p>
         </div>}
       </div>
       <div className="cluster-panel cluster-domain-workflow-card-v103" aria-label="Domain connectivity and deployment">
-        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">03</span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div></div>
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103"><ClusterIcon name="cloud" aria-hidden="true" /></span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div><SettingsStateChip tone={gatewayPlanSaved ? "info" : "neutral"}>{gatewayPlanSaved ? "Plan saved" : "Not configured"}</SettingsStateChip></div>
         <p>Configure how members reach both the web frontend and API through one canonical address. Select a mode, save it, deploy its gateway configuration, then test from a separate device.</p>
         {!connectionBound && <p role="alert">First verify the domain and bind its hostname to this installation. A saved DNS binding alone does not expose the server.</p>}
         {connectionError && <p role="alert">{connectionError}</p>}
@@ -315,7 +321,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           setConnection(response.profile); setConnectionPlan(response.plan); setConnectionStatus(null); setPublicStatus(null);
           setNotice("Access plan saved. Deploy its gateway instructions and verify from a remote client before relying on this URL.");
           return { domain: { ...selected, revision: response.revision } };
-        })}>Save access profile &amp; generate deployment</ClusterButton>
+        })}><ClusterIcon name="cloud" aria-hidden="true" /> Save access profile &amp; generate deployment</ClusterButton>
         {connectionPlan && <div className="cluster-panel cluster-domain-deployment-v103">
           <p>Planned member address: <strong>{connectionPlan.canonicalUrl}</strong> <ClusterButton onClick={() => copyClusterText(connectionPlan.canonicalUrl)}>Copy</ClusterButton></p>
           <p>Origin routing: Web <code>{connectionPlan.origin.web}</code> · API <code>{connectionPlan.origin.api}</code></p>
@@ -336,12 +342,12 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
               const anchor = document.createElement("a"); anchor.href = url; anchor.download = `cluster-domain-${selected.domain}.json`;
               document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
               setNotice("Deployment bundle generated. Review and install gateway artifacts explicitly.");
-            })}>Download deployment bundle</ClusterButton>
+            })}><ClusterIcon name="download" aria-hidden="true" /> Download deployment bundle</ClusterButton>
             <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
               const result = await api<typeof readiness & { ok: true }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/deployment/readiness`);
               setReadiness(result); setNotice("Compared server settings with the selected connection plan.");
             })}>Check server configuration</ClusterButton>
-            {readiness && <div role="status"><p>{readiness.configured ? "Server settings match the plan." : "Server settings need review."} Gateway installed: not verified.</p>
+            {readiness && <div role="status"><p><SettingsStateChip tone={readiness.configured ? "success" : "warning"}>{readiness.configured ? "Server settings match the saved plan" : "Server settings need review"}</SettingsStateChip> <SettingsStateChip tone="neutral">Gateway installation not verified</SettingsStateChip></p>
               <ul>{readiness.checks.map(check => <li key={check.id}>{check.pass ? "✓" : "Needs change"}: {check.label} (expected {String(check.expected)}, observed {String(check.observed ?? "unset")})</li>)}</ul>
             </div>}
           </div>
