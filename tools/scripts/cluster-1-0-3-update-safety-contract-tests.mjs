@@ -39,7 +39,7 @@ const cases=[
  ["copy targets actual portable installer parent and prevents nesting",handoff.includes('parent:=filepath.Dir(workRoot)') && handoff.includes('expected InstallParent/Cluster/Server') && handoff.includes('Cluster-Update-%d-%s.exe')],
  ["production handoff rechecks pinned publisher signature",handoff.includes('candidate,err:=inspectStagedServerUpdate(root,channel)')],
  ["handoff is no-execute, exclusive and hash-verified",handoff.includes('os.O_CREATE|os.O_EXCL|os.O_WRONLY')&&handoff.includes('finalDigest:=sha256.New()')&&!handoff.includes('exec.Command')],
- ["update readiness states missing auto owner honestly",readiness.includes('NativeInstallationSupported:false')&&readiness.includes('Automatic installer execution and rollback are not yet implemented')],
+ ["native update readiness is gated by SCM ownership, recovery disk and unblocked staging",readiness.includes('NativeInstallationSupported:false')&&readiness.includes('nativeServerUpdateExecutorSupport(root,candidate.Size)')&&readiness.includes('result.NativeInstallationSupported=true')],
  ["update readiness exposed read only",launcher.includes('updateReadiness := flag.Bool("--update-readiness"'.replace('--update-readiness','update-readiness'))&&launcher.includes('inspectServerUpdateReadiness(root,*updateChannel,inspectStagedServerUpdate)')],
  ["update installer supports guarded, no-auto-launch application",installer.includes('supervisedInstallerUpgradeAllowed(')&&installer.includes('if ciInstallOnly || skipLaunchAfterUpgrade {')],
  ["main auto-apply remains blocked until independent owner is certified",!launcher.includes('apply-staged-update')&&!installer.includes('--apply-staged-update')],
