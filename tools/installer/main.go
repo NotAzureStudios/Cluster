@@ -194,9 +194,10 @@ func writePayload(name, destination string) error {
 }
 func run() error {
 	if len(os.Args) > 2 {
-		return errors.New("only one developer ZIP or --repair option may be supplied")
+		return errors.New("only one developer ZIP, --repair, or --skip-launch option may be supplied")
 	}
 	repairSameRelease := len(os.Args) == 2 && os.Args[1] == "--repair"
+	skipLaunchAfterUpgrade := len(os.Args) == 2 && os.Args[1] == "--skip-launch"
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -234,8 +235,14 @@ func run() error {
 	if repairSameRelease && !sameReleaseRepairAllowed(installed, installedHash, embeddedHash, installedSeq, identity.Sequence) {
 		return errors.New("in-place repair requires an installed revision matching this exact prebuilt installer; never downgrade or replace a different revision as repair")
 	}
+	// A separate native update owner must restart and probe the candidate.
+	// The public installer never receives an arbitrary install root: the
+	// executable's parent remains the only way to select a managed target.
+	if skipLaunchAfterUpgrade && (!installed || !chooseEmbeddedRevision(installedHash, embeddedHash, installedSeq, identity.Sequence)) {
+		return errors.New("--skip-launch requires a strictly newer embedded release and an existing managed Server")
+	}
 	var archive string
-	if len(os.Args) == 2 && !repairSameRelease {
+	if len(os.Args) == 2 && !repairSameRelease && !skipLaunchAfterUpgrade {
 		if !developerSource { return errors.New("dragged ZIP installation is disabled for signed production installers; use explicit developer source mode") }
 		archive, err = filepath.Abs(strings.TrimSpace(os.Args[1]))
 		if err != nil {
@@ -271,7 +278,7 @@ func run() error {
 	if ciInstallOnly && archive == "" {
 		return errors.New("isolated installation smoke requires a new bundled revision")
 	}
-	if ciInstallOnly {
+	if ciInstallOnly || skipLaunchAfterUpgrade {
 		args = append(args, "-SkipLaunch")
 	}
 	fmt.Println(installerName, identity.Release)
@@ -297,6 +304,8 @@ func run() error {
 		fmt.Println("Exact-release application repair completed; Server remains stopped for validation.")
 	} else if ciInstallOnly {
 		fmt.Println("Isolated Windows install smoke completed; native Server not started.")
+	} else if skipLaunchAfterUpgrade {
+		fmt.Println("Embedded upgrade installed with automatic launch disabled; the independent native owner must verify and restart the Server.")
 	} else {
 		fmt.Println("Cluster Server Manager launch requested.")
 	}
