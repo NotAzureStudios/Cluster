@@ -3,6 +3,7 @@ import { api } from "../core/api";
 import { REAUTHENTICATION_REQUEST_EVENT, type ReauthenticationRequestDetail } from "../core/reauthentication";
 import "./reauthentication.css";
 import { ClusterTextInput } from "./ClusterTextInput";
+import { ClusterPinEntry } from "./ClusterPinEntry";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterIcon } from "./ClusterIcon";
 import { ClusterModal } from "./ClusterModal";
@@ -112,21 +113,27 @@ export function ReauthenticationHost() {
             {!request.passkeyRequired && request.passwordAllowed && <ClusterButton unstyled type="button" className={mode === "password" ? "active" : ""} aria-pressed={mode === "password"} onClick={() => chooseMode("password")}>Password</ClusterButton>}
           </div>
         )}
-        {mode === "passkey" ? <div className="hint-box"><strong>Use your authenticator</strong><span>{request.minimumStrength === "hardware_backed" ? "This action requires a hardware security key." : "This action requires phishing-resistant verification with a passkey or security key."}</span></div> : <label>
-          <span>{mode === "pin" ? "Security PIN" : "Password"}</span>
+        {mode === "passkey" ? <div className="hint-box"><strong>Use your authenticator</strong><span>{request.minimumStrength === "hardware_backed" ? "This action requires a hardware security key." : "This action requires phishing-resistant verification with a passkey or security key."}</span></div> : mode === "pin" ? (
+          <div className="reauth-pin-pad-v124">
+            <span>Security PIN</span>
+            <ClusterPinEntry
+              inputRef={inputRef}
+              label="Security PIN"
+              value={credential}
+              disabled={working}
+              onChange={(next) => { setCredential(next); setError(""); }}
+              onEnter={() => void submitReauthentication()}
+            />
+          </div>
+        ) : <label>
+          <span>Password</span>
           <ClusterTextInput
             ref={inputRef}
             type="password"
-            inputMode={mode === "pin" ? "numeric" : undefined}
-            pattern={mode === "pin" ? "[0-9]*" : undefined}
-            maxLength={mode === "pin" ? 8 : undefined}
             value={credential}
-            autoComplete={mode === "pin" ? "off" : "current-password"}
-            onChange={(event) => {
-              const value = mode === "pin" ? event.target.value.replace(/\D/g, "").slice(0, 8) : event.target.value;
-              setCredential(value);
-              setError("");
-            }}
+            autoComplete="current-password"
+            disabled={working}
+            onChange={(event) => { setCredential(event.target.value); setError(""); }}
             onKeyDown={(event) => { if (event.key === "Enter") void submitReauthentication(); }}
           />
         </label>}
