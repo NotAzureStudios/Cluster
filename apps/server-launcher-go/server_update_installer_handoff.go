@@ -20,7 +20,7 @@ import (
 func prepareOfflineServerInstaller(root string, candidate inspectedStagedServerUpdate) (string,error) {
  if err:=validateManagedRepairRoot(root);err!=nil{return "",err}
  if candidate.Sequence<=0 || candidate.Release=="" || candidate.Size<=0 ||
-  len(candidate.SHA256)!=64 || !strings.HasPrefix(candidate.SHA256,"") {
+  len(candidate.SHA256)!=64 {
   return "",errors.New("invalid signed update admission")
  }
  hashBytes,err:=hex.DecodeString(candidate.SHA256)
