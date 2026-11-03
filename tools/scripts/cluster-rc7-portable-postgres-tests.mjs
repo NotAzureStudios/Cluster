@@ -9,7 +9,7 @@ const ui=fs.readFileSync(path.join(root,'apps/server-launcher-go/launcher_ui_win
 const metadata=JSON.parse(fs.readFileSync(path.join(root,'config/release-candidate.json'),'utf8'));
 let passed=0;
 const check=(label,result)=>{assert.ok(result,label);console.log('PASS',label);passed++;};
-check('RC7 release identity',metadata.release===`1.0.0-rc.${metadata.sequence}`&&metadata.sequence>=7);
+check('Installer release identity',((metadata.channel==='rc'&&metadata.release===`1.0.0-rc.${metadata.sequence}`&&metadata.sequence>=7)||(metadata.channel==='stable'&&metadata.release==='1.0.1'&&metadata.sourceVersion==='1.0.1'&&metadata.sequence>=51)));
 check('download official portable binaries not a Windows installer',win.includes('windows-x64-binaries.zip')&&!win.includes('postgresql-%s-%s-windows-x64.exe'));
 check('postgresql extractor never starts a PE setup program',!win.includes('exec.Command(installer')&&!win.includes('runPostgresExtractor('));
 check('official hash pinned',portable.includes('e2246ba91d22345bc3d017586c09ede52d9df180b1eeb480f050445f1cad84e2'));
