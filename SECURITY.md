@@ -1,21 +1,17 @@
 # Cluster security policy
 
-Cluster is a **private, self-hosted Azure Studios application**. This repository is not a public support forum or a vulnerability disclosure program.
+Cluster 1.0 is a **private, self-hosted Azure Studios product**. The `v1.0.0` release is the supported studio baseline, with subsequent security fixes handled as `1.0.x` maintenance updates.
 
-## Reporting
+## Report an issue privately
 
-If you find a potential vulnerability, **contact the Azure Studios repository maintainers privately through your existing authorized studio communication channel**. Do not publish credentials, exploits, database content, tokens, sensitive screenshots or security findings in a public GitHub issue or public discussion.
+Contact authorized Azure Studios maintainers using existing internal studio channels. Do **not** disclose tokens, passwords, private signing keys, Library data, database contents, or exploit details in a public issue or chat. Report the release/component version, steps to reproduce, impact and sanitized diagnostics.
 
-Include a concise description, affected component/branch/commit, reproducible steps, estimated impact, and any evidence redacted of personal information or secrets. Do not perform intrusive testing against someone else's server.
+Maintainers should evaluate data exposure, revoke compromised credentials, patch in a restricted branch and distribute follow-up guidance to affected operators.
 
-Maintainers should triage privately, revoke any exposed credentials as necessary, prepare a fix on a restricted development branch, and communicate patch/upgrade guidance to affected operators.
+## Release security limits
 
-## Supported versions
+The published Server and Qt Desktop installers were hash-verified and compiled from recorded commits, but **they are not code-signed**, and live installation, update/rollback and recovery acceptance have **not** been independently verified. See the [release notes](docs/releases/CLUSTER_1_0_0.md) and [installation guide](docs/INSTALLATION.md).
 
-No GitHub source revision is currently represented as a **certified stable Cluster 1.0 release**. The tracked release metadata is `1.0.0-rc.50` with `certification: candidate-unverified`; newer RC bundles have not yet been integrated into GitHub. Production security support and disclosure timing have not been established.
+Keep Cluster behind the studio's trusted network or an appropriately secured HTTPS endpoint; use least-privileged accounts and strong credentials. Preserve external PostgreSQL and Library backups. Do not treat a successful source CI run or checksum as penetration-testing or runtime-security certification.
 
-## Repository and runtime handling
-
-Keep the repo private and access least-privileged. Do not commit secrets, certificate private keys, database files, local configuration or user Library data. Review auth, project/Library authorization, URL delivery, storage and updater changes carefully. Enable applicable GitHub security features and branch protection in repository settings.
-
-This policy documents private reporting and safe handling; it is **not** proof of completed threat modeling, release signing or penetration testing.
+Protect the private repository, update trust roots, build credentials and installer distribution. Never commit database files, user data, populated `.env` files or signing keys.

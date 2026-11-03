@@ -1,7 +1,0 @@
-# G26 WS6 interface contract: explicit Packet requirements and safe recovery
-
-Packet authors choose a concrete immutable published release first, then select known eligible active accounts with an optional due date. The server validates the frozen recipient audience rather than trusting the filtered UI. The reader distinguishes Required, Outstanding and Acknowledged **for the specific release** without treating a catalogue view or download issuance as evidence. The manager sees a paginated list of assigned users, timestamps, due dates and exact-release acknowledgment, including historical records after withdrawal; current delivery remains blocked on revoked releases.
-
-Library administrators have an explicit, on-demand Transfer Recovery inspection without ambient polling or source URLs. It reports one row per unresolved upload with state, owner, age and presence of provider identity evidence, **not the actual provider key or multipart ID**. No action implying cleanup, forced unlock, provider success, or safe retry is shown until a generation-fenced operator workflow exists. This also avoids polluting ordinary users' Transfer Center with administrative evidence.
-
-Honor Cluster's density, accessibility and muted modern materials. Responsive candidate selection has bounded scrolling; loading/empty/error states remain explicit. The official studio style guide (CL-DS-001) is external and not embedded in this archive.

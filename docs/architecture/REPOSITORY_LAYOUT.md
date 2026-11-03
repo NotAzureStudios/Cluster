@@ -17,7 +17,7 @@ Cluster's source repository is a **single private monorepo**. Its primary units 
 | `tools/scripts/` | Source checks, migration/regression utilities, build scripts | Developer/release automation |
 | `tools/installer/`, `tools/native/`, `tools/windows/` | Native packaging and Windows implementation | Installer/build/runtime support |
 | `config/` | Source toolchain and release metadata | Versioning and release metadata |
-| `docs/` | Current development/design docs and historical evidence | Project documentation |
+| `docs/` | Active installation, architecture, development and release documentation | Project documentation |
 
 npm workspaces are explicitly declared at the root `package.json`. Go modules and Qt/CMake build targets are also represented in the tree but do not belong in npm workspace declarations simply because they are in `apps/`.
 
@@ -28,7 +28,7 @@ npm workspaces are explicitly declared at the root `package.json`. Go modules an
 - **API and authorization:** server-side policies and persistence stay on the server. Front-end conveniences do not replace server checks.
 - **Generated versus authored:** keep compiler output, local databases, cached dependencies, installers and user data out of the source tree.
 - **Toolchains:** keep `config/toolchain-versions.json`, package manifests, native build definitions and release metadata consistent.
-- **Documentation:** put developer guides in `docs/development/`, design decisions in `docs/design/`, past snapshot evidence in `docs/history/`.
+- **Documentation:** put developer guides in `docs/development/`, design decisions in `docs/design/`, historical source evidence in Git history.
 
 ## Areas needing later architectural cleanup
 

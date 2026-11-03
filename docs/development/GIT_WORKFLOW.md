@@ -31,8 +31,10 @@ Use `node tools/scripts/cluster-repo-hygiene-check.mjs` and `node tools/scripts/
 
 Publish binaries and installer ZIPs as **version-matched, verified release artifacts**, never as routine source commits. No Git tag by itself certifies an installer.
 
-## Current source migration state
+## Cluster 1.0 release baseline
 
-As of November 2, 2026, `config/release-candidate.json` identifies **1.0.0-rc.50** (source `0.546.0`). Later targeted PDF/3D and Server Manager fixes have been reconciled through reviewed Git commits, but importing or assuming parity with whole external ZIP snapshots is **not** justified. Do not automatically overwrite the repository with an archive. The root `package-lock.json` remains untracked, blocking reproducible production installer generation.
+The private [`v1.0.0` tag](https://github.com/NotAzureStudios/Cluster/tree/v1.0.0) is the published source baseline. Its original Server and Desktop binaries were built from earlier reviewed branch commits and have their own checksums in [release notes](../releases/CLUSTER_1_0_0.md). The committed npm lockfile supports reproducible `npm ci` on pinned Node.
+
+Bug fixes after this release belong in focused `1.0.x` changes on `development`. Preserve existing installed Server data, compatibility boundaries and updater safety. Do not move the published v1.0.0 tag or replace its assets while working on later fixes.
 
 See [source snapshot hygiene](SOURCE_SNAPSHOT_HYGIENE.md) for import safeguards.

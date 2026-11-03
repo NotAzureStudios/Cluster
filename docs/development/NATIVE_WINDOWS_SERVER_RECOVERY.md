@@ -1,6 +1,6 @@
 # Native Windows Server Manager: service and recovery operator notes
 
-These procedures apply to the **managed Cluster Server** installed with `Cluster-Installer.exe`. They are development/RC procedures and are **not** evidence of a certified Windows installation.
+These procedures apply to the **managed Cluster Server** installed with `Cluster-Installer.exe`. They apply to the published private **Cluster 1.0** Server package. These instructions remain **uncertified operator procedures**; a release label is not proof of successful live repair or restore.
 
 ## Read-only offline diagnostics
 
