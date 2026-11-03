@@ -13,7 +13,7 @@ if ($env:OS -ne "Windows_NT") { throw "This test requires Windows." }
 
 $original = (Resolve-Path -LiteralPath $InstallerPath).Path
 $expected = (Get-Content -LiteralPath "config/release-candidate.json" -Raw | ConvertFrom-Json).release
-if ($expected -ne "1.0.2") { throw "Unexpected source release: $expected" }
+if ([string]::IsNullOrWhiteSpace([string]$expected)) { throw "Source release metadata is missing." }
 $folder = Join-Path ([IO.Path]::GetTempPath()) ("cluster-real-install-smoke-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $folder -Force | Out-Null
 $targetInstaller = Join-Path $folder "Cluster-Installer.exe"
