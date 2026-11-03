@@ -91,6 +91,7 @@ func restorePreviousPortableServerLauncher(root,id string)error{
  if err!=nil{return err}
  previous:=filepath.Join(recovery,"previous-root-launcher.manifest.json")
  data,err:=os.ReadFile(previous)
+ fmt.Printf("native launcher restore probe: root=%q prior=%q lookup=%v bytes=%d\\n",root,previous,err,len(data))
  if os.IsNotExist(err){return nil}
  if err!=nil{return err}
  var prior portableServerLauncherOwner
