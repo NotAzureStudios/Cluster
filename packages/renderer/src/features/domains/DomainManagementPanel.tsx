@@ -324,7 +324,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         })}><ClusterIcon name="cloud" aria-hidden="true" /> Save access profile &amp; generate deployment</ClusterButton>
         {connectionPlan && <div className="cluster-panel cluster-domain-deployment-v103">
           <p>Planned member address: <strong>{connectionPlan.canonicalUrl}</strong> <ClusterButton onClick={() => copyClusterText(connectionPlan.canonicalUrl)}>Copy</ClusterButton></p>
-          <p>Origin routing: Web <code>{connectionPlan.origin.web}</code> · API <code>{connectionPlan.origin.api}</code></p>
+          <p>Gateway upstream for every external route: <code>{connectionPlan.origin.web}</code></p>
+                <p className="muted tight">Private Node API: <code>{connectionPlan.origin.api}</code>. Internal only. Never route a proxy or tunnel directly to this address.</p>
           <p role="status">Deployment: operator action required. Configuration is not proof of live connectivity, TLS, or Desktop sign-in.</p>
           <ol className="cluster-domain-instructions-v103">{connectionPlan.instructions.map((instruction, i) => <li key={i}>{instruction}</li>)}</ol>
           {connectionPlan.artifacts.map(artifact => <div className="cluster-panel" key={artifact.filename}>
