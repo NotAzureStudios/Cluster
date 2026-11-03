@@ -166,7 +166,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   return <section className={`cluster-panel cluster-domains-rc46 ${surface === "server" ? "cluster-server-domains-v103" : "cluster-studio-domains-v103"}`} aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
     <header className="cluster-domain-header-v103">
       <div><p className="eyebrow">{surface === "studio" ? "Studio ownership registry" : "Server Configuration / Connectivity"}</p>
-        <h2>{surface === "studio" ? "Studio domains" : "Domains & gateways"}</h2>
+        <h2>{surface === "studio" ? "Studio domains" : "Connect a domain"}</h2>
         <p>{surface === "studio" ? "Register domains, record ownership, and verify control with DNS TXT records." : "Bind a verified hostname to this installation, configure its gateway, and independently verify the live route."}</p>
       </div>
       {surface === "server" && <span className={`cluster-domain-header-status-v103 ${bindingVerified ? "is-ready" : ""}`}>{bindingVerified ? "Hostname bound" : "Setup incomplete"}</span>}
@@ -249,7 +249,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         }}>Rotate ownership proof</ClusterButton>
       </div></>}
       {surface === "server" && <><div className="cluster-panel cluster-domain-workflow-card-v103">
-        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">01</span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div></div>
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">02</span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div></div>
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
         <details className="cluster-domain-help-rc46"><summary>How server binding works</summary><p>Only this server's installation ID can be bound. Other Cluster servers require their own identity handshake.</p></details>
@@ -282,7 +282,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         </div>}
       </div>
       <div className="cluster-panel cluster-domain-workflow-card-v103" aria-label="Domain connectivity and deployment">
-        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">02</span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div></div>
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">03</span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div></div>
         <p>Configure how members reach both the web frontend and API through one canonical address. Select a mode, save it, deploy its gateway configuration, then test from a separate device.</p>
         {!connectionBound && <p role="alert">First verify the domain and bind its hostname to this installation. A saved DNS binding alone does not expose the server.</p>}
         {connectionError && <p role="alert">{connectionError}</p>}
