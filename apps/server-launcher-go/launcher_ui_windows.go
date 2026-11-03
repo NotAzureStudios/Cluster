@@ -437,6 +437,7 @@ type windowsControlPanel struct {
 	lastPortsSummary     string
 	updateMu              sync.Mutex
 	updateMessage         string
+	updateOfferDownload   bool
 	closing               bool
 	trayRegistered        bool
 	taskbarCreatedMessage uint32
@@ -1056,10 +1057,19 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 	case wmAppUpdate:
 		ui.updateMu.Lock()
 		message := ui.updateMessage
+		offerDownload := ui.updateOfferDownload
 		ui.updateMessage = ""
+		ui.updateOfferDownload = false
 		ui.updateMu.Unlock()
 		if message != "" {
-			messageBox(hwnd, "Cluster Server Updates", message, 0)
+			if offerDownload {
+				question := message + "\r\n\r\nDownload and verify the publisher-signed Server installer now? This will NOT install, stop or restart Cluster."
+				if messageBox(hwnd, "Cluster Server Update Available", question, mbYesNo|mbIconQuestion) == idYes {
+					ui.controller.StageServerUpdate()
+				}
+			} else {
+				messageBox(hwnd, "Cluster Server Updates", message, 0)
+			}
 		}
 		return 0
 	case wmAppAutostart:
@@ -1960,9 +1970,7 @@ func (c *windowsServerController) CheckForUpdates() {
 		fmt.Printf("[%s] %s\n", time.Now().Format("15:04:05"), result.Message)
 		c.ui.updateMu.Lock()
 		c.ui.updateMessage = result.Message
-		if result.Available && result.DownloadURL != "" {
-			c.ui.updateMessage += "\r\n\r\nDownload: " + result.DownloadURL
-		}
+		c.ui.updateOfferDownload = result.Available && result.DownloadURL != ""
 		c.ui.updateMu.Unlock()
 		procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
 	}()
