@@ -15,6 +15,7 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
@@ -886,9 +887,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       title="Studio Settings"
       icon="settings"
       actions={
-        <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
-          {dirty ? "Save changes" : "Saved"}
-        </ClusterButton>
+        <>
+          {heldStudioDraft && <SettingsStateChip tone="warning" icon="note">Stored draft requires review</SettingsStateChip>}
+          <SettingsStateChip tone={dirty ? "warning" : "neutral"} icon={dirty ? "note" : "check"}>{dirty ? "Unsaved studio changes" : "No pending edits"}</SettingsStateChip>
+          <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
+            <ClusterIcon name={dirty ? "check" : "settings"} aria-hidden="true" /> {dirty ? "Save changes" : "Saved"}
+          </ClusterButton>
+        </>
       }
       status={status}
       navLabel="Studio settings sections"
