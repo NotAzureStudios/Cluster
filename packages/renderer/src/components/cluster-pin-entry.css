@@ -1,7 +1,10 @@
 /* Compact shared PIN surface: no surrounding layout can collapse the keypad. */
 .cluster-pin-entry-v124 { position: relative; display: grid; width: 100%; min-width: 0; gap: 14px; box-sizing: border-box; }
-.cluster-pin-physical-input-v124 { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; opacity: 0 !important; border: 0 !important; overflow: hidden; pointer-events: none; }
-.cluster-pin-dots-v124 { display: flex; align-items: center; justify-content: center; min-height: 23px; gap: 9px; }
+/* A real, full-width focus target sits over the PIN dots. A one-pixel,
+   pointer-disabled input was unreachable by mouse and unreliable in dialogs. */
+.cluster-pin-physical-input-v124 { position: absolute !important; top: 0 !important; left: 0 !important; z-index: 1; width: 100% !important; height: 36px !important; min-height: 36px !important; padding: 0 !important; opacity: .01 !important; border: 0 !important; overflow: hidden; pointer-events: auto; caret-color: transparent; }
+.cluster-pin-entry-v124:focus-within .cluster-pin-dots-v124 { outline: 2px solid var(--accent, #57c1ff); outline-offset: 2px; border-radius: 10px; }
+.cluster-pin-dots-v124 { display: flex; align-items: center; justify-content: center; min-height: 36px; gap: 9px; pointer-events: none; }
 .cluster-pin-dots-v124 span { width: 12px; height: 12px; border: 1.5px solid var(--muted, #848e97); border-radius: 50%; background: transparent; box-sizing: border-box; }
 .cluster-pin-dots-v124 span.filled { background: var(--accent, #57c1ff); border-color: var(--accent, #57c1ff); }
 .cluster-pin-keypad-v124 { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; min-height: 180px; }
