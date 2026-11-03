@@ -24,9 +24,9 @@ jobs:
     timeout-minutes: 35
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      SERVER_RUN: '41742163678'
-      SERVER_SHA: '07c615387042bc31902338b34849dcc28571d1e0'
-      SERVER_ARTIFACT: 'cluster-server-unsigned-windows-x64-07c615387042bc31902338b34849dcc28571d1e0'
+      SERVER_RUN: '41742439918'
+      SERVER_SHA: '6e3f05aac63697b05b530f35b05dd6ac1ceac858'
+      SERVER_ARTIFACT: 'cluster-server-unsigned-windows-x64-6e3f05aac63697b05b530f35b05dd6ac1ceac858'
     steps:
       - name: Checkout main source without storing credentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -126,7 +126,7 @@ jobs:
           cat > "$RUNNER_TEMP/cluster-1-0-5-notes.md" <<'NOTES'
           ## Cluster Server 1.0.5 (Windows x64)
 
-          This release publishes the prebuilt **unsigned** Cluster Server 1.0.5 installer from successful GitHub Actions run 41742163678 (source commit `07c615387042bc31902338b34849dcc28571d1e0`).
+          This release publishes the prebuilt **unsigned** Cluster Server 1.0.5 installer from successful GitHub Actions run 41742439918 (source commit `6e3f05aac63697b05b530f35b05dd6ac1ceac858`).
 
           **Download:** `Cluster-Installer.exe`. The standalone `Cluster-Server.exe` is also provided. Verify SHA-256 using `Cluster-server-build-receipt.json`.
 
