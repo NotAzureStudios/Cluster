@@ -91,7 +91,6 @@ func restorePreviousPortableServerLauncher(root,id string)error{
  if err!=nil{return err}
  previous:=filepath.Join(recovery,"previous-root-launcher.manifest.json")
  data,err:=os.ReadFile(previous)
- fmt.Printf("native launcher restore probe: root=%q prior=%q lookup=%v bytes=%d\\n",root,previous,err,len(data))
  if os.IsNotExist(err){return nil}
  if err!=nil{return err}
  var prior portableServerLauncherOwner
@@ -113,8 +112,9 @@ func restorePreviousPortableServerLauncher(root,id string)error{
  quarantined:=filepath.Join(recovery,"failed-root-launcher.exe")
  quarantinedManifest:=filepath.Join(recovery,"failed-root-launcher.manifest.json")
  for _,path:=range []string{staged,quarantined,quarantinedManifest}{
-  if _,err:=os.Lstat(path);err==nil{return errors.New("portable launcher recovery already exists; manual intervention required")}
-  if !os.IsNotExist(err){return err}
+  _,probeErr:=os.Lstat(path)
+  if probeErr==nil{return errors.New("portable launcher recovery already exists; manual intervention required")}
+  if !errors.Is(probeErr,os.ErrNotExist){return probeErr}
  }
  in,err:=os.Open(previousExe)
  if err!=nil{return err}
