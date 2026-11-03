@@ -253,3 +253,13 @@ func limitedNativeUpdateOutput(data []byte)string{
  sum:=sha256.Sum256(data)
  return fmt.Sprintf("%d bytes of installer output (SHA-256 %s); inspect the protected installer.log",len(data),hex.EncodeToString(sum[:]))
 }
+
+func nativeServerUpdateExecutorSupport(root string,installerBytes int64)(bool,string){
+ if err:=requireOwnedClusterUpdateService(root);err!=nil{
+  return false,"Native update is available only for the Windows Service installed for this exact Cluster root: "+err.Error()
+ }
+ if err:=ensureNativeServerUpdateDiskSpace(root,installerBytes);err!=nil{
+  return false,"Native update recovery storage is not ready: "+err.Error()
+ }
+ return true,""
+}
