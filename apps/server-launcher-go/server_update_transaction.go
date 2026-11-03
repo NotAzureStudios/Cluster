@@ -69,12 +69,37 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
   {updatePhaseStopped,hooks.StopOwnedServer},
   {updatePhaseBackupVerified,hooks.SnapshotAndVerify},
  }
+ // Once the independent worker acquires the write hold, any partial stop
+ // or failed backup must recover the *previous* server. No installer has run,
+ // so restore/rewind of app or database files is forbidden in this branch.
+ holdAcquired:=false
  for _,step:=range stages {
   record(step.phase,"started")
   if err:=step.run(ctx);err!=nil {
-   record(updatePhaseBlocked,string(step.phase)+": "+err.Error())
-   return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:fmt.Errorf("%s: %w",step.phase,err)}
+   cause:=fmt.Errorf("%s: %w",step.phase,err)
+   record(step.phase,"failed: "+err.Error())
+   if !holdAcquired {
+    record(updatePhaseBlocked,"write hold not acquired; no install attempted")
+    return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:cause}
+   }
+   recoveryCtx,cancelRecovery:=context.WithTimeout(context.WithoutCancel(ctx),10*time.Minute)
+   defer cancelRecovery()
+   record(updatePhaseRollingBack,"pre-install recovery started")
+   for _,safeStep:=range []struct{name string;run func(context.Context)error}{
+    {"finish stopping partially stopped prior server",hooks.StopCandidate},
+    {"restart prior server",hooks.StartPrevious},
+    {"verify prior server",hooks.ProbePrevious},
+    {"release previous write hold",hooks.ReleasePreviousHold},
+   }{
+    if recoveryErr:=safeStep.run(recoveryCtx);recoveryErr!=nil{
+     record(updatePhaseBlocked,"pre-install recovery "+safeStep.name+" failed: "+recoveryErr.Error())
+     return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:errors.Join(cause,fmt.Errorf("pre-install recovery %s: %w",safeStep.name,recoveryErr))}
+    }
+   }
+   record(updatePhaseRecovered,"previous release resumed without installer or database restore")
+   return serverUpdateTransactionResult{Phase:updatePhaseRecovered,Err:cause,Recovered:true}
   }
+  if step.phase==updatePhaseWriteHold {holdAcquired=true}
   record(step.phase,"completed")
  }
  // Do not run the installer before an authenticated intent, write barrier,
