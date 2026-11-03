@@ -1,4 +1,6 @@
-# Install Cluster 1.0 on Windows
+# Install Cluster 1.0.x on Windows
+
+> **1.0.1 Server status:** The source on `main` is updated to **1.0.1** with the first-install admission fixes, but a **verified official 1.0.1 Server EXE has not been published yet**. The historical **v1.0.0 Server installer is broken** and should not be rerun. See [1.0.1 source notes](releases/CLUSTER_1_0_1_SOURCE.md). Do not erase any PostgreSQL/Library data you still need just to troubleshoot the installer.
 
 This guide covers the **published private studio v1.0.0 distribution**. The server and native Desktop client are separate products. Only the Server hosts data and the browser interface.
 
@@ -12,7 +14,7 @@ This guide covers the **published private studio v1.0.0 distribution**. The serv
 
 | File | Install on | What it contains |
 | --- | --- | --- |
-| [`Cluster-Installer.exe`](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Installer.exe) | Windows **Server** machine | Managed Cluster Server, API/Web runtime and Server Manager |
+| [`Cluster-Installer.exe` (v1.0.0, known broken)](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Installer.exe) | Windows **Server** machine | **Historical only. Do not install; 1.0.1 rebuilt EXE pending** |
 | [`Cluster-Desktop-Installer-0.482.0-windows-x64.exe`](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-Installer-0.482.0-windows-x64.exe) | Each **Desktop** machine | Native Qt desktop application; no Server or database |
 | [`Cluster-Desktop-0.482.0-windows-x64.zip`](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-0.482.0-windows-x64.zip) | Desktop alternative | Portable Desktop application files |
 
