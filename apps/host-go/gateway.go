@@ -76,7 +76,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 		incoming, _ := url.Parse("//" + request.Host)
 		if !h.remoteAccess && canonical != nil && incoming != nil &&
 			!strings.EqualFold(incoming.Hostname(), canonical.Hostname()) &&
-			request.URL.Path != "/host/health" {
+			request.URL.Path != "/host/health" && !strings.HasPrefix(request.URL.Path, "/health") {
 			if request.Method == http.MethodGet || request.Method == http.MethodHead {
 				response.Header().Set("Cache-Control", "no-store")
 				http.Redirect(response, request, h.origin+request.URL.RequestURI(), http.StatusTemporaryRedirect)
