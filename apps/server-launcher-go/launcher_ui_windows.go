@@ -1500,6 +1500,7 @@ func (c *windowsServerController) startWorker(ctx context.Context, forceRepair b
 	}
 	c.mu.Unlock()
 	if timedOut {
+		c.failActiveAuthorizedRestart()
 		recordLauncherEmergency(options.root, nativealerts.HostReadinessTimeout)
 		c.transition(panelError, "Cluster Host did not become ready within 75 seconds. Check windows-server.log and run Repair & Start.")
 		return
@@ -1510,6 +1511,7 @@ func (c *windowsServerController) startWorker(ctx context.Context, forceRepair b
 		return
 	}
 	if waitErr != nil {
+		c.failActiveAuthorizedRestart()
 		recordLauncherEmergency(options.root, nativealerts.HostUnexpectedExit)
 		c.transition(panelError, fmt.Sprintf("Cluster Host stopped unexpectedly: %v", waitErr))
 		fmt.Fprintf(os.Stderr, "Cluster Host stopped unexpectedly: %v\n", waitErr)
@@ -1558,13 +1560,23 @@ func (c *windowsServerController) armReadinessWatchdog(cmd *exec.Cmd) {
 	c.mu.Unlock()
 }
 
+func (c *windowsServerController) failActiveAuthorizedRestart() {
+	c.mu.Lock()
+	id := c.authorizedRestartID
+	c.authorizedRestartID = ""
+	c.mu.Unlock()
+	if id != "" {
+		if err := writeNativeRestartReceipt(c.options.root, id, "failed"); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot publish restart failure: %v\n", err)
+		}
+	}
+}
+
 func (c *windowsServerController) failStart(err error) {
 	c.mu.Lock()
 	stage := strings.TrimSpace(c.activity)
-	restartID := c.authorizedRestartID
-	c.authorizedRestartID = ""
 	c.mu.Unlock()
-	if restartID != "" { _ = writeNativeRestartReceipt(c.options.root, restartID, "failed") }
+	c.failActiveAuthorizedRestart()
 	if stage == "" {
 		stage = "Startup"
 	}
@@ -2522,11 +2534,7 @@ func (c *windowsServerController) observeLog(line string) {
 			if err := verifyNativeNetworkDeployment(c.options.root); err != nil {
 				fmt.Fprintf(os.Stderr, "Native network startup verification refused: %v\n", err)
 				recordLauncherEmergency(c.options.root, nativealerts.NetworkRollbackBlocked)
-				c.mu.Lock()
-				restartID := c.authorizedRestartID
-				c.authorizedRestartID = ""
-				c.mu.Unlock()
-				if restartID != "" { _ = writeNativeRestartReceipt(c.options.root, restartID, "failed") }
+				c.failActiveAuthorizedRestart()
 				c.RequestStop()
 				return
 			}
