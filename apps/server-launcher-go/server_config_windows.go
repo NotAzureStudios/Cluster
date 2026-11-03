@@ -138,7 +138,7 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 	if section == "Updates" {
 		return []nativeSettingSpec{
 			{Key: "native.updateChannel", Label: "Server update channel", Section: "Updates", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Main uses reviewed Server releases; development uses test releases. This never changes Desktop or Web update channels."},
-			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a signed JSON Cluster Server update manifest, NOT a .exe download URL or GitHub release page. An official manual installer is separate from a feed."},
+			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "The official signed Cluster Server main channel is configured automatically. Override only for another trusted, signed JSON feed; never paste an EXE or GitHub page."},
 			{Key: "native.developmentUpdateManifestUrl", Label: "Development: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a development-channel signed JSON Cluster Server manifest. Do not paste an installer, repository or release page."},
 		}
 	}
@@ -591,7 +591,8 @@ func configuredUpdateManifestURL(root string) string {
 	}
 	if override := strings.TrimSpace(os.Getenv("CLUSTER_SERVER_MAIN_MANIFEST_URL")); override != "" { return override }
 	if legacy := strings.TrimSpace(os.Getenv("CLUSTER_UPDATE_MANIFEST_URL")); legacy != "" { return legacy }
-	return strings.TrimSpace(prefs.UpdateManifestURL)
+	if saved := strings.TrimSpace(prefs.UpdateManifestURL); saved != "" {return saved}
+ return defaultOfficialMainServerUpdateFeedURL
 }
 
 // A missing publisher-signed feed still permits a DISPLAY-ONLY check of the
@@ -648,7 +649,7 @@ func checkUpdateManifest(root string) updateCheckResult {
 		return updateCheckResult{Message: hint}
 	}
 	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 || !sameServerUpdateOrigin(parsed, req.URL) { return errors.New("update feed redirected to another origin") }
+		if len(via) >= 5 || !serverUpdateRedirectAllowed(parsed, req.URL) { return errors.New("update feed redirected to an untrusted origin") }
 		return nil
 	}}
 	req, err := http.NewRequest(http.MethodGet, source, nil)
