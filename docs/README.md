@@ -1,17 +1,18 @@
 # Cluster documentation
 
-Start with the [latest Cluster README](../README.md). This documentation follows **Cluster 1.0.1**, the current private studio release.
+Begin with the [Cluster README](../README.md). Installation and download links follow the **[latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest)**. The source repository includes separately versioned Server and native Desktop packages.
 
 | Guide | Purpose |
 | --- | --- |
-| [Install Cluster 1.0.1](INSTALLATION.md) | Windows Server and Desktop downloads, setup, checksum verification and first-run checks |
-| [Cluster 1.0.1 release notes](releases/CLUSTER_1_0_1.md) | Current release components, fixed installer defect, binary identities, checksums and limitations |
-| [Windows Server recovery](development/NATIVE_WINDOWS_SERVER_RECOVERY.md) | Service, repair and data-preserving troubleshooting procedures |
-| [Local development](development/LOCAL_SETUP.md) | Pinned toolchain, committed npm lockfile, database setup and build commands |
-| [Release builds](development/REPRODUCIBLE_BUILD_1_0.md) | Locked workspaces, source-bound build receipts and reproducible builds |
-| [Distribution profiles](development/DISTRIBUTION_PROFILES.md) | Server/Desktop/Web distribution and independent update channels |
-| [Git workflow](development/GIT_WORKFLOW.md) | Reviewed source changes and 1.0.x maintenance |
-| [Architecture](architecture/REPOSITORY_LAYOUT.md) | Active source directories and ownership |
-| [Release verification](development/RELEASE_CHECKLIST.md) | Scope of the evidence and accepted deployment limitations |
+| [Install Cluster](INSTALLATION.md) | Current Windows Server/Desktop downloads, verification, first-run checks |
+| [Latest release notes](https://github.com/NotAzureStudios/Cluster/releases/latest) | Release versions, fixes, file hashes and build provenance |
+| [Release asset naming](development/RELEASE_ASSET_NAMING.md) | Permanent download links and stable asset filename contract |
+| [Windows code signing](development/WINDOWS_CODE_SIGNING.md) | Private studio trust, Microsoft Artifact Signing, signing order and verification |
+| [Server recovery](development/NATIVE_WINDOWS_SERVER_RECOVERY.md) | Data-preserving service/repair troubleshooting |
+| [Local development](development/LOCAL_SETUP.md) | Pinned tools, npm workspaces and source builds |
+| [Reproducible builds](development/REPRODUCIBLE_BUILD_1_0.md) | Build receipts and locked dependencies |
+| [Distribution profiles](development/DISTRIBUTION_PROFILES.md) | Server, Desktop, Web distribution boundaries |
+| [Git workflow](development/GIT_WORKFLOW.md) | Reviewed changes and release maintenance |
+| [Architecture](architecture/REPOSITORY_LAYOUT.md) | Source structure and ownership |
 
-Earlier 1.0.0 and RC-era decisions are preserved in Git history and historical release notes. For current installation, use **v1.0.1**.
+Past release notes and historical regression decisions are preserved in Git. Always download from the latest stable release, not old RC bundles.
