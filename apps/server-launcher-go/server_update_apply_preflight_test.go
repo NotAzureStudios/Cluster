@@ -6,7 +6,7 @@ import (
  "crypto/sha256"
  "encoding/hex"
  "encoding/json"
- "net/url"
+ "strconv"
  "os"
  "path/filepath"
  "strings"
@@ -38,30 +38,13 @@ func makeStagedFixture(t *testing.T) stagedFixture {
  public,private,err:=ed25519.GenerateKey(rand.Reader)
  if err!=nil{t.Fatal(err)}
  artifactHash:=hex.EncodeToString(sum[:])
- feed,_:=url.Parse("https://updates.example.test/main/release.json")
- raw:=fixtureSignedServerUpdate(t,func(manifest map[string]any){
-  manifest["channel"]="main"
-  manifest["release"]="1.0.3"
-  manifest["sequence"]=json.Number("53")
-  artifact:=manifest["artifact"].(map[string]any)
-  artifact["filename"]="Cluster-Installer.exe"
-  artifact["url"]="https://updates.example.test/main/Cluster-Installer.exe"
-  artifact["sha256"]=artifactHash
-  artifact["size"]=json.Number("3586")
- },private)
- // Sign the exact length, not an approximate test fixture.
- _=feed
- var unsigned map[string]any
- if err:=json.Unmarshal(raw,&unsigned);err!=nil{t.Fatal(err)}
- _=unsigned
- // fixtureSignedServerUpdate accepts mutations, so regenerate the exact-size signature.
- raw=fixtureSignedServerUpdate(t,func(m map[string]any){
+ raw:=fixtureSignedServerUpdate(t,func(m map[string]any){
   m["channel"]="main";m["release"]="1.0.3";m["sequence"]=json.Number("53")
   a:=m["artifact"].(map[string]any)
   a["filename"]="Cluster-Installer.exe"
   a["url"]="https://updates.example.test/main/Cluster-Installer.exe"
   a["sha256"]=artifactHash
-  a["size"]=json.Number(strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(stringMustJSON(len(binary))),"\n"),"")))
+  a["size"]=json.Number(strconv.Itoa(len(binary)))
  },private)
  digest:=sha256.Sum256(raw)
  manifestPath:=installer+".manifest.json"
@@ -74,7 +57,6 @@ func makeStagedFixture(t *testing.T) stagedFixture {
  if err:=os.WriteFile(receiptPath,data,0600);err!=nil{t.Fatal(err)}
  return stagedFixture{root,installer,manifestPath,receiptPath,public,private}
 }
-func stringMustJSON(v any)string{raw,_:=json.Marshal(v);return string(raw)}
 func TestStagedServerUpdateRevalidatedBeforeApply(t *testing.T){
  t.Run("valid signed stage",func(t *testing.T){
   f:=makeStagedFixture(t)
