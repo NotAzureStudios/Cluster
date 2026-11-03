@@ -1,0 +1,126 @@
+name: Publish signed Cluster Server main update
+
+# The main build is never enough on its own. Only the reviewed, successful
+# Windows Server build can start this protected publisher; source commits and
+# prerelease/Desktop builds cannot write the main update pointer.
+on:
+  workflow_run:
+    workflows: [Build Cluster Windows Server installer]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  publish-main:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      vars.CLUSTER_SERVER_AUTO_PUBLISH == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    environment: server-release
+    concurrency:
+      group: cluster-server-signed-main-publisher
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILT_SHA: ${{ github.event.workflow_run.head_sha }}
+      BUILT_RUN_ID: ${{ github.event.workflow_run.id }}
+      CLUSTER_SERVER_SIGNING_KEY_PEM: ${{ secrets.CLUSTER_SERVER_SIGNING_KEY_PEM }}
+    steps:
+      - name: Checkout the current reviewed main source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Install pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Verify the immutable source and all required CI gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git branch --show-current).Trim() -ne 'main') { throw 'Publisher must be on main' }
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -ne $env:BUILT_SHA) { throw 'A newer main revision exists; only publish a build of the latest main' }
+          node tools/scripts/cluster-suite-version-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Source version/lockfile mismatch' }
+          $required = @(
+            'Managed network access regressions',
+            'Reproducible Node and workspace release build',
+            'Release, recovery and session security',
+            'Windows prebuilt installer contracts',
+            'Signed Windows Server update verification',
+            'Platform release profile contracts'
+          )
+          $passed = $false
+          for ($attempt = 0; $attempt -lt 40; $attempt++) {
+            $runs = (gh api -X GET "repos/$env:GITHUB_REPOSITORY/actions/runs?head_sha=$head&per_page=100" | ConvertFrom-Json).workflow_runs
+            if ($LASTEXITCODE -ne 0) { throw 'Could not verify GitHub CI status' }
+            $missing = @()
+            foreach ($requiredName in $required) {
+              $matches = @($runs | Where-Object { $_.name -eq $requiredName })
+              if (@($matches | Where-Object { $_.conclusion -in @('failure','cancelled','timed_out','action_required') }).Count -gt 0) {
+                throw "Required CI failed for the release commit: $requiredName"
+              }
+              if (@($matches | Where-Object { $_.conclusion -eq 'success' }).Count -lt 1) { $missing += $requiredName }
+            }
+            if ($missing.Count -eq 0) { $passed = $true; break }
+            Write-Host "Waiting on $($missing.Count) required main-revision checks."
+            Start-Sleep -Seconds 20
+          }
+          if (!$passed) { throw 'Required CI did not finish successfully; no signed release was published' }
+      - name: Download only this reviewed Windows build artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download "$env:BUILT_RUN_ID" --repo "$env:GITHUB_REPOSITORY" --pattern 'cluster-server-unsigned-windows-x64-*' --dir .
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the exact verified Windows Server build artifact' }
+          foreach ($required in @('bin/Cluster-Installer.exe','artifacts/release-profiles/server-windows-x64/build-receipt.json')) {
+            if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw "Release artifact missing $required" }
+          }
+      - name: Sign the immutable versioned Server installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:CLUSTER_SERVER_SIGNING_KEY_PEM)) {
+            throw 'Protected CLUSTER_SERVER_SIGNING_KEY_PEM is not configured; no unsigned release may be published'
+          }
+          $metadata = Get-Content -LiteralPath 'config/release-candidate.json' -Raw | ConvertFrom-Json
+          if ($metadata.channel -ne 'stable' -or $metadata.release -notmatch '^1[.]0[.][1-9][0-9]*$') { throw 'Invalid stable Server release identity' }
+          $tag = "server-v$($metadata.release)"
+          gh release view "$tag" --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Immutable $tag already exists. Bump the Server version before publishing another main build."
+          }
+          $keyFile = Join-Path $env:RUNNER_TEMP 'cluster-server-publisher-ed25519.pem'
+          $manifestFile = Join-Path $env:RUNNER_TEMP 'cluster-server-main.json'
+          $env:CLUSTER_SERVER_SIGNING_KEY_FILE = $keyFile
+          try {
+            [IO.File]::WriteAllText($keyFile, $env:CLUSTER_SERVER_SIGNING_KEY_PEM, [Text.UTF8Encoding]::new($false))
+            node tools/scripts/cluster-sign-server-release.mjs --channel main --artifact bin/Cluster-Installer.exe --feed-url 'https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json' --artifact-url "https://github.com/NotAzureStudios/Cluster/releases/download/$tag/Cluster-Installer.exe" --output "$manifestFile"
+            if ($LASTEXITCODE -ne 0) { throw 'Signed manifest verification or build receipt admission failed' }
+          } finally {
+            $env:CLUSTER_SERVER_SIGNING_KEY_FILE = ''
+            Remove-Item -LiteralPath $keyFile -Force -ErrorAction SilentlyContinue
+          }
+          $manifest = Get-Content -LiteralPath $manifestFile -Raw | ConvertFrom-Json
+          if ($manifest.release -ne $metadata.release -or $manifest.commit -ne $env:BUILT_SHA -or !$manifest.signature) { throw 'Signed manifest has incorrect source identity' }
+          # Publish the immutable EXE before updating the mutable main channel
+          # pointer. A failure never makes an unverified version discoverable.
+          gh release create "$tag" 'bin/Cluster-Installer.exe#Cluster-Installer.exe' --repo "$env:GITHUB_REPOSITORY" --target "$env:BUILT_SHA" --title "Cluster Server $($metadata.release)" --notes "Signed Windows Server update; source commit $env:BUILT_SHA. Back up the managed database before upgrading." --latest=false
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish immutable Server release $tag" }
+          gh release view server-main --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload server-main "$manifestFile#cluster-server-main.json" --clobber --repo "$env:GITHUB_REPOSITORY"
+          } else {
+            gh release create server-main "$manifestFile#cluster-server-main.json" --repo "$env:GITHUB_REPOSITORY" --target "$env:BUILT_SHA" --title 'Cluster Server main signed update channel' --notes 'Signed, rolling Server-only manifest. Executable assets live under immutable server-vX.Y.Z tags.' --prerelease --latest=false
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Server version was published, but main update pointer was NOT advanced' }
+          Write-Host "Published signed Server $($metadata.release) on the server-main channel."

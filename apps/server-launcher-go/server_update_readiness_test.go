@@ -8,7 +8,7 @@ import (
  "testing"
 )
 
-func TestServerUpdateReadinessNeverPromisesUnimplementedAutoInstall(t *testing.T) {
+func TestServerUpdateReadinessNeverPromisesInstallWithoutServiceAndDatabase(t *testing.T) {
  fixture:=makeStagedFixture(t)
  checker:=func(root,channel string)(inspectedStagedServerUpdate,error){
   return inspectStagedServerUpdateWithKey(root,channel,fixture.publisher)
@@ -18,7 +18,7 @@ func TestServerUpdateReadinessNeverPromisesUnimplementedAutoInstall(t *testing.T
   t.Fatalf("valid staged signature not reported: %+v",result)
  }
  if result.NativeInstallationSupported || len(result.Reasons)==0 ||
-  !strings.Contains(strings.Join(result.Reasons," "),"not yet implemented"){
+  !strings.Contains(strings.Join(result.Reasons," "),"Managed PostgreSQL data folder is missing"){
   t.Fatalf("staging was advertised as installable: %+v",result)
  }
 }

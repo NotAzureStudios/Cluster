@@ -29,6 +29,12 @@ MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
 var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
 var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)$`)
 
+ 
+// Server-only rolling signed release pointer. It does NOT depend on GitHub's
+// product-agnostic "latest" release (which Desktop can also publish).
+const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
+const officialServerGitHubReleaseAssetPrefix = "/github-production-release-asset/1431753697/"
+
 // Stable patch releases follow the sequence established for 1.0.x.
 // Development RC updates remain isolated from the main channel.
 func serverUpdateSequence(release, channel string) (int, bool) {
@@ -139,6 +145,18 @@ func sameServerUpdateOrigin(a,b *url.URL) bool {
 		return "80"
 	}
 	return strings.EqualFold(a.Scheme,b.Scheme)&&strings.EqualFold(a.Hostname(),b.Hostname())&&port(a)==port(b)
+}
+
+// GitHub's release CDN redirects away from github.com. Only the exact
+// product-specific official signed feed may use the GitHub release asset CDN;
+// custom operator feeds must remain same-origin.
+func serverUpdateRedirectAllowed(feed, destination *url.URL) bool {
+ if sameServerUpdateOrigin(feed,destination) { return true }
+ if feed==nil || feed.String()!=defaultOfficialMainServerUpdateFeedURL || destination==nil { return false }
+ if destination.Scheme!="https" || destination.User!=nil || destination.Fragment!="" ||
+  destination.Hostname()!="release-assets.githubusercontent.com" ||
+  (destination.Port()!="" && destination.Port()!="443") { return false }
+ return strings.HasPrefix(destination.EscapedPath(),officialServerGitHubReleaseAssetPrefix)
 }
 
 func verifyServerUpdateManifest(data []byte, feed *url.URL, expectedChannel string) (serverUpdateManifest,error) {

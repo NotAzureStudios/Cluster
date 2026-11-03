@@ -16,6 +16,9 @@ const readiness=read("apps/server-launcher-go/server_update_readiness.go");
 const launcher=read("apps/server-launcher-go/main.go");
 const journal=read("apps/server-launcher-go/server_update_journal.go");
 const authorization=read("apps/server-launcher-go/server_update_authorization.go");
+const worker=read("apps/server-launcher-go/server_update_worker_windows.go");
+const independent=read("apps/server-launcher-go/server_update_worker_launch_windows.go");
+const applicationRollback=read("apps/server-launcher-go/server_update_application_rollback.go");
 
 const cases=[
  ["publisher-signed manifest retained at staging",stage.includes('manifestPath:=target+".manifest.json"')&&stage.includes('ManifestSHA256 string')&&stage.includes('FeedURL string')],
@@ -33,10 +36,10 @@ const cases=[
  ["direct API holds requests too",api.includes("serverUpdateMaintenanceHeld(dataRoot)")&&api.includes('"SERVER_UPDATE_HOLD"')&&app.includes("dataRoot: DATA_ROOT")],
  ["maintenance file read fails closed",admission.includes('code !== "ENOENT"')],
  ["installer execution is not falsely exposed",!installer.includes("--apply-staged-update")],
- ["copy targets original installer parent",handoff.includes('parent,err:=filepath.Abs(filepath.Dir(root))') && handoff.includes('Cluster-Update-%d-%s.exe')],
+ ["copy targets actual portable installer parent and prevents nesting",handoff.includes('parent:=filepath.Dir(workRoot)') && handoff.includes('expected InstallParent/Cluster/Server') && handoff.includes('Cluster-Update-%d-%s.exe')],
  ["production handoff rechecks pinned publisher signature",handoff.includes('candidate,err:=inspectStagedServerUpdate(root,channel)')],
  ["handoff is no-execute, exclusive and hash-verified",handoff.includes('os.O_CREATE|os.O_EXCL|os.O_WRONLY')&&handoff.includes('finalDigest:=sha256.New()')&&!handoff.includes('exec.Command')],
- ["update readiness states missing auto owner honestly",readiness.includes('NativeInstallationSupported:false')&&readiness.includes('Automatic installer execution and rollback are not yet implemented')],
+ ["native update readiness is gated by SCM ownership, recovery disk and unblocked staging",readiness.includes('NativeInstallationSupported:false')&&readiness.includes('nativeServerUpdateExecutorSupport(root,candidate.Size)')&&readiness.includes('result.NativeInstallationSupported=true')],
  ["update readiness exposed read only",launcher.includes('updateReadiness := flag.Bool("--update-readiness"'.replace('--update-readiness','update-readiness'))&&launcher.includes('inspectServerUpdateReadiness(root,*updateChannel,inspectStagedServerUpdate)')],
  ["update installer supports guarded, no-auto-launch application",installer.includes('supervisedInstallerUpgradeAllowed(')&&installer.includes('if ciInstallOnly || skipLaunchAfterUpgrade {')],
  ["main auto-apply remains blocked until independent owner is certified",!launcher.includes('apply-staged-update')&&!installer.includes('--apply-staged-update')],
@@ -47,6 +50,16 @@ const cases=[
  ["authorization is bound to config and exact signed artifact",authorization.includes('ConfigSHA256')&&authorization.includes('InstallerSHA256')&&authorization.includes('candidate.Release!=req.Release')],
  ["no update while restart or another hold exists",authorization.includes('nativeServerUpdateHoldPath(root)')&&authorization.includes('cluster-restart-request.json')],
  ["unclaimed authority cannot perform process actions",!authorization.includes('exec.Command')&&!authorization.includes('stopClusterService')],
+ ["native updater executes only from a one-shot independent binary outside Server",worker.includes("nativeUpdateWorkerExecutableID")&&worker.includes("filepath.Dir(executable),parent")],
+ ["native updater requires Windows UAC and signed one-time authorization",worker.includes("windowsProcessElevated")&&worker.includes("claimAuthorizedServerUpdate")],
+ ["native updater verifies owned SCM service before stopping it",worker.includes("requireOwnedClusterUpdateService")&&worker.includes("stopClusterService")],
+ ["native updater checks recovery disk room before shutdown",worker.includes("ensureNativeServerUpdateDiskSpace")],
+ ["native updater takes and verifies cold PostgreSQL backup before installer",worker.includes("copyColdPostgresSnapshot")&&worker.includes("verifyColdPostgresSnapshot")],
+ ["native updater uses only signed installer through portable parent",worker.includes("prepareSignedServerInstaller")&&worker.includes('exec.CommandContext(installCtx,installer,"--skip-launch")')],
+ ["native updater restores prior app and cold PostgreSQL before reopening writes",worker.includes("restorePreviousServerApplication")&&worker.includes("restoreColdPostgresSnapshot")&&worker.includes("ReleasePreviousHold")],
+ ["application rollback retains the previous owner marker and protects data/runtime",applicationRollback.includes("previous-owner-marker.json")&&applicationRollback.includes('"data":true,"runtime":true')],
+ ["unprivileged UI never runs installer itself",independent.includes('procShellExecuteW.Call')&&independent.includes('utf16("runas")')&&!independent.includes("exec.CommandContext")],
+
 
 
 

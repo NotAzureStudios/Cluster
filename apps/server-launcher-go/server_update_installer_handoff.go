@@ -37,8 +37,18 @@ func prepareOfflineServerInstaller(root string, candidate inspectedStagedServerU
  if candidate.Channel!="main" && candidate.Channel!="development"{return "",errors.New("invalid signed update channel")}
  staging,err:=stagedServerUpdateDirectory(root,candidate.Channel)
  if err!=nil{return "",err}
- parent,err:=filepath.Abs(filepath.Dir(root))
+ // The portable installer itself appends "Cluster" to its executable
+ // directory (managedDirectory). With root = InstallParent/Cluster/Server,
+ // its executable MUST be placed in InstallParent, not WorkRoot/Cluster.
+ // Placing it one level too deep silently creates a nested Cluster/Cluster.
+ managedRoot,err:=filepath.Abs(root)
  if err!=nil{return "",err}
+ workRoot:=filepath.Dir(managedRoot)
+ if !strings.EqualFold(filepath.Base(managedRoot),"Server") ||
+  !strings.EqualFold(filepath.Base(workRoot),"Cluster") {
+  return "",errors.New("unsupported installer root structure; expected InstallParent/Cluster/Server")
+ }
+ parent:=filepath.Dir(workRoot)
  parentInfo,err:=os.Lstat(parent)
  if err!=nil{return "",err}
  if !parentInfo.IsDir() || parentInfo.Mode()&os.ModeSymlink!=0 {

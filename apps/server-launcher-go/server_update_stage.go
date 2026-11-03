@@ -26,7 +26,7 @@ func serverUpdateClient(feed *url.URL) *http.Client {
  return &http.Client{
   Timeout: 5 * time.Minute,
   CheckRedirect: func(req *http.Request, via []*http.Request) error {
-   if len(via) > 4 || !sameServerUpdateOrigin(feed, req.URL) { return errors.New("server update redirected outside signed feed origin") }
+   if len(via) > 4 || !serverUpdateRedirectAllowed(feed, req.URL) { return errors.New("server update redirected outside signed feed origin or approved official GitHub asset CDN") }
    return nil
   },
  }

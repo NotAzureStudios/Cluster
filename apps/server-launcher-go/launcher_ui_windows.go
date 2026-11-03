@@ -437,6 +437,8 @@ type windowsControlPanel struct {
 	lastPortsSummary     string
 	updateMu              sync.Mutex
 	updateMessage         string
+	updateOfferDownload   bool
+ updateOfferInstall    bool
 	closing               bool
 	trayRegistered        bool
 	taskbarCreatedMessage uint32
@@ -1056,10 +1058,26 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 	case wmAppUpdate:
 		ui.updateMu.Lock()
 		message := ui.updateMessage
+		offerDownload := ui.updateOfferDownload
+  offerInstall := ui.updateOfferInstall
 		ui.updateMessage = ""
+		ui.updateOfferDownload = false
+  ui.updateOfferInstall = false
 		ui.updateMu.Unlock()
 		if message != "" {
-			messageBox(hwnd, "Cluster Server Updates", message, 0)
+			if offerDownload {
+				question := message + "\r\n\r\nDownload and verify the publisher-signed Server installer now? This will NOT install, stop or restart Cluster."
+				if messageBox(hwnd, "Cluster Server Update Available", question, mbYesNo|mbIconQuestion) == idYes {
+					ui.controller.StageServerUpdate()
+				}
+   } else if offerInstall {
+    question := message + "\r\n\r\nInstall this verified update now? Windows will request administrator approval, the control panel will close, Cluster will stop, and an independent recovery worker will perform the update. A verified database backup is required before installation."
+    if messageBox(hwnd,"Install Signed Cluster Server Update",question,mbYesNo|mbIconQuestion)==idYes {
+     ui.controller.BeginSignedServerInstallation()
+    }
+			} else {
+				messageBox(hwnd, "Cluster Server Updates", message, 0)
+			}
 		}
 		return 0
 	case wmAppAutostart:
@@ -1912,6 +1930,54 @@ func (ui *windowsControlPanel) updateMetrics() {
 	procSendMessageW.Call(ui.perfDiskBar, pbmSetPos, uintptr(diskPercent), 0)
 }
 
+func (c *windowsServerController) reportServerUpdateResult(message string) {
+ if c.ui == nil { return }
+ c.ui.updateMu.Lock()
+ c.ui.updateMessage = message
+ c.ui.updateOfferDownload = false
+ c.ui.updateOfferInstall = false
+ c.ui.updateMu.Unlock()
+ procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
+}
+
+func (c *windowsServerController) reportServerUpdateInstallOffer(message string) {
+ if c.ui==nil{return}
+ c.ui.updateMu.Lock()
+ c.ui.updateMessage=message
+ c.ui.updateOfferInstall=true
+ c.ui.updateOfferDownload=false
+ c.ui.updateMu.Unlock()
+ procPostMessageW.Call(c.ui.hwnd,wmAppUpdate,0,0)
+}
+
+// BeginSignedServerInstallation starts a separate elevated, explicitly
+// authorized worker and exits this UI. It never launches an installer inside
+// the API or replaceable Server directory.
+func (c *windowsServerController) BeginSignedServerInstallation(){
+ c.refreshServiceState()
+ c.mu.Lock()
+ managed:=c.serviceManaged
+ busy:=c.updateInFlight || c.repairInFlight || c.doctorInFlight
+ c.mu.Unlock()
+ if busy {
+  messageBox(c.ui.hwnd,"Cluster Server Update","Another Server maintenance operation is still running. Finish it before installing.",mbIconError)
+  return
+ }
+ if !managed {
+  messageBox(c.ui.hwnd,"Cluster Server Update","Automatic installation currently requires the dedicated ClusterStudioServer Windows Service. Interactive-only Server installations remain on the verified manual-upgrade path.",mbIconError)
+  return
+ }
+ prefs:=loadNativePanelPreferences(c.options.root)
+ channel:=prefs.UpdateChannel
+ if channel!="development"{channel="main"}
+ if err:=launchNativeServerUpdate(c.options.root,channel);err!=nil{
+  messageBox(c.ui.hwnd,"Cluster Server Update","The independent updater could not be launched. Cluster remains unchanged. "+err.Error(),mbIconError)
+  return
+ }
+ // The SCM owner remains alive until the independent worker stops it.
+ procPostMessageW.Call(c.ui.hwnd,wmAppExit,0,0)
+}
+
 // StageServerUpdate downloads a signed, hash-verified Server installer only.
 // No update can be executed or applied by this action.
 func (c *windowsServerController) StageServerUpdate() {
@@ -1925,17 +1991,36 @@ func (c *windowsServerController) StageServerUpdate() {
 		prefs := loadNativePanelPreferences(c.options.root)
 		channel := prefs.UpdateChannel
 		if channel != "development" { channel = "main" }
+  if existing,err:=inspectStagedServerUpdate(c.options.root,channel);err==nil {
+   message:=fmt.Sprintf("Signed Cluster Server %s is already downloaded and independently verified.\r\n\r\nStaged: %s\r\n\r\nInstall this verified release using the supervised Windows Service updater?",existing.Release,existing.InstallerPath)
+   c.reportServerUpdateInstallOffer(message)
+   return
+  }
 		feed := configuredUpdateManifestURL(c.options.root)
-		if feed == "" { fmt.Fprintln(os.Stderr, "No signed Server update feed configured for "+channel); return }
+		if feed == "" {
+   message := "No signed Server update feed configured for " + channel
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
+  }
 		fmt.Printf("[%s] Verifying and staging %s Server update (no installation)...\n", time.Now().Format("15:04:05"), channel)
 		staged, err := stageServerUpdate(c.options.root, feed, channel)
-		if err != nil { fmt.Fprintf(os.Stderr, "Server update staging rejected: %v\n", err); return }
+		if err != nil {
+   message := fmt.Sprintf("Server update download or verification failed: %v",err)
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
+  }
 		candidate,err:=inspectStagedServerUpdate(c.options.root,channel)
 		if err!=nil {
-			fmt.Fprintf(os.Stderr,"Installer staged but independent verification failed: %v. Installation is blocked.\n",err)
-			return
+			message:=fmt.Sprintf("Installer staged but independent verification failed: %v. Installation is blocked.",err)
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
 		}
-		fmt.Printf("Verified signed Server %s installer staged at %s (sequence %d). It remains inert until native update authorization and verified backup/recovery are available.\n",candidate.Release,staged,candidate.Sequence)
+		message:=fmt.Sprintf("Signed Cluster Server %s (sequence %d) downloaded and verified.\r\n\r\nStaged: %s\r\n\r\nThe Windows Service update worker can make a cold backup, install and verify the new release, and recover the previous release on failure.",candidate.Release,candidate.Sequence,staged)
+  fmt.Println(message)
+  c.reportServerUpdateInstallOffer(message)
 	}()
 }
 
@@ -1950,19 +2035,16 @@ func (c *windowsServerController) CheckForUpdates() {
 	c.ui.postState()
 	fmt.Printf("[%s] Checking for Cluster updates...\n", time.Now().Format("15:04:05"))
 	go func() {
-		defer func() {
-			c.mu.Lock()
-			c.updateInFlight = false
-			c.mu.Unlock()
-			c.ui.postState()
-		}()
 		result := checkUpdateManifest(c.options.root)
+  c.mu.Lock()
+  c.updateInFlight = false
+  c.mu.Unlock()
+  c.ui.postState()
 		fmt.Printf("[%s] %s\n", time.Now().Format("15:04:05"), result.Message)
 		c.ui.updateMu.Lock()
 		c.ui.updateMessage = result.Message
-		if result.Available && result.DownloadURL != "" {
-			c.ui.updateMessage += "\r\n\r\nDownload: " + result.DownloadURL
-		}
+		c.ui.updateOfferDownload = result.Available && result.DownloadURL != ""
+  c.ui.updateOfferInstall = false
 		c.ui.updateMu.Unlock()
 		procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
 	}()
