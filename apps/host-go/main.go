@@ -142,6 +142,10 @@ func (h *host) run(ctx context.Context, preferredWebPort, preferredAPIPort int, 
 		_ = listener.Close()
 		return err
 	}
+	// Public HTTPS is distinct from transport TLS. The Go Host is the
+	// trusted boundary for both browser session security and API forwarding.
+	publicURL, _ := url.Parse(h.origin)
+	h.scheme = publicURL.Scheme
 	apiPort, err := availableConfiguredPort(preferredAPIPort, strictPorts)
 	if err != nil {
 		_ = listener.Close()
