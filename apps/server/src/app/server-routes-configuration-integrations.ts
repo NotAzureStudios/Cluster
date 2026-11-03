@@ -15,6 +15,7 @@ import { OperationCancelledError, withRequestCancellation } from "../core/operat
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
 import { checkServerConfigPreconditions } from "../core/server-config-preconditions.js";
 import { readNetworkDeploymentStatus } from "../core/server-network-deployment.js";
+import { diagnoseLocalNetworkPorts } from "../core/server-network-local-diagnostics.js";
 import { NETWORK_REVIEW_KEYS, reviewBoundDomainPortDrift, reviewNetworkChange } from "../core/server-network-change-review.js";
 
 import type { SettingPayload, ServerRouteRegistrationDeps } from "./server-composition-types.js";
@@ -255,6 +256,24 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     }
     try { return { ok: true, ...(await readNetworkDeploymentStatus(CONFIG_FILE_PATH)) }; }
     catch { return reply.code(503).send({ ok: false, code: "NETWORK_DEPLOYMENT_RECOVERY_REQUIRED", error: "The native network deployment record needs operator inspection." }); }
+  });
+
+  // On-demand, admin-only local TCP checks. Never accept arbitrary addresses,
+  // user-supplied port ranges or external destinations from the request.
+  app.get("/api/server-config/network/local-diagnostics", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    const user = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(user);
+    if (!decorated?.isAdmin && !hasToolPermission(user, decorated?.workspaceRole, "serverConfig", "manage")) {
+      return reply.code(403).send({ ok: false, code: "SERVER_CONFIG_MANAGE_REQUIRED" });
+    }
+    try {
+      const current = await readSettings(true);
+      return { ok: true, ...(await diagnoseLocalNetworkPorts(current as Record<string, unknown>)) };
+    } catch {
+      return reply.code(503).send({ ok: false, code: "NETWORK_LOCAL_DIAGNOSTICS_UNAVAILABLE",
+        error: "Local port diagnostics could not read the current server configuration." });
+    }
   });
 
   // Explicit request only: no background port-scans, no firewall mutations, no
