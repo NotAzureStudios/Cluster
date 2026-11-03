@@ -574,6 +574,7 @@ function operationalHealthSnapshot(database = readinessProbe.snapshot(), storage
 await registerServerRequestInfrastructure({
   app,
   prisma,
+  dataRoot: DATA_ROOT,
   runtimeConfig: RUNTIME_CONFIG,
   configuredCorsOrigins: CONFIGURED_CORS_ORIGINS,
   sessionSecret: SESSION_SECRET,
