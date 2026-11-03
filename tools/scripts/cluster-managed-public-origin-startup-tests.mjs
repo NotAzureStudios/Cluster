@@ -33,6 +33,7 @@ accepted({webOrigin:"https://my-server.example.ts.net"},"Tailscale Serve HTTPS o
 accepted({webOrigin:"https://192.168.1.18:3443"},"native TLS LAN HTTPS origin");
 accepted({webOrigin:"http://127.0.0.1:3000",sessionSecure:false},"original local HTTP remains supported");
 accepted({webOrigin:"http://localhost:3000",sessionSecure:false},"localhost backward compatibility");
+accepted({webOrigin:"http://[::1]:3000",sessionSecure:false},"IPv6 loopback browser URLs");
 accepted({webOrigin:"http://192.168.1.17:3000",sessionSecure:false,allowInsecureManagedHostHttp:true},"explicit trusted LAN HTTP");
 rejected({webOrigin:"http://192.168.1.17:3000",sessionSecure:false},/requires HTTPS/,"LAN HTTP must require explicit opt-in");
 rejected({webOrigin:"http://cluster.azurestudios.dev",sessionSecure:false},/requires HTTPS/,"public cleartext forbidden by default");
