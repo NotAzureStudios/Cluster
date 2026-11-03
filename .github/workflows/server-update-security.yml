@@ -35,5 +35,7 @@ jobs:
           node-version: '24.20.0'
       - name: Check release signer syntax
         run: node --check tools/scripts/cluster-sign-server-release.mjs
+      - name: Verify signed main feed, release publisher and native Check Updates flow
+        run: node tools/scripts/cluster-server-update-delivery-contract-tests.mjs
 # This is a source/build contract; no installation, service upgrade or backup
 # restoration is considered certified by a successful result here.
