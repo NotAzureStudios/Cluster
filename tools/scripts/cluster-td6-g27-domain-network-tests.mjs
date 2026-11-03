@@ -64,6 +64,8 @@ for (const [invalid, why] of [
   [{...profile('lan','manual',80), webPort:0}, 'invalid zero origin'],
 ]) { assert.throws(()=> plans.validateConnectionConfiguration(invalid), undefined, why); count++; }
 for(const bad of ['bad; rm -rf /','evil.com\nHeader: thing','<script>.dev','x..dev']) { assert.throws(()=>plans.buildDomainConnectionPlan(bad,profile('direct_https','caddy'))); count++; }
+const ui = fs.readFileSync(new URL('../../packages/renderer/src/features/domains/DomainManagementPanel.tsx', import.meta.url), 'utf8');
+ok(ui.includes('Gateway upstream for every external route:') && ui.includes('Never route a proxy or tunnel directly'), 'domain UI forbids public access to Node private port');
 // Validate route authorization, concurrency, fail-closed audit and local-probe isolation.
 const chain = new Proxy(function() {}, { get(_, prop) { if(prop==='safeParse') return input=>({success:!!input, data:input}); return ()=>chain; }, apply:()=>chain });
 const z = new Proxy({}, {get:()=>chain});
