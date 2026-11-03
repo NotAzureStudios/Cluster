@@ -163,10 +163,16 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   const gatewayPlanSaved = Boolean(connectionPlan && connectionBound);
   const dnsRoutingChecked = Boolean(dnsStatus);
 
-  return <section className="cluster-panel cluster-domains-rc46" aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
-    <header><h2>{surface === "studio" ? "Studio domains" : "Server domains & access"}</h2><p>{surface === "studio" ? "Manage ownership and renewals." : "Verify a domain, connect a gateway, and test access."}</p></header>
-    {error && <p role="alert">{error}</p>}
-    {notice && <p role="status">{notice}</p>}
+  return <section className={`cluster-panel cluster-domains-rc46 ${surface === "server" ? "cluster-server-domains-v103" : "cluster-studio-domains-v103"}`} aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
+    <header className="cluster-domain-header-v103">
+      <div><p className="eyebrow">{surface === "studio" ? "Studio ownership registry" : "Server Configuration / Connectivity"}</p>
+        <h2>{surface === "studio" ? "Studio domains" : "Domains & gateways"}</h2>
+        <p>{surface === "studio" ? "Register domains, record ownership, and verify control with DNS TXT records." : "Bind a verified hostname to this installation, configure its gateway, and independently verify the live route."}</p>
+      </div>
+      {surface === "server" && <span className={`cluster-domain-header-status-v103 ${bindingVerified ? "is-ready" : ""}`}>{bindingVerified ? "Hostname bound" : "Setup incomplete"}</span>}
+    </header>
+    {error && <div className="cluster-domain-message-v103 is-error" role="alert">{error}</div>}
+    {notice && <div className="cluster-domain-message-v103" role="status">{notice}</div>}
     {surface === "studio" && <div className="cluster-form-row">
       <label>Register domain <ClusterInput value={newDomain} onChange={event => setNewDomain(event.target.value)} placeholder="example.com" /></label>
       <ClusterButton disabled={busy || !newDomain.trim()} onClick={() => void mutate(async () => {
@@ -176,6 +182,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         return result;
       })}>Register</ClusterButton>
     </div>}
+    <div className="cluster-domain-browser-v103">
     <div className="cluster-form-row">
       <label>Find domains <ClusterInput value={search} onChange={event => { setSearch(event.target.value); setCursor(""); setCursorHistory([]); }} placeholder="Search registered domains" /></label>
       <label>Managed domains
@@ -185,10 +192,26 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           {domains.map(row => <option key={row.id} value={row.id}>{row.domain} · {row.verificationState}</option>)}
         </select>
       </label>
-      <ClusterButton disabled={!cursorHistory.length || busy} onClick={() => { setCursor(cursorHistory.at(-1) || ""); setCursorHistory(previous => previous.slice(0, -1)); }}>Previous 50</ClusterButton>
-      <ClusterButton disabled={!nextCursor || busy} onClick={() => { setCursorHistory(previous => [...previous, cursor]); setCursor(nextCursor || ""); }}>Next 50</ClusterButton>
+      <ClusterButton disabled={!cursorHistory.length || busy || domainsLoading} onClick={() => { setCursor(cursorHistory.at(-1) || ""); setCursorHistory(previous => previous.slice(0, -1)); }}>Previous 50</ClusterButton>
+      <ClusterButton disabled={!nextCursor || busy || domainsLoading} onClick={() => { setCursorHistory(previous => [...previous, cursor]); setCursor(nextCursor || ""); }}>Next 50</ClusterButton>
     </div>
-    {selected && <div className="cluster-panel">
+    {domainsLoading && <p className="muted tight" role="status">Loading registered domains…</p>}
+    {domainsLoadError && <div className="cluster-domain-message-v103 is-error" role="alert">
+      <strong>Cannot load domains.</strong> {domainsLoadError}
+      <ClusterButton type="button" variant="secondary" disabled={domainsLoading} onClick={() => void refreshPage().catch(() => undefined)}>Retry loading domains</ClusterButton>
+    </div>}
+    {!selected && !domainsLoading && !domainsLoadError && <div className="cluster-domain-empty-v103" role="status">
+      <h3>{search.trim() ? "No matching domains" : "No managed domain selected"}</h3>
+      <p>{surface === "server" ? "Register and verify your domain under Studio Settings → Domains first, then return here to bind it to this server." : "Register a domain above or adjust the search to find an existing entry."}</p>
+    </div>}
+    </div>
+    {surface === "server" && selected && <div className="cluster-domain-progress-v103" aria-label="Domain setup status">
+      <div><span>01 · Ownership</span><strong>{ownershipVerified ? "Verified" : "Requires verification"}</strong></div>
+      <div><span>02 · Server binding</span><strong>{bindingVerified ? "Bound to this server" : "Not verified"}</strong></div>
+      <div><span>03 · Gateway profile</span><strong>{gatewayPlanSaved ? "Plan saved" : "Not configured"}</strong></div>
+      <div><span>04 · DNS routing</span><strong>{!dnsRoutingChecked ? "Not checked" : dnsStatus?.routing === "matching" ? "Matching" : dnsStatus?.routing || "Unavailable"}</strong></div>
+    </div>}
+    {selected && <div className="cluster-panel cluster-domain-detail-v103">
       <h3>{selected.domain}</h3>
       <p>Ownership: <strong>{selected.verificationState}</strong> {selected.verifiedAt ? `· verified ${new Date(selected.verifiedAt).toLocaleDateString()}` : ""}</p>
       {surface === "studio" && <><details className="cluster-domain-help-rc46"><summary>About renewal records</summary><p>Registrar and renewal information is entered by administrators and is not automatically checked against your registrar.</p></details>
@@ -225,8 +248,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           });
         }}>Rotate ownership proof</ClusterButton>
       </div></>}
-      {surface === "server" && <><div className="cluster-panel">
-        <h3>Attach to this Cluster server</h3>
+      {surface === "server" && <><div className="cluster-panel cluster-domain-workflow-card-v103">
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">01</span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div></div>
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
         <details className="cluster-domain-help-rc46"><summary>How server binding works</summary><p>Only this server's installation ID can be bound. Other Cluster servers require their own identity handshake.</p></details>
@@ -258,8 +281,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           <p>TLS: not checked · Cluster reachability: not checked. Matching DNS does not mean this hostname is publicly accessible or secure.</p>
         </div>}
       </div>
-      <div className="cluster-panel" aria-label="Domain connectivity and deployment">
-        <h3>Connect people to this server</h3>
+      <div className="cluster-panel cluster-domain-workflow-card-v103" aria-label="Domain connectivity and deployment">
+        <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103">02</span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div></div>
         <p>Configure how members reach both the web frontend and API through one canonical address. Select a mode, save it, deploy its gateway configuration, then test from a separate device.</p>
         {!connectionBound && <p role="alert">First verify the domain and bind its hostname to this installation. A saved DNS binding alone does not expose the server.</p>}
         {connectionError && <p role="alert">{connectionError}</p>}
@@ -291,11 +314,11 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           setNotice("Access plan saved. Deploy its gateway instructions and verify from a remote client before relying on this URL.");
           return { domain: { ...selected, revision: response.revision } };
         })}>Save access profile &amp; generate deployment</ClusterButton>
-        {connectionPlan && <div className="cluster-panel">
+        {connectionPlan && <div className="cluster-panel cluster-domain-deployment-v103">
           <p>Planned member address: <strong>{connectionPlan.canonicalUrl}</strong> <ClusterButton onClick={() => copyClusterText(connectionPlan.canonicalUrl)}>Copy</ClusterButton></p>
           <p>Origin routing: Web <code>{connectionPlan.origin.web}</code> · API <code>{connectionPlan.origin.api}</code></p>
           <p role="status">Deployment: operator action required. Configuration is not proof of live connectivity, TLS, or Desktop sign-in.</p>
-          <ol>{connectionPlan.instructions.map((instruction, i) => <li key={i}>{instruction}</li>)}</ol>
+          <ol className="cluster-domain-instructions-v103">{connectionPlan.instructions.map((instruction, i) => <li key={i}>{instruction}</li>)}</ol>
           {connectionPlan.artifacts.map(artifact => <div className="cluster-panel" key={artifact.filename}>
             <strong>{artifact.filename}</strong> · {artifact.purpose}
             <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 300, overflow: "auto" }}>{artifact.contents}</pre>
