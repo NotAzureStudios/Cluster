@@ -46,7 +46,11 @@ func copyColdPostgresSnapshot(root,id string) (string,error) {
  info,err:=os.Lstat(source)
  if err!=nil{return "",fmt.Errorf("existing PostgreSQL data is not available for a cold backup: %w",err)}
  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0{return "",errors.New("PostgreSQL data folder is linked or not a real directory")}
- if err:=os.MkdirAll(filepath.Dir(dest),0700);err!=nil{return "",err}
+ backupRoot:=filepath.Dir(dest)
+ if info,err:=os.Lstat(backupRoot);err==nil {
+  if !info.IsDir() || info.Mode()&os.ModeSymlink!=0 {return "",errors.New("update recovery parent is linked or not a real directory")}
+ } else if !os.IsNotExist(err){return "",err}
+ if err:=os.MkdirAll(backupRoot,0700);err!=nil{return "",err}
  if err:=os.Mkdir(dest,0700);err!=nil{return "",fmt.Errorf("refusing to overwrite a previous update recovery snapshot: %w",err)}
  rollbackIncomplete:=true
  defer func(){if rollbackIncomplete { _=os.RemoveAll(dest) }}()
@@ -98,6 +102,9 @@ func copyColdPostgresSnapshot(root,id string) (string,error) {
 
 func verifyColdPostgresSnapshot(snapshotPath string)error {
  file:=filepath.Join(snapshotPath,"snapshot.json")
+ manifestInfo,err:=os.Lstat(file)
+ if err!=nil{return err}
+ if !manifestInfo.Mode().IsRegular() || manifestInfo.Mode()&os.ModeSymlink!=0 {return errors.New("recovery manifest is not a real file")}
  raw,err:=os.ReadFile(file)
  if err!=nil{return err}
  if len(raw)>16*1024*1024 {return errors.New("cold snapshot manifest is too large")}
@@ -129,5 +136,22 @@ func verifyColdPostgresSnapshot(snapshotPath string)error {
   total+=n
  }
  if total!=metadata.TotalBytes{return errors.New("PostgreSQL recovery total bytes differ from snapshot manifest")}
+ // The manifest must enumerate *every* backed-up file, not merely a valid
+ // subset. Unexpected files or junctions would make restore ambiguous.
+ found:=0
+ err=filepath.WalkDir(filepath.Join(snapshotPath,"postgresql"),func(path string,entry os.DirEntry,walkErr error)error{
+  if walkErr!=nil{return walkErr}
+  info,err:=entry.Info()
+  if err!=nil{return err}
+  if info.Mode()&os.ModeSymlink!=0{return errors.New("PostgreSQL snapshot contains a linked entry")}
+  if entry.IsDir(){return nil}
+  rel,err:=filepath.Rel(filepath.Join(snapshotPath,"postgresql"),path)
+  if err!=nil{return err}
+  if !info.Mode().IsRegular()||!seen[rel]{return errors.New("PostgreSQL snapshot contains unmanifested file")}
+  found++
+  return nil
+ })
+ if err!=nil{return err}
+ if found!=len(metadata.Files){return errors.New("PostgreSQL snapshot file count differs from verified manifest")}
  return nil
 }
