@@ -29,6 +29,23 @@ func TestNativeUpdaterSCMOwnershipIsExact(t *testing.T){
  }
  if !nativeServiceCommandMatchesRoot(strings.ToUpper(current),exe,root){t.Fatal("case-insensitive Windows service path rejected")}
 }
+func TestNativeServiceOwnerAcceptsOnlyKnownPortableAndManagedLaunchers(t *testing.T){
+ root:=filepath.Join("D:","Cluster-Server","Cluster","Server")
+ paths:=nativeServerServicePaths(root)
+ if len(paths)!=3{t.Fatalf("expected three exact managed launcher locations, got %+v",paths)}
+ for _,path:=range paths{
+  command:=syscall.EscapeArg(path)+" --service --root "+syscall.EscapeArg(root)
+  if !nativeServiceCommandMatchesRoot(command,path,root){
+   t.Fatalf("registered owned service path rejected: %s",path)
+  }
+  if nativeServiceCommandMatchesRoot(command,path,root+"-other"){
+   t.Fatalf("Service path from different installation accepted: %s",path)
+  }
+ }
+ portable:=filepath.Join(filepath.Dir(filepath.Dir(root)),"Cluster Server.exe")
+ if paths[2]!=portable{t.Fatalf("portable launcher should be outside the Cluster WorkRoot: %s",paths[2])}
+}
+
 func TestNewUpdateIDHasAcceptedRandomUUIDShape(t *testing.T){
  ids:=map[string]bool{}
  for i:=0;i<128;i++{
