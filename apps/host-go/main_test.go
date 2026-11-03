@@ -326,7 +326,7 @@ func TestRemoteHostingRequiresReachablePublicOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if origin != "https://cluster.studio:3000" {
+	if origin != "https://cluster.studio" {
 		t.Fatalf("public origin = %q", origin)
 	}
 	if _, err := resolvePublicOrigin("http://cluster.studio", "0.0.0.0", 3000, "https", true); err == nil {
@@ -382,7 +382,7 @@ func TestPasskeyLocalhostCanonicalOriginAndLegacyAlias(t *testing.T) {
         t.Fatalf("older local public origin = %q, %v", origin, err)
     }
     origin, err = resolvePublicOrigin("https://cluster.example.com", "0.0.0.0", 3000, "https", true)
-    if err != nil || origin != "https://cluster.example.com:3000" {
+    if err != nil || origin != "https://cluster.example.com" {
         t.Fatalf("remote TLS origin changed = %q, %v", origin, err)
     }
 }
