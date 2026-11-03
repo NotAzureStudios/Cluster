@@ -65,7 +65,21 @@ func capturePreviousPortableServerLauncher(root,id string)error{
  launcher,manifest:=serverPortableLauncherPaths(root)
  _,exeErr:=os.Lstat(launcher)
  _,manifestErr:=os.Lstat(manifest)
- if os.IsNotExist(exeErr)&&os.IsNotExist(manifestErr){return nil}
+ if os.IsNotExist(exeErr)&&os.IsNotExist(manifestErr){
+  // The new installer may create a root-level launcher even when the old
+  // installation had none. Record verified absence so rollback can remove
+  // ONLY a newly installer-owned shortcut, not an unrelated user file.
+  recovery,err:=coldServerUpdateRecoveryPath(root,id)
+  if err!=nil{return err}
+  sentinel:=filepath.Join(recovery,"previous-root-launcher.absent")
+  file,err:=os.OpenFile(sentinel,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
+  if err!=nil{return err}
+  _,err=file.WriteString("cluster-native-root-launcher-absent-v1\n")
+  if err==nil{err=file.Sync()}
+  closeErr:=file.Close()
+  if err!=nil{return err}
+  return closeErr
+ }
  if exeErr!=nil||manifestErr!=nil{return errors.New("portable Server launcher/ownership pair is incomplete")}
  record,err:=inspectPortableServerLauncher(root)
  if err!=nil{return err}
@@ -91,7 +105,31 @@ func restorePreviousPortableServerLauncher(root,id string)error{
  if err!=nil{return err}
  previous:=filepath.Join(recovery,"previous-root-launcher.manifest.json")
  data,err:=os.ReadFile(previous)
- if os.IsNotExist(err){return nil}
+ if errors.Is(err,os.ErrNotExist){
+  sentinel:=filepath.Join(recovery,"previous-root-launcher.absent")
+  raw,readErr:=os.ReadFile(sentinel)
+  if readErr!=nil||string(raw)!="cluster-native-root-launcher-absent-v1\n"{
+   return errors.New("missing original portable Server launcher baseline; manual recovery required")
+  }
+  launcher,manifest:=serverPortableLauncherPaths(root)
+  _,exeErr:=os.Lstat(launcher)
+  _,manifestErr:=os.Lstat(manifest)
+  if errors.Is(exeErr,os.ErrNotExist)&&errors.Is(manifestErr,os.ErrNotExist){return nil}
+  if exeErr!=nil||manifestErr!=nil{return errors.New("new portable launcher/manifest pair is incomplete; manual review required")}
+  if _,verifyErr:=inspectPortableServerLauncher(root);verifyErr!=nil{
+   return fmt.Errorf("newly created portable launcher has untrusted ownership: %w",verifyErr)
+  }
+  quarantine:=filepath.Join(recovery,"failed-root-launcher.exe")
+  quarantineManifest:=filepath.Join(recovery,"failed-root-launcher.manifest.json")
+  for _,path:=range []string{quarantine,quarantineManifest}{
+   _,collisionErr:=os.Lstat(path)
+   if collisionErr==nil{return errors.New("portable launcher quarantine already exists; manual review required")}
+   if !errors.Is(collisionErr,os.ErrNotExist){return collisionErr}
+  }
+  if err:=os.Rename(launcher,quarantine);err!=nil{return err}
+  if err:=os.Rename(manifest,quarantineManifest);err!=nil{return err}
+  return nil
+ }
  if err!=nil{return err}
  var prior portableServerLauncherOwner
  if err=json.Unmarshal(data,&prior);err!=nil{return err}
