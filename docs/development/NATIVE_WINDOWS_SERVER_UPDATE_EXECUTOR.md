@@ -42,8 +42,16 @@ The new preflight:
 5. Worker must have a durable one-shot lock: a repeated click, crash, outdated
    release, changed configuration or concurrent restart fails closed.
 
-The currently connected web and native flows **do not** implement these five
-steps for updates. Do not expose an enabled install button before they do.
+The `claimAuthorizedServerUpdate` helper now implements the native side
+of one exact, fresh authorization claim: a strict, bounded file, atomic
+`.claimed` rename, server-config SHA-256 check, publisher-signed staged
+release + SHA-256 check, and no other update hold or pending restart.
+It does **not** itself create an authorization, stop a service, or install
+an update. A crashed claim intentionally remains claimed for local recovery.
+
+The currently connected web and native flows **do not** implement the
+authenticated update-ticket producer or the independent Windows execution
+worker yet. Do not expose an enabled install button before they do.
 
 ## Transaction ordering
 
