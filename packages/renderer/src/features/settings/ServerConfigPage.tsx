@@ -1240,7 +1240,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       items={sectionLabels.map((item) => ({
         id: item.id, label: item.label, group: item.group, icon: item.icon,
         detail: item.id === "network" && networkDeploymentPending ? "Restart" : undefined,
-        detailTone: item.id === "network" && networkDeploymentPending ? "warning" : "neutral",
+        detailTone: item.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
       }))}
     >
 
