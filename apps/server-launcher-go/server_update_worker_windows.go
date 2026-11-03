@@ -165,6 +165,7 @@ func runNativeServerUpdateInstall(root,channel string)error{
    if err!=nil{return err}
    if err:=verifyColdPostgresSnapshot(path);err!=nil{return err}
    if err:=preservePreviousServerOwner(root,id);err!=nil{return err}
+   if err:=capturePreviousPortableServerLauncher(root,id);err!=nil{return err}
    return captureServerApplicationRollback(root,id)
   },
   ApplySignedInstaller:func(ctx context.Context)error{
@@ -246,6 +247,7 @@ func runNativeServerUpdateInstall(root,channel string)error{
    } else {
     if err:=restorePreviousServerApplication(root,id);err!=nil{return err}
    }
+   if err:=restorePreviousPortableServerLauncher(root,id);err!=nil{return err}
    return restoreColdPostgresSnapshot(root,id)
   },
   StartPrevious:func(ctx context.Context)error{return startOwnedClusterUpdateService(root)},
