@@ -59,6 +59,7 @@ func main() {
 	repairManaged := flag.Bool("repair-managed", false, "repair trusted local Windows Server runtime/link components while Server is stopped")
 	inspectStagedUpdate := flag.Bool("inspect-staged-update", false, "read-only: independently verify a signed staged Server update (JSON)")
 	updateReadiness := flag.Bool("update-readiness", false, "read-only: signed staging and installation blocker report (JSON)")
+ nativeUpdateApply := flag.Bool("native-update-apply", false, "internal: execute approved signed Server update from independent native worker")
 	updateChannel := flag.String("update-channel", "main", "signed Server update channel to inspect (main or development)")
 	flag.Parse()
 
@@ -67,6 +68,16 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+ if *nativeUpdateApply {
+  if *updateReadiness || *inspectStagedUpdate || *diagnose || *repairManaged || *repair || *service ||
+   *installService || *removeService || *startup || *browser || *interfaceMode ||
+   *commandLine || *headless || *noAutostart {
+   fmt.Fprintln(os.Stderr,"native Server update worker cannot be combined with any launcher or maintenance mode")
+   os.Exit(2)
+  }
+  if err:=runNativeServerUpdateInstall(root,*updateChannel);err!=nil{fatal(err)}
+  return
+ }
 	if *updateReadiness {
 		if *inspectStagedUpdate || *diagnose || *repairManaged || *repair || *service ||
 			*installService || *removeService || *startup || *browser || *interfaceMode ||
