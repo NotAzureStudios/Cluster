@@ -26,8 +26,9 @@ func restoreColdPostgresSnapshot(root,id string)error {
  quarantine:=filepath.Join(snapshot,"postgresql-after-failed-update")
  failedRestore:=filepath.Join(snapshot,"postgresql-failed-restore")
  for _,path:=range []string{quarantine,failedRestore}{
-  if _,err:=os.Lstat(path);err==nil{return errors.New("recovery quarantine already exists; manual review is required")}
-  if !os.IsNotExist(err){return err}
+  _,inspectErr:=os.Lstat(path)
+  if inspectErr==nil{return errors.New("recovery quarantine already exists; manual review is required")}
+  if !os.IsNotExist(inspectErr){return inspectErr}
  }
  // A rename preserves the currently installed database for forensic recovery.
  // It fails safely when Windows still has handles open on the database.
