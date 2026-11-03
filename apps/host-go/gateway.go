@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"mime"
 	"net/http"
 	"net/http/httputil"
@@ -11,6 +12,15 @@ import (
 	"strings"
 	"time"
 )
+
+// The independent native updater owns this sentinel. Until its verified
+// release/rollback is complete, the gateway refuses every app route, including
+// GET pages and all API mutations. /host/health remains available locally for
+// supervised readiness checks; an inaccessible status file fails closed.
+func hostServerUpdateHold(root string) bool {
+ _,err:=os.Lstat(filepath.Join(root,"data","system","runtime","cluster-update-hold.json"))
+ return err==nil || !errors.Is(err,os.ErrNotExist)
+}
 
 func (h *host) handler(target *url.URL) http.Handler {
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -51,6 +61,13 @@ func (h *host) handler(target *url.URL) http.Handler {
 			writeJSON(response, http.StatusForbidden, map[string]any{"ok": false, "error": "Cross-origin Cluster Host requests are not allowed.", "code": "ORIGIN_NOT_ALLOWED"})
 			return
 		}
+		if request.URL.Path != "/host/health" && hostServerUpdateHold(h.root) {
+			response.Header().Set("Cache-Control","no-store")
+			response.Header().Set("Retry-After","5")
+			writeJSON(response,http.StatusServiceUnavailable,map[string]any{"ok":false,"code":"SERVER_UPDATE_HOLD",
+				"error":"Cluster is verifying a managed Server update. Application access is temporarily held.","retryable":true})
+			return
+		}
 		// Old bookmarks using http://127.0.0.1 need to reach localhost
 		// before the browser requests a passkey registration challenge.
 		// Redirect only safe navigation methods, never credentials or writes.
@@ -79,7 +96,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 				"ok": true, "version": version, "runtime": "go", "runtimeProfile": "managed-host",
 				"architecture": "go-gateway-node-api", "origin": h.origin, "apiOrigin": h.apiOrigin,
 				"bindAddress": h.bindAddress, "webPort": h.webPort, "remoteAccess": h.remoteAccess,
-				"scheme": h.scheme, "secure": h.secure, "apiRestarting": h.apiRestarting.Load(),
+				"scheme": h.scheme, "secure": h.secure, "updateHold": hostServerUpdateHold(h.root), "apiRestarting": h.apiRestarting.Load(),
 				"apiRestarts": h.apiRestartCount.Load(), "apiRestartLimit": h.apiRestartLimit,
 				"uptimeMs": time.Since(h.startedAt).Milliseconds(),
 			})
