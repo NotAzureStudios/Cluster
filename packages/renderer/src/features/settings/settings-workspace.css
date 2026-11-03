@@ -1900,3 +1900,110 @@
   color: inherit;
   font-size: inherit;
 }
+
+
+/* Shared visual summaries for Forms, Policies and personal form assignments. */
+.studio-systems-status-overview-v103 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.studio-systems-status-overview-v103 > article {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  min-height: 100px;
+  padding: 13px;
+  border: 1px solid var(--cluster-border, var(--border));
+  border-radius: 12px;
+  background: var(--cluster-surface-1, var(--surface));
+}
+.studio-systems-status-overview-v103 > article > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.studio-systems-status-overview-v103 > article > div > svg,
+.studio-systems-status-overview-v103 > article > div > .iconify {
+  inline-size: 18px;
+  block-size: 18px;
+  flex: 0 0 18px;
+  color: var(--accent);
+}
+.studio-systems-status-overview-v103 > article > strong {
+  font-size: 1.25rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.studio-systems-heading-visual-v103,
+.studio-entity-editor-head-v272 h3,
+.settings-section-v092:has(.studio-form-entity-list-v103) .settings-panel-head-v092 h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.studio-systems-heading-visual-v103 > svg,
+.studio-systems-heading-visual-v103 > .iconify,
+.studio-entity-editor-head-v272 h3 > svg,
+.studio-entity-editor-head-v272 h3 > .iconify {
+  inline-size: 19px;
+  block-size: 19px;
+  flex: 0 0 19px;
+  color: var(--accent);
+}
+.studio-systems-v34f .studio-entity-list-v272 strong,
+.studio-form-entity-list-v103 strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.studio-systems-v34f .studio-entity-list-v272 strong > svg,
+.studio-systems-v34f .studio-entity-list-v272 strong > .iconify,
+.studio-form-entity-list-v103 strong > svg,
+.studio-form-entity-list-v103 strong > .iconify {
+  flex: 0 0 15px;
+  inline-size: 15px;
+  block-size: 15px;
+  color: var(--accent);
+}
+.studio-systems-v34f .studio-entity-list-meta-v272 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: end;
+  gap: 4px;
+  min-width: 0;
+  text-align: right;
+}
+.studio-systems-v34f .studio-entity-list-meta-v272 > small { color: var(--muted); font-size: .68rem; }
+.studio-form-entity-list-v103 > button { display: flex; gap: 10px; align-items: center; }
+.studio-form-entity-list-v103 .settings-state-chip-v103 {
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+  min-width: 0;
+}
+.studio-systems-policy-status-v103 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+.studio-systems-v34f .studio-entity-editor-head-v272 .settings-state-chip-v103 {
+  margin-top: 5px;
+}
+@media (max-width: 860px) {
+  .studio-systems-status-overview-v103 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .studio-systems-status-overview-v103 { grid-template-columns: 1fr; }
+  .studio-form-entity-list-v103 > button { align-items: flex-start; flex-wrap: wrap; }
+  .studio-form-entity-list-v103 .settings-state-chip-v103 { margin-inline-start: 0; }
+}
