@@ -430,6 +430,7 @@ type windowsControlPanel struct {
 	lastResourceAt        time.Time
 	lastResourceSnapshot  resourceSnapshot
 	lastServiceRefreshAt time.Time
+	lastAuthorizedRestartCheckAt time.Time
 	lastPortsAt          time.Time
 	lastPortsPID         int
 	lastPortsSummary     string
@@ -1037,6 +1038,10 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 			ui.controller.refreshServiceState()
 		}
 		ui.controller.pollServiceReadiness()
+		if ui.lastAuthorizedRestartCheckAt.IsZero() || time.Since(ui.lastAuthorizedRestartCheckAt) >= 2*time.Second {
+			ui.lastAuthorizedRestartCheckAt = time.Now()
+			go ui.controller.pollAuthorizedRestart()
+		}
 		ui.updateMetrics()
 		return 0
 	case wmAppTray:
@@ -1297,6 +1302,19 @@ func (c *windowsServerController) ConfirmStop() {
 		c.RequestStop()
 	}
 }
+// The Win32 control panel is the independent process lifetime owner in
+// interactive mode. A web request only submits an authenticated local intent.
+func (c *windowsServerController) pollAuthorizedRestart() {
+	id, err := consumeAuthorizedRestart(c.options.root, time.Now().UTC())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Native restart request ignored: %v\n", err)
+		return
+	}
+	if id == "" { return }
+	fmt.Printf("[%s] Authorized Server Configuration restart %s; draining and restarting owned Cluster processes.\n", time.Now().Format("15:04:05"), id)
+	c.Restart()
+}
+
 func (c *windowsServerController) ConfirmRestart() {
 	state, _ := c.snapshot()
 	if state == panelRunning || state == panelStarting {
