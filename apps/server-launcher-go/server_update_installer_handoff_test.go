@@ -15,9 +15,9 @@ func TestOfflineInstallerHandoffUsesOriginalPortableParent(t *testing.T) {
  if err!=nil {t.Fatal(err)}
  target,err:=prepareOfflineServerInstaller(fixture.root,candidate)
  if err!=nil {t.Fatal(err)}
- if filepath.Dir(target)!=filepath.Dir(fixture.root) {t.Fatalf("installer would target a nested Cluster: %s",target)}
+ if filepath.Dir(target)!=filepath.Dir(filepath.Dir(fixture.root)) {t.Fatalf("installer would target a nested Cluster: %s",target)}
  if !strings.HasPrefix(filepath.Base(target),"Cluster-Update-53-"){t.Fatalf("unexpected handoff name: %s",target)}
- if _,err:=os.Stat(filepath.Join(filepath.Dir(fixture.root),"Cluster-Installer.exe"));!os.IsNotExist(err){
+ if _,err:=os.Stat(filepath.Join(filepath.Dir(filepath.Dir(fixture.root)),"Cluster-Installer.exe"));!os.IsNotExist(err){
   t.Fatal("handoff must not replace the operator's existing Cluster-Installer.exe")
  }
  bytes,err:=os.ReadFile(target)
@@ -41,7 +41,7 @@ func TestOfflineInstallerHandoffFailsClosedOnCorruptionAndUntrustedPaths(t *test
   if _,err:=file.WriteAt([]byte("XX"),2);err!=nil{t.Fatal(err)}
   file.Close()
   if _,err:=prepareOfflineServerInstaller(fixture.root,candidate);err==nil{t.Fatal("tampered installer was copied")}
-  target:=filepath.Join(filepath.Dir(fixture.root),"Cluster-Update-53-"+candidate.SHA256[:12]+".exe")
+  target:=filepath.Join(filepath.Dir(filepath.Dir(fixture.root)),"Cluster-Update-53-"+candidate.SHA256[:12]+".exe")
   if _,err:=os.Stat(target);!os.IsNotExist(err){t.Fatalf("untrusted handoff remains: %v",err)}
  })
  t.Run("source outside staging rejected",func(t *testing.T){
@@ -62,11 +62,22 @@ func TestOfflineInstallerHandoffFailsClosedOnCorruptionAndUntrustedPaths(t *test
   fixture:=makeStagedFixture(t)
   candidate,err:=inspectStagedServerUpdateWithKey(fixture.root,"main",fixture.publisher)
   if err!=nil{t.Fatal(err)}
-  target:=filepath.Join(filepath.Dir(fixture.root),"Cluster-Update-53-"+candidate.SHA256[:12]+".exe")
+  target:=filepath.Join(filepath.Dir(filepath.Dir(fixture.root)),"Cluster-Update-53-"+candidate.SHA256[:12]+".exe")
   original:=[]byte("user owned file; do not overwrite")
   if err:=os.WriteFile(target,original,0600);err!=nil{t.Fatal(err)}
   if _,err:=prepareOfflineServerInstaller(fixture.root,candidate);err==nil{t.Fatal("existing file overwritten")}
   actual,err:=os.ReadFile(target)
   if err!=nil || string(actual)!=string(original){t.Fatalf("existing handoff changed: %v",err)}
  })
+}
+
+func TestInstallerHandoffRequiresCanonicalPortableLayout(t *testing.T){
+ fixture:=makeStagedFixture(t)
+ candidate,err:=inspectStagedServerUpdateWithKey(fixture.root,"main",fixture.publisher)
+ if err!=nil{t.Fatal(err)}
+ invalid:=filepath.Join(filepath.Dir(fixture.root),"NonCanonicalServer")
+ if err:=os.Rename(fixture.root,invalid);err!=nil{t.Fatal(err)}
+ if _,err:=prepareOfflineServerInstaller(invalid,candidate);err==nil{
+  t.Fatal("non-canonical updater root accepted; executable could create nested installations")
+ }
 }
