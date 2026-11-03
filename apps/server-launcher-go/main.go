@@ -57,6 +57,8 @@ func main() {
 	removeService := flag.Bool("service-remove", false, "remove stopped Windows Service")
 	diagnose := flag.Bool("diagnose", false, "read-only offline installation and PostgreSQL data-directory checks (JSON)")
 	repairManaged := flag.Bool("repair-managed", false, "repair trusted local Windows Server runtime/link components while Server is stopped")
+	inspectStagedUpdate := flag.Bool("inspect-staged-update", false, "read-only: independently verify a signed staged Server update (JSON)")
+	updateChannel := flag.String("update-channel", "main", "signed Server update channel to inspect (main or development)")
 	flag.Parse()
 
 	root, err := resolveRoot(*rootFlag)
@@ -64,6 +66,26 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *inspectStagedUpdate {
+		if *diagnose || *repairManaged || *repair || *service || *installService || *removeService || *startup ||
+			*browser || *interfaceMode || *commandLine || *headless || *noAutostart {
+			fmt.Fprintln(os.Stderr, "--inspect-staged-update is an exclusive, read-only operation")
+			os.Exit(2)
+		}
+		candidate, inspectErr := inspectStagedServerUpdate(root, *updateChannel)
+		if inspectErr != nil {
+			fmt.Fprintln(os.Stderr, "Server update is not ready for installation: "+inspectErr.Error())
+			os.Exit(2)
+		}
+		if err := json.NewEncoder(os.Stdout).Encode(struct {
+			Ready bool `json:"ready"`
+			Release string `json:"release"`
+			Sequence int `json:"sequence"`
+			Channel string `json:"channel"`
+			SHA256 string `json:"sha256"`
+		}{true,candidate.Release,candidate.Sequence,candidate.Channel,candidate.SHA256});err!=nil{fatal(err)}
+		return
+	}
 	if *repairManaged {
 		if *diagnose || *repair || *service || *installService || *removeService || *startup || *browser || *interfaceMode || *commandLine || *headless {
 			fmt.Fprintln(os.Stderr, "--repair-managed is an exclusive offline maintenance action")
