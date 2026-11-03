@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, formatApiError } from "../../core/api";
 import { copyClusterText } from "../../core/clipboard";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -44,6 +44,9 @@ export function StudioDomainsPanel() { return <DomainsAdministrationPanel surfac
 export function ServerDomainsPanel() { return <DomainsAdministrationPanel surface="server" />; }
 function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" }) {
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [domainsLoading, setDomainsLoading] = useState(true);
+  const [domainsLoadError, setDomainsLoadError] = useState("");
+  const listRequestSequence = useRef(0);
   const [selectedId, setSelectedId] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<Domain | null>(null);
   const [newDomain, setNewDomain] = useState("");
@@ -73,16 +76,31 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   const selected = domains.find(row => row.id === selectedId) || (selectedRecord?.id === selectedId ? selectedRecord : null);
 
   async function refreshPage(after = cursor, searchTerm = search) {
+    const requestSequence = ++listRequestSequence.current;
+    setDomainsLoading(true);
+    setDomainsLoadError("");
     const query = new URLSearchParams();
     if (after) query.set("after", after);
     if (searchTerm.trim()) query.set("search", searchTerm.trim());
-    const result = await api<{ domains: Domain[]; nextCursor: string | null }>(`/api/admin/domains?${query.toString()}`);
-    setDomains(result.domains || []);
-    setNextCursor(result.nextCursor || null);
-    setSelectedId(old => old || result.domains[0]?.id || "");
-    setSelectedRecord(old => result.domains.find(row => row.id === old?.id) || old);
+    try {
+      const result = await api<{ domains: Domain[]; nextCursor: string | null }>(`/api/admin/domains?${query.toString()}`);
+      if (requestSequence !== listRequestSequence.current) return;
+      setDomains(result.domains || []);
+      setNextCursor(result.nextCursor || null);
+      setSelectedId(old => old || result.domains[0]?.id || "");
+      setSelectedRecord(old => result.domains.find(row => row.id === old?.id) || old);
+    } catch (err) {
+      if (requestSequence === listRequestSequence.current) setDomainsLoadError(formatApiError(err));
+      throw err;
+    } finally {
+      if (requestSequence === listRequestSequence.current) setDomainsLoading(false);
+    }
   }
-  useEffect(() => { void refreshPage().catch(err => setError(formatApiError(err))); }, [cursor, search]);
+  useEffect(() => {
+    // Search input is debounced; outdated results cannot overwrite newer ones.
+    const timer = window.setTimeout(() => { void refreshPage().catch(() => undefined); }, search.trim() ? 250 : 0);
+    return () => { window.clearTimeout(timer); listRequestSequence.current += 1; };
+  }, [cursor, search]);
   // An OOBE proposal is not an active network route. Load it once for the
   // authenticated owner, and never overwrite existing verified domain data.
   useEffect(() => {
@@ -140,6 +158,10 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
   }
   const expiresMs = selected?.expiresOn ? new Date(selected.expiresOn).getTime() : null;
   const daysUntilExpiry = expiresMs !== null && Number.isFinite(expiresMs) ? Math.ceil((expiresMs - Date.now()) / 86400000) : null;
+  const ownershipVerified = selected?.verificationState === "verified";
+  const bindingVerified = ownershipVerified && connectionBound && Boolean(selected?.bindingHostname);
+  const gatewayPlanSaved = Boolean(connectionPlan && connectionBound);
+  const dnsRoutingChecked = Boolean(dnsStatus);
 
   return <section className="cluster-panel cluster-domains-rc46" aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
     <header><h2>{surface === "studio" ? "Studio domains" : "Server domains & access"}</h2><p>{surface === "studio" ? "Manage ownership and renewals." : "Verify a domain, connect a gateway, and test access."}</p></header>
