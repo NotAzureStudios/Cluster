@@ -10,6 +10,8 @@ const repo='https://github.com/NotAzureStudios/Cluster';
 for(const [name,contents] of [['README.md',readme],['docs/INSTALLATION.md',install]]){
  assert.ok(contents.includes(repo+'/releases/latest'),name+' must link to latest release');
  assert.ok(contents.includes(repo+'/releases/latest/download/Cluster-Installer.exe'),name+' must link directly to latest Server installer');
+ assert.ok(contents.includes(repo+'/releases/latest/download/Cluster-Desktop-Installer.exe'),name+' must link directly to latest Desktop installer');
+ assert.ok(contents.includes(repo+'/releases/latest/download/Cluster-Desktop-Portable.zip'),name+' must link directly to latest portable Desktop');
  assert.doesNotMatch(contents,/releases\/(?:download|tag)\/v\d+\.\d+\.\d+/i,name+' contains a pinned, stale release link');
  assert.doesNotMatch(contents,/releases\/latest\/download\/Cluster-Desktop-Installer-\d/i,name+' assumes fixed Desktop component version');
 }
