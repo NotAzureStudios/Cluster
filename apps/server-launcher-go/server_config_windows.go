@@ -591,13 +591,51 @@ func configuredUpdateManifestURL(root string) string {
 	return strings.TrimSpace(prefs.UpdateManifestURL)
 }
 
+// A missing publisher-signed feed still permits a DISPLAY-ONLY check of the
+// studio's canonical GitHub release. GitHub release metadata is never treated
+// as an authenticated update manifest and cannot stage or execute an EXE.
+func checkOfficialServerRelease(root string) updateCheckResult {
+	const latestEndpoint = "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest"
+	client := &http.Client{Timeout: 8*time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return errors.New("official release API redirected unexpectedly")
+	}}
+	req, err := http.NewRequest(http.MethodGet, latestEndpoint, nil)
+	if err != nil { return updateCheckResult{Message:"No signed Server update feed is configured."} }
+	req.Header.Set("User-Agent", "ClusterServer/"+version)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	resp, err := client.Do(req)
+	if err != nil { return updateCheckResult{Message:"No signed Server update feed configured; GitHub release check unavailable. Use the official Release page for manual updates."} }
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return updateCheckResult{Message:fmt.Sprintf("No signed Server update feed configured. Official GitHub release check returned HTTP %d; private repositories may require authentication.", resp.StatusCode)}
+	}
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024+1))
+	if err != nil || len(raw)>256*1024 { return updateCheckResult{Message:"Official release metadata could not be read within the size limit."} }
+	var latest struct { TagName string `json:"tag_name"`; HTMLURL string `json:"html_url"` }
+	if json.Unmarshal(raw, &latest)!=nil { return updateCheckResult{Message:"Official GitHub release metadata was invalid."} }
+	release := strings.TrimPrefix(strings.TrimSpace(latest.TagName), "v")
+	next, valid := serverUpdateSequence(release, "main")
+	if !valid || !strings.HasPrefix(latest.HTMLURL,"https://github.com/NotAzureStudios/Cluster/releases/") {
+		return updateCheckResult{Message:"Official release metadata did not identify a supported Cluster Server release."}
+	}
+	current := installedServerReleaseSequence(root)
+	if current == 0 {
+		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured.",release)}
+	}
+	if next > current {
+		return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is published. Your installation is older. Manual upgrade: %s. One-click signed installation is not configured.",release,latest.HTMLURL)}
+	}
+	return updateCheckResult{Message:fmt.Sprintf("Latest official Server release is %s. No signed automatic-update feed is configured; installed release sequence %d.",release,current)}
+}
+
 func checkUpdateManifest(root string) updateCheckResult {
 	prefs := loadNativePanelPreferences(root)
 	channel := prefs.UpdateChannel
 	if channel != "development" { channel = "main" }
 	source := configuredUpdateManifestURL(root)
 	if source == "" {
-		return updateCheckResult{Message: fmt.Sprintf("No %s Windows Server release feed is configured. Configure its signed JSON manifest URL in Settings → Updates.", channel)}
+		if channel == "main" { return checkOfficialServerRelease(root) }
+		return updateCheckResult{Message: "No signed development update feed is configured. Configure a trusted manifest URL in Settings → Updates."}
 	}
 	parsed, err := url.Parse(source)
 	if err != nil || !allowedServerUpdateURL(parsed) {
