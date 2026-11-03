@@ -162,9 +162,11 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 
 func findNativeSetting(key string) (nativeSettingSpec, bool) {
 	if strings.HasPrefix(key, "native.") {
-		for _, spec := range nativeSettingsForSection("Control panel") {
-			if spec.Key == key {
-				return spec, true
+		for _, section := range []string{"Updates", "Control panel"} {
+			for _, spec := range nativeSettingsForSection(section) {
+				if spec.Key == key {
+					return spec, true
+				}
 			}
 		}
 	}
