@@ -9,7 +9,6 @@ import (
  "fmt"
  "os"
  "path/filepath"
- "strings"
  "time"
 )
 
@@ -51,7 +50,11 @@ func (j *nativeServerUpdateJournal) append(phase serverUpdatePhase,state string)
  switch state {case "started","completed","failed","blocked","recovering":default:return errors.New("invalid update journal state")}
  // An event carries no free-form error messages, server secrets or paths.
  // Detailed diagnostics stay in the separately access-controlled native logs.
- if phase=="" || len(phase)>64 || strings.ContainsAny(string(phase),"\r\n"){
+ switch phase {
+ case updatePhaseAuthorized,updatePhaseWriteHold,updatePhaseStopped,updatePhaseBackupVerified,
+  updatePhaseApplying,updatePhaseStarting,updatePhaseProbing,updatePhaseCommitted,
+  updatePhaseReopenAccess,updatePhaseRollingBack,updatePhaseRecovered,updatePhaseBlocked:
+ default:
   return errors.New("invalid update journal phase")
  }
  info,err:=j.file.Stat()
