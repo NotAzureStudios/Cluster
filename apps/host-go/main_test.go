@@ -455,6 +455,10 @@ func TestExternalHTTPSWithPrivateHTTPAndNativeReadiness(t *testing.T) {
 	localResult := httptest.NewRecorder()
 	h.handler(target).ServeHTTP(localResult, local)
 	if localResult.Code != http.StatusOK { t.Fatalf("native health failed behind TLS tunnel: %d", localResult.Code) }
+	readiness := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3234/health/ready", nil)
+	readyResult := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(readyResult, readiness)
+	if readyResult.Code != http.StatusOK { t.Fatalf("local readiness unexpectedly redirected behind public HTTPS: %d", readyResult.Code) }
 	attacker := httptest.NewRequest(http.MethodGet, "http://evil.example.test/health/ready", nil)
 	denied := httptest.NewRecorder()
 	h.handler(target).ServeHTTP(denied, attacker)
