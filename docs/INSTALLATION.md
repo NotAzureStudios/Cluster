@@ -7,10 +7,10 @@ These instructions follow the **[latest stable Cluster release](https://github.c
 | Download | Purpose |
 | --- | --- |
 | **[Latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows Server, API, Web and native Server Manager |
-| **[Latest Cluster Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest)** | Open the latest release's **Assets** section and choose the Desktop installer |
-| [Latest portable Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest) | Choose the portable Desktop ZIP from the latest release |
+| **[Latest Cluster Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe)** | Windows x64 Qt Desktop application |
+| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Desktop application files |
 
-The Server installer has a permanent direct-download filename. The currently published Desktop binaries have their own versioned filenames, so the Desktop links point to the **latest release page** and won't become broken when the native Desktop version changes. Future releases should ship stable Desktop aliases as documented in [release asset naming](development/RELEASE_ASSET_NAMING.md).
+Since **v1.0.2**, Server and Desktop have permanent direct-download filenames pointing to the latest stable release. The Desktop's internal component version remains independent of the suite version. Future release publishers must keep these stable filenames. [Release asset naming](development/RELEASE_ASSET_NAMING.md).
 
 ### Verify a download
 
@@ -45,7 +45,7 @@ Do not assume a hard-coded public port or Web address; use the actual Server set
 
 ## 3. Install Desktop (optional)
 
-1. From the [latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest), select the Desktop installer or portable ZIP under **Assets**.
+1. Download the current [Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) or [portable ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip).
 2. Check the package checksum against the same release's notes.
 3. Run the Desktop installer or fully extract the ZIP and launch `Cluster.exe`.
 4. Add/select your Server URL in the profile chooser and authenticate with a studio-admin-created account. Use the tray or **Ctrl+Shift+S** for server profiles.
