@@ -72,7 +72,7 @@ func runServerUpdateTransaction(ctx context.Context, hooks serverUpdateTransacti
  for _,step:=range stages {
   record(step.phase,"started")
   if err:=step.run(ctx);err!=nil {
-   record(updatePhaseBlocked,step.phase+": "+err.Error())
+   record(updatePhaseBlocked,string(step.phase)+": "+err.Error())
    return serverUpdateTransactionResult{Phase:updatePhaseBlocked,Err:fmt.Errorf("%s: %w",step.phase,err)}
   }
   record(step.phase,"completed")
