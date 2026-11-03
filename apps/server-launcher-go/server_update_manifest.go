@@ -27,7 +27,44 @@ MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
 -----END PUBLIC KEY-----`
 
 var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
-var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)$`)
+var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)package main
+
+// Server update metadata is deliberately separate from Cluster Desktop's updater.
+// A channel changes the eligible server installer, not the source checkout or database.
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"io"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
+-----END PUBLIC KEY-----`
+
+var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
+)
+
+// One stable, product-specific channel pointer. The signed JSON asset is
+// served from the dedicated server-main release, independent of Desktop's
+// GitHub "latest release" selector. Individual installers stay immutable
+// under server-vX.Y.Z release tags.
+const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
+const officialServerGitHubReleaseAssetPrefix = "/github-production-release-asset/1431753697/"
+
 
 // Stable patch releases follow the sequence established for 1.0.x.
 // Development RC updates remain isolated from the main channel.
@@ -139,6 +176,18 @@ func sameServerUpdateOrigin(a,b *url.URL) bool {
 		return "80"
 	}
 	return strings.EqualFold(a.Scheme,b.Scheme)&&strings.EqualFold(a.Hostname(),b.Hostname())&&port(a)==port(b)
+}
+
+// The official signed release assets are delivered by GitHub's release CDN.
+// Keep cross-origin redirects strictly limited to GitHub's own asset host,
+// rather than weakening the generic same-origin rule for custom feed URLs.
+func serverUpdateRedirectAllowed(feed, destination *url.URL) bool {
+ if sameServerUpdateOrigin(feed,destination) { return true }
+ if feed==nil || feed.String()!=defaultOfficialMainServerUpdateFeedURL || destination==nil {return false}
+ if destination.Scheme!="https" || destination.User!=nil || destination.Fragment!="" ||
+  destination.Hostname()!="release-assets.githubusercontent.com" ||
+  (destination.Port()!="" && destination.Port()!="443") {return false}
+ return strings.HasPrefix(destination.EscapedPath(),officialServerGitHubReleaseAssetPrefix)
 }
 
 func verifyServerUpdateManifest(data []byte, feed *url.URL, expectedChannel string) (serverUpdateManifest,error) {
