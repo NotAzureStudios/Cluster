@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-var version = "1.0.4-dev"
+var version = "1.0.5-dev"
 
 type host struct {
 	root             string
@@ -30,6 +30,7 @@ type host struct {
 	bindAddress      string
 	webPort          int
 	remoteAccess     bool
+	allowInsecureHTTP bool
 	configuredOrigin string
 	scheme           string
 	secure           bool
@@ -103,7 +104,7 @@ func main() {
 		scheme = "https"
 	}
 	runtimeHost := &host{
-		root: root, mode: modeValue, bindAddress: resolvedBind, remoteAccess: remoteAccess,
+		root: root, mode: modeValue, bindAddress: resolvedBind, remoteAccess: remoteAccess, allowInsecureHTTP: *allowInsecureHTTP,
 		configuredOrigin: strings.TrimSpace(*publicOrigin), scheme: scheme, secure: secure, tlsCertFile: certFile, tlsKeyFile: keyFile,
 		apiRestartLimit: *apiRestartLimit, shutdownToken: shutdownToken, startedAt: time.Now(),
 	}

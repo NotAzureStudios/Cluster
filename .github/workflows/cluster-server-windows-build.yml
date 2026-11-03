@@ -46,7 +46,7 @@ jobs:
       - name: Verify authentic reviewed Server source and installer
         shell: pwsh
         run: |
-          if ((git branch --show-current).Trim() -ne 'main') { throw 'The 1.0.4 Server build must come from main' }
+          if ((git branch --show-current).Trim() -ne 'main') { throw 'The 1.0.5 Server build must come from main' }
           node --check tools/scripts/cluster-suite-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source version contract contains invalid JavaScript' }
           node --check tools/scripts/build-cluster-installer.mjs
@@ -54,7 +54,7 @@ jobs:
           node tools/scripts/cluster-suite-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source versions do not agree' }
           node tools/scripts/cluster-release-lockfile-check.mjs
-          if ($LASTEXITCODE -ne 0) { throw 'Root npm lockfile does not match 1.0.4' }
+          if ($LASTEXITCODE -ne 0) { throw 'Root npm lockfile does not match 1.0.5' }
           node tools/scripts/cluster-managed-db-env-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Managed database URL bootstrap regression failed' }
           node tools/scripts/cluster-prebuilt-install-gate-tests.mjs
@@ -70,7 +70,7 @@ jobs:
           node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel main --build
           if ($LASTEXITCODE -ne 0) {
             git diff --name-status
-            throw 'Cluster 1.0.4 release compilation/packaging failed'
+            throw 'Cluster 1.0.5 release compilation/packaging failed'
           }
       - name: Verify release commit, binaries and SHA-256 receipt
         shell: pwsh

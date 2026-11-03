@@ -1,5 +1,5 @@
 # Disposable OFFLINE in-place upgrade test for the Cluster Windows installer.
-# Exercises the real published 1.0.2 installer and prebuilt 1.0.4 candidate.
+# Exercises the real published 1.0.2 installer and prebuilt 1.0.5 candidate.
 # Does not run a database or certify the native update executor.
 [CmdletBinding()]
 param(
@@ -62,9 +62,9 @@ try {
   $libHash = (Get-FileHash -LiteralPath (Join-Path $libDir 'keep.txt') -Algorithm SHA256).Hash
   $envHash = (Get-FileHash -LiteralPath $envPath -Algorithm SHA256).Hash
 
-  Write-Host 'Upgrading the SAME managed installation to 1.0.4 with auto-start disabled...'
+  Write-Host 'Upgrading the SAME managed installation to 1.0.5 with auto-start disabled...'
   Invoke-BundledInstaller $CandidateInstaller
-  Confirm-Release 54
+  Confirm-Release 55
 
   foreach ($pair in @(
       @{File=(Join-Path $pgDir 'CI-SENTINEL');Hash=$pgHash},
@@ -83,7 +83,7 @@ try {
   if (Test-Path -LiteralPath (Join-Path $managed 'Cluster\Server')) {
     throw 'Unexpected nested Server installation'
   }
-  Write-Host 'PASS: real 1.0.2->1.0.4 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
+  Write-Host 'PASS: real 1.0.2->1.0.5 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
   Write-Host "Disposable smoke root: $scratch"
 } finally {
   $env:PSModulePath = $previousModulePath

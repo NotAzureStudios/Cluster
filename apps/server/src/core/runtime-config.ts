@@ -189,7 +189,7 @@ export function loadRuntimeConfig(
 ): RuntimeConfig {
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
-  const clusterVersion = options.version ?? "1.0.4";
+  const clusterVersion = options.version ?? "1.0.5";
   const nodeEnv =
     String(env.NODE_ENV || "development")
       .trim()
@@ -457,6 +457,7 @@ export function loadRuntimeConfig(
     rateLimitEnabled,
     securityHeadersEnabled,
     requireMutationOrigin,
+    allowInsecureManagedHostHttp: runtimeProfile === "managed-host" && env.CLUSTER_MANAGED_HOST_ALLOW_INSECURE_LAN_HTTP === "true",
     requireDiscordLink,
     discordClientId: env.DISCORD_CLIENT_ID,
     discordClientSecret: env.DISCORD_CLIENT_SECRET,

@@ -24,6 +24,9 @@ export type ProductionAuthConfiguration = {
   rateLimitEnabled: boolean;
   securityHeadersEnabled: boolean;
   requireMutationOrigin: boolean;
+  // Set only by the native Go Host when explicitly started in trusted-LAN
+  // cleartext mode. The private Node API itself must remain loopback-only.
+  allowInsecureManagedHostHttp?: boolean;
   requireDiscordLink: boolean;
   discordClientId?: string;
   discordClientSecret?: string;
@@ -59,8 +62,22 @@ export function validateProductionAuthConfiguration(config: ProductionAuthConfig
     let parsed: URL;
     try { parsed = new URL(String(rawUrl)); } catch { throw new Error(`Production ${label} must be a valid URL.`); }
     if (managedHost) {
-      if (!["http:", "https:"].includes(parsed.protocol) || !isLoopbackAddress(parsed.hostname)) {
-        throw new Error(`Managed-host production ${label} must use a loopback HTTP(S) URL.`);
+      // The Node API stays on loopback, but the Go gateway may legitimately
+      // advertise a public HTTPS URL behind Cloudflare, Tailscale Serve,
+      // Caddy/nginx or its own TLS listener. The previous loopback-only
+      // requirement accidentally rejected every such deployment at startup.
+      if (!["http:", "https:"].includes(parsed.protocol) ||
+          parsed.username || parsed.password || parsed.search || parsed.hash ||
+          (label === "WEB_ORIGIN" && parsed.pathname !== "/")) {
+        throw new Error(`Managed-host production ${label} must use a clean HTTP(S) URL.`);
+      }
+      const loopback = isLoopbackAddress(parsed.hostname.replace(/^\[|\]$/g, ""));
+      if (!loopback && parsed.protocol !== "https:" &&
+          !(label === "WEB_ORIGIN" && config.allowInsecureManagedHostHttp)) {
+        throw new Error(`Managed-host production ${label} requires HTTPS for remote access (trusted-LAN HTTP must be explicitly enabled in the Go Host).`);
+      }
+      if (label === "WEB_ORIGIN" && parsed.protocol === "https:" && !config.sessionSecure) {
+        throw new Error("Managed-host production public HTTPS requires Secure session cookies.");
       }
       continue;
     }

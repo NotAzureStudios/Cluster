@@ -506,3 +506,37 @@ func TestDirectTLSLocalHealthDoesNotExposeOtherRoutes(t *testing.T) {
 		t.Fatalf("remote peer accepted loopback health alias: %d", got)
 	}
 }
+
+func TestManagedHostExternallyTerminatedHTTPSKeepsPublicOriginAndSecureCookies(t *testing.T) {
+ h := &host{origin:"https://cluster.azurestudios.dev",scheme:"https",secure:false,remoteAccess:false}
+ env:=h.apiEnvironment(4000)
+ if env["WEB_ORIGIN"]!="https://cluster.azurestudios.dev" || env["SESSION_SECURE"]!="true" {
+  t.Fatalf("public HTTPS with private Host transport must keep secure origin: %+v",env)
+ }
+ if env["HOST"]!="127.0.0.1" || env["CLUSTER_RUNTIME_PROFILE"]!="managed-host"{
+  t.Fatal("public-facing Go Host must not expose private Node API")
+ }
+ if env["CLUSTER_MANAGED_HOST_ALLOW_INSECURE_LAN_HTTP"]!="false"{
+  t.Fatal("external HTTPS must not enable insecure LAN exception")
+ }
+}
+func TestManagedHostExplicitLANHTTPAuthGateOnlyWithHostOptIn(t *testing.T){
+ tests:=[]struct{
+  name string
+  h host
+  allow string
+ }{
+  {"lan-opted-in",host{origin:"http://192.168.50.12:3000",scheme:"http",remoteAccess:true,allowInsecureHTTP:true},"true"},
+  {"lan-without-opt-in",host{origin:"http://192.168.50.12:3000",scheme:"http",remoteAccess:true},"false"},
+  {"local-only",host{origin:"http://127.0.0.1:3000",scheme:"http",allowInsecureHTTP:true},"false"},
+  {"https-over-lan",host{origin:"https://192.168.50.12:3443",scheme:"https",remoteAccess:true,allowInsecureHTTP:true},"false"},
+ }
+ for _,tc:=range tests{
+  t.Run(tc.name,func(t *testing.T){
+   got:=tc.h.apiEnvironment(4000)
+   if got["CLUSTER_MANAGED_HOST_ALLOW_INSECURE_LAN_HTTP"]!=tc.allow{
+    t.Fatalf("LAN HTTP opt-in env = %q, expected %q",got["CLUSTER_MANAGED_HOST_ALLOW_INSECURE_LAN_HTTP"],tc.allow)
+   }
+  })
+ }
+}

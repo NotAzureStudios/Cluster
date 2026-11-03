@@ -17,6 +17,8 @@ The **[latest GitHub release](https://github.com/NotAzureStudios/Cluster/release
 
 **Release status:** The Server 1.0.4 installer is **unsigned** and passed a real Windows clean-install smoke test. A populated 1.0.3 database upgrade/rollback is **not yet fully certified**. Back up PostgreSQL, Library, settings and credentials before upgrading. Publishing this direct installer does not create the separate signed `server-main` automatic update feed.
 
+The release format and security guarantees are documented under [Windows code signing](docs/development/WINDOWS_CODE_SIGNING.md) and [permanent release asset naming](docs/development/RELEASE_ASSET_NAMING.md).
+
 ## Install or upgrade
 
 For a **new** installation, put `Cluster-Installer.exe` in a dedicated writable folder (for example `D:\Cluster-Server\`) and run it. It creates `Cluster\Server` beside itself.

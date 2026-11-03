@@ -7,6 +7,9 @@ on:
       - 'apps/host-go/**'
       - 'apps/server-launcher-go/**'
       - 'apps/server/src/core/server-network-change-review.ts'
+      - 'apps/server/src/core/auth.ts'
+      - 'apps/server/src/core/runtime-config.ts'
+      - 'tools/scripts/cluster-managed-public-origin-startup-tests.mjs'
       - 'apps/server/src/app/server-routes-configuration-integrations.ts'
       - 'packages/renderer/src/features/settings/**'
       - 'packages/renderer/src/features/domains/DomainManagementPanel.tsx'
@@ -61,6 +64,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify server port and exposure policy
         run: node tools/scripts/cluster-f2-p5-network-port-review-tests.mjs
+      - name: Reproduce managed-host public HTTPS production startup rules
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-managed-public-origin-startup-tests.mjs
       - name: Verify local-only listener diagnostics and the admin UI
         run: node tools/scripts/cluster-network-local-diagnostics-tests.mjs
       - name: Verify domain setup templates never bypass the managed gateway
