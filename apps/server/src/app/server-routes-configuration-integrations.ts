@@ -15,6 +15,7 @@ import { OperationCancelledError, withRequestCancellation } from "../core/operat
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
 import { checkServerConfigPreconditions } from "../core/server-config-preconditions.js";
 import { readNetworkDeploymentStatus } from "../core/server-network-deployment.js";
+import { diagnoseLocalNetworkPorts } from "../core/server-network-local-diagnostics.js";
 import { NETWORK_REVIEW_KEYS, reviewBoundDomainPortDrift, reviewNetworkChange } from "../core/server-network-change-review.js";
 
 import type { SettingPayload, ServerRouteRegistrationDeps } from "./server-composition-types.js";
@@ -257,6 +258,24 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     catch { return reply.code(503).send({ ok: false, code: "NETWORK_DEPLOYMENT_RECOVERY_REQUIRED", error: "The native network deployment record needs operator inspection." }); }
   });
 
+  // On-demand, admin-only local TCP checks. Never accept arbitrary addresses,
+  // user-supplied port ranges or external destinations from the request.
+  app.get("/api/server-config/network/local-diagnostics", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    const user = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(user);
+    if (!decorated?.isAdmin && !hasToolPermission(user, decorated?.workspaceRole, "serverConfig", "manage")) {
+      return reply.code(403).send({ ok: false, code: "SERVER_CONFIG_MANAGE_REQUIRED" });
+    }
+    try {
+      const current = await readSettings(true);
+      return { ok: true, ...(await diagnoseLocalNetworkPorts(current as Record<string, unknown>)) };
+    } catch {
+      return reply.code(503).send({ ok: false, code: "NETWORK_LOCAL_DIAGNOSTICS_UNAVAILABLE",
+        error: "Local port diagnostics could not read the current server configuration." });
+    }
+  });
+
   // Explicit request only: no background port-scans, no firewall mutations, no
   // URL-based network fetches. Server-side save repeats the same validation.
   app.post("/api/server-config/network/preview", async (request, reply) => {
@@ -270,6 +289,8 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       changes: z.object({
         serverHost: z.string().max(255).optional(), serverPort: z.number().optional(),
         webHost: z.string().max(255).optional(), webPort: z.number().optional(),
+        allowInsecureLanHttp: z.boolean().optional(),
+        webTlsCertFile: z.string().max(2048).optional(), webTlsKeyFile: z.string().max(2048).optional(),
         publicApiUrl: z.string().max(2048).optional(), publicWebUrl: z.string().max(2048).optional(),
         corsOrigins: z.string().max(4000).optional(), trustedProxy: z.boolean().optional(),
         sessionSecure: z.boolean().optional(), lanDiscoveryEnabled: z.boolean().optional(),
@@ -417,6 +438,8 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         serverPort: z.number().int().min(1).max(65535).optional(),
         webHost: z.string().optional(),
         webPort: z.number().int().min(1).max(65535).optional(),
+        allowInsecureLanHttp: z.boolean().optional(),
+        webTlsCertFile: z.string().max(2048).optional(), webTlsKeyFile: z.string().max(2048).optional(),
         publicApiUrl: z.string().optional(),
         publicWebUrl: z.string().optional(),
         corsOrigins: z.string().optional(),
@@ -762,6 +785,8 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         serverPort: z.number().int().min(1).max(65535).optional(),
         webHost: z.string().optional(),
         webPort: z.number().int().min(1).max(65535).optional(),
+        allowInsecureLanHttp: z.boolean().optional(),
+        webTlsCertFile: z.string().max(2048).optional(), webTlsKeyFile: z.string().max(2048).optional(),
         publicApiUrl: z.string().optional(),
         publicWebUrl: z.string().optional(),
         corsOrigins: z.string().optional(),

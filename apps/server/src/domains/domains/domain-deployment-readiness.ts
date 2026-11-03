@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 import { buildDomainConnectionPlan, type ConnectionConfiguration } from "./domain-connection-plans.js";
 
 /** Contract-level readiness only. Never confuses configured settings with an
@@ -25,8 +26,21 @@ export function domainDeploymentReadiness(hostname: string, profile: ConnectionC
     checks.push({ id: "secure-cookies", label: "Secure session cookies", expected: true, observed: settings.sessionSecure || null, pass: settings.sessionSecure === true });
   }
   const isLoopback = (host: unknown) => ["localhost", "127.0.0.1", "::1", "[::1]"].includes(normalized(host));
-  checks.push({ id: "web-exposure", label: "Private web listener", expected: "loopback only", observed: settings.webHost || null,
-    pass: isLoopback(settings.webHost) });
+  const nativeDirectHttps = profile.mode === "direct_https" && profile.provider === "manual";
+  const explicitBind = typeof settings.webHost === "string" && isIP(settings.webHost) !== 0 &&
+    !isLoopback(settings.webHost) && !["0.0.0.0", "::"].includes(settings.webHost);
+  checks.push({ id: "web-exposure", label: nativeDirectHttps ? "Native HTTPS interface" : "Private web listener",
+    expected: nativeDirectHttps ? "explicit Windows interface IP" : "loopback only", observed: settings.webHost || null,
+    pass: nativeDirectHttps ? explicitBind : isLoopback(settings.webHost) });
+  if (nativeDirectHttps) {
+    const fileConfigured = (value: unknown) => typeof value === "string" && value.trim().length > 0 && !value.includes("REPLACE_WITH");
+    checks.push({ id: "native-cert-file", label: "Native TLS certificate path", expected: true,
+      observed: Boolean(settings.webTlsCertFile), pass: fileConfigured(settings.webTlsCertFile) });
+    checks.push({ id: "native-key-file", label: "Native TLS key path", expected: true,
+      observed: Boolean(settings.webTlsKeyFile), pass: fileConfigured(settings.webTlsKeyFile) });
+    checks.push({ id: "native-lan-http", label: "Plain LAN HTTP disabled", expected: false,
+      observed: settings.allowInsecureLanHttp ?? false, pass: settings.allowInsecureLanHttp !== true });
+  }
   checks.push({ id: "api-exposure", label: "Private API listener", expected: "loopback only", observed: settings.serverHost || null,
     pass: isLoopback(settings.serverHost) });
   return { configured: checks.every(check => check.pass), checks, gatewayInstalled: "not_verified", tls: "not_verified", outsideReachability: "not_verified", desktopLogin: "not_verified" };

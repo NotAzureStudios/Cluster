@@ -395,7 +395,7 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
         provider: z.enum(["manual", "tailscale", "wireguard", "caddy", "nginx", "cloudflare", "custom"]),
       }).strict().refine(input => ({
         lan: ["manual", "caddy", "nginx"], private_vpn: ["tailscale", "wireguard", "custom"],
-        reverse_proxy: ["caddy", "nginx", "custom"], direct_https: ["caddy", "nginx"],
+        reverse_proxy: ["caddy", "nginx", "custom"], direct_https: ["manual", "caddy", "nginx"],
         managed_tunnel: ["cloudflare", "custom"],
       }[input.mode] as string[]).includes(input.provider), "Unsupported domain connection mode/provider").optional(),
     }).parse(request.body);

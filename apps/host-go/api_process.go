@@ -26,7 +26,7 @@ func (h *host) apiEnvironment(port int) map[string]string {
 		"CLUSTER_RUNTIME_PROFILE":     "managed-host",
 		"CLUSTER_HOST_RUNTIME":        "go",
 		"CLUSTER_TRUST_PROXY":         "true",
-		"SESSION_SECURE":              strconv.FormatBool(h.secure),
+		"SESSION_SECURE":              strconv.FormatBool(h.scheme == "https"),
 		"DOTENV_CONFIG_PATH":          environmentOr("DOTENV_CONFIG_PATH", filepath.Join(h.root, "apps", "server", ".env")),
 		"CLUSTER_DATA_DIR":            environmentOr("CLUSTER_DATA_DIR", filepath.Join(h.root, "data")),
 		"CLUSTER_CONFIG_FILE":         environmentOr("CLUSTER_CONFIG_FILE", filepath.Join(h.root, "data", "system", "config", "cluster.config.json")),

@@ -21,7 +21,7 @@ type ConnectionProfile = { mode: ConnectionMode; provider: ConnectionProvider; w
 type ConnectionPlan = { canonicalUrl: string; deploymentState: string; origin: { web: string; api: string }; instructions: string[]; artifacts: { filename: string; contents: string; purpose: string }[] };
 type ConnectionStatus = { checkedAt: string; local: { web: string; api: string }; publicDns: string; publicHttps: string; outsideReachability: string; desktopLogin: string };
 const connectionProviders: Record<ConnectionMode, ConnectionProvider[]> = {
-  lan: ["manual", "caddy", "nginx"], private_vpn: ["tailscale", "wireguard", "custom"], reverse_proxy: ["caddy", "nginx", "custom"], direct_https: ["caddy", "nginx"], managed_tunnel: ["cloudflare", "custom"],
+  lan: ["manual", "caddy", "nginx"], private_vpn: ["tailscale", "wireguard", "custom"], reverse_proxy: ["caddy", "nginx", "custom"], direct_https: ["manual", "caddy", "nginx"], managed_tunnel: ["cloudflare", "custom"],
 };
 type Challenge = { host: string; type: "TXT"; value: string };
 type DnsStatus = { checkedAt: string; ownership: "present" | "missing" | "unavailable"; routing: "matching" | "mismatch" | "unavailable" | "not_configured"; tls: "not_checked"; connectivity: "not_checked"; serverIdentityRecorded: boolean };
@@ -307,7 +307,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           </label>
           <label>Gateway / network provider
             <select value={connection.provider} onChange={event => setConnection(old => ({ ...old, provider: event.target.value as ConnectionProvider, publicPort: old.mode === "lan" && event.target.value === "manual" ? 80 : 443 }))}>
-              {connectionProviders[connection.mode].map(provider => <option key={provider} value={provider}>{provider}</option>)}
+              {connectionProviders[connection.mode].map(provider => <option key={provider} value={provider}>{provider === "manual" && connection.mode === "direct_https" ? "Cluster native HTTPS" : provider}</option>)}
             </select>
           </label>
           <label>Web origin port <input type="number" min="1" max="65535" value={connection.webPort} onChange={event => setConnection(old => ({ ...old, webPort: Number(event.target.value) }))} /></label>
@@ -324,7 +324,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         })}><ClusterIcon name="cloud" aria-hidden="true" /> Save access profile &amp; generate deployment</ClusterButton>
         {connectionPlan && <div className="cluster-panel cluster-domain-deployment-v103">
           <p>Planned member address: <strong>{connectionPlan.canonicalUrl}</strong> <ClusterButton onClick={() => copyClusterText(connectionPlan.canonicalUrl)}>Copy</ClusterButton></p>
-          <p>Origin routing: Web <code>{connectionPlan.origin.web}</code> · API <code>{connectionPlan.origin.api}</code></p>
+          <p>Gateway upstream for every external route: <code>{connectionPlan.origin.web}</code></p>
+                <p className="muted tight">Private Node API: <code>{connectionPlan.origin.api}</code>. Internal only. Never route a proxy or tunnel directly to this address.</p>
           <p role="status">Deployment: operator action required. Configuration is not proof of live connectivity, TLS, or Desktop sign-in.</p>
           <ol className="cluster-domain-instructions-v103">{connectionPlan.instructions.map((instruction, i) => <li key={i}>{instruction}</li>)}</ol>
           {connectionPlan.artifacts.map(artifact => <div className="cluster-panel" key={artifact.filename}>

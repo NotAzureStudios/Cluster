@@ -194,7 +194,12 @@ func resolvePublicOrigin(value, bindAddress string, port int, scheme string, rem
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return "", fmt.Errorf("public origin must use http or https")
 	}
-	if parsed.Scheme != scheme {
+	// HTTPS may terminate at a same-machine tunnel, VPN Serve endpoint or
+	// reverse proxy while Cluster's actual listener remains HTTP on loopback.
+	// This exception never permits plaintext access to a non-loopback listener.
+	externallyTerminatedHTTPS := scheme == "http" && parsed.Scheme == "https" &&
+		isLoopbackBind(bindAddress) && !isLocalOnlyHostname(parsed.Hostname())
+	if parsed.Scheme != scheme && !externallyTerminatedHTTPS {
 		return "", fmt.Errorf("public origin scheme %s does not match the host transport %s", parsed.Scheme, scheme)
 	}
 	if remote && isLocalOnlyHostname(parsed.Hostname()) {
@@ -203,13 +208,18 @@ func resolvePublicOrigin(value, bindAddress string, port int, scheme string, rem
 	if parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", fmt.Errorf("public origin must not contain credentials, a path, query, or fragment")
 	}
-	if parsed.Port() == "" && !((scheme == "https" && port == 443) || (scheme == "http" && port == 80)) {
+	// A public hostname may terminate on 443 and forward to a different
+	// local port. Never append Cluster's internal port to a public URL.
+	if parsed.Port() == "" && isLocalOnlyHostname(parsed.Hostname()) &&
+		!((parsed.Scheme == "https" && port == 443) || (parsed.Scheme == "http" && port == 80)) {
 		parsed.Host = net.JoinHostPort(parsed.Hostname(), strconv.Itoa(port))
 	}
 	// A persisted older local public-origin setting may still name 127.0.0.1.
 	// Canonicalize only loopback IP literals, never a network/LAN address.
 	// Remote origin and transport validation above remain authoritative.
-	if !remote && isLoopbackBind(bindAddress) && net.ParseIP(parsed.Hostname()) != nil && isLocalOnlyHostname(parsed.Hostname()) {
+	if !remote && isLoopbackBind(bindAddress) && isLocalOnlyHostname(parsed.Hostname()) {
+		// Local bookmarks follow the actual configured gateway port rather
+		// than becoming stale after a managed network port change.
 		parsed.Host = net.JoinHostPort("localhost", strconv.Itoa(port))
 	}
 	parsed.Path = ""

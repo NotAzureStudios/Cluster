@@ -105,3 +105,43 @@ func TestNativeReadyProbeState(t *testing.T) {
 		t.Fatal(msg)
 	}
 }
+
+func TestManagedAccessTransportProfiles(t *testing.T) {
+	loopback, err := parseNativeNetwork(map[string]any{
+		"webHost": "127.0.0.1", "webPort": 3123, "serverPort": 4123,
+		"publicWebUrl": "https://cluster.example.test",
+	})
+	if err != nil || loopback.PublicWebOrigin != "https://cluster.example.test" {
+		t.Fatalf("loopback tunnel profile failed: %+v %v", loopback, err)
+	}
+	lan, err := parseNativeNetwork(map[string]any{
+		"webHost": "192.168.1.22", "webPort": 3145, "serverPort": 4145,
+		"publicWebUrl": "http://192.168.1.22:3145", "allowInsecureLanHttp": true,
+	})
+	if err != nil || !lan.AllowInsecureLANHTTP {
+		t.Fatalf("acknowledged private LAN profile rejected: %+v %v", lan, err)
+	}
+	direct, err := parseNativeNetwork(map[string]any{
+		"webHost": "0.0.0.0", "webPort": 3443, "serverPort": 4145,
+		"publicWebUrl": "https://cluster.example.test",
+		"webTlsCertFile": "C:/Cluster/cert.pem", "webTlsKeyFile": "C:/Cluster/key.pem",
+	})
+	if err != nil || direct.TLSCertFile == "" || direct.TLSKeyFile == "" {
+		t.Fatalf("direct HTTPS profile rejected: %+v %v", direct, err)
+	}
+	for _, invalid := range []map[string]any{
+		{"webHost":"0.0.0.0", "publicWebUrl":"https://cluster.example.test"},
+		{"webHost":"192.168.1.22", "publicWebUrl":"http://192.168.1.22:3000"},
+		{"webHost":"0.0.0.0", "publicWebUrl":"http://cluster.example.test", "allowInsecureLanHttp":true},
+		{"webHost":"192.168.1.22", "publicWebUrl":"https://cluster.example.test", "allowInsecureLanHttp":true},
+		{"webHost":"192.168.1.22", "publicWebUrl":"http://192.168.1.22:3000", "allowInsecureLanHttp":"true"},
+		{"webHost":"192.168.1.22", "publicWebUrl":"https://cluster.example.test", "webTlsCertFile":"cert.pem"},
+		{"webHost":"192.168.1.22", "publicWebUrl":"https://cluster.example.test", "webTlsCertFile":"cert.pem", "webTlsKeyFile":"key.pem", "allowInsecureLanHttp":true},
+		{"publicWebUrl":"https://cluster.example.test/path"},
+		{"publicWebUrl":"https://cluster.example.test?token=unsafe"},
+	} {
+		if _, err := parseNativeNetwork(invalid); err == nil {
+			t.Fatalf("unsafe transport profile accepted: %#v", invalid)
+		}
+	}
+}

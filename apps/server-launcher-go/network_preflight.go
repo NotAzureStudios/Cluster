@@ -17,6 +17,10 @@ type nativeNetworkPlan struct {
 	WebPort             int
 	PublicAPIPort       int
 	PrivatePostgresPort int
+	PublicWebOrigin     string
+	AllowInsecureLANHTTP bool
+	TLSCertFile          string
+	TLSKeyFile           string
 }
 
 func networkPort(value any, fallback int, label string) (int, error) {
@@ -88,8 +92,52 @@ func parseNativeNetwork(settings map[string]any) (nativeNetworkPlan, error) {
 			continue
 		}
 		parsed, err := url.Parse(strings.TrimSpace(value))
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil || parsed.Fragment != "" {
-			return out, fmt.Errorf("%s must be a complete HTTP(S) URL without credentials or fragments", key)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil || parsed.Fragment != "" || parsed.RawQuery != "" || (parsed.Path != "" && parsed.Path != "/") {
+			return out, fmt.Errorf("%s must be an HTTP(S) origin without credentials, paths, queries or fragments", key)
+		}
+		if key == "publicWebUrl" {
+			out.PublicWebOrigin = strings.TrimSuffix(parsed.String(), "/")
+		}
+	}
+	if value, exists := settings["allowInsecureLanHttp"]; exists {
+		allowed, valid := value.(bool)
+		if !valid { return out, fmt.Errorf("allowInsecureLanHttp must be a boolean") }
+		out.AllowInsecureLANHTTP = allowed
+	}
+	if value, exists := settings["webTlsCertFile"]; exists {
+		cert, valid := value.(string)
+		if !valid { return out, fmt.Errorf("webTlsCertFile must be a file path") }
+		out.TLSCertFile = strings.TrimSpace(cert)
+	}
+	if value, exists := settings["webTlsKeyFile"]; exists {
+		key, valid := value.(string)
+		if !valid { return out, fmt.Errorf("webTlsKeyFile must be a file path") }
+		out.TLSKeyFile = strings.TrimSpace(key)
+	}
+	if (out.TLSCertFile == "") != (out.TLSKeyFile == "") {
+		return out, fmt.Errorf("direct HTTPS needs both a TLS certificate and private key file")
+	}
+	if out.AllowInsecureLANHTTP && out.TLSCertFile != "" {
+		return out, fmt.Errorf("choose direct TLS or explicitly approved insecure LAN HTTP, not both")
+	}
+	webIP := net.ParseIP(out.WebHost)
+	if webIP != nil && !webIP.IsLoopback() {
+		if out.PublicWebOrigin == "" {
+			return out, fmt.Errorf("a non-loopback gateway must have a member-facing publicWebUrl")
+		}
+		origin, _ := url.Parse(out.PublicWebOrigin)
+		if out.AllowInsecureLANHTTP {
+			if !webIP.IsPrivate() || webIP.IsUnspecified() {
+				return out, fmt.Errorf("insecure LAN HTTP is allowed only on an explicit private interface, never a wildcard or public address")
+			}
+			if origin.Scheme != "http" {
+				return out, fmt.Errorf("insecure LAN HTTP requires an HTTP origin; HTTPS must terminate in a trusted gateway or use direct TLS")
+			}
+		} else if out.TLSCertFile == "" {
+			return out, fmt.Errorf("a non-loopback gateway requires TLS certificate files or explicit private-LAN HTTP acknowledgement")
+		}
+		if out.TLSCertFile != "" && origin.Scheme != "https" {
+			return out, fmt.Errorf("direct TLS requires an HTTPS publicWebUrl")
 		}
 	}
 	return out, nil

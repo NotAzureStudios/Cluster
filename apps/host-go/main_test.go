@@ -326,7 +326,7 @@ func TestRemoteHostingRequiresReachablePublicOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if origin != "https://cluster.studio:3000" {
+	if origin != "https://cluster.studio" {
 		t.Fatalf("public origin = %q", origin)
 	}
 	if _, err := resolvePublicOrigin("http://cluster.studio", "0.0.0.0", 3000, "https", true); err == nil {
@@ -382,7 +382,7 @@ func TestPasskeyLocalhostCanonicalOriginAndLegacyAlias(t *testing.T) {
         t.Fatalf("older local public origin = %q, %v", origin, err)
     }
     origin, err = resolvePublicOrigin("https://cluster.example.com", "0.0.0.0", 3000, "https", true)
-    if err != nil || origin != "https://cluster.example.com:3000" {
+    if err != nil || origin != "https://cluster.example.com" {
         t.Fatalf("remote TLS origin changed = %q, %v", origin, err)
     }
 }
@@ -422,4 +422,87 @@ func TestPasskeyCanonicalLoopbackNavigationRedirectIsSafe(t *testing.T) {
     rec = httptest.NewRecorder()
     handler.ServeHTTP(rec, health)
     if rec.Code != http.StatusOK { t.Fatalf("native health check must still work (%d)", rec.Code) }
+}
+
+func TestExternalHTTPSWithPrivateHTTPAndNativeReadiness(t *testing.T) {
+	public, err := resolvePublicOrigin("https://cluster.example.test", "127.0.0.1", 3234, "http", false)
+	if err != nil || public != "https://cluster.example.test" {
+		t.Fatalf("public HTTPS origin was not preserved: %q %v", public, err)
+	}
+	if _, err := resolvePublicOrigin("https://cluster.example.test", "0.0.0.0", 3234, "http", true); err == nil {
+		t.Fatal("publicly bound plaintext Host bypassed TLS enforcement")
+	}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Forwarded-Proto") != "https" ||
+			r.Header.Get("X-Cluster-Host-Secure") != "true" {
+			t.Errorf("public TLS was not forwarded to Node: %v", r.Header)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+	target, _ := url.Parse(backend.URL)
+	h := &host{origin: public, scheme: "https", secure: false, bindAddress: "127.0.0.1",
+		webPort: 3234, apiOrigin: backend.URL, root: t.TempDir(), startedAt: time.Now()}
+	if h.apiEnvironment(4000)["SESSION_SECURE"] != "true" {
+		t.Fatal("externally terminated HTTPS must set Secure session cookies")
+	}
+	external := httptest.NewRequest(http.MethodGet, "http://cluster.example.test/health/ready", nil)
+	external.Header.Set("Origin", "https://cluster.example.test")
+	r := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(r, external)
+	if r.Code != http.StatusOK { t.Fatalf("public HTTPS via tunnel failed: %d %s", r.Code, r.Body.String()) }
+	local := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3234/host/health", nil)
+	localResult := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(localResult, local)
+	if localResult.Code != http.StatusOK { t.Fatalf("native health failed behind TLS tunnel: %d", localResult.Code) }
+	readiness := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:3234/health/ready", nil)
+	readyResult := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(readyResult, readiness)
+	if readyResult.Code != http.StatusOK { t.Fatalf("local readiness unexpectedly redirected behind public HTTPS: %d", readyResult.Code) }
+	attacker := httptest.NewRequest(http.MethodGet, "http://evil.example.test/health/ready", nil)
+	denied := httptest.NewRecorder()
+	h.handler(target).ServeHTTP(denied, attacker)
+	if denied.Code != http.StatusMisdirectedRequest { t.Fatalf("unapproved host was accepted: %d", denied.Code) }
+}
+
+func TestLocalWebPortChangeUpdatesCanonicalOrigin(t *testing.T) {
+	origin, err := resolvePublicOrigin("http://localhost:3000", "127.0.0.1", 3333, "http", false)
+	if err != nil || origin != "http://localhost:3333" {
+		t.Fatalf("stale local port must not survive managed restart: %q %v", origin, err)
+	}
+	external, err := resolvePublicOrigin("https://cluster.example.test", "127.0.0.1", 3333, "http", false)
+	if err != nil || external != "https://cluster.example.test" {
+		t.Fatalf("public HTTPS proxy must retain its independent port: %q %v", external, err)
+	}
+}
+
+func TestDirectTLSLocalHealthDoesNotExposeOtherRoutes(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer backend.Close()
+	target, _ := url.Parse(backend.URL)
+	h := &host{root: t.TempDir(), origin: "https://cluster.example.test", scheme: "https",
+		secure: true, remoteAccess: true, bindAddress: "192.168.50.22", webPort: 3443,
+		apiOrigin: backend.URL, startedAt: time.Now()}
+	handler := h.handler(target)
+	makeRequest := func(path, remote string) int {
+		req := httptest.NewRequest(http.MethodGet, "https://127.0.0.1:3443"+path, nil)
+		req.RemoteAddr = remote
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if got := makeRequest("/host/health", "127.0.0.1:12345"); got != http.StatusOK {
+		t.Fatalf("direct TLS local health rejected: %d", got)
+	}
+	if got := makeRequest("/health/ready", "127.0.0.1:12345"); got != http.StatusOK {
+		t.Fatalf("direct TLS local readiness rejected: %d", got)
+	}
+	if got := makeRequest("/api/auth/login", "127.0.0.1:12345"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("private application route accepted alias Host: %d", got)
+	}
+	if got := makeRequest("/host/health", "198.51.100.18:12345"); got != http.StatusMisdirectedRequest {
+		t.Fatalf("remote peer accepted loopback health alias: %d", got)
+	}
 }

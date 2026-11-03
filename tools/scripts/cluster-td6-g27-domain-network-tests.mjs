@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts = require('typescript');
 const root = new URL('../../apps/server/src/domains/domains/', import.meta.url);
 function load(name, mods) {
   const src = fs.readFileSync(new URL(name, root), 'utf8');
@@ -22,7 +22,7 @@ const variants = [
   profile('lan','manual',80), profile('lan','caddy',80), profile('lan','nginx',80),
   profile('private_vpn','tailscale'), profile('private_vpn','wireguard'), profile('private_vpn','custom'),
   profile('reverse_proxy','caddy'), profile('reverse_proxy','nginx'), profile('reverse_proxy','custom'),
-  profile('direct_https','caddy'), profile('direct_https','nginx'),
+  profile('direct_https','manual'), profile('direct_https','caddy'), profile('direct_https','nginx'),
   profile('managed_tunnel','cloudflare'), profile('managed_tunnel','custom'),
 ];
 for (const conf of variants) {
@@ -36,24 +36,39 @@ for (const conf of variants) {
   ok(!plan.artifacts.some(a=>/private key|BEGIN.*PRIVATE/.test(a.contents)), 'no secret output');
 }
 const caddy = plans.buildDomainConnectionPlan(host, profile('direct_https','caddy')).artifacts.find(a=>a.filename==='Caddyfile').contents;
-ok(caddy.includes('reverse_proxy @api 127.0.0.1:4000') && caddy.includes('reverse_proxy 127.0.0.1:3000'), 'Caddy both origins');
+ok(caddy.includes('reverse_proxy 127.0.0.1:3000') && !caddy.includes('127.0.0.1:4000'), 'Caddy proxies all paths through managed gateway');
 const nginx = plans.buildDomainConnectionPlan(host, profile('reverse_proxy','nginx')).artifacts.find(a=>a.filename==='cluster-nginx.conf').contents;
-ok(nginx.includes('listen 443 ssl') && nginx.includes('proxy_pass http://127.0.0.1:4000'), 'NGINX HTTPS and API');
+ok(nginx.includes('listen 443 ssl') && nginx.includes('proxy_pass http://127.0.0.1:3000') && !nginx.includes('127.0.0.1:4000'), 'NGINX HTTPS routes through managed gateway');
 const cf = plans.buildDomainConnectionPlan(host, profile('managed_tunnel','cloudflare')).artifacts.find(a=>a.filename==='cloudflared-config.yml').contents;
-ok(cf.includes('http_status:404') && cf.includes(`hostname: ${host}`), 'Cloudflare ingress and catchall');
+ok(cf.includes('http_status:404') && cf.includes(`hostname: ${host}`) && cf.includes('service: http://127.0.0.1:3000') && !cf.includes('127.0.0.1:4000'), 'Cloudflare routes all paths to managed gateway');
+const cfArtifacts = plans.buildDomainConnectionPlan(host, profile('managed_tunnel','cloudflare')).artifacts;
+ok(cfArtifacts.some(a=>a.filename==='cloudflared-setup.txt' && a.contents.includes('--config ./cloudflared-config.yml tunnel ingress validate')), 'locally-managed Cloudflare explicit config path');
+ok(cfArtifacts.some(a=>a.filename==='cloudflare-dashboard-setup.txt' && a.contents.includes('http://127.0.0.1:3000')), 'Cloudflare dashboard managed origin instructions');
 const tsPlan = plans.buildDomainConnectionPlan(host, profile('private_vpn','tailscale'));
-ok(tsPlan.artifacts.some(a=>a.filename==='tailscale-serve.txt' && a.contents.includes('127.0.0.1:8088')), 'Tailscale gateway');
-ok(tsPlan.instructions.some(line=>line.includes('actual canonical URL')), 'Tailscale custom domain warning');
+ok(tsPlan.artifacts.some(a=>a.filename==='tailscale-serve.txt' && a.contents.includes('tailscale serve --bg 3000')), 'Tailscale targets managed gateway directly');
+ok(!tsPlan.artifacts.some(a=>a.filename==='Caddyfile'), 'Tailscale does not require a second routing proxy');
+ok(tsPlan.instructions.some(line=>line.includes('actual HTTPS address')), 'Tailscale custom domain warning');
+const nativeHttps = plans.buildDomainConnectionPlan(host, profile('direct_https','manual'));
+ok(nativeHttps.artifacts.some(a=>a.filename==='native-https-setup.txt' && a.contents.includes('webTlsCertFile')), 'native HTTPS includes certificate settings');
+ok(!nativeHttps.artifacts.some(a=>a.filename==='Caddyfile' || a.filename==='cluster-nginx.conf'), 'native HTTPS does not require a proxy');
 const lan = plans.buildDomainConnectionPlan(host, profile('lan','caddy',80));
 ok(lan.canonicalUrl.startsWith('http://') && !lan.artifacts.find(a=>a.filename==='Caddyfile').contents.includes('https://'), 'LAN mode accurately HTTP');
+ok(plans.buildDomainConnectionPlan(host, profile('lan','manual',80)).instructions.some(text=>text.includes('port 80') && text.includes('3000')), 'LAN manual includes real proxy and configured-port instructions');
+for (const conf of variants) {
+  const plan = plans.buildDomainConnectionPlan(host, conf);
+  const text = plan.artifacts.map(a=>a.contents).join('\n');
+  ok(!text.includes('reverse_proxy @api') && !text.includes('proxy_pass http://127.0.0.1:4000') && !text.includes('service: http://127.0.0.1:4000'), 'no connection plan forwards to the private Node API');
+}
 for (const [invalid, why] of [
   [{...profile('managed_tunnel','cloudflare'),publicPort:80}, 'invalid public TLS port'],
-  [profile('direct_https','manual'), 'not a valid direct provider'],
+  [profile('direct_https','cloudflare'), 'tunnel provider is not a direct HTTPS listener'],
   [profile('lan','cloudflare',80), 'LAN cannot use tunnel provider'],
   [{...profile('reverse_proxy','caddy'),apiPort:3000}, 'origin port collision'],
   [{...profile('lan','manual',80), webPort:0}, 'invalid zero origin'],
 ]) { assert.throws(()=> plans.validateConnectionConfiguration(invalid), undefined, why); count++; }
 for(const bad of ['bad; rm -rf /','evil.com\nHeader: thing','<script>.dev','x..dev']) { assert.throws(()=>plans.buildDomainConnectionPlan(bad,profile('direct_https','caddy'))); count++; }
+const ui = fs.readFileSync(new URL('../../packages/renderer/src/features/domains/DomainManagementPanel.tsx', import.meta.url), 'utf8');
+ok(ui.includes('Gateway upstream for every external route:') && ui.includes('Never route a proxy or tunnel directly'), 'domain UI forbids public access to Node private port');
 // Validate route authorization, concurrency, fail-closed audit and local-probe isolation.
 const chain = new Proxy(function() {}, { get(_, prop) { if(prop==='safeParse') return input=>({success:!!input, data:input}); return ()=>chain; }, apply:()=>chain });
 const z = new Proxy({}, {get:()=>chain});
@@ -63,7 +78,7 @@ for (const ip of ['127.0.0.1','169.254.169.254','10.0.0.1','192.168.1.1','172.16
 for (const ip of ['1.1.1.1','8.8.8.8','93.184.215.14']) { eq(readiness.isPublicIpv4(ip),true,'public IP accepted'); }
 const unsafeReadiness = await readiness.publicHttpsReadiness(host,{resolveAddresses:async()=>['127.0.0.1','169.254.169.254'],request:()=>{throw Error('No request allowed');}});
 eq(unsafeReadiness.dns,'no_public_ipv4','never send private DNS target to HTTPS');
-const deployment = load('domain-deployment-readiness.ts', {'node:crypto': require('node:crypto'), './domain-connection-plans.js': plans});
+const deployment = load('domain-deployment-readiness.ts', {'node:crypto': require('node:crypto'), 'node:net': require('node:net'), './domain-connection-plans.js': plans});
 const routesModule = load('domain-connection-routes.ts', {'node:net': {default:{createConnection(){ throw Error('unexpected socket'); }}}, 'zod':{z}, './domain-connection-plans.js':plans, './domain-public-readiness.js':readiness, './domain-deployment-readiness.js':deployment});
 const routes = new Map();
 const id = '41aac9b9-9850-4243-a422-d974a31d6d44';
@@ -99,6 +114,13 @@ ok(response.bundle?.sha256?.length===64 && response.bundle?.revision===6,'operat
 eq(response.bundle?.deploymentState,'requires_operator_review','package cannot claim active gateway');
 response=await readinessRoute(request('GET'),reply());
 eq(response.configured,false,'unconfigured server fails readiness');
+const nativeConfig = JSON.parse(nativeHttps.artifacts.find(a=>a.filename==='cluster-network-settings.json').contents);
+ok(nativeConfig.webHost.includes('REPLACE_WITH_') && nativeConfig.webTlsCertFile.includes('REPLACE_WITH_'), 'native HTTPS template cannot accidentally be applied without interface and PEM paths');
+const nativeReadiness = deployment.domainDeploymentReadiness(host, profile('direct_https','manual'), {
+  ...nativeConfig, webHost:'192.168.50.22', webTlsCertFile:'C:/Cluster/tls/cert.pem', webTlsKeyFile:'C:/Cluster/tls/key.pem',
+});
+ok(nativeReadiness.configured,'native HTTPS configuration is considered complete only with explicit interface and TLS paths');
+eq(nativeReadiness.gatewayInstalled,'not_verified','configured native HTTPS does not claim validated certificate or live listener');
 eq(response.gatewayInstalled,'not_verified','readiness not gateway existence');
 response=await setupIntentRoute(request('GET'),reply());eq(response.verified,false,'OOBE intent never indicates verified DNS');
 response=await check(request('GET'),reply());eq(response.local.web,'listening','local web probe');eq(response.local.api,'unreachable','local API probe');eq(response.publicHttps,'not_checked','no fake public HTTPS verification');
