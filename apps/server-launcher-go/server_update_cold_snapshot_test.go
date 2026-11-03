@@ -68,3 +68,12 @@ func TestColdSnapshotFailsClosedOnUnsafeManifestPath(t *testing.T){
  if err:=os.WriteFile(manifestPath,next,0600);err!=nil{t.Fatal(err)}
  if err:=verifyColdPostgresSnapshot(snapshot);err==nil{t.Fatal("path traversal accepted in backup manifest")}
 }
+
+
+func TestColdSnapshotRejectsExtraUnmanifestedFile(t *testing.T){
+ root:=snapshotTestRoot(t)
+ snapshot,err:=copyColdPostgresSnapshot(root,snapshotFixtureID)
+ if err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(filepath.Join(snapshot,"postgresql","rogue.tmp"),[]byte("unexpected"),0600);err!=nil{t.Fatal(err)}
+ if err:=verifyColdPostgresSnapshot(snapshot);err==nil{t.Fatal("unmanifested recovery file accepted")}
+}
