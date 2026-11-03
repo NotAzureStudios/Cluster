@@ -112,3 +112,14 @@ func TestColdRestoreAllowsDamagedCandidatePostgresVersion(t *testing.T){
  restored,err:=os.ReadFile(current)
  if err!=nil||string(restored)!="18\n"{t.Fatalf("valid prior version not restored: %v %s",err,restored)}
 }
+
+
+func TestColdSnapshotFailsClosedOnPostmasterPID(t *testing.T){
+ root:=snapshotTestRoot(t)
+ marker:=filepath.Join(root,"data","postgresql","postmaster.pid")
+ if err:=os.WriteFile(marker,[]byte("12345\n"),0600);err!=nil{t.Fatal(err)}
+ if _,err:=copyColdPostgresSnapshot(root,snapshotFixtureID);err==nil{
+  t.Fatal("copied PostgreSQL data while postmaster PID was present")
+ }
+ if _,err:=os.Stat(marker);err!=nil{t.Fatal("offline check changed PostgreSQL data")}
+}
