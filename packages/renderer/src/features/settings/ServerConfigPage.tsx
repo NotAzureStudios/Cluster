@@ -16,6 +16,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
 import { ServerConnectionGuide } from "./ServerConnectionGuide";
+import { ServerNetworkTopology } from "./ServerNetworkTopology";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { RequestErrorState } from "../../components/RequestState";
 
@@ -1468,6 +1469,16 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
 
       {section === "network" && (
         <>
+          <ServerNetworkTopology
+            publicWebUrl={String(settings.publicWebUrl || "")}
+            publicApiUrl={String(settings.publicApiUrl || "")}
+            webHost={String(settings.webHost || "127.0.0.1")}
+            webPort={Number(settings.webPort || 3000)}
+            apiHost={String(settings.serverHost || "127.0.0.1")}
+            apiPort={Number(settings.serverPort || 4000)}
+            deploymentState={networkDeployment?.state}
+            hasDraftChanges={changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)))}
+          />
           <ServerConnectionGuide busy={savingConfig} onReview={() => void previewNetworkDraft()} onStageOrigin={(origin) => {
             // Stage only public HTTPS routing metadata. Listener and firewall policy
             // remain unchanged; the existing protected Save requires a PIN.
