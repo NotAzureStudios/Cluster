@@ -56,6 +56,10 @@ jobs:
         shell: pwsh
         run: |
           if ((git branch --show-current).Trim() -ne 'main') { throw 'The 1.0.1 Server build must come from main' }
+          node --check tools/scripts/cluster-1-0-1-version-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Source version contract contains invalid JavaScript' }
+          node --check tools/scripts/build-cluster-installer.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Prebuilt packager contains invalid JavaScript' }
           node tools/scripts/cluster-1-0-1-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source versions do not agree' }
           node tools/scripts/cluster-release-lockfile-check.mjs
