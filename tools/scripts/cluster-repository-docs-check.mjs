@@ -10,6 +10,7 @@ const documents = [
   'docs/development/LOCAL_SETUP.md', 'docs/development/GIT_WORKFLOW.md',
   'docs/development/SOURCE_SNAPSHOT_HYGIENE.md',
   'docs/development/DISTRIBUTION_PROFILES.md',
+  'docs/development/SERVER_RELEASE_CHANNELS.md',
   'docs/development/NATIVE_WINDOWS_SERVER_RECOVERY.md',
   'docs/development/REPRODUCIBLE_BUILD_1_0.md',
   'docs/architecture/REPOSITORY_LAYOUT.md',
