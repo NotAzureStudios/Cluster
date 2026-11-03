@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,7 +42,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 		}
 		request.Header.Set("X-Cluster-Host", version)
 		request.Header.Set("X-Cluster-Runtime-Profile", "managed-host")
-		request.Header.Set("X-Cluster-Host-Secure", map[bool]string{true: "true", false: "false"}[h.secure])
+		request.Header.Set("X-Cluster-Host-Secure", map[bool]string{true: "true", false: "false"}[h.scheme == "https"])
 	}
 	proxy.ErrorHandler = func(response http.ResponseWriter, _ *http.Request, _ error) {
 		if h.apiRestarting.Load() {
@@ -96,7 +97,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 				"ok": true, "version": version, "runtime": "go", "runtimeProfile": "managed-host",
 				"architecture": "go-gateway-node-api", "origin": h.origin, "apiOrigin": h.apiOrigin,
 				"bindAddress": h.bindAddress, "webPort": h.webPort, "remoteAccess": h.remoteAccess,
-				"scheme": h.scheme, "secure": h.secure, "updateHold": hostServerUpdateHold(h.root), "apiRestarting": h.apiRestarting.Load(),
+				"scheme": h.scheme, "secure": h.secure, "publicHTTPS": h.scheme == "https", "updateHold": hostServerUpdateHold(h.root), "apiRestarting": h.apiRestarting.Load(),
 				"apiRestarts": h.apiRestartCount.Load(), "apiRestartLimit": h.apiRestartLimit,
 				"uptimeMs": time.Since(h.startedAt).Milliseconds(),
 			})
@@ -108,7 +109,7 @@ func (h *host) handler(target *url.URL) http.Handler {
 				writeJSON(response, http.StatusMethodNotAllowed, map[string]any{"ok": false, "error": "Static Cluster routes accept GET or HEAD only.", "code": "METHOD_NOT_ALLOWED"})
 				return
 			}
-			serveWeb(response, request, webRoot, h.secure)
+			serveWeb(response, request, webRoot, h.scheme == "https")
 		}
 	})
 }
@@ -186,23 +187,25 @@ func (h *host) hostAllowed(rawHost string) bool {
 		requestedPort := requestURL.Port()
 		expectedPort := originURL.Port()
 		if requestedPort == "" {
-			requestedPort = map[bool]string{true: "443", false: "80"}[h.secure]
+			requestedPort = map[bool]string{true: "443", false: "80"}[h.scheme == "https"]
 		}
 		if expectedPort == "" {
 			expectedPort = map[bool]string{true: "443", false: "80"}[h.secure]
 		}
 		return requestedPort == expectedPort
 	}
-	if !h.remoteAccess && isLoopbackBind(h.bindAddress) {
-		host := strings.ToLower(requestURL.Hostname())
-		if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+	if isLoopbackBind(h.bindAddress) {
+		// Native readiness and local recovery use the actual loopback HTTP/TLS
+		// port, even when a public HTTPS hostname maps to a different port.
+		localHost := strings.ToLower(requestURL.Hostname())
+		if localHost != "localhost" && localHost != "127.0.0.1" && localHost != "::1" {
 			return false
 		}
-		expectedPort := originURL.Port()
-		if expectedPort == "" { expectedPort = map[bool]string{true: "443", false: "80"}[h.secure] }
 		requestedPort := requestURL.Port()
-		if requestedPort == "" { requestedPort = map[bool]string{true: "443", false: "80"}[h.secure] }
-		return requestedPort == expectedPort
+		if requestedPort == "" {
+			requestedPort = map[bool]string{true: "443", false: "80"}[h.secure]
+		}
+		return requestedPort == strconv.Itoa(h.webPort)
 	}
 	return false
 }
