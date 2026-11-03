@@ -1162,7 +1162,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         <span>
           <strong>{field.label}</strong>
           {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
-          {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>
+          {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
         </span>
         <small>{help}</small>
         {control}
