@@ -21,6 +21,7 @@ import { CollaborationPanel } from "../../../components/CollaborationPanel";
 import { confirmCluster } from "../../../components/cluster-dialog-service";
 import { ClusterButton } from "../../../components/ClusterButton";
 import { ClusterIcon } from "../../../components/ClusterIcon";
+import { SettingsStateChip } from "../../../components/SettingsStateChip";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
 import { ClusterTextArea } from "../../../components/ClusterTextArea";
 
@@ -711,9 +712,15 @@ export function AutomationRulesPanel() {
   const actionOptions: AutomationActionType[] = [...CLUSTER_STUDIO_AUTOMATION_ACTION_TYPES];
   return (
     <div className="settings-card-grid-v092 automation-manager-v195 automation-manager-v199">
+      <div className="studio-systems-status-overview-v103 automation-overview-v103 span-2" aria-label="Automation rules and recent queue summary">
+        <article><div><ClusterIcon name="sync" aria-hidden="true" /><span>Configured rules</span></div><strong>{rules.length}</strong><SettingsStateChip tone="neutral">Saved rules</SettingsStateChip></article>
+        <article><div><ClusterIcon name="check" aria-hidden="true" /><span>Enabled rules</span></div><strong>{rules.filter((rule) => rule.enabled).length}</strong><SettingsStateChip tone="info">Eligible to run</SettingsStateChip></article>
+        <article><div><ClusterIcon name="clock" aria-hidden="true" /><span>Pending / running jobs</span></div><strong>{jobs.filter((job) => job.status === "pending" || job.status === "running").length}</strong><SettingsStateChip tone="neutral">Loaded queue sample</SettingsStateChip></article>
+        <article><div><ClusterIcon name="warning" aria-hidden="true" /><span>Failed jobs</span></div><strong>{jobs.filter((job) => job.status === "failed").length}</strong><SettingsStateChip tone={jobs.some((job) => job.status === "failed") ? "danger" : "neutral"}>Loaded queue sample</SettingsStateChip></article>
+      </div>
       <section className="settings-card-v092 span-2">
         <div className="settings-card-head-v092">
-          <h3>{editingId ? "Edit automation" : "New automation"}</h3>
+          <h3><ClusterIcon name="sync" aria-hidden="true" /> {editingId ? "Edit automation" : "New automation"}</h3>
           <span>Priority, conditions, chained actions, delays, and retries</span>
         </div>
         <div className="automation-rule-form-v195 automation-rule-form-v199">
@@ -992,8 +999,8 @@ export function AutomationRulesPanel() {
 
       <section className="settings-card-v092 span-2">
         <div className="settings-card-head-v092">
-          <h3>Rule catalog</h3>
-          <span>{rules.filter((rule) => rule.enabled).length} enabled · priority ordered</span>
+          <h3><ClusterIcon name="list" aria-hidden="true" /> Rule catalog</h3>
+          <SettingsStateChip tone="info" icon="sync">{rules.filter((rule) => rule.enabled).length} enabled · priority ordered</SettingsStateChip>
         </div>
         <div className="automation-rule-list-v195">
           {[...rules]
@@ -1001,7 +1008,8 @@ export function AutomationRulesPanel() {
             .map((rule) => (
               <article key={rule.id} className={rule.enabled ? "" : "disabled"}>
                 <div>
-                  <strong>{rule.name}</strong>
+                  <strong><ClusterIcon name="sync" aria-hidden="true" /> {rule.name}</strong>
+                  <div className="automation-rule-meta-v103"><SettingsStateChip tone={rule.enabled ? "info" : "neutral"} icon={rule.enabled ? "activity" : "pause"}>{rule.enabled ? "Enabled" : "Disabled"}</SettingsStateChip></div>
                   <span>
                     P{rule.priority || 50} · {levelLabel(rule.trigger.replace(/_/g, " "))} · {(rule.conditions || []).length} condition
                     {(rule.conditions || []).length === 1 ? "" : "s"} · {(rule.actions || []).length} action
@@ -1048,8 +1056,8 @@ export function AutomationRulesPanel() {
 
       <section className="settings-card-v092">
         <div className="settings-card-head-v092">
-          <h3>Dry run</h3>
-          <span>Preview priority and stop behavior</span>
+          <h3><ClusterIcon name="activity" aria-hidden="true" /> Dry run</h3>
+          <SettingsStateChip tone="neutral">Preview only · no actions committed</SettingsStateChip>
         </div>
         <div className="settings-stack compact-fields-v092">
           <div className="field">
@@ -1115,8 +1123,8 @@ export function AutomationRulesPanel() {
 
       <section className="settings-card-v092">
         <div className="settings-card-head-v092">
-          <h3>Execution queue</h3>
-          <span>{jobs.filter((job) => ["pending", "failed", "running"].includes(job.status)).length} active</span>
+          <h3><ClusterIcon name="clock" aria-hidden="true" /> Execution queue</h3>
+          <SettingsStateChip tone={jobs.some((job) => job.status === "failed") ? "warning" : "neutral"}>{jobs.filter((job) => ["pending", "failed", "running"].includes(job.status)).length} pending, failed or running</SettingsStateChip>
         </div>
         <div className="button-row compact">
           <ClusterButton type="button" className="" onClick={() => void runQueue(false)} variant="quiet" size="compact">
@@ -1136,7 +1144,8 @@ onClick={() => void clearCompletedJobs()}
           {jobs.slice(0, 12).map((job) => (
             <article key={job.id}>
               <div>
-                <strong>{job.ruleName}</strong>
+                <strong><ClusterIcon name="sync" aria-hidden="true" /> {job.ruleName}</strong>
+                <SettingsStateChip tone={job.status === "failed" ? "danger" : job.status === "succeeded" ? "success" : job.status === "pending" || job.status === "running" ? "info" : "neutral"}>{job.status}</SettingsStateChip>
                 <span>
                   {job.entityLabel} · {automationActionLabel(job.action, fields)} · {job.status}
                   {job.lastError ? ` · ${job.lastError}` : ""}
@@ -1171,8 +1180,8 @@ onClick={() => void cancelJob(job.id)}
 
       <section className="settings-card-v092 span-2">
         <div className="settings-card-head-v092">
-          <h3>Run history</h3>
-          <span>{runs.length} recorded</span>
+          <h3><ClusterIcon name="list" aria-hidden="true" /> Run history</h3>
+          <SettingsStateChip tone="neutral">{runs.length} records loaded (up to 200)</SettingsStateChip>
         </div>
         <div className="automation-run-list-v196 automation-run-list-v199">
           {runs.slice(0, 20).map((run) => (
