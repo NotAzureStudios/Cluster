@@ -66,6 +66,9 @@ export type SettingPayload = Record<string, unknown> & PacketsSettingsPayload & 
   serverPort?: number;
   webHost?: string;
   webPort?: number;
+  allowInsecureLanHttp?: boolean;
+  webTlsCertFile?: string;
+  webTlsKeyFile?: string;
   publicApiUrl?: string;
   publicWebUrl?: string;
   corsOrigins?: string;
