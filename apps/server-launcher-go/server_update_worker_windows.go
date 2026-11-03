@@ -132,6 +132,7 @@ func runNativeServerUpdateInstall(root,channel string)error{
   ConfirmAuthorization:func(ctx context.Context)error{
    if err:=checkJournal();err!=nil{return err}
    if claimed.Candidate.Sequence<=previousSequence{return errors.New("signed Server update must advance installed release")}
+   if err:=ensureNativeServerUpdateDiskSpace(root,claimed.Candidate.Size);err!=nil{return err}
    return requireOwnedClusterUpdateService(root)
   },
   AcquireWriteHold:func(ctx context.Context)error{
