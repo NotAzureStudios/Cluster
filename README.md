@@ -2,21 +2,20 @@
 
 **Cluster** is Azure Studios' private, self-hosted studio workspace for project management, collaboration and production. It brings Projects, Boards, Tickets, Whiteboards, Timeline, Calendar and time tracking, Library storage and media viewers, Packets documentation, QA/builds, people management and studio administration into one system.
 
-**[Server 1.0.4 Windows build](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185/artifacts/13276086331)** · [Published stable releases](https://github.com/NotAzureStudios/Cluster/releases) · [Install / upgrade](docs/INSTALLATION.md) · [Documentation](docs/README.md)
+**[Latest Cluster release (1.0.4)](https://github.com/NotAzureStudios/Cluster/releases/latest)** · [Download Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe) · [Install / upgrade](docs/INSTALLATION.md) · [Documentation](docs/README.md)
 
 ## Download
 
-**Cluster Server 1.0.4 is built from `main`, but is not yet a published or signed release.** GitHub's general `releases/latest` still points to **1.0.2**; **do not use that older Server installer** to upgrade an installed 1.0.3. The Server and native Qt Desktop have separate build and update channels.
+The **[latest GitHub release](https://github.com/NotAzureStudios/Cluster/releases/latest)** is now **Cluster 1.0.4**. Download the Windows Server installer directly from its Assets section. This release carries forward the unchanged Qt Desktop 0.482.0 binaries.
 
 | Download | Use |
 | --- | --- |
-| **[Download Cluster Server 1.0.4 Windows installer ZIP](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185/artifacts/13276086331)** | Actual Windows x64 **1.0.4 test build** from commit `6acd48ea`; unzip and use the included `bin/Cluster-Installer.exe`. GitHub Actions artifacts expire (this one: **November 17, 2026**). |
-| [All Windows Server build runs](https://github.com/NotAzureStudios/Cluster/actions/workflows/cluster-server-windows-build.yml) | Find the latest successful `main` run and its `cluster-server-unsigned-windows-x64-...` artifact when the above link expires. |
-| [Latest **published** Cluster release](https://github.com/NotAzureStudios/Cluster/releases/latest) | Currently **1.0.2**. This is **not** the 1.0.4 Server build. |
-| [Published Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Windows Qt Desktop client, distributed separately. |
-| [Published portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop client. |
+| **[Download latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows x64 Server, API, hosted Web and native Server Manager (**1.0.4**). |
+| [Latest Cluster Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Qt Desktop **0.482.0** (unchanged). |
+| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop **0.482.0** (unchanged). |
+| [Release notes and SHA-256 receipt](https://github.com/NotAzureStudios/Cluster/releases/latest) | See `Cluster-server-build-receipt.json` and all release assets. |
 
-The 1.0.4 Server test artifact passed the Windows installer build and clean-install smoke checks. It is **unsigned and not a certified upgrade of a populated 1.0.3 database**. Back up your database and Library before using it. A later signed Server release will be discovered separately through the `server-main` update feed; the GitHub general Latest badge is not that feed.
+**Release status:** The Server 1.0.4 installer is **unsigned** and passed a real Windows clean-install smoke test. A populated 1.0.3 database upgrade/rollback is **not yet fully certified**. Back up PostgreSQL, Library, settings and credentials before upgrading. Publishing this direct installer does not create the separate signed `server-main` automatic update feed.
 
 ## Install or upgrade
 
@@ -26,7 +25,7 @@ For an **existing** installation, first back up PostgreSQL, Library and configur
 
 After upgrading, inspect `C:\Cluster\Server\CLUSTER_RELEASE.json` for `releaseCandidate: "1.0.4"` and confirm the Server Manager actually displays 1.0.4. If it still shows 1.0.3, **do not delete any data**: check `C:\Cluster\installer.log`, the EXE location you ran, and which launcher shortcut is opening.
 
-Use the [Windows installation and in-place upgrade guide](docs/INSTALLATION.md) for complete data-preservation and troubleshooting steps. Windows executable Authenticode signing is separate from Cluster's signed update manifest; this 1.0.4 test artifact is not publisher-signed.
+Use the [Windows installation and in-place upgrade guide](docs/INSTALLATION.md) for complete data-preservation and troubleshooting steps. Windows executable Authenticode signing is separate from Cluster's signed update manifest; this 1.0.4 release is not publisher-signed.
 
 ## Components
 
@@ -37,7 +36,7 @@ Use the [Windows installation and in-place upgrade guide](docs/INSTALLATION.md) 
 | **Cluster Desktop** | Native C++/Qt client with isolated Server profiles, tray and desktop integration, native notifications and workstation/file capabilities |
 | **Integrations** | Studio integrations including Discord, configured independently |
 
-**Versioning:** The Server source on `main` is currently **1.0.4**; the most recently **published** GitHub release is **1.0.2**. Those are different until the signed Server publisher runs. Qt Desktop has its own binary version. Check the specific [Windows build run](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185) or [published release](https://github.com/NotAzureStudios/Cluster/releases) for accurate provenance.
+**Versioning:** Cluster Server **1.0.4** is now the latest published GitHub release. Qt Desktop **0.482.0** remains independent. The Server 1.0.4 binary comes from [the verified Windows build](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185); check [release assets](https://github.com/NotAzureStudios/Cluster/releases/latest) for the installer and SHA-256 receipt.
 
 ## Develop from source
 
