@@ -564,6 +564,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [restartRequestPending, setRestartRequestPending] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [networkDeployment, setNetworkDeployment] = useState<NetworkDeploymentStatus | null>(null);
   const [networkDeploymentError, setNetworkDeploymentError] = useState("");
@@ -856,6 +857,42 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setSavingConfig(false);
     }
   }
+  async function authorizePendingRestart() {
+    if (restartRequestPending) return;
+    // Network rollout was staged by a previous, successful configuration save.
+    // A 409 is a safety interlock, not a request to retry that same PUT.
+    if (!window.confirm(
+      "Restart the managed Cluster Server to verify the staged network change? " +
+      "Existing unsaved edits will NOT be applied and may be lost if this page reloads. " +
+      "Active sessions and background work will be interrupted temporarily."
+    )) return;
+    const pin = currentUser.pinConfigured
+      ? await requestSecurityPin({
+          title: "Restart Cluster Server",
+          description: "Authorize the native Windows supervisor to apply the staged network change.",
+          purpose: "apply_server_configuration",
+          confirmLabel: "Authorize restart",
+        })
+      : await requestSecurityPinSetup({
+          title: "Create security PIN",
+          description: "Create a security PIN before authorizing a managed restart.",
+          purpose: "setup_for_apply_server_configuration",
+        });
+    if (!pin) return;
+    setRestartRequestPending(true);
+    try {
+      await api("/api/server-config/restart", {
+        method: "POST",
+        body: JSON.stringify({ securityPin: pin, confirmation: "RESTART CLUSTER SERVER" }),
+      });
+      setStatus("Managed restart accepted. Wait for local API readiness, then refresh the deployment status. External DNS/TLS still needs a separate check.");
+      setSaveError(null);
+    } catch (error) {
+      setStatus("Native restart request unavailable. Restart from Cluster Windows Server Manager, then reload configuration. " + (error instanceof Error ? error.message : ""));
+    } finally {
+      setRestartRequestPending(false);
+    }
+  }
   async function fetchSecurityDiagnostics(force = false) {
     return queryApi<SecurityDiagnostics>("/api/security/diagnostics", { force, staleMs: 8_000, maxAgeMs: 2 * 60_000, tags: ["security-diagnostics", "operations"] });
   }
@@ -1068,6 +1105,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const configuredExtensionCount = webhookEndpoints.filter((endpoint) => endpoint.enabled).length;
   const changedFields = SERVER_CONFIG_FIELDS.filter((field) => JSON.stringify(settings[field.key]) !== JSON.stringify(savedSettings[field.key]));
   const restartDirtyCount = changedFields.filter((field) => field.restart).length;
+  const networkDeploymentPending = networkDeployment?.state === "staged" ||
+    (saveError instanceof ApiError && saveError.status === 409 && (saveError.payload as any)?.code === "NETWORK_DEPLOYMENT_PENDING");
   const integrationOwnedKeys = new Set(["discordWebhookUrl", "discordVoiceUrl", "discordMessagePrefix", "discordBotToken", "discordGuildId", "discordForumChannelId", "discordChatChannelId", "discordAdminRoleId"]);
   const serverManagedKeys = (settings.serverManagedSettingKeys?.length ? settings.serverManagedSettingKeys : SERVER_MANAGED_SETTING_KEYS.map(String)).filter((key) => !integrationOwnedKeys.has(String(key)));
   const missingMetadataKeys = serverManagedKeys.filter((key) => !SERVER_CONFIG_FIELDS.some((field) => field.key === key));
@@ -1172,10 +1211,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             <ClusterIcon name="refresh" />
             <span>{operationsLoading ? "Refreshing" : "Refresh"}</span>
           </ClusterButton>
-          {restartDirtyCount > 0 && <ClusterButton type="button" variant="secondary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save(undefined, undefined, true)} disabled={savingConfig || !changedFields.length}>
+          {restartDirtyCount > 0 && <ClusterButton type="button" variant="secondary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save(undefined, undefined, true)} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>
             Save &amp; restart
           </ClusterButton>}
-          <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || !changedFields.length}>Save configuration</ClusterButton>
+          <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>Save configuration</ClusterButton>
         </>
       }
       status={status}
@@ -1187,7 +1226,20 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       items={sectionLabels.map((item) => ({ id: item.id, label: item.label, group: item.group }))}
     >
 
-      {saveError ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
+      {networkDeploymentPending && (
+        <section className="panel server-config-rollout-guard-v103" aria-label="Network deployment awaiting managed restart" role="status">
+          <h2>Network change awaiting restart</h2>
+          <p>The previous network configuration save was staged successfully. Further settings changes are blocked until the independent Windows supervisor starts Cluster, verifies readiness and settles the rollout. Repeating Save will not clear this lock.</p>
+          {networkDeployment?.configMatch === "unexpected" && <p role="alert">The active configuration matches neither staged snapshot. Do not force a new save. Inspect the native Server Manager and recovery logs.</p>}
+          <div className="button-row">
+            <ClusterButton type="button" variant="secondary" onClick={() => selectSection("network")}>Review network deployment</ClusterButton>
+            <ClusterButton type="button" variant="secondary" onClick={() => void refreshNetworkDeployment()}>Refresh rollout state</ClusterButton>
+            <ClusterButton type="button" variant="primary" disabled={restartRequestPending || networkDeployment?.configMatch === "unexpected"} busy={restartRequestPending} busyLabel="Authorizing…" onClick={() => void authorizePendingRestart()}>Authorize managed restart</ClusterButton>
+          </div>
+          <p className="muted tight">On older installations without web-managed restart, use Restart in the native Cluster Server control panel. Keep a local console session available while changing network settings.</p>
+        </section>
+      )}
+      {saveError && !networkDeploymentPending ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
 
       <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
         <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div></div>
