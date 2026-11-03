@@ -58,6 +58,7 @@ func main() {
 	diagnose := flag.Bool("diagnose", false, "read-only offline installation and PostgreSQL data-directory checks (JSON)")
 	repairManaged := flag.Bool("repair-managed", false, "repair trusted local Windows Server runtime/link components while Server is stopped")
 	inspectStagedUpdate := flag.Bool("inspect-staged-update", false, "read-only: independently verify a signed staged Server update (JSON)")
+	updateReadiness := flag.Bool("update-readiness", false, "read-only: signed staging and installation blocker report (JSON)")
 	updateChannel := flag.String("update-channel", "main", "signed Server update channel to inspect (main or development)")
 	flag.Parse()
 
@@ -66,6 +67,17 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *updateReadiness {
+		if *inspectStagedUpdate || *diagnose || *repairManaged || *repair || *service ||
+			*installService || *removeService || *startup || *browser || *interfaceMode ||
+			*commandLine || *headless || *noAutostart {
+			fmt.Fprintln(os.Stderr, "--update-readiness is an exclusive, read-only operation")
+			os.Exit(2)
+		}
+		readiness:=inspectServerUpdateReadiness(root,*updateChannel,inspectStagedServerUpdate)
+		if err:=json.NewEncoder(os.Stdout).Encode(readiness);err!=nil{fatal(err)}
+		return
+	}
 	if *inspectStagedUpdate {
 		if *diagnose || *repairManaged || *repair || *service || *installService || *removeService || *startup ||
 			*browser || *interfaceMode || *commandLine || *headless || *noAutostart {
