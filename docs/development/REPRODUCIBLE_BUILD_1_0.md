@@ -36,9 +36,10 @@ The temporary write-enabled bootstrap workflow used for the initial lockfile was
 
 Each successful receipt records the immutable Git commit, product/profile/channel, exact Node version, **SHA-256 of the committed lockfile**, and SHA-256 plus byte size of the built artifacts. Receipts are **unsigned and uncertified** until the product-specific publisher signs/verifies matching artifacts and Windows runtime acceptance passes. Do not equate CI compilation with signed installer certification.
 
-## Still separate 1.0 gates
-- Full Windows prebuilt **Server** installer, private runtime provisioning and installation acceptance.
-- Independent Qt 6.11.2 Desktop/NSIS distribution (native Desktop version stays on its explicit 0.482.0 hold).
-- Product signing, installed runtime health, update/rollback, PostgreSQL restore and Library file preservation.
+## Published v1.0.0 evidence and limits
 
-Do not install a Git checkout over a running Cluster Server or treat generated CI artifacts as production packages.
+Both product packages **were built successfully on Windows** and released as separate assets: [Server run 41545605940](https://github.com/NotAzureStudios/Cluster/actions/runs/41545605940), [Qt Desktop run 41547147724](https://github.com/NotAzureStudios/Cluster/actions/runs/41547147724), and [published v1.0.0 release](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0).
+
+The original receipts identify their branch commits, pinned Node/npm graph, component versions and artifact digests. The final source tag includes the reviewed changes but is not the same commit as either binary build. The executables are **unsigned**, and live Windows installation, recovery, upgrade and rollback were not independently accepted before the owner-approved release.
+
+Do not install a Git checkout over a running Cluster Server or treat CI builds as guaranteed safe in-place upgrades.
