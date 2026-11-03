@@ -1922,6 +1922,15 @@ func (ui *windowsControlPanel) updateMetrics() {
 	procSendMessageW.Call(ui.perfDiskBar, pbmSetPos, uintptr(diskPercent), 0)
 }
 
+func (c *windowsServerController) reportServerUpdateResult(message string) {
+ if c.ui == nil { return }
+ c.ui.updateMu.Lock()
+ c.ui.updateMessage = message
+ c.ui.updateOfferDownload = false
+ c.ui.updateMu.Unlock()
+ procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
+}
+
 // StageServerUpdate downloads a signed, hash-verified Server installer only.
 // No update can be executed or applied by this action.
 func (c *windowsServerController) StageServerUpdate() {
@@ -1936,16 +1945,30 @@ func (c *windowsServerController) StageServerUpdate() {
 		channel := prefs.UpdateChannel
 		if channel != "development" { channel = "main" }
 		feed := configuredUpdateManifestURL(c.options.root)
-		if feed == "" { fmt.Fprintln(os.Stderr, "No signed Server update feed configured for "+channel); return }
+		if feed == "" {
+   message := "No signed Server update feed configured for " + channel
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
+  }
 		fmt.Printf("[%s] Verifying and staging %s Server update (no installation)...\n", time.Now().Format("15:04:05"), channel)
 		staged, err := stageServerUpdate(c.options.root, feed, channel)
-		if err != nil { fmt.Fprintf(os.Stderr, "Server update staging rejected: %v\n", err); return }
+		if err != nil {
+   message := fmt.Sprintf("Server update download or verification failed: %v",err)
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
+  }
 		candidate,err:=inspectStagedServerUpdate(c.options.root,channel)
 		if err!=nil {
-			fmt.Fprintf(os.Stderr,"Installer staged but independent verification failed: %v. Installation is blocked.\n",err)
-			return
+			message:=fmt.Sprintf("Installer staged but independent verification failed: %v. Installation is blocked.",err)
+   fmt.Fprintln(os.Stderr,message)
+   c.reportServerUpdateResult(message)
+   return
 		}
-		fmt.Printf("Verified signed Server %s installer staged at %s (sequence %d). It remains inert until native update authorization and verified backup/recovery are available.\n",candidate.Release,staged,candidate.Sequence)
+		message:=fmt.Sprintf("Signed Cluster Server %s (sequence %d) downloaded and verified.\r\n\r\nStaged: %s\r\n\r\nInstallation and restart remain blocked until the independent Windows backup and recovery worker is certified.",candidate.Release,candidate.Sequence,staged)
+  fmt.Println(message)
+  c.reportServerUpdateResult(message)
 	}()
 }
 
@@ -1960,13 +1983,11 @@ func (c *windowsServerController) CheckForUpdates() {
 	c.ui.postState()
 	fmt.Printf("[%s] Checking for Cluster updates...\n", time.Now().Format("15:04:05"))
 	go func() {
-		defer func() {
-			c.mu.Lock()
-			c.updateInFlight = false
-			c.mu.Unlock()
-			c.ui.postState()
-		}()
 		result := checkUpdateManifest(c.options.root)
+  c.mu.Lock()
+  c.updateInFlight = false
+  c.mu.Unlock()
+  c.ui.postState()
 		fmt.Printf("[%s] %s\n", time.Now().Format("15:04:05"), result.Message)
 		c.ui.updateMu.Lock()
 		c.ui.updateMessage = result.Message
