@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import "./server-connection-guide.css";
 
@@ -31,11 +32,11 @@ export function ServerConnectionGuide({ onStageOrigin, onReview, busy }: {
   const target = TARGETS[method];
   const complete = target.steps.filter((_, i) => checked[`${method}:${i}`]).length;
   return <section className="panel cluster-connection-guide-rc46" aria-label="Guided studio network access">
-    <header><div><span className="eyebrow">Connection assistant</span><h2>Let your team connect</h2><p>Choose how members reach Cluster. Your API and database stay private.</p></div><span className="cluster-connection-progress-rc46">{complete}/{target.steps.length} steps</span></header>
+    <header><div><span className="eyebrow">Connection assistant</span><h2>Let your team connect</h2><p>Choose how members reach Cluster. Your API and database stay private.</p></div><SettingsStateChip tone="info" icon="list">{complete}/{target.steps.length} checklist steps marked</SettingsStateChip></header>
     <div className="cluster-connection-methods-rc46" role="group" aria-label="Connection method">
       {(["private", "tunnel", "lan"] as const).map((choice) => <ClusterButton key={choice} unstyled type="button" className={method === choice ? "active" : ""} aria-pressed={method === choice} onClick={() => setMethod(choice)}><ClusterIcon name={choice === "private" ? "lock" : choice === "tunnel" ? "cloud" : "users"} /><span>{TARGETS[choice].title}</span></ClusterButton>)}
     </div>
-    <div className="cluster-connection-guide-subhead-rc46"><strong>{target.provider}</strong><span>{target.note}</span></div>
+    <div className="cluster-connection-guide-subhead-rc46"><strong>{target.provider}</strong><SettingsStateChip tone={method === "tunnel" ? "warning" : method === "private" ? "info" : "neutral"} icon={method === "tunnel" ? "warning" : method === "private" ? "lock" : "users"}>{method === "tunnel" ? "Requires Access policies" : method === "private" ? "Private member network" : "Trusted LAN only"}</SettingsStateChip><span>{target.note}</span></div>
     <ol className="cluster-connection-steps-rc46">{target.steps.map((step, i) => <li key={`${method}:${i}`}><label><input type="checkbox" checked={Boolean(checked[`${method}:${i}`])} onChange={(event) => setChecked((before) => ({ ...before, [`${method}:${i}`]: event.target.checked }))} /><span>{step}</span></label></li>)}</ol>
     {method === "private" && <div className="cluster-connection-command-rc46"><code>tailscale serve --bg 3000</code><ClusterCopyButton text="tailscale serve --bg 3000" size="compact">Copy command</ClusterCopyButton><small>Run on the Cluster server after installing Tailscale. Use <code>tailscale serve status</code> to see its HTTPS address.</small></div>}
     {method === "tunnel" && <div className="cluster-connection-command-rc46"><code>http://localhost:3000</code><ClusterCopyButton text="http://localhost:3000" size="compact">Copy origin service</ClusterCopyButton><small>Put this as the Tunnel service URL, not the public hostname.</small></div>}
