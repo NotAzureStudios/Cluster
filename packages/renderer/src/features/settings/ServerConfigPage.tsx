@@ -1567,6 +1567,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             webPort={Number(settings.webPort || 3000)}
             apiHost={String(settings.serverHost || "127.0.0.1")}
             apiPort={Number(settings.serverPort || 4000)}
+            directTlsConfigured={Boolean(String(settings.webTlsCertFile || "").trim() && String(settings.webTlsKeyFile || "").trim())}
+            allowInsecureLanHttp={settings.allowInsecureLanHttp === true}
             deploymentState={networkDeployment?.state}
             hasDraftChanges={changedFields.some((field) => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)))}
           />
