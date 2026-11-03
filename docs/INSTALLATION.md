@@ -1,75 +1,62 @@
-# Install Cluster 1.0.1 on Windows
+# Install Cluster on Windows
 
-Cluster 1.0.1 is a private Azure Studios release for **Windows x64**. The Server and native Desktop are separate applications. Install the Server first; then access Cluster in a browser or connect the Qt Desktop client.
+These instructions follow the **[latest stable Cluster release](https://github.com/NotAzureStudios/Cluster/releases/latest)**. The Server and Qt Desktop are separate Windows x64 packages.
 
-## Downloads
+## Get the current installers
 
-All current Windows binaries are available from the **[Cluster v1.0.1 GitHub Release](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.1)**.
+| Download | Purpose |
+| --- | --- |
+| **[Latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows Server, API, Web and native Server Manager |
+| **[Latest Cluster Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest)** | Open the latest release's **Assets** section and choose the Desktop installer |
+| [Latest portable Desktop](https://github.com/NotAzureStudios/Cluster/releases/latest) | Choose the portable Desktop ZIP from the latest release |
 
-| File | Where to install | Purpose |
-| --- | --- | --- |
-| **[Cluster-Installer.exe](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Installer.exe)** | Windows Server machine | Managed Server, Web/API runtime and Server Manager |
-| [Cluster-Desktop-Installer-0.482.0-windows-x64.exe](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-Installer-0.482.0-windows-x64.exe) | Each workstation | Native Qt Desktop client, not a Server |
-| [Cluster-Desktop-0.482.0-windows-x64.zip](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.1/Cluster-Desktop-0.482.0-windows-x64.zip) | Workstation alternative | Portable Desktop package |
+The Server installer has a permanent direct-download filename. The currently published Desktop binaries have their own versioned filenames, so the Desktop links point to the **latest release page** and won't become broken when the native Desktop version changes. Future releases should ship stable Desktop aliases as documented in [release asset naming](development/RELEASE_ASSET_NAMING.md).
 
-Cluster Server/Web is **1.0.1**. The Qt Desktop executable uses its separately maintained binary version **0.482.0** and has not been rebuilt for this Server hotfix.
+### Verify a download
 
-### Verify the downloads
-
-These Windows executables are **not digitally signed** by a publisher certificate, so Windows may identify their publisher as unknown. They were produced and SHA-256-verified through pinned build workflows. Check the checksum rather than disabling Windows security protections.
-
-In PowerShell, from the directory containing your downloaded Server installer:
+These executables may not have a Windows publisher signature. Verify the SHA-256 hash against the **current release notes**, rather than an older version's hash:
 
 ```powershell
-Get-FileHash .\Cluster-Installer.exe -Algorithm SHA256
+Get-FileHash '.\Cluster-Installer.exe' -Algorithm SHA256
 ```
 
-Expected Server installer SHA-256:
+Use the SHA-256 listed in the current [GitHub release](https://github.com/NotAzureStudios/Cluster/releases/latest). The hash changes when a binary is rebuilt **or signed**. For signing options, see [Windows code signing](development/WINDOWS_CODE_SIGNING.md).
 
-```text
-2719e1b1336144773c0e5ad9b361fae2d73109c08b2495592f04a92ccc9968f7
-```
+## 1. Prepare a Windows Server
 
-Expected Desktop installer SHA-256: `0e983320e440ff0b25cd56b8e14b6fcc76d565188e59245ca90923ec58537a05`. The [release notes](releases/CLUSTER_1_0_1.md) contain all build identities and checksums.
-
-## 1. Prepare the Server
-
-- Use a **Windows x64** machine with space for the Server program, private Node/PostgreSQL runtimes, database and Library files.
-- Choose a new writable installation folder such as `D:\Cluster-Server\` or `C:\Cluster-Server\`. Avoid placing the portable Server's managed data root beneath protected system folders.
-- Allow the initial installer to download its pinned private runtime dependencies if needed. You do **not** need to install Node.js or PostgreSQL globally just to use the packaged Server.
-- If replacing an existing installation, preserve any PostgreSQL database, Library contents, configuration and credentials you still need **before** deleting the old folder. A clean install does not migrate an existing database automatically.
-- Keep the initial Owner enrollment on a trusted local network. Do not expose an unclaimed setup endpoint to the internet.
+- Choose an authorized Windows x64 machine with sufficient disk space for the application, managed runtimes, PostgreSQL and Library storage.
+- Put the Server installer in a **new writable directory**, for example `D:\Cluster-Server\`.
+- Initial setup may download pinned private Node.js and PostgreSQL runtimes. Global Node/PostgreSQL installations are not required for normal packaged use.
+- If replacing an existing Cluster installation, back up any PostgreSQL, Library, configuration and credentials you need before deleting the old install. Fresh installation does not automatically restore existing data.
+- Keep Owner enrollment restricted to the local/trusted studio network.
 
 ## 2. Install the Server
 
-1. Place `Cluster-Installer.exe` in the chosen empty directory, for example `D:\Cluster-Server\Cluster-Installer.exe`.
-2. Verify its SHA-256 checksum with the command above.
-3. Launch it with an authorized Windows account. Only approve elevation when Windows requests it for a necessary privileged operation.
-4. The installer stages its managed files in a `Cluster\` directory **beside the EXE**. For the example path, the managed root is `D:\Cluster-Server\Cluster\Server\` and the installer log is `D:\Cluster-Server\Cluster\installer.log`.
-5. Open the native **Cluster Server Manager** from the managed Server's `bin\Cluster Server.exe` if it does not open automatically.
-6. Use the Manager logs and health controls to confirm that the API, Web UI and managed database are operational.
-7. Finish the local Owner setup. Then open the configured Server Web address and sign in.
+1. Download the current `Cluster-Installer.exe` via the stable link above.
+2. Verify its current SHA-256 hash in PowerShell.
+3. Run the installer with an authorized Windows account, approving elevation only when necessary.
+4. The managed program is placed in a `Cluster\` subfolder beside the installer. If the EXE was at `D:\Cluster-Server\Cluster-Installer.exe`, the managed Server root is `D:\Cluster-Server\Cluster\Server\` and the installer log is `D:\Cluster-Server\Cluster\installer.log`.
+5. Use the native **Cluster Server Manager** in the managed Server's `bin\` folder to inspect startup and API/database status.
+6. Finish the initial Owner setup locally and open the configured Web URL.
 
-The actual URL/port comes from your Server configuration, not from an assumed public address.
+Do not assume a hard-coded public port or Web address; use the actual Server settings.
 
 ## 3. Install Desktop (optional)
 
-1. Download the 1.0.1 release's native Desktop installer or portable ZIP.
-2. Verify the Desktop installer hash above.
-3. Run the installer. For the portable ZIP, extract all files and launch the packaged `Cluster.exe`.
-4. Start Desktop, select or add the Server URL in the server profile chooser, and sign in with an administrator-created studio account. The server profile switcher is available from the tray or **Ctrl+Shift+S**.
-5. Use a trusted **HTTPS** address for a remote Server. Loopback HTTP may be used for local development.
+1. From the [latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest), select the Desktop installer or portable ZIP under **Assets**.
+2. Check the package checksum against the same release's notes.
+3. Run the Desktop installer or fully extract the ZIP and launch `Cluster.exe`.
+4. Add/select your Server URL in the profile chooser and authenticate with a studio-admin-created account. Use the tray or **Ctrl+Shift+S** for server profiles.
+5. Use HTTPS for remote Server addresses; localhost HTTP is only for local development.
 
-Desktop does not install the API, PostgreSQL or the Windows Server Manager.
+The Desktop package does not install a Server, database or native Server Manager. Its binary version can differ from the Cluster suite release; consult the release notes.
 
-## 4. First-run checks
+## 4. Validate the installed application
 
-Before relying on a fresh installation for studio data, confirm that the Server starts and restarts, Owner login works, role restrictions behave correctly, a test project can be created, Library upload/download works, and Desktop can reconnect.
+Before using it with real studio data, check Server startup and restart, Owner login, project creation, access permissions, Library upload/download, and Desktop reconnection.
 
-The 1.0.1 installer has **passed Windows compilation, packaging and file-integrity verification**, but its first-run and recovery behavior has not yet been independently confirmed on a real workstation. If the installer fails, keep `Cluster\installer.log` and report the relevant **redacted** error. Repeatedly wiping and reinstalling over data is not a repair strategy.
+A successful build and installer checksum do not by themselves prove real-machine installation, startup or recovery. If installation fails, preserve the **redacted** error from `Cluster\installer.log` and follow [Windows Server recovery](development/NATIVE_WINDOWS_SERVER_RECOVERY.md) rather than deleting live data. Keep independent PostgreSQL and Library backups.
 
-For Server recovery details, see [Windows Server recovery](development/NATIVE_WINDOWS_SERVER_RECOVERY.md). Automatic update installation/rollback and interrupted-restore workflows have not been runtime-certified. Preserve separate database and Library backups.
+## Support
 
-## Support and development
-
-Report defects internally with the Cluster release (`1.0.1`), native Desktop component version if applicable, Windows version, reproducible steps and sanitized logs. See [Support](../SUPPORT.md) and [Security](../SECURITY.md). Developer source and toolchain setup are documented in [Local setup](development/LOCAL_SETUP.md).
+Report issues privately with the suite release and native component versions, Windows version, reproduction steps and sanitized logs. See [Support](../SUPPORT.md), [Security](../SECURITY.md) and [Local development](development/LOCAL_SETUP.md).
