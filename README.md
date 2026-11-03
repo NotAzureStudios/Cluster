@@ -3,7 +3,7 @@
 **Private studio-management platform for Azure Studios.** Cluster brings projects, work tracking, scheduling, files, documentation and studio operations into one self-hosted workspace, with a web client, native desktop integration and a Windows server manager.
 
 > [!IMPORTANT]
-> **Source status (November 2, 2026):** The tracked candidate remains **Cluster 1.0.0-rc.50** (`config/release-candidate.json`), source version `0.546.0`. Subsequent targeted fixes, including PDF/3D viewer changes and Windows Server Manager reliability and self-repair, are incorporated as reviewed Git commits without changing the candidate version. This source consolidation does **not** certify Cluster 1.0 or produce an installable release. Do not deploy a Git checkout over a running Cluster server.
+> **Cluster 1.0 (November 2, 2026):** The studio's first release is declared as **Cluster 1.0.0**. Real prebuilt Windows Server and native Qt Desktop distributions are available in the [1.0 release](docs/releases/CLUSTER_1_0_0.md), with separate internal component version identifiers (`0.546.0` Server source / RC50 and `0.482.0` Qt Desktop). The Windows installers are unsigned and have **not** been certified by live installation, upgrade or rollback tests. Do not overwrite a running Server or treat a source checkout as a safe installer.
 
 ## What's in Cluster?
 
