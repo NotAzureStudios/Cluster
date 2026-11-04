@@ -71,7 +71,11 @@ await check("Studio department templates store immutable link metadata",()=>{
 });
 await check("Linked policy displays actual workforce department icon/color without per-row requests",()=>{
   assert.ok(ui.includes("<DepartmentIdentityMark department={workforceDepartmentById.get(department.workforceDepartmentId || \"\")!}"));
-  assert.ok(ui.includes('"/api/departments", { force: true, staleMs: 0'));
+  const manager=readFileSync("packages/renderer/src/features/settings/WorkforceDepartmentManager.tsx","utf8");
+  assert.ok(manager.includes('queryApi<DepartmentRow[]>("/api/departments"'));
+  assert.ok(manager.includes("onRowsLoaded?.(result)"));
+  assert.ok(ui.includes("onRowsLoaded={setWorkforceDepartmentRows}"));
+  assert.ok(!ui.includes('"/api/departments", { force: true, staleMs: 0'));
   assert.ok(ui.includes("const workforceDepartmentById = useMemo("));
 });
 console.log(`v1.1 department policy link: ${count} runtime and source contracts passed.`);
