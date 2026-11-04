@@ -114,6 +114,27 @@ test("Direct date navigation rejects impossible and malformed dates", () => {
   assert.equal(date.getHours(), 0);
 });
 
+test("Shared event creation uses the clicked local civil day, never its UTC predecessor", () => {
+  const page = read(pathOf("CalendarPage.tsx"));
+  assert.match(page, /openSharedCreate\("calendar", \{ date: calendarDateInputValue\(date\) \}\)/);
+  assert.doesNotMatch(page, /openSharedCreate\("calendar", \{ date: date\.toISOString\(\)\.slice\(0, 10\)/);
+  const drawer = read("packages/renderer/src/features/create/SharedCreateDrawer.tsx");
+  assert.match(drawer, /new Date\(\x60\$\{handoff\.date\}T09:00:00\x60\)/);
+  const old = process.env.TZ;
+  try {
+    for (const timezone of ["Asia/Tokyo", "Pacific/Auckland", "America/New_York", "America/Los_Angeles"]) {
+      process.env.TZ = timezone;
+      const clicked = new Date(2026, 10, 4, 0, 0);
+      assert.equal(calendarDateInputValue(clicked), "2026-11-04", timezone);
+      if (timezone === "Asia/Tokyo" || timezone === "Pacific/Auckland") {
+        assert.equal(clicked.toISOString().slice(0, 10), "2026-11-03", "UTC conversion would shift the clicked day");
+      }
+    }
+  } finally {
+    if (old === undefined) delete process.env.TZ; else process.env.TZ = old;
+  }
+});
+
 test("Native jump and view changes keep the selected date aligned with query range", () => {
   const page = read(pathOf("CalendarPage.tsx"));
   assert.match(page, /function jumpToCalendarDate\(value: string\)/);
