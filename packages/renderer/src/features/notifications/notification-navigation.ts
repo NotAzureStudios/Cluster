@@ -68,7 +68,7 @@ export function notificationWorkNavigation(item: NotificationNavigationItem): Cl
 
 function desktopSegment(value?: string | null) {
   const text = String(value || "").trim();
-  return text && /^[A-Za-z0-9_.:]+$/.test(text) ? text : null;
+  return text.length > 0 && text.length <= 200 && /^[A-Za-z0-9_.:-]+$/.test(text) ? text : null;
 }
 
 export function notificationDesktopRoute(target: ClusterWorkNavigationTarget | null) {
