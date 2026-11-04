@@ -1,4 +1,5 @@
 import type { Project } from "../application/application-models";
+import type { MouseEvent } from "react";
 import { projectScheduleMeta } from "./project-portfolio-model";
 import { runtimeStyle } from "../../core/runtime-style";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
@@ -21,7 +22,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   gaps: string[];
   memberCount: number;
   onSelect: () => void;
-  onInspect: (trigger: HTMLElement) => void;
+  onInspect: (event: MouseEvent<HTMLButtonElement>) => void;
   onTogglePin: () => void;
 }) {
   const scheduleMeta = schedule || projectScheduleMeta(project, project.archived ? "archived" : String(project.status || "active"));
@@ -40,7 +41,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
         </div>
         <ClusterRowActions label={`${project.name} actions`}>
           <ClusterIconButton label={pinned ? `Unstar ${project.name}` : `Star ${project.name}`} size="compact" selected={pinned} onClick={onTogglePin} className={`project-pin-v307 ${pinned ? "active" : ""}`}><ClusterIcon name={pinned ? "star-filled" : "star"} /></ClusterIconButton>
-          <ClusterButton size="compact" variant="quiet" onClick={(event) => onInspect(event.currentTarget)}>Details</ClusterButton>
+          <ClusterButton size="compact" variant="quiet" onClick={onInspect}>Details</ClusterButton>
         </ClusterRowActions>
       </div>
       {density === "comfortable" && summary && (
