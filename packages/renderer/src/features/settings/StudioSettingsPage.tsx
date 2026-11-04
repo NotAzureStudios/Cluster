@@ -1028,7 +1028,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </div>
               </div>
 
-              <WorkforceDepartmentManager />
+              <WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} />
 
               <details className="studio-advanced-access-v11 studio-department-templates-v11">
                 <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
