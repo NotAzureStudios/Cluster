@@ -248,3 +248,28 @@
 .projects-page-v310 .project-loaded-snapshot-rc41{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(180px,1fr);gap:12px;padding:10px 12px;border-bottom:1px solid var(--cluster-border);align-items:center;min-width:0}
 .projects-page-v310 .project-loaded-snapshot-rc41>*{min-width:0}
 @media(max-width:690px){.projects-page-v310 .project-loaded-snapshot-rc41{grid-template-columns:minmax(0,1fr);gap:7px}}
+
+/* v1.1: keyboard-operable, non-modal Project quick inspector. */
+.projects-page-v310 .projects-browser-inspector-shell-rc25:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:-2px;
+}
+.projects-browser-inspector-toolbar-rc25>strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.projects-page-v310 .projects-browser-inspector-toolbar-rc25 button{min-width:36px;min-height:36px;flex:0 0 auto}
+@media(pointer:coarse){
+  .projects-page-v310 .projects-browser-inspector-toolbar-rc25 button{min-width:44px;min-height:44px}
+}
+@media(max-width:680px){
+  .projects-page-v310 .projects-browser-inspector-shell-rc25{
+    inset:auto 0 0 0;right:0;top:auto;width:100%;max-height:min(82dvh,760px);
+    border-radius:16px 16px 0 0;box-shadow:0 -14px 42px color-mix(in srgb,#000 34%,transparent);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+}
+@media(max-height:520px) and (min-width:681px){
+  .projects-page-v310 .projects-browser-inspector-shell-rc25{
+    top:10px;max-height:calc(100dvh - 20px);
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .projects-page-v310 .projects-browser-inspector-shell-rc25{scroll-behavior:auto}
+}
