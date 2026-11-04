@@ -90,7 +90,7 @@ test("Large authorized schedules project without extra requests", () => {
   const events = Array.from({length: 15000}, (_, i) => ev("e"+i, "2026-11-04T08:00:00Z", {ownerId: i % 2 ? "bob" : "alice"}));
   const overlays = Array.from({length: 15000}, (_, i) => overlay("c"+i,"card", { ownerId: i % 2 ? "bob" : "alice" }));
   assert.equal(filterCalendarDisplayItems(events, overlays, {...base, owner:"alice"}).length,15000);
-  assert.doesNotMatch(read(source), /\\bapi\\(|\\bqueryApi\\(|\\bfetch\\(|\\bprisma\\./);
+  for (const expression of ["api(", "queryApi(", "fetch(", "prisma."]) assert.equal(read(source).includes(expression), false, expression);
 });
 test("Every workspace view, planning panel and agenda uses the same visible result", () => {
   const page = read(cal("CalendarPage.tsx"));
