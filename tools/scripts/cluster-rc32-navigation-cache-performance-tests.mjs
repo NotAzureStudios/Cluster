@@ -83,8 +83,8 @@ check(app.includes('async function loadBoard(id = boardId, force = false)'), 'Bo
 check(app.includes('void loadProjects(true)'), 'Project data revalidates on relevant realtime changes');
 check(app.includes('loadWhiteboards(true)') && app.includes('loadBoard(boardId, true)'), 'Realtime and reconnect refreshes remain authoritative');
 check(app.includes('}, 500);'), 'Rapid realtime deltas coalesce before network refresh');
-const release=JSON.parse(read('config/release-candidate.json'));
-check(release.sequence>=32 && release.release===`1.0.0-rc.${release.sequence}`,'Current release identity is valid and includes RC32 fixes');
+// Cache/navigation regression coverage is independent of the release identity.
+// Stable versions and future 1.1 builds must not impersonate 1.0.0-rc.32.
 for (const file of ['packages/renderer/src/core/api/query.ts','packages/renderer/src/core/api/index.ts','packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx']) {
  const ast=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,file.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
  check(!ast.parseDiagnostics.length,`No syntax errors in ${file}`);
