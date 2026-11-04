@@ -122,6 +122,13 @@ test("Permission search and overrides filter are local controlled inputs", () =>
   assert.match(source, /No permissions match the current filters/);
   assert.doesNotMatch(source, /fetch\(|queryApi\(|setInterval/);
 });
+test("Design system gallery exercises inheritance without persisting a fake explicit override", () => {
+  const preview = read("packages/renderer/src/components/DesignSystemPreview.tsx");
+  assert.match(preview, /Interactive permission matrix/);
+  assert.match(preview, /<ClusterPermissionMatrix<"boards" \| "vault"/);
+  assert.match(preview, /if \(level === "inherit"\) delete next\[tool\]/);
+  compile("packages/renderer/src/components/DesignSystemPreview.tsx", true);
+});
 test("Matrix remains navigable on narrow displays with adequate touch targets", () => {
   const css = read("packages/renderer/src/components/cluster-permission-matrix.css");
   for (const matcher of [/overflow-x: auto/, /position: sticky/, /:focus-visible/, /pointer: coarse/, /min-height: 48px/, /--accent/]) assert.match(css, matcher);
