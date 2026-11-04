@@ -41,6 +41,7 @@ import { DASHBOARD_WIDGETS, HOME_WIDGET_PERMISSIONS, homeWidgetExtensionPolicyFr
 import { useHomeWidgetLibrary } from "../home-widgets/home-widget-library";
 import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, STUDIO_ACTION_RULES } from "./studio-settings-state";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 import { StudioDomainsPanel } from "../domains/DomainManagementPanel";
 import { VersioningAdminPage } from "../admin/ProductionIntegrationAdminPages";
 
@@ -511,34 +512,26 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     else nextPermissions[tool] = level;
     updateStudioRole(id, { toolPermissions: nextPermissions });
   }
-  function renameStudioRole(id: string, nextRawId: string) {
-    const nextId = normalizeRoleId(nextRawId);
-    const roles = mergeStudioRoles(settings);
-    const target = roles.find((role) => role.id === id);
-    if (!target || target.locked || !nextId || nextId === id) return;
-    if (roles.some((role) => role.id === nextId)) {
-      setStatus(`Role key already exists: ${nextId}`);
-      return;
+  async function roleHasAssignments(id: string): Promise<boolean> {
+    // A role definition is a permission policy, not a user record. Never
+    // delete or disable it while stored membership roles still reference it.
+    const page = await queryApi<{ items: Array<{ id: string }> }>(
+      `/api/users?role=${encodeURIComponent(id)}&paged=true&limit=1&includeArchived=true`,
+      { force: true, staleMs: 0, persist: false },
+    );
+    return page.items.length > 0;
+  }
+  async function setStudioRoleEnabled(id: string, enabled: boolean) {
+    if (enabled) { updateStudioRole(id, { enabled: true }); return; }
+    try {
+      if (await roleHasAssignments(id)) {
+        setStatus("This role is still assigned to users. Reassign them before disabling it.");
+        return;
+      }
+      updateStudioRole(id, { enabled: false });
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : "Could not verify role assignments.");
     }
-    const replaceRoleId = (value: string) => (normalizeRoleId(value) === id ? nextId : normalizeRoleId(value));
-    patch(
-      "studioRoleDefinitions",
-      roles.map((role) => (role.id === id ? { ...role, id: nextId } : role)),
-    );
-    (["studioProjectCreateRolesCsv", "studioBuildApprovalRolesCsv", "studioQaApprovalRolesCsv", "studioAdminRolesCsv"] as const).forEach((key) => patch(key, rolesCsvFromIds(splitCsv(settings[key]).map(replaceRoleId))));
-    patch(
-      "projectTypePresets",
-      projectTypePresets.map((preset) => ({
-        ...preset,
-        approvalRoles: (preset.approvalRoles || []).map(replaceRoleId),
-      })),
-    );
-    patch(
-      "studioDepartmentDefinitions",
-      mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => (department.leadRoleId === id ? { ...department, leadRoleId: nextId } : department)),
-    );
-    if (settings.studioDefaultWorkspaceRole === id) patch("studioDefaultWorkspaceRole", nextId);
-    setStatus(`Role key changed from ${id} to ${nextId}. Existing users keep their current stored role until their profiles are updated.`);
   }
   function addStudioRole() {
     const label = newRoleLabel.trim();
@@ -568,22 +561,36 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     setRoleEditorTab("details");
     setStatus(`Added editable role: ${label}`);
   }
-  function removeStudioRole(id: string) {
+  async function removeStudioRole(id: string) {
     const roles = mergeStudioRoles(settings);
     const target = roles.find((role) => role.id === id);
     if (!target) return;
+    try {
+      if (await roleHasAssignments(id)) {
+        setStatus("This role is assigned to users. Reassign members before changing its availability.");
+        return;
+      }
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : "Could not verify role assignments.");
+      return;
+    }
     if (target.locked) {
       updateStudioRole(id, { enabled: false });
-    } else {
-      patch(
-        "studioRoleDefinitions",
-        roles.filter((role) => role.id !== id),
-      );
+      setStatus("Built-in role disabled. The role key remains reserved.");
+      return;
     }
+    if (!(await confirmCluster({
+      title: `Remove role ${target.label}?`,
+      message: "This unassigned role's permission definition will be removed. This cannot be undone after saving Studio Settings.",
+      confirmLabel: "Remove role",
+      tone: "danger",
+    }))) return;
+    patch("studioRoleDefinitions", roles.filter((role) => role.id !== id));
     (["studioProjectCreateRolesCsv", "studioBuildApprovalRolesCsv", "studioQaApprovalRolesCsv", "studioAdminRolesCsv"] as const).forEach((key) => {
       const next = splitCsv(settings[key]).filter((item) => normalizeRoleId(item) !== id);
       patch(key, rolesCsvFromIds(next));
     });
+    setStatus(`Removed unassigned role definition ${target.label} from the draft.`);
   }
   function updateStudioDepartment(id: string, patchDepartment: Partial<StudioDepartmentDefinition>) {
     const next = mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => (department.id === id ? { ...department, ...patchDepartment, id } : department));
@@ -1207,7 +1214,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
                       <div><span className="eyebrow">Role</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p></div>
-                      <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => updateStudioRole(selectedRole.id, { enabled: event.target.checked })} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
+                      <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => void setStudioRoleEnabled(selectedRole.id, event.target.checked)} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
                     </header>
 
                     <ClusterSegmentedControl
@@ -1227,7 +1234,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                         <div className="studio-explanation-v272"><strong>Role identity and defaults</strong><span>These values are suggested when this role is assigned to a user. Changing a role does not silently overwrite existing user profile fields.</span></div>
                         <div className="studio-form-grid-v272">
                           <div className="field"><label>Display name</label><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></div>
-                          <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} disabled={selectedRole.locked} onChange={(event) => renameStudioRole(selectedRole.id, event.target.value)} /><small>{selectedRole.locked ? "Built-in role keys cannot be renamed." : "Used by stored user records and policy rules."}</small></div>
+                          <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} readOnly disabled aria-label="Immutable role key" /><small>Role IDs are immutable because account memberships and permission policies reference them. Create a new role to change the key.</small></div>
                           <div className="field"><label>Department</label><ClusterNativeSelect value={selectedRole.departmentId || ""} onChange={(event) => updateStudioRole(selectedRole.id, { departmentId: event.target.value, toolPermissions: {} })}><option value="">No department</option>{studioDepartments.map((department) => <option key={department.id} value={department.id}>{department.label}</option>)}</ClusterNativeSelect><small>Provides the baseline permission layer.</small></div>
                           <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
                           <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
