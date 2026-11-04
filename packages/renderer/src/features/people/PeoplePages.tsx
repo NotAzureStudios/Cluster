@@ -57,6 +57,7 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
+import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
   { id: "people_department", kind: "grouped", dimensions: ["department"], measures: [{ id: "count", kind: "count", label: "People" }], limit: 20, drilldown: { mode: "filter", presentation: "table" } },
@@ -182,7 +183,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   type CreateRoleCatalog = {
     actorRole: string;
     workspaceId: string;
-    roles: Array<{ id: string; label: string; enabled: boolean; privileged: boolean; members: number }>;
+    roles: StudioAssignableRoleChoice[];
   };
   const [createRoleCatalog, setCreateRoleCatalog] = useState<CreateRoleCatalog | null>(null);
   const [createRoleError, setCreateRoleError] = useState("");
@@ -202,7 +203,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (cancelled) return;
       setCreateRoleCatalog(result);
       const canAssign = (id: string) => result.roles.some((role) =>
-        role.id === id && role.enabled && (!role.privileged || result.actorRole === "owner"));
+        role.id === id && canChooseStudioRole(role, result.actorRole));
       setCreateAccountDraft((draft) => canAssign(draft.role) ? draft : { ...draft, role: "member" });
     }).catch((cause: unknown) => {
       if (!cancelled) {
@@ -400,7 +401,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     const username = createAccountDraft.username.trim();
     if (username.length < 3) { setLoadStatus("Username must contain at least 3 characters."); return; }
     const assignable = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
-    if (!assignable || !assignable.enabled || (assignable.privileged && createRoleCatalog?.actorRole !== "owner")) {
+    if (!canChooseStudioRole(assignable, createRoleCatalog?.actorRole)) {
       setLoadStatus("Choose an enabled workspace role you are authorized to assign before creating this account.");
       return;
     }
@@ -822,7 +823,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accountType: event.target.value }))}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
           <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, role: event.target.value }))}>
             {!createRoleCatalog?.roles.some((role) => role.id === createAccountDraft.role) && <option value={createAccountDraft.role} disabled>{createAccountDraft.role} (unavailable)</option>}
-            {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!role.enabled || (role.privileged && createRoleCatalog.actorRole !== "owner")}>
+            {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, createRoleCatalog?.actorRole)}>
               {role.label}{role.enabled ? "" : " (disabled)"} · {role.members} members
             </option>)}
           </ClusterNativeSelect>
