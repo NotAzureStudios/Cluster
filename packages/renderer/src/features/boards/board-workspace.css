@@ -1074,3 +1074,10 @@
   .board-blocker-dependencies-v11 li>button,
   .board-blockers-more-v11{min-height:44px}
 }
+
+/* 1.1: Make deliberately bounded Board dependency graphs transparent. */
+.board-dependency-coverage-v11{
+  margin:8px 0 0;padding:9px 11px;border:1px solid var(--border-subtle);
+  border-radius:8px;background:var(--surface-soft);color:var(--text-muted);
+  font-size:.7rem;line-height:1.5;overflow-wrap:anywhere;
+}
