@@ -27,7 +27,7 @@ const tests = [
   [manager.includes('if (rows.some((row) => row.id !== selected?.id'), "duplicate names rejected early"],
   [deptSection.includes("<WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} />"), "Studio Settings puts canonical editor first"],
   [deptSection.includes('<summary><strong>Department access templates & defaults</strong>'), "separate permission templates labeled as such"],
-  [deptSection.includes("Icons and colors are edited above in the canonical department directory."), "policy editor no longer owns appearance"],
+  [deptSection.includes("The linked Workforce Department owns its icon, color and organizational membership."), "policy editor no longer owns appearance"],
   [!deptSection.includes('value={selectedDepartment.iconId}') && !deptSection.includes('value={selectedDepartment.accentColor'), "old duplicate appearance controls removed"],
   [deptSection.includes("studioDepartmentDefinitions") || deptSection.includes("departmentRoleCoverage"), "existing policy defaults preserved"],
 ];
