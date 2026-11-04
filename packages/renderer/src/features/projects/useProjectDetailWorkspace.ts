@@ -18,6 +18,7 @@ import type { ProjectControlCenterPayload } from "./project-control-model";
 import type { ProjectIntelligenceSnapshot } from "./ProjectIntelligencePanel";
 import { PROJECT_WORKSPACE_SECTIONS, type ProjectWorkspaceTabId } from "./project-workspace-registry";
 import { needsProjectTabLocation, projectTabForWorkspace, projectTabFromUrl, projectTabLocation } from "./project-tab-location";
+import { projectWorkspaceRequestPlan } from "./project-request-budget";
 
 const PROJECT_WORKSPACE_TABS = new Set<ProjectWorkspaceTabId>(PROJECT_WORKSPACE_SECTIONS.map((section) => section.id));
 
@@ -148,13 +149,14 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
   }, []);
 
   useResourceChangeRefresh(async () => {
-    if (!projectId) return;
+    if (!projectId || activeProjectRef.current !== projectId) return;
+    const requestPlan = projectWorkspaceRequestPlan(tabRef.current);
     await Promise.all([
-      loadMedia(true).catch(() => undefined),
       loadProjectSnapshot(true).catch(() => undefined),
-      loadProjectDashboard(true).catch(() => undefined),
-      loadProjectControlCenter(true).catch(() => undefined),
-      tab === "intelligence" ? loadProjectIntelligence(true).catch(() => undefined) : Promise.resolve(),
+      requestPlan.media ? loadMedia(true).catch(() => undefined) : Promise.resolve(),
+      requestPlan.dashboard ? loadProjectDashboard(true).catch(() => undefined) : Promise.resolve(),
+      requestPlan.controlCenter ? loadProjectControlCenter(true).catch(() => undefined) : Promise.resolve(),
+      requestPlan.intelligence ? loadProjectIntelligence(true).catch(() => undefined) : Promise.resolve(),
     ]);
   }, {
     enabled: Boolean(projectId),
@@ -189,20 +191,12 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
       setProjectUsers([]);
       return;
     }
-    // Ignore errors from an old project's request after switching projects.
-    void loadMedia().catch(() => {
-      if (activeProjectRef.current === projectId) setMediaStatus("Media failed to load.");
-    });
+    // Snapshot serves the universal header. Other heavyweight payloads are
+    // tab-scoped below, so opening Project/Plan/People doesn't block on Media,
+    // Control Center, or Overview requests it cannot display.
     void loadProjectSnapshot().catch(() => {
       if (activeProjectRef.current === projectId) setSnapshot(null);
     });
-    void loadProjectDashboard().catch(() => {
-      if (activeProjectRef.current === projectId) setDashboard(null);
-    });
-    void loadProjectControlCenter().catch(() => {
-      if (activeProjectRef.current === projectId) setControlCenter(null);
-    });
-    // Intelligence is heavy; it is intentionally loaded only when its tab is opened.
     void loadProjectUsers().catch(() => {
       if (activeProjectRef.current === projectId) setProjectUsers([]);
     });
@@ -225,12 +219,26 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
     return () => window.removeEventListener("popstate", restore);
   }, [projectId, storedTabsState.hydrated]);
 
+  // A tab opens its own data, including after restoring a per-project tab.
+  // Keep the tab-owner/ref guards so an old Project never starts another one's
+  // requests during React's post-navigation effect flush.
+  useEffect(() => {
+    if (!projectId || !storedTabsState.hydrated || tabOwner !== projectId || tabRef.current !== tab) return;
+    const requestPlan = projectWorkspaceRequestPlan(tab);
+    if (requestPlan.media) void loadMedia().catch(() => {
+      if (activeProjectRef.current === projectId) setMediaStatus("Media failed to load.");
+    });
+    if (requestPlan.dashboard) void loadProjectDashboard().catch(() => undefined);
+    if (requestPlan.controlCenter) void loadProjectControlCenter().catch(() => undefined);
+  }, [projectId, storedTabsState.hydrated, tab, tabOwner, loadMedia, loadProjectDashboard, loadProjectControlCenter]);
+
   useEffect(() => {
     if (!projectId || tabOwner !== projectId || tab !== "intelligence") return;
+    if (!storedTabsState.hydrated || tabRef.current !== tab) return;
     void loadProjectIntelligence().catch(() => {
       if (activeProjectRef.current === projectId) setIntelligence(null);
     });
-  }, [projectId, tab, tabOwner, loadProjectIntelligence]);
+  }, [projectId, tab, tabOwner, storedTabsState.hydrated, loadProjectIntelligence]);
 
   useEffect(() => {
     if (!projectId || typeof window === "undefined") return;
