@@ -342,6 +342,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(key))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => {
@@ -373,6 +374,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(field))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => { const merged = { ...prev, ...updates }; persistStudioDraft(merged); return merged; });
