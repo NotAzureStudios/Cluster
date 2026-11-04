@@ -1250,6 +1250,12 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   person={profile}
                   actorId={currentUser.id}
                   departmentNames={workforceContext?.departments.map((department) => department.name) || []}
+                  managerOptions={(workforceContext?.people || [])
+                    .filter((candidate) => candidate.id !== profile.id && !candidate.archived && candidate.employment?.active !== false)
+                    .map((candidate) => ({
+                      id: candidate.id,
+                      label: candidate.preferredName || candidate.displayName || candidate.username,
+                    }))}
                   onRoleChange={async (role, expectedProfileRevision) => {
                     await api(`/api/users/${encodeURIComponent(profile.id)}`, {
                       method: "PATCH", body: JSON.stringify({ role, expectedProfileRevision }),
