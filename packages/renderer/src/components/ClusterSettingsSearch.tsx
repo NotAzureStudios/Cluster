@@ -18,6 +18,7 @@ export function ClusterSettingsSearch<Id extends string>({
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [announcement, setAnnouncement] = useState("");
   const results = useMemo(() => findClusterSettings(entries, query), [entries, query]);
   const visible = expanded && Boolean(query.trim());
   const listId = id + "-results";
@@ -27,6 +28,7 @@ export function ClusterSettingsSearch<Id extends string>({
     setExpanded(false);
     setQuery("");
     setActiveIndex(0);
+    setAnnouncement("Showing " + entry.label + " settings.");
     onNavigate(entry);
   }
 
@@ -67,6 +69,7 @@ export function ClusterSettingsSearch<Id extends string>({
       />
       <span className="cluster-settings-search-symbol-v11" aria-hidden="true">⌕</span>
     </div>
+    <span className="cluster-settings-search-announcement-v11" role="status" aria-live="polite">{announcement}</span>
     {visible && <div className="cluster-settings-search-results-v11">
       <span className="cluster-settings-search-count-v11" role="status">
         {results.length ? results.length + (results.length === 1 ? " result" : " results") : "No matching settings"}
