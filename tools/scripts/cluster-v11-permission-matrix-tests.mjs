@@ -112,6 +112,16 @@ test("All existing tool domains appear in exactly one visible access group", () 
   assert.deepEqual([...found].sort(), expected.sort());
   assert.equal(new Set(found).size, found.length);
 });
+test("Permission search and overrides filter are local controlled inputs", () => {
+  const source = read("packages/renderer/src/components/ClusterPermissionMatrix.tsx");
+  assert.match(source, /const \[search, setSearch\] = useState\(""/);
+  assert.match(source, /const \[overridesOnly, setOverridesOnly\] = useState\(false\)/);
+  assert.match(source, /overridesOnly && value\?\.\[row\.key\] === undefined/);
+  assert.match(source, /type="search" value=\{search\}/);
+  assert.match(source, /type="checkbox" checked=\{overridesOnly\}/);
+  assert.match(source, /No permissions match the current filters/);
+  assert.doesNotMatch(source, /fetch\(|queryApi\(|setInterval/);
+});
 test("Matrix remains navigable on narrow displays with adequate touch targets", () => {
   const css = read("packages/renderer/src/components/cluster-permission-matrix.css");
   for (const matcher of [/overflow-x: auto/, /position: sticky/, /:focus-visible/, /pointer: coarse/, /min-height: 48px/, /--accent/]) assert.match(css, matcher);
