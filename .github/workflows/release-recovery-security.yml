@@ -36,6 +36,8 @@ jobs:
         run: node tools/scripts/cluster-platform-release-tests.mjs
       - name: Auth and destructive restore guards
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-rc-release-recovery-auth-tests.mjs
+      - name: Protected Server Configuration save and PIN guards
+        run: node tools/scripts/cluster-server-config-save-guard-tests.mjs
       - name: Role-based password minimum and authentication policy
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-password-role-policy-tests.mjs
       - name: Server update signature, download and staging tests
