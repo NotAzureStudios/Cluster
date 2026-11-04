@@ -1,0 +1,40 @@
+name: Cluster 1.1 Board Graph Visibility
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/boards/BoardPlanningInsights.tsx"
+      - "packages/renderer/src/features/boards/board-dependency-graph-projection.ts"
+      - "packages/renderer/src/features/boards/board-workspace.css"
+      - "tools/scripts/cluster-v11-board-dependency-graph-visibility-tests.mjs"
+      - ".github/workflows/v11-board-dependency-graph-visibility.yml"
+  push:
+    branches: [fix/v11-board-dependency-graph-visibility]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  board-graph:
+    name: Board dependency graph (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Graph local scope and truncation checks
+        run: node tools/scripts/cluster-v11-board-dependency-graph-visibility-tests.mjs
+      - name: Existing Board blocker and date regressions
+        run: node tools/scripts/cluster-v11-board-actionable-blockers-tests.mjs && node tools/scripts/cluster-v11-board-completed-deadlines-tests.mjs
+        shell: bash
+      - name: Shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Renderer compile and type-check
+        run: npm run build --workspace=@cluster/renderer
