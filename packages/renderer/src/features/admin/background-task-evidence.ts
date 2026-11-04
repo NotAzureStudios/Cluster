@@ -24,7 +24,10 @@ export function failingBackgroundTasks(tasks: readonly BackgroundTaskEvidence[])
  * snapshots to admins. Never display raw credentials from task error strings. */
 export function summarizeBackgroundTaskError(value: string | null | undefined): string {
   const text = String(value || "No error detail available").slice(0, 500);
+  if (/-----BEGIN [A-Z ]*(?:PRIVATE|SECRET) KEY-----/i.test(text)) return "Sensitive key material was omitted.";
   return text
+    .replace(/(authorization\s*[:=]\s*(?:bearer|basic))\s+[^\s&,;]+/gi, "$1 [redacted]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~-]{12,}/gi, "Bearer [redacted]")
     .replace(/(password|secret|token|api[_-]?key|authorization|credential)\s*[:=]\s*[^\s&,;]+/gi, "$1=[redacted]")
     .replace(/(https?:\/\/)[^\s@/]+@/gi, "$1[redacted]@")
     .replace(/([?&](?:token|secret|key|password|access_token)=)[^\s&#]+/gi, "$1[redacted]")
