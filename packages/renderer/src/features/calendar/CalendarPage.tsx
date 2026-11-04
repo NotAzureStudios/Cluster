@@ -28,7 +28,7 @@ import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh
 import { ClusterInput } from "../../components/ClusterNativeControls";
 import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
-import { addCalendarMonths, calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
+import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
@@ -492,7 +492,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       ? `${weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" })} – ${weekDays[6].toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`
       : view === "day"
         ? anchorDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-        : `${range.start.toLocaleDateString([], { month: "short", year: "numeric" })} – ${addCalendarMonths(range.end, 0).toLocaleDateString([], { month: "short", year: "numeric" })}`;
+        : `${range.start.toLocaleDateString([], { month: "short", year: "numeric" })} – ${addDays(range.end, -1).toLocaleDateString([], { month: "short", year: "numeric" })}`;
 
   const eventTypes = ["meeting", "review", "deadline", "release", "milestone", "focus", "availability", "client", "production", "publishing", "maintenance", "other"];
 
