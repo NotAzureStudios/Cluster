@@ -54,6 +54,7 @@ app.get("/api/admin/users/assignable-roles", async (request, reply) => {
   const countByRole = new Map<string, number>(counts.map((row: any) => [String(row.role), Number(row._count?._all || 0)]));
   return {
     workspaceId: membership.workspaceId,
+    actorRole: membership.role,
     roles: definitions.map((role) => ({ ...role, members: countByRole.get(role.id) || 0 })),
   };
 });
