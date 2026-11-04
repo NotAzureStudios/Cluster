@@ -382,3 +382,15 @@
 .people-user-editor-actions-v106{display:flex;align-items:center;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding:12px 2px 4px;background:var(--panel)}
 .people-user-editor-actions-v106>span{margin-right:auto;color:var(--muted);font-size:.7rem}
 @media(max-width:700px){.people-user-editor-grid-v106{grid-template-columns:minmax(0,1fr)}.people-user-editor-access-v106{display:grid}.people-user-editor-actions-v106{flex-wrap:wrap}.people-user-editor-section-v106{padding:12px}}
+
+
+/* v1.1: workspace role changes are separate, confirmed security operations. */
+.people-role-assignment-v11{gap:9px}
+.people-role-assignment-v11>p{margin:0;color:var(--muted);font-size:.71rem;line-height:1.5}
+.people-role-assignment-v11>small{color:var(--muted);font-size:.68rem;line-height:1.45}
+.people-role-assignment-actions-v11{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
+.people-role-assignment-actions-v11>.people-user-editor-field-v106{min-width:0}
+.people-role-assignment-buttons-v11{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.people-role-assignment-actions-v11 select{max-width:100%}
+.people-user-editor-status-v11{margin:0;font-size:.71rem;color:var(--text)}
+@media(max-width:640px){.people-role-assignment-actions-v11{grid-template-columns:minmax(0,1fr)}.people-role-assignment-actions-v11>button{justify-self:start}}

@@ -1248,7 +1248,16 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                 {profileView === "edit" && effectiveAdminMode && !profile.archived && <PeopleUserEditor
                   key={profile.id}
                   person={profile}
+                  actorId={currentUser.id}
                   departmentNames={workforceContext?.departments.map((department) => department.name) || []}
+                  onRoleChange={async (role, expectedProfileRevision) => {
+                    await api(`/api/users/${encodeURIComponent(profile.id)}`, {
+                      method: "PATCH", body: JSON.stringify({ role, expectedProfileRevision }),
+                    });
+                    setDirectoryRefresh((current) => current + 1);
+                    await loadProfile(profile.id, true);
+                    setLoadStatus(`Updated workspace role for ${displayUserName(profile)}.`);
+                  }}
                   onDirtyChange={setEditorDirty}
                   onCancel={() => { setEditorDirty(false); setProfileViewState("overview"); }}
                   onOpenAccess={() => setProfileView("access")}
