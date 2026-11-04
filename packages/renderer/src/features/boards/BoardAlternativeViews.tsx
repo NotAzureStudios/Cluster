@@ -3,11 +3,10 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterContextMenuSurface, useClusterContextMenu } from "../../components/ClusterContextMenu";
-import { boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
+import { boardCardDeadlineNeedsAttention, boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BoardList, Card, Priority, UserActivitySummary } from "../application/application-models";
 import { displayUserName } from "../people/people-utils";
-import { isCardOverdue } from "./BoardCardTile";
 import { projectBoardTimelineRows, timelineWeekStart } from "./board-timeline-projection";
 
 export type BoardViewMode = "kanban" | "list" | "table" | "timeline" | "calendar";
@@ -77,14 +76,14 @@ function CalendarCardButton({ card, list, selected, onToggleSelected, onOpen }: 
   );
 }
 
-function CardFacts({ card, users }: { card: Card; users: UserActivitySummary[] }) {
+function CardFacts({ card, users, listDone }: { card: Card; users: UserActivitySummary[]; listDone: boolean }) {
   const checklistTotal = card.checklistItems?.length || 0;
   const checklistDone = card.checklistItems?.filter((item) => item.completed).length || 0;
   return (
     <div className="board-view-card-facts-v489">
       <span className={`priority-${priorityTone(card.priority)}`}>{card.priority}</span>
       <span>{cardAssignee(card, users)}</span>
-      {card.dueDate ? <span className={isCardOverdue(card.dueDate) ? "overdue" : ""}>{formatBoardCivilDate(card.dueDate)}</span> : <span>No due date</span>}
+      {card.dueDate ? <span className={boardCardDeadlineNeedsAttention(card.dueDate, listDone) ? "overdue" : ""}>{formatBoardCivilDate(card.dueDate)}</span> : <span>No due date</span>}
       {checklistTotal ? <span>{checklistDone}/{checklistTotal} checklist</span> : null}
       {card.estimatePoints !== null && card.estimatePoints !== undefined ? <span>{card.estimatePoints} pt</span> : null}
     </div>
@@ -122,7 +121,7 @@ export function BoardListView({ rows, users, selectedIds, onToggleSelected, onOp
                 <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
                 <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen} className="board-list-view-open-v489">
                   <span className="board-view-card-title-v489">{card.title}</span>
-                  <CardFacts card={card} users={users} />
+                  <CardFacts card={card} users={users} listDone={Boolean(list.isDone)} />
                 </ContextualCardOpenButton>
               </article>
             ))}
@@ -161,7 +160,7 @@ export function BoardTableView({ rows, users, selectedIds, onToggleSelected, onO
             <span role="cell">{list.title}</span>
             <span role="cell" className={`priority-${priorityTone(card.priority)}`}>{card.priority}</span>
             <span role="cell">{cardAssignee(card, users)}</span>
-            <span role="cell" className={card.dueDate && isCardOverdue(card.dueDate) ? "overdue" : ""}>{card.dueDate ? formatBoardCivilDate(card.dueDate) : "—"}</span>
+            <span role="cell" className={boardCardDeadlineNeedsAttention(card.dueDate, Boolean(list.isDone)) ? "overdue" : ""}>{card.dueDate ? formatBoardCivilDate(card.dueDate) : "—"}</span>
             <span role="cell">{card.checklistItems?.length ? `${card.checklistItems.filter((item) => item.completed).length}/${card.checklistItems.length}` : "—"}</span>
             <span role="cell">{card.estimatePoints ?? "—"}</span>
           </div>
