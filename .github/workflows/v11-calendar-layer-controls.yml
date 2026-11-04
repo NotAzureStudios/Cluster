@@ -1,0 +1,40 @@
+name: Cluster 1.1 Calendar Layer Controls
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/calendar/CalendarPage.tsx"
+      - "packages/renderer/src/features/calendar/calendar-display-filters.ts"
+      - "packages/renderer/src/features/calendar/calendar.css"
+      - "tools/scripts/cluster-v11-calendar-layer-controls-tests.mjs"
+      - ".github/workflows/v11-calendar-layer-controls.yml"
+  push:
+    branches: [feat/v11-calendar-layer-controls]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  calendar-layers:
+    name: Calendar layer controls (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Layer visibility, ACL scope and large view projection
+        run: node tools/scripts/cluster-v11-calendar-layer-controls-tests.mjs
+      - name: Existing Calendar date and year regressions
+        run: node tools/scripts/cluster-v11-calendar-year-zero-fetch-tests.mjs && node tools/scripts/cluster-v11-calendar-visible-overflow-tests.mjs && node tools/scripts/cluster-v11-calendar-conflict-projection-tests.mjs && node tools/scripts/cluster-v11-calendar-date-navigation-tests.mjs
+        shell: bash
+      - name: Shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Renderer compile and type-check
+        run: npm run build --workspace=@cluster/renderer
