@@ -33,6 +33,7 @@ import { CalendarYearNavigator } from "./CalendarYearNavigator";
 import { calendarViewNeedsRangeData } from "./calendar-view-data-policy";
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
+import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
@@ -129,8 +130,8 @@ function toDateInputValue(value?: string | null) { if (!value) return ""; const 
 function toDateTimeLocalInput(value?: string | null) { if (!value) return ""; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 16); }
 function fromDateTimeLocalInput(value: string) { return new Date(value).toISOString(); }
 
-function CalendarTimelineOverlayPanel({ entries }: { entries: TimelineEntry[] }) {
-  const overlays = entries.filter((entry) => entry.source === "manual" || entry.source === "card");
+function CalendarTimelineOverlayPanel({ items }: { items: CalendarDisplayItem[] }) {
+  const overlays = items.filter((item) => Boolean(item.overlay));
   return (
     <section className="panel calendar-sync-panel-v121">
       <div className="section-heading">
@@ -248,6 +249,10 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const [typeFilter, setTypeFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [layers, setLayers] = useState<CalendarLayerVisibility>(() => ({ ...DEFAULT_CALENDAR_LAYER_VISIBILITY }));
+  function toggleCalendarLayer(layer: CalendarLayer) {
+    setLayers((current) => ({ ...current, [layer]: !current[layer] }));
+  }
   const [showPlanningTools, setShowPlanningTools] = useState(false);
   const [status, setStatus] = useState("");
   const eventsRequestSequence = useRef(0);
@@ -428,16 +433,10 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     overlay: { source: entry.source === "card" ? "card" : "timeline", sourceId: entry.id, boardId: entry.boardId || null, readOnly: true },
   })), [visibleTimelineEntries]);
 
-  const filteredEvents = useMemo<CalendarDisplayItem[]>(() => {
-    const query = search.trim().toLowerCase();
-    const displayEvents: CalendarDisplayItem[] = [...visibleEvents, ...overlayItems];
-    return displayEvents
-      .filter((event) => projectFilter === "all" || (projectFilter === "studio" ? !event.projectId : event.projectId === projectFilter))
-      .filter((event) => typeFilter === "all" || (event.eventType || "meeting") === typeFilter)
-      .filter((event) => event.overlay ? ownerFilter === "all" : (ownerFilter === "all" || (ownerFilter === "unassigned" ? !event.ownerId : event.ownerId === ownerFilter)))
-      .filter((event) => !query || [event.title, event.description, event.location, event.project?.name, event.eventType, event.status, event.overlay?.source].filter(Boolean).join(" ").toLowerCase().includes(query))
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  }, [visibleEvents, overlayItems, projectFilter, typeFilter, ownerFilter, search]);
+  const filteredEvents = useMemo<CalendarDisplayItem[]>(() => filterCalendarDisplayItems(
+    visibleEvents, overlayItems,
+    { project: projectFilter, type: typeFilter, owner: ownerFilter, search, layers },
+  ), [visibleEvents, overlayItems, projectFilter, typeFilter, ownerFilter, search, layers]);
 
   function openDisplayItem(item: CalendarDisplayItem) {
     if (!item.overlay) {
@@ -461,7 +460,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const selectedEvents = eventsByDay.get(selectedKey) || [];
   const visibleSelectedEvents = calendarEventPage(selectedEvents, selectedDayLimit);
   const agendaEvents = calendarEventPage(filteredEvents, agendaLimit);
-  const agendaScopeKey = [range.start.getTime(), range.end.getTime(), projectFilter, typeFilter, ownerFilter, search].join("|");
+  const agendaScopeKey = [range.start.getTime(), range.end.getTime(), projectFilter, typeFilter, ownerFilter, search, layers.events, layers.timeline, layers.cards].join("|");
   useEffect(() => { setAgendaLimit(20); }, [agendaScopeKey]);
   useEffect(() => {
     if (!focusDayKey || focusDayKey !== selectedKey) return;
@@ -592,9 +591,24 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
           <ClusterSelect value={typeFilter} onChange={setTypeFilter} ariaLabel="Filter calendar by type" options={[{ value: "all", label: "All types" }, ...eventTypes.map((type) => ({ value: type, label: levelLabel(type) }))]} />
           <ClusterSelect value={ownerFilter} onChange={setOwnerFilter} ariaLabel="Filter calendar by owner" options={[{ value: "all", label: "All owners" }, { value: "unassigned", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: displayUserName(user) }))]} />
         </div>
+        {view !== "year" ? <div className="calendar-layer-controls-v11" role="group" aria-label="Calendar visibility layers">
+          <span>Show on calendar</span>
+          {([
+            ["events", "Events"],
+            ["timeline", "Timeline"],
+            ["cards", "Card deadlines"],
+          ] as const).map(([layer, label]) => (
+            <ClusterButton key={layer} size="compact" variant="quiet"
+              className="calendar-layer-toggle-v11" selected={layers[layer]} aria-pressed={layers[layer]}
+              onClick={() => toggleCalendarLayer(layer)}>{label}</ClusterButton>
+          ))}
+        </div> : null}
       </div>
 
-      {showPlanningTools && view !== "year" && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel entries={visibleTimelineEntries} /></div>}
+      {showPlanningTools && view !== "year" && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel items={filteredEvents} /></div>}
+      {view !== "year" && !layers.events && !layers.timeline && !layers.cards ? (
+        <p className="calendar-layers-empty-v11" role="status">All Calendar layers are hidden. Turn on a layer to display authorized events or work.</p>
+      ) : null}
 
       <div className={`calendar-workspace-v189 ${view === "year" ? "calendar-workspace-year-v11" : ""}`}>
         <section className="panel calendar-main-v189">
