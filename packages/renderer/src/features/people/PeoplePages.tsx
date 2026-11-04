@@ -50,6 +50,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { copyClusterText } from "../../core/clipboard";
 import { promptCluster } from "../../components/cluster-dialog-service";
+import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { PersonnelRecordsPanel } from "./PersonnelRecordsPanel";
 import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } from "./WorkforceAvailabilityExceptions";
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
@@ -135,7 +136,21 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const deferredDirectoryQuery = useDeferredValue(query);
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [profileView, setProfileView] = useState<"overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit">("overview");
+  type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit";
+  const [profileView, setProfileViewState] = useState<ProfileView>("overview");
+  const [editorDirty, setEditorDirty] = useState(false);
+  const { confirmDiscard: confirmEditorDiscard } = useUnsavedChangesGuard({
+    dirty: profileView === "edit" && editorDirty,
+    title: "Discard user changes?",
+    message: "Your user editor contains unsaved changes. Leave without saving?",
+  });
+  function setProfileView(next: ProfileView) {
+    if (profileView === "edit" && editorDirty && next !== "edit") {
+      void confirmEditorDiscard().then((confirmed) => {
+        if (confirmed) { setEditorDirty(false); setProfileViewState(next); }
+      });
+    } else setProfileViewState(next);
+  }
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [profileCalendar, setProfileCalendar] = useState<ProfileCalendarEvent[]>([]);
   const [profileCalendarLoading, setProfileCalendarLoading] = useState(false);
@@ -434,6 +449,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   async function copyProfileMention(person: User) { const copied = await copyClusterText(`@${person.username}`); setLoadStatus(copied ? `Mention copied for ${displayUserName(person)}.` : "Mention could not be copied on this device."); }
 
   async function selectProfile(userId: string) {
+    if (profileView === "edit" && editorDirty && userId !== activeProfileIdRef.current) {
+      if (!(await confirmEditorDiscard())) return;
+      setEditorDirty(false);
+    }
     ++peopleLoadSequenceRef.current; // Cancel older directory loads selecting a stale target.
     const sequence = ++profileRequestSequenceRef.current;
     activeProfileIdRef.current = userId;
@@ -442,7 +461,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setProfileCalendarLoading(false);
     setProfile(null);
     setSelectedUserId(userId);
-    setProfileView("overview");
+    setProfileViewState("overview");
     setLoadStatus("Loading profile...");
     try {
       // Render the profile as soon as its authorized payload arrives. The legacy
@@ -1222,13 +1241,15 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   key={profile.id}
                   person={profile}
                   departmentNames={workforceContext?.departments.map((department) => department.name) || []}
-                  onCancel={() => setProfileView("overview")}
+                  onDirtyChange={setEditorDirty}
+                  onCancel={() => { setEditorDirty(false); setProfileViewState("overview"); }}
                   onOpenAccess={() => setProfileView("access")}
                   onSave={async (changes) => {
                     await api(`/api/users/${encodeURIComponent(profile.id)}`, { method: "PATCH", body: JSON.stringify(changes) });
                     setDirectoryRefresh((current) => current + 1);
                     await loadProfile(profile.id, true);
-                    setProfileView("overview");
+                    setEditorDirty(false);
+                    setProfileViewState("overview");
                     setLoadStatus(`User details saved for ${displayUserName(profile)}.`);
                   }}
                 />}
