@@ -121,3 +121,10 @@
   .cluster-settings-choice-v11 { transition: none; }
 }
 :root[data-motion="none"] .cluster-settings-choice-v11 { transition: none; }
+
+/* Identity fields should read like concise editable properties, not separate cards. */
+.studio-identity-controls-v11 > .cluster-settings-row-v11 { grid-column: 1 / -1; }
+.studio-identity-controls-v11 > .cluster-settings-row-v11 .cluster-settings-row-control-v11 { width: min(100%, 440px); }
+.studio-identity-controls-v11 > .cluster-settings-row-v11 .cluster-settings-row-control-v11 > * { width: 100%; }
+.settings-component-gallery-v11 { min-width: 0; }
+.settings-component-gallery-v11 > div { min-width: 0; }
