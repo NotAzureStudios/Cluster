@@ -12,7 +12,8 @@ import { assignableStudioRoles, assignWorkspaceRole, requireAssignableStudioRole
 import { applyDisclosureObligations, userDisclosureObligations } from "../access/disclosure.js";
 import { syncUserWorkforceAuthorities } from "../workforce/workforce-normalization.js";
 import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-authority.js";
-import { validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
+import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
+import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 
 type UserDirectoryRouteDependencies = {
   app: FastifyInstance;
@@ -177,10 +178,10 @@ app.post("/api/users", async (request, reply) => {
       avatarUrl: z.string().url().optional().nullable(),
       title: z.string().optional().nullable(),
       department: z.string().optional().nullable(),
-      legalName: z.string().optional().nullable(),
+      legalName: z.string().max(160).optional().nullable(),
       preferredName: z.string().optional().nullable(),
-      pronouns: z.string().optional().nullable(),
-      phoneNumber: z.string().optional().nullable(),
+      pronouns: z.string().max(160).optional().nullable(),
+      phoneNumber: z.string().max(60).optional().nullable(),
       alternatePhoneNumber: z.string().optional().nullable(),
       alternateEmails: z.array(z.string()).optional().default([]),
       addressLine1: z.string().optional().nullable(),
@@ -199,7 +200,7 @@ app.post("/api/users", async (request, reply) => {
       workLocation: z.string().optional().nullable(),
       hideLegalName: z.boolean().optional(),
       hideLocation: z.boolean().optional(),
-      timezone: z.string().optional().nullable(),
+      timezone: z.string().max(100).refine(validPeopleTimeZone, "Choose a valid IANA time zone.").optional().nullable(),
       skills: z.array(z.string()).optional().default([]),
       expertise: expertiseSchema.optional().default([]),
       workingHours: workingHoursSchema.optional().default({}),
@@ -207,8 +208,8 @@ app.post("/api/users", async (request, reply) => {
       managerUserId: z.string().optional().nullable(),
       capacityHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
       minimumHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
-      notes: z.string().optional().nullable(),
-      startDate: z.string().optional().nullable(),
+      notes: z.string().max(4000).optional().nullable(),
+      startDate: z.string().max(64).refine(validPeopleStartDate, "Choose a valid employment date.").optional().nullable(),
       role: z.string().trim().min(1).max(80).default("member"),
       toolPermissions: z.record(z.string()).optional(),
       projectPermissions: z.record(z.string()).optional(),
@@ -253,7 +254,14 @@ app.post("/api/users", async (request, reply) => {
   if (body.projectPermissions && Object.keys(body.projectPermissions).length)
     return reply.code(409).send({ ok: false, code: "SCOPED_GRANT_REVIEW_REQUIRED", error: "Initial Project grants require independent approval after identity provisioning." });
   // Expiring accounts cannot be provisioned without a valid finite access window.
-  validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  try {
+    validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  } catch (error) {
+    if (error instanceof StudioReturnError) {
+      return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
+    }
+    throw error;
+  }
   const commonData = {
     employeeNumber: body.employeeNumber?.trim() || null,
     displayName: body.displayName?.trim() || null,
@@ -353,10 +361,10 @@ app.patch("/api/users/:userId", async (request, reply) => {
       avatarUrl: z.string().url().optional().nullable(),
       title: z.string().optional().nullable(),
       department: z.string().optional().nullable(),
-      legalName: z.string().optional().nullable(),
+      legalName: z.string().max(160).optional().nullable(),
       preferredName: z.string().optional().nullable(),
-      pronouns: z.string().optional().nullable(),
-      phoneNumber: z.string().optional().nullable(),
+      pronouns: z.string().max(160).optional().nullable(),
+      phoneNumber: z.string().max(60).optional().nullable(),
       alternatePhoneNumber: z.string().optional().nullable(),
       alternateEmails: z.array(z.string()).optional(),
       addressLine1: z.string().optional().nullable(),
@@ -375,7 +383,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
       workLocation: z.string().optional().nullable(),
       hideLegalName: z.boolean().optional(),
       hideLocation: z.boolean().optional(),
-      timezone: z.string().optional().nullable(),
+      timezone: z.string().max(100).refine(validPeopleTimeZone, "Choose a valid IANA time zone.").optional().nullable(),
       skills: z.array(z.string()).optional(),
       expertise: expertiseSchema.optional(),
       workingHours: workingHoursSchema.optional(),
@@ -384,8 +392,8 @@ app.patch("/api/users/:userId", async (request, reply) => {
       expectedProfileRevision: z.coerce.number().int().min(1).optional(),
       capacityHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
       minimumHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
-      notes: z.string().optional().nullable(),
-      startDate: z.string().optional().nullable(),
+      notes: z.string().max(4000).optional().nullable(),
+      startDate: z.string().max(64).refine(validPeopleStartDate, "Choose a valid employment date.").optional().nullable(),
       archived: z.boolean().optional(),
       role: z.string().trim().min(1).max(80).optional(),
       toolPermissions: z.record(z.string()).optional(),
@@ -491,6 +499,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
     roleChange = outcome.roleChange;
   } catch (error) {
     if (error instanceof PeopleGovernanceError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message, ...(error.details || {}) });
+    if (error instanceof StudioReturnError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
     throw error;
   }
   if (roleChange?.changed) {
