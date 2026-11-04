@@ -10,6 +10,7 @@ import "./styles/application-sync.css";
 import "./smart-interface.css";
 import "./styles/phase1-identity-v473.css";
 import { CLUSTER_SESSION_INVALIDATED_EVENT, api, queryApi } from "../../core/api";
+import { boardNeedsBlockingLoading } from "./board-loading-policy";
 import { accessibleDocumentTitle } from "../../core/accessibility";
 import { isMeaningfulWorkspaceScreen, type SmartWorkspaceContext } from "../../core/smart-interface";
 import { canOpenScreen, createNavigationState, isProjectContextScreen, isAppScreen, navigationHash, navigationParentState, navigationStateFromHistory, parseNavigationRoute, readNavigationSession, resolveInitialNavigation, screenFromStartSetting, screenLabel, serializeNavigationRoute, writeNavigationSession, type AppNavigationState, type AppScreen } from "../../core/navigation";
@@ -189,6 +190,16 @@ export default function App() {
   const [board, setBoard] = useState<Board | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
   const [boardLoadError, setBoardLoadError] = useState<unknown>(null);
+  const [boardLoadErrorId, setBoardLoadErrorId] = useState<string | null>(null);
+  const boardRequestSequence = useRef(0);
+  const activeBoardIdRef = useRef(boardId);
+  activeBoardIdRef.current = boardId;
+  const loadedBoardRef = useRef(board);
+  loadedBoardRef.current = board;
+  const activeBoardUserRef = useRef(user?.id);
+  activeBoardUserRef.current = user?.id;
+  const activeBoardScreenRef = useRef(screen);
+  activeBoardScreenRef.current = screen;
   const [loading, setLoading] = useState(true);
   const [bootError, setBootError] = useState<unknown>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
@@ -466,6 +477,10 @@ export default function App() {
     setProjects([]);
     setProjectsLoaded(false);
     setBoard(null);
+    boardRequestSequence.current += 1;
+    setBoardLoadError(null);
+    setBoardLoadErrorId(null);
+    setBoardLoading(false);
     setWhiteboards([]);
     setWhiteboardsLoaded(false);
     setOpenProjectTabIds([]);
@@ -553,22 +568,41 @@ export default function App() {
     setWhiteboardsLoaded(true);
   }
   async function loadBoard(id = boardId, force = false) {
+    const sequence = ++boardRequestSequence.current;
     if (!id) {
       setBoard(null);
       setBoardLoadError(null);
+      setBoardLoadErrorId(null);
       setBoardLoading(false);
       return;
     }
-    setBoardLoading(true);
+    const accountAtStart = activeBoardUserRef.current;
+    const replacingBoard = loadedBoardRef.current?.id !== id;
+    // Leave the currently authorized Board interactive during ordinary
+    // collaboration, recovery and background revalidation.
+    if (replacingBoard) setBoardLoading(true);
     setBoardLoadError(null);
+    setBoardLoadErrorId(null);
+    const stillCurrent = () =>
+      sequence === boardRequestSequence.current
+      && activeBoardIdRef.current === id
+      && activeBoardUserRef.current === accountAtStart
+      && activeBoardScreenRef.current === "board";
     try {
       const result = await queryApi<Board>(`/api/boards/${id}`, { force, staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["boards", `board:${id}`] });
+      if (!stillCurrent()) return;
       setBoard(result);
+      setBoardLoadError(null);
+      setBoardLoadErrorId(null);
     } catch (error) {
+      if (!stillCurrent()) return;
+      // Permission or session denial still removes the old Board; a cached
+      // response is never an entitlement to continue viewing revoked work.
       setBoard(null);
       setBoardLoadError(error);
+      setBoardLoadErrorId(id);
     } finally {
-      setBoardLoading(false);
+      if (stillCurrent()) setBoardLoading(false);
     }
   }
   useEffect(() => {
@@ -632,10 +666,13 @@ export default function App() {
     setThemeState(nextTheme);
   }
   useEffect(() => {
-    if (user && !signedOutKiosk) {
-      void Promise.allSettled([loadAppSettings(), loadProjects()]);
-    }
+    if (user && !signedOutKiosk) void loadAppSettings();
   }, [user, signedOutKiosk]);
+  // Profile, availability and PIN updates replace the User object. They do
+  // not require refetching the entire Projects list every time.
+  useEffect(() => {
+    if (user?.id && !signedOutKiosk) void loadProjects().catch(() => undefined);
+  }, [user?.id, signedOutKiosk]);
   useEffect(() => {
     if (!user?.id || signedOutKiosk || whiteboardsLoaded || !screenNeedsWhiteboards(screen)) return;
     void loadWhiteboards().catch(() => undefined);
@@ -1154,8 +1191,8 @@ export default function App() {
     }
   }
   useEffect(() => {
-    if (screen === "board" && boardId) void loadBoard(boardId);
-  }, [screen, boardId]);
+    if (user?.id && screen === "board" && boardId) void loadBoard(boardId);
+  }, [screen, boardId, user?.id]);
   useEffect(() => {
     if (screen === "board" || !board) return;
     const timer = window.setTimeout(() => {
@@ -1433,9 +1470,9 @@ export default function App() {
             onOpenLibrary={(folderId) => openClusterWorkNavigation({ screen: "library", projectId: projectId || visibleProjects[0]?.id || null, inspectScope: "library-item", inspectId: folderId })}
           /></LazyFeatureBoundary>
         )}
-        {screen === "board" && (boardLoading && boardId ? (
+        {screen === "board" && (boardNeedsBlockingLoading(boardId, board?.id || null, boardLoading, boardLoadErrorId) ? (
           <BoardLoadingState label="Loading board" columns={4} />
-        ) : boardLoadError && boardId ? (
+        ) : boardLoadError && boardId && boardLoadErrorId === boardId ? (
           <RequestErrorState error={boardLoadError} title="Board could not be loaded" onRetry={() => void loadBoard(boardId)} reloadLabel="Reload projects" onReload={() => void loadProjects()} />
         ) : (
           <LazyBoardPage
@@ -1446,8 +1483,10 @@ export default function App() {
             onSelectBoard={(id) => {
               setBoardId(id);
               if (!id) {
+                boardRequestSequence.current += 1;
                 setBoard(null);
                 setBoardLoadError(null);
+                setBoardLoadErrorId(null);
                 setBoardLoading(false);
               }
             }}
