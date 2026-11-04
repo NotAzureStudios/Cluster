@@ -21,6 +21,7 @@ import { ClusterTextInput } from "./ClusterTextInput";
 import { ClusterTreeTable } from "./ClusterTreeTable";
 import { ClusterSlider } from "./ClusterSlider";
 import { ClusterToggle } from "./ClusterToggle";
+import { ClusterSettingsChoiceGroup, ClusterSettingsChangeReview, ClusterSettingsRow, ClusterSettingsSection } from "./ClusterSettingsPrimitives";
 
 const PREVIEW_ROWS = [
   { id: "build", name: "Build", state: "Ready" },
@@ -41,6 +42,8 @@ export function DesignSystemPreview() {
   const [owner, setOwner] = useState("duckey");
   const [sliderValue, setSliderValue] = useState(58);
   const [toggleValue, setToggleValue] = useState(true);
+  const [settingsDensity, setSettingsDensity] = useState<"compact" | "comfortable">("compact");
+  const [settingsSound, setSettingsSound] = useState(true);
   const [propertyDraft, setPropertyDraft] = useState("Ready for review");
   const [dateRange, setDateRange] = useState({ start: "2026-09-15", end: "2026-09-30" });
   const [recurrence, setRecurrence] = useState<ClusterRecurrenceValue>({ frequency: "weekly", interval: 1, weekdays: ["1", "3", "5"] });
@@ -91,6 +94,22 @@ export function DesignSystemPreview() {
           <ClusterCombobox value={system} onChange={setSystem} ariaLabel="Preview searchable system" options={[{ value: "build", label: "Builds", meta: "Delivery" }, { value: "qa", label: "QA", meta: "Verification" }, { value: "source", label: "Source Control", meta: "Engineering" }]} />
           <ClusterEntityPicker value={owner} onChange={setOwner} ariaLabel="Preview owner" entities={[{ id: "duckey", label: "Duckey", meta: "Project lead", kind: "person", icon: "user" }, { id: "qa", label: "QA Team", meta: "Department", kind: "team", icon: "users" }]} />
           <label className="cluster-slider-field-v533"><span>Slider primitive</span><output className="cluster-slider-value-v533">{sliderValue}%</output><ClusterSlider min="0" max="100" value={sliderValue} onChange={(event) => setSliderValue(Number(event.target.value))} aria-label="Preview slider" /></label><ClusterToggle checked={toggleValue} onCheckedChange={setToggleValue} label="Toggle primitive" description="Persistent on/off settings" />
+        </div>
+        <div className="design-system-preview-group-v383">
+          <span>Settings interactions · v1.1</span>
+          <ClusterSettingsSection title="Live settings examples" summary="Controls are local to this preview.">
+            <ClusterSettingsRow label="Sound feedback" description="A concise on/off preference">
+              <ClusterToggle checked={settingsSound} onCheckedChange={setSettingsSound} aria-label="Preview sound feedback" />
+            </ClusterSettingsRow>
+            <ClusterSettingsRow label="Density" help="Different workspaces can reuse the same selection behavior.">
+              <ClusterSettingsChoiceGroup label="Preview settings density" density="compact" value={settingsDensity} onChange={setSettingsDensity}
+                options={[{ value: "compact", label: "Compact" }, { value: "comfortable", label: "Comfortable" }]} />
+            </ClusterSettingsRow>
+            <ClusterSettingsChangeReview label="Example change review" changes={[
+              { id: "density", label: "Interface density", before: "Compact", after: settingsDensity, impact: "none" },
+              { id: "security", label: "Protected setting", sensitive: true, before: "secret", after: "updated-secret", impact: "protected" },
+            ]} />
+          </ClusterSettingsSection>
         </div>
         <div className="design-system-preview-group-v383">
           <span>Data table</span>

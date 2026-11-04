@@ -14,6 +14,7 @@ import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../core/options";
 import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
+import { ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
@@ -954,15 +955,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                     <h3>Workspace identity</h3>
                     <span>Shown in shared app chrome</span>
                   </div>
-                  <div className="two-col compact-fields-v092">
-                    <div className="field">
-                      <label>Studio / organization name</label>
-                      <ClusterInput value={settings.studioName || ""} onChange={(e) => patch("studioName", e.target.value)} placeholder="Your studio" />
-                    </div>
-                    <div className="field">
-                      <label>Workspace name</label>
-                      <ClusterInput value={settings.workspaceName || ""} onChange={(e) => patch("workspaceName", e.target.value)} placeholder="Cluster Workspace" />
-                    </div>
+                  <div className="two-col compact-fields-v092 studio-identity-controls-v11">
+                    <ClusterSettingsRow label="Studio / organization name" controlId="studio-name-field-v11">
+                      <ClusterInput id="studio-name-field-v11" value={settings.studioName || ""} onChange={(e) => patch("studioName", e.target.value)} placeholder="Your studio" />
+                    </ClusterSettingsRow>
+                    <ClusterSettingsRow label="Workspace name" controlId="studio-workspace-field-v11">
+                      <ClusterInput id="studio-workspace-field-v11" value={settings.workspaceName || ""} onChange={(e) => patch("workspaceName", e.target.value)} placeholder="Cluster Workspace" />
+                    </ClusterSettingsRow>
                     <div className="field span-2">
                       <label>Organization logo</label>
                       <div className="studio-logo-controls-v239">
@@ -995,20 +994,18 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                         applyCustomization({ ...settings, studioSecondaryColor: value });
                       }}
                     />
-                    <div className="field">
-                      <label>Project code prefix</label>
-                      <ClusterInput value={settings.studioProjectCodePrefix || "CLST"} onChange={(e) => patch("studioProjectCodePrefix", e.target.value.toUpperCase())} placeholder="CLST" />
-                    </div>
-                    <div className="field">
-                      <label>Studio timezone</label>
-                      <ClusterNativeSelect value={settings.studioTimezone || "America/New_York"} onChange={(e) => patch("studioTimezone", e.target.value)}>
+                    <ClusterSettingsRow label="Project code prefix" controlId="studio-code-prefix-field-v11" help="Used when generating new project codes. Existing project identities are not renamed.">
+                      <ClusterInput id="studio-code-prefix-field-v11" value={settings.studioProjectCodePrefix || "CLST"} onChange={(e) => patch("studioProjectCodePrefix", e.target.value.toUpperCase())} placeholder="CLST" />
+                    </ClusterSettingsRow>
+                    <ClusterSettingsRow label="Studio timezone" controlId="studio-timezone-field-v11">
+                      <ClusterNativeSelect id="studio-timezone-field-v11" value={settings.studioTimezone || "America/New_York"} onChange={(e) => patch("studioTimezone", e.target.value)}>
                         {optionsWithCurrent(TIMEZONE_OPTIONS, settings.studioTimezone || "America/New_York").map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
                       </ClusterNativeSelect>
-                    </div>
+                    </ClusterSettingsRow>
                   </div>
                   <div className="logo-preview-card logo-preview-card-v092">
                     {settings.organizationLogoUrl ? <img loading="lazy" decoding="async" src={settings.organizationLogoUrl} alt="Organization logo preview" /> : <div className="logo-preview-empty">Logo</div>}
