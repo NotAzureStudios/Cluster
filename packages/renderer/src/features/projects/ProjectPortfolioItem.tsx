@@ -1,4 +1,5 @@
 import type { Project } from "../application/application-models";
+import type { MouseEvent } from "react";
 import { projectScheduleMeta } from "./project-portfolio-model";
 import { runtimeStyle } from "../../core/runtime-style";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
@@ -21,7 +22,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   gaps: string[];
   memberCount: number;
   onSelect: () => void;
-  onInspect: () => void;
+  onInspect: (event: MouseEvent<HTMLButtonElement>) => void;
   onTogglePin: () => void;
 }) {
   const scheduleMeta = schedule || projectScheduleMeta(project, project.archived ? "archived" : String(project.status || "active"));
@@ -30,7 +31,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const summaryId = `project-portfolio-summary-${project.id}`;
   const summary = (project.objective || project.description || "").trim();
   return (
-    <article title={`${project.name} · ${typeLabel}`} data-cluster-context-row="true" className={`project-row-v146 project-row-v310 project-row-v57 project-row-accessible-v370 project-tile-rc25 ${selected ? "selected" : ""} ${pinned ? "pinned" : ""} density-${density}`} style={runtimeStyle({ "--project-row-accent": project.color || "#57c1ff" })}>
+    <article title={`${project.name} · ${typeLabel}`} data-cluster-context-row="true" data-project-id={project.id} className={`project-row-v146 project-row-v310 project-row-v57 project-row-accessible-v370 project-tile-rc25 ${selected ? "selected" : ""} ${pinned ? "pinned" : ""} density-${density}`} style={runtimeStyle({ "--project-row-accent": project.color || "#57c1ff" })}>
       <ClusterButton unstyled type="button" className="project-row-select-v370" aria-labelledby={typeLabel ? `${titleId} ${typeId}` : titleId} aria-describedby={density === "comfortable" && summary ? summaryId : undefined} onClick={onSelect} title={`Open ${project.name}`} />
       <div className="project-tile-head-rc25">
         <span className="project-tile-avatar-rc25"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
