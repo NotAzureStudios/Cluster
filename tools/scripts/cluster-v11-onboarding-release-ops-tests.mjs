@@ -43,6 +43,9 @@ const auth = read("apps/server/src/domains/auth/auth-core-routes.ts");
 const userRoutes = read("apps/server/src/domains/users/user-directory-routes.ts");
 assert.match(auth, /app\.post\("\/api\/auth\/session-password"/);
 assert.match(userRoutes, /accountState: "PASSWORD_CHANGE_REQUIRED"/);
+const signIn = read("packages/renderer/src/features/auth/AuthScreens.tsx");
+assert.match(signIn, /First time signing in\?/);
+assert.match(signIn, /temporary password provided privately/);
 const diagnostic = load("packages/renderer/src/features/admin/background-task-evidence.ts");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 2 }), "recent");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 3 }), "warning");
@@ -69,6 +72,7 @@ for (const name of [
   "packages/renderer/src/features/changelog/ChangelogPage.tsx",
   "packages/renderer/src/features/people/AccountCredentialHandoff.tsx",
   "packages/renderer/src/features/people/PeoplePages.tsx",
+  "packages/renderer/src/features/auth/AuthScreens.tsx",
   "packages/renderer/src/features/admin/ScheduledTaskDiagnosticsPanel.tsx",
   "packages/renderer/src/features/admin/BackgroundJobsPanel.tsx",
 ]) {
