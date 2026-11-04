@@ -136,6 +136,13 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [pinnedProjectIds, setPinnedProjectIds] = useServerState<string[]>("user", "projects.pinned", [], { merge: (value) => Array.isArray(value) ? value.map(String) : [] });
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
+  const inspectorReturnFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    // The inspector is non-modal; announce the opened panel without trapping
+    // focus or stealing focus repeatedly during ordinary data updates.
+    if (inspectorOpen) inspectorPanelRef.current?.focus({ preventScroll: true });
+  }, [inspectorOpen]);
   const [browserFiltersOpen, setBrowserFiltersOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [intelligenceOpen, setIntelligenceOpen] = useState(false);
@@ -419,6 +426,22 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "due_soon", label: "Due soon", count: focusCounts.due_soon, icon: "calendar" as const },
     { id: "unscheduled", label: "No target date", count: focusCounts.unscheduled, icon: "calendar" as const },
   ] as const;
+  function openInspector(projectId: string, trigger: HTMLElement) {
+    // Row actions can be rendered inside a floating menu. Restore keyboard
+    // focus to the stable underlying Project tile, not an unmounted menu item.
+    const card = Array.from(document.querySelectorAll<HTMLElement>("[data-project-id]"))
+      .find((node) => node.dataset.projectId === projectId);
+    inspectorReturnFocusRef.current = card?.querySelector<HTMLElement>(".project-row-select-v370") || trigger;
+    setSelectedProjectId(projectId);
+    setInspectorOpen(true);
+  }
+  function dismissInspector() {
+    setInspectorOpen(false);
+    const returnTo = inspectorReturnFocusRef.current;
+    inspectorReturnFocusRef.current = null;
+    if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+    else searchRef.current?.focus({ preventScroll: true });
+  }
   function chooseBrowserFocus(next: ProjectPortfolioFocus) {
     setStatusFilter("all");
     setSourceFilter("all");
@@ -662,7 +685,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     gaps={fact.gaps}
                     memberCount={fact.memberCount}
                     onSelect={() => onOpenProject(fact.project.id)}
-                    onInspect={() => { setSelectedProjectId(fact.project.id); setInspectorOpen(true); }}
+                    onInspect={(trigger) => openInspector(fact.project.id, trigger)}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
                   />
                 )) : (
@@ -678,8 +701,21 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 {hasMoreProjects ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" onClick={() => setProjectRenderLimit((current) => current + PROJECT_RENDER_BATCH)}>Show {Math.min(PROJECT_RENDER_BATCH, sortedFacts.length - visibleFacts.length)} more · {sortedFacts.length - visibleFacts.length} loaded locally</ClusterButton></div> : projectCursor.hasMore ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" disabled={projectCursor.loading} onClick={projectCursor.loadMore}>{projectCursor.loading ? "Loading more…" : "Load 80 more projects from server"}</ClusterButton></div> : null}
               </div>}
             </section>
-            {inspectorOpen ? <div className="projects-browser-inspector-shell-rc25">
-              <div className="projects-browser-inspector-toolbar-rc25"><strong>Project details</strong><ClusterButton variant="quiet" size="compact" onClick={() => setInspectorOpen(false)} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton></div>
+            {inspectorOpen ? <div ref={inspectorPanelRef} role="dialog" aria-modal="false"
+              aria-labelledby="projects-browser-inspector-heading-rc25"
+              aria-describedby="projects-browser-inspector-help-v11"
+              tabIndex={-1} className="projects-browser-inspector-shell-rc25"
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || event.defaultPrevented) return;
+                event.preventDefault();
+                event.stopPropagation();
+                dismissInspector();
+              }}>
+              <div className="projects-browser-inspector-toolbar-rc25">
+                <strong id="projects-browser-inspector-heading-rc25">Project details{selectedProject ? ` · ${selectedProject.name}` : ""}</strong>
+                <ClusterButton variant="quiet" size="compact" onClick={dismissInspector} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton>
+              </div>
+              <p id="projects-browser-inspector-help-v11" className="sr-only-v204">Read-only project preview. Press Escape to close and return to the project list.</p>
               <ProjectPortfolioInspector
               project={selectedProject}
               health={selectedFact?.health || null}
