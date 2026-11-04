@@ -1,0 +1,40 @@
+name: v1.1 Department Policy Links
+
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - 'apps/server/src/domains/departments/department-policy-link.ts'
+      - 'apps/server/src/app/server-routes-configuration-integrations.ts'
+      - 'packages/renderer/src/features/settings/StudioSettingsPage.tsx'
+      - 'packages/renderer/src/features/application/application-models/settings-server.ts'
+      - 'tools/scripts/cluster-v11-department-policy-link-tests.mjs'
+      - '.github/workflows/v11-department-policy-link.yml'
+  push:
+    branches: [development, feat/v1.1-department-policy-link]
+    paths:
+      - 'apps/server/src/domains/departments/department-policy-link.ts'
+      - 'apps/server/src/app/server-routes-configuration-integrations.ts'
+      - 'packages/renderer/src/features/settings/StudioSettingsPage.tsx'
+      - 'packages/renderer/src/features/application/application-models/settings-server.ts'
+      - 'tools/scripts/cluster-v11-department-policy-link-tests.mjs'
+      - '.github/workflows/v11-department-policy-link.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  department-link-contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-department-policy-link-tests.mjs
