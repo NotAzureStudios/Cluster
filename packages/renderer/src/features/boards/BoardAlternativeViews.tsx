@@ -4,7 +4,8 @@ import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterContextMenuSurface, useClusterContextMenu } from "../../components/ClusterContextMenu";
 import { boardCardDeadlineNeedsAttention, boardCivilDate, boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
-import { boardCalendarPage, projectBoardCalendarRows } from "./board-calendar-projection";
+import { projectBoardCalendarRows } from "./board-calendar-projection";
+import { boardVisiblePage } from "./board-visible-page";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BoardList, Card, Priority, UserActivitySummary } from "../application/application-models";
 import { displayUserName } from "../people/people-utils";
@@ -98,6 +99,7 @@ export function BoardListView({ rows, users, selectedIds, onToggleSelected, onOp
   onToggleSelected: (cardId: string) => void;
   onOpen: (card: Card) => void;
 }) {
+  const [visibleByList, setVisibleByList] = useState<Record<string, number>>({});
   const grouped = useMemo(() => {
     const groups = new Map<string, { list: BoardList; rows: BoardViewRow[] }>();
     rows.forEach((row) => {
@@ -117,7 +119,7 @@ export function BoardListView({ rows, users, selectedIds, onToggleSelected, onOp
             <span>{listRows.length} card{listRows.length === 1 ? "" : "s"}</span>
           </header>
           <div className="board-list-view-rows-v489">
-            {listRows.map(({ card }) => (
+            {boardVisiblePage(listRows, visibleByList[list.id] || 40).map(({ card }) => (
               <article key={card.id} className={selectedIds.has(card.id) ? "selected" : ""}>
                 <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
                 <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen} className="board-list-view-open-v489">
@@ -127,6 +129,16 @@ export function BoardListView({ rows, users, selectedIds, onToggleSelected, onOp
               </article>
             ))}
           </div>
+          {listRows.length > (visibleByList[list.id] || 40) ? (
+            <div className="board-view-load-more-v11">
+              <span>{Math.min(listRows.length, visibleByList[list.id] || 40)} of {listRows.length} cards shown</span>
+              <ClusterButton variant="secondary" size="compact"
+                aria-label={`Show next ${Math.min(40, listRows.length - (visibleByList[list.id] || 40))} cards in ${list.title}`}
+                onClick={() => setVisibleByList((current) => ({ ...current, [list.id]: (current[list.id] || 40) + 40 }))}>
+                Show next {Math.min(40, listRows.length - (visibleByList[list.id] || 40))} cards
+              </ClusterButton>
+            </div>
+          ) : null}
         </section>
       ))}
       {!rows.length ? <ClusterEmptyState compact kind="filtered" icon="grid" className="board-alt-empty-v489" title="No cards match this view" description="Clear a filter or choose another saved view." /> : null}
@@ -141,9 +153,12 @@ export function BoardTableView({ rows, users, selectedIds, onToggleSelected, onO
   onToggleSelected: (cardId: string) => void;
   onOpen: (card: Card) => void;
 }) {
+  const [renderLimit, setRenderLimit] = useState(80);
+  const visibleRows = boardVisiblePage(rows, renderLimit);
   return (
-    <div className="board-alt-view-v489 board-table-view-v489 panel" role="table" aria-label="Board table view" aria-rowcount={rows.length}>
-      <div className="board-table-header-v489" role="row">
+    <>
+    <div className="board-alt-view-v489 board-table-view-v489 panel" role="table" aria-label="Board table view" aria-rowcount={rows.length + 1}>
+      <div className="board-table-header-v489" role="row" aria-rowindex={1}>
         <span role="columnheader" aria-label="Selection" />
         <span role="columnheader">Card</span>
         <span role="columnheader">Column</span>
@@ -154,8 +169,8 @@ export function BoardTableView({ rows, users, selectedIds, onToggleSelected, onO
         <span role="columnheader">Points</span>
       </div>
       <div className="board-table-body-v489" role="rowgroup">
-        {rows.map(({ card, list }) => (
-          <div key={card.id} className={`board-table-row-v489 ${selectedIds.has(card.id) ? "selected" : ""}`} role="row" aria-selected={selectedIds.has(card.id)}>
+        {visibleRows.map(({ card, list }, index) => (
+          <div key={card.id} className={`board-table-row-v489 ${selectedIds.has(card.id) ? "selected" : ""}`} role="row" aria-rowindex={index + 2} aria-selected={selectedIds.has(card.id)}>
             <span role="cell"><CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} /></span>
             <span role="cell"><ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen} className="board-table-card-v489">{card.title}</ContextualCardOpenButton></span>
             <span role="cell">{list.title}</span>
@@ -169,6 +184,15 @@ export function BoardTableView({ rows, users, selectedIds, onToggleSelected, onO
       </div>
       {!rows.length ? <ClusterEmptyState compact kind="filtered" icon="grid" className="board-alt-empty-v489" title="No cards match this view" description="Clear a filter or choose another saved view." /> : null}
     </div>
+    {rows.length > renderLimit ? <div className="board-view-load-more-v11 board-table-load-more-v11">
+      <span>{visibleRows.length} of {rows.length} cards shown</span>
+      <ClusterButton variant="secondary" size="compact"
+        onClick={() => setRenderLimit((current) => current + 80)}
+        aria-label={`Show next ${Math.min(80, rows.length - renderLimit)} Board table rows`}>
+        Show next {Math.min(80, rows.length - renderLimit)} rows
+      </ClusterButton>
+    </div> : null}
+    </>
   );
 }
 
@@ -279,7 +303,7 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
               </ClusterButton>
             </header>
             <div className="board-calendar-day-detail-list-v11">
-              {boardCalendarPage(selectedDayRows, selectedDayLimit).map(({ card, list }) => (
+              {boardVisiblePage(selectedDayRows, selectedDayLimit).map(({ card, list }) => (
                 <div key={card.id}>
                   <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
                   <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen}
@@ -303,7 +327,7 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
           {invalidDueCount ? <p className="board-calendar-invalid-due-v11" role="status">
             {invalidDueCount} card{invalidDueCount === 1 ? "" : "s"} with an invalid due date are included here. Open a card to correct its date.
           </p> : null}
-          {boardCalendarPage(undated, undatedLimit).map(({ card, list }) => (
+          {boardVisiblePage(undated, undatedLimit).map(({ card, list }) => (
             <div key={card.id}>
               <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
               <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen}><span>{card.title}</span><em>{list.title}</em></ContextualCardOpenButton>
