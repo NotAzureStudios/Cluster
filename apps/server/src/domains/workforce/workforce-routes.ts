@@ -190,7 +190,7 @@ export function registerWorkforceRoutes(deps: any) {
     const identity = await actorFor(request, reply, "edit"); if (!identity?.user) return;
     const body = z.object({ workspaceId: z.string().min(1).optional(), name: z.string().trim().min(1).max(120), description: z.string().trim().max(1000).nullable().optional(), parentId: z.string().min(1).nullable().optional(), leadUserId: z.string().min(1).nullable().optional(), color: departmentColorSchema, iconId: departmentIconSchema }).parse(request.body || {});
     const membership = await prisma.workspaceMember.findFirst({
-      where: { userId: identity.user.id, ...(body.workspaceId ? { workspaceId } : {}) },
+      where: { userId: identity.user.id, ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}) },
       orderBy: { workspaceId: "asc" }, select: { workspaceId: true },
     });
     if (!membership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED", error: "You cannot manage another workspace's organization." });
