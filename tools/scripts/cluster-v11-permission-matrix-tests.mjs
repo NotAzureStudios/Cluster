@@ -116,7 +116,7 @@ test("Permission search and overrides filter are local controlled inputs", () =>
   const source = read("packages/renderer/src/components/ClusterPermissionMatrix.tsx");
   assert.match(source, /const \[search, setSearch\] = useState\(""/);
   assert.match(source, /const \[overridesOnly, setOverridesOnly\] = useState\(false\)/);
-  assert.match(source, /overridesOnly && value\?\.\[row\.key\] === undefined/);
+  assert.match(source, /overridesOnly && \(value\?\.\[row\.key\] === undefined \|\| value\?\.\[row\.key\] === inheritValue\)/);
   assert.match(source, /type="search" value=\{search\}/);
   assert.match(source, /type="checkbox" checked=\{overridesOnly\}/);
   assert.match(source, /No permissions match the current filters/);
