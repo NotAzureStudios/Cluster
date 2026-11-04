@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, queryApi } from "../../core/api";
 import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
-import { DEFAULT_MEMBER_TOOL_PERMISSIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
+import { DEFAULT_MEMBER_TOOL_PERMISSIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
 import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../core/options";
 import { NumberStepper } from "../../components/NumberStepper";
@@ -35,6 +35,7 @@ import "./settings-workspace.css";
 import "./people-management-layout-v11.css";
 import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
 import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
+import { ClusterEffectiveAccessInspector, type ClusterEffectiveAccessPreview } from "../../components/ClusterEffectiveAccessInspector";
 import { filterRoleDirectory, type RoleDirectoryFilter } from "./role-directory-filter";
 
 import type { StudioSettingsPageProps } from "./settings-workspace-contracts";
@@ -121,7 +122,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   useEffect(() => { onSectionChange?.(section); }, [section]);
   const [newBundleLabel, setNewBundleLabel] = useState("");
   const [selectedBundleId, setSelectedBundleId] = useState("");
-  const [bundlePreview, setBundlePreview] = useState<{ changes: Array<{ tool: string; current: { level: string }; proposed: { level: string; provenance?: { effective?: { label: string } } } }> } | null>(null);
+  const [bundlePreview, setBundlePreview] = useState<(ClusterEffectiveAccessPreview & { requestKey: string }) | null>(null);
   const [bundlePreviewError, setBundlePreviewError] = useState("");
   const [bundlePreviewLoading, setBundlePreviewLoading] = useState(false);
   const permissionPreviewSequence = useRef(0);
@@ -341,6 +342,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(key))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => {
@@ -372,6 +374,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(field))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => { const merged = { ...prev, ...updates }; persistStudioDraft(merged); return merged; });
@@ -500,12 +503,23 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     setBundlePreviewError("");
     setBundlePreviewLoading(true);
     const sequence = ++permissionPreviewSequence.current;
+    const requestBody = {
+      roleId,
+      departmentId,
+      studioPermissionBundles: settings.studioPermissionBundles || [],
+      studioRoleDefinitions: mergeStudioRoles(settings),
+      studioDepartmentDefinitions: mergeStudioDepartments(settings.studioDepartmentDefinitions),
+    };
+    const requestKey = JSON.stringify(requestBody);
     try {
-      const result = await api<{ ok: boolean; changes: Array<{ tool: string; current: { level: string }; proposed: { level: string; provenance?: { effective?: { label: string } } } }> }>("/api/access/permission-preview", {
+      const result = await api<ClusterEffectiveAccessPreview>("/api/access/permission-preview", {
         method: "POST",
-        body: JSON.stringify({ roleId, departmentId, studioPermissionBundles: settings.studioPermissionBundles || [], studioRoleDefinitions: mergeStudioRoles(settings), studioDepartmentDefinitions: mergeStudioDepartments(settings.studioDepartmentDefinitions) }),
+        body: requestKey,
       });
-      if (permissionPreviewSequence.current === sequence) setBundlePreview(result);
+      if (!result.ok || result.roleId !== roleId || result.departmentId !== departmentId || !result.matrix || !Array.isArray(result.changes)) {
+        throw new Error("The server returned an incomplete or mismatched role-policy preview.");
+      }
+      if (permissionPreviewSequence.current === sequence) setBundlePreview({ ...result, requestKey });
     } catch (error) {
       if (permissionPreviewSequence.current === sequence) setBundlePreviewError(error instanceof Error ? error.message : "Could not preview access policy.");
     } finally {
@@ -903,6 +917,19 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const selectedDepartment = studioDepartments.find((department) => department.id === selectedDepartmentId) || studioDepartments[0];
   const selectedDepartmentRoles = selectedDepartment ? studioRoles.filter((role) => role.departmentId === selectedDepartment.id) : [];
   const selectedRoleDepartment = selectedRole ? studioDepartments.find((department) => department.id === selectedRole.departmentId) : undefined;
+  const selectedRolePreviewRequest = selectedRole ? {
+    roleId: selectedRole.id,
+    departmentId: selectedRole.departmentId || null,
+    studioPermissionBundles: settings.studioPermissionBundles || [],
+    studioRoleDefinitions: studioRoles,
+    studioDepartmentDefinitions: studioDepartments,
+  } : null;
+  // Never show a previously authorized preview against a changed draft, role,
+  // department or account. The backend remains the source of truth.
+  const activeRolePreview = bundlePreview && selectedRolePreviewRequest
+    && bundlePreview.roleId === selectedRole.id
+    && bundlePreview.requestKey === JSON.stringify(selectedRolePreviewRequest)
+      ? bundlePreview : null;
   const selectedDepartmentInheritedPermissions = selectedDepartment ? {
     ...permissionTemplateTools(selectedDepartment.permissionTemplateKey || "member"),
     ...Object.assign({}, ...resolveAssignedPermissionBundles(studioBundles, selectedDepartment.permissionBundleIds).map((bundle) => bundle.toolPermissions)),
@@ -1286,7 +1313,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                   {roleMemberCountsError && <small className="studio-role-directory-warning-v11" role="status">Member counts unavailable. Assignment filters are disabled; role editing still works.</small>}
                   {visibleStudioRoles.map((role) => (
-                    <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
+                    <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setBundlePreviewError(""); setBundlePreviewLoading(false); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
                       <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
                       <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? `${roleMemberCounts[role.id]} members` : role.permissionTemplateKey || "Custom"}</span>
                     </ClusterButton>
@@ -1352,7 +1379,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                         <StudioPermissionEditor permissions={selectedRole.toolPermissions} inherited={selectedRoleInheritedPermissions} readOnly={["owner", "admin"].includes(selectedRole.id)} onChange={(tool, level) => updateStudioRolePermission(selectedRole.id, tool, level)} />
                         <div className="button-row compact"><ClusterButton type="button" variant="secondary" disabled={bundlePreviewLoading} onClick={() => void previewPermissionBundleChanges(selectedRole.id, selectedRole.departmentId || null)}>{bundlePreviewLoading ? "Comparing…" : "Preview effective-access changes"}</ClusterButton></div>
                         {bundlePreviewError && <p role="alert">{bundlePreviewError}</p>}
-                        {bundlePreview && <div role="status" className="studio-action-rule-list-v272"><strong>{bundlePreview.changes.length ? `${bundlePreview.changes.length} effective policy differences` : "No effective access differences"}</strong>{bundlePreview.changes.map((change) => <div key={change.tool} className="studio-action-rule-v272"><span><strong>{change.tool}</strong><small>{change.current.level} → {change.proposed.level}</small></span><small>{change.proposed.provenance?.effective?.label || "Inherited"}</small></div>)}</div>}
+                        {activeRolePreview && (
+                          <ClusterEffectiveAccessInspector
+                            key={activeRolePreview.requestKey}
+                            preview={activeRolePreview}
+                            tools={TOOL_PERMISSION_OPTIONS.map((tool) => ({ key: tool.key, label: tool.label }))}
+                          />
+                        )}
                       </div>
                     )}
 
