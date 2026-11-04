@@ -45,3 +45,20 @@
 
 /* v0.473 identity and recovery */
 .managed-auth-v473 .managed-auth-card{width:min(460px,calc(100vw - 28px));padding:22px}.managed-auth-v473 .managed-auth-card h1{font-size:1.5rem;margin-bottom:4px}.managed-auth-v473 .managed-auth-card>.muted{font-size:.8rem;line-height:1.45}.managed-auth-password-v473>div{display:grid;grid-template-columns:minmax(0,1fr) auto}.managed-auth-password-v473>div input{border-radius:8px 0 0 8px}.managed-auth-password-v473>div button{min-width:58px;border:1px solid var(--border);border-left:0;border-radius:0 8px 8px 0;background:var(--surface-soft);color:var(--soft-text);font:inherit;font-size:.72rem;font-weight:650;cursor:pointer}.managed-auth-password-v473>div button:hover{background:var(--surface-hover)}.managed-auth-help-v473{display:flex;align-items:center;justify-content:space-between;gap:10px}.managed-auth-help-v473 button{padding:0;border:0;background:transparent;color:var(--cluster-focus-color);font:inherit;font-size:.73rem;cursor:pointer}.managed-auth-recovery-form-v473>div:first-child{display:grid;gap:4px;padding-bottom:4px}.managed-auth-recovery-form-v473>div:first-child strong{font-size:.86rem}.managed-auth-recovery-form-v473>div:first-child p{margin:0;color:var(--muted);font-size:.75rem;line-height:1.45}.managed-auth-form .field small{font-size:.68rem;line-height:1.4;color:var(--muted)}
+
+/* A new member can find setup guidance without a permanent wall of auth copy. */
+.managed-auth-first-use-v11 {
+  border: 1px solid color-mix(in srgb, var(--cluster-border, var(--line)) 65%, transparent);
+  border-radius: 9px; padding: 9px 11px;
+  background: color-mix(in srgb, var(--cluster-surface-1, var(--surface)) 85%, transparent);
+}
+.managed-auth-first-use-v11 > summary {
+  cursor: pointer; font-size: .78rem; color: var(--text);
+  font-weight: 650; list-style-position: inside;
+}
+.managed-auth-first-use-v11 > summary:focus-visible {
+  outline: 2px solid var(--cluster-focus-color, var(--accent, #57c1ff)); outline-offset: 3px;
+}
+.managed-auth-first-use-v11 p {
+  margin: 8px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5;
+}
