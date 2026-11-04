@@ -1258,7 +1258,11 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
               <div className="studio-create-strip-v272 studio-create-role-v272">
                 <div><strong>Add role</strong><span>Create a role from a permission preset, then refine its access.</span></div>
                 <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" />
-                <ClusterNativeSelect value={newRoleDepartmentId} onChange={(event) => setNewRoleDepartmentId(event.target.value)}>{enabledStudioDepartments.map((department) => <option key={department.id} value={department.id}>{department.label}</option>)}</ClusterNativeSelect>
+                <div className="studio-role-entity-field-v11">
+                  <ClusterEntityPicker ariaLabel="New role department" value={newRoleDepartmentId}
+                    entities={enabledStudioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department" }))}
+                    onChange={setNewRoleDepartmentId} allowClear={false} placeholder="Choose department" searchPlaceholder="Find a department" />
+                </div>
                 <ClusterNativeSelect value={newRoleTemplateKey} onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
                 <ClusterButton type="button" variant="secondary" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add role</ClusterButton>
               </div>
@@ -1321,7 +1325,18 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                         <div className="studio-form-grid-v272">
                           <div className="field"><label>Display name</label><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></div>
                           <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} readOnly disabled aria-label="Immutable role key" /><small>Role IDs are immutable because account memberships and permission policies reference them. Create a new role to change the key.</small></div>
-                          <div className="field"><label>Department</label><ClusterNativeSelect value={selectedRole.departmentId || ""} onChange={(event) => updateStudioRole(selectedRole.id, { departmentId: event.target.value, toolPermissions: {} })}><option value="">No department</option>{studioDepartments.map((department) => <option key={department.id} value={department.id}>{department.label}</option>)}</ClusterNativeSelect><small>Provides the baseline permission layer.</small></div>
+                          <div className="field studio-role-entity-field-v11"><span>Department</span>
+                            <ClusterEntityPicker ariaLabel="Role department" value={selectedRole.departmentId || ""}
+                              entities={[
+                                ...(selectedRole.departmentId && !studioDepartments.some((department) => department.id === selectedRole.departmentId)
+                                  ? [{ id: selectedRole.departmentId, label: "Existing department unavailable", disabled: true, kind: "department" }]
+                                  : []),
+                                ...studioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department", disabled: department.enabled === false })),
+                              ]}
+                              onChange={(departmentId) => updateStudioRole(selectedRole.id, { departmentId, toolPermissions: {} })}
+                              placeholder="No department" searchPlaceholder="Find a department" allowClear />
+                            <small>Provides the inherited baseline. Changing it clears role-specific overrides.</small>
+                          </div>
                           <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
                           <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
                         </div>
