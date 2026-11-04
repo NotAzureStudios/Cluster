@@ -1,0 +1,22 @@
+/* Read-only, source-backed access comparison. The editor owns mutation. */
+.cluster-effective-access-v11{border:1px solid var(--border);border-radius:12px;min-width:0;overflow:hidden;background:var(--panel)}
+.cluster-effective-access-head-v11{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 14px;background:var(--surface-soft)}
+.cluster-effective-access-head-v11>div{display:grid;gap:3px}
+.cluster-effective-access-head-v11 strong{font-size:.83rem;color:var(--text)}
+.cluster-effective-access-head-v11 span{font-size:.7rem;color:var(--muted)}
+.cluster-effective-access-head-v11 label{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:.76rem;color:var(--text);cursor:pointer}
+.cluster-effective-access-head-v11 input{width:18px;height:18px;accent-color:var(--accent,#57c1ff)}
+.cluster-effective-access-head-v11 input:focus-visible,.cluster-effective-access-scroll-v11:focus-visible{outline:2px solid var(--accent,#57c1ff);outline-offset:-2px}
+.cluster-effective-access-scope-v11{font-size:.7rem;line-height:1.5;color:var(--muted);margin:0;padding:10px 14px;border-bottom:1px solid var(--border)}
+.cluster-effective-access-empty-v11{font-size:.75rem;line-height:1.5;color:var(--muted);padding:12px 14px;margin:0}
+.cluster-effective-access-scroll-v11{max-width:100%;overflow-x:auto;scrollbar-width:thin}
+.cluster-effective-access-scroll-v11 table{width:100%;min-width:550px;border-spacing:0;border-collapse:separate;color:var(--text);font:inherit}
+.cluster-effective-access-scroll-v11 :is(th,td){padding:10px 11px;border-bottom:1px solid var(--border);font-size:.75rem;line-height:1.45;text-align:left}
+.cluster-effective-access-scroll-v11 thead th{font-size:.68rem;background:var(--surface-soft);color:var(--muted);font-weight:650}
+.cluster-effective-access-scroll-v11 tbody th{position:sticky;left:0;background:var(--panel);min-width:115px;z-index:1;font-weight:700}
+.cluster-effective-access-scroll-v11 tbody tr[data-changed="true"] th{box-shadow:inset 3px 0 0 var(--accent,#57c1ff)}
+.cluster-effective-access-scroll-v11 tbody tr:last-child :is(th,td){border-bottom:0}
+.cluster-effective-access-scroll-v11 td:last-child{font-size:.69rem;color:var(--muted)}
+.cluster-effective-access-scroll-v11 td strong{text-transform:capitalize}
+@media(max-width:620px){.cluster-effective-access-head-v11{align-items:flex-start}.cluster-effective-access-scroll-v11 table{min-width:530px}}
+@media(prefers-reduced-motion:reduce){.cluster-effective-access-v11 *{scroll-behavior:auto}}
