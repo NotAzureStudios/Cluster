@@ -22,6 +22,7 @@ import { ClusterTreeTable } from "./ClusterTreeTable";
 import { ClusterSlider } from "./ClusterSlider";
 import { ClusterToggle } from "./ClusterToggle";
 import { ClusterSettingsChoiceGroup, ClusterSettingsChangeReview, ClusterSettingsRow, ClusterSettingsSection } from "./ClusterSettingsPrimitives";
+import { ClusterPermissionMatrix } from "./ClusterPermissionMatrix";
 
 const PREVIEW_ROWS = [
   { id: "build", name: "Build", state: "Ready" },
@@ -44,6 +45,7 @@ export function DesignSystemPreview() {
   const [toggleValue, setToggleValue] = useState(true);
   const [settingsDensity, setSettingsDensity] = useState<"compact" | "comfortable">("compact");
   const [settingsSound, setSettingsSound] = useState(true);
+  const [permissionPreviewDraft, setPermissionPreviewDraft] = useState<Partial<Record<"boards" | "vault", "none" | "view" | "edit" | "manage">>>({ boards: "edit" });
   const [propertyDraft, setPropertyDraft] = useState("Ready for review");
   const [dateRange, setDateRange] = useState({ start: "2026-09-15", end: "2026-09-30" });
   const [recurrence, setRecurrence] = useState<ClusterRecurrenceValue>({ frequency: "weekly", interval: 1, weekdays: ["1", "3", "5"] });
@@ -110,6 +112,34 @@ export function DesignSystemPreview() {
               { id: "security", label: "Protected setting", sensitive: true, before: "secret", after: "updated-secret", impact: "protected" },
             ]} />
           </ClusterSettingsSection>
+        </div>
+        <div className="design-system-preview-group-v383">
+          <span>Access & permissions · v1.1</span>
+          <ClusterDisclosureGroup title="Interactive permission matrix" summary="Inherited permissions, overrides and search">
+            <ClusterPermissionMatrix<"boards" | "vault", "inherit" | "none" | "view" | "edit" | "manage">
+              label="Preview effective access"
+              groups={[{ id: "review", label: "Review and secure resources", rows: [
+                { key: "boards", label: "Boards", description: "View and edit project work." },
+                { key: "vault", label: "Vault", description: "Access protected studio material." },
+              ] }]}
+              choices={["inherit", "none", "view", "edit", "manage"].map((value) => ({
+                value: value as "inherit" | "none" | "view" | "edit" | "manage",
+                label: value[0].toUpperCase() + value.slice(1),
+              }))}
+              value={permissionPreviewDraft}
+              inherited={{ boards: "view", vault: "none" }}
+              inheritValue="inherit"
+              fallbackEffective="none"
+              onChange={(tool, level) => {
+                setPermissionPreviewDraft((current) => {
+                  const next = { ...current };
+                  if (level === "inherit") delete next[tool];
+                  else next[tool] = level;
+                  return next;
+                });
+              }}
+            />
+          </ClusterDisclosureGroup>
         </div>
         <div className="design-system-preview-group-v383">
           <span>Data table</span>
