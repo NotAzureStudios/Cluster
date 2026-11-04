@@ -145,3 +145,38 @@
 @media(pointer:coarse){
   .calendar-page-v190 .calendar-range-control-v189 button,.calendar-date-jump-v11 input{min-height:44px}
 }
+
+/* v1.1: Calendar overflow reveals local authorized items, never a dead label. */
+.calendar-page-v190 .calendar-more-action-v11{
+  display:block;width:100%;min-width:0;min-height:30px;padding:4px 7px;
+  border-radius:7px;text-align:left;color:var(--text-muted);font-size:.72rem;
+}
+.calendar-page-v190 .calendar-more-action-v11:hover,
+.calendar-page-v190 .calendar-more-action-v11:focus-visible{
+  color:var(--text);background:var(--surface-soft);
+}
+.calendar-page-v190 .calendar-week-more-v11{
+  width:100%;min-height:36px;padding:7px 9px;
+  text-align:left;white-space:normal;color:var(--text-muted);font-size:.74rem;
+}
+.calendar-page-v190 .calendar-event-next-v11{
+  min-height:38px;width:100%;white-space:normal;margin-top:8px;
+  line-height:1.45;font-size:.76rem;
+}
+.calendar-page-v190 .calendar-inspector-v189:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:2px;
+}
+.calendar-page-v190 .calendar-selected-list-v189{
+  max-height:min(60vh,520px);overflow:auto;overscroll-behavior:contain;
+}
+.calendar-page-v190 .calendar-selected-list-v189 .calendar-event-next-v11{
+  margin:6px 0;flex:0 0 auto;
+}
+@media(pointer:coarse){
+  .calendar-page-v190 .calendar-more-action-v11,
+  .calendar-page-v190 .calendar-week-more-v11,
+  .calendar-page-v190 .calendar-event-next-v11{min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  .calendar-page-v190 .calendar-selected-list-v189{scroll-behavior:auto}
+}

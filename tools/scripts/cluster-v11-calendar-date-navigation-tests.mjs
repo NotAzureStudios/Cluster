@@ -114,9 +114,11 @@ test("Calendar month/window buttons are driven by one pure shift function", () =
 
 test("Agenda navigates the loaded date window instead of filtering everything before now", () => {
   const page = read(pathOf("CalendarPage.tsx"));
-  assert.match(page, /const agendaEvents = filteredEvents.slice\(0, 20\)/);
+  assert.match(page, /const agendaEvents = calendarEventPage\(filteredEvents, agendaLimit\)/);
   assert.match(page, /filteredEvents.length > agendaEvents.length/);
-  assert.match(page, /Showing the first 20 of \{filteredEvents.length\}/);
+  assert.match(page, /filteredEvents.length > agendaLimit/);
+  assert.match(page, /setAgendaLimit\(\(limit\) => limit \+ 20\)/);
+  assert.match(page, /Showing \{agendaEvents.length\} of \{filteredEvents.length\}/);
   assert.match(page, /addDays\(range.end, -1\).toLocaleDateString/);
   assert.match(page, /No events match this agenda range/);
   assert.doesNotMatch(page, /const upcomingEvents = filteredEvents.filter/);
