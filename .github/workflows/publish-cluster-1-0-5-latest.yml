@@ -58,18 +58,6 @@ jobs:
             exit 1
           fi
 
-      - name: Verify dedicated release publishing credential
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.CLUSTER_RELEASE_PUBLISH_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${GH_TOKEN:-}" ]]; then
-            echo '::error::Configure repository secret CLUSTER_RELEASE_PUBLISH_TOKEN with a fine-grained GitHub token: NotAzureStudios/Cluster, Contents read/write. The GITHUB_TOKEN received HTTP 403 at release creation.'
-            exit 1
-          fi
-          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push')" = true
-
       - name: Download verified 1.0.5 Windows Server build
         shell: bash
         run: |
@@ -133,12 +121,8 @@ jobs:
 
       - name: Publish unsigned 1.0.5 as GitHub Latest
         shell: bash
-        # Release creation returned HTTP 403 with the workflow GITHUB_TOKEN
-        # despite Contents:write. A dedicated, repository-scoped credential is
-        # required only for the publish operation. Earlier artifact reads use
-        # the ephemeral Actions token.
-        env:
-          GH_TOKEN: ${{ secrets.CLUSTER_RELEASE_PUBLISH_TOKEN }}
+        # Use the built-in Actions GITHUB_TOKEN. If repository policy denies
+        # release creation (HTTP 403), fail without claiming publication.
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/cluster-1-0-5-notes.md" <<'NOTES'
@@ -179,51 +163,3 @@ jobs:
           gh release edit v1.0.5 --repo "$GITHUB_REPOSITORY" --draft=false --latest
           test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = v1.0.5
           echo 'Cluster 1.0.5 is now the GitHub Latest release.'
-
-      - name: Announce verified GitHub Latest release to Discord
-        shell: bash
-        env:
-          DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${DISCORD_RELEASE_WEBHOOK_URL:-}" ]]; then
-            echo '::warning::v1.0.5 is published on GitHub, but DISCORD_RELEASE_WEBHOOK_URL is missing; no Discord announcement was sent.'
-            exit 0
-          fi
-          python3 - <<'PY'
-          import json, os, re, sys, urllib.error, urllib.parse, urllib.request
-          webhook = os.environ['DISCORD_RELEASE_WEBHOOK_URL']
-          target = urllib.parse.urlsplit(webhook)
-          if not (target.scheme == 'https' and target.hostname == 'discord.com'
-                  and target.port is None and not target.query and not target.fragment
-                  and re.fullmatch(r'/api/webhooks/[0-9]+/[^/]+', target.path)):
-              print('::error::Discord release webhook must be a standard discord.com HTTPS webhook URL.')
-              sys.exit(1)
-          payload = {
-              'content': (
-                  '**Cluster Server v1.0.5 is available**\n'
-                  'Windows x64 installer and unchanged Qt Desktop downloads are live on GitHub.\n'
-                  'https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.5\n'
-                  '**Note:** Server installer is unsigned; existing-install upgrades and rollback are not fully certified. Back up your Server first.'
-              ),
-              'allowed_mentions': {'parse': []}
-          }
-          req = urllib.request.Request(
-              webhook + '?wait=true',
-              data=json.dumps(payload).encode('utf-8'),
-              headers={'Content-Type': 'application/json', 'User-Agent': 'ClusterRelease/1.0'},
-              method='POST'
-          )
-          try:
-              with urllib.request.urlopen(req, timeout=20) as response:
-                  message = json.load(response)
-              if not str(message.get('id', '')).isdigit():
-                  raise ValueError('No Discord message identifier returned')
-          except urllib.error.HTTPError as e:
-              print(f'::error::GitHub is Latest, but Discord delivery failed with HTTP {e.code}.')
-              sys.exit(1)
-          except (urllib.error.URLError, ValueError, json.JSONDecodeError):
-              print('::error::GitHub is Latest, but Discord delivery was not confirmed.')
-              sys.exit(1)
-          print('Confirmed Discord release announcement. Message ID:', message['id'])
-          PY
