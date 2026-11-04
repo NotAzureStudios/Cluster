@@ -66,7 +66,7 @@ export function BoardPlanningInsights({ board, cards, users, payload, error = ""
     const graphIds = new Set(graphNodes.map((node) => node.id));
     const graphEdges = dependencies.filter((edge) => graphIds.has(edge.sourceCardId) && graphIds.has(edge.targetCardId)).slice(0, 36).map((edge) => ({ from: edge.sourceCardId, to: edge.targetCardId, label: edge.relationship.replaceAll("_", " ") }));
     return { health, capacityItems, wipViolations, blocked, blockerRows, projectionByCardId, graphNodes, graphEdges, cardById };
-  }, [board.lists, cards, payload?.dependencies, users]);
+  }, [board.lists, cards, payload?.dependencies, payload?.projections, users]);
 
   if (error) return <div className="error-box" role="alert">{error}</div>;
   if (!payload) return <div className="status-box" role="status">Loading Board health…</div>;
