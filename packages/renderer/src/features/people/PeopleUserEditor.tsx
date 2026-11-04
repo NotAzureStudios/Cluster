@@ -1,26 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "../application/application-models";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { PeopleRoleAssignmentPanel } from "./PeopleRoleAssignmentPanel";
 
-type EditableField = "username" | "displayName" | "preferredName" | "email" | "title" | "department" | "managerUserId" | "workLocation" | "employmentType";
-type HoursField = "capacityHours" | "minimumHours";
-type Draft = Record<EditableField | HoursField, string>;
-const TEXT_FIELDS: EditableField[] = ["username", "displayName", "preferredName", "email", "title", "department", "managerUserId", "workLocation", "employmentType"];
+import { changedPeopleEditorFields, preparePeopleEditorPatch, type PeopleEditorDraft, type PeopleEditorTextField } from "./people-user-editor-draft";
 
-function fromProfile(profile: User): Draft {
+function fromProfile(profile: User): PeopleEditorDraft {
   return {
     username: profile.username || "",
+    employeeNumber: profile.employeeNumber || "",
     displayName: profile.displayName || "",
+    legalName: profile.legalName || "",
     preferredName: profile.preferredName || "",
+    pronouns: profile.pronouns || "",
     email: profile.email || "",
+    phoneNumber: profile.phoneNumber || "",
+    timezone: profile.timezone || "",
     title: profile.title || "",
     department: profile.department || "",
     managerUserId: profile.managerUserId || (profile as User & { manager?: { id: string } | null }).manager?.id || "",
     workLocation: profile.workLocation || "",
     employmentType: profile.employmentType || "",
+    startDate: profile.startDate?.slice(0, 10) || "",
+    notes: profile.notes || "",
     capacityHours: profile.capacityHours == null ? "" : String(profile.capacityHours),
     minimumHours: profile.minimumHours == null ? "" : String(profile.minimumHours),
   };
@@ -45,17 +49,19 @@ export function PeopleUserEditor({
   onDirtyChange: (dirty: boolean) => void;
 }) {
   const initial = useMemo(() => fromProfile(person), [person.id]);
-  const [draft, setDraft] = useState<Draft>(initial);
+  // The opened revision is the edit precondition. Do not adopt a newer
+  // background-refreshed profileRevision while retaining an old draft.
+  const openedRevision = useRef(person.profileRevision || 1);
+  const [draft, setDraft] = useState<PeopleEditorDraft>(initial);
   const [saving, setSaving] = useState(false);
   const [roleDirty, setRoleDirty] = useState(false);
   const [error, setError] = useState("");
   const departmentOptions = useMemo(() => [...new Set([person.department || "", ...departmentNames].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [person.department, departmentNames]);
-  const allFields: Array<keyof Draft> = [...TEXT_FIELDS, "capacityHours", "minimumHours"];
-  const changed = allFields.filter((key) => draft[key] !== initial[key]);
+  const changed = changedPeopleEditorFields(draft, initial);
   const profileDirty = changed.length > 0;
   const dirty = profileDirty || roleDirty;
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
-  function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
+  function update(key: keyof PeopleEditorDraft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
   async function cancel() {
     if (saving) return;
     if (dirty && !(await confirmCluster({
@@ -68,21 +74,12 @@ export function PeopleUserEditor({
   }
   async function save() {
     if (saving || !profileDirty) return;
-    if (draft.username.trim().length < 3) { setError("Username must contain at least three characters."); return; }
-    if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) { setError("Enter a valid email address."); return; }
-    for (const key of ["capacityHours", "minimumHours"] as const) {
-      if (draft[key] && (!/^\d+$/.test(draft[key]) || Number(draft[key]) > 168)) { setError("Weekly hours must be whole numbers between 0 and 168."); return; }
-    }
-    const capacity = draft.capacityHours === "" ? null : Number(draft.capacityHours);
-    const minimum = draft.minimumHours === "" ? null : Number(draft.minimumHours);
-    if (capacity !== null && minimum !== null && minimum > capacity) {
-      setError("Minimum hours cannot exceed capacity hours.");
+    let changes: Record<string, unknown>;
+    try {
+      changes = preparePeopleEditorPatch(draft, initial, openedRevision.current, person.username);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Invalid profile details.");
       return;
-    }
-    const changes: Record<string, unknown> = { expectedProfileRevision: person.profileRevision || 1 };
-    for (const key of changed) {
-      if (key === "capacityHours" || key === "minimumHours") changes[key] = draft[key] === "" ? null : Number(draft[key]);
-      else changes[key] = draft[key].trim() || (key === "username" ? person.username : null);
     }
     setSaving(true);
     setError("");
@@ -95,13 +92,13 @@ export function PeopleUserEditor({
         : message);
     } finally { setSaving(false); }
   }
-  const field = (key: EditableField, label: string, placeholder = "") => (
+  const field = (key: PeopleEditorTextField, label: string, placeholder = "") => (
     <label className="people-user-editor-field-v106" key={key}>
       <span>{label}</span>
-      <ClusterInput value={draft[key]} disabled={saving} placeholder={placeholder} maxLength={key === "username" ? 32 : 160} onChange={(event) => update(key, event.target.value)} />
+      <ClusterInput value={draft[key]} disabled={saving} placeholder={placeholder} maxLength={key === "username" ? 32 : key === "employeeNumber" ? 80 : key === "phoneNumber" ? 60 : 160} onChange={(event) => update(key, event.target.value)} />
     </label>
   );
-  const hoursField = (key: HoursField, label: string) => (
+  const hoursField = (key: "capacityHours" | "minimumHours", label: string) => (
     <label className="people-user-editor-field-v106" key={key}>
       <span>{label}</span>
       <ClusterInput type="number" value={draft[key]} disabled={saving} min={0} max={168} step={1} placeholder="Not set" onChange={(event) => update(key, event.target.value)} />
@@ -122,7 +119,17 @@ export function PeopleUserEditor({
         {field("displayName", "Display name")}
         {field("preferredName", "Preferred name")}
         {field("username", "Username")}
+        {field("employeeNumber", "Employee number")}
+        {field("legalName", "Legal name")}
+        {field("pronouns", "Pronouns")}
+      </div>
+    </div>
+    <div className="people-user-editor-section-v106">
+      <h4>Contact & location</h4>
+      <div className="people-user-editor-grid-v106">
         {field("email", "Work email", "name@example.com")}
+        {field("phoneNumber", "Phone number")}
+        {field("timezone", "Time zone", "America/New_York")}
       </div>
     </div>
     <div className="people-user-editor-section-v106">
@@ -148,9 +155,21 @@ export function PeopleUserEditor({
         </label>
         {field("workLocation", "Work location")}
         {field("employmentType", "Employment type")}
+        <label className="people-user-editor-field-v106">
+          <span>Employment start date</span>
+          <ClusterInput type="date" value={draft.startDate} disabled={saving} onChange={(event) => update("startDate", event.target.value)} />
+        </label>
         {hoursField("capacityHours", "Capacity (hours/week)")}
         {hoursField("minimumHours", "Minimum (hours/week)")}
       </div>
+    </div>
+    <div className="people-user-editor-section-v106">
+      <h4>Internal notes</h4>
+      <label className="people-user-editor-field-v106">
+        <span>Administrative notes</span>
+        <ClusterTextarea value={draft.notes} disabled={saving} maxLength={4000} rows={3} placeholder="Private management notes" onChange={(event) => update("notes", event.target.value)} />
+        <small>Administrative information. Do not put passwords or access tokens here.</small>
+      </label>
     </div>
     <PeopleRoleAssignmentPanel person={person} actorId={actorId} profileDirty={profileDirty || saving} onChange={onRoleChange} onDirtyChange={setRoleDirty} />
     <div className="people-user-editor-section-v106 people-user-editor-access-v106">

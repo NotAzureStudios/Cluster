@@ -7,6 +7,7 @@ const page = fs.readFileSync("packages/renderer/src/features/people/PeoplePages.
 const editor = fs.readFileSync("packages/renderer/src/features/people/PeopleUserEditor.tsx", "utf8");
 const css = fs.readFileSync("packages/renderer/src/features/people/people.css", "utf8");
 const api = fs.readFileSync("apps/server/src/domains/users/user-directory-routes.ts", "utf8");
+const draft = fs.readFileSync("packages/renderer/src/features/people/people-user-editor-draft.ts", "utf8");
 
 const checks = [
   [page.includes('import { PeopleUserEditor } from "./PeopleUserEditor";'), "admin editor imported"],
@@ -15,9 +16,9 @@ const checks = [
   [page.includes('onDirtyChange={setEditorDirty}') && page.includes('useUnsavedChangesGuard({'), "draft state and app leave guard linked"],
   [page.includes('await confirmEditorDiscard()') && page.includes('setProfileViewState(next);'), "tab changes ask before discarding"],
   [page.includes('await api(`/api/users/${encodeURIComponent(profile.id)}`'), "save uses canonical user PATCH"],
-  [editor.includes('expectedProfileRevision: person.profileRevision || 1'), "optimistic profile revision included"],
+  [editor.includes('preparePeopleEditorPatch(draft, initial, openedRevision.current') && draft.includes('expectedProfileRevision: openedRevision'), "profile save pins opened revision"],
   [editor.includes('await onSave(changes)') && editor.includes('if (saving || !profileDirty) return;'), "profile saves remain bounded and separate from role drafts"],
-  [editor.includes('Minimum hours cannot exceed capacity hours.'), "hours constraints validated locally"],
+  [draft.includes('Minimum hours cannot exceed capacity hours.'), "hours constraints validated locally"],
   [editor.includes('Managed departments only.'), "no creation of arbitrary department by editor"],
   [editor.includes('Role grants, access expiry, suspension and credential recovery are handled separately.'), "governed access/lifecycle not mixed into profile edit"],
   [!editor.includes('projectPermissions:') && !editor.includes('toolPermissions:') && !editor.includes('accessExpiresAt:'), "admin profile patch does not send elevated grant or expiry fields"],
