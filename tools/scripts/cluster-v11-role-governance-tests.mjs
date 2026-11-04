@@ -16,7 +16,7 @@ const checks = [
   [ui.includes('patch("studioDefaultWorkspaceRole", "member")'), "removed default role is replaced"],
   [ui.includes('patch("projectTypePresets", projectTypePresets.map'), "removed role references cleaned from project presets"],
   [ui.includes('setSelectedRoleId("member")'), "selection cleared when role removed"],
-  [settingsRoute.includes("const revokedIds = revokedStudioRoleIds(current") && settingsRoute.includes("proposed.enabled === false"), "server recognizes delete and disable"],
+  [settingsRoute.includes("const revokedIds = revokedStudioRoleIds(current") && settingsRoute.includes("studioRoleDefinitions: safeBody.studioRoleDefinitions"), "server recognizes effective built-in and custom role revocation"],
   [settingsRoute.includes('prisma.workspaceMember.findFirst({') && settingsRoute.includes("role: { in: revokedIds }"), "server checks authoritative stored memberships"],
   [settingsRoute.includes('code: "ROLE_IN_USE"') && settingsRoute.includes("reply.code(409)"), "role-in-use reports typed conflict"],
   [settingsRoute.includes("await verifyUserPin(admin, body.securityPin"), "settings edits retain PIN gate"],
