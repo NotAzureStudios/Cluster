@@ -6,6 +6,8 @@ on:
       - "packages/renderer/src/components/cluster-settings-search.*"
       - "packages/renderer/src/features/settings/AccountSettingsPage.tsx"
       - "packages/renderer/src/features/settings/account-settings-search.ts"
+      - "packages/renderer/src/features/settings/StudioSettingsPage.tsx"
+      - "packages/renderer/src/features/settings/studio-settings-search.ts"
       - "packages/renderer/src/features/notifications/ClusterNotificationDeliveryMatrix.tsx"
       - "packages/renderer/src/features/notifications/cluster-notification-delivery-matrix.css"
       - "tools/scripts/cluster-v11-settings-search-matrix-tests.mjs"
