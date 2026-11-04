@@ -25,7 +25,7 @@ function deferred() {
 async function tick() {
   for (let i = 0; i < 24; i++) await Promise.resolve();
 }
-function makeHarness({ online = true, read = "pending", search = false } = {}) {
+function makeHarness({ online = true, read = "pending", search = false, networkError = null } = {}) {
   let generation = 0;
   const gate = deferred();
   const timers = new Map();
@@ -50,6 +50,8 @@ function makeHarness({ online = true, read = "pending", search = false } = {}) {
     "./transport": { api: async (p) => {
       apiCalls += 1;
       latest = { source: "network", path: p, sequence: apiCalls };
+      if (networkError === "offline") throw new TypeError("Cluster server unreachable");
+      if (networkError === "forbidden") throw Object.assign(new Error("Permission denied"), { status: 403 });
       return latest;
     } },
     "./errors": {
@@ -58,7 +60,7 @@ function makeHarness({ online = true, read = "pending", search = false } = {}) {
           super(message); this.status = status; this.code = code;
         }
       },
-      isApiNetworkFailure: () => false,
+      isApiNetworkFailure: (error) => error instanceof TypeError,
       isOnline: () => online,
     },
     "./cache": {
@@ -190,9 +192,44 @@ await test("Session changes during slow disk read reject the old account's paylo
   await tick();
   assert.equal(h.queryCache.size, 0);
 });
+await test("Browser online but Cluster server unreachable recovers a late valid durable snapshot", async () => {
+  const h = makeHarness({ networkError: "offline" });
+  const pending = h.queryApi("/api/projects", { staleMs: 10_000, maxAgeMs: 60_000 });
+  await tick();
+  assert.equal(h.nextTimer(), h.ONLINE_DURABLE_READ_BUDGET_MS);
+  await tick();
+  assert.equal(h.apiCalls, 1);
+  assert.equal(h.timers.size, 1, "network failure opens one bounded disk recovery window");
+  h.releaseRead(durable({ source: "offline-recovery", version: 4 }));
+  assert.equal((await pending).source, "offline-recovery");
+  assert.equal(h.timers.size, 0);
+  assert.equal(h.queryCache.get("member-1:/api/projects")?.value?.source, "offline-recovery");
+});
+await test("Blocked durable storage and failed network still reject within two finite budgets", async () => {
+  const h = makeHarness({ networkError: "offline" });
+  const result = h.queryApi("/api/projects");
+  await tick();
+  assert.equal(h.nextTimer(), h.ONLINE_DURABLE_READ_BUDGET_MS);
+  await tick();
+  assert.equal(h.nextTimer(), h.FAILED_NETWORK_DURABLE_RECOVERY_MS);
+  await assert.rejects(result, /Cluster server unreachable/);
+  assert.equal(h.timers.size, 0);
+});
+await test("Permission denial must never fall back to a delayed cached result", async () => {
+  const h = makeHarness({ networkError: "forbidden" });
+  const result = h.queryApi("/api/permissions");
+  await tick();
+  h.nextTimer();
+  await assert.rejects(result, /Permission denied/);
+  assert.equal(h.timers.size, 0);
+  h.releaseRead(durable({ secret: "revoked" }));
+  await tick();
+  assert.equal(h.queryCache.has("member-1:/api/permissions"), false);
+});
+
 await test("Source retains cache ownership and session guard after disk timeout", async () => {
   const s = read(file);
-  assert.match(s, /const durable = persist && !options.force \? await readDurableForNavigation\(path\) : null/);
+  assert.match(s, /const durableAttempt = persist && !options.force \? await readDurableForNavigation\(path\) : null/);
   assert.match(s, /generation === currentSessionCacheGeneration\(\)/);
   assert.match(s, /queryCache\.get\(memoryKey\)\?\.promise === promise/);
   assert.match(s, /requiresFreshSearchAuthorization\(path\)/);
