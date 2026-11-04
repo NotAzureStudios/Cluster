@@ -4,6 +4,7 @@ on:
     branches: [development]
     paths:
       - "packages/renderer/src/components/ClusterPermissionMatrix.tsx"
+      - "packages/renderer/src/components/DesignSystemPreview.tsx"
       - "packages/renderer/src/components/cluster-permission-matrix.css"
       - "packages/renderer/src/features/application/modules/application-automation-settings.tsx"
       - "tools/scripts/cluster-v11-permission-matrix-tests.mjs"
