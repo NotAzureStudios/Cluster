@@ -1,31 +1,23 @@
-# Cluster 1.0.5 publication recovery
+# Cluster v1.0.5 publication status and recovery
 
-## Verified failure
+## Verified evidence
 
-The main-branch publisher [run 41743562896](https://github.com/NotAzureStudios/Cluster/actions/runs/41743562896) successfully verified the pinned Server 1.0.5 build (run `41742439918`, commit `6e3f05aac63697b05b530f35b05dd6ac1ceac858`) and SHA-256-checked the unchanged Desktop 0.482.0 files. It failed on `gh release create v1.0.5 --draft` with HTTP 403 `Resource not accessible by integration`. The runner explicitly reported `Contents: write` for `GITHUB_TOKEN`; repeating that YAML permission is not a remediation. GitHub release 1.0.5 did **not** exist after the failure.
+- The pinned Server 1.0.5 Windows build passed: GitHub Actions run `41742439918`, source commit `6e3f05aac63697b05b530f35b05dd6ac1ceac858`.
+- Publisher [run 41743562896](https://github.com/NotAzureStudios/Cluster/actions/runs/41743562896) verified the Server 1.0.5 installer and the Desktop 0.482.0 assets, then failed on `gh release create v1.0.5 --draft` with HTTP 403 `Resource not accessible by integration`.
+- The run explicitly reported `Contents: write` for `GITHUB_TOKEN`. The cause of the authorization denial is not established, so changing the YAML permissions again is not a proven fix.
 
-The reason GitHub rejected the write-capable workflow installation token is not established by the log. This hotfix allows a separately authorized, repository-scoped publishing identity rather than weakening source provenance checks or replacing the validated installers.
+## User-selected one-time release plan
 
-## One-time operator setup
+1. Keep publication on the built-in GitHub Actions `GITHUB_TOKEN`; **do not require a personal access token or any new secret**.
+2. Do not require or attempt a Discord announcement. Version 1.0.5 can publish to GitHub independently.
+3. Verify pinned source, build success, release identity `1.0.5` (sequence `55`), Server installer receipt and SHA-256, and all five preserved Desktop files.
+4. Create a draft release, upload the expected eight assets, check their filenames, then promote the release to GitHub Latest.
+5. **If GitHub still returns HTTP 403, fail clearly without claiming release success or bypassing repository policy.** A repository owner can then publish the verified files manually through GitHub's authorized release UI or resolve the workflow token restriction.
 
-1. Under **GitHub → NotAzureStudios/Cluster → Settings → Secrets and variables → Actions**, add `CLUSTER_RELEASE_PUBLISH_TOKEN`. Use a short-lived fine-grained personal access token for **NotAzureStudios/Cluster only**, with **Contents: Read and write**. Do not commit it, paste it into logs, or grant access to other repositories. If GitHub account security or policy blocks the token, resolve authorization there instead of bypassing repository protections.
-2. In the intended Discord announcements channel, create or select a webhook. Store its URL under the repository Actions secret `DISCORD_RELEASE_WEBHOOK_URL`. The release publisher accepts a standard `https://discord.com/api/webhooks/...` URL. The GitHub release may publish without this secret, but the workflow must warn explicitly that Discord was **not** notified.
-3. Review and merge the narrowly scoped publishing fix to `main`. The publisher runs only for changes to its version-pinned workflow on `main` or by manual dispatch. It does not rebuild the binaries and refuses to replace an existing v1.0.5 release.
-4. Verify the job's credential check, the eight expected assets, `/releases/latest` returning `v1.0.5`, and (when configured) the confirmed Discord message ID. If publication fails, inspect its latest job logs before retrying.
-5. Remove or rotate the one-time publishing token after the release if it will not be used again.
+## Release constraints
 
-## Invariants
-
-- Server source commit: `6e3f05aac63697b05b530f35b05dd6ac1ceac858`
-- Server build run: `41742439918`
-- Product identity: `1.0.5`, release sequence `55`, stable
-- Server installer and launcher: **unsigned**, verified against the build receipt
-- Desktop: **0.482.0 unchanged**, SHA-256 verified before publication
-- Publication: GitHub draft first, eight assets verified, promote to Latest last
-- Discord: only **after** GitHub Latest verification; no misleading confirmation when the webhook is missing
-- This is not the separate signed Server automatic-update feed.
-- Existing-instance PostgreSQL upgrade/rollback remains not fully certified. Back up Server state before manual updates.
-
-## Forward bugfix policy
-
-Do not silently recompile or overwrite the immutable `v1.0.5` assets. New application changes should be built and verified under a new release identity (normally `1.0.6`), while `development` remains the default engineering branch. This hotfix is isolated to `main` because `development` currently does not yet contain the pinned v1.0.5 release workflow.
+- Never recompile or silently replace the pinned installer in `v1.0.5`.
+- Server installer is **unsigned** and the signed Server automatic-update feed is **separate**.
+- Desktop remains at **0.482.0**, byte-for-byte unchanged.
+- Upgrade/rollback with populated PostgreSQL and Library remains not fully certified. Back up database, Library, credentials and configuration before manually upgrading.
+- Separate application fixes in `development` belong in a later version; do not relabel them as already included in the pinned v1.0.5 binary.
