@@ -1,0 +1,40 @@
+name: Cluster 1.1 Board Calendar Overflow
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/boards/BoardAlternativeViews.tsx"
+      - "packages/renderer/src/features/boards/board-calendar-projection.ts"
+      - "packages/renderer/src/features/boards/board-workspace.css"
+      - "tools/scripts/cluster-v11-board-calendar-overflow-tests.mjs"
+      - "tools/scripts/cluster-v11-board-civil-dates-tests.mjs"
+      - ".github/workflows/v11-board-calendar-overflow.yml"
+  push:
+    branches: [feat/v11-board-calendar-overflow]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  board-calendar:
+    name: Board Calendar overflow (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Board Calendar overflow regression
+        run: node tools/scripts/cluster-v11-board-calendar-overflow-tests.mjs
+      - name: Existing civil-date regression
+        run: node tools/scripts/cluster-v11-board-civil-dates-tests.mjs
+      - name: Shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Renderer compile and type-check
+        run: npm run build --workspace=@cluster/renderer
