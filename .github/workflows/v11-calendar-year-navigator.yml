@@ -1,0 +1,44 @@
+name: Cluster 1.1 Calendar Year Navigator
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/calendar/CalendarPage.tsx"
+      - "packages/renderer/src/features/calendar/CalendarYearNavigator.tsx"
+      - "packages/renderer/src/features/calendar/calendar-year-projection.ts"
+      - "packages/renderer/src/features/calendar/calendar-date-navigation.ts"
+      - "packages/renderer/src/features/calendar/calendar.css"
+      - "tools/scripts/cluster-v11-calendar-year-navigator-tests.mjs"
+      - "tools/scripts/cluster-v11-calendar-date-navigation-tests.mjs"
+      - "tools/scripts/cluster-v11-calendar-visible-overflow-tests.mjs"
+      - ".github/workflows/v11-calendar-year-navigator.yml"
+  push:
+    branches: [feat/v11-calendar-year-navigator]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  calendar-year:
+    name: Calendar Year (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Year grid, leap and scoped-query tests
+        run: node tools/scripts/cluster-v11-calendar-year-navigator-tests.mjs
+      - name: Existing Calendar date and visibility tests
+        run: node tools/scripts/cluster-v11-calendar-date-navigation-tests.mjs && node tools/scripts/cluster-v11-calendar-visible-overflow-tests.mjs && node tools/scripts/cluster-v11-calendar-conflict-projection-tests.mjs
+        shell: bash
+      - name: Build shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Compile and type-check renderer
+        run: npm run build --workspace=@cluster/renderer
