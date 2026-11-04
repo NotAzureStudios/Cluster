@@ -5,10 +5,10 @@ import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativ
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { PeopleRoleAssignmentPanel } from "./PeopleRoleAssignmentPanel";
 
-type EditableField = "username" | "displayName" | "preferredName" | "email" | "title" | "department" | "workLocation" | "employmentType";
+type EditableField = "username" | "displayName" | "preferredName" | "email" | "title" | "department" | "managerUserId" | "workLocation" | "employmentType";
 type HoursField = "capacityHours" | "minimumHours";
 type Draft = Record<EditableField | HoursField, string>;
-const TEXT_FIELDS: EditableField[] = ["username", "displayName", "preferredName", "email", "title", "department", "workLocation", "employmentType"];
+const TEXT_FIELDS: EditableField[] = ["username", "displayName", "preferredName", "email", "title", "department", "managerUserId", "workLocation", "employmentType"];
 
 function fromProfile(profile: User): Draft {
   return {
@@ -18,6 +18,7 @@ function fromProfile(profile: User): Draft {
     email: profile.email || "",
     title: profile.title || "",
     department: profile.department || "",
+    managerUserId: profile.managerUserId || (profile as User & { manager?: { id: string } | null }).manager?.id || "",
     workLocation: profile.workLocation || "",
     employmentType: profile.employmentType || "",
     capacityHours: profile.capacityHours == null ? "" : String(profile.capacityHours),
@@ -31,10 +32,11 @@ function fromProfile(profile: User): Draft {
  * the existing separately authorized flows, never mixed into a profile save.
  */
 export function PeopleUserEditor({
-  person, departmentNames, onSave, onRoleChange, actorId, onCancel, onOpenAccess, onDirtyChange,
+  person, departmentNames, managerOptions, onSave, onRoleChange, actorId, onCancel, onOpenAccess, onDirtyChange,
 }: {
   person: User;
   departmentNames: string[];
+  managerOptions: Array<{ id: string; label: string }>;
   onSave: (changes: Record<string, unknown>) => Promise<void>;
   onRoleChange: (role: string, expectedProfileRevision: number) => Promise<void>;
   actorId: string;
@@ -134,6 +136,15 @@ export function PeopleUserEditor({
             {departmentOptions.map((name) => <option key={name} value={name}>{name}</option>)}
           </ClusterNativeSelect>
           <small>Managed departments only. Create new ones in People → Organization.</small>
+        </label>
+        <label className="people-user-editor-field-v106">
+          <span>Reports to</span>
+          <ClusterNativeSelect value={draft.managerUserId} disabled={saving} onChange={(event) => update("managerUserId", event.target.value)}>
+            <option value="">No manager</option>
+            {draft.managerUserId && !managerOptions.some((entry) => entry.id === draft.managerUserId) && <option value={draft.managerUserId} disabled>Unavailable or outside your workspace</option>}
+            {managerOptions.filter((entry) => entry.id !== person.id).map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
+          </ClusterNativeSelect>
+          <small>Only active members of this workspace. Reporting cycles are rejected by the server.</small>
         </label>
         {field("workLocation", "Work location")}
         {field("employmentType", "Employment type")}
