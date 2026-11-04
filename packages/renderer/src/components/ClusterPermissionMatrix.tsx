@@ -44,7 +44,7 @@ export function ClusterPermissionMatrix<Key extends string, Level extends string
   const visibleGroups = groups.map((group) => ({
     ...group,
     rows: group.rows.filter((row) => {
-      if (overridesOnly && value?.[row.key] === undefined) return false;
+      if (overridesOnly && (value?.[row.key] === undefined || value?.[row.key] === inheritValue)) return false;
       if (!term) return true;
       const groupMatch = (group.label + " " + (group.description || "")).toLocaleLowerCase().includes(term);
       return groupMatch || (row.label + " " + row.key + " " + (row.description || "")).toLocaleLowerCase().includes(term);
@@ -52,7 +52,7 @@ export function ClusterPermissionMatrix<Key extends string, Level extends string
   })).filter((group) => group.rows.length > 0);
   const totalTools = groups.reduce((count, group) => count + group.rows.length, 0);
   const visibleTools = visibleGroups.reduce((count, group) => count + group.rows.length, 0);
-  return <div className="cluster-permission-matrix-v11" aria-label={label}>
+  return <div className="cluster-permission-matrix-v11" role="group" aria-label={label}>
     <div className="cluster-permission-matrix-intro-v11">
       <span>Choose a level per tool. Inherit keeps the existing baseline. Changes are reviewed and saved through the surrounding workspace.</span>
       {readOnly ? <strong>Read only</strong> : null}
@@ -70,7 +70,7 @@ export function ClusterPermissionMatrix<Key extends string, Level extends string
     </div>
     {!visibleGroups.length ? <p className="cluster-permission-matrix-empty-v11">No permissions match the current filters.</p> : null}
     {visibleGroups.map((group) => {
-      const overrides = group.rows.filter((row) => value?.[row.key] !== undefined).length;
+      const overrides = group.rows.filter((row) => value?.[row.key] !== undefined && value?.[row.key] !== inheritValue).length;
       const groupId = id + "-" + group.id;
       return <section key={group.id} className="cluster-permission-matrix-group-v11" aria-labelledby={groupId + "-title"}>
         <header className="cluster-permission-matrix-group-header-v11">
