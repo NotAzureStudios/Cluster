@@ -1,0 +1,39 @@
+name: Cluster 1.1 Settings search and delivery matrix
+on:
+  pull_request:
+    paths:
+      - "packages/renderer/src/components/ClusterSettingsSearch.tsx"
+      - "packages/renderer/src/components/cluster-settings-search.*"
+      - "packages/renderer/src/features/settings/AccountSettingsPage.tsx"
+      - "packages/renderer/src/features/settings/account-settings-search.ts"
+      - "packages/renderer/src/features/notifications/ClusterNotificationDeliveryMatrix.tsx"
+      - "packages/renderer/src/features/notifications/cluster-notification-delivery-matrix.css"
+      - "tools/scripts/cluster-v11-settings-search-matrix-tests.mjs"
+      - ".github/workflows/v11-settings-search-matrix.yml"
+  push:
+    branches:
+      - feat/v11-settings-search-notification-matrix
+  workflow_dispatch:
+
+jobs:
+  settings-search-regression:
+    name: Settings search and notification matrix (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Restore pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Settings search and matrix regression
+        run: node tools/scripts/cluster-v11-settings-search-matrix-tests.mjs
+      - name: Build shared declaration contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Build and typecheck renderer
+        run: npm run build --workspace=@cluster/renderer

@@ -16,6 +16,10 @@ import { ClusterSlider } from "../../components/ClusterSlider";
 import { ColorField } from "../../components/ColorField";
 import { ClusterToggle } from "../../components/ClusterToggle";
 import { ClusterSettingsChoiceGroup, ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
+import { ClusterSettingsSearch } from "../../components/ClusterSettingsSearch";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ACCOUNT_SETTINGS_SEARCH_ENTRIES } from "./account-settings-search";
+import { ClusterNotificationDeliveryMatrix } from "../notifications/ClusterNotificationDeliveryMatrix";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
@@ -27,9 +31,9 @@ import { ErrorCodeReferencePanel } from "./ErrorCodeReferencePanel";
 import { PrivacyDataControlCenter } from "../legal/PrivacyDataControlCenter";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { NOTIFICATION_CATEGORIES, NOTIFICATION_CATEGORY_DETAILS, NOTIFICATION_DELIVERY_OPTIONS, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationCategory, type NotificationDeliveryMode, type NotificationToolMode } from "../notifications/notification-preferences";
+import { NOTIFICATION_CATEGORIES, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationToolMode } from "../notifications/notification-preferences";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { AccountAccessibilitySettingsSection } from "./AccountAccessibilitySettingsSection";
 import { DesktopDevicePackagesPanel } from "./DesktopDevicePackagesPanel";
@@ -220,6 +224,17 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [settingsSearchJump, setSettingsSearchJump] = useState<{ section: SettingsSection; targetId: string | null } | null>(null);
+  useEffect(() => {
+    if (!settingsSearchJump || settingsSearchJump.section !== section) return;
+    const frame = requestAnimationFrame(() => {
+      const target = (settingsSearchJump.targetId && document.getElementById(settingsSearchJump.targetId))
+        || document.getElementById("account-settings-section-focus-v11");
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "start", behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [settingsSearchJump, section]);
   const [discordOAuth, setDiscordOAuth] = useState<{ configured: boolean; required: boolean } | null>(null);
   const [discordOAuthError, setDiscordOAuthError] = useState(false);
   // OAuth readiness is a one-shot read when the profile editor is opened, never polled.
@@ -1124,7 +1139,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const notificationCategoryDelivery = normalizedNotificationCategoryDelivery(settings);
   const notificationToolModes = normalizedNotificationToolModes(settings);
   const enabledNotificationCount = NOTIFICATION_CATEGORIES.filter((category) => notificationCategoryDelivery[category] !== "off").length;
-  const notificationCategoryIcon = (category: NotificationCategory): ClusterIconName => ({ mentions: "comment", approvals: "check", work: "work", schedule: "calendar", delivery: "cloud", qa: "check", system: "warning", activity: "activity" } satisfies Record<NotificationCategory, ClusterIconName>)[category];
   const profileSaveRecovery = profileSaveError ? apiErrorPresentation(profileSaveError) : null;
   if (loading) return <SettingsLoadingState label="Loading account settings" />;
   if (loadError) return (
@@ -1159,6 +1173,15 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "navigation"] as SettingsSection[]}
       items={settingsSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.domain }))}
     >
+      <ClusterSettingsSearch
+        label="Find account settings"
+        entries={ACCOUNT_SETTINGS_SEARCH_ENTRIES}
+        onNavigate={(entry) => {
+          setSection(entry.section);
+          onSectionChange?.(entry.section);
+          setSettingsSearchJump({ section: entry.section, targetId: entry.targetId || null });
+        }}
+      />
       {heldAccountDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated account settings draft">
         <strong>Local draft needs review</strong>
         <p className="muted">This draft was saved under an earlier or unknown account preferences revision. It was not applied automatically. Restoring it may replace newer changes.</p>
@@ -1177,7 +1200,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       /> : null}
 
       <div className="settings-primary-layout-v469 settings-layout settings-layout-v092">
-        <div className="settings-content panel settings-content-v092 settings-content-v267">
+        <div id="account-settings-section-focus-v11" tabIndex={-1} className="settings-content panel settings-content-v092 settings-content-v267">
           {section === "profile" && (
             <div className="settings-section-v092 profile-editor-v473">
               <div className="settings-panel-head-v092 profile-editor-head-v473">
@@ -1338,7 +1361,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
 
           {section === "appearance" && (
             <div className="settings-section-v092 appearance-section-v092">
-              <div className="settings-panel-head-v092" id="appearance-theme-v546">
+              <div className="settings-panel-head-v092" id="appearance-theme-v546" tabIndex={-1}>
                 <p className="eyebrow">Interface</p>
                 <h2>Appearance</h2>
                 <ClusterButton type="button" variant="secondary" onClick={applyVisualDefaults}>
@@ -1367,7 +1390,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     ]}
                   />
                 </section>
-                <section id="appearance-materials-v546" className="settings-card-v092 span-3 appearance-surface-combined-v270">
+                <section id="appearance-materials-v546" tabIndex={-1} className="settings-card-v092 span-3 appearance-surface-combined-v270">
                   <div className="settings-card-head-v092">
                     <h3>Materials & background</h3>
                     <span>Color foundation, texture, elevation and glass</span>
@@ -1455,7 +1478,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
               <div className="appearance-layout-v093">
                 <AppearanceShellPreview settings={settings} theme={theme} />
                 <div className="settings-card-grid-v092 appearance-card-grid-v092">
-                  <div id="appearance-layout-v546" className="settings-card-v092">
+                  <div id="appearance-layout-v546" tabIndex={-1} className="settings-card-v092">
                     <div className="settings-card-head-v092">
                       <h3>Layout & navigation</h3>
                       <span>Density and chrome</span>
@@ -1564,7 +1587,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   </div>
                   <div className="settings-card-v092">
                     <div className="settings-card-head-v092">
-                      <h3 id="appearance-motion-v546">Motion & interaction</h3>
+                      <h3 id="appearance-motion-v546" tabIndex={-1}>Motion & interaction</h3>
                       <span>Feedback, shape, and movement</span>
                     </div>
                     <div className="settings-stack compact-fields-v092">
@@ -1791,7 +1814,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div>
                   </div>
                 </div>
-                <div className="settings-card-v092">
+                <div className="settings-card-v092" id="account-quiet-hours-v11" tabIndex={-1}>
                   <div className="settings-card-head-v092">
                     <h3>Quiet hours</h3>
                     <span>{settings.userQuietHoursEnabled ? "active" : "off"}</span>
@@ -1826,43 +1849,19 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div> : null}
                   </div>
                 </div>
-                <div className="settings-card-v092 span-2 notification-types-card-v473">
-                  <div className="settings-card-head-v092">
-                    <div>
-                      <h3>Notification types</h3>
-                      <p className="muted tight">Set delivery independently for every category. Off removes that category from the inbox and unread count; Silent keeps it available without a toast or native push.</p>
-                    </div>
-                    <span>{enabledNotificationCount}/{NOTIFICATION_CATEGORIES.length} active</span>
-                  </div>
-                  <div className="notification-type-list-v473">
-                    {NOTIFICATION_CATEGORIES.map((category) => {
-                      const detail = NOTIFICATION_CATEGORY_DETAILS[category];
-                      const mode = notificationCategoryDelivery[category];
-                      const enabled = mode !== "off";
-                      return (
-                        <div className="notification-type-row-v473" key={category} data-category={category} data-enabled={enabled ? "true" : "false"}>
-                          <span className="notification-type-icon-v473"><ClusterIcon name={notificationCategoryIcon(category)} /></span>
-                          <span className="notification-type-copy-v473"><strong>{detail.label}</strong><small>{detail.description}</small></span>
-                          <ClusterNativeSelect
-                            className="notification-delivery-select-v473"
-                            value={mode}
-                            onChange={(event) => {
-                              const nextMode = event.target.value as NotificationDeliveryMode;
-                              const nextDelivery = { ...notificationCategoryDelivery, [category]: nextMode };
-                              patch("notificationCategoryDelivery", nextDelivery);
-                              if (nextMode === "native" || nextMode === "both") setStatus(settings.browserNotifications ? "Native delivery enabled for this notification type." : "Native delivery selected. Enable native alerts on this device to receive system notifications here.");
-                            }}
-                            aria-label={`${detail.label} delivery`}
-                          >
-                            {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                          </ClusterNativeSelect>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="notification-delivery-legend-v473">
-                    {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <span key={option.value}><strong>{option.label}</strong><small>{option.detail}</small></span>)}
-                  </div>
+                <div className="settings-card-v092 span-2 notification-types-card-v473" id="account-notification-delivery-v11" tabIndex={-1}>
+                  <ClusterNotificationDeliveryMatrix
+                    value={notificationCategoryDelivery}
+                    nativePermissionReady={Boolean(settings.browserNotifications)}
+                    onChange={(category, nextMode) => {
+                      patch("notificationCategoryDelivery", { ...notificationCategoryDelivery, [category]: nextMode });
+                      if (nextMode === "native" || nextMode === "both") {
+                        setStatus(settings.browserNotifications
+                          ? "Native delivery enabled for this category."
+                          : "Native delivery selected. Enable native alerts on this device to receive system notifications here.");
+                      }
+                    }}
+                  />
                 </div>
                 <div className="settings-card-v092 span-2 project-notification-settings-v261 notification-tool-settings-v495">
                   <div className="settings-card-head-v092"><h3>Tool notification levels</h3><span>{NOTIFICATION_TOOLS.filter((tool) => notificationToolModes[tool] !== "off").length}/{NOTIFICATION_TOOLS.length} active</span></div>
@@ -2225,15 +2224,9 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
             <span className="eyebrow">Sync</span>
             <strong>{section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
             <small>{lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
-            {section === "forms" || section === "licenses" ? <small>Resource actions are saved in their respective panels.</small> : section === "profile" ? (
-              <ClusterButton variant="primary" type="button" onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
-                {profileSaving ? "Saving…" : "Save profile"}
-              </ClusterButton>
-            ) : (
-              <ClusterButton variant="primary" type="button" onClick={save} disabled={saving || !dirty}>
-                {saving ? "Saving…" : "Save settings"}
-              </ClusterButton>
-            )}
+            {section === "forms" || section === "licenses"
+              ? <small>Resources are saved in their own panels.</small>
+              : <small>Save pending changes using the single action in the page header.</small>}
           </div>
         </aside>
       </div>
