@@ -1,0 +1,34 @@
+name: v1.1 Searchable Department Assignment
+on:
+  pull_request:
+    paths:
+      - "packages/renderer/src/features/settings/WorkforceDepartmentManager.tsx"
+      - "packages/renderer/src/features/settings/workforce-department-manager.css"
+      - "packages/renderer/src/features/settings/department-assignment-choices.ts"
+      - "tools/scripts/cluster-v11-department-entity-picker-tests.mjs"
+      - ".github/workflows/v11-department-entity-picker.yml"
+  push:
+    branches: [feat/v11-searchable-department-assignments]
+  workflow_dispatch:
+
+jobs:
+  department-entity-picker:
+    name: Department assignment selectors (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Test assignment selection
+        run: node tools/scripts/cluster-v11-department-entity-picker-tests.mjs
+      - name: Build shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Renderer typecheck
+        run: npm run build --workspace=@cluster/renderer
