@@ -41,5 +41,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Run UI settings foundation tests
         run: node tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs
+      - name: Build shared contract declarations
+        run: npm run build --workspace=@cluster/shared
       - name: Type-check actual renderer
         run: npm run build --workspace=@cluster/renderer
