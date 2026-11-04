@@ -110,7 +110,7 @@ assert.ok(!manager.includes('queryApi<LeadDirectory>("/api/workforce/context"'),
 assert.ok(manager.includes('leadUserId: draft.leadUserId || null'), "selected leader saved on creation and update");
 assert.ok(manager.includes("expectedRevision: selected!.revision"), "optimistic revision retained");
 assert.ok(manager.includes('disabled={!canEdit || saving || loading || leadLoading || Boolean(leadError)'), "lead editor blocked on read-only or loading");
-assert.ok(manager.includes("Existing lead unavailable"), "missing leader not silently cleared");
+assert.ok(manager.includes("entities={departmentLeadChoices(leadOptions, draft.leadUserId)}") && fs.readFileSync("packages/renderer/src/features/settings/department-assignment-choices.ts", "utf8").includes("Existing lead unavailable"), "missing lead remains represented by the shared searchable entity picker");
 assert.ok(manager.includes("setLeadError("), "fetch failures explained");
 assert.ok(manager.includes("return () => { cancelled = true; }"), "unmounted roster loads ignored");
 assert.ok(workforce.includes('code: "DEPARTMENT_LEAD_INVALID"'), "server checks lead membership on update");
