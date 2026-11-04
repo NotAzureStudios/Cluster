@@ -30,6 +30,7 @@ import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
 import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
+import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
@@ -448,21 +449,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const projectName = (id?: string | null) => projects.find((project) => project.id === id)?.name || "Studio";
   const userName = (id?: string | null) => users.find((user) => user.id === id) ? displayUserName(users.find((user) => user.id === id) as User) : "Unassigned";
 
-  const conflictIds = useMemo(() => {
-    const ids = new Set<string>();
-    const timed = filteredEvents.filter((event) => !event.allDay && !event.overlay);
-    for (let i = 0; i < timed.length; i += 1) {
-      const aStart = new Date(timed[i].startsAt).getTime();
-      const aEnd = timed[i].endsAt ? new Date(timed[i].endsAt as string).getTime() : aStart + 60 * 60 * 1000;
-      for (let j = i + 1; j < timed.length; j += 1) {
-        if (timed[i].ownerId && timed[j].ownerId && timed[i].ownerId !== timed[j].ownerId) continue;
-        const bStart = new Date(timed[j].startsAt).getTime();
-        const bEnd = timed[j].endsAt ? new Date(timed[j].endsAt as string).getTime() : bStart + 60 * 60 * 1000;
-        if (aStart < bEnd && bStart < aEnd) { ids.add(timed[i].occurrenceKey || timed[i].id); ids.add(timed[j].occurrenceKey || timed[j].id); }
-      }
-    }
-    return ids;
-  }, [filteredEvents]);
+  const conflictIds = useMemo(() => visibleCalendarConflictIds(filteredEvents), [filteredEvents]);
 
   function selectCalendarDate(date: Date) {
     setSelectedDate(date);
