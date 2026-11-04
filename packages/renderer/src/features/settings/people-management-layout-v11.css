@@ -37,3 +37,12 @@
 .studio-department-templates-v11>.studio-policy-strip-v272{margin:12px 14px}
 .studio-department-template-note-v11{font-size:.71rem;line-height:1.5;padding:10px 12px;border-radius:8px;background:var(--surface-soft);color:var(--muted)}
 @media(max-width:950px){.studio-department-templates-v11>.studio-entity-manager-v272{grid-template-columns:minmax(0,1fr)}}
+
+
+/* v1.1: Discord-inspired searchable role list, with authoritative counts. */
+.studio-role-directory-search-v11{display:grid;gap:5px;padding:2px 7px 9px;min-width:0}
+.studio-role-directory-search-v11>span{font-size:.65rem;color:var(--muted)}
+.studio-role-directory-search-v11 input{width:100%;min-width:0}
+.studio-role-directory-warning-v11,.studio-role-directory-empty-v11{display:block;color:var(--muted);font-size:.68rem;line-height:1.4;padding:8px 10px;margin:0}
+.studio-role-member-count-v11{display:block;color:var(--muted);font-size:.68rem;margin-top:6px}
+.studio-roles-management-v11 .studio-entity-list-meta-v272{max-width:98px}

@@ -129,6 +129,23 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [departmentEditorTab, setDepartmentEditorTab] = useState<"details" | "permissions" | "roles">("details");
   const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
   const [roleCreationOpen, setRoleCreationOpen] = useState(false);
+  const [roleDirectorySearch, setRoleDirectorySearch] = useState("");
+  const [roleMemberCounts, setRoleMemberCounts] = useState<Record<string, number> | null>(null);
+  const [roleMemberCountsError, setRoleMemberCountsError] = useState("");
+  useEffect(() => {
+    if (section !== "roles" || !currentUser.isAdmin) return;
+    let cancelled = false;
+    setRoleMemberCounts(null);
+    setRoleMemberCountsError("");
+    void queryApi<{ roles: Array<{ id: string; members: number }> }>("/api/admin/users/assignable-roles", {
+      staleMs: 15_000, maxAgeMs: 60_000, persist: false, tags: ["roles", "users", "people"],
+    }).then(({ roles }) => {
+      if (!cancelled) setRoleMemberCounts(Object.fromEntries(roles.map((role) => [role.id, role.members])));
+    }).catch((error: unknown) => {
+      if (!cancelled) setRoleMemberCountsError(error instanceof Error ? error.message : "Member counts unavailable.");
+    });
+    return () => { cancelled = true; };
+  }, [section, currentUser.id, currentUser.isAdmin]);
   const [workforceDepartmentRows, setWorkforceDepartmentRows] = useState<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>([]);
   useEffect(() => { setWorkforceDepartmentRows([]); }, [currentUser.id]);
   const workforceDepartmentById = useMemo(() => new Map(workforceDepartmentRows.map((department) => [department.id, department])), [workforceDepartmentRows]);
@@ -1232,19 +1249,25 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
               <div className="studio-entity-manager-v272">
                 <aside className="studio-entity-list-v272" aria-label="Studio roles">
-                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{studioRoles.length}</span></div>
-                  {studioRoles.map((role) => (
+                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{studioRoles.length} total</span></div>
+                  <label className="studio-role-directory-search-v11">
+                    <span>Find roles</span>
+                    <ClusterInput type="search" value={roleDirectorySearch} placeholder="Search roles or departments…" autoComplete="off" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
+                  </label>
+                  {roleMemberCountsError && <small className="studio-role-directory-warning-v11" role="status">Member counts unavailable. Role editing is still available.</small>}
+                  {studioRoles.filter((role) => `${role.label} ${role.id} ${studioDepartments.find((department) => department.id === role.departmentId)?.label || ""}`.toLocaleLowerCase().includes(roleDirectorySearch.trim().toLocaleLowerCase())).map((role) => (
                     <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
                       <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
-                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : role.permissionTemplateKey || "Custom"}</span>
+                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? `${roleMemberCounts[role.id]} members` : role.permissionTemplateKey || "Custom"}</span>
                     </ClusterButton>
                   ))}
+                  {!studioRoles.some((role) => `${role.label} ${role.id} ${studioDepartments.find((department) => department.id === role.departmentId)?.label || ""}`.toLocaleLowerCase().includes(roleDirectorySearch.trim().toLocaleLowerCase())) && <p className="studio-role-directory-empty-v11">No roles match this search.</p>}
                 </aside>
 
                 {selectedRole && (
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
-                      <div><span className="eyebrow">Role</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p></div>
+                      <div><span className="eyebrow">Role · {selectedRole.id}</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p>{roleMemberCounts && typeof roleMemberCounts[selectedRole.id] === "number" && <small className="studio-role-member-count-v11">{roleMemberCounts[selectedRole.id]} assigned workspace members</small>}</div>
                       <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => void setStudioRoleEnabled(selectedRole.id, event.target.checked)} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
                     </header>
 
