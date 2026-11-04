@@ -59,6 +59,18 @@ test("section index includes Account settings and deep links to safe fixed ancho
   assert.match(index, /targetId: "account-quiet-hours-v11"/);
   assert.doesNotMatch(index, /fetch\(|queryApi\(|localStorage/);
 });
+test("Studio setting search includes only sections supplied by authorized navigation", () => {
+  const builder = loadTs("packages/renderer/src/features/settings/studio-settings-search.ts").buildStudioSettingsSearchEntries;
+  const identity = { key: "identity", label: "Identity", group: "Studio", meta: "Studio" };
+  const qa = { key: "qa", label: "QA gates", group: "Delivery", meta: "blocking" };
+  const scoped = builder([identity]);
+  assert.deepEqual(Array.from(scoped, entry => entry.section), ["identity"]);
+  assert.deepEqual(Array.from(builder([identity, qa]), entry => entry.section), ["identity", "qa"]);
+  const studio = read("packages/renderer/src/features/settings/StudioSettingsPage.tsx");
+  assert.match(studio, /<ClusterSettingsSearch label="Find studio settings"/);
+  assert.match(studio, /buildStudioSettingsSearchEntries\(studioSections\)/);
+  assert.match(studio, /onNavigate=\{\(entry\) => setSection\(entry.section\)\}/);
+});
 test("navigator supports true combobox semantics and keyboard selection", () => {
   const nav = read("packages/renderer/src/components/ClusterSettingsSearch.tsx");
   assert.match(nav, /role="combobox"/);
@@ -71,6 +83,7 @@ test("navigator supports true combobox semantics and keyboard selection", () => 
   assert.match(nav, /event.key === "Enter"/);
   assert.match(nav, /event.key === "Escape"/);
   assert.match(nav, /onNavigate\(entry\)/);
+  assert.match(nav, /aria-live="polite"/);
   assert.doesNotMatch(nav, /fetch\(|queryApi\(|localStorage|setInterval|setTimeout/);
 });
 test("notification delivery matrix uses single-select native radio groups", () => {
@@ -116,6 +129,8 @@ test("affected TS and TSX files parse", () => {
     "packages/renderer/src/components/ClusterSettingsSearch.tsx",
     "packages/renderer/src/features/notifications/ClusterNotificationDeliveryMatrix.tsx",
     "packages/renderer/src/features/settings/account-settings-search.ts",
+    "packages/renderer/src/features/settings/studio-settings-search.ts",
+    "packages/renderer/src/features/settings/StudioSettingsPage.tsx",
     "packages/renderer/src/features/settings/AccountSettingsPage.tsx",
   ]) compile(file);
 });
