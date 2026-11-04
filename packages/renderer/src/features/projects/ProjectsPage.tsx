@@ -29,6 +29,7 @@ import type { BuildMilestonePlanItem, Project, ProjectSnapshot, TimelineEntry, T
 import { projectScheduleState, projectSetupChecklist } from "./project-list-utils";
 import { ProjectPortfolioInspector } from "./ProjectPortfolioInspector";
 import { ProjectPortfolioItem } from "./ProjectPortfolioItem";
+import { projectInspectorReturnFocus } from "./project-inspector-focus";
 import { projectAttentionScore, type ProjectPortfolioFocus } from "./project-portfolio-model";
 import "./projects.css";
 
@@ -429,9 +430,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   function openInspector(projectId: string, trigger: HTMLElement) {
     // Row actions can be rendered inside a floating menu. Restore keyboard
     // focus to the stable underlying Project tile, not an unmounted menu item.
-    const card = Array.from(document.querySelectorAll<HTMLElement>("[data-project-id]"))
-      .find((node) => node.dataset.projectId === projectId);
-    inspectorReturnFocusRef.current = card?.querySelector<HTMLElement>(".project-row-select-v370") || trigger;
+    inspectorReturnFocusRef.current = projectInspectorReturnFocus(projectId, trigger, document);
     setSelectedProjectId(projectId);
     setInspectorOpen(true);
   }
