@@ -21,4 +21,4 @@ assert.ok(handler.includes('await api("/api/server-config"'), "Protected save mu
 assert.ok(handler.includes("expectedSettings, securityPin: pin"), "CAS preconditions and PIN must remain on write");
 assert.equal((routes.match(/code: "INVALID_DATABASE_URL_OVERRIDE"/g) || []).length, 2, "Both protected config routes must produce typed 400 for invalid PostgreSQL URLs");
 assert.ok(routes.includes('return reply.code(400).send({ ok: false, code: "INVALID_DATABASE_URL_OVERRIDE"'), "Database URL error must not produce HTTP 500");
-console.log("Server Config no-op/PIN/confirmation regression contracts: 9 passed.");
+console.log("Server Config no-op/PIN/confirmation regression contracts: 10 passed.");
