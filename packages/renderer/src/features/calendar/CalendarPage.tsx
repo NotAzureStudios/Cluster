@@ -30,6 +30,7 @@ import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
 import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
 import { CalendarYearNavigator } from "./CalendarYearNavigator";
+import { calendarViewNeedsRangeData } from "./calendar-view-data-policy";
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 
@@ -225,6 +226,8 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const preferredMonthDayRef = useRef(anchorDate.getDate());
   const [view, setView] = useState<"year" | "month" | "week" | "day" | "agenda">("month");
   const userChangedView = useRef(false);
+  const calendarViewRef = useRef(view);
+  calendarViewRef.current = view;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsSnapshotPath, setEventsSnapshotPath] = useState("");
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
@@ -322,6 +325,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadEvents(force = false) {
     const sequence = ++eventsRequestSequence.current;
+    if (!calendarViewNeedsRangeData(calendarViewRef.current)) return;
     try {
       const result = await queryApi<CalendarEvent[]>(eventsPath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["calendar"] });
       if (sequence !== eventsRequestSequence.current) return;
@@ -333,6 +337,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadTimeline(force = false) {
     const sequence = ++timelineRequestSequence.current;
+    if (!calendarViewNeedsRangeData(calendarViewRef.current)) return;
     try {
       const result = await queryApi<TimelinePayload>(timelinePath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["timeline", "calendar-overlays"] });
       if (sequence !== timelineRequestSequence.current) return;
@@ -378,16 +383,32 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }, [projectFilter, preferenceReload]);
 
   useEffect(() => { void loadUsers(); return () => { usersRequestSequence.current += 1; }; }, []);
-  useEffect(() => { void loadEvents(); return () => { eventsRequestSequence.current += 1; }; }, [eventsPath]);
-  useEffect(() => { void loadTimeline(); return () => { timelineRequestSequence.current += 1; }; }, [timelinePath]);
-  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar") void loadEvents(true); }), [range.start.getTime(), range.end.getTime()]);
+  useEffect(() => {
+    if (!calendarViewNeedsRangeData(view)) {
+      eventsRequestSequence.current += 1;
+      setEventsSnapshotPath("");
+      return;
+    }
+    void loadEvents();
+    return () => { eventsRequestSequence.current += 1; };
+  }, [eventsPath, view]);
+  useEffect(() => {
+    if (!calendarViewNeedsRangeData(view)) {
+      timelineRequestSequence.current += 1;
+      setTimelineSnapshotPath("");
+      return;
+    }
+    void loadTimeline();
+    return () => { timelineRequestSequence.current += 1; };
+  }, [timelinePath, view]);
+  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar" && calendarViewNeedsRangeData(calendarViewRef.current)) void loadEvents(true); }), [range.start.getTime(), range.end.getTime(), view]);
   useEffect(() => subscribeClusterCohesionEvent<Partial<ClusterPersonSummary>>(CLUSTER_PERSON_CHANGED_EVENT, () => { void loadUsers(); }), []);
   useResourceChangeRefresh(async () => {
     await Promise.all([loadEvents(true), loadTimeline(true)]);
   }, { kinds: ["calendar", "meeting", "timeline", "card", "scheduler"], debounceMs: 220 });
 
-  const visibleTimelineEntries = timelineSnapshotPath === timelinePath ? timelineEntries : [];
-  const visibleEvents = eventsSnapshotPath === eventsPath ? events : [];
+  const visibleTimelineEntries = calendarViewNeedsRangeData(view) && timelineSnapshotPath === timelinePath ? timelineEntries : [];
+  const visibleEvents = calendarViewNeedsRangeData(view) && eventsSnapshotPath === eventsPath ? events : [];
   const overlayItems = useMemo<CalendarDisplayItem[]>(() => visibleTimelineEntries.map((entry) => ({
     id: `overlay:${entry.source}:${entry.id}`,
     projectId: entry.projectId || entry.project?.id || null,
