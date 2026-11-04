@@ -179,6 +179,39 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [accountFilter, setAccountFilter] = useState<"all" | "attention" | "restricted" | "archived">("all");
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [createAccountBusy, setCreateAccountBusy] = useState(false);
+  type CreateRoleCatalog = {
+    actorRole: string;
+    workspaceId: string;
+    roles: Array<{ id: string; label: string; enabled: boolean; privileged: boolean; members: number }>;
+  };
+  const [createRoleCatalog, setCreateRoleCatalog] = useState<CreateRoleCatalog | null>(null);
+  const [createRoleError, setCreateRoleError] = useState("");
+  const [createRoleLoading, setCreateRoleLoading] = useState(false);
+  useEffect(() => {
+    if (!effectiveAdminMode || !createAccountOpen) {
+      setCreateRoleCatalog(null);
+      setCreateRoleError("");
+      return;
+    }
+    let cancelled = false;
+    setCreateRoleLoading(true);
+    setCreateRoleError("");
+    void queryApi<CreateRoleCatalog>("/api/admin/users/assignable-roles", {
+      force: true, staleMs: 0, persist: false, tags: ["roles", "users", "people"],
+    }).then((result) => {
+      if (cancelled) return;
+      setCreateRoleCatalog(result);
+      const canAssign = (id: string) => result.roles.some((role) =>
+        role.id === id && role.enabled && (!role.privileged || result.actorRole === "owner"));
+      setCreateAccountDraft((draft) => canAssign(draft.role) ? draft : { ...draft, role: "member" });
+    }).catch((cause: unknown) => {
+      if (!cancelled) {
+        setCreateRoleCatalog(null);
+        setCreateRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
+      }
+    }).finally(() => { if (!cancelled) setCreateRoleLoading(false); });
+    return () => { cancelled = true; };
+  }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
   const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
   const accountScopeRef = useRef(currentUser.id);
@@ -366,6 +399,11 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (!effectiveAdminMode || accountCreateGateRef.current) return;
     const username = createAccountDraft.username.trim();
     if (username.length < 3) { setLoadStatus("Username must contain at least 3 characters."); return; }
+    const assignable = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
+    if (!assignable || !assignable.enabled || (assignable.privileged && createRoleCatalog?.actorRole !== "owner")) {
+      setLoadStatus("Choose an enabled workspace role you are authorized to assign before creating this account.");
+      return;
+    }
     accountCreateGateRef.current = true;
     const scope = currentUser.id;
     setCreateAccountBusy(true);
@@ -782,8 +820,17 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           <label className="field"><span>Email</span><ClusterTextInput value={createAccountDraft.email} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="name@example.com" /></label>
           <label className="field"><span>Access expires</span><ClusterInput type="date" value={createAccountDraft.accessExpiresAt} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accessExpiresAt: event.target.value }))} /><small>Required for contractor, client and guest accounts.</small></label>
           <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accountType: event.target.value }))}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
-          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, role: event.target.value }))}><option value="member">Member</option><option value="viewer">Viewer</option></ClusterNativeSelect></label>
-          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
+          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, role: event.target.value }))}>
+            {!createRoleCatalog?.roles.some((role) => role.id === createAccountDraft.role) && <option value={createAccountDraft.role} disabled>{createAccountDraft.role} (unavailable)</option>}
+            {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!role.enabled || (role.privileged && createRoleCatalog.actorRole !== "owner")}>
+              {role.label}{role.enabled ? "" : " (disabled)"} · {role.members} members
+            </option>)}
+          </ClusterNativeSelect>
+          <small>Only roles you can assign appear as enabled options. Owner and administrator roles require an owner.</small>
+          {createRoleLoading && <small role="status">Loading workspace roles…</small>}
+          {createRoleError && <small role="alert">{createRoleError}</small>}
+          </label>
+          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError)} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
         </div>
       </section>}
 
