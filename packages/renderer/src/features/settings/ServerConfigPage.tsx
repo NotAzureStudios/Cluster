@@ -10,6 +10,7 @@ import { confirmCluster, promptCluster } from "../../components/cluster-dialog-s
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
+import { ClusterSettingsChangeReview } from "../../components/ClusterSettingsPrimitives";
 import type { SecurityDiagnostics, ServerBackupRecord, ServerBackupVerification, ServerConfigField, ServerConfigSection, ServerSessionRecord, Settings } from "../application/application-models";
 import "./settings-workspace.css";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -1357,6 +1358,15 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       )}
       {saveError && !networkDeploymentPending ? <RequestErrorState compact error={saveError} title="Server configuration was not saved" onRetry={serverConfigConflict ? undefined : () => void save()} onReload={serverConfigConflict ? () => void refreshAfterServerConfigConflict() : undefined} reloadLabel="Refresh and review edits" /> : null}
 
+      {changedFields.length > 0 && <ClusterSettingsChangeReview
+        label="Review pending server edits"
+        changes={changedFields.map((field) => ({
+          id: String(field.key), label: field.label,
+          // No raw configuration values enter the review UI. Secrets stay off the DOM.
+          impact: (NETWORK_REVIEW_FIELDS as readonly string[]).includes(String(field.key)) ? "exposure"
+            : field.restart ? "restart" : "protected",
+        }))}
+      />}
       <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
         <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2 className="server-config-section-title-v103"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" />{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div></div>
       </section>
