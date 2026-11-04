@@ -69,7 +69,7 @@ try {
     assert.ok(editor.includes('managerUserId: profile.managerUserId'));
     assert.ok(editor.includes('update("managerUserId", event.target.value)'));
     assert.ok(editor.includes('managerOptions.filter((entry) => entry.id !== person.id)'));
-    assert.ok(editor.includes('expectedProfileRevision: person.profileRevision || 1'));
+    assert.ok(editor.includes('preparePeopleEditorPatch(draft, initial, openedRevision.current'));
   });
   await check("Manager options come from existing scoped workforce context",()=>{
     assert.ok(page.includes('managerOptions={(workforceContext?.people || [])'));
