@@ -15,10 +15,12 @@ type DepartmentRow = {
   color?: string | null; iconId?: string | null;
   revision: number; members: number; teams: number;
 };
-type Draft = { name: string; description: string; parentId: string; color: string; iconId: string | null };
-const emptyDraft = (): Draft => ({ name: "", description: "", parentId: "", color: "#57c1ff", iconId: null });
+type Draft = { name: string; description: string; parentId: string; leadUserId: string; color: string; iconId: string | null };
+type DepartmentLead = { id: string; label: string; username: string };
+type LeadDirectory = { workspaceId: string; people: DepartmentLead[] };
+const emptyDraft = (): Draft => ({ name: "", description: "", parentId: "", leadUserId: "", color: "#57c1ff", iconId: null });
 const fromRow = (row?: DepartmentRow): Draft => row
-  ? { name: row.name, description: row.description || "", parentId: row.parentId || "", color: row.color || "#57c1ff", iconId: row.iconId || null }
+  ? { name: row.name, description: row.description || "", parentId: row.parentId || "", leadUserId: row.leadUserId || "", color: row.color || "#57c1ff", iconId: row.iconId || null }
   : emptyDraft();
 
 /**
@@ -35,6 +37,9 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [leadOptions, setLeadOptions] = useState<DepartmentLead[]>([]);
+  const [leadLoading, setLeadLoading] = useState(true);
+  const [leadError, setLeadError] = useState("");
 
   const selected = rows.find((row) => row.id === selectedId);
   const dirty = JSON.stringify(draft) !== JSON.stringify(creating ? emptyDraft() : fromRow(selected));
@@ -77,8 +82,25 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
 
   useEffect(() => { void load(); }, [load]);
 
+  // Read a minimal authorized roster once, not the entire Workforce context.
+  // View-only users may read department leaders, but cannot change assignments.
+  useEffect(() => {
+    let cancelled = false;
+    void queryApi<LeadDirectory>("/api/departments/lead-options", {
+      force: true, staleMs: 0, persist: false, tags: ["departments", "people", "workforce"],
+    }).then((result) => {
+      if (!cancelled) { setLeadOptions(result.people); setLeadLoading(false); setLeadError(""); }
+    }).catch((cause: unknown) => {
+      if (!cancelled) {
+        setLeadLoading(false);
+        setLeadError(cause instanceof Error ? cause.message : "Department lead choices unavailable.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   async function choose(id: string) {
-    if (!canEdit || saving || (dirty && !(await confirmDiscard()))) return;
+    if (saving || (dirty && !(await confirmDiscard()))) return;
     const next = rows.find((row) => row.id === id);
     if (!next) return;
     setCreating(false); setSelectedId(id); setDraft(fromRow(next)); setError(""); setStatus("");
@@ -107,6 +129,7 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
     const body = {
       name, description: draft.description.trim() || null,
       parentId: draft.parentId || null,
+      leadUserId: draft.leadUserId || null,
       color: draft.color, iconId: draft.iconId,
     };
     try {
@@ -114,7 +137,7 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
         ? await api<{ department: DepartmentRow }>("/api/admin/workforce/departments", { method: "POST", body: JSON.stringify(body) })
         : await api<{ department: DepartmentRow }>(`/api/admin/workforce/departments/${encodeURIComponent(selected!.id)}`, {
           method: "PATCH",
-          body: JSON.stringify({ ...body, leadUserId: selected!.leadUserId || null, expectedRevision: selected!.revision }),
+          body: JSON.stringify({ ...body, expectedRevision: selected!.revision }),
         });
       const saved = { ...selected, ...response.department, members: selected?.members || 0, teams: selected?.teams || 0 } as DepartmentRow;
       setRows((current) => [...current.filter((row) => row.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
@@ -161,11 +184,18 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
             <option value="">No parent</option>
             {rows.filter((row) => !invalidParents.has(row.id)).map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}
           </ClusterNativeSelect></label>
+          <label><span>Department lead</span><ClusterNativeSelect value={draft.leadUserId} disabled={!canEdit || saving || loading || leadLoading || Boolean(leadError) || (!creating && !selected)} onChange={(event) => update("leadUserId", event.target.value)}>
+            <option value="">Unassigned</option>
+            {draft.leadUserId && !leadOptions.some((person) => person.id === draft.leadUserId) && <option value={draft.leadUserId} disabled>Existing lead unavailable</option>}
+            {leadOptions.map((person) => <option value={person.id} key={person.id}>{person.label}{person.label !== person.username ? ` (@${person.username})` : ""}</option>)}
+          </ClusterNativeSelect></label>
           <label><span>Accent color</span><ClusterInput type="color" aria-label="Department accent color" value={draft.color} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("color", event.target.value)} /></label>
           <div className="studio-workforce-department-icon-field-v11"><span>Department icon</span><ResourceIconPicker label={draft.name || "Department"} value={draft.iconId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(iconId) => update("iconId", iconId)} /></div>
           <label className="studio-workforce-department-description-v11"><span>Description</span><ClusterTextarea value={draft.description} maxLength={1000} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("description", event.target.value)} /></label>
         </div>
-        {selected && !creating && <p className="studio-workforce-department-hint-v11">Lead assignments and job roles remain managed in People → Organization. Changes here use revision checks.</p>}
+        {leadLoading && <p role="status" className="studio-workforce-department-hint-v11">Loading eligible department leads…</p>}
+        {leadError && <p role="status" className="studio-workforce-department-hint-v11">Lead choices could not be loaded. The existing assignment is preserved. {leadError}</p>}
+        {selected && !creating && <p className="studio-workforce-department-hint-v11">Department leaders must be active members of this workspace. Job roles are managed in People → Organization. Changes here use revision checks.</p>}
         {error && <p role="alert" className="studio-workforce-department-error-v11">{error}</p>}
         {status && <p role="status" className="studio-workforce-department-status-v11">{status}</p>}
         <div className="studio-workforce-department-actions-v11">
