@@ -17,6 +17,7 @@ import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell"
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
+import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -125,6 +126,29 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [departmentEditorTab, setDepartmentEditorTab] = useState<"details" | "permissions" | "roles">("details");
   const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
   const [roleCreationOpen, setRoleCreationOpen] = useState(false);
+  const [workforceDepartmentRows, setWorkforceDepartmentRows] = useState<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>([]);
+  const [workforceDepartmentLoading, setWorkforceDepartmentLoading] = useState(false);
+  const [workforceDepartmentError, setWorkforceDepartmentError] = useState("");
+  const [workforceDepartmentRefresh, setWorkforceDepartmentRefresh] = useState(0);
+  useEffect(() => {
+    if (section !== "departments") return;
+    let active = true;
+    setWorkforceDepartmentLoading(true);
+    void queryApi<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>(
+      "/api/departments", { force: true, staleMs: 0, tags: ["departments", "people", "workforce"] },
+    ).then((items) => {
+      if (!active) return;
+      setWorkforceDepartmentRows(items);
+      setWorkforceDepartmentError("");
+    }).catch((error: unknown) => {
+      if (active) setWorkforceDepartmentError(error instanceof Error ? error.message : "Unable to load department links.");
+    }).finally(() => {
+      if (active) setWorkforceDepartmentLoading(false);
+    });
+    return () => { active = false; };
+  }, [section, currentUser.id, workforceDepartmentRefresh]);
+  const workforceDepartmentById = useMemo(() => new Map(workforceDepartmentRows.map((department) => [department.id, department])), [workforceDepartmentRows]);
+
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState("");
   const studioDraftTimer = useRef<number | null>(null);
   const studioDraftKey = `studio-settings:${currentUser.id}`;
