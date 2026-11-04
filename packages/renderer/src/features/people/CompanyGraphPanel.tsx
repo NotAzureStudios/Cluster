@@ -6,6 +6,7 @@ import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark"
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { buildCompanyGraph, type CompanyGraphDepartment, type CompanyGraphPerson, type CompanyGraphTeam } from "./company-graph";
+import "./company-graph-identity.css";
 
 
 function DepartmentEditor({ department, departments, people, workspaceId, onChanged, onClose }: {
