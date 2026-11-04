@@ -17,7 +17,6 @@ import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell"
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -1039,14 +1038,14 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </div>
               {departmentCreationOpen && (
               <div className="studio-create-strip-v272">
-                <div><strong>New</strong></div>
+                <div><strong>New policy template</strong></div>
                 <ClusterInput value={newDepartmentLabel} onChange={(event) => setNewDepartmentLabel(event.target.value)} placeholder="Department name" />
                 <ClusterInput value={newDepartmentTeam} onChange={(event) => setNewDepartmentTeam(event.target.value)} placeholder="Default team name" />
-                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add department</ClusterButton>
+                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add template</ClusterButton>
               </div>
               )}
               <div className="studio-entity-manager-v272">
-                <aside className="studio-entity-list-v272" aria-label="Departments">
+                <aside className="studio-entity-list-v272" aria-label="Department access templates">
                   <div className="studio-entity-list-head-v272">
                     <strong>Directory</strong>
                     <span>{studioDepartments.length}</span>
