@@ -54,6 +54,7 @@ import { PersonnelRecordsPanel } from "./PersonnelRecordsPanel";
 import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } from "./WorkforceAvailabilityExceptions";
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
+import { PeopleUserEditor } from "./PeopleUserEditor";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
   { id: "people_department", kind: "grouped", dimensions: ["department"], measures: [{ id: "count", kind: "count", label: "People" }], limit: 20, drilldown: { mode: "filter", presentation: "table" } },
@@ -134,7 +135,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const deferredDirectoryQuery = useDeferredValue(query);
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [profileView, setProfileView] = useState<"overview" | "work" | "calendar" | "activity" | "records" | "access" | "full">("overview");
+  const [profileView, setProfileView] = useState<"overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit">("overview");
   const [profileExpanded, setProfileExpanded] = useState(false);
   const [profileCalendar, setProfileCalendar] = useState<ProfileCalendarEvent[]>([]);
   const [profileCalendarLoading, setProfileCalendarLoading] = useState(false);
@@ -936,6 +937,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
                 </div>
                 <div className="button-row compact people-person-actions-v495">
+                  {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant="secondary" onClick={() => setProfileView("edit")}>Edit user</ClusterButton>}
                   <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
                   <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
                     { id: "copy-profile-link", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy profile link", icon: "link", onSelect: () => copyProfileLink(profile) },
@@ -943,7 +945,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     { id: "view-activity", resourceKinds: ["user"] as const, allowed: () => true, label: "View activity", icon: "activity", onSelect: () => setProfileView("activity") },
                     ...(canOpenScheduler ? [{ id: "open-scheduler", resourceKinds: ["user"] as const, allowed: () => true, label: "Open scheduler", icon: "clock" as const, onSelect: () => { openClusterWorkNavigation({ screen: "scheduler" }); } }] : []),
                     ...((currentUser.isAdmin || getToolLevel(currentUser, "people") === "edit") ? [{ id: "view-records", resourceKinds: ["user"] as const, allowed: () => true, label: "View records", icon: "library" as const, onSelect: () => setProfileView("records") }] : []),
-                    ...(profile.id === currentUser.id && onEditProfile ? [{ id: "edit-profile", resourceKinds: ["user"] as const, allowed: () => true, label: "Edit profile", icon: "settings" as const, separatorBefore: true, onSelect: onEditProfile }] : []),
+                    ...(profile.id === currentUser.id && onEditProfile ? [{ id: "edit-profile", resourceKinds: ["user"] as const, allowed: () => true, label: "Edit my profile", icon: "settings" as const, separatorBefore: true, onSelect: onEditProfile }] : []),
+                    ...(effectiveAdminMode && !profile.archived ? [{ id: "edit-user", resourceKinds: ["user"] as const, allowed: () => true, label: "Edit user", icon: "settings" as const, separatorBefore: true, onSelect: () => setProfileView("edit") }] : []),
                     ...(currentUser.isAdmin && profile.id !== currentUser.id ? [{ id: "manage-access", resourceKinds: ["user"] as const, allowed: () => true, label: effectiveAdminMode ? "Manage access" : "View access", icon: "lock" as const, separatorBefore: true, onSelect: () => setProfileView("access") }] : []),
                   ])} />
                 </div>
@@ -1214,6 +1217,21 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     </section>}
                   </div>
                 )}
+
+                {profileView === "edit" && effectiveAdminMode && !profile.archived && <PeopleUserEditor
+                  key={profile.id}
+                  person={profile}
+                  departmentNames={workforceContext?.departments.map((department) => department.name) || []}
+                  onCancel={() => setProfileView("overview")}
+                  onOpenAccess={() => setProfileView("access")}
+                  onSave={async (changes) => {
+                    await api(`/api/users/${encodeURIComponent(profile.id)}`, { method: "PATCH", body: JSON.stringify(changes) });
+                    setDirectoryRefresh((current) => current + 1);
+                    await loadProfile(profile.id, true);
+                    setProfileView("overview");
+                    setLoadStatus(`User details saved for ${displayUserName(profile)}.`);
+                  }}
+                />}
 
                 {profileView === "full" && (
                   <div className="people-full-profile-v250">
