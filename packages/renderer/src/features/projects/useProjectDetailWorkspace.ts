@@ -17,37 +17,39 @@ import type {
 import type { ProjectControlCenterPayload } from "./project-control-model";
 import type { ProjectIntelligenceSnapshot } from "./ProjectIntelligencePanel";
 import { PROJECT_WORKSPACE_SECTIONS, type ProjectWorkspaceTabId } from "./project-workspace-registry";
+import { needsProjectTabLocation, projectTabForWorkspace, projectTabFromUrl, projectTabLocation } from "./project-tab-location";
 
 const PROJECT_WORKSPACE_TABS = new Set<ProjectWorkspaceTabId>(PROJECT_WORKSPACE_SECTIONS.map((section) => section.id));
-const PROJECT_TAB_QUERY_KEY = "projectTab";
 
-function projectTabFromLocation() {
-  if (typeof window === "undefined") return null;
-  const value = new URL(window.location.href).searchParams.get(PROJECT_TAB_QUERY_KEY);
-  return value && PROJECT_WORKSPACE_TABS.has(value as ProjectWorkspaceTabId) ? value as ProjectWorkspaceTabId : null;
+function writeProjectTabToLocation(projectId: string, tab: ProjectWorkspaceTabId, mode: "push" | "replace" = "replace") {
+  if (typeof window === "undefined" || !PROJECT_WORKSPACE_TABS.has(tab)) return;
+  if (!needsProjectTabLocation(window.location.href, projectId, tab, PROJECT_WORKSPACE_TABS)) return;
+  const state = { ...(window.history.state || {}), clusterProjectTab: tab, clusterProjectTabProject: projectId };
+  window.history[mode === "push" ? "pushState" : "replaceState"](
+    state, "", projectTabLocation(window.location.href, projectId, tab),
+  );
 }
-
-function writeProjectTabToLocation(tab: ProjectWorkspaceTabId, mode: "push" | "replace" = "replace") {
-  if (typeof window === "undefined") return;
-  const url = new URL(window.location.href);
-  if (url.searchParams.get(PROJECT_TAB_QUERY_KEY) === tab) return;
-  url.searchParams.set(PROJECT_TAB_QUERY_KEY, tab);
-  const state = { ...(window.history.state || {}), clusterProjectTab: tab };
-  window.history[mode === "push" ? "pushState" : "replaceState"](state, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
 
 export function useProjectDetailWorkspace(projectId?: string | null) {
   const workflowProjectId = projectId || "";
-  const [tab, setTabState] = useState<ProjectWorkspaceTabId>(() => projectTabFromLocation() || "overview");
-  const historyRestoreRef = useRef(false);
+  const [tab, setTabState] = useState<ProjectWorkspaceTabId>(() => projectTabForWorkspace(
+    typeof window === "undefined" ? null : window.location.href, projectId, null, PROJECT_WORKSPACE_TABS,
+  ));
+  const tabRef = useRef(tab);
+  const [tabOwner, setTabOwner] = useState(projectId || "");
+  const activeProjectRef = useRef(projectId);
+  activeProjectRef.current = projectId;
+  // History changes are event effects, never side effects in a React state
+  // updater (React may replay state updater functions in strict mode).
   const setTab = useCallback((next: SetStateAction<ProjectWorkspaceTabId>) => {
-    setTabState((current) => {
-      const resolved = typeof next === "function" ? (next as (value: ProjectWorkspaceTabId) => ProjectWorkspaceTabId)(current) : next;
-      if (resolved !== current && !historyRestoreRef.current) writeProjectTabToLocation(resolved, "push");
-      return resolved;
-    });
-  }, []);
+    if (!projectId || tabOwner !== projectId) return;
+    const current = tabRef.current;
+    const resolved = typeof next === "function" ? (next as (value: ProjectWorkspaceTabId) => ProjectWorkspaceTabId)(current) : next;
+    if (!PROJECT_WORKSPACE_TABS.has(resolved) || resolved === current) return;
+    tabRef.current = resolved;
+    setTabState(resolved);
+    writeProjectTabToLocation(projectId, resolved, "push");
+  }, [projectId, tabOwner]);
   const [storedTabs, setStoredTabs, storedTabsState] = useServerState<Record<string, ProjectWorkspaceTabId>>("user", "projects.last-tabs", {});
   const [media, setMedia] = useState<ProjectMediaPayload>({ reviewAssets: [], files: [] });
   const [mediaStatus, setMediaStatus] = useState("");
@@ -163,10 +165,14 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
 
   useEffect(() => {
     if (!storedTabsState.hydrated) return;
-    const urlTab = projectTabFromLocation();
-    historyRestoreRef.current = true;
-    setTabState(urlTab || (projectId && storedTabs[projectId]) || "overview");
-    window.setTimeout(() => { historyRestoreRef.current = false; }, 0);
+    const nextTab = projectTabForWorkspace(
+      typeof window === "undefined" ? null : window.location.href,
+      projectId, projectId ? storedTabs[projectId] : null, PROJECT_WORKSPACE_TABS,
+    );
+    tabRef.current = nextTab;
+    setTabState(nextTab);
+    setTabOwner(projectId || "");
+    if (projectId) writeProjectTabToLocation(projectId, nextTab, "replace");
     mediaRequestSequence.current += 1;
     dashboardRequestSequence.current += 1;
     snapshotRequestSequence.current += 1;
@@ -183,37 +189,48 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
       setProjectUsers([]);
       return;
     }
-    void loadMedia().catch(() => setMediaStatus("Media failed to load."));
-    void loadProjectSnapshot().catch(() => setSnapshot(null));
-    void loadProjectDashboard().catch(() => setDashboard(null));
-    void loadProjectControlCenter().catch(() => setControlCenter(null));
-    void loadProjectIntelligence().catch(() => setIntelligence(null));
-    void loadProjectUsers().catch(() => setProjectUsers([]));
-  }, [projectId, storedTabsState.hydrated, loadMedia, loadProjectSnapshot, loadProjectDashboard, loadProjectControlCenter, loadProjectIntelligence, loadProjectUsers]);
+    // Ignore errors from an old project's request after switching projects.
+    void loadMedia().catch(() => {
+      if (activeProjectRef.current === projectId) setMediaStatus("Media failed to load.");
+    });
+    void loadProjectSnapshot().catch(() => {
+      if (activeProjectRef.current === projectId) setSnapshot(null);
+    });
+    void loadProjectDashboard().catch(() => {
+      if (activeProjectRef.current === projectId) setDashboard(null);
+    });
+    void loadProjectControlCenter().catch(() => {
+      if (activeProjectRef.current === projectId) setControlCenter(null);
+    });
+    // Intelligence is heavy; it is intentionally loaded only when its tab is opened.
+    void loadProjectUsers().catch(() => {
+      if (activeProjectRef.current === projectId) setProjectUsers([]);
+    });
+  }, [projectId, storedTabsState.hydrated, loadMedia, loadProjectSnapshot, loadProjectDashboard, loadProjectControlCenter, loadProjectUsers]);
 
   useEffect(() => {
-    if (!projectId || !storedTabsState.hydrated || storedTabs[projectId] === tab) return;
+    if (!projectId || !storedTabsState.hydrated || tabOwner !== projectId || storedTabs[projectId] === tab) return;
     setStoredTabs((current) => ({ ...current, [projectId]: tab }));
-  }, [projectId, tab, storedTabsState.hydrated, storedTabs, setStoredTabs]);
+  }, [projectId, tab, tabOwner, storedTabsState.hydrated, storedTabs, setStoredTabs]);
 
   useEffect(() => {
-    if (!projectId) return;
-    writeProjectTabToLocation(tab, "replace");
+    if (!projectId || !storedTabsState.hydrated) return;
     const restore = () => {
-      const restored = projectTabFromLocation();
+      const restored = projectTabFromUrl(window.location.href, projectId, PROJECT_WORKSPACE_TABS);
       if (!restored) return;
-      historyRestoreRef.current = true;
+      tabRef.current = restored;
       setTabState(restored);
-      window.setTimeout(() => { historyRestoreRef.current = false; }, 0);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
-  }, [projectId, tab]);
+  }, [projectId, storedTabsState.hydrated]);
 
   useEffect(() => {
-    if (!projectId || tab !== "intelligence") return;
-    void loadProjectIntelligence().catch(() => setIntelligence(null));
-  }, [projectId, tab, loadProjectIntelligence]);
+    if (!projectId || tabOwner !== projectId || tab !== "intelligence") return;
+    void loadProjectIntelligence().catch(() => {
+      if (activeProjectRef.current === projectId) setIntelligence(null);
+    });
+  }, [projectId, tab, tabOwner, loadProjectIntelligence]);
 
   useEffect(() => {
     if (!projectId || typeof window === "undefined") return;
@@ -242,10 +259,9 @@ export function useProjectDetailWorkspace(projectId?: string | null) {
       const detail = (event as CustomEvent<{ projectId?: string; tab?: string }>).detail;
       if (!projectId || detail?.projectId !== projectId || !detail.tab || !PROJECT_WORKSPACE_TABS.has(detail.tab as ProjectWorkspaceTabId)) return;
       const nextTab = detail.tab as ProjectWorkspaceTabId;
-      historyRestoreRef.current = true;
+      tabRef.current = nextTab;
       setTabState(nextTab);
-      writeProjectTabToLocation(nextTab, "replace");
-      window.setTimeout(() => { historyRestoreRef.current = false; }, 0);
+      writeProjectTabToLocation(projectId, nextTab, "replace");
     };
     window.addEventListener("cluster-project-tab-command", onCommand);
     return () => window.removeEventListener("cluster-project-tab-command", onCommand);
