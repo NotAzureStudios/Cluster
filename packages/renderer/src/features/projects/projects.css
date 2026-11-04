@@ -200,6 +200,8 @@
 .project-tile-tags-rc25 .project-tile-status-rc25{color:var(--text);}
 .project-tile-tags-rc25 .project-tile-health-rc25.danger,.project-tile-tags-rc25 .project-tile-priority-rc25{color:var(--danger,#ee7979);background:color-mix(in srgb,var(--danger,#ee7979) 9%,var(--panel));}
 .project-tile-tags-rc25 .project-tile-health-rc25.warning{color:var(--warning,#eec167);background:color-mix(in srgb,var(--warning,#eec167) 9%,var(--panel));}
+.project-tile-tags-rc25 .project-tile-gaps-rc25{color:var(--muted);border:1px solid var(--border);background:transparent;}
+.project-tile-identity-rc25 .project-tile-type-rc25{font-size:.7rem;line-height:1.4;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .project-tile-bottom-rc25{display:flex;align-items:end;gap:12px;margin-top:auto;}
 .project-tile-progress-rc25{flex:1;display:grid;gap:6px;min-width:0;}
 .project-tile-progress-rc25>.project-row-meter-v146{height:5px;border-radius:9px;}
