@@ -75,6 +75,8 @@ await check("Linked policy displays actual workforce department icon/color witho
   assert.ok(manager.includes('queryApi<DepartmentRow[]>("/api/departments"'));
   assert.ok(manager.includes("onRowsLoaded?.(result)"));
   assert.ok(ui.includes("onRowsLoaded={setWorkforceDepartmentRows}"));
+  assert.ok(ui.includes("key={currentUser.id}"));
+  assert.ok(ui.includes("setWorkforceDepartmentRows([])"));
   assert.ok(!ui.includes('"/api/departments", { force: true, staleMs: 0'));
   assert.ok(ui.includes("const workforceDepartmentById = useMemo("));
 });
