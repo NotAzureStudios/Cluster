@@ -51,6 +51,9 @@ const rows = diagnostic.failingBackgroundTasks([{ name: "a", consecutiveFailures
 assert.deepEqual(Array.from(rows, x => x.name), ["b"]);
 const masked = diagnostic.summarizeBackgroundTaskError("password:bad123 https://user:pass@host/?token=abcd");
 assert.doesNotMatch(masked, /bad123|abcd|user:pass/);
+const bearer = diagnostic.summarizeBackgroundTaskError("Authorization: Bearer abc123reallysecrettoken456");
+assert.doesNotMatch(bearer, /abc123reallysecrettoken456/);
+assert.match(diagnostic.summarizeBackgroundTaskError("-----BEGIN PRIVATE KEY-----"), /omitted/);
 const inspector = read("packages/renderer/src/features/admin/ScheduledTaskDiagnosticsPanel.tsx");
 assert.match(inspector, /"\/api\/admin\/operations\/health"/);
 assert.match(inspector, /onClick=\{\(\) => void inspect\(\)\}/);
