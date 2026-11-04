@@ -390,6 +390,7 @@
 .people-role-assignment-v11>small{color:var(--muted);font-size:.68rem;line-height:1.45}
 .people-role-assignment-actions-v11{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
 .people-role-assignment-actions-v11>.people-user-editor-field-v106{min-width:0}
+.people-role-assignment-buttons-v11{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 .people-role-assignment-actions-v11 select{max-width:100%}
 .people-user-editor-status-v11{margin:0;font-size:.71rem;color:var(--text)}
 @media(max-width:640px){.people-role-assignment-actions-v11{grid-template-columns:minmax(0,1fr)}.people-role-assignment-actions-v11>button{justify-self:start}}
