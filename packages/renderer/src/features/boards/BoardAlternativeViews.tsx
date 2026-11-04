@@ -3,7 +3,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterContextMenuSurface, useClusterContextMenu } from "../../components/ClusterContextMenu";
-import { formatDueDate } from "../../core/format";
+import { boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BoardList, Card, Priority, UserActivitySummary } from "../application/application-models";
 import { displayUserName } from "../people/people-utils";
@@ -84,7 +84,7 @@ function CardFacts({ card, users }: { card: Card; users: UserActivitySummary[] }
     <div className="board-view-card-facts-v489">
       <span className={`priority-${priorityTone(card.priority)}`}>{card.priority}</span>
       <span>{cardAssignee(card, users)}</span>
-      {card.dueDate ? <span className={isCardOverdue(card.dueDate) ? "overdue" : ""}>{formatDueDate(card.dueDate)}</span> : <span>No due date</span>}
+      {card.dueDate ? <span className={isCardOverdue(card.dueDate) ? "overdue" : ""}>{formatBoardCivilDate(card.dueDate)}</span> : <span>No due date</span>}
       {checklistTotal ? <span>{checklistDone}/{checklistTotal} checklist</span> : null}
       {card.estimatePoints !== null && card.estimatePoints !== undefined ? <span>{card.estimatePoints} pt</span> : null}
     </div>
@@ -161,7 +161,7 @@ export function BoardTableView({ rows, users, selectedIds, onToggleSelected, onO
             <span role="cell">{list.title}</span>
             <span role="cell" className={`priority-${priorityTone(card.priority)}`}>{card.priority}</span>
             <span role="cell">{cardAssignee(card, users)}</span>
-            <span role="cell" className={card.dueDate && isCardOverdue(card.dueDate) ? "overdue" : ""}>{card.dueDate ? formatDueDate(card.dueDate) : "—"}</span>
+            <span role="cell" className={card.dueDate && isCardOverdue(card.dueDate) ? "overdue" : ""}>{card.dueDate ? formatBoardCivilDate(card.dueDate) : "—"}</span>
             <span role="cell">{card.checklistItems?.length ? `${card.checklistItems.filter((item) => item.completed).length}/${card.checklistItems.length}` : "—"}</span>
             <span role="cell">{card.estimatePoints ?? "—"}</span>
           </div>
@@ -182,11 +182,6 @@ function calendarStart(date: Date) {
   return new Date(start.getFullYear(), start.getMonth(), start.getDate() - day);
 }
 
-function dateKey(value: Date | string) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (!Number.isFinite(date.getTime())) return "";
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 
 export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen }: {
   rows: BoardViewRow[];
@@ -203,7 +198,7 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
     const map = new Map<string, BoardViewRow[]>();
     rows.forEach((row) => {
       if (!row.card.dueDate) return;
-      const key = dateKey(row.card.dueDate);
+      const key = boardCivilDateKey(row.card.dueDate);
       if (!key) return;
       const current = map.get(key) || [];
       current.push(row);
@@ -227,10 +222,10 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
         <div className="board-calendar-weekdays-v489" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
         <div className="board-calendar-grid-v489">
           {days.map((day) => {
-            const key = dateKey(day);
+            const key = boardCivilDateKey(day);
             const dayRows = dueByDay.get(key) || [];
             const outside = day.getMonth() !== month.getMonth();
-            const today = key === dateKey(new Date());
+            const today = key === boardCivilDateKey(new Date());
             return (
               <section key={key} className={`${outside ? "outside" : ""} ${today ? "today" : ""}`} aria-label={day.toLocaleDateString()}>
                 <header><span>{day.getDate()}</span>{dayRows.length ? <em>{dayRows.length}</em> : null}</header>
@@ -284,7 +279,7 @@ export function BoardTimelineView({ rows, selectedIds, onToggleSelected, onOpen 
         </div>
       </header>
       <div className="board-timeline-scroll-v509">
-        <div className="board-timeline-axis-v509"><span>Work item</span><div>{weeks.map((week) => <span key={dateKey(week)}>{week.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>)}</div></div>
+        <div className="board-timeline-axis-v509"><span>Work item</span><div>{weeks.map((week) => <span key={boardCivilDateKey(week)}>{week.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>)}</div></div>
         {scheduled.map(({ card, list, left, width, reversed }) => (
           <div className="board-timeline-row-v509" key={card.id}>
             <div className="board-timeline-row-label-v509">
