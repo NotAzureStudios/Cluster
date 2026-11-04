@@ -1,0 +1,38 @@
+name: Cluster 1.1 Project Request Budget
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/projects/useProjectDetailWorkspace.ts"
+      - "packages/renderer/src/features/projects/project-request-budget.ts"
+      - "tools/scripts/cluster-v11-project-request-budget-tests.mjs"
+      - ".github/workflows/v11-project-request-budget.yml"
+  push:
+    branches: [perf/v11-project-tab-request-budget]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  project-requests:
+    name: Project request budget (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Tab request budgets and refresh ownership
+        run: node tools/scripts/cluster-v11-project-request-budget-tests.mjs
+      - name: Existing Project navigation and permissions
+        run: node tools/scripts/cluster-v11-project-navigation-runtime-tests.mjs
+      - name: Build shared
+        run: npm run build --workspace=@cluster/shared
+      - name: Typecheck and build renderer
+        run: npm run build --workspace=@cluster/renderer
