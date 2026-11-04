@@ -590,7 +590,15 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       const next = splitCsv(settings[key]).filter((item) => normalizeRoleId(item) !== id);
       patch(key, rolesCsvFromIds(next));
     });
-    setStatus(`Removed unassigned role definition ${target.label} from the draft.`);
+    if (settings.studioDefaultWorkspaceRole === id) patch("studioDefaultWorkspaceRole", "member");
+    patch("studioDepartmentDefinitions", mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) =>
+      department.leadRoleId === id ? { ...department, leadRoleId: undefined } : department,
+    ));
+    patch("projectTypePresets", projectTypePresets.map((preset) => ({
+      ...preset, approvalRoles: (preset.approvalRoles || []).filter((roleId) => normalizeRoleId(roleId) !== id),
+    })));
+    setSelectedRoleId("member");
+    setStatus(`Removed unassigned role definition ${target.label} and its policy references from the draft.`);
   }
   function updateStudioDepartment(id: string, patchDepartment: Partial<StudioDepartmentDefinition>) {
     const next = mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => (department.id === id ? { ...department, ...patchDepartment, id } : department));
