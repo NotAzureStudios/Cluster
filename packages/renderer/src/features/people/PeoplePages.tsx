@@ -26,6 +26,7 @@ import { ClusterMasterDetail, readClusterDetailSelection, useClusterDetailHistor
 import { InspectorLoadingState, LoadingState } from "../../components/LoadingState";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { PersonSummary } from "../../components/PersonSummary";
+import { DepartmentIdentityMark, type DepartmentIdentity } from "../../components/DepartmentIdentityMark";
 import { useProgressiveList } from "../../components/useProgressiveList";
 import { useClusterCursorData, type ClusterCursorPage } from "../../components/useClusterCursorData";
 import { clusterDataQueryParameter } from "../../components/data-view-query";
@@ -95,7 +96,7 @@ type PeopleContext = { generatedAt: string; directory?: { limit: number; loaded:
 type PeopleProfilePayload = UserActivitySummary & { recentActivity?: ActivityEvent[]; manager?: Pick<User, "id" | "username" | "displayName" | "preferredName" | "avatarUrl"> | null; directReports?: Array<Pick<User, "id" | "username" | "displayName" | "preferredName" | "avatarUrl" | "title">>; profileFieldDefinitions?: PeopleContext["profileFieldDefinitions"] };
 type ProfileCalendarEvent = { id: string; title: string; startsAt: string; endsAt?: string | null; allDay?: boolean; eventType?: string | null; status?: string | null; visibility?: "studio" | "project" | "participants" | "private"; projectId?: string | null; project?: { id: string; name: string } | null; notes?: string | null; attachmentIds?: string[]; ownerId?: string | null; attendeeIds?: string[] };
 type WorkforcePerson = Omit<User, "skills"> & {
-  employment?: { id: string; departmentId?: string | null; department?: { id: string; name: string; color?: string | null } | null; jobRoleId?: string | null; jobRole?: { id: string; name: string } | null; managerUserId?: string | null; manager?: Pick<User, "id" | "username" | "displayName" | "avatarUrl"> | null; employmentType?: string | null; workLocation?: string | null; startDate?: string | null; endDate?: string | null; capacityHours?: number | null; minimumHours?: number | null; active: boolean; revision: number } | null;
+  employment?: { id: string; departmentId?: string | null; department?: { id: string; name: string; color?: string | null; iconId?: string | null } | null; jobRoleId?: string | null; jobRole?: { id: string; name: string } | null; managerUserId?: string | null; manager?: Pick<User, "id" | "username" | "displayName" | "avatarUrl"> | null; employmentType?: string | null; workLocation?: string | null; startDate?: string | null; endDate?: string | null; capacityHours?: number | null; minimumHours?: number | null; active: boolean; revision: number } | null;
   workingPattern?: { timezone?: string | null; hours?: Record<string, Array<{ start: string; end: string }> | string | null>; revision: number } | null;
   skills?: Array<{ id: string; name: string; level: "learning" | "working" | "advanced" | "expert"; years?: number | null; primary?: boolean }>;
   availability?: string; availabilityMessage?: string | null; declaredStatus?: string | null; presenceDisclosure?: "connection" | "work_state" | "application" | "project" | "detailed" | string; connectionState?: "online" | "idle" | "offline" | "unknown" | string; connectionVisibility?: "visible" | "invisible" | string; clockState?: "clocked_in" | "clocked_out" | "break" | "unknown" | string;
@@ -105,7 +106,7 @@ type WorkforcePerson = Omit<User, "skills"> & {
 };
 type WorkforceContext = {
   generatedAt: string; workspaceId?: string;
-  departments: Array<{ id: string; name: string; description?: string | null; parentId?: string | null; leadUserId?: string | null; color?: string | null; members: number; teams: number; revision: number }>;
+  departments: Array<{ id: string; name: string; description?: string | null; parentId?: string | null; leadUserId?: string | null; color?: string | null; iconId?: string | null; members: number; teams: number; revision: number }>;
   jobRoles: Array<{ id: string; name: string; description?: string | null; departmentId?: string | null; departmentName?: string | null; defaultCapacityHours?: number | null; defaultMinimumHours?: number | null; members: number; revision: number }>;
   skills: Array<{ id: string; name: string; description?: string | null; people: number }>;
   teams: Array<{ id: string; name: string; description?: string | null; departmentId?: string | null; department?: { id: string; name: string } | null; leadUserId?: string | null; roles: Array<{ id: string; name: string; description?: string | null }>; members: Array<{ userId: string; roleId?: string | null; role?: string | null; allocationPercent: number; primary: boolean }>; revision: number }>;
@@ -490,6 +491,13 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setProfileExpanded(true);
     personDetailHistory.openDetail(userId);
   };
+  const departmentById = useMemo(() => new Map((workforceContext?.departments || []).map((department) => [department.id, department])), [workforceContext?.departments]);
+  const departmentByName = useMemo(() => new Map((workforceContext?.departments || []).map((department) => [department.name.trim().toLocaleLowerCase(), department])), [workforceContext?.departments]);
+  function departmentForPerson(person: { department?: string | null; employment?: { departmentId?: string | null } | null }): DepartmentIdentity | null {
+    const id = person.employment?.departmentId;
+    const name = person.department?.trim().toLocaleLowerCase();
+    return (id ? departmentById.get(id) : null) || (name ? departmentByName.get(name) : null) || null;
+  }
   const departments = Array.from(new Set(users.map((person) => person.department).filter((value): value is string => Boolean(value)))).sort();
   const filteredUsers = users.filter((person) => {
     if (departmentFilter !== "all" && person.department !== departmentFilter) return false;
@@ -561,9 +569,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const peopleTableColumns = useMemo<ClusterDataTableColumn<UserActivitySummary>[]>(() => {
     const valueMap = (person: UserActivitySummary) => ({ id: person.id, displayName: displayUserName(person), username: person.username || "", title: person.title || "", department: person.department || "", teamName: person.teamName || "", status: person.status || "offline", capacityHours: person.capacityHours ?? null, minimumHours: person.minimumHours ?? null, updatedAt: person.updatedAt || null });
     const base: ClusterDataTableColumn<UserActivitySummary>[] = [
-      { id: "person", header: "Person", hideable: false, pinnable: true, defaultWidth: 260, sortValue: (person) => displayUserName(person), cell: (person) => <ClusterButton unstyled type="button" onClick={() => openFullProfile(person.id)}><PersonSummary person={person} compact profileAction={false} avatarProfilePeek={false} /></ClusterButton> },
+      { id: "person", header: "Person", hideable: false, pinnable: true, defaultWidth: 260, sortValue: (person) => displayUserName(person), cell: (person) => <ClusterButton unstyled type="button" onClick={() => openFullProfile(person.id)}><PersonSummary person={person} compact profileAction={false} avatarProfilePeek={false} departmentIdentity={departmentForPerson(person)} /></ClusterButton> },
       { id: "role", header: "Role", defaultWidth: 190, sortValue: (person) => person.title || "", groupValue: (person) => person.title || "Member", cell: (person) => person.title || "Member" },
-      { id: "department", header: "Department", defaultWidth: 160, sortValue: (person) => person.department || "", groupValue: (person) => person.department || person.teamName || "Unassigned", cell: (person) => person.department || person.teamName || "Unassigned" },
+      { id: "department", header: "Department", defaultWidth: 180, sortValue: (person) => person.department || "", groupValue: (person) => person.department || person.teamName || "Unassigned", cell: (person) => { const department = departmentForPerson(person); return department ? <DepartmentIdentityMark department={department} label size={19} /> : person.department || person.teamName || "Unassigned"; } },
       { id: "presence", header: "Presence", defaultWidth: 130, sortValue: (person) => presenceState(person), groupValue: (person) => presenceState(person), cell: (person) => presenceLabel(person) },
       { id: "capacity", header: "Capacity", defaultWidth: 150, sortValue: (person) => person.capacityHours || 0, cell: (person) => profileCapacityLabel(person.capacityHours) },
       { id: "work", header: "Current work", defaultWidth: 170, sortValue: (person) => workloadByUserId.get(person.id)?.cards || 0, cell: (person) => { const work = workloadByUserId.get(person.id); return work ? `${work.cards} cards · ${work.projects} projects` : "No assignments"; } },
@@ -574,7 +582,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       sortValue: (person) => evaluateClusterDataDerivedFields(peopleDerivedFields, valueMap(person), PEOPLE_DATA_FIELDS).values[derived.id] as string | number | boolean | null,
       cell: (person) => { const value = evaluateClusterDataDerivedFields(peopleDerivedFields, valueMap(person), PEOPLE_DATA_FIELDS).values[derived.id]; return typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: derived.display?.precision ?? 2 }) : String(value ?? "—"); },
     })));
-  }, [workloadByUserId, personDetailHistory, peopleDerivedFields]);
+  }, [workloadByUserId, personDetailHistory, peopleDerivedFields, departmentById, departmentByName]);
   const peopleDataFields = useMemo<ClusterSemanticField[]>(() => [
     { id: "person", label: "Person", type: "person", sortable: true, resourceKind: "user" },
     { id: "role", label: "Role", type: "text", sortable: true, groupable: true },
@@ -785,7 +793,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
             <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
-<CompanyGraphPanel departments={workforceContext.departments} teams={workforceContext.teams} people={workforceContext.people} workspaceId={workforceContext.workspaceId || ""} canEdit={Boolean(currentUser.isAdmin || ["edit", "manage"].includes(getToolLevel(currentUser, "people")))} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} onOpenPerson={openFullProfile} />
+<CompanyGraphPanel departments={workforceContext.departments} teams={workforceContext.teams} people={workforceContext.people} workspaceId={workforceContext.workspaceId || ""} canEdit={Boolean(currentUser.isAdmin)} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} onOpenPerson={openFullProfile} />
           </>}
           {workforceMode === "teams" && <>
             <header><div><h2>Teams</h2></div><strong>{workforceContext.teams.length} teams</strong></header>
@@ -935,7 +943,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           ) : <div className="people-list-v244">
             {!users.length && loadStatus.startsWith("Loading") ? <LoadingState label="Loading people" rows={7} compact /> : peopleProgress.visibleItems.map((person) => (
               <ClusterButton unstyled type="button" className={selectedUserId === person.id ? "active" : ""} key={person.id} onClick={() => openFullProfile(person.id)}>
-                <PersonSummary person={person} compact profileAction={false} showCapacity />
+                <PersonSummary person={person} compact profileAction={false} showCapacity departmentIdentity={departmentForPerson(person)} />
               </ClusterButton>
             ))}
             {!users.length && !loadStatus.startsWith("Loading") ? <ClusterEmptyState compact kind="empty" icon="users" title="No people are available" description="No directory records are available to this account yet." /> : null}
@@ -949,7 +957,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
             <>
               {profileExpanded && <div className="people-profile-back-rc46"><ClusterButton variant="quiet" size="compact" onClick={() => setProfileExpanded(false)}>← Back to directory</ClusterButton><span>Person profile</span></div>}
               <header className="people-detail-header-v244">
-                <PersonSummary person={profile} profileAction={false} showCapacity className="people-detail-person-summary-v493" />
+                <PersonSummary person={profile} profileAction={false} showCapacity departmentIdentity={departmentForPerson(profile)} className="people-detail-person-summary-v493" />
                 <div className="people-detail-presence-v244">
                   <strong>{profileAvailabilityLabel(profile)}</strong>
                   <span>{profileLocalTime(profile.timezone)}{profile.lastSeenAt ? ` · Last seen ${formatRelativeTime(profile.lastSeenAt)}` : ""}</span>
@@ -1329,7 +1337,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         </div>
                         <div>
                           <span>Department</span>
-                          <strong>{profile.department || "Unset"}</strong>
+                          <strong>{departmentForPerson(profile) ? <DepartmentIdentityMark department={departmentForPerson(profile)!} label size={22} /> : profile.department || "Unset"}</strong>
                         </div>
                         <div>
                           <span>Team</span>

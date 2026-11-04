@@ -2,6 +2,7 @@ import type { ClusterPersonSummary } from "@cluster/shared";
 import { openClusterWorkNavigation } from "../features/workflow/work-navigation";
 import { personDisplayName, personInitial, personMetaLabel, personStatusSummary } from "../features/people/person-summary";
 import { PresenceAvatar } from "./PresenceAvatar";
+import { DepartmentIdentityMark, type DepartmentIdentity } from "./DepartmentIdentityMark";
 import "./person-summary.css";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterCopyButton } from "./ClusterCopyButton";
@@ -14,6 +15,7 @@ export function PersonSummary({
   profileAction = true,
   avatarProfilePeek = true,
   contactActions = false,
+  departmentIdentity = null,
   className = "",
 }: {
   person: ClusterPersonSummary;
@@ -24,6 +26,7 @@ export function PersonSummary({
   /** Disable when the entire summary is already inside a navigation button. */
   avatarProfilePeek?: boolean;
   contactActions?: boolean;
+  departmentIdentity?: DepartmentIdentity | null;
   className?: string;
 }) {
   const summary = personStatusSummary(person);
@@ -34,7 +37,10 @@ export function PersonSummary({
     <PresenceAvatar userId={person.id} imageUrl={person.avatarUrl} accentColor={person.personalAccentColor} label={name} fallback={personInitial(person)} state={summary.presence} title={summary.presenceLabel} profilePeek={avatarProfilePeek} />
     <div className="cluster-person-summary-copy-v493">
       {profileAction ? <ClusterButton unstyled type="button" className="cluster-person-summary-name-v493" onClick={openProfile}>{name}</ClusterButton> : <strong>{name}</strong>}
-      <span>{personMetaLabel(person, { localTime: showLocalTime, capacity: showCapacity }) || `@${person.username}`}</span>
+      <span className="cluster-person-summary-meta-v11">
+        {departmentIdentity && <DepartmentIdentityMark department={departmentIdentity} size={17} />}
+        <span>{personMetaLabel(person, { localTime: showLocalTime, capacity: showCapacity }) || `@${person.username}`}</span>
+      </span>
       {!compact && person.statusMessage ? <small>{person.statusMessage}</small> : null}
     </div>
     {contactActions ? <div className="cluster-person-summary-actions-v493">
