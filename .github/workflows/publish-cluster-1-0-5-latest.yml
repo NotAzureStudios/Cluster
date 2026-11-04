@@ -121,6 +121,8 @@ jobs:
 
       - name: Publish unsigned 1.0.5 as GitHub Latest
         shell: bash
+        # Use the built-in Actions GITHUB_TOKEN. If repository policy denies
+        # release creation (HTTP 403), fail without claiming publication.
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/cluster-1-0-5-notes.md" <<'NOTES'
