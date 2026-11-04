@@ -10,6 +10,7 @@ import { safeUrl, validateCorsOrigins } from "../core/security.js";
 import { databaseProviderFromUrl } from "../core/database-provider.js";
 import { packetsSettingsSchemaShape } from "../core/packets-settings.js";
 import { profileFieldDefinitionsSchema } from "../domains/users/people-profile-contract.js";
+import { validateStudioDepartmentPolicyLinks } from "../domains/departments/department-policy-link.js";
 import { revokedStudioRoleIds } from "../domains/users/people-role-governance.js";
 import { BOOT_SECRET_SETTING_KEYS, encryptionKeyConfigured, encryptionKeyId, previousEncryptionKeyIds, SENSITIVE_SETTING_KEYS } from "../core/setting-crypto.js";
 import { OperationCancelledError, withRequestCancellation } from "../core/operation-cancellation.js";
@@ -999,33 +1000,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
           }
         }
         if (safeBody.studioDepartmentDefinitions !== undefined) {
-          // Policy templates may link to one real organizational department each,
-          // but cannot mint authority through a guessed or foreign workspace ID.
-          const definitions = safeBody.studioDepartmentDefinitions as Array<Record<string, unknown>>;
-          const links = definitions
-            .filter((item) => item?.workforceDepartmentId != null)
-            .map((item) => item.workforceDepartmentId);
-          if (links.some((id) => typeof id !== "string" || !id.trim() || id.length > 128)) {
-            throw Object.assign(new Error("A linked Workforce Department must use an existing immutable ID."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
-          }
-          const ids = links as string[];
-          if (new Set(ids).size !== ids.length) {
-            throw Object.assign(new Error("Only one permission template may link to each Workforce Department."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
-          }
-          if (ids.length) {
-            const membership = await prisma.workspaceMember.findFirst({
-              where: { userId: admin.id }, orderBy: { workspaceId: "asc" },
-              select: { workspaceId: true },
-            });
-            if (!membership) throw Object.assign(new Error("The administrator has no active workspace."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
-            const found = await prisma.department.findMany({
-              where: { id: { in: ids }, workspaceId: membership.workspaceId, archived: false },
-              select: { id: true },
-            });
-            if (found.length !== ids.length) {
-              throw Object.assign(new Error("Linked departments must be active and belong to the administrator's workspace."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
-            }
-          }
+          await validateStudioDepartmentPolicyLinks(prisma, admin.id, safeBody.studioDepartmentDefinitions);
         }
         const projectPolicies = validateClusterProjectBundlePolicies(safeBody.studioProjectBundlePolicies ?? current.studioProjectBundlePolicies ?? [], bundles);
         if (safeBody.studioProjectBundlePolicies !== undefined && projectPolicies.length) {
