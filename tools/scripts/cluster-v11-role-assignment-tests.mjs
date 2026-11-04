@@ -102,6 +102,19 @@ await check("Repeating the same role is a safe no-op",async()=>{
   assert.equal(state.updates.length,0);
 });
 
+await check("Disabling an assigned built-in role is a revocation even without stored overrides",()=>{
+  assert.deepEqual(helper.revokedStudioRoleIds({}, {studioRoleDefinitions:[{id:"member",label:"Member",enabled:false}]}), ["member"]);
+});
+await check("Removing a custom enabled role is a revocation",()=>{
+  assert.deepEqual(helper.revokedStudioRoleIds({studioRoleDefinitions:[{id:"technical_artist",enabled:true}]},{studioRoleDefinitions:[]}), ["technical_artist"]);
+});
+await check("Removing an explicit override of a built-in role retains the default",()=>{
+  assert.deepEqual(helper.revokedStudioRoleIds({studioRoleDefinitions:[{id:"member",enabled:true}]},{studioRoleDefinitions:[]}), []);
+});
+await check("Adding a new role or enabling a disabled role does not revoke grants",()=>{
+  assert.deepEqual(helper.revokedStudioRoleIds({studioRoleDefinitions:[{id:"artist",enabled:false}]},{studioRoleDefinitions:[{id:"artist",enabled:true},{id:"technical_artist",enabled:true}]}), []);
+});
+
 const routes=readFileSync("apps/server/src/domains/users/user-directory-routes.ts","utf8");
 const ui=readFileSync("packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx","utf8");
 const people=readFileSync("packages/renderer/src/features/people/PeoplePages.tsx","utf8");

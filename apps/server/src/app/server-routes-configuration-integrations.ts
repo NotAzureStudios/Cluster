@@ -10,6 +10,7 @@ import { safeUrl, validateCorsOrigins } from "../core/security.js";
 import { databaseProviderFromUrl } from "../core/database-provider.js";
 import { packetsSettingsSchemaShape } from "../core/packets-settings.js";
 import { profileFieldDefinitionsSchema } from "../domains/users/people-profile-contract.js";
+import { revokedStudioRoleIds } from "../domains/users/people-role-governance.js";
 import { BOOT_SECRET_SETTING_KEYS, encryptionKeyConfigured, encryptionKeyId, previousEncryptionKeyIds, SENSITIVE_SETTING_KEYS } from "../core/setting-crypto.js";
 import { OperationCancelledError, withRequestCancellation } from "../core/operation-cancellation.js";
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
@@ -983,13 +984,10 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         const bundles = validateClusterPermissionBundles(safeBody.studioPermissionBundles ?? current.studioPermissionBundles ?? []);
         if (safeBody.studioPermissionBundles !== undefined) validateClusterBundleRevisionChanges(previous, bundles);
         if (safeBody.studioRoleDefinitions !== undefined) {
-          const earlier = Array.isArray(current.studioRoleDefinitions) ? current.studioRoleDefinitions : [];
-          const proposedById = new Map<string, any>((safeBody.studioRoleDefinitions || []).map((role: any) => [String(role?.id || "").trim().toLowerCase(), role]));
-          const revokedIds = earlier.filter((role: any) => {
-            const priorId = String(role?.id || "").trim().toLowerCase();
-            const proposed = proposedById.get(priorId);
-            return priorId && (!proposed || (role.enabled !== false && proposed.enabled === false));
-          }).map((role: any) => String(role.id).trim().toLowerCase());
+          const revokedIds = revokedStudioRoleIds(current, {
+            ...current,
+            studioRoleDefinitions: safeBody.studioRoleDefinitions,
+          });
           if (revokedIds.length) {
             const assignment = await prisma.workspaceMember.findFirst({
               where: { role: { in: revokedIds } }, select: { role: true },
