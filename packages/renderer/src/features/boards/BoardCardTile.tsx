@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { formatDueDate } from "../../core/format";
+import { boardCardOverdue, formatBoardCivilDate } from "./board-civil-date";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { displayUserName, userInitial } from "../people/people-utils";
 import { collaborationColor, type CollaborationPresence } from "../collaboration";
@@ -20,10 +20,7 @@ function priorityIcon(priority: Priority) {
 }
 
 export function isCardOverdue(value?: string | null) {
-  if (!value) return false;
-  const due = new Date(value);
-  due.setHours(23, 59, 59, 999);
-  return due.getTime() < Date.now();
+  return boardCardOverdue(value);
 }
 
 function memberInitial(member?: UserActivitySummary) {
@@ -68,9 +65,9 @@ export const BoardCardTile = memo(function BoardCardTile({ card, onOpen, onMove,
         </div>}
         {sourceIssue && <div className="issue-strip"><span>{sourceIssue.number ? `#${sourceIssue.number}` : "Issue"}</span><strong>{sourceIssue.title}</strong><em>{sourceIssue.state}</em></div>}
         <div className="meta-row card-meta-row-v300">
-          {card.startDate && <span>Starts {formatDueDate(card.startDate)}</span>}
-          {card.dueDate && <span className={overdue ? "meta-danger" : ""}>Due {formatDueDate(card.dueDate)}</span>}
-          {deferred && card.deferredUntil && <span>Deferred to {formatDueDate(card.deferredUntil)}</span>}
+          {card.startDate && <span>Starts {formatBoardCivilDate(card.startDate)}</span>}
+          {card.dueDate && <span className={overdue ? "meta-danger" : ""}>Due {formatBoardCivilDate(card.dueDate)}</span>}
+          {deferred && card.deferredUntil && <span>Deferred to {formatBoardCivilDate(card.deferredUntil)}</span>}
           {!listDone && stateAgeDays > 0 && <span>{stateAgeDays}d in state</span>}
           {staleDays >= 7 && <span className="meta-danger">Stale {staleDays}d</span>}
           {blocked && <span className="meta-danger">Blocked</span>}
