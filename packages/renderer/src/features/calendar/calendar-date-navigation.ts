@@ -1,6 +1,8 @@
 /** Calendar navigation uses local calendar fields, not 24h/30d millisecond
  * offsets. Date construction survives DST and month-end boundaries. */
-export type CalendarNavigationView = "month" | "week" | "day" | "agenda";
+import { calendarYearNextDate } from "./calendar-year-projection";
+
+export type CalendarNavigationView = "year" | "month" | "week" | "day" | "agenda";
 
 export function calendarDateInputValue(value: Date): string {
   if (!Number.isFinite(value.getTime())) return "";
@@ -36,6 +38,12 @@ export function shiftCalendarWindow(
   amount: number,
   preferredMonthDay = anchor.getDate(),
 ): { anchor: Date; selected: Date } {
+  if (view === "year") {
+    return {
+      anchor: calendarYearNextDate(anchor, amount, preferredMonthDay),
+      selected: calendarYearNextDate(selected, amount),
+    };
+  }
   if (view === "month" || view === "agenda") {
     const next = addCalendarMonths(anchor, amount, preferredMonthDay);
     return { anchor: next, selected: next };

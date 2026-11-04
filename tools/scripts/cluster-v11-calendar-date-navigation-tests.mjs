@@ -17,8 +17,20 @@ const compiled = ts.transpileModule(read(pathOf("calendar-date-navigation.ts")),
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 });
 assert.equal((compiled.diagnostics || []).filter((x) => x.category === ts.DiagnosticCategory.Error).length, 0);
+const yearMod = { exports: {} };
+const yearCompiled = ts.transpileModule(read(pathOf("calendar-year-projection.ts")), {
+  fileName: "calendar-year-projection.ts",
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+});
+vm.runInNewContext(yearCompiled.outputText, { module: yearMod, exports: yearMod.exports, Date });
 const mod = { exports: {} };
-vm.runInNewContext(compiled.outputText, { module: mod, exports: mod.exports, Date });
+vm.runInNewContext(compiled.outputText, {
+  module: mod, exports: mod.exports, Date,
+  require: (name) => {
+    assert.equal(name, "./calendar-year-projection");
+    return yearMod.exports;
+  },
+});
 const { addCalendarMonths, calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } = mod.exports;
 let passed = 0;
 const test = (name, fn) => { fn(); passed++; console.log("PASS", name); };
@@ -50,6 +62,16 @@ test("Back navigation keeps the preferred month day when possible", () => {
   assert.equal(feb.selected.getTime(), feb.anchor.getTime());
 });
 
+
+test("Year navigation preserves a selected month and clamps leap-day safely", () => {
+  const leapDay = new Date(2028, 1, 29, 9, 30);
+  const next = shiftCalendarWindow(leapDay, leapDay, "year", -1, 29);
+  assert.equal(calendarDateInputValue(next.anchor), "2027-02-28");
+  assert.equal(calendarDateInputValue(next.selected), "2027-02-28");
+  assert.equal(next.anchor.getHours(), 9);
+  const after = shiftCalendarWindow(next.anchor, next.selected, "year", 1, 29);
+  assert.equal(calendarDateInputValue(after.anchor), "2028-02-29");
+});
 test("Day view advances both the fetched date and inspector-selected day", () => {
   const first = new Date(2026, 10, 4);
   const next = shiftCalendarWindow(first, first, "day", 1);

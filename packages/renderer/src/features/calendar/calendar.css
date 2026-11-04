@@ -180,3 +180,54 @@
 @media(prefers-reduced-motion:reduce){
   .calendar-page-v190 .calendar-selected-list-v189{scroll-behavior:auto}
 }
+
+/* 1.1 Calendar Year: navigation only, never implies 12 months of loaded data. */
+.calendar-workspace-year-v11{grid-template-columns:minmax(0,1fr)}
+.calendar-year-navigator-v11{display:grid;gap:13px;min-width:0}
+.calendar-year-intro-v11{
+  margin:0;padding:9px 12px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-soft);font-size:.74rem;line-height:1.55;color:var(--muted);
+}
+.calendar-year-months-v11{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));
+  gap:12px;align-items:start;
+}
+.calendar-year-month-v11{
+  display:grid;gap:7px;min-width:0;padding:10px;border:1px solid var(--border);
+  border-radius:13px;background:var(--surface-soft);
+}
+.calendar-year-month-v11>header{display:flex;align-items:center;justify-content:space-between}
+.calendar-year-month-open-v11{font-weight:800;text-align:left;min-height:36px;font-size:.82rem}
+.calendar-year-weekdays-v11,.calendar-year-days-v11{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;
+}
+.calendar-year-weekdays-v11 span{
+  font-size:.61rem;text-align:center;color:var(--muted);font-weight:700;
+}
+.calendar-page-v190 .calendar-year-day-v11{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:0;min-height:36px;padding:3px 1px;border-radius:8px;
+  font-size:.7rem;color:var(--text);border:1px solid transparent;
+}
+.calendar-page-v190 .calendar-year-day-v11:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.calendar-page-v190 .calendar-year-day-v11.selected{
+  border-left:3px solid var(--accent,#57c1ff);
+  background:color-mix(in srgb,var(--accent) 10%,transparent);font-weight:800;
+}
+.calendar-page-v190 .calendar-year-day-v11.today{outline:1px solid var(--accent,#57c1ff)}
+.calendar-page-v190 .calendar-year-day-v11:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:1px;
+}
+.calendar-year-blank-v11{min-height:36px}
+@media(pointer:coarse){
+  .calendar-page-v190 .calendar-year-day-v11,
+  .calendar-year-blank-v11{min-height:44px}
+  .calendar-page-v190 .calendar-year-month-open-v11{min-height:44px}
+}
+@media(max-width:500px){
+  .calendar-year-months-v11{grid-template-columns:minmax(0,1fr)}
+  .calendar-year-month-v11{padding:8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .calendar-year-navigator-v11 *{scroll-behavior:auto}
+}

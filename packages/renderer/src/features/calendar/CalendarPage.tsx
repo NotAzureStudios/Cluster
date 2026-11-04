@@ -29,6 +29,7 @@ import { ClusterInput } from "../../components/ClusterNativeControls";
 import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
 import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
+import { CalendarYearNavigator } from "./CalendarYearNavigator";
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 
@@ -222,7 +223,7 @@ function UpcomingPanel({ compact = false }: { compact?: boolean }) {
 export default function CalendarPage({ projects }: { projects: Project[] }) {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const preferredMonthDayRef = useRef(anchorDate.getDate());
-  const [view, setView] = useState<"month" | "week" | "day" | "agenda">("month");
+  const [view, setView] = useState<"year" | "month" | "week" | "day" | "agenda">("month");
   const userChangedView = useRef(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsSnapshotPath, setEventsSnapshotPath] = useState("");
@@ -290,7 +291,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(activeWeekStart, index));
 
   const range = useMemo(() => {
-    if (view === "month") return { start: monthDays[0], end: addDays(monthDays[41], 1) };
+    if (view === "month" || view === "year") return { start: monthDays[0], end: addDays(monthDays[41], 1) };
     if (view === "week") return { start: activeWeekStart, end: addDays(activeWeekStart, 7) };
     if (view === "day") return { start: new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate()), end: addDays(new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate()), 1) };
     return { start: new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 1, 1), end: new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 3, 1) };
@@ -481,7 +482,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     overflowReturnFocusRef.current = null;
   }
 
-  function changeCalendarView(next: "month" | "week" | "day" | "agenda") {
+  function changeCalendarView(next: "year" | "month" | "week" | "day" | "agenda") {
     userChangedView.current = true;
     overflowReturnFocusRef.current = null;
     setSelectedDayLimit(25);
@@ -502,13 +503,36 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     overflowReturnFocusRef.current = null;
   }
 
-  const rangeLabel = view === "month"
-    ? anchorDate.toLocaleString([], { month: "long", year: "numeric" })
+  const rangeLabel = view === "year"
+    ? String(anchorDate.getFullYear())
+    : view === "month"
+      ? anchorDate.toLocaleString([], { month: "long", year: "numeric" })
     : view === "week"
       ? `${weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" })} – ${weekDays[6].toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`
       : view === "day"
         ? anchorDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })
         : `${range.start.toLocaleDateString([], { month: "short", year: "numeric" })} – ${addDays(range.end, -1).toLocaleDateString([], { month: "short", year: "numeric" })}`;
+
+  function openYearMonth(monthIndex: number) {
+    userChangedView.current = true;
+    const month = new Date(anchorDate.getFullYear(), monthIndex, 1);
+    preferredMonthDayRef.current = 1;
+    setAnchorDate(month);
+    setSelectedDate(month);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+    setView("month");
+  }
+
+  function openYearDay(day: Date) {
+    userChangedView.current = true;
+    preferredMonthDayRef.current = day.getDate();
+    setAnchorDate(day);
+    setSelectedDate(day);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+    setView("day");
+  }
 
   const eventTypes = ["meeting", "review", "deadline", "release", "milestone", "focus", "availability", "client", "production", "publishing", "maintenance", "other"];
 
@@ -518,7 +542,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
         className="cluster-page-header"
         title="Calendar"
         description="Coordinate meetings, reviews, deadlines, releases, milestones, and production commitments across the studio."
-        metrics={[
+        metrics={view === "year" ? [] : [
           { label: "Visible", value: filteredEvents.length },
           { label: "Overlays", value: filteredEvents.filter((event) => Boolean(event.overlay)).length },
           { label: "Conflicts", value: conflictIds.size, tone: conflictIds.size ? "warning" : "neutral" },
@@ -532,7 +556,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       {status && <div className="status-box system-status-box-v053">{status}</div>}
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
-        <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
+        <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["year", "month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
         <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong>
           <label className="calendar-date-jump-v11">
             <span>Go to date</span>
@@ -549,10 +573,16 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
         </div>
       </div>
 
-      {showPlanningTools && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel entries={visibleTimelineEntries} /></div>}
+      {showPlanningTools && view !== "year" && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel entries={visibleTimelineEntries} /></div>}
 
-      <div className="calendar-workspace-v189">
+      <div className={`calendar-workspace-v189 ${view === "year" ? "calendar-workspace-year-v11" : ""}`}>
         <section className="panel calendar-main-v189">
+          {view === "year" && <CalendarYearNavigator
+            year={anchorDate.getFullYear()}
+            selectedDate={selectedDate}
+            onOpenMonth={openYearMonth}
+            onOpenDay={openYearDay}
+          />}
           {view === "month" && <div className="calendar-month-scroll-v495"><div className="calendar-weekdays calendar-weekdays-v189">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid calendar-grid-v189">{monthDays.map((day) => { const key = calendarDateInputValue(day); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section className={`calendar-day calendar-day-v189 ${day.getMonth() !== month.getMonth() ? "muted-day" : ""} ${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`} key={key}><div className="calendar-day-head-v189"><ClusterButton unstyled type="button" className="calendar-day-select-v393" onClick={() => selectCalendarDate(day)} aria-label={`Select ${dayLabel}`}><strong>{day.getDate()}</strong></ClusterButton>{dayEvents.length > 0 && <span>{dayEvents.length}</span>}<ClusterButton unstyled type="button" className="calendar-day-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></div><div className="calendar-event-stack">{dayEvents.slice(0, 3).map((event) => <ClusterButton unstyled type="button" className={`calendar-chip ${event.overlay ? "calendar-overlay-readonly-v505" : ""} ${conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""}`} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)} style={runtimeStyle({ borderColor: event.color || undefined })}><i style={runtimeStyle({ background: event.color || undefined })} /><span>{event.title}</span></ClusterButton>)}{dayEvents.length > 3 ? <ClusterButton type="button" variant="quiet" size="compact" className="calendar-more calendar-more-action-v11"
   onClick={(event) => openCalendarDayOverflow(day, event.currentTarget)}
   aria-label={`Show all ${dayEvents.length} events on ${dayLabel}`} aria-controls="calendar-selected-day-inspector-v11">
@@ -581,7 +611,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
             </ClusterButton> : null}</div>}
         </section>
 
-        <aside ref={selectedDayInspectorRef} id="calendar-selected-day-inspector-v11"
+        {view !== "year" && <aside ref={selectedDayInspectorRef} id="calendar-selected-day-inspector-v11"
           className="panel calendar-inspector-v189" role="region"
           aria-labelledby="calendar-selected-day-heading-v11"
           aria-describedby="calendar-selected-day-description-v11"
@@ -600,7 +630,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
               className="calendar-event-next-v11" onClick={() => setSelectedDayLimit((limit) => limit + 25)}>
               Show next {Math.min(25, selectedEvents.length - selectedDayLimit)} events · {selectedEvents.length - selectedDayLimit} remaining
             </ClusterButton> : null}
-          </div><div className="calendar-inspector-summary-v189"><span><strong>{selectedEvents.length}</strong> Selected</span><span><strong>{selectedEvents.filter((event) => event.status === "tentative").length}</strong> Tentative</span><span><strong>{selectedEvents.filter((event) => conflictIds.has(event.occurrenceKey || event.id)).length}</strong> Conflicts</span></div></aside>
+          </div><div className="calendar-inspector-summary-v189"><span><strong>{selectedEvents.length}</strong> Selected</span><span><strong>{selectedEvents.filter((event) => event.status === "tentative").length}</strong> Tentative</span><span><strong>{selectedEvents.filter((event) => conflictIds.has(event.occurrenceKey || event.id)).length}</strong> Conflicts</span></div></aside>}
       </div>
 
       {(editing || creatingDate) && <EventEditor key={`${currentUserId}:${editing?.id || "new"}:${selectedOccurrenceStart || "series"}`} event={editing} date={creatingDate} occurrenceStartsAt={selectedOccurrenceStart} projects={projects} users={users} currentUserId={currentUserId} onClose={() => { if (editing) calendarDetailHistory.closeDetail(); else setCreatingDate(null); }} onSaved={(change) => { if (change.saved) { commitEvent(change.saved); void loadEvents(true); } if (change.deletedId) removeEvent(change.deletedId); setSelectedOccurrenceStart(null); if (editing) calendarDetailHistory.closeDetail(); setCreatingDate(null); }} />}
