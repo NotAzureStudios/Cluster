@@ -10,6 +10,7 @@ import { safeUrl, validateCorsOrigins } from "../core/security.js";
 import { databaseProviderFromUrl } from "../core/database-provider.js";
 import { packetsSettingsSchemaShape } from "../core/packets-settings.js";
 import { profileFieldDefinitionsSchema } from "../domains/users/people-profile-contract.js";
+import { validateStudioDepartmentPolicyLinks } from "../domains/departments/department-policy-link.js";
 import { revokedStudioRoleIds } from "../domains/users/people-role-governance.js";
 import { BOOT_SECRET_SETTING_KEYS, encryptionKeyConfigured, encryptionKeyId, previousEncryptionKeyIds, SENSITIVE_SETTING_KEYS } from "../core/setting-crypto.js";
 import { OperationCancelledError, withRequestCancellation } from "../core/operation-cancellation.js";
@@ -998,6 +999,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
             );
           }
         }
+        if (safeBody.studioDepartmentDefinitions !== undefined) {
+          await validateStudioDepartmentPolicyLinks(prisma, admin.id, safeBody.studioDepartmentDefinitions);
+        }
         const projectPolicies = validateClusterProjectBundlePolicies(safeBody.studioProjectBundlePolicies ?? current.studioProjectBundlePolicies ?? [], bundles);
         if (safeBody.studioProjectBundlePolicies !== undefined && projectPolicies.length) {
           const projects = await prisma.project.findMany({ where: { id: { in: projectPolicies.map((item) => item.projectId) }, archived: false }, select: { id: true } });
@@ -1020,6 +1024,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
           }
         }
       } catch (error) {
+        if ((error as any)?.code === "DEPARTMENT_POLICY_LINK_INVALID") {
+          return reply.code(400).send({ ok: false, code: "DEPARTMENT_POLICY_LINK_INVALID", error: error instanceof Error ? error.message : "Invalid department link." });
+        }
         if ((error as any)?.code === "ROLE_IN_USE") {
           return reply.code(409).send({ ok: false, code: "ROLE_IN_USE", error: error instanceof Error ? error.message : "Assigned roles cannot be removed." });
         }
