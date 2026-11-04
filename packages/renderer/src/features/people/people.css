@@ -361,3 +361,24 @@
   .people-page-v244:not(.people-profile-expanded-rc46) .people-detail-header-v244 { padding-right: 47px; }
 }
 .people-profile-expanded-rc46 .cluster-detail-close-v429 {display:none!important}
+
+
+/* People administrator editor: one focused workspace instead of scattered fields. */
+.people-user-editor-v106{display:grid;gap:16px;min-width:0;padding:4px 0 16px}
+.people-user-editor-head-v106{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding-bottom:13px;border-bottom:1px solid var(--border)}
+.people-user-editor-head-v106 h3{font-size:1.04rem;margin:3px 0 5px;color:var(--text)}
+.people-user-editor-head-v106 p:not(.eyebrow){font-size:.73rem;color:var(--muted);line-height:1.5;margin:0}
+.people-user-editor-section-v106{display:grid;gap:11px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.people-user-editor-section-v106 h4{font-size:.82rem;margin:0;color:var(--text)}
+.people-user-editor-grid-v106{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.people-user-editor-field-v106{display:grid;align-content:start;gap:6px;min-width:0}
+.people-user-editor-field-v106>span{font-size:.7rem;color:var(--text);font-weight:600}
+.people-user-editor-field-v106>small{font-size:.65rem;line-height:1.45;color:var(--muted)}
+.people-user-editor-field-v106 input,.people-user-editor-field-v106 select{width:100%;min-width:0}
+.people-user-editor-access-v106{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.people-user-editor-access-v106 p{font-size:.7rem;color:var(--muted);line-height:1.55;margin:6px 0 0}
+.people-user-editor-access-v106 strong{color:var(--text)}
+.people-user-editor-error-v106{margin:0;color:var(--danger,#ff7b7b);font-size:.72rem;line-height:1.5}
+.people-user-editor-actions-v106{display:flex;align-items:center;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding:12px 2px 4px;background:var(--panel)}
+.people-user-editor-actions-v106>span{margin-right:auto;color:var(--muted);font-size:.7rem}
+@media(max-width:700px){.people-user-editor-grid-v106{grid-template-columns:minmax(0,1fr)}.people-user-editor-access-v106{display:grid}.people-user-editor-actions-v106{flex-wrap:wrap}.people-user-editor-section-v106{padding:12px}}
