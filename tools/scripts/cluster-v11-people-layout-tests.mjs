@@ -16,7 +16,7 @@ const contracts = [
   [source.includes("const [roleCreationOpen, setRoleCreationOpen] = useState(false)"), "role form disclosed on demand"],
   [source.includes("const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false)"), "department form disclosed on demand"],
   [departments.includes("aria-expanded={departmentCreationOpen}") && roles.includes("aria-expanded={roleCreationOpen}"), "create buttons expose expanded state"],
-  [departments.indexOf('<WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />') < departments.indexOf('studio-advanced-access-v11'), "canonical department directory precedes advanced defaults"],
+  [departments.indexOf('<WorkforceDepartmentManager key={currentUser.id} canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />') < departments.indexOf('studio-advanced-access-v11'), "canonical department directory precedes advanced defaults"],
   [departments.indexOf('studio-entity-manager-v272') > departments.indexOf('studio-department-templates-v11'), "permission templates appear only in advanced policy disclosure"],
   [roles.indexOf('studio-entity-manager-v272') < roles.indexOf('studio-advanced-access-v11'), "role editor precedes policy machinery"],
   [roles.indexOf('studio-create-role-v272') < roles.indexOf('studio-entity-manager-v272'), "role creation is near primary editor"],
