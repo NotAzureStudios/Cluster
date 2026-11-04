@@ -32,7 +32,7 @@ function compile(file, isTsx = false) {
   const result = ts.transpileModule(read(file), {
     fileName: file,
     reportDiagnostics: true,
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: isTsx ? ts.JsxEmit.ReactJSX : undefined },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, ...(isTsx ? { jsx: ts.JsxEmit.ReactJSX } : {}) },
   });
   const errors = (result.diagnostics || []).filter((d) => d.category === ts.DiagnosticCategory.Error);
   assert.equal(errors.length, 0, ts.formatDiagnosticsWithColorAndContext(errors, {
