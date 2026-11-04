@@ -12,7 +12,7 @@ import { assignableStudioRoles, assignWorkspaceRole, requireAssignableStudioRole
 import { applyDisclosureObligations, userDisclosureObligations } from "../access/disclosure.js";
 import { syncUserWorkforceAuthorities } from "../workforce/workforce-normalization.js";
 import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-authority.js";
-import { validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
+import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
 import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 
 type UserDirectoryRouteDependencies = {
@@ -254,7 +254,14 @@ app.post("/api/users", async (request, reply) => {
   if (body.projectPermissions && Object.keys(body.projectPermissions).length)
     return reply.code(409).send({ ok: false, code: "SCOPED_GRANT_REVIEW_REQUIRED", error: "Initial Project grants require independent approval after identity provisioning." });
   // Expiring accounts cannot be provisioned without a valid finite access window.
-  validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  try {
+    validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  } catch (error) {
+    if (error instanceof StudioReturnError) {
+      return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
+    }
+    throw error;
+  }
   const commonData = {
     employeeNumber: body.employeeNumber?.trim() || null,
     displayName: body.displayName?.trim() || null,
@@ -492,6 +499,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
     roleChange = outcome.roleChange;
   } catch (error) {
     if (error instanceof PeopleGovernanceError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message, ...(error.details || {}) });
+    if (error instanceof StudioReturnError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
     throw error;
   }
   if (roleChange?.changed) {
