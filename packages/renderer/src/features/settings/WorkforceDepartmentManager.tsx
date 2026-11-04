@@ -25,7 +25,7 @@ const fromRow = (row?: DepartmentRow): Draft => row
  * Canonical Workforce Department identity editor. Settings-defined department
  * access templates are NOT organizational records and cannot own appearance.
  */
-export function WorkforceDepartmentManager() {
+export function WorkforceDepartmentManager({ canEdit }: { canEdit: boolean }) {
   const [rows, setRows] = useState<DepartmentRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -77,14 +77,14 @@ export function WorkforceDepartmentManager() {
   useEffect(() => { void load(); }, [load]);
 
   async function choose(id: string) {
-    if (saving || (dirty && !(await confirmDiscard()))) return;
+    if (!canEdit || saving || (dirty && !(await confirmDiscard()))) return;
     const next = rows.find((row) => row.id === id);
     if (!next) return;
     setCreating(false); setSelectedId(id); setDraft(fromRow(next)); setError(""); setStatus("");
   }
 
   async function beginCreate() {
-    if (saving || (dirty && !(await confirmDiscard()))) return;
+    if (!canEdit || saving || (dirty && !(await confirmDiscard()))) return;
     setCreating(true); setSelectedId(""); setDraft(emptyDraft()); setError(""); setStatus("");
   }
 
@@ -94,7 +94,7 @@ export function WorkforceDepartmentManager() {
   }
 
   async function save() {
-    if (saving) return;
+    if (!canEdit || saving) return;
     const name = draft.name.trim();
     if (!name) { setError("Enter a department name."); return; }
     if (name.length > 120) { setError("Department names cannot exceed 120 characters."); return; }
@@ -131,8 +131,8 @@ export function WorkforceDepartmentManager() {
 
   return <section className="studio-workforce-department-manager-v11" aria-label="Canonical workforce departments">
     <div className="studio-workforce-department-heading-v11">
-      <div><h3>Department directory</h3><p>Icons, colors and hierarchy are stored on the actual department and reused across Cluster.</p></div>
-      <ClusterButton size="compact" variant="primary" disabled={loading || saving} onClick={() => void beginCreate()}>New department</ClusterButton>
+      <div><h3>Department directory</h3><p>Icons, colors and hierarchy are stored on the actual department and reused across Cluster.</p>{!canEdit && <p>Editing department identity requires administrator access.</p>}</div>
+      <ClusterButton size="compact" variant="primary" disabled={!canEdit || loading || saving} onClick={() => void beginCreate()}>New department</ClusterButton>
     </div>
     <div className="studio-workforce-department-layout-v11">
       <aside className="studio-workforce-department-list-v11">
@@ -155,22 +155,22 @@ export function WorkforceDepartmentManager() {
           <DepartmentIdentityMark department={{ name: draft.name || "Department", color: draft.color, iconId: draft.iconId }} size={40} />
         </header>
         <div className="studio-workforce-department-fields-v11">
-          <label><span>Name</span><ClusterInput value={draft.name} maxLength={120} disabled={saving || loading || (!creating && !selected)} onChange={(event) => update("name", event.target.value)} /></label>
-          <label><span>Parent department</span><ClusterNativeSelect value={draft.parentId} disabled={saving || loading || (!creating && !selected)} onChange={(event) => update("parentId", event.target.value)}>
+          <label><span>Name</span><ClusterInput value={draft.name} maxLength={120} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("name", event.target.value)} /></label>
+          <label><span>Parent department</span><ClusterNativeSelect value={draft.parentId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("parentId", event.target.value)}>
             <option value="">No parent</option>
             {rows.filter((row) => !invalidParents.has(row.id)).map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}
           </ClusterNativeSelect></label>
-          <label><span>Accent color</span><ClusterInput type="color" aria-label="Department accent color" value={draft.color} disabled={saving || loading || (!creating && !selected)} onChange={(event) => update("color", event.target.value)} /></label>
-          <div className="studio-workforce-department-icon-field-v11"><span>Department icon</span><ResourceIconPicker label={draft.name || "Department"} value={draft.iconId} disabled={saving || loading || (!creating && !selected)} onChange={(iconId) => update("iconId", iconId)} /></div>
-          <label className="studio-workforce-department-description-v11"><span>Description</span><ClusterTextarea value={draft.description} maxLength={1000} disabled={saving || loading || (!creating && !selected)} onChange={(event) => update("description", event.target.value)} /></label>
+          <label><span>Accent color</span><ClusterInput type="color" aria-label="Department accent color" value={draft.color} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("color", event.target.value)} /></label>
+          <div className="studio-workforce-department-icon-field-v11"><span>Department icon</span><ResourceIconPicker label={draft.name || "Department"} value={draft.iconId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(iconId) => update("iconId", iconId)} /></div>
+          <label className="studio-workforce-department-description-v11"><span>Description</span><ClusterTextarea value={draft.description} maxLength={1000} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("description", event.target.value)} /></label>
         </div>
         {selected && !creating && <p className="studio-workforce-department-hint-v11">Lead assignments and job roles remain managed in People → Organization. Changes here use revision checks.</p>}
         {error && <p role="alert" className="studio-workforce-department-error-v11">{error}</p>}
         {status && <p role="status" className="studio-workforce-department-status-v11">{status}</p>}
         <div className="studio-workforce-department-actions-v11">
           <span>{dirty ? "Unsaved changes" : creating ? "Enter the department details" : "Current saved version"}</span>
-          <ClusterButton size="compact" variant="secondary" disabled={saving || loading || (!creating && !selected)} onClick={() => { void (async () => { if (dirty && !(await confirmDiscard())) return; if (creating) { setCreating(false); setSelectedId(rows[0]?.id || ""); setDraft(fromRow(rows[0])); } else setDraft(fromRow(selected)); setError(""); })(); }}>Cancel</ClusterButton>
-          <ClusterButton size="compact" variant="primary" disabled={saving || loading || (!creating && !selected) || (!creating && !dirty)} onClick={() => void save()}>{saving ? "Saving…" : creating ? "Create department" : "Save changes"}</ClusterButton>
+          <ClusterButton size="compact" variant="secondary" disabled={!canEdit || saving || loading || (!creating && !selected)} onClick={() => { void (async () => { if (dirty && !(await confirmDiscard())) return; if (creating) { setCreating(false); setSelectedId(rows[0]?.id || ""); setDraft(fromRow(rows[0])); } else setDraft(fromRow(selected)); setError(""); })(); }}>Cancel</ClusterButton>
+          <ClusterButton size="compact" variant="primary" disabled={!canEdit || saving || loading || (!creating && !selected) || (!creating && !dirty)} onClick={() => void save()}>{saving ? "Saving…" : creating ? "Create department" : "Save changes"}</ClusterButton>
         </div>
       </div>
     </div>
