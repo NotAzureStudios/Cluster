@@ -231,3 +231,33 @@
 @media(prefers-reduced-motion:reduce){
   .calendar-year-navigator-v11 *{scroll-behavior:auto}
 }
+
+/* 1.1 Calendar 2.0: explicit independent canonical event and overlay lenses. */
+.calendar-layer-controls-v11{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:9px 3px 2px;
+  border-top:1px solid var(--border-subtle);
+}
+.calendar-layer-controls-v11>span{font-size:.72rem;color:var(--text-muted);font-weight:700;margin-right:4px}
+.calendar-layer-controls-v11 .calendar-layer-toggle-v11{
+  min-height:36px;padding:6px 11px;border:1px solid var(--border);
+  border-radius:9px;color:var(--text-muted);font-size:.74rem;
+}
+.calendar-layer-controls-v11 .calendar-layer-toggle-v11[aria-pressed="true"]{
+  color:var(--text);background:color-mix(in srgb,var(--accent,#57c1ff) 12%,var(--surface-soft));
+  border-left:3px solid var(--accent,#57c1ff);
+}
+.calendar-layer-controls-v11 .calendar-layer-toggle-v11:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:2px;
+}
+.calendar-layers-empty-v11{
+  margin:0;padding:10px 13px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-soft);color:var(--text-muted);font-size:.75rem;
+}
+@media(pointer:coarse){
+  .calendar-layer-controls-v11 .calendar-layer-toggle-v11{min-height:44px}
+}
+@media(max-width:600px){
+  .calendar-layer-controls-v11{align-items:stretch}
+  .calendar-layer-controls-v11>span{flex-basis:100%}
+  .calendar-layer-controls-v11 .calendar-layer-toggle-v11{flex:1 1 120px}
+}
