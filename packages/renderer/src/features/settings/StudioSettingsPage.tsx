@@ -1073,6 +1073,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
                 <div className="studio-department-policy-actions-v11">
                   <span>These templates are permission policies, not separate organizational departments.</span>
+                  <ClusterButton type="button" variant="quiet" size="compact" disabled={workforceDepartmentLoading} onClick={() => setWorkforceDepartmentRefresh((value) => value + 1)}>{workforceDepartmentLoading ? "Loading departments…" : "Refresh department links"}</ClusterButton>
                   <ClusterButton type="button" variant="secondary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close template form" : "New access template"}</ClusterButton>
                 </div>
               {departmentCreationOpen && (
@@ -1091,7 +1092,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                   {departmentRoleCoverage.map((department) => (
                     <ClusterButton type="button" key={department.id} className={selectedDepartment?.id === department.id ? "active" : ""} onClick={() => { setSelectedDepartmentId(department.id); setDepartmentEditorTab("details"); }}>
-                      <span className="studio-entity-icon-rc46" aria-hidden="true"><ResourceIdentityMark iconId="glyph:users" label={department.label} accentColor="#81919b" /></span>
+                      <span className="studio-entity-icon-rc46" aria-hidden="true">{workforceDepartmentById.get(department.workforceDepartmentId || "")
+                          ? <DepartmentIdentityMark department={workforceDepartmentById.get(department.workforceDepartmentId || "")!} size={24} />
+                          : <ResourceIdentityMark iconId="glyph:users" label={department.label} accentColor="#81919b" />}</span>
                       <span className="studio-entity-list-copy-v272">
                         <strong>{department.label}</strong>
                         {department.defaultTeamName && <small>{department.defaultTeamName}</small>}
@@ -1105,7 +1108,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
                       <div className="studio-department-heading-rc46">
-                        <ResourceIdentityMark iconId="glyph:users" label={selectedDepartment.label} accentColor="#81919b" />
+                        {workforceDepartmentById.get(selectedDepartment.workforceDepartmentId || "")
+                          ? <DepartmentIdentityMark department={workforceDepartmentById.get(selectedDepartment.workforceDepartmentId || "")!} size={30} />
+                          : <ResourceIdentityMark iconId="glyph:users" label={selectedDepartment.label} accentColor="#81919b" />}
                         <div><h3>{selectedDepartment.label}</h3>
                         {selectedDepartment.description && <p>{selectedDepartment.description}</p>}
                         </div>
@@ -1132,7 +1137,17 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="studio-editor-panel-v272">
                         
                         <div className="studio-form-grid-v272">
-                          <div className="field span-2"><div className="studio-department-template-note-v11">Icons and colors are edited above in the canonical department directory. This access template changes only defaults and permissions.</div></div>
+                          <div className="field span-2"><div className="studio-department-template-note-v11">The linked Workforce Department owns its icon, color and organizational membership. This template controls access defaults, not the department's appearance.</div></div>
+                          <div className="field span-2">
+                            <label>Linked Workforce Department</label>
+                            <ClusterNativeSelect value={selectedDepartment.workforceDepartmentId || ""} disabled={workforceDepartmentLoading} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { workforceDepartmentId: event.target.value || null })}>
+                              <option value="">No link · policy template only</option>
+                              {selectedDepartment.workforceDepartmentId && !workforceDepartmentById.has(selectedDepartment.workforceDepartmentId) && <option value={selectedDepartment.workforceDepartmentId} disabled>Unavailable or archived department</option>}
+                              {workforceDepartmentRows.map((department) => <option key={department.id} value={department.id} disabled={studioDepartments.some((template) => template.id !== selectedDepartment.id && template.workforceDepartmentId === department.id)}>{department.name}</option>)}
+                            </ClusterNativeSelect>
+                            <small>Links by immutable department ID. A link does not grant permissions automatically; role policies still define access.</small>
+                            {workforceDepartmentError && <small role="alert">{workforceDepartmentError}</small>}
+                          </div>
                           
                           <div className="field"><label>Name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
                           <div className="field"><label>Default team</label><ClusterInput value={selectedDepartment.defaultTeamName || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { defaultTeamName: event.target.value })} placeholder="Team suggestion" /></div>
