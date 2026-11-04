@@ -34,7 +34,7 @@ export function notificationWorkNavigation(item: NotificationNavigationItem): Cl
   // Operations creates real incident-linked Inbox alerts. Resolve their
   // administered destination before the generic resource navigator, which
   // deliberately does not have an OperationsIncident resource contract.
-  if (item.entityType === "operations_incident" || item.resource?.kind === "operations_incident") {
+  if (item.entityType === "operations_incident" || String(item.resource?.kind || "") === "operations_incident") {
     const incidentId = incidentIdFromInspect("operations-incident:" + String(item.entityId || item.resource?.id || ""));
     return incidentId ? { screen: "admin", inspectScope: "operations-incident", inspectId: incidentId } : null;
   }
