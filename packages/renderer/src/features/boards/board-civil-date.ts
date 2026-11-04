@@ -47,3 +47,13 @@ export function boardCardOverdue(value: string | null | undefined, now: Date | n
       && (date.getMonth() < today.getMonth()
         || (date.getMonth() === today.getMonth() && date.getDate() < today.getDate())));
 }
+
+/** Completed-column cards retain their due date, but no longer demand
+ * deadline attention. The column state comes from the canonical Board List. */
+export function boardCardDeadlineNeedsAttention(
+  dueDate: string | null | undefined,
+  listDone: boolean,
+  now: Date | number = Date.now(),
+): boolean {
+  return !listDone && boardCardOverdue(dueDate, now);
+}
