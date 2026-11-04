@@ -15,3 +15,9 @@
 .people-multi-picker-selection-v493 { display:grid; gap:6px; margin-top:6px; }
 .people-multi-picker-person-v493 { display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid var(--line); border-radius:var(--cluster-radius-control); background:var(--panel-2); }
 .people-multi-picker-person-v493 > .cluster-person-summary-v493 { flex:1; min-width:0; }
+
+
+/* Shared department identity is separate from the person's avatar accent. */
+.cluster-person-summary-copy-v493>.cluster-person-summary-meta-v11{display:flex;align-items:center;gap:5px;min-width:0}
+.cluster-person-summary-meta-v11>.cluster-department-identity-v11{flex:0 0 auto}
+.cluster-person-summary-meta-v11>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
