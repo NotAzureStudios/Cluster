@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "../application/application-models";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
@@ -29,13 +29,14 @@ function fromProfile(profile: User): Draft {
  * the existing separately authorized flows, never mixed into a profile save.
  */
 export function PeopleUserEditor({
-  person, departmentNames, onSave, onCancel, onOpenAccess,
+  person, departmentNames, onSave, onCancel, onOpenAccess, onDirtyChange,
 }: {
   person: User;
   departmentNames: string[];
   onSave: (changes: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
   onOpenAccess: () => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const initial = useMemo(() => fromProfile(person), [person.id]);
   const [draft, setDraft] = useState<Draft>(initial);
@@ -45,6 +46,7 @@ export function PeopleUserEditor({
   const allFields: Array<keyof Draft> = [...TEXT_FIELDS, "capacityHours", "minimumHours"];
   const changed = allFields.filter((key) => draft[key] !== initial[key]);
   const dirty = changed.length > 0;
+  useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
   function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
   function cancel() {
     if (saving) return;
