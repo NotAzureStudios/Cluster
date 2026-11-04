@@ -20,7 +20,11 @@ function compile(file, resolve = () => { throw new Error("Unexpected import: " +
   vm.runInNewContext(script.outputText, { module, exports: module.exports, require: resolve, Date, Map, Number }, { filename: file });
   return module.exports;
 }
-const dates = compile(calendarFile("calendar-date-navigation.ts"));
+const year = compile(calendarFile("calendar-year-projection.ts"));
+const dates = compile(calendarFile("calendar-date-navigation.ts"), (target) => {
+  assert.equal(target, "./calendar-year-projection");
+  return year;
+});
 const { indexCalendarEventsByLocalDay, calendarEventPage } = compile(
   calendarFile("calendar-event-visibility.ts"),
   (target) => { assert.equal(target, "./calendar-date-navigation"); return dates; },
