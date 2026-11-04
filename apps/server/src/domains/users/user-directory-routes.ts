@@ -247,7 +247,7 @@ app.post("/api/users", async (request, reply) => {
       },
     },
   });
-  const managerRecord = body.managerUserId ? await prisma.user.findFirst({ where: { id: body.managerUserId, archived: false }, select: { id: true, displayName: true, preferredName: true, username: true } }) : null;
+  const managerRecord = body.managerUserId ? await prisma.user.findFirst({ where: { id: body.managerUserId, archived: false, memberships: { some: { workspaceId: workspace.id } } }, select: { id: true, displayName: true, preferredName: true, username: true } }) : null;
   if (body.managerUserId && !managerRecord) return reply.code(400).send({ ok: false, error: "Choose an active manager." });
   if (body.managerUserId === actor.id && body.username === actor.username) return reply.code(400).send({ ok: false, error: "A person cannot manage themselves." });
   if (body.projectPermissions && Object.keys(body.projectPermissions).length)
@@ -435,7 +435,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
       const effectiveCapacity = body.capacityHours === undefined ? fresh.employment?.capacityHours ?? null : body.capacityHours;
       const effectiveMinimum = body.minimumHours === undefined ? fresh.employment?.minimumHours ?? null : body.minimumHours;
       if (effectiveMinimum != null && effectiveCapacity != null && effectiveMinimum > effectiveCapacity) throw new PeopleGovernanceError("PROFILE_CAPACITY_INVALID", "Minimum hours cannot exceed capacity hours.", 400);
-      if (body.managerUserId !== undefined) await validateManagerAssignment(tx, params.userId, body.managerUserId);
+      if (body.managerUserId !== undefined) await validateManagerAssignment(tx, params.userId, body.managerUserId, actorMembership.workspaceId);
       await tx.user.update({
         where: { id: params.userId },
         data: {
