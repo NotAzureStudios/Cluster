@@ -9,6 +9,7 @@ import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 import { boardActiveBlockerRows, buildBoardCapacityRows, cardDeferredUntil, cardStateAgeDays, isCardStale } from "./board-planning-intelligence";
 import { isCardOverdue } from "./BoardCardTile";
+import { projectBoardDependencyGraph } from "./board-dependency-graph-projection";
 
 function toneForCount(value: number, warnAt = 1): "good" | "warning" | "danger" | "neutral" {
   if (value <= 0) return "good";
@@ -56,16 +57,15 @@ export function BoardPlanningInsights({ board, cards, users, payload, error = ""
       tone: row.pressure > 1.25 ? "danger" : row.pressure > 0.9 ? "warning" : "good",
       detail: `${row.capacityHours ?? "unset"}h capacity · ${row.estimate} estimate units`,
     }));
-    const edgeCards = new Set(dependencies.flatMap((edge) => [edge.sourceCardId, edge.targetCardId]));
-    const graphNodes: VisualDatum[] = Array.from(edgeCards).slice(0, 24).flatMap((id) => {
+    const graphProjection = projectBoardDependencyGraph(dependencies, localCardIds, blocked);
+    const graphNodes: VisualDatum[] = graphProjection.visibleIds.flatMap((id) => {
       const card = cardById.get(id);
       if (!card) return [];
       const list = listById.get(card.listId);
       return [{ id, label: card.title, tone: blocked.has(id) ? "danger" : list?.isDone ? "good" : isCardStale(card, list, now) ? "warning" : "neutral", detail: `${list?.title || "Card"} · ${card.priority} · ${cardStateAgeDays(card, now)}d in state` }];
     });
-    const graphIds = new Set(graphNodes.map((node) => node.id));
-    const graphEdges = dependencies.filter((edge) => graphIds.has(edge.sourceCardId) && graphIds.has(edge.targetCardId)).slice(0, 36).map((edge) => ({ from: edge.sourceCardId, to: edge.targetCardId, label: edge.relationship.replaceAll("_", " ") }));
-    return { health, capacityItems, wipViolations, blocked, blockerRows, projectionByCardId, graphNodes, graphEdges, cardById };
+    const graphEdges = graphProjection.visibleEdges.map((edge) => ({ from: edge.sourceCardId, to: edge.targetCardId, label: edge.relationship.replaceAll("_", " ") }));
+    return { health, capacityItems, wipViolations, blocked, blockerRows, projectionByCardId, graphProjection, graphNodes, graphEdges, cardById };
   }, [board.lists, cards, payload?.dependencies, payload?.projections, users]);
 
   if (error) return <div className="error-box" role="alert">{error}</div>;
@@ -77,7 +77,21 @@ export function BoardPlanningInsights({ board, cards, users, payload, error = ""
       <section className="panel"><div className="panel-title-row"><div><h3>Activity</h3><p className="muted tight">Card activity over the last 14 days · snapshot {new Date(payload.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.</p></div><strong>{payload.activity.reduce((sum, point) => sum + point.count, 0)}</strong></div><Sparkline label="Board activity over 14 days" values={payload.activity.map((point) => point.count)} /></section>
       <section className="panel"><h3>Capacity pressure</h3>{model.capacityItems.length ? <StatusStrip density="compact" label="Assignee capacity pressure" items={model.capacityItems} /> : <p className="muted tight">No active assigned cards.</p>}<p className="muted tight">Capacity pressure is a transparent heuristic: active cards versus roughly one four-hour work unit per configured capacity block. Estimate units are shown separately and are not treated as hours.</p></section>
       <section className="panel"><h3>WIP limits</h3>{model.wipViolations.length ? model.wipViolations.map(({ list, count }) => <p key={list.id} className="tight"><strong>{list.title}</strong> · {count}/{list.wipLimit} cards</p>) : <p className="muted tight">All configured column limits are currently respected.</p>}</section>
-      <section className="panel board-dependency-panel-v504"><h3>Dependency map</h3>{model.graphNodes.length ? <DependencyGraph density="compact" label="Board card dependencies" nodes={model.graphNodes} edges={model.graphEdges} onSelect={(selection) => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: selection.datumId, projectId: board.project.id }))} /> : <ClusterEmptyState compact kind="empty" icon="work" title="No Card dependencies yet" description="Link Cards with blocks, depends on, parent, related, duplicate, or supersedes relationships." />}</section>
+      <section className="panel board-dependency-panel-v504">
+        <h3>Dependency map</h3>
+        {model.graphNodes.length ? (
+          <DependencyGraph density="compact" label="Board card dependencies" nodes={model.graphNodes} edges={model.graphEdges}
+            onSelect={(selection) => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: selection.datumId, projectId: board.project.id }))} />
+        ) : payload.dependencies.length ? (
+          <p className="muted tight">No local Card nodes can be shown in this graph. Projected and cross-Board prerequisites appear in Blocked work.</p>
+        ) : <ClusterEmptyState compact kind="empty" icon="work" title="No Card dependencies yet" description="Link Cards with blocks, depends on, parent, related, duplicate, or supersedes relationships." />}
+        {(model.graphProjection.hiddenLocalNodeCount > 0 || model.graphProjection.hiddenLocalEdgeCount > 0 || model.graphProjection.crossBoardEdgeCount > 0) ? (
+          <p className="board-dependency-coverage-v11" role="note">
+            Graph shows {model.graphNodes.length} of {model.graphProjection.localNodeCount} linked local Cards and {model.graphEdges.length} of {model.graphProjection.localEdgeCount} local relationships.
+            {model.graphProjection.crossBoardEdgeCount ? ` ${model.graphProjection.crossBoardEdgeCount} cross-Board relationship${model.graphProjection.crossBoardEdgeCount === 1 ? "" : "s"} are not drawn here; see Blocked work for active prerequisites.` : ""}
+          </p>
+        ) : null}
+      </section>
       <section className="panel board-active-blockers-v11">
         <div className="panel-title-row">
           <div><h3>Blocked work</h3><p className="muted tight">Unfinished prerequisites on this Board or authorized projected Cards.</p></div>
