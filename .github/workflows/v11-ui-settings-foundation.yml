@@ -1,0 +1,45 @@
+name: Cluster 1.1 UI settings foundation
+
+on:
+  pull_request:
+    paths:
+      - "packages/renderer/src/components/ClusterSettingsPrimitives.tsx"
+      - "packages/renderer/src/components/cluster-settings-interactions.ts"
+      - "packages/renderer/src/components/cluster-settings-primitives.css"
+      - "packages/renderer/src/features/settings/**"
+      - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
+      - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - ".github/workflows/v11-ui-settings-foundation.yml"
+  push:
+    branches:
+      - feat/v11-ui-interactions-settings-foundation
+    paths:
+      - "packages/renderer/src/components/ClusterSettingsPrimitives.tsx"
+      - "packages/renderer/src/components/cluster-settings-interactions.ts"
+      - "packages/renderer/src/components/cluster-settings-primitives.css"
+      - "packages/renderer/src/features/settings/**"
+      - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
+      - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - ".github/workflows/v11-ui-settings-foundation.yml"
+  workflow_dispatch:
+
+jobs:
+  ui-settings-regression:
+    name: Shared controls and renderer build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Run UI settings foundation tests
+        run: node tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs
+      - name: Type-check actual renderer
+        run: npm run build --workspace=@cluster/renderer
