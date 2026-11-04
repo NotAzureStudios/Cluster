@@ -4,6 +4,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
 import { departmentLeadChoices, departmentParentChoices } from "./department-assignment-choices";
+import { departmentAncestorIds, projectDepartmentHierarchy } from "./department-hierarchy";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
@@ -35,6 +36,7 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
+  const [collapsedDepartmentIds, setCollapsedDepartmentIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -50,8 +52,25 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
     title: "Discard department changes?",
     message: "This department has unsaved changes. Discard them and continue?",
   });
-  const visible = useMemo(() => rows.filter((row) =>
-    `${row.name} ${row.description || ""}`.toLowerCase().includes(search.trim().toLowerCase())), [rows, search]);
+  const hierarchy = useMemo(() =>
+    projectDepartmentHierarchy(rows, search, collapsedDepartmentIds), [rows, search, collapsedDepartmentIds]);
+  const visible = hierarchy.entries;
+  const selectedHidden = Boolean(selected && !creating && !visible.some((entry) => entry.row.id === selected.id));
+  const selectedPath = useMemo(() => selected ? departmentAncestorIds(rows, selected.id)
+    .reverse().map((id) => rows.find((row) => row.id === id)?.name || id) : [], [rows, selectedId]);
+  function toggleDepartmentExpanded(id: string) {
+    setCollapsedDepartmentIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function revealSelectedDepartment() {
+    setSearch("");
+    if (!selected) return;
+    const ancestors = new Set(departmentAncestorIds(rows, selected.id));
+    setCollapsedDepartmentIds((current) => new Set([...current].filter((id) => !ancestors.has(id))));
+  }
   const invalidParents = useMemo(() => {
     if (!selected) return new Set<string>();
     const excluded = new Set([selected.id]);
@@ -162,21 +181,69 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
     </div>
     <div className="studio-workforce-department-layout-v11">
       <aside className="studio-workforce-department-list-v11">
-        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." /></label>
-        <div className="studio-workforce-department-list-rows-v11">
-          {loading && <p role="status">Loading departments…</p>}
-          {!loading && !visible.length && <p>{rows.length ? "No matching departments." : "No departments created yet."}</p>}
-          {visible.map((row) => <button type="button" key={row.id} className={!creating && selectedId === row.id ? "active" : ""} aria-current={!creating && selectedId === row.id ? "true" : undefined} disabled={saving} onClick={() => void choose(row.id)}>
-            <DepartmentIdentityMark department={row} size={27} />
-            <span><strong>{row.name}</strong><small>{row.members} members · {row.teams} teams</small></span>
-          </button>)}
+        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a department or team…" /></label>
+        <div className="studio-workforce-hierarchy-toolbar-v11">
+          <span role="status">{search.trim()
+            ? `${hierarchy.matches} match${hierarchy.matches === 1 ? "" : "es"} · ${hierarchy.total} departments`
+            : `${hierarchy.total} departments · ${hierarchy.rootCount} top-level`}</span>
+          <div className="studio-workforce-hierarchy-actions-v11">
+            <button type="button" disabled={loading || !hierarchy.expandableIds.length || !collapsedDepartmentIds.size}
+              onClick={() => setCollapsedDepartmentIds(new Set())}>Expand all</button>
+            <button type="button" disabled={loading || !hierarchy.expandableIds.length || Boolean(search.trim())}
+              onClick={() => setCollapsedDepartmentIds(new Set(hierarchy.expandableIds))}>Collapse all</button>
+          </div>
         </div>
+        {selectedHidden && (
+          <div className="studio-workforce-hierarchy-hidden-v11" role="status">
+            <span>The selected department is hidden by the current search or collapsed branches.</span>
+            <button type="button" onClick={revealSelectedDepartment}>Reveal selected</button>
+          </div>
+        )}
+        {loading && <p role="status" className="studio-workforce-hierarchy-empty-v11">Loading departments…</p>}
+        {!loading && !visible.length && (
+          <p className="studio-workforce-hierarchy-empty-v11">
+            {rows.length ? "No departments match this search." : "No departments created yet."}
+          </p>
+        )}
+        <ul className="studio-workforce-department-list-rows-v11" aria-label="Department hierarchy">
+          {visible.map((entry) => {
+            const row = entry.row;
+            return (
+              <li key={row.id} style={{ paddingInlineStart: `${Math.min(entry.depth, 10) * 14}px` }}
+                className={entry.matchesSearch ? "" : "search-context"}>
+                {entry.hasChildren ? (
+                  <button type="button" className="studio-workforce-hierarchy-expand-v11"
+                    aria-label={`${entry.expanded ? "Collapse" : "Expand"} ${row.name}`}
+                    aria-expanded={entry.expanded} disabled={Boolean(search.trim()) || saving}
+                    onClick={() => toggleDepartmentExpanded(row.id)}>
+                    <span aria-hidden="true">{entry.expanded ? "▾" : "▸"}</span>
+                  </button>
+                ) : <span className="studio-workforce-hierarchy-indent-v11" aria-hidden="true" />}
+                <button type="button" className={`studio-workforce-hierarchy-select-v11 ${!creating && selectedId === row.id ? "active" : ""}`}
+                  aria-current={!creating && selectedId === row.id ? "true" : undefined}
+                  aria-label={`${row.name}${entry.ancestorNames.length ? `, within ${entry.ancestorNames.join(" / ")}` : ", top level"}`}
+                  disabled={saving} onClick={() => void choose(row.id)}>
+                  <DepartmentIdentityMark department={row} size={27} />
+                  <span className="studio-workforce-hierarchy-label-v11">
+                    <strong>{row.name}</strong>
+                    <small>{row.members} members · {row.teams} teams{entry.orphanedParent ? " · Parent unavailable" : ""}</small>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </aside>
       <div className="studio-workforce-department-editor-v11">
         <header>
           <div>
             <span className="eyebrow">{creating ? "New department" : "Department identity"}</span>
             <h4>{creating ? "Create department" : selected?.name || "Select a department"}</h4>
+            {!creating && selected && (
+              <p className="studio-workforce-hierarchy-breadcrumb-v11" aria-label="Saved department location">
+                {selectedPath.length ? `${selectedPath.join(" / ")} / ${selected.name}` : `Top level / ${selected.name}`}
+              </p>
+            )}
           </div>
           <DepartmentIdentityMark department={{ name: draft.name || "Department", color: draft.color, iconId: draft.iconId }} size={40} />
         </header>
