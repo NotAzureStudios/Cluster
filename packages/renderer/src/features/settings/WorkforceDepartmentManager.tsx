@@ -181,11 +181,11 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
     </div>
     <div className="studio-workforce-department-layout-v11">
       <aside className="studio-workforce-department-list-v11">
-        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a department or team…" /></label>
+        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names and descriptions…" /></label>
         <div className="studio-workforce-hierarchy-toolbar-v11">
           <span role="status">{search.trim()
             ? `${hierarchy.matches} match${hierarchy.matches === 1 ? "" : "es"} · ${hierarchy.total} departments`
-            : `${hierarchy.total} departments · ${hierarchy.rootCount} top-level`}</span>
+            : `${hierarchy.total} departments · ${hierarchy.rootCount} root groups`}</span>
           <div className="studio-workforce-hierarchy-actions-v11">
             <button type="button" disabled={loading || !hierarchy.expandableIds.length || !collapsedDepartmentIds.size}
               onClick={() => setCollapsedDepartmentIds(new Set())}>Expand all</button>
