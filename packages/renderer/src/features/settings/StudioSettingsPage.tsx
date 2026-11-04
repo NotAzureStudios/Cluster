@@ -127,26 +127,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
   const [roleCreationOpen, setRoleCreationOpen] = useState(false);
   const [workforceDepartmentRows, setWorkforceDepartmentRows] = useState<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>([]);
-  const [workforceDepartmentLoading, setWorkforceDepartmentLoading] = useState(false);
-  const [workforceDepartmentError, setWorkforceDepartmentError] = useState("");
-  const [workforceDepartmentRefresh, setWorkforceDepartmentRefresh] = useState(0);
-  useEffect(() => {
-    if (section !== "departments") return;
-    let active = true;
-    setWorkforceDepartmentLoading(true);
-    void queryApi<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>(
-      "/api/departments", { force: true, staleMs: 0, tags: ["departments", "people", "workforce"] },
-    ).then((items) => {
-      if (!active) return;
-      setWorkforceDepartmentRows(items);
-      setWorkforceDepartmentError("");
-    }).catch((error: unknown) => {
-      if (active) setWorkforceDepartmentError(error instanceof Error ? error.message : "Unable to load department links.");
-    }).finally(() => {
-      if (active) setWorkforceDepartmentLoading(false);
-    });
-    return () => { active = false; };
-  }, [section, currentUser.id, workforceDepartmentRefresh]);
   const workforceDepartmentById = useMemo(() => new Map(workforceDepartmentRows.map((department) => [department.id, department])), [workforceDepartmentRows]);
 
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState("");
@@ -1067,13 +1047,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </div>
               </div>
 
-              <WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} />
+              <WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />
 
               <details className="studio-advanced-access-v11 studio-department-templates-v11">
                 <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
                 <div className="studio-department-policy-actions-v11">
                   <span>These templates are permission policies, not separate organizational departments.</span>
-                  <ClusterButton type="button" variant="quiet" size="compact" disabled={workforceDepartmentLoading} onClick={() => setWorkforceDepartmentRefresh((value) => value + 1)}>{workforceDepartmentLoading ? "Loading departments…" : "Refresh department links"}</ClusterButton>
                   <ClusterButton type="button" variant="secondary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close template form" : "New access template"}</ClusterButton>
                 </div>
               {departmentCreationOpen && (
@@ -1140,13 +1119,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                           <div className="field span-2"><div className="studio-department-template-note-v11">The linked Workforce Department owns its icon, color and organizational membership. This template controls access defaults, not the department's appearance.</div></div>
                           <div className="field span-2">
                             <label>Linked Workforce Department</label>
-                            <ClusterNativeSelect value={selectedDepartment.workforceDepartmentId || ""} disabled={workforceDepartmentLoading} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { workforceDepartmentId: event.target.value || null })}>
+                            <ClusterNativeSelect value={selectedDepartment.workforceDepartmentId || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { workforceDepartmentId: event.target.value || null })}>
                               <option value="">No link · policy template only</option>
                               {selectedDepartment.workforceDepartmentId && !workforceDepartmentById.has(selectedDepartment.workforceDepartmentId) && <option value={selectedDepartment.workforceDepartmentId} disabled>Unavailable or archived department</option>}
                               {workforceDepartmentRows.map((department) => <option key={department.id} value={department.id} disabled={studioDepartments.some((template) => template.id !== selectedDepartment.id && template.workforceDepartmentId === department.id)}>{department.name}</option>)}
                             </ClusterNativeSelect>
                             <small>Links by immutable department ID. A link does not grant permissions automatically; role policies still define access.</small>
-                            {workforceDepartmentError && <small role="alert">{workforceDepartmentError}</small>}
                           </div>
                           
                           <div className="field"><label>Name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
