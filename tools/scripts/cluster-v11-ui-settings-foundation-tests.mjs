@@ -139,6 +139,20 @@ test("Responsive controls support keyboard focus, coarse touch, reduced motion a
   assert.match(css, /:root\[data-motion="none"\]/);
   assert.doesNotMatch(css, /!important/);
 });
+test("Design system gallery demonstrates real settings interactions", () => {
+  const preview = read("packages/renderer/src/components/DesignSystemPreview.tsx");
+  assert.match(preview, /<ClusterSettingsChoiceGroup label="Preview settings density"/);
+  assert.match(preview, /<ClusterSettingsChangeReview label="Example change review"/);
+  assert.match(preview, /<ClusterSettingsSection title="Live settings examples"/);
+});
+test("Server settings use on-demand technical help and explicit native labels", () => {
+  assert.match(server, /<ClusterSettingsHelp label=\{field\.label\}>/);
+  assert.match(server, /<label htmlFor=\{inputId\}>/);
+  assert.match(server, /<ClusterInput id=\{inputId\} type="checkbox"/);
+  assert.match(server, /<ClusterTextarea id=\{inputId\}/);
+  assert.match(server, /<ClusterNativeSelect id=\{inputId\}/);
+  assert.doesNotMatch(server, /<small>\{help\}<\/small>/);
+});
 test("Project roadmap inventories real cross-workspace consumers and an explicit certification gate", () => {
   const roadmap = read("docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md");
   for (const label of ["Settings", "Management", "Boards", "Whiteboards", "Projects", "Calendar 2.0", "Library", "Studio Analytics", "QA", "Builds", "Desktop", "Runtime Certified"]) {
