@@ -10,7 +10,7 @@ import { confirmCluster, promptCluster } from "../../components/cluster-dialog-s
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { ClusterSettingsChangeReview } from "../../components/ClusterSettingsPrimitives";
+import { ClusterSettingsChangeReview, ClusterSettingsHelp } from "../../components/ClusterSettingsPrimitives";
 import type { SecurityDiagnostics, ServerBackupRecord, ServerBackupVerification, ServerConfigField, ServerConfigSection, ServerSessionRecord, Settings } from "../application/application-models";
 import "./settings-workspace.css";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -1223,48 +1223,36 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   function renderField(field: ServerConfigField) {
     const value = settings[field.key];
     const changed = JSON.stringify(value) !== JSON.stringify(savedSettings[field.key]);
-    const className = `server-config-field-v238${field.wide ? " span-2" : ""}${changed ? " is-dirty" : ""}`;
+    const inputId = "server-config-field-" + String(field.key);
+    const className = "server-config-field-v238 server-config-compact-field-v11" + (field.wide ? " span-2" : "") + (changed ? " is-dirty" : "");
     const help = SERVER_CONFIG_HELP[field.key] || "Controls this server setting.";
+    const status = field.restart
+      ? <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>
+      : changed ? <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip> : null;
+    const header = <span className="server-config-field-header-v11">
+      <label htmlFor={inputId}><strong>{field.label}</strong></label>
+      <span className="server-config-field-actions-v11">
+        {status}
+        <ClusterSettingsHelp label={field.label}>{help}<code>Key: {String(field.key)}</code></ClusterSettingsHelp>
+      </span>
+    </span>;
     if (field.type === "boolean") {
-      return (
-        <label className={`${className} server-config-toggle-v238`} key={String(field.key)}>
-          <span>
-            <strong>{field.label}</strong>
-            {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
-            {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
-            <small>{help}</small>
-            <code>{String(field.key)}</code>
-          </span>
-          <ClusterInput type="checkbox" checked={Boolean(value)} onChange={(event) => patch(field.key, event.target.checked)} />
-        </label>
-      );
+      return <div className={className + " server-config-toggle-v238"} key={String(field.key)}>
+        {header}
+        <ClusterInput id={inputId} type="checkbox" checked={Boolean(value)} onChange={(event) => patch(field.key, event.target.checked)} />
+      </div>;
     }
-    const control =
-      field.type === "textarea" ? (
-        <ClusterTextarea value={String(value ?? "")} placeholder={field.placeholder} onChange={(event) => patch(field.key, event.target.value)} />
-      ) : field.type === "select" ? (
-        <ClusterNativeSelect value={String(value ?? "")} onChange={(event) => patch(field.key, event.target.value)}>
-          {optionsWithCurrent(field.options || [], String(value ?? "")).map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </ClusterNativeSelect>
-      ) : (
-        <ClusterInput type={field.type === "password" ? "password" : field.type} value={value === undefined || value === null ? "" : String(value)} placeholder={field.placeholder} min={field.min} max={field.max} step={field.step} onChange={(event) => patch(field.key, field.type === "number" ? (event.target.value === "" ? undefined : Number(event.target.value)) : event.target.value)} />
-      );
-    return (
-      <label className={className} key={String(field.key)}>
-        <span>
-          <strong>{field.label}</strong>
-          {field.restart && <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>}
-          {changed && !field.restart && <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip>}
-        </span>
-        <small>{help}</small>
-        {control}
-        <code>{String(field.key)}</code>
-      </label>
-    );
+    const control = field.type === "textarea"
+      ? <ClusterTextarea id={inputId} value={String(value ?? "")} placeholder={field.placeholder} onChange={(event) => patch(field.key, event.target.value)} />
+      : field.type === "select"
+        ? <ClusterNativeSelect id={inputId} value={String(value ?? "")} onChange={(event) => patch(field.key, event.target.value)}>
+            {optionsWithCurrent(field.options || [], String(value ?? "")).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </ClusterNativeSelect>
+        : <ClusterInput id={inputId} type={field.type === "password" ? "password" : field.type}
+            value={value === undefined || value === null ? "" : String(value)} placeholder={field.placeholder}
+            min={field.min} max={field.max} step={field.step}
+            onChange={(event) => patch(field.key, field.type === "number" ? (event.target.value === "" ? undefined : Number(event.target.value)) : event.target.value)} />;
+    return <div className={className} key={String(field.key)}>{header}{control}</div>;
   }
   function renderSectionFields(target: ServerConfigField["section"], excludedKeys: readonly string[] = []) {
     const fields = SERVER_CONFIG_FIELDS.filter((field) => field.section === target && !excludedKeys.includes(String(field.key)));
