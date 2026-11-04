@@ -1022,3 +1022,9 @@ and worker handoff. */ .video-compare-toolbar-v495{display:flex;gap:8px;align-it
 .project-now-metrics-rc25>.cluster-visual-ring .cluster-visual-ring__caption strong { font-size:1rem; }
 .project-now-schedule-v34 { align-content:center; }
 @media(max-width:600px){ .project-now-metrics-rc25 { grid-template-columns:repeat(2,minmax(0,1fr)); } .project-now-metrics-rc25>.project-now-schedule-v34 { grid-column:1/-1; } }
+
+/* v1.1: identify the active section without another navigation bar. */
+.project-head-breadcrumb-rc25{min-width:0;flex-wrap:wrap}
+.project-head-breadcrumb-rc25 .project-breadcrumb-current-v11{color:var(--text);font-weight:700;overflow-wrap:anywhere}
+@media(pointer:coarse){.project-head-breadcrumb-rc25>.project-back-v147{min-height:44px}.cluster-project-detail-workspace .project-nav-row-rc25 .compact-section-primary-v204>button{min-height:44px}.project-header-details-rc25>summary{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.cluster-project-detail-workspace .project-nav-row-rc25 *{scroll-behavior:auto}}
