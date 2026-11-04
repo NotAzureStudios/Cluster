@@ -852,10 +852,19 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     } catch (error) { setSaveError(error); }
   }
   async function save(confirmation?: string, pinOverride?: string, restartAfter = false): Promise<boolean> {
-    // Staged network rollback is file-only while PostgreSQL may be offline.
-    // Don't ask for a PIN just to reject a mixed database/network transaction.
+    // Do not open a second PIN dialog while a save is already in flight.
+    // A confirmed 412 retry reuses the existing PIN through pinOverride.
+    if (savingConfig && !pinOverride) return false;
+    // Determine whether anything needs saving BEFORE interrupting the operator
+    // with a PIN or a restart confirmation.
     const selectedKeys = Object.keys(settings).filter(key =>
       JSON.stringify((settings as Record<string, unknown>)[key]) !== JSON.stringify((savedSettings as Record<string, unknown>)[key]));
+    if (!selectedKeys.length) {
+      setStatus("No server configuration changes to save.");
+      return false;
+    }
+    // Staged network rollback is file-only while PostgreSQL may be offline.
+    // Don't ask for a PIN just to reject a mixed database/network transaction.
     if (selectedKeys.some(key => (NETWORK_REVIEW_FIELDS as readonly string[]).includes(key)) &&
         selectedKeys.some(key => !(NETWORK_REVIEW_FIELDS as readonly string[]).includes(key))) {
       setStatus("Save networking changes separately from other settings so a failed service restart can restore the complete network transaction.");
@@ -878,9 +887,13 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           purpose: "setup_for_apply_server_configuration",
         }));
     if (!pin) return false;
-    if (savingConfig && !pinOverride) return false;
     const changedKeys = Object.keys(settings).filter((key) => JSON.stringify((settings as Record<string, unknown>)[key]) !== JSON.stringify((savedSettings as Record<string, unknown>)[key]));
-    if (!changedKeys.length) return true;
+    // The operator may have reset the draft while the PIN dialog was open.
+    // Never report a no-op as a successful protected save.
+    if (!changedKeys.length) {
+      setStatus("No server configuration changes to save.");
+      return false;
+    }
     const original = loadedRawSettingsRef.current as Record<string, unknown>;
     const changes = Object.fromEntries(changedKeys.map((key) => [key, (settings as Record<string, unknown>)[key]]));
     const expectedSettings = Object.fromEntries(changedKeys.map((key) => [key,
