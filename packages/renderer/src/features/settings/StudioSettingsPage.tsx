@@ -121,6 +121,8 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("studio");
   const [roleEditorTab, setRoleEditorTab] = useState<"details" | "permissions" | "actions">("details");
   const [departmentEditorTab, setDepartmentEditorTab] = useState<"details" | "permissions" | "roles">("details");
+  const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
+  const [roleCreationOpen, setRoleCreationOpen] = useState(false);
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState("");
   const studioDraftTimer = useRef<number | null>(null);
   const studioDraftKey = `studio-settings:${currentUser.id}`;
@@ -560,6 +562,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     ];
     patch("studioRoleDefinitions", next);
     setNewRoleLabel("");
+    setRoleCreationOpen(false);
     setSelectedRoleId(id);
     setRoleEditorTab("details");
     setStatus(`Added editable role: ${label}`);
@@ -617,6 +620,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     ]);
     setNewDepartmentLabel("");
     setNewDepartmentTeam("");
+    setDepartmentCreationOpen(false);
     setSelectedDepartmentId(id);
     setDepartmentEditorTab("details");
     setStatus(`Added department: ${label}`);
@@ -1012,44 +1016,26 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           />}
 
           {section === "departments" && (
-            <div className="settings-section-v092 studio-settings-section-v272">
+            <div className="settings-section-v092 studio-settings-section-v272 studio-people-management-v11 studio-departments-management-v11">
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Organization</p>
                   <h2>Departments</h2>
                 </div>
-                <span className="studio-section-count-v272">{enabledStudioDepartments.length} active</span>
+                <div className="studio-people-manager-head-actions-v11">
+                  <span className="studio-section-count-v272">{enabledStudioDepartments.length} active</span>
+                  <ClusterButton type="button" variant="primary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close form" : "New department"}</ClusterButton>
+                </div>
               </div>
 
-              <div className="studio-policy-strip-v272">
-                <div className="field">
-                  <label>Default department</label>
-                  <ClusterNativeSelect value={settings.studioDefaultDepartmentId || defaultDepartment?.id || "studio"} onChange={(event) => patch("studioDefaultDepartmentId", event.target.value)}>
-                    {enabledStudioDepartments.map((department) => (
-                      <option key={department.id} value={department.id}>{department.label}</option>
-                    ))}
-                  </ClusterNativeSelect>
-                </div>
-                <div className="field">
-                  <label>Capacity policy</label>
-                  <ClusterNativeSelect value={settings.studioDepartmentCapacityMode || "advisory"} onChange={(event) => patch("studioDepartmentCapacityMode", event.target.value as Settings["studioDepartmentCapacityMode"])}>
-                    <option value="off">Do not track targets</option>
-                    <option value="advisory">Show capacity guidance</option>
-                    <option value="required">Require capacity on profiles</option>
-                  </ClusterNativeSelect>
-                </div>
-                <label className="studio-setting-toggle-v272">
-                  <ClusterInput type="checkbox" checked={settings.studioDepartmentRequired !== false} onChange={(event) => patch("studioDepartmentRequired", event.target.checked)} />
-                  <span><strong>Required</strong></span>
-                </label>
-              </div>
-
+              {departmentCreationOpen && (
               <div className="studio-create-strip-v272">
                 <div><strong>New</strong></div>
                 <ClusterInput value={newDepartmentLabel} onChange={(event) => setNewDepartmentLabel(event.target.value)} placeholder="Department name" />
                 <ClusterInput value={newDepartmentTeam} onChange={(event) => setNewDepartmentTeam(event.target.value)} placeholder="Default team name" />
                 <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add department</ClusterButton>
               </div>
+              )}
 
               <div className="studio-entity-manager-v272">
                 <aside className="studio-entity-list-v272" aria-label="Departments">
@@ -1152,62 +1138,50 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                 )}
               </div>
+              <details className="studio-advanced-access-v11">
+                <summary><strong>Department defaults & access policies</strong><span>Onboarding department, required fields and capacity rules</span></summary>
+              <div className="studio-policy-strip-v272">
+                <div className="field">
+                  <label>Default department</label>
+                  <ClusterNativeSelect value={settings.studioDefaultDepartmentId || defaultDepartment?.id || "studio"} onChange={(event) => patch("studioDefaultDepartmentId", event.target.value)}>
+                    {enabledStudioDepartments.map((department) => (
+                      <option key={department.id} value={department.id}>{department.label}</option>
+                    ))}
+                  </ClusterNativeSelect>
+                </div>
+                <div className="field">
+                  <label>Capacity policy</label>
+                  <ClusterNativeSelect value={settings.studioDepartmentCapacityMode || "advisory"} onChange={(event) => patch("studioDepartmentCapacityMode", event.target.value as Settings["studioDepartmentCapacityMode"])}>
+                    <option value="off">Do not track targets</option>
+                    <option value="advisory">Show capacity guidance</option>
+                    <option value="required">Require capacity on profiles</option>
+                  </ClusterNativeSelect>
+                </div>
+                <label className="studio-setting-toggle-v272">
+                  <ClusterInput type="checkbox" checked={settings.studioDepartmentRequired !== false} onChange={(event) => patch("studioDepartmentRequired", event.target.checked)} />
+                  <span><strong>Required</strong></span>
+                </label>
+              </div>
+              </details>
+
             </div>
           )}
 
           {section === "roles" && (
-            <div className="settings-section-v092 studio-settings-section-v272">
+            <div className="settings-section-v092 studio-settings-section-v272 studio-people-management-v11 studio-roles-management-v11">
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Access</p>
                   <h2>Roles & permissions</h2>
                   <p className="muted tight">Build reusable access profiles for studio members. Department access is inherited first, role access is applied next, and user-specific permissions remain the final override.</p>
                 </div>
-                <span className="studio-section-count-v272">{enabledStudioRoles.length} active</span>
+                <div className="studio-people-manager-head-actions-v11">
+                  <span className="studio-section-count-v272">{enabledStudioRoles.length} active</span>
+                  <ClusterButton type="button" variant="primary" size="compact" aria-expanded={roleCreationOpen} onClick={() => setRoleCreationOpen((open) => !open)}>{roleCreationOpen ? "Close form" : "New role"}</ClusterButton>
+                </div>
               </div>
 
-              <div className="studio-policy-strip-v272">
-                <div className="field"><label>Access model</label><ClusterNativeSelect value={settings.studioRolePermissionMode || "role-based"} onChange={(event) => patch("studioRolePermissionMode", event.target.value as Settings["studioRolePermissionMode"])}><option value="open">Open defaults</option><option value="role-based">Role-based access</option><option value="locked">Explicit access only</option></ClusterNativeSelect><small>Role-based access is recommended for normal studio use.</small></div>
-                <div className="field"><label>Default role</label><ClusterNativeSelect value={settings.studioDefaultWorkspaceRole || "member"} onChange={(event) => patch("studioDefaultWorkspaceRole", event.target.value)}>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Preselected when administrators create a user.</small></div>
-                <div className="field"><label>External access</label><ClusterNativeSelect value={settings.studioExternalAccessDefault || "viewer"} onChange={(event) => patch("studioExternalAccessDefault", event.target.value as Settings["studioExternalAccessDefault"])}><option value="none">No access</option><option value="viewer">Viewer</option><option value="commenter">Commenter</option><option value="reviewer">Reviewer</option></ClusterNativeSelect><small>Applied before explicit project permissions.</small></div>
-              </div>
-
-              <section className="studio-editor-panel-v272" aria-label="Permission bundle library">
-                <div className="studio-explanation-v272"><strong>Reusable permission bundles</strong><span>Bundles layer between presets and local overrides. Each published edit advances the revision. Disabling a bundle removes its effective permissions without deleting references.</span></div>
-                <div className="button-row compact">
-                  <ClusterInput value={newBundleLabel} onChange={(event) => setNewBundleLabel(event.target.value)} maxLength={100} placeholder="New bundle name" aria-label="New permission bundle name" />
-                  <ClusterButton type="button" disabled={!newBundleLabel.trim() || studioBundles.length >= 64} onClick={createPermissionBundle}>Create bundle</ClusterButton>
-                </div>
-                {studioBundles.length > 0 && <div className="studio-form-grid-v272">
-                  <div className="field"><label>Edit bundle</label><ClusterNativeSelect value={selectedBundle?.id || ""} onChange={(event) => setSelectedBundleId(event.target.value)}>{studioBundles.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.label} · rev {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</option>)}</ClusterNativeSelect></div>
-                  {selectedBundle && <>
-                    <div className="field"><label>Display name</label><ClusterInput value={selectedBundle.label} maxLength={100} onChange={(event) => updatePermissionBundle(selectedBundle.id, { label: event.target.value })} /></div>
-                    <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedBundle.description || ""} maxLength={600} onChange={(event) => updatePermissionBundle(selectedBundle.id, { description: event.target.value })} /></div>
-                    <label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedBundle.enabled !== false} onChange={(event) => updatePermissionBundle(selectedBundle.id, { enabled: event.target.checked })} /> Bundle enabled</label>
-                  </>}
-                </div>}
-                {selectedBundle && <StudioPermissionEditor permissions={selectedBundle.toolPermissions} inherited={{}} onChange={(tool, level) => updatePermissionBundleTool(selectedBundle.id, tool, level)} />}
-              </section>
-
-              <section className="studio-editor-panel-v272" aria-label="Project bundle ceilings">
-                <div className="studio-explanation-v272"><strong>Project-specific bundle restrictions</strong><span>Assign existing bundles to an individual Project. Their explicit tool levels become maximum permissions inside that Project, never additional grants. Role/User permissions, Access Rules, and Library source restrictions still apply. Admins retain emergency access.</span></div>
-                <div className="button-row compact">
-                  <ClusterInput value={projectBundleTarget} maxLength={128} aria-label="Project ID for permission policy" placeholder="Immutable Project ID" onChange={(event) => setProjectBundleTarget(event.target.value)} />
-                  <ClusterButton type="button" disabled={!projectBundleTarget.trim() || (settings.studioProjectBundlePolicies || []).length >= 256} onClick={addProjectBundlePolicy}>Add Project policy</ClusterButton>
-                </div>
-                {(settings.studioProjectBundlePolicies || []).map((policy) => <div className="studio-entity-editor-v272" key={policy.projectId}>
-                  <div className="button-row compact"><strong>Project {policy.projectId}</strong><ClusterButton type="button" size="compact" variant="quiet" onClick={() => patch("studioProjectBundlePolicies", (settings.studioProjectBundlePolicies || []).filter((item) => item.projectId !== policy.projectId))}>Remove policy</ClusterButton></div>
-                  <div className="studio-action-rule-list-v272">
-                    {studioBundles.map((bundle) => <label key={bundle.id} className="studio-action-rule-v272"><span><strong>{bundle.label}</strong><small>Ceiling · revision {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</small></span><ClusterInput type="checkbox" checked={policy.permissionBundleIds.includes(bundle.id)} disabled={policy.permissionBundleIds.length >= 16 && !policy.permissionBundleIds.includes(bundle.id)} onChange={(event) => assignProjectBundle(policy.projectId, bundle.id, event.target.checked)} /></label>)}
-                  </div>
-                  <small>Draft ceiling: {CLUSTER_TOOL_PERMISSION_KEYS.map((tool) => {
-                    const level = clusterProjectBundleCap(policy.projectId, tool, [policy], studioBundles);
-                    return level ? `${tool}: ${level}` : null;
-                  }).filter(Boolean).join(" · ") || "No active restrictions"}</small>
-                  {!studioBundles.length && <small>Create a permission bundle above before assigning a ceiling.</small>}
-                </div>)}
-              </section>
-
+              {roleCreationOpen && (
               <div className="studio-create-strip-v272 studio-create-role-v272">
                 <div><strong>Add role</strong><span>Create a role from a permission preset, then refine its access.</span></div>
                 <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" />
@@ -1215,6 +1189,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 <ClusterNativeSelect value={newRoleTemplateKey} onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
                 <ClusterButton type="button" variant="secondary" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add role</ClusterButton>
               </div>
+              )}
 
               <div className="studio-entity-manager-v272">
                 <aside className="studio-entity-list-v272" aria-label="Studio roles">
@@ -1288,6 +1263,51 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                 )}
               </div>
+              <details className="studio-advanced-access-v11">
+                <summary><strong>Advanced access policies</strong><span>Workspace defaults, reusable bundles and project access ceilings</span></summary>
+              <div className="studio-policy-strip-v272">
+                <div className="field"><label>Access model</label><ClusterNativeSelect value={settings.studioRolePermissionMode || "role-based"} onChange={(event) => patch("studioRolePermissionMode", event.target.value as Settings["studioRolePermissionMode"])}><option value="open">Open defaults</option><option value="role-based">Role-based access</option><option value="locked">Explicit access only</option></ClusterNativeSelect><small>Role-based access is recommended for normal studio use.</small></div>
+                <div className="field"><label>Default role</label><ClusterNativeSelect value={settings.studioDefaultWorkspaceRole || "member"} onChange={(event) => patch("studioDefaultWorkspaceRole", event.target.value)}>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Preselected when administrators create a user.</small></div>
+                <div className="field"><label>External access</label><ClusterNativeSelect value={settings.studioExternalAccessDefault || "viewer"} onChange={(event) => patch("studioExternalAccessDefault", event.target.value as Settings["studioExternalAccessDefault"])}><option value="none">No access</option><option value="viewer">Viewer</option><option value="commenter">Commenter</option><option value="reviewer">Reviewer</option></ClusterNativeSelect><small>Applied before explicit project permissions.</small></div>
+              </div>
+
+              <section className="studio-editor-panel-v272" aria-label="Permission bundle library">
+                <div className="studio-explanation-v272"><strong>Reusable permission bundles</strong><span>Bundles layer between presets and local overrides. Each published edit advances the revision. Disabling a bundle removes its effective permissions without deleting references.</span></div>
+                <div className="button-row compact">
+                  <ClusterInput value={newBundleLabel} onChange={(event) => setNewBundleLabel(event.target.value)} maxLength={100} placeholder="New bundle name" aria-label="New permission bundle name" />
+                  <ClusterButton type="button" disabled={!newBundleLabel.trim() || studioBundles.length >= 64} onClick={createPermissionBundle}>Create bundle</ClusterButton>
+                </div>
+                {studioBundles.length > 0 && <div className="studio-form-grid-v272">
+                  <div className="field"><label>Edit bundle</label><ClusterNativeSelect value={selectedBundle?.id || ""} onChange={(event) => setSelectedBundleId(event.target.value)}>{studioBundles.map((bundle) => <option key={bundle.id} value={bundle.id}>{bundle.label} · rev {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</option>)}</ClusterNativeSelect></div>
+                  {selectedBundle && <>
+                    <div className="field"><label>Display name</label><ClusterInput value={selectedBundle.label} maxLength={100} onChange={(event) => updatePermissionBundle(selectedBundle.id, { label: event.target.value })} /></div>
+                    <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedBundle.description || ""} maxLength={600} onChange={(event) => updatePermissionBundle(selectedBundle.id, { description: event.target.value })} /></div>
+                    <label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedBundle.enabled !== false} onChange={(event) => updatePermissionBundle(selectedBundle.id, { enabled: event.target.checked })} /> Bundle enabled</label>
+                  </>}
+                </div>}
+                {selectedBundle && <StudioPermissionEditor permissions={selectedBundle.toolPermissions} inherited={{}} onChange={(tool, level) => updatePermissionBundleTool(selectedBundle.id, tool, level)} />}
+              </section>
+
+              <section className="studio-editor-panel-v272" aria-label="Project bundle ceilings">
+                <div className="studio-explanation-v272"><strong>Project-specific bundle restrictions</strong><span>Assign existing bundles to an individual Project. Their explicit tool levels become maximum permissions inside that Project, never additional grants. Role/User permissions, Access Rules, and Library source restrictions still apply. Admins retain emergency access.</span></div>
+                <div className="button-row compact">
+                  <ClusterInput value={projectBundleTarget} maxLength={128} aria-label="Project ID for permission policy" placeholder="Immutable Project ID" onChange={(event) => setProjectBundleTarget(event.target.value)} />
+                  <ClusterButton type="button" disabled={!projectBundleTarget.trim() || (settings.studioProjectBundlePolicies || []).length >= 256} onClick={addProjectBundlePolicy}>Add Project policy</ClusterButton>
+                </div>
+                {(settings.studioProjectBundlePolicies || []).map((policy) => <div className="studio-entity-editor-v272" key={policy.projectId}>
+                  <div className="button-row compact"><strong>Project {policy.projectId}</strong><ClusterButton type="button" size="compact" variant="quiet" onClick={() => patch("studioProjectBundlePolicies", (settings.studioProjectBundlePolicies || []).filter((item) => item.projectId !== policy.projectId))}>Remove policy</ClusterButton></div>
+                  <div className="studio-action-rule-list-v272">
+                    {studioBundles.map((bundle) => <label key={bundle.id} className="studio-action-rule-v272"><span><strong>{bundle.label}</strong><small>Ceiling · revision {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</small></span><ClusterInput type="checkbox" checked={policy.permissionBundleIds.includes(bundle.id)} disabled={policy.permissionBundleIds.length >= 16 && !policy.permissionBundleIds.includes(bundle.id)} onChange={(event) => assignProjectBundle(policy.projectId, bundle.id, event.target.checked)} /></label>)}
+                  </div>
+                  <small>Draft ceiling: {CLUSTER_TOOL_PERMISSION_KEYS.map((tool) => {
+                    const level = clusterProjectBundleCap(policy.projectId, tool, [policy], studioBundles);
+                    return level ? `${tool}: ${level}` : null;
+                  }).filter(Boolean).join(" · ") || "No active restrictions"}</small>
+                  {!studioBundles.length && <small>Create a permission bundle above before assigning a ceiling.</small>}
+                </div>)}
+              </section>
+              </details>
+
             </div>
           )}
 
