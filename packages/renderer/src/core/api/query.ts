@@ -59,6 +59,29 @@ function noteRateLimitedRead(key: string, error: unknown) {
   }
 }
 
+// An IndexedDB upgrade/block or a slow desktop cache bridge must not delay
+// an otherwise healthy online page indefinitely before the *first* network
+// request. Give durable storage a short opportunity to return an instant
+// authorized snapshot; then let the normal query path fetch from the server.
+// Offline reads never time out here, because their durable copy may be the
+// only usable data. Late durable results cannot overwrite the active cache.
+export const ONLINE_DURABLE_READ_BUDGET_MS = 180;
+async function readDurableForNavigation(path: string) {
+  const durable = readCachedResponse(path).catch(() => null);
+  if (!isOnline() || typeof setTimeout !== "function") return durable;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      durable,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ONLINE_DURABLE_READ_BUDGET_MS);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 async function revalidateCachedQuery<T>(path: string, memoryKey: string, options: QueryApiOptions, staleMs: number, maxAgeMs: number) {
   const generation = currentSessionCacheGeneration();
   const existing = backgroundRevalidations.get(memoryKey);
@@ -136,7 +159,7 @@ export async function queryApi<T>(path: string, options: QueryApiOptions = {}): 
     const ownsCacheEntry = () => generation === currentSessionCacheGeneration() && queryCache.get(memoryKey)?.promise === promise;
     // An unavailable, blocked, or corrupt IndexedDB store must not prevent an
     // online GET. Explicit refresh never needs a durable-cache read.
-    const durable = persist && !options.force ? await readCachedResponse(path).catch(() => null) : null;
+    const durable = persist && !options.force ? await readDurableForNavigation(path) : null;
     if (!options.force && durable && durable.expiresAt > Date.now() && ownsCacheEntry()) {
       const fresh = durable.staleAt > Date.now();
       setQueryCache(memoryKey, { value: durable.value, staleAt: durable.staleAt, expiresAt: durable.expiresAt, tags: durable.tags || options.tags || [] });
