@@ -878,6 +878,13 @@ export default function App() {
         void setScreen("admin", { section: "approvals" });
         return;
       }
+      if (target.screen === "admin" && target.inspectScope === "operations-incident") {
+        // The manifest and endpoint both require admin authority. This selects
+        // the actual incident workspace instead of a generic Operations home.
+        if (!activeUser?.isAdmin) return;
+        void setScreen("admin", { section: "incidents" });
+        return;
+      }
       if (target.screen === "studioSettings" && (target.inspectScope === "studio-form" || target.inspectScope === "form-submission" || target.inspectScope === "studio-application" || target.inspectScope === "studio-announcement" || target.inspectScope === "studio-announcement-new" || target.inspectScope === "studio-announcement-list")) {
         void setScreen("studioSettings", { section: "studioSystems" });
         return;
@@ -1524,7 +1531,7 @@ export default function App() {
             }}
             settings={appSettings}
             scope="operations"
-            initialSection={routeSection === "approvals" ? "approvals" : undefined}
+            initialSection={routeSection === "approvals" || routeSection === "incidents" ? routeSection : undefined}
             onOpenUserAdmin={() => setScreen("people", { section: "admin" })}
             onOpenProjects={() => setScreen("projects")}
             onOpenProject={openProject}

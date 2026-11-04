@@ -11,6 +11,7 @@ import { useVisibleRefresh } from "../../core/visible-refresh";
 import { useClusterActionFlight } from "../../components/useClusterActionFlight";
 import { createClusterLatestResponse } from "../../components/cluster-action-flight";
 import { createClusterCreateIntentControl } from "../create/create-intent-control";
+import { incidentIdFromInspect } from "./incident-link";
 
 type OperationalState = "healthy" | "degraded" | "maintenance" | "draining" | "restarting" | "restoring" | "read-only" | "offline" | string;
 type IncidentSeverity = "low" | "medium" | "high" | "critical";
@@ -172,6 +173,22 @@ export function OperationsIncidentsPanel() {
     finally { finishAction("acknowledge"); }
   }
 
+  useEffect(() => {
+    // Navigation can arrive before this panel mounts or while it remains open.
+    // Validate the identity locally, then let the admin-only incident endpoint
+    // independently authorize the actual detail fetch.
+    const initial = incidentIdFromInspect(new URLSearchParams(window.location.search).get("inspect"));
+    if (initial) chooseIncident(initial);
+    const onInspector = (event: Event) => {
+      const detail = (event as CustomEvent<{ scope?: string; id?: string | null }>).detail;
+      if (detail?.scope !== "operations-incident") return;
+      if (!detail.id) { chooseIncident(""); return; }
+      const id = incidentIdFromInspect("operations-incident:" + detail.id);
+      if (id) chooseIncident(id);
+    };
+    window.addEventListener("cluster:inspector-state-changed", onInspector);
+    return () => window.removeEventListener("cluster:inspector-state-changed", onInspector);
+  }, []);
   useEffect(() => { void loadAlertPolicies().catch((error) => setStatus(error instanceof Error ? error.message : "Could not load alert policies.")); }, []);
   useEffect(() => { void load(); }, []);
   useEffect(() => { if (selectedId) void loadIncident(selectedId); }, [selectedId]);
