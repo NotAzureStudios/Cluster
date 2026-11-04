@@ -127,6 +127,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
   const [roleCreationOpen, setRoleCreationOpen] = useState(false);
   const [workforceDepartmentRows, setWorkforceDepartmentRows] = useState<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>([]);
+  useEffect(() => { setWorkforceDepartmentRows([]); }, [currentUser.id]);
   const workforceDepartmentById = useMemo(() => new Map(workforceDepartmentRows.map((department) => [department.id, department])), [workforceDepartmentRows]);
 
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState("");
@@ -1047,7 +1048,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </div>
               </div>
 
-              <WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />
+              <WorkforceDepartmentManager key={currentUser.id} canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />
 
               <details className="studio-advanced-access-v11 studio-department-templates-v11">
                 <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
