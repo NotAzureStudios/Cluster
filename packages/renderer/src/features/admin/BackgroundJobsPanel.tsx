@@ -361,7 +361,7 @@ export function OperationsCenterPanel() {
           <span>{worker ? `${worker.running}/${worker.concurrency} worker slots active · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</span>
         </div>
         <div className="button-row">
-          <span className={`soft-pill ${unhealthy || (payload?.pressure?.stalledLeases || 0) ? "warning" : "good"}`}>{unhealthy ? `${unhealthy} needs review` : (payload?.pressure?.stalledLeases || 0) ? `${payload?.pressure?.stalledLeases} expired lease` : "Healthy"}</span>
+          <span className={`soft-pill ${unhealthy || (payload?.pressure?.stalledLeases || 0) ? "warning" : "good"}`}>{unhealthy ? `${unhealthy} needs review` : (payload?.pressure?.stalledLeases || 0) ? `${payload?.pressure?.stalledLeases} expired lease` : "Queue clear"}</span>
           {unhealthy ? <ClusterButton type="button" className="" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Retry failed</ClusterButton> : null}
           <ClusterButton type="button" className="" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Refresh</ClusterButton>
         </div>
