@@ -29,6 +29,7 @@ import { PROJECT_STATUS_OPTIONS } from "../projects/projects-utils";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Settings, StudioDepartmentDefinition, StudioRoleDefinition, StudioSettingsSection } from "../application/application-models";
 import "./settings-workspace.css";
+import "./people-management-layout-v11.css";
 
 import type { StudioSettingsPageProps } from "./settings-workspace-contracts";
 import { STUDIO_SETTINGS_DEPENDENCIES } from "./studio-settings-dependencies";
