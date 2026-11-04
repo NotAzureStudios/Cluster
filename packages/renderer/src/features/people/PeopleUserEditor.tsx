@@ -42,7 +42,8 @@ export function PeopleUserEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const departmentOptions = useMemo(() => [...new Set([person.department || "", ...departmentNames].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [person.department, departmentNames]);
-  const changed = [...TEXT_FIELDS, "capacityHours", "minimumHours"].filter((key) => draft[key] !== initial[key]);
+  const allFields: Array<keyof Draft> = [...TEXT_FIELDS, "capacityHours", "minimumHours"];
+  const changed = allFields.filter((key) => draft[key] !== initial[key]);
   const dirty = changed.length > 0;
   function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
   function cancel() {
