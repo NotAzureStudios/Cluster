@@ -30,7 +30,7 @@ import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
 import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
 import { CalendarYearNavigator } from "./CalendarYearNavigator";
-import { calendarViewNeedsRangeData } from "./calendar-view-data-policy";
+import { calendarViewNeedsEvents, calendarViewNeedsTimeline } from "./calendar-view-data-policy";
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
@@ -250,6 +250,8 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [layers, setLayers] = useState<CalendarLayerVisibility>(() => ({ ...DEFAULT_CALENDAR_LAYER_VISIBILITY }));
+  const calendarLayerRef = useRef(layers);
+  calendarLayerRef.current = layers;
   function toggleCalendarLayer(layer: CalendarLayer) {
     setLayers((current) => ({ ...current, [layer]: !current[layer] }));
   }
@@ -330,7 +332,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadEvents(force = false) {
     const sequence = ++eventsRequestSequence.current;
-    if (!calendarViewNeedsRangeData(calendarViewRef.current)) return;
+    if (!calendarViewNeedsEvents(calendarViewRef.current, calendarLayerRef.current)) return;
     try {
       const result = await queryApi<CalendarEvent[]>(eventsPath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["calendar"] });
       if (sequence !== eventsRequestSequence.current) return;
@@ -342,7 +344,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadTimeline(force = false) {
     const sequence = ++timelineRequestSequence.current;
-    if (!calendarViewNeedsRangeData(calendarViewRef.current)) return;
+    if (!calendarViewNeedsTimeline(calendarViewRef.current, calendarLayerRef.current)) return;
     try {
       const result = await queryApi<TimelinePayload>(timelinePath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["timeline", "calendar-overlays"] });
       if (sequence !== timelineRequestSequence.current) return;
@@ -389,31 +391,31 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
 
   useEffect(() => { void loadUsers(); return () => { usersRequestSequence.current += 1; }; }, []);
   useEffect(() => {
-    if (!calendarViewNeedsRangeData(view)) {
+    if (!calendarViewNeedsEvents(view, layers)) {
       eventsRequestSequence.current += 1;
       setEventsSnapshotPath("");
       return;
     }
     void loadEvents();
     return () => { eventsRequestSequence.current += 1; };
-  }, [eventsPath, view]);
+  }, [eventsPath, view, layers.events]);
   useEffect(() => {
-    if (!calendarViewNeedsRangeData(view)) {
+    if (!calendarViewNeedsTimeline(view, layers)) {
       timelineRequestSequence.current += 1;
       setTimelineSnapshotPath("");
       return;
     }
     void loadTimeline();
     return () => { timelineRequestSequence.current += 1; };
-  }, [timelinePath, view]);
-  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar" && calendarViewNeedsRangeData(calendarViewRef.current)) void loadEvents(true); }), [range.start.getTime(), range.end.getTime(), view]);
+  }, [timelinePath, view, layers.timeline, layers.cards]);
+  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar" && calendarViewNeedsEvents(calendarViewRef.current, calendarLayerRef.current)) void loadEvents(true); }), [range.start.getTime(), range.end.getTime(), view]);
   useEffect(() => subscribeClusterCohesionEvent<Partial<ClusterPersonSummary>>(CLUSTER_PERSON_CHANGED_EVENT, () => { void loadUsers(); }), []);
   useResourceChangeRefresh(async () => {
     await Promise.all([loadEvents(true), loadTimeline(true)]);
   }, { kinds: ["calendar", "meeting", "timeline", "card", "scheduler"], debounceMs: 220 });
 
-  const visibleTimelineEntries = calendarViewNeedsRangeData(view) && timelineSnapshotPath === timelinePath ? timelineEntries : [];
-  const visibleEvents = calendarViewNeedsRangeData(view) && eventsSnapshotPath === eventsPath ? events : [];
+  const visibleTimelineEntries = calendarViewNeedsTimeline(view, layers) && timelineSnapshotPath === timelinePath ? timelineEntries : [];
+  const visibleEvents = calendarViewNeedsEvents(view, layers) && eventsSnapshotPath === eventsPath ? events : [];
   const overlayItems = useMemo<CalendarDisplayItem[]>(() => visibleTimelineEntries.map((entry) => ({
     id: `overlay:${entry.source}:${entry.id}`,
     projectId: entry.projectId || entry.project?.id || null,
