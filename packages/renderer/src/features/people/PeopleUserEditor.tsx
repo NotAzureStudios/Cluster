@@ -3,6 +3,7 @@ import type { User } from "../application/application-models";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { confirmCluster } from "../../components/cluster-dialog-service";
+import { PeopleRoleAssignmentPanel } from "./PeopleRoleAssignmentPanel";
 
 type EditableField = "username" | "displayName" | "preferredName" | "email" | "title" | "department" | "workLocation" | "employmentType";
 type HoursField = "capacityHours" | "minimumHours";
@@ -30,11 +31,13 @@ function fromProfile(profile: User): Draft {
  * the existing separately authorized flows, never mixed into a profile save.
  */
 export function PeopleUserEditor({
-  person, departmentNames, onSave, onCancel, onOpenAccess, onDirtyChange,
+  person, departmentNames, onSave, onRoleChange, actorId, onCancel, onOpenAccess, onDirtyChange,
 }: {
   person: User;
   departmentNames: string[];
   onSave: (changes: Record<string, unknown>) => Promise<void>;
+  onRoleChange: (role: string, expectedProfileRevision: number) => Promise<void>;
+  actorId: string;
   onCancel: () => void;
   onOpenAccess: () => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -42,11 +45,13 @@ export function PeopleUserEditor({
   const initial = useMemo(() => fromProfile(person), [person.id]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [saving, setSaving] = useState(false);
+  const [roleDirty, setRoleDirty] = useState(false);
   const [error, setError] = useState("");
   const departmentOptions = useMemo(() => [...new Set([person.department || "", ...departmentNames].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [person.department, departmentNames]);
   const allFields: Array<keyof Draft> = [...TEXT_FIELDS, "capacityHours", "minimumHours"];
   const changed = allFields.filter((key) => draft[key] !== initial[key]);
-  const dirty = changed.length > 0;
+  const profileDirty = changed.length > 0;
+  const dirty = profileDirty || roleDirty;
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
   function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
   async function cancel() {
@@ -60,7 +65,7 @@ export function PeopleUserEditor({
     onCancel();
   }
   async function save() {
-    if (saving || !dirty) return;
+    if (saving || !profileDirty) return;
     if (draft.username.trim().length < 3) { setError("Username must contain at least three characters."); return; }
     if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) { setError("Enter a valid email address."); return; }
     for (const key of ["capacityHours", "minimumHours"] as const) {
@@ -136,15 +141,16 @@ export function PeopleUserEditor({
         {hoursField("minimumHours", "Minimum (hours/week)")}
       </div>
     </div>
+    <PeopleRoleAssignmentPanel person={person} actorId={actorId} profileDirty={profileDirty || saving} onChange={onRoleChange} onDirtyChange={setRoleDirty} />
     <div className="people-user-editor-section-v106 people-user-editor-access-v106">
       <div><h4>Access & security</h4><p>Workspace role: <strong>{person.workspaceRole || "member"}</strong>. Account state: <strong>{String(person.accountState || "ACTIVE").replaceAll("_", " ")}</strong>. Role grants, access expiry, suspension and credential recovery are handled separately.</p></div>
       <ClusterButton type="button" size="compact" variant="secondary" disabled={saving} onClick={onOpenAccess}>Open access settings</ClusterButton>
     </div>
     {error && <p className="people-user-editor-error-v106" role="alert">{error}</p>}
     <footer className="people-user-editor-actions-v106">
-      <span role="status">{dirty ? `${changed.length} unsaved field${changed.length === 1 ? "" : "s"}` : "No unsaved changes"}</span>
+      <span role="status">{profileDirty ? `${changed.length} unsaved field${changed.length === 1 ? "" : "s"}` : roleDirty ? "Unsaved role selection" : "No unsaved changes"}</span>
       <ClusterButton type="button" variant="quiet" disabled={saving} onClick={cancel}>Cancel</ClusterButton>
-      <ClusterButton type="button" variant="primary" disabled={!dirty || saving} onClick={() => void save()}>{saving ? "Saving…" : "Save user"}</ClusterButton>
+      <ClusterButton type="button" variant="primary" disabled={!profileDirty || saving || roleDirty} onClick={() => void save()}>{saving ? "Saving…" : "Save user"}</ClusterButton>
     </footer>
   </section>;
 }
