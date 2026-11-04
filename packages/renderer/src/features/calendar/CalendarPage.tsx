@@ -28,6 +28,7 @@ import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh
 import { ClusterInput } from "../../components/ClusterNativeControls";
 import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
+import { addCalendarMonths, calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
@@ -116,7 +117,6 @@ type Settings = { notifyUpcomingEvents?: boolean; notifyDueDates?: boolean };
 function displayUserName(user?: User | null) { return user?.preferredName || user?.displayName || user?.username || "Unknown user"; }
 function levelLabel(value: string) { return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 function monthStart(value: Date) { return new Date(value.getFullYear(), value.getMonth(), 1); }
-function addMonths(value: Date, amount: number) { return new Date(value.getFullYear(), value.getMonth() + amount, value.getDate()); }
 function addDays(value: Date, amount: number) { const next = new Date(value); next.setDate(next.getDate() + amount); return next; }
 function weekStart(value = new Date()) { const next = new Date(value); next.setHours(0, 0, 0, 0); next.setDate(next.getDate() - next.getDay()); return next; }
 function sameDate(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
@@ -219,6 +219,7 @@ function UpcomingPanel({ compact = false }: { compact?: boolean }) {
 
 export default function CalendarPage({ projects }: { projects: Project[] }) {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const preferredMonthDayRef = useRef(anchorDate.getDate());
   const [view, setView] = useState<"month" | "week" | "day" | "agenda">("month");
   const userChangedView = useRef(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -255,6 +256,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
         const date = new Date(occurrence || event.startsAt);
         setAnchorDate(date);
         setSelectedDate(date);
+        preferredMonthDayRef.current = date.getDate();
         setProjectFilter(event.projectId || "studio");
         setSelectedOccurrenceStart(occurrence);
         setEditing(event);
@@ -433,7 +435,8 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
 
   const selectedKey = toDateInputValue(selectedDate.toISOString());
   const selectedEvents = eventsByDay.get(selectedKey) || [];
-  const upcomingEvents = filteredEvents.filter((event) => new Date(event.startsAt).getTime() >= Date.now()).slice(0, 20);
+  // Agenda is a navigable range, not a permanently forward-only list.
+  const agendaEvents = filteredEvents.slice(0, 20);
   const projectName = (id?: string | null) => projects.find((project) => project.id === id)?.name || "Studio";
   const userName = (id?: string | null) => users.find((user) => user.id === id) ? displayUserName(users.find((user) => user.id === id) as User) : "Unassigned";
 
@@ -453,10 +456,34 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     return ids;
   }, [filteredEvents]);
 
+  function selectCalendarDate(date: Date) {
+    setSelectedDate(date);
+    preferredMonthDayRef.current = date.getDate();
+  }
+
+  function jumpToCalendarDate(value: string) {
+    const date = parseCalendarLocalDate(value);
+    if (!date) return; // Native date field may temporarily be empty or incomplete.
+    preferredMonthDayRef.current = date.getDate();
+    setAnchorDate(date);
+    setSelectedDate(date);
+  }
+
+  function changeCalendarView(next: "month" | "week" | "day" | "agenda") {
+    userChangedView.current = true;
+    if (next === "day" || next === "week") {
+      // Selecting a date in Month then entering Day must show that date's
+      // fetched range, not the original month anchor's unrelated day.
+      setAnchorDate(selectedDate);
+      preferredMonthDayRef.current = selectedDate.getDate();
+    }
+    setView(next);
+  }
+
   function moveWindow(amount: number) {
-    if (view === "month" || view === "agenda") setAnchorDate(addMonths(anchorDate, amount));
-    else if (view === "week") setAnchorDate(addDays(anchorDate, amount * 7));
-    else setAnchorDate(addDays(anchorDate, amount));
+    const next = shiftCalendarWindow(anchorDate, selectedDate, view, amount, preferredMonthDayRef.current);
+    setAnchorDate(next.anchor);
+    setSelectedDate(next.selected);
   }
 
   const rangeLabel = view === "month"
@@ -465,7 +492,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       ? `${weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" })} – ${weekDays[6].toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`
       : view === "day"
         ? anchorDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-        : "Upcoming schedule";
+        : `${range.start.toLocaleDateString([], { month: "short", year: "numeric" })} – ${addCalendarMonths(range.end, 0).toLocaleDateString([], { month: "short", year: "numeric" })}`;
 
   const eventTypes = ["meeting", "review", "deadline", "release", "milestone", "focus", "availability", "client", "production", "publishing", "maintenance", "other"];
 
@@ -489,8 +516,15 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       {status && <div className="status-box system-status-box-v053">{status}</div>}
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
-        <ClusterSegmentedControl value={view} onChange={(next) => { userChangedView.current = true; setView(next); }} label="Calendar view" options={(["month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
-        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); setAnchorDate(now); setSelectedDate(now); }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong></div>
+        <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
+        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong>
+          <label className="calendar-date-jump-v11">
+            <span>Go to date</span>
+            <ClusterInput type="date" aria-label="Jump to calendar date"
+              value={calendarDateInputValue(anchorDate)}
+              onChange={(event) => jumpToCalendarDate(event.target.value)} />
+          </label>
+        </div>
         <div className="calendar-filter-row-v189 calendar-filter-row-v190">
           <ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search schedule" />
           <ClusterSelect value={projectFilter} onChange={setProjectFilter} ariaLabel="Filter calendar by project" options={[{ value: "all", label: "All projects" }, { value: "studio", label: "Studio only" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]} />
@@ -503,13 +537,13 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
 
       <div className="calendar-workspace-v189">
         <section className="panel calendar-main-v189">
-          {view === "month" && <div className="calendar-month-scroll-v495"><div className="calendar-weekdays calendar-weekdays-v189">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid calendar-grid-v189">{monthDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section className={`calendar-day calendar-day-v189 ${day.getMonth() !== month.getMonth() ? "muted-day" : ""} ${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`} key={key}><div className="calendar-day-head-v189"><ClusterButton unstyled type="button" className="calendar-day-select-v393" onClick={() => setSelectedDate(day)} aria-label={`Select ${dayLabel}`}><strong>{day.getDate()}</strong></ClusterButton>{dayEvents.length > 0 && <span>{dayEvents.length}</span>}<ClusterButton unstyled type="button" className="calendar-day-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></div><div className="calendar-event-stack">{dayEvents.slice(0, 3).map((event) => <ClusterButton unstyled type="button" className={`calendar-chip ${event.overlay ? "calendar-overlay-readonly-v505" : ""} ${conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""}`} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)} style={runtimeStyle({ borderColor: event.color || undefined })}><i style={runtimeStyle({ background: event.color || undefined })} /><span>{event.title}</span></ClusterButton>)}{dayEvents.length > 3 && <span className="calendar-more">+{dayEvents.length - 3} more</span>}</div></section>; })}</div></div>}
+          {view === "month" && <div className="calendar-month-scroll-v495"><div className="calendar-weekdays calendar-weekdays-v189">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid calendar-grid-v189">{monthDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section className={`calendar-day calendar-day-v189 ${day.getMonth() !== month.getMonth() ? "muted-day" : ""} ${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`} key={key}><div className="calendar-day-head-v189"><ClusterButton unstyled type="button" className="calendar-day-select-v393" onClick={() => selectCalendarDate(day)} aria-label={`Select ${dayLabel}`}><strong>{day.getDate()}</strong></ClusterButton>{dayEvents.length > 0 && <span>{dayEvents.length}</span>}<ClusterButton unstyled type="button" className="calendar-day-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></div><div className="calendar-event-stack">{dayEvents.slice(0, 3).map((event) => <ClusterButton unstyled type="button" className={`calendar-chip ${event.overlay ? "calendar-overlay-readonly-v505" : ""} ${conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""}`} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)} style={runtimeStyle({ borderColor: event.color || undefined })}><i style={runtimeStyle({ background: event.color || undefined })} /><span>{event.title}</span></ClusterButton>)}{dayEvents.length > 3 && <span className="calendar-more">+{dayEvents.length - 3} more</span>}</div></section>; })}</div></div>}
 
-          {view === "week" && <div className="calendar-week-view-v189">{weekDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section key={key} className={`${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`}><header><ClusterButton unstyled type="button" className="calendar-week-day-trigger-v393" onClick={() => setSelectedDate(day)} aria-label={`Select ${dayLabel}`}><span>{day.toLocaleDateString([], { weekday: "short" })}</span><strong>{day.getDate()}</strong></ClusterButton><ClusterButton unstyled type="button" className="calendar-week-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></header><div>{dayEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></ClusterButton>)}</div></section>; })}</div>}
+          {view === "week" && <div className="calendar-week-view-v189">{weekDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section key={key} className={`${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`}><header><ClusterButton unstyled type="button" className="calendar-week-day-trigger-v393" onClick={() => selectCalendarDate(day)} aria-label={`Select ${dayLabel}`}><span>{day.toLocaleDateString([], { weekday: "short" })}</span><strong>{day.getDate()}</strong></ClusterButton><ClusterButton unstyled type="button" className="calendar-week-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></header><div>{dayEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></ClusterButton>)}</div></section>; })}</div>}
 
           {view === "day" && <div className="calendar-day-view-v190">{selectedEvents.length ? selectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><time>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : levelLabel(event.status || "scheduled")}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." actions={<ClusterButton onClick={() => openSharedCalendarCreate(selectedDate)} variant="secondary">Add event</ClusterButton>} />}</div>}
 
-          {view === "agenda" && <div className="calendar-agenda-v189">{upcomingEvents.length ? upcomingEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><time><strong>{new Date(event.startsAt).toLocaleDateString([], { month: "short", day: "numeric" })}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source overlay" : event.description || "No description"}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}{event.location ? ` · ${event.location}` : ""}</em></div></ClusterButton>) : <RequestEmptyState compact kind="filtered" title="No upcoming events match these filters" description="Clear or change the current filters to widen the agenda." />}</div>}
+          {view === "agenda" && <div className="calendar-agenda-v189">{filteredEvents.length > agendaEvents.length && <p role="status" className="calendar-agenda-limit-v11">Showing the first 20 of {filteredEvents.length} authorized events in this date range. Narrow the filters for a shorter list.</p>}{agendaEvents.length ? agendaEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><time><strong>{new Date(event.startsAt).toLocaleDateString([], { month: "short", day: "numeric" })}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source overlay" : event.description || "No description"}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}{event.location ? ` · ${event.location}` : ""}</em></div></ClusterButton>) : <RequestEmptyState compact kind="filtered" title="No events match this agenda range" description="Change the date range or filters to widen the agenda." />}</div>}
         </section>
 
         <aside className="panel calendar-inspector-v189"><div className="calendar-inspector-head-v189"><div><span>{selectedDate.toLocaleDateString([], { weekday: "long" })}</span><strong>{selectedDate.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</strong></div><ClusterButton type="button" className="" onClick={() => openSharedCalendarCreate(selectedDate)} variant="quiet" size="compact">Add</ClusterButton></div><div className="calendar-selected-list-v189">{selectedEvents.length ? selectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." />}</div><div className="calendar-inspector-summary-v189"><span><strong>{selectedEvents.length}</strong> Today</span><span><strong>{selectedEvents.filter((event) => event.status === "tentative").length}</strong> Tentative</span><span><strong>{selectedEvents.filter((event) => conflictIds.has(event.occurrenceKey || event.id)).length}</strong> Conflicts</span></div></aside>
