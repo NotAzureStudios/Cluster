@@ -16,7 +16,7 @@ const checks = [
   [page.includes('await confirmEditorDiscard()') && page.includes('setProfileViewState(next);'), "tab changes ask before discarding"],
   [page.includes('await api(`/api/users/${encodeURIComponent(profile.id)}`'), "save uses canonical user PATCH"],
   [editor.includes('expectedProfileRevision: person.profileRevision || 1'), "optimistic profile revision included"],
-  [editor.includes('await onSave(changes)') && editor.includes('if (saving || !dirty) return;'), "single bounded save"],
+  [editor.includes('await onSave(changes)') && editor.includes('if (saving || !profileDirty) return;'), "profile saves remain bounded and separate from role drafts"],
   [editor.includes('Minimum hours cannot exceed capacity hours.'), "hours constraints validated locally"],
   [editor.includes('Managed departments only.'), "no creation of arbitrary department by editor"],
   [editor.includes('Role grants, access expiry, suspension and credential recovery are handled separately.'), "governed access/lifecycle not mixed into profile edit"],
