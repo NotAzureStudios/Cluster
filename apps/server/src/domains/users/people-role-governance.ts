@@ -43,6 +43,17 @@ export function assignableStudioRoles(settings: Record<string, unknown>): Assign
   return [...roles.values()].sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
 }
 
+/** Resolve effective built-in and custom roles before and after a policy edit.
+ * Removing an explicit override must not be mistaken for revoking an enabled
+ * built-in. Conversely, disabling a built-in with no prior override must
+ * still protect every membership currently using it.
+ */
+export function revokedStudioRoleIds(previous: Record<string, unknown>, proposed: Record<string, unknown>): string[] {
+  const before = assignableStudioRoles(previous).filter((role) => role.enabled);
+  const after = new Map(assignableStudioRoles(proposed).map((role) => [role.id, role.enabled]));
+  return before.filter((role) => after.get(role.id) !== true).map((role) => role.id);
+}
+
 export function requireAssignableStudioRole(settings: Record<string, unknown>, rawRole: string) {
   const id = canonicalRoleId(rawRole);
   if (id !== rawRole || !/^[a-z][a-z0-9_]{0,47}$/.test(id)) {
