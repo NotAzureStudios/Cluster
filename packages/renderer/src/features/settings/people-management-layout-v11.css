@@ -46,3 +46,19 @@
 .studio-role-directory-warning-v11,.studio-role-directory-empty-v11{display:block;color:var(--muted);font-size:.68rem;line-height:1.4;padding:8px 10px;margin:0}
 .studio-role-member-count-v11{display:block;color:var(--muted);font-size:.68rem;margin-top:6px}
 .studio-roles-management-v11 .studio-entity-list-meta-v272{max-width:98px}
+
+/* Role directory filters are local projections over authorized role records. */
+.studio-role-directory-filters-v11{display:flex;flex-wrap:wrap;gap:4px;padding:0 7px 8px}
+.studio-role-directory-filters-v11>button{border:1px solid transparent;border-radius:7px;min-height:34px;padding:5px 8px;font-size:.68rem;white-space:nowrap}
+.studio-role-directory-filters-v11>button[aria-pressed="true"]{border-color:var(--accent,#57c1ff);background:color-mix(in srgb,var(--accent,#57c1ff) 11%,var(--panel));color:var(--text)}
+.studio-role-directory-filters-v11>button:focus-visible{outline:2px solid var(--accent,#57c1ff);outline-offset:2px}
+.studio-role-directory-filters-v11>button:disabled{opacity:.45}
+.studio-role-directory-hidden-v11{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:var(--surface-soft);font-size:.7rem;color:var(--muted)}
+.studio-role-directory-hidden-v11>button{flex-shrink:0}
+.studio-role-entity-field-v11{display:grid;gap:6px;min-width:0;align-content:start}
+.studio-role-entity-field-v11>span{font-size:.7rem;font-weight:650;color:var(--text)}
+.studio-role-entity-field-v11 .cluster-select-v227{width:100%;min-width:0}
+.studio-role-entity-field-v11 .cluster-select-trigger-v227{width:100%;min-width:0;min-height:40px}
+.studio-role-entity-field-v11>small{font-size:.68rem;line-height:1.45;color:var(--muted)}
+@media(pointer:coarse){.studio-role-directory-filters-v11>button{min-height:44px}.studio-role-entity-field-v11 .cluster-select-trigger-v227{min-height:44px}}
+@media(max-width:620px){.studio-role-directory-hidden-v11{flex-wrap:wrap}}
