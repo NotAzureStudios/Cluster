@@ -685,7 +685,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     gaps={fact.gaps}
                     memberCount={fact.memberCount}
                     onSelect={() => onOpenProject(fact.project.id)}
-                    onInspect={(trigger) => openInspector(fact.project.id, trigger)}
+                    onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
                   />
                 )) : (
