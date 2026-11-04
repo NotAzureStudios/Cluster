@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, queryApi } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../components/ClusterNativeControls";
+import { ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
+import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
+import { departmentLeadChoices, departmentParentChoices } from "./department-assignment-choices";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
@@ -180,15 +182,34 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
         </header>
         <div className="studio-workforce-department-fields-v11">
           <label><span>Name</span><ClusterInput value={draft.name} maxLength={120} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("name", event.target.value)} /></label>
-          <label><span>Parent department</span><ClusterNativeSelect value={draft.parentId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("parentId", event.target.value)}>
-            <option value="">No parent</option>
-            {rows.filter((row) => !invalidParents.has(row.id)).map((row) => <option value={row.id} key={row.id}>{row.name}</option>)}
-          </ClusterNativeSelect></label>
-          <label><span>Department lead</span><ClusterNativeSelect value={draft.leadUserId} disabled={!canEdit || saving || loading || leadLoading || Boolean(leadError) || (!creating && !selected)} onChange={(event) => update("leadUserId", event.target.value)}>
-            <option value="">Unassigned</option>
-            {draft.leadUserId && !leadOptions.some((person) => person.id === draft.leadUserId) && <option value={draft.leadUserId} disabled>Existing lead unavailable</option>}
-            {leadOptions.map((person) => <option value={person.id} key={person.id}>{person.label}{person.label !== person.username ? ` (@${person.username})` : ""}</option>)}
-          </ClusterNativeSelect></label>
+          <div className="studio-workforce-department-entity-field-v11">
+            <span>Parent department</span>
+            <ClusterEntityPicker
+              value={draft.parentId}
+              entities={departmentParentChoices(rows, invalidParents, draft.parentId)}
+              onChange={(value) => update("parentId", value)}
+              ariaLabel="Parent department"
+              placeholder="No parent department"
+              searchPlaceholder="Find a department"
+              allowClear
+              disabled={!canEdit || saving || loading || (!creating && !selected)}
+              emptyMessage="No eligible parent departments"
+            />
+          </div>
+          <div className="studio-workforce-department-entity-field-v11">
+            <span>Department lead</span>
+            <ClusterEntityPicker
+              value={draft.leadUserId}
+              entities={departmentLeadChoices(leadOptions, draft.leadUserId)}
+              onChange={(value) => update("leadUserId", value)}
+              ariaLabel="Department lead"
+              placeholder="Unassigned"
+              searchPlaceholder="Find an eligible member"
+              allowClear
+              disabled={!canEdit || saving || loading || leadLoading || Boolean(leadError) || (!creating && !selected)}
+              emptyMessage="No eligible people found"
+            />
+          </div>
           <label><span>Accent color</span><ClusterInput type="color" aria-label="Department accent color" value={draft.color} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("color", event.target.value)} /></label>
           <div className="studio-workforce-department-icon-field-v11"><span>Department icon</span><ResourceIconPicker label={draft.name || "Department"} value={draft.iconId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(iconId) => update("iconId", iconId)} /></div>
           <label className="studio-workforce-department-description-v11"><span>Description</span><ClusterTextarea value={draft.description} maxLength={1000} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("description", event.target.value)} /></label>
