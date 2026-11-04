@@ -11,6 +11,8 @@ export function createDepartmentRepository(prisma: any) {
         id: row.id,
         workspaceId: row.workspaceId,
         name: row.name,
+        description: row.description || null,
+        revision: Number(row.revision || 1),
         members: Number(row._count?.employments || 0),
         teams: Number(row._count?.teams || 0),
         parentId: row.parentId || null,
