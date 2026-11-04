@@ -1,6 +1,7 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
 import { clusterResourceAddressFromEntity, type ClusterResourceAddress, type ClusterWorkSource, type NotificationItem } from "@cluster/shared";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
+import { incidentIdFromInspect } from "../admin/incident-link";
 
 export type NotificationNavigationItem = Pick<NotificationItem, "category" | "projectId" | "boardId" | "cardId" | "entityType" | "entityId" | "resource" | "metadata">;
 
@@ -30,6 +31,13 @@ export function notificationWorkNavigation(item: NotificationNavigationItem): Cl
   // even if a resource-address normalizer learns a more generic route later.
   if (item.entityType === "studio_onboarding_assignment" && stringValue(item.entityId))
     return { screen: "mywork", inspectScope: "onboarding", inspectId: stringValue(item.entityId) };
+  // Operations creates real incident-linked Inbox alerts. Resolve their
+  // administered destination before the generic resource navigator, which
+  // deliberately does not have an OperationsIncident resource contract.
+  if (item.entityType === "operations_incident" || item.resource?.kind === "operations_incident") {
+    const incidentId = incidentIdFromInspect("operations-incident:" + String(item.entityId || item.resource?.id || ""));
+    return incidentId ? { screen: "admin", inspectScope: "operations-incident", inspectId: incidentId } : null;
+  }
   const source = notificationWorkSource(item) as ClusterResourceAddress | null;
   const target = clusterResourceNavigation(source);
   if (source?.kind === "card" && target?.screen === "board") {
