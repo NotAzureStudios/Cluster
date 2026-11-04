@@ -33,12 +33,12 @@ export async function lockPeopleUsers(tx: any, userIds: Iterable<string>) {
  * Manager relationships are a small workspace graph. A single graph lock keeps
  * concurrent A→B / B→C / C→A writes from independently passing cycle checks.
  */
-export async function validateManagerAssignment(tx: any, userId: string, managerUserId: string | null | undefined) {
+export async function validateManagerAssignment(tx: any, userId: string, managerUserId: string | null | undefined, workspaceId?: string) {
   await advisoryLock(tx, "cluster-people-manager-graph");
   if (!managerUserId) return null;
   if (managerUserId === userId) throw new PeopleGovernanceError("MANAGER_SELF_REFERENCE", "A person cannot manage themselves.", 400);
   const manager = await tx.user.findFirst({
-    where: { id: managerUserId, archived: false },
+    where: { id: managerUserId, archived: false, ...(workspaceId ? { memberships: { some: { workspaceId } } } : {}) },
     select: { id: true, username: true, displayName: true, preferredName: true, employment: { select: { managerUserId: true } } },
   });
   if (!manager) throw new PeopleGovernanceError("MANAGER_INVALID", "Choose an active manager.", 400);
