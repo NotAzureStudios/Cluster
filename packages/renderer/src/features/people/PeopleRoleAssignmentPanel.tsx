@@ -105,7 +105,10 @@ export function PeopleRoleAssignmentPanel({
           </option>)}
         </ClusterNativeSelect>
       </label>
-      <ClusterButton type="button" size="compact" variant="secondary" disabled={disabled} onClick={() => void apply()}>{busy ? "Updating…" : "Apply role change"}</ClusterButton>
+      <div className="people-role-assignment-buttons-v11">
+        {roleDirty && <ClusterButton type="button" size="compact" variant="quiet" disabled={busy} onClick={() => { setDraftRole(savedRole); setError(""); }}>Revert selection</ClusterButton>}
+        <ClusterButton type="button" size="compact" variant="secondary" disabled={disabled} onClick={() => void apply()}>{busy ? "Updating…" : "Apply role change"}</ClusterButton>
+      </div>
     </div>
     <small>{self ? "You cannot change your own workspace role." : profileDirty ? "Save identity and employment changes before changing access." : ownerRequired ? "Only a workspace owner may assign or remove privileged roles." : "Role names and permission rules are edited in Roles & Permissions."}</small>
     {error && <p className="people-user-editor-error-v106" role="alert">{error}</p>}
