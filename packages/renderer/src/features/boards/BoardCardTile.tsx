@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { boardCardOverdue, formatBoardCivilDate } from "./board-civil-date";
+import { boardCardDeadlineNeedsAttention, boardCardOverdue, formatBoardCivilDate } from "./board-civil-date";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { displayUserName, userInitial } from "../people/people-utils";
 import { collaborationColor, type CollaborationPresence } from "../collaboration";
@@ -31,7 +31,7 @@ export const BoardCardTile = memo(function BoardCardTile({ card, onOpen, onMove,
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `card:${card.id}`, disabled: Boolean(liveEditor) });
   const contextMenu = useClusterContextMenu<HTMLButtonElement>({ disabled: Boolean(liveEditor) });
   const checklistDone = card.checklistItems.filter((item) => item.completed).length;
-  const overdue = isCardOverdue(card.dueDate);
+  const overdue = boardCardDeadlineNeedsAttention(card.dueDate, listDone);
   const memberIds = Array.from(new Set([...(card.memberIds || []), ...(card.assigneeId ? [card.assigneeId] : [])]));
   const members = memberIds.map((id) => userById.get(id)).filter(Boolean) as UserActivitySummary[];
   const watching = (card.watcherIds || []).includes(currentUserId);
