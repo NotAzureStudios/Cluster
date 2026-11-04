@@ -15,6 +15,8 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
+import { ClusterSettingsSearch } from "../../components/ClusterSettingsSearch";
+import { buildStudioSettingsSearchEntries } from "./studio-settings-search";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
@@ -927,6 +929,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       onChange={setSection}
       items={studioSections.map((item) => ({ id: item.key, label: item.label, group: item.group, icon: STUDIO_SETTINGS_NAV_ICONS[item.key] }))}
     >
+      <ClusterSettingsSearch label="Find studio settings" entries={buildStudioSettingsSearchEntries(studioSections)} onNavigate={(entry) => setSection(entry.section)} />
       {heldStudioDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated Studio settings draft">
         <strong>Stored Studio draft needs review</strong>
         <p className="muted">This draft was saved before the current server Settings snapshot or has no trusted baseline. It was not applied automatically. Loading it may overwrite newer administrator changes if you save it.</p>
