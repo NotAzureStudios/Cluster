@@ -57,6 +57,7 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
+import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
@@ -814,7 +815,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       </div>
 
       {effectiveAdminMode && createAccountOpen && <section className="people-admin-create-v536 panel" aria-label="Create Cluster account">
-        <header><div><strong>Create account</strong><span>Provision identity here. Permissions remain editable on the person profile.</span></div></header>
+        <header><div><strong>Create account</strong><span>Provision identity and workspace access. Cluster issues a one-time temporary password; the new member signs in and chooses their own permanent password.</span></div></header>
         <div className="people-admin-create-grid-v536">
           <label className="field"><span>Username</span><ClusterTextInput autoFocus value={createAccountDraft.username} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, username: event.target.value }))} placeholder="username" /></label>
           <label className="field"><span>Display name</span><ClusterTextInput value={createAccountDraft.displayName} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, displayName: event.target.value }))} placeholder="Display name" /></label>
@@ -835,7 +836,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         </div>
       </section>}
 
-      {effectiveAdminMode && issuedCredential && <section className="people-admin-credential-v536" role="status"><div><strong>Temporary credential · {issuedCredential.username}</strong><code>{issuedCredential.temporaryPassword}</code></div><div className="button-row compact"><ClusterCopyButton text={issuedCredential.temporaryPassword} variant="secondary" size="compact" copiedLabel="Password copied">Copy password</ClusterCopyButton><ClusterButton variant="quiet" size="compact" onClick={() => setIssuedCredential(null)}>Dismiss</ClusterButton></div></section>}
+      {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
 
       {workforceMode !== "directory" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>

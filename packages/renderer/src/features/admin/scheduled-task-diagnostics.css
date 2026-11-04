@@ -1,0 +1,35 @@
+.scheduled-task-diagnostics-v11 {
+  margin: 14px 0; padding: 13px 15px; border-radius: 12px;
+  background: var(--cluster-surface-1, var(--surface));
+  border: 1px solid var(--cluster-border, var(--line));
+}
+.scheduled-task-diagnostics-v11 > header {
+  display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 10px 15px;
+}
+.scheduled-task-diagnostics-v11 > header > div { flex: 1 1 300px; min-width: 0; }
+.scheduled-task-diagnostics-v11 > header strong { font-size: .85rem; font-weight: 700; }
+.scheduled-task-diagnostics-v11 > header p { margin: 5px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; max-width: 70ch; }
+.scheduled-task-diagnostics-error-v11 { color: var(--danger, #e35d6a); font-size: .78rem; }
+.scheduled-task-diagnostics-results-v11 { margin-top: 13px; }
+.scheduled-task-diagnostics-summary-v11 { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 7px; color: var(--muted); font-size: .7rem; }
+.scheduled-task-diagnostics-health-v11 {
+  border-inline-start: 3px solid var(--cluster-border, var(--line)); margin: 12px 0;
+  padding: 8px 11px; color: var(--text); font-size: .76rem; line-height: 1.4;
+  background: color-mix(in srgb, var(--cluster-border, var(--line)) 14%, transparent);
+}
+.scheduled-task-diagnostics-health-v11[data-status="warn"] { border-inline-start-color: var(--warning, #ffc857); }
+.scheduled-task-diagnostics-health-v11[data-status="fail"] { border-inline-start-color: var(--danger, #e35d6a); }
+.scheduled-task-diagnostics-v11 ol { display: grid; gap: 7px; padding: 0; margin: 0; list-style: none; }
+.scheduled-task-diagnostics-v11 ol > li {
+  border: 1px solid var(--cluster-border, var(--line)); border-inline-start: 3px solid var(--warning, #ffc857);
+  border-radius: 9px; padding: 9px 12px; background: var(--cluster-surface-2, var(--surface)); min-width: 0;
+}
+.scheduled-task-diagnostics-v11 ol > li[data-state="failed"] { border-inline-start-color: var(--danger, #e35d6a); }
+.scheduled-task-diagnostics-v11 ol > li[data-state="recent"] { border-inline-start-color: var(--cluster-border, var(--line)); }
+.scheduled-task-diagnostics-row-v11 { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 5px 12px; }
+.scheduled-task-diagnostics-row-v11 strong { font-size: .8rem; overflow-wrap: anywhere; }
+.scheduled-task-diagnostics-row-v11 span { color: var(--muted); font-size: .7rem; }
+.scheduled-task-diagnostics-v11 ol > li p { margin: 5px 0; font-size: .76rem; line-height: 1.5; overflow-wrap: anywhere; }
+.scheduled-task-diagnostics-v11 ol > li small { color: var(--muted); font-size: .67rem; }
+.scheduled-task-diagnostics-clear-v11 { font-size: .76rem; color: var(--muted); line-height: 1.45; }
+@media (pointer: coarse) { .scheduled-task-diagnostics-v11 button { min-height: 44px; } }
