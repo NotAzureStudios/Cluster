@@ -1,7 +1,10 @@
 .cluster-notification-matrix-v11 { display: grid; gap: 9px; min-width: 0; }
 .cluster-notification-matrix-heading-v11 { display: flex; justify-content: space-between; align-items: start; gap: 10px; flex-wrap: wrap; }
 .cluster-notification-matrix-heading-v11 > div { display: grid; gap: 3px; min-width: 0; }
+.cluster-notification-matrix-title-v11 { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
 .cluster-notification-matrix-heading-v11 strong { color: var(--text); font-size: .87rem; }
+.cluster-notification-matrix-title-v11 .cluster-settings-help-content-v11 p { margin: 4px 0; color: var(--text); font-weight: 400; }
+.cluster-notification-matrix-sr-only-v11 { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .cluster-notification-matrix-heading-v11 span { color: var(--muted); font-size: .73rem; line-height: 1.4; }
 .cluster-notification-matrix-heading-v11 small { white-space: nowrap; color: var(--muted); font-size: .74rem; }
 .cluster-notification-matrix-warning-v11, .cluster-notification-matrix-footnote-v11 {
