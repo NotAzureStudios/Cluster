@@ -15,6 +15,8 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { ColorField } from "../../components/ColorField";
 import { ClusterToggle } from "../../components/ClusterToggle";
+import { ClusterSettingsChoiceGroup, ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
+import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { configureClusterSounds, previewClusterNotificationSound, previewClusterUiSound } from "../../core/cluster-sounds";
@@ -1354,21 +1356,16 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     <h3>Theme</h3>
                     <span>Base contrast</span>
                   </div>
-                  <div className="segmented-choice-v267">
-                    {(["light", "dark", "system"] as AppTheme[]).map((option) => (
-                      <ClusterButton
-                        key={option}
-                        type="button"
-                        className={theme === option ? "active" : ""}
-                        onClick={() => {
-                          setDirty(true);
-                          onThemeChange(option);
-                        }}
-                      >
-                        {option === "system" ? "System" : option === "light" ? "Light" : "Dark"}
-                      </ClusterButton>
-                    ))}
-                  </div>
+                  <ClusterSettingsChoiceGroup<AppTheme>
+                    label="Theme"
+                    value={theme}
+                    onChange={(option) => { setDirty(true); onThemeChange(option); }}
+                    options={[
+                      { value: "dark", label: "Dark", preview: <span className="cluster-settings-theme-preview-v11" data-theme="dark"><i /><i /></span> },
+                      { value: "light", label: "Light", preview: <span className="cluster-settings-theme-preview-v11" data-theme="light"><i /><i /></span> },
+                      { value: "system", label: "System", preview: <span className="cluster-settings-theme-preview-v11" data-theme="system"><i /><i /></span> },
+                    ]}
+                  />
                 </section>
                 <section id="appearance-materials-v546" className="settings-card-v092 span-3 appearance-surface-combined-v270">
                   <div className="settings-card-head-v092">
@@ -1452,7 +1449,9 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 </section>
               </div>
 
-              <DesignSystemPreview />
+              <ClusterDisclosureGroup className="settings-component-gallery-v11" title="Design system gallery" summary="Optional examples of Cluster controls and interaction patterns">
+                <DesignSystemPreview />
+              </ClusterDisclosureGroup>
               <div className="appearance-layout-v093">
                 <AppearanceShellPreview settings={settings} theme={theme} />
                 <div className="settings-card-grid-v092 appearance-card-grid-v092">
@@ -1485,16 +1484,18 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                         </div>
                         <small className="muted">Scrollbars stay available; high contrast always favors visibility.</small>
                       </div>
-                      <div className="field">
-                        <label>Density</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Interface density">
-                          {(["dense", "compact", "comfortable"] as Array<NonNullable<Settings["interfaceDensity"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.interfaceDensity || "compact") === option ? "active" : ""} onClick={() => patch("interfaceDensity", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
+                      <ClusterSettingsRow label="Density" description="Choose how tightly controls and content are arranged.">
+                        <ClusterSettingsChoiceGroup<NonNullable<Settings["interfaceDensity"]>>
+                          label="Interface density" density="compact"
+                          value={settings.interfaceDensity || "compact"}
+                          onChange={(option) => patch("interfaceDensity", option)}
+                          options={[
+                            { value: "dense", label: "Dense" },
+                            { value: "compact", label: "Compact" },
+                            { value: "comfortable", label: "Comfortable" },
+                          ]}
+                        />
+                      </ClusterSettingsRow>
                       <div className="field">
                         <label>Sidebar surface</label>
                         <div className="segmented-choice-v267" role="group" aria-label="Sidebar surface">
@@ -1796,7 +1797,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     <span>{settings.userQuietHoursEnabled ? "active" : "off"}</span>
                   </div>
                   <div className="settings-stack compact-fields-v092">
-                    <ClusterToggle checked={settings.userQuietHoursEnabled ?? false} onCheckedChange={(checked) => patch("userQuietHoursEnabled", checked)} label="Enable quiet hours" />
+                    <ClusterSettingsRow label="Quiet hours" description="Schedule when routine alerts should stay quiet."><ClusterToggle checked={settings.userQuietHoursEnabled ?? false} onCheckedChange={(checked) => patch("userQuietHoursEnabled", checked)} aria-label="Enable quiet hours" /></ClusterSettingsRow>
                     <div className="field">
                       <label>During quiet hours</label>
                       <ClusterNativeSelect value={settings.notificationQuietHoursBehavior || "critical-only"} onChange={(e) => patch("notificationQuietHoursBehavior", e.target.value as Settings["notificationQuietHoursBehavior"])}>
