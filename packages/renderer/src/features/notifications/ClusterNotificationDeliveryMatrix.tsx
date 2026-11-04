@@ -17,7 +17,15 @@ export function ClusterNotificationDeliveryMatrix({
   const activeCount = NOTIFICATION_CATEGORIES.filter((category) => value[category] !== "off").length;
   return <div className="cluster-notification-matrix-v11">
     <div className="cluster-notification-matrix-heading-v11">
-      <div><strong>Delivery by category</strong><span>Choose where updates appear. Your inbox remains the record for every mode except Off.</span></div>
+      <div>
+        <div className="cluster-notification-matrix-title-v11">
+          <strong>Delivery by category</strong>
+          <ClusterSettingsHelp label="delivery modes">
+            {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <p key={option.value}><b>{option.label}:</b> {option.detail}</p>)}
+          </ClusterSettingsHelp>
+        </div>
+        <span>Choose where updates appear. Your inbox remains the record for every mode except Off.</span>
+      </div>
       <small>{activeCount}/{NOTIFICATION_CATEGORIES.length} active</small>
     </div>
     {!nativePermissionReady && <p className="cluster-notification-matrix-warning-v11" role="note">
@@ -29,8 +37,7 @@ export function ClusterNotificationDeliveryMatrix({
           <tr>
             <th scope="col">Category</th>
             {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <th key={option.value} scope="col">
-              <span>{option.label}</span>
-              <ClusterSettingsHelp label={option.label}>{option.detail}</ClusterSettingsHelp>
+              <span title={option.detail}>{option.label}</span>
             </th>)}
           </tr>
         </thead>
@@ -40,8 +47,8 @@ export function ClusterNotificationDeliveryMatrix({
             return <tr key={category} data-delivery={value[category]}>
               <th scope="row">
                 <div className="cluster-notification-matrix-category-v11">
-                  <strong>{detail.label}</strong>
-                  <ClusterSettingsHelp label={detail.label}>{detail.description}</ClusterSettingsHelp>
+                  <strong title={detail.description}>{detail.label}</strong>
+                  <span id={id + "-desc-" + category} className="cluster-notification-matrix-sr-only-v11">{detail.description}</span>
                 </div>
               </th>
               {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <td key={option.value}>
@@ -51,6 +58,7 @@ export function ClusterNotificationDeliveryMatrix({
                     checked={value[category] === option.value}
                     onChange={() => onChange(category, option.value)}
                     aria-label={detail.label + ": " + option.label}
+                    aria-describedby={id + "-desc-" + category}
                   />
                   <span aria-hidden="true" />
                 </label>
