@@ -1,0 +1,41 @@
+name: Cluster 1.1 Permission Matrix
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/components/ClusterPermissionMatrix.tsx"
+      - "packages/renderer/src/components/cluster-permission-matrix.css"
+      - "packages/renderer/src/features/application/modules/application-automation-settings.tsx"
+      - "tools/scripts/cluster-v11-permission-matrix-tests.mjs"
+      - ".github/workflows/v11-permission-matrix.yml"
+  push:
+    branches:
+      - feat/v11-access-permission-matrix
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  permission-matrix:
+    name: Permissions UI and renderer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate interaction and permission groups
+        run: node tools/scripts/cluster-v11-permission-matrix-tests.mjs
+      - name: Build shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Build and type-check actual renderer
+        run: npm run build --workspace=@cluster/renderer
