@@ -5,12 +5,9 @@ import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../compon
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { PeopleRoleAssignmentPanel } from "./PeopleRoleAssignmentPanel";
 
-type EditableField = "username" | "employeeNumber" | "displayName" | "legalName" | "preferredName" | "pronouns" | "email" | "phoneNumber" | "timezone" | "title" | "department" | "managerUserId" | "workLocation" | "employmentType" | "startDate" | "notes";
-type HoursField = "capacityHours" | "minimumHours";
-type Draft = Record<EditableField | HoursField, string>;
-const TEXT_FIELDS: EditableField[] = ["username", "employeeNumber", "displayName", "legalName", "preferredName", "pronouns", "email", "phoneNumber", "timezone", "title", "department", "managerUserId", "workLocation", "employmentType", "startDate", "notes"];
+import { changedPeopleEditorFields, preparePeopleEditorPatch, type PeopleEditorDraft, type PeopleEditorTextField } from "./people-user-editor-draft";
 
-function fromProfile(profile: User): Draft {
+function fromProfile(profile: User): PeopleEditorDraft {
   return {
     username: profile.username || "",
     employeeNumber: profile.employeeNumber || "",
@@ -55,17 +52,16 @@ export function PeopleUserEditor({
   // The opened revision is the edit precondition. Do not adopt a newer
   // background-refreshed profileRevision while retaining an old draft.
   const openedRevision = useRef(person.profileRevision || 1);
-  const [draft, setDraft] = useState<Draft>(initial);
+  const [draft, setDraft] = useState<PeopleEditorDraft>(initial);
   const [saving, setSaving] = useState(false);
   const [roleDirty, setRoleDirty] = useState(false);
   const [error, setError] = useState("");
   const departmentOptions = useMemo(() => [...new Set([person.department || "", ...departmentNames].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [person.department, departmentNames]);
-  const allFields: Array<keyof Draft> = [...TEXT_FIELDS, "capacityHours", "minimumHours"];
-  const changed = allFields.filter((key) => draft[key] !== initial[key]);
+  const changed = changedPeopleEditorFields(draft, initial);
   const profileDirty = changed.length > 0;
   const dirty = profileDirty || roleDirty;
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
-  function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
+  function update(key: keyof PeopleEditorDraft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
   async function cancel() {
     if (saving) return;
     if (dirty && !(await confirmCluster({
@@ -78,33 +74,12 @@ export function PeopleUserEditor({
   }
   async function save() {
     if (saving || !profileDirty) return;
-    if (draft.username.trim().length < 3) { setError("Username must contain at least three characters."); return; }
-    if (draft.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) { setError("Enter a valid email address."); return; }
-    if (draft.employeeNumber.trim().length > 80) { setError("Employee number cannot exceed 80 characters."); return; }
-    if (draft.notes.length > 4000) { setError("Internal notes cannot exceed 4,000 characters."); return; }
-    if (draft.timezone.trim()) {
-      try { new Intl.DateTimeFormat("en-US", { timeZone: draft.timezone.trim() }); }
-      catch { setError("Enter a valid IANA time zone, such as America/New_York."); return; }
-    }
-    if (draft.startDate) {
-      const date = new Date(`${draft.startDate}T00:00:00.000Z`);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.startDate) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== draft.startDate) {
-        setError("Enter a valid employment start date."); return;
-      }
-    }
-    for (const key of ["capacityHours", "minimumHours"] as const) {
-      if (draft[key] && (!/^\d+$/.test(draft[key]) || Number(draft[key]) > 168)) { setError("Weekly hours must be whole numbers between 0 and 168."); return; }
-    }
-    const capacity = draft.capacityHours === "" ? null : Number(draft.capacityHours);
-    const minimum = draft.minimumHours === "" ? null : Number(draft.minimumHours);
-    if (capacity !== null && minimum !== null && minimum > capacity) {
-      setError("Minimum hours cannot exceed capacity hours.");
+    let changes: Record<string, unknown>;
+    try {
+      changes = preparePeopleEditorPatch(draft, initial, openedRevision.current, person.username);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Invalid profile details.");
       return;
-    }
-    const changes: Record<string, unknown> = { expectedProfileRevision: openedRevision.current };
-    for (const key of changed) {
-      if (key === "capacityHours" || key === "minimumHours") changes[key] = draft[key] === "" ? null : Number(draft[key]);
-      else changes[key] = draft[key].trim() || (key === "username" ? person.username : null);
     }
     setSaving(true);
     setError("");
@@ -117,13 +92,13 @@ export function PeopleUserEditor({
         : message);
     } finally { setSaving(false); }
   }
-  const field = (key: EditableField, label: string, placeholder = "") => (
+  const field = (key: PeopleEditorTextField, label: string, placeholder = "") => (
     <label className="people-user-editor-field-v106" key={key}>
       <span>{label}</span>
       <ClusterInput value={draft[key]} disabled={saving} placeholder={placeholder} maxLength={key === "username" ? 32 : key === "employeeNumber" ? 80 : key === "phoneNumber" ? 60 : 160} onChange={(event) => update(key, event.target.value)} />
     </label>
   );
-  const hoursField = (key: HoursField, label: string) => (
+  const hoursField = (key: "capacityHours" | "minimumHours", label: string) => (
     <label className="people-user-editor-field-v106" key={key}>
       <span>{label}</span>
       <ClusterInput type="number" value={draft[key]} disabled={saving} min={0} max={168} step={1} placeholder="Not set" onChange={(event) => update(key, event.target.value)} />
