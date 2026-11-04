@@ -60,12 +60,19 @@ app.get("/api/admin/users/assignable-roles", async (request, reply) => {
 });
 app.get("/api/users", async (request, reply) => {
   const viewer = await getCurrentUser(request);
+  if (!viewer) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const viewerMembership = await prisma.workspaceMember.findFirst({
+    where: { userId: viewer.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!viewerMembership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const workspaceId = viewerMembership.workspaceId;
   const viewerRole = viewer ? await getWorkspaceRole(viewer.id) : null;
   const privateDecision = viewer ? await authorization.authorize(request, "manage", { kind: "tool", tool: "people" }, { minimum: "manage", surface: "api" }) : null;
   const includePrivate = Boolean(privateDecision?.allowed);
   const disclosure = userDisclosureObligations({ includePrivate, includeSecurityState: includePrivate, surface: "api" });
   const includeRawSummary = Boolean(viewer && ["owner", "admin"].includes(String(viewerRole || "")));
   const query = userDirectoryPageQuerySchema.parse(request.query || {});
+  if (query.includeArchived && !includePrivate) return reply.code(403).send({ ok: false, code: "PEOPLE_ARCHIVED_DENIED" });
   if (query.summary) {
     const requestedDataQuery = parseClusterDataQueryParameter(query.dataQuery);
     const dataQuery = normalizeClusterDataQuery({ ...requestedDataQuery, page: { cursor: query.cursor || null, limit: query.limit } }, { fields: PEOPLE_DATA_FIELDS, defaultLimit: query.limit, maxLimit: 1000 });
@@ -74,7 +81,7 @@ app.get("/api/users", async (request, reply) => {
     const users = await prisma.user.findMany({
       where: {
         archived: query.includeArchived ? undefined : false,
-        memberships: query.role ? { some: { role: query.role } } : undefined,
+        memberships: { some: { workspaceId, ...(query.role ? { role: query.role } : {}) } },
       },
       include: { memberships: true, ...WORKFORCE_USER_AUTHORITY_INCLUDE },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -82,6 +89,7 @@ app.get("/api/users", async (request, reply) => {
     });
     const projected = users.map((user: any) => ({
       ...serializeUserLite(user),
+      workspaceRole: user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member",
       updatedAt: user.updatedAt,
       ...(includePrivate ? { accountState: user.accountState, accountType: user.accountType, accessExpiresAt: user.accessExpiresAt } : {}),
     }));
@@ -116,7 +124,7 @@ app.get("/api/users", async (request, reply) => {
     where: {
       archived: query.includeArchived ? undefined : false,
       employment: query.department ? { is: { department: { is: { name: query.department } } } } : undefined,
-      memberships: query.role ? { some: { role: query.role } } : undefined,
+      memberships: { some: { workspaceId, ...(query.role ? { role: query.role } : {}) } },
       ...(cursorWhere(cursor, "updatedAt", "desc") || {}),
     },
     include: {
@@ -133,8 +141,8 @@ app.get("/api/users", async (request, reply) => {
   const page = buildCursorPage(users, query.limit, "updatedAt");
   const items = page.items.map((user: any) => applyDisclosureObligations({
     ...(includePrivate ? serializeUserPrivate(user) : serializeUserPublicProfile(user)),
-    workspaceRole: user.memberships[0]?.role || "member",
-    isAdmin: ["owner", "admin"].includes(user.memberships[0]?.role || "member"),
+    workspaceRole: user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member",
+    isAdmin: ["owner", "admin"].includes(user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member"),
     privateProfile: includePrivate,
     sensitiveProfileHidden: !includePrivate,
     toolPermissions: includePrivate ? parseObject(user.toolPermissions) : {},
@@ -500,14 +508,20 @@ app.patch("/api/users/:userId", async (request, reply) => {
     lastActivityAt: null,
   };
 });
-app.get("/api/users/:userId/profile", async (request) => {
+app.get("/api/users/:userId/profile", async (request, reply) => {
   const viewer = await getCurrentUser(request);
+  if (!viewer) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: viewer.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!membership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const workspaceId = membership.workspaceId;
   const viewerRole = viewer ? await getWorkspaceRole(viewer.id) : null;
   const params = z.object({ userId: z.string() }).parse(request.params);
   const includeRawSummary = Boolean(viewer && ["owner", "admin"].includes(String(viewerRole || "")));
   const canSeeActivity = Boolean(viewer && hasToolPermission(viewer, viewerRole, "activity", "view"));
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: params.userId },
+  const user = await prisma.user.findFirst({
+    where: { id: params.userId, memberships: { some: { workspaceId } } },
     include: {
       memberships: true,
       ...WORKFORCE_USER_AUTHORITY_INCLUDE,
@@ -527,6 +541,7 @@ app.get("/api/users/:userId/profile", async (request) => {
       } : {}),
     },
   });
+  if (!user) return reply.code(404).send({ ok: false, code: "USER_NOT_FOUND" });
   const includePrivate = await canViewPrivateUserProfile(viewer, user.id);
   const detailDisclosure = userDisclosureObligations({ includePrivate, includeSecurityState: includePrivate, surface: "api" });
   const viewerIsSelf = Boolean(viewer?.id && viewer.id === user.id);
@@ -536,21 +551,27 @@ app.get("/api/users/:userId/profile", async (request) => {
   const visibleCustomFields = Object.fromEntries(visibleProfileFields.filter((field) => rawCustomFields[field.id] !== undefined).map((field) => [field.id, rawCustomFields[field.id]]));
   const visibleActivity = canSeeActivity ? (await authorization.filterActivityEventsForRequest(request, user.activityEvents || [], "view")).slice(0, 20) : [];
   const directReports = await prisma.user.findMany({
-    where: { archived: false, employment: { is: { managerUserId: user.id, active: true } } },
+    where: { archived: false, memberships: { some: { workspaceId } }, employment: { is: { managerUserId: user.id, active: true } } },
     include: WORKFORCE_USER_AUTHORITY_INCLUDE,
     orderBy: [{ displayName: "asc" }, { username: "asc" }],
     take: 500,
   });
+  const managerMember = user.employment?.managerUserId
+    ? await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: user.employment.managerUserId } },
+      select: { userId: true },
+    })
+    : null;
   return applyDisclosureObligations({
     ...(includePrivate ? serializeUserPrivate(user) : serializeUserPublicProfile(user)),
     customProfileFields: visibleCustomFields,
     privateProfile: includePrivate,
     sensitiveProfileHidden: !includePrivate,
-    workspaceRole: user.memberships[0]?.role || "member",
+    workspaceRole: user.memberships.find((row: any) => row.workspaceId === workspaceId)?.role || "member",
     ...(includeRawSummary ? { counts: user._count } : {}),
     lastActivityAt: visibleActivity[0]?.createdAt ?? null,
     recentActivity: visibleActivity.map(serializeActivityEvent),
-    manager: user.employment?.manager || null,
+    manager: managerMember ? user.employment?.manager || null : null,
     directReports: directReports.map(serializeUserLite),
     profileFieldDefinitions: visibleProfileFields,
   }, detailDisclosure);
