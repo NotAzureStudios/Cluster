@@ -128,3 +128,23 @@
 .studio-identity-controls-v11 > .cluster-settings-row-v11 .cluster-settings-row-control-v11 > * { width: 100%; }
 .settings-component-gallery-v11 { min-width: 0; }
 .settings-component-gallery-v11 > div { min-width: 0; }
+
+/* Replace permanently visible Server Config help paragraphs and internal keys
+   with keyboard-accessible, on-demand explanations. Warnings stay visible. */
+.server-config-console-v238 .server-config-compact-field-v11 > .server-config-field-header-v11 {
+  display: flex; align-items: start; justify-content: space-between;
+  flex-wrap: wrap; gap: 6px; min-width: 0;
+}
+.server-config-compact-field-v11 .server-config-field-header-v11 > label {
+  min-width: 0; flex: 1 1 145px; color: var(--text);
+  overflow-wrap: anywhere; cursor: pointer;
+}
+.server-config-compact-field-v11 .server-config-field-header-v11 > label strong {
+  font-size: .78rem; font-weight: 650; line-height: 1.4;
+}
+.server-config-field-actions-v11 { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.server-config-console-v238 .server-config-compact-field-v11.server-config-toggle-v238 > .server-config-field-header-v11 { align-items: start; }
+.server-config-compact-field-v11 .cluster-settings-help-content-v11 { left: auto; right: 0; }
+@media (max-width: 740px) {
+  .server-config-compact-field-v11 .cluster-settings-help-content-v11 { left: 0; right: auto; }
+}
