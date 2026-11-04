@@ -1,0 +1,17 @@
+.studio-role-membership-review-v11{border:1px solid var(--border);border-radius:11px;background:var(--panel);min-width:0;overflow:hidden}
+.studio-role-membership-review-v11>header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-soft);padding:12px 14px}
+.studio-role-membership-review-v11>header>div{display:grid;gap:4px;flex:1;min-width:180px}
+.studio-role-membership-review-v11>header strong{font-size:.8rem}
+.studio-role-membership-review-v11>header span{font-size:.69rem;color:var(--muted);line-height:1.4}
+.studio-role-membership-note-v11{margin:0;padding:10px 14px;color:var(--muted);font-size:.7rem;line-height:1.5}
+.studio-role-membership-review-v11 ul{margin:0;padding:0;list-style:none;border-top:1px solid var(--border);max-height:300px;overflow-y:auto}
+.studio-role-membership-review-v11 li{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);min-height:44px}
+.studio-role-membership-review-v11 li>span:first-child{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+.studio-role-membership-review-v11 li strong{font-size:.74rem}
+.studio-role-membership-review-v11 li small{font-size:.66rem;color:var(--muted)}
+.studio-role-membership-archived-v11{font-size:.66rem;color:var(--muted);white-space:nowrap}
+.studio-role-membership-empty-v11,.studio-role-membership-error-v11,.studio-role-membership-footer-v11{margin:0;padding:10px 14px;font-size:.7rem;line-height:1.45;color:var(--muted)}
+.studio-role-membership-error-v11{color:var(--danger,#ec7272)}
+.studio-role-membership-footer-v11{border-top:1px solid var(--border)}
+@media(pointer:coarse){.studio-role-membership-review-v11>header button{min-height:44px}}
+@media(max-width:620px){.studio-role-membership-review-v11>header{align-items:stretch}.studio-role-membership-review-v11>header button{align-self:start}}
