@@ -34,6 +34,7 @@ import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Se
 import "./settings-workspace.css";
 import "./people-management-layout-v11.css";
 import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
+import { RoleMembershipReviewPanel, type RoleMemberSnapshot } from "./RoleMembershipReviewPanel";
 import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
 import { ClusterEffectiveAccessInspector, type ClusterEffectiveAccessPreview } from "../../components/ClusterEffectiveAccessInspector";
 import { filterRoleDirectory, type RoleDirectoryFilter } from "./role-directory-filter";
@@ -143,6 +144,17 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [roleDirectoryFilter, setRoleDirectoryFilter] = useState<RoleDirectoryFilter>("all");
   const [roleMemberCounts, setRoleMemberCounts] = useState<Record<string, number> | null>(null);
   const [roleMemberCountsError, setRoleMemberCountsError] = useState("");
+  const [roleMemberSnapshot, setRoleMemberSnapshot] = useState<RoleMemberSnapshot | null>(null);
+  const [roleMemberReviewLoading, setRoleMemberReviewLoading] = useState(false);
+  const [roleMemberReviewError, setRoleMemberReviewError] = useState("");
+  const roleMemberReviewSequence = useRef(0);
+  useEffect(() => {
+    // Never carry a private member list between roles or signed-in editors.
+    roleMemberReviewSequence.current += 1;
+    setRoleMemberSnapshot(null);
+    setRoleMemberReviewLoading(false);
+    setRoleMemberReviewError("");
+  }, [currentUser.id, selectedRoleId, section]);
   useEffect(() => {
     if (section !== "roles" || !currentUser.isAdmin) return;
     let cancelled = false;
@@ -561,6 +573,33 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     else nextPermissions[tool] = level;
     updateStudioRole(id, { toolPermissions: nextPermissions });
   }
+  async function loadRoleMembers(roleId: string) {
+    if (!currentUser.isAdmin || section !== "roles") return;
+    const ownerId = currentUser.id;
+    const sequence = ++roleMemberReviewSequence.current;
+    setRoleMemberSnapshot(null);
+    setRoleMemberReviewError("");
+    setRoleMemberReviewLoading(true);
+    try {
+      const page = await queryApi<{ items: RoleMemberSnapshot["items"]; hasMore: boolean }>(
+        `/api/users?role=${encodeURIComponent(roleId)}&paged=true&limit=25&includeArchived=true`,
+        { force: true, staleMs: 0, persist: false, tags: ["people", "roles", "users"] },
+      );
+      if (!Array.isArray(page.items) || typeof page.hasMore !== "boolean") {
+        throw new Error("The server returned an incomplete role membership response.");
+      }
+      if (roleMemberReviewSequence.current === sequence) {
+        setRoleMemberSnapshot({ roleId, ownerId, items: page.items, hasMore: page.hasMore });
+      }
+    } catch (cause) {
+      if (roleMemberReviewSequence.current === sequence) {
+        setRoleMemberReviewError(cause instanceof Error ? cause.message : "Role membership review is unavailable.");
+      }
+    } finally {
+      if (roleMemberReviewSequence.current === sequence) setRoleMemberReviewLoading(false);
+    }
+  }
+
   async function roleHasAssignments(id: string): Promise<boolean> {
     // A role definition is a permission policy, not a user record. Never
     // delete or disable it while stored membership roles still reference it.
@@ -1367,6 +1406,15 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                           <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
                           <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
                         </div>
+                        {currentUser.isAdmin && (
+                          <RoleMembershipReviewPanel
+                            roleId={selectedRole.id}
+                            snapshot={roleMemberSnapshot?.ownerId === currentUser.id && roleMemberSnapshot?.roleId === selectedRole.id ? roleMemberSnapshot : null}
+                            loading={roleMemberReviewLoading}
+                            error={roleMemberReviewError}
+                            onRefresh={() => void loadRoleMembers(selectedRole.id)}
+                          />
+                        )}
                       </div>
                     )}
 
