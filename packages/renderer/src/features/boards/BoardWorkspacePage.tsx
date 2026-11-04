@@ -34,7 +34,7 @@ import { BoardFilterPanel } from "./BoardFilterPanel";
 import { BoardCalendarView, BoardListView, BoardTableView, BoardTimelineView, type BoardViewMode, type BoardViewRow } from "./BoardAlternativeViews";
 import { BoardCardTile, isCardOverdue } from "./BoardCardTile";
 import { BoardPlanningInsights } from "./BoardPlanningInsights";
-import { boardBlockedCardIds } from "./board-planning-intelligence";
+import { boardActiveBlockerRows } from "./board-planning-intelligence";
 import { BOARD_TEMPLATES, boardTemplateColumns, type BoardTemplateId } from "./board-templates";
 import { BOARD_APPEARANCE_PRESETS, DEFAULT_BOARD_LABELS, boardThemeBackground } from "./board-appearance";
 import { EMPTY_BOARD_MOVE_HISTORY, recordBoardCardMove, completeBoardCardMove, discardConflictedBoardCard, canReplayBoardSavedMove, type BoardCardMoveHistory } from "./board-card-move-history";
@@ -766,8 +766,21 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   const backlogList = useMemo(() => (board ? board.lists.find((list) => list.title.toLowerCase().includes("backlog")) || board.lists[0] : null), [board]);
   const visibleLists = useMemo(() => (!board ? [] : hideDone && doneList ? board.lists.filter((list) => list.id !== doneList.id) : board.lists), [board, hideDone, doneList]);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
-  const doneCardIds = useMemo(() => new Set((board?.lists || []).filter((list) => list.isDone).flatMap((list) => list.cards.map((card) => card.id))), [board]);
-  const blockedCardIds = useMemo(() => boardBlockedCardIds(planningPayload?.dependencies || [], doneCardIds), [planningPayload?.dependencies, doneCardIds]);
+  // Planning responses can outlive a Board switch. Never apply the old
+  // Board's relationships or projected Done states to the newly selected one.
+  const activePlanningPayload = planningPayload?.boardId === board?.id ? planningPayload : null;
+  const localCardIds = useMemo(() => new Set(cards.map((card) => card.id)), [cards]);
+  const doneCardIds = useMemo(() => {
+    const ids = new Set((board?.lists || []).filter((list) => list.isDone).flatMap((list) => list.cards.map((card) => card.id)));
+    for (const projection of activePlanningPayload?.projections || []) {
+      if (projection.owningListDone) ids.add(projection.cardId);
+    }
+    return ids;
+  }, [board, activePlanningPayload?.projections]);
+  const blockedCardIds = useMemo(() => new Set(
+    boardActiveBlockerRows(activePlanningPayload?.dependencies || [], doneCardIds, localCardIds)
+      .map((row) => row.blockedCardId),
+  ), [activePlanningPayload?.dependencies, doneCardIds, localCardIds]);
   const cardFilters = useMemo(() => ({ normalizedQuery, priorityFilter, labelFilter, categoryFilter, issueFilter, assigneeFilter, viewPreset, currentUserId: currentUser.id, blockedCardIds }), [normalizedQuery, priorityFilter, labelFilter, categoryFilter, issueFilter, assigneeFilter, viewPreset, currentUser.id, blockedCardIds]);
   const visibleCardsByList = useMemo(() => new Map(visibleLists.map((list) => [
     list.id,
@@ -1206,7 +1219,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <article className="panel">
               <span>Unassigned</span><strong>{unassignedCount}</strong><em>{linkedCount} linked to Source Control</em>
             </article>
-            <BoardPlanningInsights board={board} cards={cards} users={users} payload={planningPayload} error={planningError} />
+            <BoardPlanningInsights board={board} cards={cards} users={users} payload={activePlanningPayload} error={planningError} />
           </div>
         )}
 

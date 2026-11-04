@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BoardPlanningPayload } from "@cluster/shared";
 import type { VisualDatum } from "../../components/visual-intelligence";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -7,7 +7,7 @@ import { DependencyGraph, HealthStrip, Sparkline, StatusStrip } from "../../comp
 import type { Board, Card, UserActivitySummary } from "../application/application-models";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
-import { boardBlockedCardIds, buildBoardCapacityRows, cardDeferredUntil, cardStateAgeDays, isCardStale } from "./board-planning-intelligence";
+import { boardActiveBlockerRows, buildBoardCapacityRows, cardDeferredUntil, cardStateAgeDays, isCardStale } from "./board-planning-intelligence";
 import { isCardOverdue } from "./BoardCardTile";
 
 function toneForCount(value: number, warnAt = 1): "good" | "warning" | "danger" | "neutral" {
@@ -16,13 +16,21 @@ function toneForCount(value: number, warnAt = 1): "good" | "warning" | "danger" 
 }
 
 export function BoardPlanningInsights({ board, cards, users, payload, error = "" }: { board: Board; cards: Card[]; users: UserActivitySummary[]; payload: BoardPlanningPayload | null; error?: string }) {
+  const [blockedLimit, setBlockedLimit] = useState(8);
+  useEffect(() => setBlockedLimit(8), [board.id]);
 
   const model = useMemo(() => {
     const listById = new Map(board.lists.map((list) => [list.id, list]));
     const cardById = new Map(cards.map((card) => [card.id, card]));
     const doneCardIds = new Set(cards.filter((card) => listById.get(card.listId)?.isDone).map((card) => card.id));
+    for (const projection of payload?.projections || []) {
+      if (projection.owningListDone) doneCardIds.add(projection.cardId);
+    }
     const dependencies = payload?.dependencies || [];
-    const blocked = boardBlockedCardIds(dependencies, doneCardIds);
+    const localCardIds = new Set(cards.map((card) => card.id));
+    const blockerRows = boardActiveBlockerRows(dependencies, doneCardIds, localCardIds);
+    const blocked = new Set(blockerRows.map((row) => row.blockedCardId));
+    const projectionByCardId = new Map((payload?.projections || []).map((projection) => [projection.cardId, projection]));
     const now = Date.now();
     const active = cards.filter((card) => !listById.get(card.listId)?.isDone && !cardDeferredUntil(card, now));
     const overdue = active.filter((card) => isCardOverdue(card.dueDate)).length;
@@ -57,8 +65,8 @@ export function BoardPlanningInsights({ board, cards, users, payload, error = ""
     });
     const graphIds = new Set(graphNodes.map((node) => node.id));
     const graphEdges = dependencies.filter((edge) => graphIds.has(edge.sourceCardId) && graphIds.has(edge.targetCardId)).slice(0, 36).map((edge) => ({ from: edge.sourceCardId, to: edge.targetCardId, label: edge.relationship.replaceAll("_", " ") }));
-    return { health, capacityItems, wipViolations, blocked, graphNodes, graphEdges, cardById };
-  }, [board.lists, cards, payload?.dependencies, users]);
+    return { health, capacityItems, wipViolations, blocked, blockerRows, projectionByCardId, graphNodes, graphEdges, cardById };
+  }, [board.lists, cards, payload?.dependencies, payload?.projections, users]);
 
   if (error) return <div className="error-box" role="alert">{error}</div>;
   if (!payload) return <div className="status-box" role="status">Loading Board health…</div>;
@@ -70,6 +78,50 @@ export function BoardPlanningInsights({ board, cards, users, payload, error = ""
       <section className="panel"><h3>Capacity pressure</h3>{model.capacityItems.length ? <StatusStrip density="compact" label="Assignee capacity pressure" items={model.capacityItems} /> : <p className="muted tight">No active assigned cards.</p>}<p className="muted tight">Capacity pressure is a transparent heuristic: active cards versus roughly one four-hour work unit per configured capacity block. Estimate units are shown separately and are not treated as hours.</p></section>
       <section className="panel"><h3>WIP limits</h3>{model.wipViolations.length ? model.wipViolations.map(({ list, count }) => <p key={list.id} className="tight"><strong>{list.title}</strong> · {count}/{list.wipLimit} cards</p>) : <p className="muted tight">All configured column limits are currently respected.</p>}</section>
       <section className="panel board-dependency-panel-v504"><h3>Dependency map</h3>{model.graphNodes.length ? <DependencyGraph density="compact" label="Board card dependencies" nodes={model.graphNodes} edges={model.graphEdges} onSelect={(selection) => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: selection.datumId, projectId: board.project.id }))} /> : <ClusterEmptyState compact kind="empty" icon="work" title="No Card dependencies yet" description="Link Cards with blocks, depends on, parent, related, duplicate, or supersedes relationships." />}</section>
+      <section className="panel board-active-blockers-v11">
+        <div className="panel-title-row">
+          <div><h3>Blocked work</h3><p className="muted tight">Unfinished prerequisites on this Board or authorized projected Cards.</p></div>
+          <strong>{model.blockerRows.length}</strong>
+        </div>
+        {model.blockerRows.length ? (
+          <div className="board-blocker-list-v11">
+            {model.blockerRows.slice(0, blockedLimit).map((entry) => {
+              const card = model.cardById.get(entry.blockedCardId);
+              if (!card) return null;
+              return <article key={entry.blockedCardId} className="board-blocker-card-v11">
+                <ClusterButton unstyled type="button" className="board-blocker-open-v11"
+                  onClick={() => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: card.id, projectId: board.project.id }))}>
+                  <strong>{card.title}</strong>
+                  <span>{entry.prerequisites.length} unfinished prerequisite{entry.prerequisites.length === 1 ? "" : "s"} · {board.lists.find((list) => list.id === card.listId)?.title || "Board Card"}</span>
+                </ClusterButton>
+                <details className="board-blocker-dependencies-v11">
+                  <summary>View blocking Cards</summary>
+                  <ul>
+                    {entry.prerequisites.map((prerequisite) => {
+                      const local = model.cardById.get(prerequisite.cardId);
+                      const projected = model.projectionByCardId.get(prerequisite.cardId);
+                      const title = local?.title || projected?.title || "Unavailable prerequisite";
+                      return <li key={prerequisite.cardId}>
+                        {local || projected ? (
+                          <ClusterButton unstyled type="button"
+                            onClick={() => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: prerequisite.cardId, projectId: board.project.id }))}>
+                            <strong>{title}</strong>
+                            <span>{projected ? `Projected from ${projected.owningBoardName}` : "This Board"}{prerequisite.critical ? " · Critical" : ""}</span>
+                          </ClusterButton>
+                        ) : <span>{title}</span>}
+                      </li>;
+                    })}
+                  </ul>
+                </details>
+              </article>;
+            })}
+            {model.blockerRows.length > blockedLimit ? <ClusterButton variant="secondary" size="compact"
+              className="board-blockers-more-v11" onClick={() => setBlockedLimit((current) => current + 8)}>
+              Show next {Math.min(8, model.blockerRows.length - blockedLimit)} blocked Cards · {model.blockerRows.length - blockedLimit} remaining
+            </ClusterButton> : null}
+          </div>
+        ) : <p className="muted tight">No active blockers for Cards on this Board.</p>}
+      </section>
       <section className="panel board-projection-panel-v504"><div className="panel-title-row"><div><h3>Projected work</h3><p className="muted tight">Canonical Cards tracked by this Board without being duplicated into its columns.</p></div><strong>{payload.projections.length}</strong></div>{payload.projections.length ? <div className="linked-work-list-v491">{payload.projections.map((projection) => <div className="linked-work-row-v491" key={projection.relationshipId}><ClusterButton unstyled className="linked-work-open-v491" onClick={() => openClusterWorkNavigation(clusterResourceNavigation({ kind: "card", id: projection.cardId, projectId: board.project.id }))}><span><strong>{projection.title}</strong><small>{projection.owningBoardName} · {projection.owningListTitle} · {projection.priority}{projection.assigneeLabel ? ` · ${projection.assigneeLabel}` : ""}{projection.deferredUntil ? " · Deferred" : ""}</small></span></ClusterButton></div>)}</div> : <p className="muted tight">No Cards are projected onto this Board.</p>}</section>
     </div>
   );

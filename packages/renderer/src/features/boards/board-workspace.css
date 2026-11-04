@@ -1036,3 +1036,41 @@
 @media(pointer:coarse){
   .board-view-load-more-v11 .cluster-button-v425{min-height:44px}
 }
+
+/* v1.1: active dependencies are explainable and individually actionable. */
+.board-active-blockers-v11{display:grid;gap:10px;min-width:0;padding:12px}
+.board-active-blockers-v11>.panel-title-row{align-items:start;gap:12px}
+.board-active-blockers-v11>.panel-title-row>strong{font-variant-numeric:tabular-nums}
+.board-blocker-list-v11{display:grid;gap:8px}
+.board-blocker-card-v11{
+  display:grid;gap:6px;min-width:0;padding:9px 11px;border:1px solid var(--border-subtle);
+  border-left:3px solid var(--accent,#57c1ff);border-radius:10px;background:var(--surface-soft);
+}
+.board-blocker-open-v11{display:grid;gap:4px;text-align:left;justify-items:start;min-width:0}
+.board-blocker-open-v11 strong{font-size:.77rem;overflow-wrap:anywhere}
+.board-blocker-open-v11 span{color:var(--text-muted);font-size:.69rem;white-space:normal}
+.board-blocker-dependencies-v11>summary{
+  cursor:pointer;color:var(--muted);font-size:.7rem;padding:5px 3px;border-radius:6px;
+}
+.board-blocker-dependencies-v11[open]>summary{margin-bottom:7px}
+.board-blocker-dependencies-v11 ul{list-style:none;display:grid;gap:5px;margin:0;padding:0}
+.board-blocker-dependencies-v11 li{min-width:0}
+.board-blocker-dependencies-v11 li>button{
+  display:grid;gap:2px;justify-items:start;text-align:left;min-width:0;
+  padding:7px 9px;border-radius:8px;width:100%;
+}
+.board-blocker-dependencies-v11 li>button:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.board-blocker-dependencies-v11 li strong{font-size:.72rem;overflow-wrap:anywhere}
+.board-blocker-dependencies-v11 li span{font-size:.67rem;color:var(--text-muted);overflow-wrap:anywhere}
+.board-blocker-dependencies-v11>summary:focus-visible,
+.board-blocker-open-v11:focus-visible,
+.board-blocker-dependencies-v11 li>button:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:2px;
+}
+.board-blockers-more-v11{width:100%;min-height:38px;white-space:normal}
+@media(pointer:coarse){
+  .board-blocker-dependencies-v11>summary,
+  .board-blocker-open-v11,
+  .board-blocker-dependencies-v11 li>button,
+  .board-blockers-more-v11{min-height:44px}
+}
