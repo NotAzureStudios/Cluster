@@ -35,6 +35,7 @@ import { BoardCalendarView, BoardListView, BoardTableView, BoardTimelineView, ty
 import { BoardCardTile, isCardOverdue } from "./BoardCardTile";
 import { BoardPlanningInsights } from "./BoardPlanningInsights";
 import { boardActiveBlockerRows } from "./board-planning-intelligence";
+import { addVisibleBoardSelection, countVisibleBoardSelection, pruneBoardSelection, removeVisibleBoardSelection } from "./board-selection-projection";
 import { BOARD_TEMPLATES, boardTemplateColumns, type BoardTemplateId } from "./board-templates";
 import { BOARD_APPEARANCE_PRESETS, DEFAULT_BOARD_LABELS, boardThemeBackground } from "./board-appearance";
 import { EMPTY_BOARD_MOVE_HISTORY, recordBoardCardMove, completeBoardCardMove, discardConflictedBoardCard, canReplayBoardSavedMove, type BoardCardMoveHistory } from "./board-card-move-history";
@@ -807,6 +808,14 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     return "Cards";
   }, [groupMode, userById]);
   const selectedCards = useMemo(() => Array.from(selectedCardIds, (id) => cardById.get(id)).filter((card): card is Card => Boolean(card)), [cardById, selectedCardIds]);
+  const visibleCardIds = useMemo(() => visibleRows.map((row) => row.card.id), [visibleRows]);
+  const visibleSelectedCount = countVisibleBoardSelection(selectedCardIds, visibleCardIds);
+  const selectedOutsideViewCount = selectedCards.length - visibleSelectedCount;
+  useEffect(() => {
+    if (!board?.id) return;
+    const currentBoardIds = new Set(cardById.keys());
+    setSelectedCardIds((current) => pruneBoardSelection(current, currentBoardIds));
+  }, [board?.id, cardById]);
   const boardSelectionAnchor = useMemo(() => {
     if (!selectedCards.length) return null;
     const labels = selectedCards.slice(0, 3).map((card) => card.title);
@@ -878,7 +887,10 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     });
   }
   function selectAllVisibleCards() {
-    setSelectedCardIds(new Set(visibleRows.map((row) => row.card.id)));
+    setSelectedCardIds((current) => addVisibleBoardSelection(current, visibleCardIds));
+  }
+  function deselectVisibleCards() {
+    setSelectedCardIds((current) => removeVisibleBoardSelection(current, visibleCardIds));
   }
   async function runSelectedBoardBulk(
     label: string,
@@ -1228,6 +1240,11 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <ClusterTextInput ref={searchInputRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards, labels, assignees, Source Control issues…  /" aria-label="Search board cards" />
           </div>
           <span className="control-result">{filteredCount} cards</span>
+          <ClusterButton size="compact" variant="quiet" className="board-select-visible-v11"
+            onClick={selectAllVisibleCards} disabled={bulkBusy || !visibleCardIds.length || visibleSelectedCount === visibleCardIds.length}
+            aria-label={`Add ${visibleCardIds.length - visibleSelectedCount} visible Board Cards to selection`}>
+            Select visible
+          </ClusterButton>
           <div className="board-view-mode-v489" role="group" aria-label="Board layout">
             {([
               ["kanban", "Board"],
@@ -1344,8 +1361,14 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
           />
         )}
 
-        <ClusterBulkActionBar selectionCount={selectedCardIds.size} label="Selected card actions" onClear={() => setSelectedCardIds(new Set())} className="board-bulk-bar-v489">
-          <ClusterButton size="compact" variant="quiet" onClick={selectAllVisibleCards} disabled={bulkBusy || selectedCardIds.size === visibleRows.length}>Select visible</ClusterButton>
+        <ClusterBulkActionBar selectionCount={selectedCards.length} label="Selected card actions" onClear={() => setSelectedCardIds(new Set())} className="board-bulk-bar-v489">
+          <ClusterButton size="compact" variant="quiet" onClick={deselectVisibleCards}
+            disabled={bulkBusy || !visibleSelectedCount} aria-label={`Deselect ${visibleSelectedCount} Cards in the current filtered view`}>
+            Deselect visible
+          </ClusterButton>
+          {selectedOutsideViewCount > 0 ? <span className="board-selection-hidden-v11" role="status">
+            {selectedOutsideViewCount} selected outside current filters
+          </span> : null}
           {bulkBusy && bulkOperationAbortRef.current ? <ClusterButton size="compact" variant="secondary" onClick={() => { bulkOperationAbortRef.current?.abort(); setCategoryStatus("Stopping after the current card. Already submitted changes are preserved."); }}>Cancel remaining</ClusterButton> : null}
           <ClusterButton size="compact" variant="quiet" selected={showSelectionDiscussion} onClick={() => setShowSelectionDiscussion((value) => !value)}>Discuss selection</ClusterButton>
           <ClusterSelect ariaLabel="Bulk priority" value={bulkPriority} placeholder="Set priority" onChange={(value) => setBulkPriority(value as Priority | "")} options={[{ value: "", label: "Set priority" }, { value: "urgent", label: "Urgent" }, { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }]} />
