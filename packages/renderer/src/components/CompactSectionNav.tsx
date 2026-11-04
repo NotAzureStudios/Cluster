@@ -38,6 +38,7 @@ export function CompactSectionNav<Id extends string>({
   const [moreOpen, setMoreOpen] = useState(false);
   const moreTriggerRef = useRef<HTMLButtonElement | null>(null);
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
+  const pendingPromotedFocusRef = useRef<Id | null>(null);
   const moreId = useId();
   const primary = primaryIds?.length
     ? items.filter((item) => primaryIds.includes(item.id))
@@ -57,6 +58,7 @@ export function CompactSectionNav<Id extends string>({
   }, [secondary]);
 
   function select(id: Id) {
+    pendingPromotedFocusRef.current = secondary.some((item) => item.id === id) ? id : null;
     onChange(id);
     setMoreOpen(false);
   }
@@ -83,7 +85,13 @@ export function CompactSectionNav<Id extends string>({
     const activeIndex = primary.findIndex((item) => item.id === activeId);
     if (activeIndex < 0) return;
     buttonRefs.current[activeIndex]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [activeId]);
+    // A More-menu item may become a visible primary tab in specialized workspaces.
+    // Restore focus to its new control instead of leaving focus in a closed menu.
+    if (pendingPromotedFocusRef.current === activeId) {
+      pendingPromotedFocusRef.current = null;
+      buttonRefs.current[activeIndex]?.focus({ preventScroll: true });
+    }
+  }, [activeId, primaryIds]);
 
   return (
     <nav className={`compact-section-nav-v204 cluster-section-nav-v391 ${className}`.trim()} aria-label={label}>
