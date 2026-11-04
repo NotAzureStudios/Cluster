@@ -17,7 +17,6 @@ import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell"
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -30,6 +29,7 @@ import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security
 import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Settings, StudioDepartmentDefinition, StudioRoleDefinition, StudioSettingsSection } from "../application/application-models";
 import "./settings-workspace.css";
 import "./people-management-layout-v11.css";
+import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
 
 import type { StudioSettingsPageProps } from "./settings-workspace-contracts";
 import { STUDIO_SETTINGS_DEPENDENCIES } from "./studio-settings-dependencies";
@@ -1024,29 +1024,35 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   <h2>Departments</h2>
                 </div>
                 <div className="studio-people-manager-head-actions-v11">
-                  <span className="studio-section-count-v272">{enabledStudioDepartments.length} active</span>
-                  <ClusterButton type="button" variant="primary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close form" : "New department"}</ClusterButton>
+                  <span className="studio-section-count-v272">{enabledStudioDepartments.length} access templates</span>
                 </div>
               </div>
 
+              <WorkforceDepartmentManager canEdit={Boolean(currentUser.isAdmin)} />
+
+              <details className="studio-advanced-access-v11 studio-department-templates-v11">
+                <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
+                <div className="studio-department-policy-actions-v11">
+                  <span>These templates are permission policies, not separate organizational departments.</span>
+                  <ClusterButton type="button" variant="secondary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close template form" : "New access template"}</ClusterButton>
+                </div>
               {departmentCreationOpen && (
               <div className="studio-create-strip-v272">
-                <div><strong>New</strong></div>
+                <div><strong>New policy template</strong></div>
                 <ClusterInput value={newDepartmentLabel} onChange={(event) => setNewDepartmentLabel(event.target.value)} placeholder="Department name" />
                 <ClusterInput value={newDepartmentTeam} onChange={(event) => setNewDepartmentTeam(event.target.value)} placeholder="Default team name" />
-                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add department</ClusterButton>
+                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add template</ClusterButton>
               </div>
               )}
-
               <div className="studio-entity-manager-v272">
-                <aside className="studio-entity-list-v272" aria-label="Departments">
+                <aside className="studio-entity-list-v272" aria-label="Department access templates">
                   <div className="studio-entity-list-head-v272">
                     <strong>Directory</strong>
                     <span>{studioDepartments.length}</span>
                   </div>
                   {departmentRoleCoverage.map((department) => (
                     <ClusterButton type="button" key={department.id} className={selectedDepartment?.id === department.id ? "active" : ""} onClick={() => { setSelectedDepartmentId(department.id); setDepartmentEditorTab("details"); }}>
-                      <span className="studio-entity-icon-rc46" aria-hidden="true"><ResourceIdentityMark iconId={department.iconId} label={department.label} accentColor={department.accentColor} /></span>
+                      <span className="studio-entity-icon-rc46" aria-hidden="true"><ResourceIdentityMark iconId="glyph:users" label={department.label} accentColor="#81919b" /></span>
                       <span className="studio-entity-list-copy-v272">
                         <strong>{department.label}</strong>
                         {department.defaultTeamName && <small>{department.defaultTeamName}</small>}
@@ -1060,7 +1066,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
                       <div className="studio-department-heading-rc46">
-                        <ResourceIdentityMark iconId={selectedDepartment.iconId} label={selectedDepartment.label} accentColor={selectedDepartment.accentColor} />
+                        <ResourceIdentityMark iconId="glyph:users" label={selectedDepartment.label} accentColor="#81919b" />
                         <div><h3>{selectedDepartment.label}</h3>
                         {selectedDepartment.description && <p>{selectedDepartment.description}</p>}
                         </div>
@@ -1087,8 +1093,8 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="studio-editor-panel-v272">
                         
                         <div className="studio-form-grid-v272">
-                          <div className="field span-2"><label>Department icon</label><ResourceIconPicker label={selectedDepartment.label} value={selectedDepartment.iconId} onChange={(iconId) => updateStudioDepartment(selectedDepartment.id, { iconId })} /></div>
-                          <div className="field"><ColorField label="Accent" value={selectedDepartment.accentColor || "#57c1ff"} onChange={(accentColor) => updateStudioDepartment(selectedDepartment.id, { accentColor })} /></div>
+                          <div className="field span-2"><div className="studio-department-template-note-v11">Icons and colors are edited above in the canonical department directory. This access template changes only defaults and permissions.</div></div>
+                          
                           <div className="field"><label>Name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
                           <div className="field"><label>Default team</label><ClusterInput value={selectedDepartment.defaultTeamName || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { defaultTeamName: event.target.value })} placeholder="Team suggestion" /></div>
                           <div className="field"><label>Lead role</label><ClusterNativeSelect value={selectedDepartment.leadRoleId || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { leadRoleId: event.target.value })}><option value="">No lead role</option>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Used for coverage and leadership suggestions.</small></div>
@@ -1139,8 +1145,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                 )}
               </div>
-              <details className="studio-advanced-access-v11">
-                <summary><strong>Department defaults & access policies</strong><span>Onboarding department, required fields and capacity rules</span></summary>
+
               <div className="studio-policy-strip-v272">
                 <div className="field">
                   <label>Default department</label>

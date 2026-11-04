@@ -188,18 +188,22 @@ export function registerWorkforceRoutes(deps: any) {
 
   app.post("/api/admin/workforce/departments", async (request: any, reply: any) => {
     const identity = await actorFor(request, reply, "edit"); if (!identity?.user) return;
-    const body = z.object({ workspaceId: z.string().min(1), name: z.string().trim().min(1).max(120), description: z.string().trim().max(1000).nullable().optional(), parentId: z.string().min(1).nullable().optional(), leadUserId: z.string().min(1).nullable().optional(), color: departmentColorSchema, iconId: departmentIconSchema }).parse(request.body || {});
-    if (!(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: body.workspaceId, userId: identity.user.id } } })))
-      return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED", error: "You cannot manage another workspace's organization." });
+    const body = z.object({ workspaceId: z.string().min(1).optional(), name: z.string().trim().min(1).max(120), description: z.string().trim().max(1000).nullable().optional(), parentId: z.string().min(1).nullable().optional(), leadUserId: z.string().min(1).nullable().optional(), color: departmentColorSchema, iconId: departmentIconSchema }).parse(request.body || {});
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: identity.user.id, ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}) },
+      orderBy: { workspaceId: "asc" }, select: { workspaceId: true },
+    });
+    if (!membership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED", error: "You cannot manage another workspace's organization." });
+    const workspaceId = membership.workspaceId;
     if (body.parentId) {
-      const parent = await prisma.department.findFirst({ where: { id: body.parentId, workspaceId: body.workspaceId, archived: false }, select: { id: true } });
+      const parent = await prisma.department.findFirst({ where: { id: body.parentId, workspaceId, archived: false }, select: { id: true } });
       if (!parent) return reply.code(400).send({ ok: false, code: "DEPARTMENT_PARENT_INVALID", error: "Parent must be an active department in this workspace." });
     }
     if (body.leadUserId) {
-      const lead = await prisma.user.findFirst({ where: { id: body.leadUserId, archived: false, memberships: { some: { workspaceId: body.workspaceId } } }, select: { id: true } });
+      const lead = await prisma.user.findFirst({ where: { id: body.leadUserId, archived: false, memberships: { some: { workspaceId } } }, select: { id: true } });
       if (!lead) return reply.code(400).send({ ok: false, code: "DEPARTMENT_LEAD_INVALID", error: "Lead must belong to this workspace." });
     }
-    const department = await prisma.department.create({ data: { ...body, description: body.description || null, parentId: body.parentId || null, leadUserId: body.leadUserId || null, color: body.color || null, iconId: body.iconId || null } });
+    const department = await prisma.department.create({ data: { ...body, workspaceId, description: body.description || null, parentId: body.parentId || null, leadUserId: body.leadUserId || null, color: body.color || null, iconId: body.iconId || null } });
     return reply.code(201).send({ ok: true, department });
   });
 
