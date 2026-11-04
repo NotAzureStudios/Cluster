@@ -1249,16 +1249,16 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
 
               <div className="studio-entity-manager-v272">
                 <aside className="studio-entity-list-v272" aria-label="Studio roles">
-                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{studioRoles.length}</span></div>
+                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{studioRoles.length} total</span></div>
                   <label className="studio-role-directory-search-v11">
                     <span>Find roles</span>
-                    <ClusterInput type="search" value={roleDirectorySearch} placeholder="Search roles or departments…" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
+                    <ClusterInput type="search" value={roleDirectorySearch} placeholder="Search roles or departments…" autoComplete="off" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
                   </label>
                   {roleMemberCountsError && <small className="studio-role-directory-warning-v11" role="status">Member counts unavailable. Role editing is still available.</small>}
                   {studioRoles.filter((role) => `${role.label} ${role.id} ${studioDepartments.find((department) => department.id === role.departmentId)?.label || ""}`.toLocaleLowerCase().includes(roleDirectorySearch.trim().toLocaleLowerCase())).map((role) => (
                     <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
                       <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
-                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts ? `${roleMemberCounts[role.id] ?? 0} members` : role.permissionTemplateKey || "Custom"}</span>
+                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? `${roleMemberCounts[role.id]} members` : role.enabled === false ? "Disabled" : role.permissionTemplateKey || "Custom"}</span>
                     </ClusterButton>
                   ))}
                   {!studioRoles.some((role) => `${role.label} ${role.id} ${studioDepartments.find((department) => department.id === role.departmentId)?.label || ""}`.toLocaleLowerCase().includes(roleDirectorySearch.trim().toLocaleLowerCase())) && <p className="studio-role-directory-empty-v11">No roles match this search.</p>}
@@ -1267,7 +1267,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 {selectedRole && (
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
-                      <div><span className="eyebrow">Role · {selectedRole.id}</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p>{roleMemberCounts && <small className="studio-role-member-count-v11">{roleMemberCounts[selectedRole.id] ?? 0} assigned workspace members</small>}</div>
+                      <div><span className="eyebrow">Role · {selectedRole.id}</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p>{roleMemberCounts && typeof roleMemberCounts[selectedRole.id] === "number" && <small className="studio-role-member-count-v11">{roleMemberCounts[selectedRole.id]} assigned workspace members</small>}</div>
                       <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => void setStudioRoleEnabled(selectedRole.id, event.target.checked)} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
                     </header>
 
