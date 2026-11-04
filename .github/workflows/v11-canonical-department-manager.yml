@@ -1,0 +1,37 @@
+name: v1.1 Canonical Department Management
+
+on:
+  push:
+    branches: [development, feat/v1.1-canonical-department-manager]
+    paths:
+      - 'apps/server/src/domains/workforce/workforce-routes.ts'
+      - 'apps/server/src/domains/departments/department-repository.ts'
+      - 'packages/renderer/src/features/settings/StudioSettingsPage.tsx'
+      - 'packages/renderer/src/features/settings/WorkforceDepartmentManager.tsx'
+      - 'tools/scripts/cluster-v11-canonical-department-manager-tests.mjs'
+      - '.github/workflows/v11-canonical-department-manager.yml'
+  pull_request:
+    branches: [development]
+    paths:
+      - 'apps/server/src/domains/workforce/workforce-routes.ts'
+      - 'apps/server/src/domains/departments/department-repository.ts'
+      - 'packages/renderer/src/features/settings/StudioSettingsPage.tsx'
+      - 'packages/renderer/src/features/settings/WorkforceDepartmentManager.tsx'
+      - 'tools/scripts/cluster-v11-canonical-department-manager-tests.mjs'
+      - '.github/workflows/v11-canonical-department-manager.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  department-manager-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - run: node tools/scripts/cluster-v11-canonical-department-manager-tests.mjs
+      - run: node tools/scripts/cluster-v11-people-layout-tests.mjs
