@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "../application/application-models";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 
 type EditableField = "username" | "displayName" | "preferredName" | "email" | "title" | "department" | "workLocation" | "employmentType";
 type HoursField = "capacityHours" | "minimumHours";
@@ -48,9 +49,14 @@ export function PeopleUserEditor({
   const dirty = changed.length > 0;
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
   function update(key: keyof Draft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
-  function cancel() {
+  async function cancel() {
     if (saving) return;
-    if (dirty && !window.confirm("Discard unsaved user changes?")) return;
+    if (dirty && !(await confirmCluster({
+      title: "Discard user changes?",
+      message: "You have unsaved changes to this user. Discard them?",
+      confirmLabel: "Discard changes",
+      tone: "danger",
+    }))) return;
     onCancel();
   }
   async function save() {
@@ -101,7 +107,7 @@ export function PeopleUserEditor({
         <h3>Edit user</h3>
         <p>Change identity and work details in one save. Access and recovery have separate controls.</p>
       </div>
-      <ClusterButton size="compact" variant="quiet" type="button" onClick={cancel} disabled={saving}>Close</ClusterButton>
+      <ClusterButton size="compact" variant="quiet" type="button" onClick={() => void cancel()} disabled={saving}>Close</ClusterButton>
     </header>
     <div className="people-user-editor-section-v106">
       <h4>Identity</h4>
