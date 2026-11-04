@@ -25,7 +25,7 @@ const fromRow = (row?: DepartmentRow): Draft => row
  * Canonical Workforce Department identity editor. Settings-defined department
  * access templates are NOT organizational records and cannot own appearance.
  */
-export function WorkforceDepartmentManager({ canEdit }: { canEdit: boolean }) {
+export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit: boolean; onRowsLoaded?: (rows: DepartmentRow[]) => void }) {
   const [rows, setRows] = useState<DepartmentRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -65,6 +65,7 @@ export function WorkforceDepartmentManager({ canEdit }: { canEdit: boolean }) {
         force: true, staleMs: 0, persist: false, tags: ["departments", "people", "workforce"],
       });
       setRows(result);
+      onRowsLoaded?.(result);
       const next = result.find((row) => row.id === preferredId) || result[0];
       if (next) { setSelectedId(next.id); setDraft(fromRow(next)); setCreating(false); }
       else { setSelectedId(""); setDraft(emptyDraft()); setCreating(false); }
@@ -72,7 +73,7 @@ export function WorkforceDepartmentManager({ canEdit }: { canEdit: boolean }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load departments.");
     } finally { setLoading(false); }
-  }, []);
+  }, [onRowsLoaded]);
 
   useEffect(() => { void load(); }, [load]);
 
