@@ -1,0 +1,37 @@
+/* Canonical department identity manager: scoped data, compact directory, focused editor. */
+.studio-workforce-department-manager-v11{display:grid;gap:13px;min-width:0}
+.studio-workforce-department-heading-v11{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.studio-workforce-department-heading-v11 h3{font-size:1rem;margin:0 0 4px}
+.studio-workforce-department-heading-v11 p{font-size:.72rem;line-height:1.5;color:var(--muted);margin:0}
+.studio-workforce-department-layout-v11{display:grid;grid-template-columns:minmax(215px,290px) minmax(0,1fr);gap:12px;align-items:start;min-width:0}
+.studio-workforce-department-list-v11,.studio-workforce-department-editor-v11{min-width:0;border:1px solid var(--border);border-radius:12px;background:var(--panel);overflow:hidden}
+.studio-workforce-department-list-v11{display:grid;gap:9px;padding:10px;align-content:start}
+.studio-workforce-department-list-v11>label{display:grid;gap:5px}
+.studio-workforce-department-list-v11>label>span{font-size:.66rem;color:var(--muted)}
+.studio-workforce-department-list-v11 input{width:100%;min-width:0}
+.studio-workforce-department-list-rows-v11{display:grid;gap:3px;max-height:630px;overflow:auto}
+.studio-workforce-department-list-rows-v11>p{padding:12px 8px;font-size:.7rem;color:var(--muted)}
+.studio-workforce-department-list-rows-v11>button{display:flex;align-items:center;gap:10px;min-width:0;width:100%;border:0;border-left:2px solid transparent;border-radius:7px;background:transparent;padding:8px 9px;text-align:left;color:var(--text);cursor:pointer}
+.studio-workforce-department-list-rows-v11>button:hover{background:var(--surface-soft)}
+.studio-workforce-department-list-rows-v11>button.active{border-left-color:var(--accent,#57c1ff);background:var(--surface-soft)}
+.studio-workforce-department-list-rows-v11>button>span:last-child{display:grid;gap:3px;min-width:0}
+.studio-workforce-department-list-rows-v11 strong,.studio-workforce-department-list-rows-v11 small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.studio-workforce-department-list-rows-v11 strong{font-size:.75rem}
+.studio-workforce-department-list-rows-v11 small{font-size:.64rem;color:var(--muted)}
+.studio-workforce-department-editor-v11{display:grid;gap:13px;padding:16px}
+.studio-workforce-department-editor-v11>header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.studio-workforce-department-editor-v11 h4{font-size:1rem;margin:4px 0 0}
+.studio-workforce-department-fields-v11{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.studio-workforce-department-fields-v11>label,.studio-workforce-department-icon-field-v11{display:grid;gap:6px;min-width:0;align-content:start}
+.studio-workforce-department-fields-v11>label>span,.studio-workforce-department-icon-field-v11>span{color:var(--text);font-size:.68rem;font-weight:650}
+.studio-workforce-department-fields-v11 input,.studio-workforce-department-fields-v11 select,.studio-workforce-department-fields-v11 textarea{width:100%;min-width:0}
+.studio-workforce-department-fields-v11 input[type="color"]{min-height:36px;cursor:pointer}
+.studio-workforce-department-description-v11{grid-column:1/-1}
+.studio-workforce-department-fields-v11 textarea{min-height:70px}
+.studio-workforce-department-hint-v11{font-size:.68rem;color:var(--muted);line-height:1.45;margin:0}
+.studio-workforce-department-error-v11{font-size:.7rem;color:var(--danger,#ff8b8b);margin:0}
+.studio-workforce-department-status-v11{font-size:.7rem;color:var(--text);margin:0}
+.studio-workforce-department-actions-v11{display:flex;align-items:center;gap:9px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap}
+.studio-workforce-department-actions-v11>span{margin-right:auto;font-size:.68rem;color:var(--muted)}
+@media(max-width:980px){.studio-workforce-department-layout-v11{grid-template-columns:minmax(0,1fr)}.studio-workforce-department-list-rows-v11{max-height:240px}.studio-workforce-department-editor-v11{padding:12px}}
+@media(max-width:620px){.studio-workforce-department-fields-v11{grid-template-columns:minmax(0,1fr)}.studio-workforce-department-description-v11{grid-column:auto}.studio-workforce-department-actions-v11>span{flex-basis:100%}}
