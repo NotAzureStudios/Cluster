@@ -26,7 +26,8 @@ const projection = compile(boardFile("board-calendar-projection.ts"), (id) => {
   assert.equal(id, "./board-civil-date");
   return civil;
 });
-const { projectBoardCalendarRows, boardCalendarPage } = projection;
+const { projectBoardCalendarRows } = projection;
+const { boardVisiblePage } = compile(boardFile("board-visible-page.ts"));
 const row = (id, dueDate) => ({ card: { id, dueDate }, list: { id: "list-1" } });
 let count = 0;
 function test(label, fn) { fn(); count++; console.log("PASS " + label); }
@@ -55,12 +56,12 @@ test("Invalid and missing calendar input cannot invent a due date", () => {
 });
 test("Opening a day or unscheduled section is bounded, deterministic and local", () => {
   const values = Array.from({ length: 1000 }, (_, i) => i);
-  assert.deepEqual(Array.from(boardCalendarPage(values, 25)), values.slice(0, 25));
-  assert.deepEqual(Array.from(boardCalendarPage(values, 50)), values.slice(0, 50));
-  assert.deepEqual(Array.from(boardCalendarPage(values, 20)), values.slice(0, 20));
-  assert.deepEqual(Array.from(boardCalendarPage(values, -1)), []);
-  assert.deepEqual(Array.from(boardCalendarPage(values, NaN)), []);
-  assert.equal(boardCalendarPage(values, 1025).length, 1000);
+  assert.deepEqual(Array.from(boardVisiblePage(values, 25)), values.slice(0, 25));
+  assert.deepEqual(Array.from(boardVisiblePage(values, 50)), values.slice(0, 50));
+  assert.deepEqual(Array.from(boardVisiblePage(values, 20)), values.slice(0, 20));
+  assert.deepEqual(Array.from(boardVisiblePage(values, -1)), []);
+  assert.deepEqual(Array.from(boardVisiblePage(values, NaN)), []);
+  assert.equal(boardVisiblePage(values, 1025).length, 1000);
 });
 test("Day overflow is a keyboard-reachable button that opens a labeled day panel", () => {
   const view = read(boardFile("BoardAlternativeViews.tsx"));
@@ -76,7 +77,7 @@ test("Day overflow is a keyboard-reachable button that opens a labeled day panel
 test("Day detail is bounded and paginates without additional requests", () => {
   const view = read(boardFile("BoardAlternativeViews.tsx"));
   assert.match(view, /selectedDayRows = selectedDay \? dueByDay\.get\(selectedDay\) \|\| \[\] : \[\]/);
-  assert.match(view, /boardCalendarPage\(selectedDayRows, selectedDayLimit\)/);
+  assert.match(view, /boardVisiblePage\(selectedDayRows, selectedDayLimit\)/);
   assert.match(view, /setSelectedDayLimit\(\(limit\) => limit \+ 25\)/);
   assert.match(view, /selectedDayRows\.length > selectedDayLimit/);
   assert.match(view, /setSelectedDay\(null\)/);
@@ -85,7 +86,7 @@ test("Unscheduled section exposes invalid data and paginates all remaining cards
   const view = read(boardFile("BoardAlternativeViews.tsx"));
   assert.match(view, /projectBoardCalendarRows\(rows\)/);
   assert.match(view, /{invalidDueCount} card/);
-  assert.match(view, /boardCalendarPage\(undated, undatedLimit\)/);
+  assert.match(view, /boardVisiblePage\(undated, undatedLimit\)/);
   assert.match(view, /undated\.length > undatedLimit/);
   assert.match(view, /setUndatedLimit\(\(limit\) => limit \+ 20\)/);
   assert.doesNotMatch(view, /undated\.slice\(0, 20\)/);
@@ -104,7 +105,7 @@ test("Responsive visible controls retain touch targets and no focus animation", 
   assert.ok(postcss.parse(css).nodes.length);
   for (const pattern of [/board-calendar-day-detail-v11/, /board-calendar-invalid-due-v11/, /board-calendar-show-more-v11/, /@media\(pointer:coarse\)/, /min-height:44px/, /@media\(prefers-reduced-motion:reduce\)/]) assert.match(css, pattern);
 });
-for (const file of ["BoardAlternativeViews.tsx", "board-calendar-projection.ts"]) {
+for (const file of ["BoardAlternativeViews.tsx", "board-calendar-projection.ts", "board-visible-page.ts"]) {
   const p = boardFile(file), source = read(p);
   const parsed = ts.createSourceFile(p, source, ts.ScriptTarget.Latest, true, p.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   assert.equal(parsed.parseDiagnostics.length, 0, p);

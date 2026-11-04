@@ -20,9 +20,3 @@ export function projectBoardCalendarRows<Row extends { card: { dueDate?: string 
   }
   return { dueByDay, undated, invalidDueCount };
 }
-
-/** Avoid mounting thousands of buttons when many Cards share a due date.
- * Expansion is local and explicitly requested by the user. */
-export function boardCalendarPage<Row>(rows: readonly Row[], limit: number): Row[] {
-  return rows.slice(0, Number.isSafeInteger(limit) ? Math.max(0, limit) : 0);
-}

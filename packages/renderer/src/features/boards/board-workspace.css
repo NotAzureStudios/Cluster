@@ -1015,3 +1015,24 @@
 @media(prefers-reduced-motion:reduce){
   .board-calendar-day-detail-list-v11{scroll-behavior:auto}
 }
+
+/* v1.1: Board List and Table mount only explicitly requested rows. */
+.board-view-load-more-v11{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:10px;padding:10px 12px;border-top:1px solid var(--border-subtle);
+  color:var(--text-muted);font-size:.72rem;
+}
+.board-view-load-more-v11 .cluster-button-v425{
+  min-height:36px;white-space:normal;flex:0 0 auto;
+}
+.board-table-load-more-v11{
+  margin-top:8px;border:1px solid var(--border-subtle);border-radius:10px;
+  background:var(--surface-soft);
+}
+@media(max-width:580px){
+  .board-view-load-more-v11{align-items:stretch;flex-direction:column}
+  .board-view-load-more-v11 .cluster-button-v425{width:100%}
+}
+@media(pointer:coarse){
+  .board-view-load-more-v11 .cluster-button-v425{min-height:44px}
+}
