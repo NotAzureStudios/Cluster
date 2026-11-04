@@ -1,9 +1,10 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterContextMenuSurface, useClusterContextMenu } from "../../components/ClusterContextMenu";
-import { boardCardDeadlineNeedsAttention, boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
+import { boardCardDeadlineNeedsAttention, boardCivilDate, boardCivilDateKey, formatBoardCivilDate } from "./board-civil-date";
+import { boardCalendarPage, projectBoardCalendarRows } from "./board-calendar-projection";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BoardList, Card, Priority, UserActivitySummary } from "../application/application-models";
 import { displayUserName } from "../people/people-utils";
@@ -193,30 +194,47 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
     const start = calendarStart(month);
     return Array.from({ length: 42 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
   }, [month]);
-  const dueByDay = useMemo(() => {
-    const map = new Map<string, BoardViewRow[]>();
-    rows.forEach((row) => {
-      if (!row.card.dueDate) return;
-      const key = boardCivilDateKey(row.card.dueDate);
-      if (!key) return;
-      const current = map.get(key) || [];
-      current.push(row);
-      map.set(key, current);
-    });
-    return map;
-  }, [rows]);
-  const undated = rows.filter((row) => !row.card.dueDate);
+  const { dueByDay, undated, invalidDueCount } = useMemo(() => projectBoardCalendarRows(rows), [rows]);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedDayLimit, setSelectedDayLimit] = useState(25);
+  const [undatedLimit, setUndatedLimit] = useState(20);
+  const dayPanelRef = useRef<HTMLElement | null>(null);
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null);
+  const selectedDayRows = selectedDay ? dueByDay.get(selectedDay) || [] : [];
+  const selectedDayLabel = selectedDay ? boardCivilDate(selectedDay)?.toLocaleDateString(undefined, {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  }) : null;
+
+  function openDayDetails(key: string, trigger: HTMLButtonElement) {
+    returnFocusRef.current = trigger;
+    setSelectedDayLimit(25);
+    setSelectedDay(key);
+  }
+  function closeDayDetails() {
+    setSelectedDay(null);
+    const trigger = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+  }
+  function navigateMonth(offset: number) {
+    setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    setSelectedDay(null);
+    returnFocusRef.current = null;
+  }
+  useEffect(() => {
+    if (selectedDay) dayPanelRef.current?.focus({ preventScroll: true });
+  }, [selectedDay]);
 
   return (
     <div className="board-alt-view-v489 board-calendar-view-v489">
       <section className="board-calendar-main-v489 panel">
         <header className="board-calendar-header-v489">
           <div>
-            <ClusterButton size="compact" variant="quiet" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} aria-label="Previous month"><ClusterIcon name="chevron-left" /></ClusterButton>
+            <ClusterButton size="compact" variant="quiet" onClick={() => navigateMonth(-1)} aria-label="Previous month"><ClusterIcon name="chevron-left" /></ClusterButton>
             <strong>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</strong>
-            <ClusterButton size="compact" variant="quiet" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} aria-label="Next month"><ClusterIcon name="chevron-right" /></ClusterButton>
+            <ClusterButton size="compact" variant="quiet" onClick={() => navigateMonth(1)} aria-label="Next month"><ClusterIcon name="chevron-right" /></ClusterButton>
           </div>
-          <ClusterButton size="compact" variant="quiet" onClick={() => setMonth(monthStart(new Date()))}>Today</ClusterButton>
+          <ClusterButton size="compact" variant="quiet" onClick={() => { setMonth(monthStart(new Date())); setSelectedDay(null); returnFocusRef.current = null; }}>Today</ClusterButton>
         </header>
         <div className="board-calendar-weekdays-v489" aria-hidden="true">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
         <div className="board-calendar-grid-v489">
@@ -232,22 +250,69 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
                   {dayRows.slice(0, 5).map(({ card, list }) => (
                     <CalendarCardButton key={card.id} card={card} list={list} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen} />
                   ))}
-                  {dayRows.length > 5 ? <span className="board-calendar-more-v489">+{dayRows.length - 5} more</span> : null}
+                  {dayRows.length > 5 ? <ClusterButton type="button" variant="quiet" size="compact"
+                    className="board-calendar-more-v489" onClick={(event) => openDayDetails(key, event.currentTarget)}
+                    aria-label={`Show all ${dayRows.length} cards due ${day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`}>
+                    +{dayRows.length - 5} more
+                  </ClusterButton> : null}
                 </div>
               </section>
             );
           })}
         </div>
+        {selectedDay && selectedDayLabel ? (
+          <section ref={dayPanelRef} tabIndex={-1} className="board-calendar-day-detail-v11"
+            aria-labelledby="board-calendar-day-detail-heading-v11"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || event.defaultPrevented) return;
+              event.preventDefault();
+              event.stopPropagation();
+              closeDayDetails();
+            }}>
+            <header className="board-calendar-day-detail-head-v11">
+              <div>
+                <strong id="board-calendar-day-detail-heading-v11">{selectedDayLabel}</strong>
+                <span>{selectedDayRows.length} card{selectedDayRows.length === 1 ? "" : "s"} due</span>
+              </div>
+              <ClusterButton variant="quiet" size="compact" aria-label="Close day details" onClick={closeDayDetails}>
+                <ClusterIcon name="close" />
+              </ClusterButton>
+            </header>
+            <div className="board-calendar-day-detail-list-v11">
+              {boardCalendarPage(selectedDayRows, selectedDayLimit).map(({ card, list }) => (
+                <div key={card.id}>
+                  <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
+                  <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen}
+                    className="board-calendar-day-detail-card-v11">
+                    <strong>{card.title}</strong><span>{list.title}</span>
+                  </ContextualCardOpenButton>
+                </div>
+              ))}
+              {!selectedDayRows.length ? <p className="muted">No cards due on this date match the current Board filters.</p> : null}
+            </div>
+            {selectedDayRows.length > selectedDayLimit ? <ClusterButton variant="secondary" size="compact"
+              className="board-calendar-show-more-v11" onClick={() => setSelectedDayLimit((limit) => limit + 25)}>
+              Show next {Math.min(25, selectedDayRows.length - selectedDayLimit)} cards · {selectedDayRows.length - selectedDayLimit} remaining
+            </ClusterButton> : null}
+          </section>
+        ) : null}
       </section>
       {undated.length ? (
         <aside className="board-calendar-undated-v489 panel">
-          <header><strong>No due date</strong><span>{undated.length}</span></header>
-          {undated.slice(0, 20).map(({ card, list }) => (
+          <header><strong>No scheduled due date</strong><span>{undated.length}</span></header>
+          {invalidDueCount ? <p className="board-calendar-invalid-due-v11" role="status">
+            {invalidDueCount} card{invalidDueCount === 1 ? "" : "s"} with an invalid due date are included here. Open a card to correct its date.
+          </p> : null}
+          {boardCalendarPage(undated, undatedLimit).map(({ card, list }) => (
             <div key={card.id}>
               <CardSelectButton selected={selectedIds.has(card.id)} onToggle={() => onToggleSelected(card.id)} label={card.title} />
               <ContextualCardOpenButton card={card} selected={selectedIds.has(card.id)} onToggleSelected={onToggleSelected} onOpen={onOpen}><span>{card.title}</span><em>{list.title}</em></ContextualCardOpenButton>
             </div>
           ))}
+          {undated.length > undatedLimit ? <ClusterButton variant="secondary" size="compact"
+            className="board-calendar-show-more-v11" onClick={() => setUndatedLimit((limit) => limit + 20)}>
+            Show next {Math.min(20, undated.length - undatedLimit)} cards · {undated.length - undatedLimit} remaining
+          </ClusterButton> : null}
         </aside>
       ) : null}
     </div>
