@@ -3,7 +3,7 @@
  * Departments, employment, team membership and reporting lines keep their
  * separate authorities; this model never persists another copy of them.
  */
-export type CompanyGraphDepartment = { id: string; name: string; parentId?: string | null; leadUserId?: string | null; description?: string | null; color?: string | null };
+export type CompanyGraphDepartment = { id: string; name: string; parentId?: string | null; leadUserId?: string | null; description?: string | null; color?: string | null; iconId?: string | null };
 export type CompanyGraphTeam = { id: string; name: string; departmentId?: string | null; leadUserId?: string | null; members: Array<{ userId: string }> };
 export type CompanyGraphPerson = { id: string; displayName?: string | null; preferredName?: string | null; username?: string; employment?: { departmentId?: string | null; managerUserId?: string | null; active?: boolean; jobRole?: { name: string } | null } | null };
 export type CompanyGraphNode = { id: string; kind: "department" | "team" | "person"; sourceId: string; label: string; parentId: string | null; depth: number; detail: string };
