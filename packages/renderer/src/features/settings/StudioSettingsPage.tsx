@@ -34,6 +34,8 @@ import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Se
 import "./settings-workspace.css";
 import "./people-management-layout-v11.css";
 import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
+import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
+import { filterRoleDirectory, type RoleDirectoryFilter } from "./role-directory-filter";
 
 import type { StudioSettingsPageProps } from "./settings-workspace-contracts";
 import { STUDIO_SETTINGS_DEPENDENCIES } from "./studio-settings-dependencies";
@@ -58,6 +60,13 @@ const STUDIO_SETTINGS_NAV_ICONS: Record<StudioSettingsSection, import("../../com
 };
 
 const SETTINGS_EXTENSION_RENDER_BATCH = 80;
+const ROLE_DIRECTORY_FILTER_OPTIONS: readonly { value: RoleDirectoryFilter; label: string; needsCounts?: boolean }[] = [
+  { value: "all", label: "All" },
+  { value: "enabled", label: "Active" },
+  { value: "disabled", label: "Disabled" },
+  { value: "assigned", label: "Assigned", needsCounts: true },
+  { value: "unassigned", label: "Unused", needsCounts: true },
+];
 
 export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSection, initialSubsection, onSubsectionChange, onSectionChange }: StudioSettingsPageProps) {
   const { withoutServerManagedSettings, DEFAULT_CREATE_PROJECT_FIELDS, DEFAULT_CREATE_BUILD_FIELDS, DEFAULT_BUILD_STATUSES, DEFAULT_QA_CHECKLIST, DEFAULT_QA_SEVERITIES, DEFAULT_QA_CATEGORIES, DEFAULT_WEBHOOK_EVENTS, DEFAULT_ROLE_CREATE_ROLES, DEFAULT_ROLE_APPROVAL_ROLES, studioSlug, splitCsv, normalizeRoleId, roleLabelFromId, mergeStudioDepartments, mergeStudioRoles, rolesCsvFromIds, rolePermissionTemplateOptions, permissionTemplateTools, departmentPermissionsFromSettings, DEFAULT_PROJECT_TYPE_PRESETS, slugProjectTypeId, sanitizeProjectTypePreset, mergeProjectTypePresets, writeProjectTypePresetsCache, projectTypePresetsFromSettings, readFileAsDataUrl, normalizeClusterAccent, applyCustomization, CustomFieldDefinitionsPanel, AutomationRulesPanel, StudioPermissionEditor } = STUDIO_SETTINGS_DEPENDENCIES;
@@ -130,6 +139,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
   const [roleCreationOpen, setRoleCreationOpen] = useState(false);
   const [roleDirectorySearch, setRoleDirectorySearch] = useState("");
+  const [roleDirectoryFilter, setRoleDirectoryFilter] = useState<RoleDirectoryFilter>("all");
   const [roleMemberCounts, setRoleMemberCounts] = useState<Record<string, number> | null>(null);
   const [roleMemberCountsError, setRoleMemberCountsError] = useState("");
   useEffect(() => {
@@ -882,6 +892,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   }, [projectTypePresets, selectedProjectTypeId]);
   const enabledPresetCount = projectTypePresets.filter((preset) => preset.enabled !== false).length;
   const starterCount = [settings.defaultCreateStarterBoard, settings.defaultCreateStarterWhiteboard].filter((value) => value !== false).length;
+  const roleDepartmentLabels = Object.fromEntries(studioDepartments.map((department) => [department.id, department.label]));
+  const visibleStudioRoles = filterRoleDirectory(studioRoles, {
+    search: roleDirectorySearch,
+    filter: roleDirectoryFilter,
+    departmentLabels: roleDepartmentLabels,
+    memberCounts: roleMemberCounts,
+  });
   const selectedRole = studioRoles.find((role) => role.id === selectedRoleId) || studioRoles[0];
   const selectedDepartment = studioDepartments.find((department) => department.id === selectedDepartmentId) || studioDepartments[0];
   const selectedDepartmentRoles = selectedDepartment ? studioRoles.filter((role) => role.departmentId === selectedDepartment.id) : [];
