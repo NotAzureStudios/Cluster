@@ -97,6 +97,7 @@ test("Board page gates stale planning responses by Board identity and projected 
 test("Planning UI explains blockers using only canonical authorized Cards and projected titles", () => {
   const page = read(board("BoardPlanningInsights.tsx"));
   assert.match(page, /const blockerRows = boardActiveBlockerRows\(dependencies, doneCardIds, localCardIds\)/);
+  assert.match(page, /\[board\.lists, cards, payload\?\.dependencies, payload\?\.projections, users\]/);
   assert.match(page, /if \(projection\.owningListDone\) doneCardIds\.add\(projection\.cardId\)/);
   assert.match(page, /<h3>Blocked work<\/h3>/);
   assert.match(page, /<details className="board-blocker-dependencies-v11">/);
