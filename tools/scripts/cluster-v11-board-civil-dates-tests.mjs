@@ -74,11 +74,14 @@ test("Board Timeline, Calendar, list, table and Kanban reuse the same date autho
   const timeline = read("packages/renderer/src/features/boards/board-timeline-projection.ts");
   const alt = read("packages/renderer/src/features/boards/BoardAlternativeViews.tsx");
   const tile = read("packages/renderer/src/features/boards/BoardCardTile.tsx");
+  const projection = read("packages/renderer/src/features/boards/board-calendar-projection.ts");
   assert.match(timeline, /import \{ boardCivilDate \} from "\.\/board-civil-date"/);
   assert.match(timeline, /const start = boardCivilDate\(row\.card\.startDate\)/);
   assert.match(timeline, /const end = boardCivilDate\(row\.card\.dueDate\)/);
-  assert.match(alt, /boardCivilDateKey, formatBoardCivilDate \} from "\.\/board-civil-date"/);
-  assert.match(alt, /boardCivilDateKey\(row\.card\.dueDate\)/);
+  assert.match(alt, /formatBoardCivilDate \} from "\.\/board-civil-date"/);
+  assert.match(projection, /import \{ boardCivilDateKey \} from "\.\/board-civil-date"/);
+  assert.match(projection, /boardCivilDateKey\(raw\)/);
+  assert.match(alt, /projectBoardCalendarRows\(rows\)/);
   assert.match(alt, /formatBoardCivilDate\(card\.dueDate\)/);
   assert.match(tile, /return boardCardOverdue\(value\)/);
   assert.match(tile, /formatBoardCivilDate\(card\.startDate\)/);
@@ -90,16 +93,18 @@ test("Board Timeline, Calendar, list, table and Kanban reuse the same date autho
 
 test("Calendar is still a read-only lens over canonical cards", () => {
   const alt = read("packages/renderer/src/features/boards/BoardAlternativeViews.tsx");
-  assert.match(alt, /const dueByDay = useMemo/);
-  assert.match(alt, /if \(!row\.card\.dueDate\) return/);
+  const projection = read("packages/renderer/src/features/boards/board-calendar-projection.ts");
+  assert.match(alt, /const \{ dueByDay, undated, invalidDueCount \} = useMemo/);
+  assert.match(projection, /const key = boardCivilDateKey\(raw\)/);
   assert.match(alt, /onOpen=\{onOpen\}/);
-  assert.doesNotMatch(read(file), /\bapi\(|\bfetch\(|\bqueryApi\(/);
+  assert.doesNotMatch(read(file) + projection, /\bapi\(|\bfetch\(|\bqueryApi\(/);
 });
 
 test("No data migrations or extra API reads and all changed TSX/TS files parse", () => {
   const paths = [
     file,
     "packages/renderer/src/features/boards/BoardAlternativeViews.tsx",
+    "packages/renderer/src/features/boards/board-calendar-projection.ts",
     "packages/renderer/src/features/boards/BoardCardTile.tsx",
     "packages/renderer/src/features/boards/board-timeline-projection.ts",
   ];
