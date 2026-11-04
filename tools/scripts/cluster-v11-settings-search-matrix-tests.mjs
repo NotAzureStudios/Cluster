@@ -98,6 +98,9 @@ test("notification delivery matrix uses single-select native radio groups", () =
   assert.match(matrix, /NOTIFICATION_DELIVERY_OPTIONS\.map/);
   assert.match(matrix, /NOTIFICATION_CATEGORIES\.map/);
   assert.match(matrix, /nativePermissionReady/);
+  assert.match(matrix, /aria-describedby=\{id \+ "-desc-" \+ category\}/);
+  assert.ok(matrix.indexOf("<ClusterSettingsHelp") < matrix.indexOf('className="cluster-notification-matrix-scroll-v11"'), "mode help must not be clipped inside scrolling table");
+
   assert.doesNotMatch(matrix, /fetch\(|queryApi\(|setInterval/);
 });
 test("Account settings uses one primary save action, registered navigation, and existing mutation contract", () => {
