@@ -1,0 +1,37 @@
+name: Cluster 1.1 Inbox incident deep links
+on:
+  pull_request:
+    paths:
+      - "packages/renderer/src/features/notifications/notification-navigation.ts"
+      - "packages/renderer/src/features/admin/incident-link.ts"
+      - "packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx"
+      - "packages/renderer/src/features/application/ClusterApplication.tsx"
+      - "tools/scripts/cluster-v11-inbox-incident-links-tests.mjs"
+      - ".github/workflows/v11-inbox-incident-links.yml"
+  push:
+    branches:
+      - fix/v11-inbox-operations-incident-links
+  workflow_dispatch:
+
+jobs:
+  inbox-incident-links:
+    name: Inbox incident navigation and renderer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Restore pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test incident deep links
+        run: node tools/scripts/cluster-v11-inbox-incident-links-tests.mjs
+      - name: Build shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Build and type-check renderer
+        run: npm run build --workspace=@cluster/renderer
