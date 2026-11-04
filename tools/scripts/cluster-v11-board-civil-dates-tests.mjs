@@ -77,7 +77,7 @@ test("Board Timeline, Calendar, list, table and Kanban reuse the same date autho
   assert.match(timeline, /import \{ boardCivilDate \} from "\.\/board-civil-date"/);
   assert.match(timeline, /const start = boardCivilDate\(row\.card\.startDate\)/);
   assert.match(timeline, /const end = boardCivilDate\(row\.card\.dueDate\)/);
-  assert.match(alt, /import \{ boardCivilDateKey, formatBoardCivilDate \}/);
+  assert.match(alt, /boardCivilDateKey, formatBoardCivilDate \} from "\.\/board-civil-date"/);
   assert.match(alt, /boardCivilDateKey\(row\.card\.dueDate\)/);
   assert.match(alt, /formatBoardCivilDate\(card\.dueDate\)/);
   assert.match(tile, /return boardCardOverdue\(value\)/);
