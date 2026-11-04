@@ -394,8 +394,9 @@ app.patch("/api/users/:userId", async (request, reply) => {
   let updated: any;
   let roleChange: { changed: boolean; from: string; to: string; workspaceId: string } | null = null;
   try {
-    updated = await prisma.$transaction(async (tx: any) => {
+    const outcome = await prisma.$transaction(async (tx: any) => {
       await lockPeopleProfile(tx, params.userId);
+      let transactionRoleChange: { changed: boolean; from: string; to: string; workspaceId: string } | null = null;
       const fresh = await tx.user.findUnique({ where: { id: params.userId }, include: { employment: true, workingPattern: true } });
       if (!fresh) throw new PeopleGovernanceError("USER_NOT_FOUND", "User not found.", 404);
       // Archive is an offboarding lifecycle transition, not an editable profile preference.
@@ -407,7 +408,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
       if (body.expectedProfileRevision && Number(fresh.profileRevision || 1) !== body.expectedProfileRevision) throw new PeopleGovernanceError("PROFILE_REVISION_CONFLICT", "This profile changed since it was opened.", 409, { currentRevision: Number(fresh.profileRevision || 1) });
       if (body.role) {
         if (!body.expectedProfileRevision) throw new PeopleGovernanceError("ROLE_PROFILE_REVISION_REQUIRED", "Reload this profile before changing its role.", 428);
-        roleChange = await assignWorkspaceRole(tx, {
+        transactionRoleChange = await assignWorkspaceRole(tx, {
           actorId: actor.id, targetUserId: params.userId, requestedRole: body.role, settings: profileSettings,
         });
       }
@@ -460,11 +461,14 @@ app.patch("/api/users/:userId", async (request, reply) => {
         workspaceId: membership.workspaceId, userId: params.userId,
         input: { ...body, expertise: body.expertise === undefined ? undefined : normalizeExpertise(body.expertise) },
       });
-      return tx.user.findUniqueOrThrow({
+      const person = await tx.user.findUniqueOrThrow({
         where: { id: params.userId },
         include: { memberships: true, ...WORKFORCE_USER_AUTHORITY_INCLUDE, _count: { select: { assignedCards: true, comments: true, activityEvents: true } } },
       });
+      return { person, roleChange: transactionRoleChange };
     });
+    updated = outcome.person;
+    roleChange = outcome.roleChange;
   } catch (error) {
     if (error instanceof PeopleGovernanceError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message, ...(error.details || {}) });
     throw error;
