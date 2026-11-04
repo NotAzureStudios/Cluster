@@ -950,7 +950,9 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       if (error instanceof ApiError && error.status === 412) {
         const expected = String((error.payload as any)?.confirmation || "APPLY INSECURE CONFIG");
         const typed = await promptCluster({ title: expected === "CONFIRM NETWORK EXPOSURE" ? "Confirm network exposure" : "Confirm security-sensitive change", message: expected === "CONFIRM NETWORK EXPOSURE" ? "This network change may make your gateway accessible outside localhost. Review firewall, proxy and TLS settings before confirming." : "This change weakens a security control.", label: "Required confirmation", expectedValue: expected, confirmLabel: "Apply change", tone: "danger" }) || "";
-        if (typed === expected) return save(expected, pin, restartAfter);
+        // Keep the original save pending until the authorized retry settles.
+        // Otherwise the outer finally can clear savingConfig mid-flight.
+        if (typed === expected) return await save(expected, pin, restartAfter);
         setStatus("Security-sensitive change cancelled.");
         return false;
       }
