@@ -201,9 +201,9 @@ jobs:
               sys.exit(1)
           payload = {
               'content': (
-                  '**Cluster Server v1.0.5 is available**\\n'
-                  'Windows x64 installer and unchanged Qt Desktop downloads are live on GitHub.\\n'
-                  'https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.5\\n'
+                  '**Cluster Server v1.0.5 is available**\n'
+                  'Windows x64 installer and unchanged Qt Desktop downloads are live on GitHub.\n'
+                  'https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.5\n'
                   '**Note:** Server installer is unsigned; existing-install upgrades and rollback are not fully certified. Back up your Server first.'
               ),
               'allowed_mentions': {'parse': []}
