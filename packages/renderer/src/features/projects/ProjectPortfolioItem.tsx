@@ -21,7 +21,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   gaps: string[];
   memberCount: number;
   onSelect: () => void;
-  onInspect: () => void;
+  onInspect: (trigger: HTMLElement) => void;
   onTogglePin: () => void;
 }) {
   const scheduleMeta = schedule || projectScheduleMeta(project, project.archived ? "archived" : String(project.status || "active"));
@@ -30,7 +30,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const summaryId = `project-portfolio-summary-${project.id}`;
   const summary = (project.objective || project.description || "").trim();
   return (
-    <article title={`${project.name} · ${typeLabel}`} data-cluster-context-row="true" className={`project-row-v146 project-row-v310 project-row-v57 project-row-accessible-v370 project-tile-rc25 ${selected ? "selected" : ""} ${pinned ? "pinned" : ""} density-${density}`} style={runtimeStyle({ "--project-row-accent": project.color || "#57c1ff" })}>
+    <article title={`${project.name} · ${typeLabel}`} data-cluster-context-row="true" data-project-id={project.id} className={`project-row-v146 project-row-v310 project-row-v57 project-row-accessible-v370 project-tile-rc25 ${selected ? "selected" : ""} ${pinned ? "pinned" : ""} density-${density}`} style={runtimeStyle({ "--project-row-accent": project.color || "#57c1ff" })}>
       <ClusterButton unstyled type="button" className="project-row-select-v370" aria-labelledby={typeLabel ? `${titleId} ${typeId}` : titleId} aria-describedby={density === "comfortable" && summary ? summaryId : undefined} onClick={onSelect} title={`Open ${project.name}`} />
       <div className="project-tile-head-rc25">
         <span className="project-tile-avatar-rc25"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
@@ -40,7 +40,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
         </div>
         <ClusterRowActions label={`${project.name} actions`}>
           <ClusterIconButton label={pinned ? `Unstar ${project.name}` : `Star ${project.name}`} size="compact" selected={pinned} onClick={onTogglePin} className={`project-pin-v307 ${pinned ? "active" : ""}`}><ClusterIcon name={pinned ? "star-filled" : "star"} /></ClusterIconButton>
-          <ClusterButton size="compact" variant="quiet" onClick={onInspect}>Details</ClusterButton>
+          <ClusterButton size="compact" variant="quiet" onClick={(event) => onInspect(event.currentTarget)}>Details</ClusterButton>
         </ClusterRowActions>
       </div>
       {density === "comfortable" && summary && (
