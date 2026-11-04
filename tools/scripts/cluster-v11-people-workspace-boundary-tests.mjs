@@ -10,7 +10,7 @@ const tests=[
   [list.includes("if (!viewer) return reply.code(401)"),"directory requires identity"],
   [list.includes("const viewerMembership = await prisma.workspaceMember.findFirst({"),"directory resolves viewer workspace"],
   [list.includes("if (!viewerMembership) return reply.code(403)"),"directory refuses nonmembers"],
-  [(list.match(/memberships: \{ some: \{ workspaceId, \(\.\.\.\(query\.role \? \{ role: query\.role \} : \{\}\)\) \} \},/g)||[]).length===2 || (list.match(/memberships: \{ some: \{ workspaceId, \.\.\.\(query\.role \? \{ role: query\.role \} : \{\}\) \} \},/g)||[]).length===2,"summary and normal lists scope role filters to workspace"],
+  [list.split("memberships: { some: { workspaceId, ...(query.role ? { role: query.role } : {}) } },").length-1===2,"summary and normal lists scope role filters to workspace"],
   [list.includes("query.includeArchived && !includePrivate"),"archived people require private profile access"],
   [list.includes("workspaceRole: user.memberships.find((membership: any) => membership.workspaceId === workspaceId)")&&list.includes('isAdmin: ["owner", "admin"].includes(user.memberships.find('),"role and admin badges use correct workspace"],
   [profile.includes("if (!viewer) return reply.code(401)"),"profile requires authentication"],
