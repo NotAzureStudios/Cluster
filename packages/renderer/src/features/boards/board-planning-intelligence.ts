@@ -77,6 +77,7 @@ export function boardActiveBlockerRows(
   localCardIds: ReadonlySet<string>,
 ): BoardActiveBlockerRow[] {
   const rows = new Map<string, BoardActiveBlockerRow>();
+  const seenByCard = new Map<string, Map<string, BoardActiveBlockerRow["prerequisites"][number]>>();
   for (const edge of dependencies) {
     if (!edge.blocking) continue;
     let blocked: string;
@@ -93,10 +94,16 @@ export function boardActiveBlockerRows(
     if (!row) {
       row = { blockedCardId: blocked, prerequisites: [] };
       rows.set(blocked, row);
+      seenByCard.set(blocked, new Map());
     }
-    const existing = row.prerequisites.find((item) => item.cardId === prerequisite);
+    const seen = seenByCard.get(blocked)!;
+    const existing = seen.get(prerequisite);
     if (existing) existing.critical = existing.critical || edge.critical;
-    else row.prerequisites.push({ cardId: prerequisite, relationship: edge.relationship, critical: edge.critical });
+    else {
+      const item = { cardId: prerequisite, relationship: edge.relationship, critical: edge.critical };
+      row.prerequisites.push(item);
+      seen.set(prerequisite, item);
+    }
   }
   return [...rows.values()];
 }
