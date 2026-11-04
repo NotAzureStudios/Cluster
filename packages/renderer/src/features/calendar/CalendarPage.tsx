@@ -36,7 +36,7 @@ import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
 
 function openSharedCalendarCreate(date = new Date()) {
-  openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
+  openSharedCreate("calendar", { date: calendarDateInputValue(date) });
 }
 
 type Project = { id: string; name: string };
