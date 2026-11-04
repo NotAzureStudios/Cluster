@@ -395,8 +395,15 @@ app.patch("/api/users/:userId", async (request, reply) => {
   if (!actor) {
     return reply.code(401).send({ ok: false, error: "Login required." });
   }
-  const existingUser = await prisma.user.findUnique({ where: { id: params.userId } });
-  if (!existingUser) return reply.code(404).send({ ok: false, error: "User not found." });
+  const actorMembership = await prisma.workspaceMember.findFirst({
+    where: { userId: actor.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!actorMembership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const existingUser = await prisma.user.findFirst({
+    where: { id: params.userId, memberships: { some: { workspaceId: actorMembership.workspaceId } } },
+    select: { id: true },
+  });
+  if (!existingUser) return reply.code(404).send({ ok: false, code: "USER_NOT_FOUND" });
   const profileSettings = await readSettings();
   const profileDefinitions = profileFieldDefinitionsSchema.parse(profileSettings.studioPeopleProfileFields || []);
   let updated: any;
@@ -407,6 +414,11 @@ app.patch("/api/users/:userId", async (request, reply) => {
       let transactionRoleChange: { changed: boolean; from: string; to: string; workspaceId: string } | null = null;
       const fresh = await tx.user.findUnique({ where: { id: params.userId }, include: { employment: true, workingPattern: true } });
       if (!fresh) throw new PeopleGovernanceError("USER_NOT_FOUND", "User not found.", 404);
+      const targetMembership = await tx.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: actorMembership.workspaceId, userId: params.userId } },
+        select: { userId: true },
+      });
+      if (!targetMembership) throw new PeopleGovernanceError("USER_NOT_IN_WORKSPACE", "This account is not part of your workspace.", 404);
       // Archive is an offboarding lifecycle transition, not an editable profile preference.
       if (body.archived !== undefined || fresh.archived || fresh.accountState === "PRIVACY_ERASED")
         throw new PeopleGovernanceError("PEOPLE_LIFECYCLE_GOVERNED", "Archived people must use the governed return-to-studio workflow. Archiving requires offboarding.", 409);
@@ -503,7 +515,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
   });
   return {
     ...serializeUserPrivate(updated),
-    workspaceRole: body.role || updated.memberships[0]?.role || "member",
+    workspaceRole: body.role || updated.memberships.find((membership: any) => membership.workspaceId === actorMembership.workspaceId)?.role || "member",
     counts: updated._count,
     lastActivityAt: null,
   };
