@@ -10,6 +10,7 @@ import { useVisibleRefresh } from "../../core/visible-refresh";
 import { InlineLoadingState } from "../../components/LoadingState";
 import { RequestStatusLine } from "../../components/RequestState";
 import "./background-jobs.css";
+import { ScheduledTaskDiagnosticsPanel } from "./ScheduledTaskDiagnosticsPanel";
 import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
 import { DataViewAggregationStrip, DataViewFacetBar, DataViewGroupControl, selectedDataSummary } from "../../components/DataView";
 import { ClusterTableToolbar } from "../../components/ClusterTableToolbar";
@@ -365,6 +366,8 @@ export function OperationsCenterPanel() {
           <ClusterButton type="button" className="" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Refresh</ClusterButton>
         </div>
       </header>
+
+      <ScheduledTaskDiagnosticsPanel />
 
       <div className="cluster-visual-summary-grid" aria-label="Operation queue overview">
         <ClusterVisualComposition label="Retained job states" total={counts.total} parts={[
