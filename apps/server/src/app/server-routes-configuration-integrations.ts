@@ -998,6 +998,35 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
             );
           }
         }
+        if (safeBody.studioDepartmentDefinitions !== undefined) {
+          // Policy templates may link to one real organizational department each,
+          // but cannot mint authority through a guessed or foreign workspace ID.
+          const definitions = safeBody.studioDepartmentDefinitions as Array<Record<string, unknown>>;
+          const links = definitions
+            .filter((item) => item?.workforceDepartmentId != null)
+            .map((item) => item.workforceDepartmentId);
+          if (links.some((id) => typeof id !== "string" || !id.trim() || id.length > 128)) {
+            throw Object.assign(new Error("A linked Workforce Department must use an existing immutable ID."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
+          }
+          const ids = links as string[];
+          if (new Set(ids).size !== ids.length) {
+            throw Object.assign(new Error("Only one permission template may link to each Workforce Department."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
+          }
+          if (ids.length) {
+            const membership = await prisma.workspaceMember.findFirst({
+              where: { userId: admin.id }, orderBy: { workspaceId: "asc" },
+              select: { workspaceId: true },
+            });
+            if (!membership) throw Object.assign(new Error("The administrator has no active workspace."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
+            const found = await prisma.department.findMany({
+              where: { id: { in: ids }, workspaceId: membership.workspaceId, archived: false },
+              select: { id: true },
+            });
+            if (found.length !== ids.length) {
+              throw Object.assign(new Error("Linked departments must be active and belong to the administrator's workspace."), { code: "DEPARTMENT_POLICY_LINK_INVALID" });
+            }
+          }
+        }
         const projectPolicies = validateClusterProjectBundlePolicies(safeBody.studioProjectBundlePolicies ?? current.studioProjectBundlePolicies ?? [], bundles);
         if (safeBody.studioProjectBundlePolicies !== undefined && projectPolicies.length) {
           const projects = await prisma.project.findMany({ where: { id: { in: projectPolicies.map((item) => item.projectId) }, archived: false }, select: { id: true } });
@@ -1020,6 +1049,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
           }
         }
       } catch (error) {
+        if ((error as any)?.code === "DEPARTMENT_POLICY_LINK_INVALID") {
+          return reply.code(400).send({ ok: false, code: "DEPARTMENT_POLICY_LINK_INVALID", error: error instanceof Error ? error.message : "Invalid department link." });
+        }
         if ((error as any)?.code === "ROLE_IN_USE") {
           return reply.code(409).send({ ok: false, code: "ROLE_IN_USE", error: error instanceof Error ? error.message : "Assigned roles cannot be removed." });
         }
