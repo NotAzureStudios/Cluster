@@ -31,32 +31,33 @@ test("Central loaders guard both normal refresh and mutation-triggered Calendar 
   assert.match(page, /calendarViewRef\.current = view/);
   const eventLoader = page.slice(page.indexOf("async function loadEvents("), page.indexOf("async function loadTimeline("));
   const timelineLoader = page.slice(page.indexOf("async function loadTimeline("), page.indexOf("async function loadUsers("));
-  for (const loader of [eventLoader, timelineLoader]) assert.match(loader, /if \(!calendarViewNeedsRangeData\(calendarViewRef\.current\)\) return/);
+  assert.match(eventLoader, /if \(!calendarViewNeedsEvents\(calendarViewRef\.current, calendarLayerRef\.current\)\) return/);
+  assert.match(timelineLoader, /if \(!calendarViewNeedsTimeline\(calendarViewRef\.current, calendarLayerRef\.current\)\) return/);
   assert.match(eventLoader, /queryApi<CalendarEvent\[]>\(eventsPath/);
   assert.match(timelineLoader, /queryApi<TimelinePayload>\(timelinePath/);
 });
 
 test("Switching to Year cancels pending events/overlays and clears stale snapshots", () => {
   const page = read(calendar("CalendarPage.tsx"));
-  assert.match(page, /if \(!calendarViewNeedsRangeData\(view\)\) \{\s*eventsRequestSequence\.current \+= 1;\s*setEventsSnapshotPath\(""\)/);
-  assert.match(page, /if \(!calendarViewNeedsRangeData\(view\)\) \{\s*timelineRequestSequence\.current \+= 1;\s*setTimelineSnapshotPath\(""\)/);
-  assert.match(page, /return \(\) => \{ eventsRequestSequence\.current \+= 1; \};\s*\}, \[eventsPath, view\]\)/);
-  assert.match(page, /return \(\) => \{ timelineRequestSequence\.current \+= 1; \};\s*\}, \[timelinePath, view\]\)/);
+  assert.match(page, /if \(!calendarViewNeedsEvents\(view, layers\)\) \{\s*eventsRequestSequence\.current \+= 1;\s*setEventsSnapshotPath\(""\)/);
+  assert.match(page, /if \(!calendarViewNeedsTimeline\(view, layers\)\) \{\s*timelineRequestSequence\.current \+= 1;\s*setTimelineSnapshotPath\(""\)/);
+  assert.match(page, /return \(\) => \{ eventsRequestSequence\.current \+= 1; \};\s*\}, \[eventsPath, view, layers\.events\]\)/);
+  assert.match(page, /return \(\) => \{ timelineRequestSequence\.current \+= 1; \};\s*\}, \[timelinePath, view, layers\.timeline, layers\.cards\]\)/);
 });
 
 test("Returning from Year to same Month window triggers both loaders again", () => {
   const page = read(calendar("CalendarPage.tsx"));
   assert.match(page, /void loadEvents\(\);\s*return \(\) => \{ eventsRequestSequence/);
   assert.match(page, /void loadTimeline\(\);\s*return \(\) => \{ timelineRequestSequence/);
-  assert.match(page, /\[eventsPath, view\]/);
-  assert.match(page, /\[timelinePath, view\]/);
+  assert.match(page, /\[eventsPath, view, layers\.events\]/);
+  assert.match(page, /\[timelinePath, view, layers\.timeline, layers\.cards\]/);
 });
 
 test("Year snapshots never render even if a stale callback or event edit completed", () => {
   const page = read(calendar("CalendarPage.tsx"));
-  assert.match(page, /visibleTimelineEntries = calendarViewNeedsRangeData\(view\) && timelineSnapshotPath === timelinePath \? timelineEntries : \[\]/);
-  assert.match(page, /visibleEvents = calendarViewNeedsRangeData\(view\) && eventsSnapshotPath === eventsPath \? events : \[\]/);
-  assert.match(page, /calendarViewNeedsRangeData\(calendarViewRef\.current\)\) void loadEvents\(true\)/);
+  assert.match(page, /visibleTimelineEntries = calendarViewNeedsTimeline\(view, layers\) && timelineSnapshotPath === timelinePath \? timelineEntries : \[\]/);
+  assert.match(page, /visibleEvents = calendarViewNeedsEvents\(view, layers\) && eventsSnapshotPath === eventsPath \? events : \[\]/);
+  assert.match(page, /calendarViewNeedsEvents\(calendarViewRef\.current, calendarLayerRef\.current\)\) void loadEvents\(true\)/);
   assert.match(page, /\[range\.start\.getTime\(\), range\.end\.getTime\(\), view\]/);
 });
 
