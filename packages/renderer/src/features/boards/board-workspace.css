@@ -1081,3 +1081,18 @@
   border-radius:8px;background:var(--surface-soft);color:var(--text-muted);
   font-size:.7rem;line-height:1.5;overflow-wrap:anywhere;
 }
+
+/* 1.1: multi-filter selection must be visible and never lose prior Card IDs. */
+.board-select-visible-v11{min-height:36px;white-space:nowrap;flex:0 0 auto}
+.board-selection-hidden-v11{
+  display:inline-flex;align-items:center;min-height:30px;max-width:100%;
+  font-size:.71rem;line-height:1.4;color:var(--text-muted);
+  padding:5px 8px;border:1px solid var(--border-subtle);border-radius:8px;
+}
+@media(pointer:coarse){
+  .board-select-visible-v11,.board-bulk-bar-v489 .cluster-button-v425{min-height:44px}
+}
+@media(max-width:580px){
+  .board-select-visible-v11{white-space:normal}
+  .board-selection-hidden-v11{width:100%}
+}
