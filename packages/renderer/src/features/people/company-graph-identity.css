@@ -1,0 +1,12 @@
+/* Department identity is visually consistent in organization lists and editors. */
+.people-company-department-preview-v11{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 11px;border-radius:10px;background:var(--panel)}
+.people-company-department-preview-v11 .cluster-department-identity-label-v11{font-size:.8rem;font-weight:650}
+.people-company-department-preview-v11>small{font-size:.65rem;color:var(--muted)}
+.people-company-department-icon-picker-v11{display:grid;gap:5px;grid-column:1/-1;min-width:0}
+.people-company-department-icon-picker-v11>span{font-size:.65rem;color:var(--muted)}
+.people-company-graph-editor-v507 input[type="color"]{width:100%;min-height:34px;cursor:pointer;border-radius:7px}
+.people-company-graph-index-v507 button>.cluster-department-identity-v11{min-width:0}
+.people-company-graph-index-v507 button .cluster-department-identity-label-v11{font-size:.72rem;font-weight:650;color:var(--text)}
+.people-company-graph-index-v507 button .cluster-department-identity-icon-v11{color:var(--cluster-dept-accent,#57c1ff)}
+.people-company-graph-detail-v507 h3 .cluster-department-identity-label-v11{font-weight:700}
+@media(max-width:750px){.people-company-department-preview-v11{gap:8px}.people-company-department-icon-picker-v11{min-width:0}}

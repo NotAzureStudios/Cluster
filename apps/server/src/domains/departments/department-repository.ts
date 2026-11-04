@@ -1,8 +1,8 @@
 export function createDepartmentRepository(prisma: any) {
   return {
-    async list() {
+    async list(workspaceId: string) {
       const rows = await prisma.department.findMany({
-        where: { archived: false },
+        where: { workspaceId, archived: false },
         include: { _count: { select: { employments: true, teams: true } } },
         orderBy: { name: "asc" },
         take: 1000,
@@ -16,6 +16,7 @@ export function createDepartmentRepository(prisma: any) {
         parentId: row.parentId || null,
         leadUserId: row.leadUserId || null,
         color: row.color || null,
+        iconId: row.iconId || null,
       }));
     },
   };

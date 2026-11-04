@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
 import { api } from "../../core/api";
-import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ResourceIconPicker } from "../../components/ResourceIconPicker";
+import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { buildCompanyGraph, type CompanyGraphDepartment, type CompanyGraphPerson, type CompanyGraphTeam } from "./company-graph";
+import "./company-graph-identity.css";
 
 
 function DepartmentEditor({ department, departments, people, workspaceId, onChanged, onClose }: {
@@ -18,6 +21,8 @@ function DepartmentEditor({ department, departments, people, workspaceId, onChan
   const [description, setDescription] = useState(department?.description || "");
   const [parentId, setParentId] = useState(department?.parentId || "");
   const [leadUserId, setLeadUserId] = useState(department?.leadUserId || "");
+  const [color, setColor] = useState(department?.color || "#57c1ff");
+  const [iconId, setIconId] = useState<string | null>(department?.iconId || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const ownId = department?.id;
@@ -37,9 +42,9 @@ function DepartmentEditor({ department, departments, people, workspaceId, onChan
     setBusy(true); setError("");
     try {
       if (department) {
-        await api(`/api/admin/workforce/departments/${encodeURIComponent(department.id)}`, { method: "PATCH", body: JSON.stringify({ name: name.trim(), description: description.trim() || null, parentId: parentId || null, leadUserId: leadUserId || null, expectedRevision: department.revision || 1 }) });
+        await api(`/api/admin/workforce/departments/${encodeURIComponent(department.id)}`, { method: "PATCH", body: JSON.stringify({ name: name.trim(), description: description.trim() || null, parentId: parentId || null, leadUserId: leadUserId || null, color, iconId, expectedRevision: department.revision || 1 }) });
       } else {
-        await api("/api/admin/workforce/departments", { method: "POST", body: JSON.stringify({ workspaceId, name: name.trim(), description: description.trim() || null, parentId: parentId || null, leadUserId: leadUserId || null }) });
+        await api("/api/admin/workforce/departments", { method: "POST", body: JSON.stringify({ workspaceId, name: name.trim(), description: description.trim() || null, parentId: parentId || null, leadUserId: leadUserId || null, color, iconId }) });
       }
       await onChanged(); onClose?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to save department. Refresh and review your changes."); }
@@ -47,10 +52,13 @@ function DepartmentEditor({ department, departments, people, workspaceId, onChan
   }
   return <div className="people-company-graph-editor-v507">
     <h4>{department ? "Edit department" : "Create department"}</h4>
+    <div className="people-company-department-preview-v11"><DepartmentIdentityMark department={{ name: name.trim() || "New department", color, iconId }} size={34} label /><small>Shared identity for People and organization views</small></div>
     <label><span>Name</span><ClusterTextInput value={name} onChange={(event) => setName(event.target.value)} maxLength={120} /></label>
     <label><span>Description</span><ClusterTextInput value={description} onChange={(event) => setDescription(event.target.value)} maxLength={1000} /></label>
     <label><span>Parent department</span><ClusterNativeSelect value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">Studio root</option>{departments.filter((entry) => !excluded.has(entry.id)).map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</ClusterNativeSelect></label>
     <label><span>Department lead</span><ClusterNativeSelect value={leadUserId} onChange={(event) => setLeadUserId(event.target.value)}><option value="">No lead</option>{people.filter((entry) => entry.employment?.active !== false).map((entry) => <option key={entry.id} value={entry.id}>{entry.preferredName || entry.displayName || entry.username || entry.id}</option>)}</ClusterNativeSelect></label>
+    <label><span>Department color</span><ClusterInput type="color" aria-label="Department color" value={color} onChange={(event) => setColor(event.target.value)} /></label>
+    <div className="people-company-department-icon-picker-v11"><span>Department icon</span><ResourceIconPicker label={name.trim() || "Department"} value={iconId} onChange={setIconId} /></div>
     {error && <p role="alert">{error}</p>}
     <div className="button-row compact"><ClusterButton disabled={busy || !name.trim()} variant="primary" onClick={() => void save()}>{busy ? "Saving…" : "Save department"}</ClusterButton>{onClose && <ClusterButton variant="secondary" onClick={onClose}>Cancel</ClusterButton>}</div>
   </div>;
@@ -66,6 +74,7 @@ export function CompanyGraphPanel({ departments, teams, people, workspaceId, can
   onChanged: () => Promise<void>;
 }) {
   const graph = useMemo(() => buildCompanyGraph({ departments, teams, people }), [departments, teams, people]);
+  const departmentsById = useMemo(() => new Map(departments.map((department) => [department.id, department])), [departments]);
   const [selection, setSelection] = useState("");
   const [search, setSearch] = useState("");
   const [showPeople, setShowPeople] = useState(true);
@@ -90,14 +99,17 @@ export function CompanyGraphPanel({ departments, teams, people, workspaceId, can
         {groups.map((kind) => <section key={kind}>
           <h3>{kind === "department" ? "Departments" : kind === "team" ? "Teams" : "People"}</h3>
           {matches.filter((node) => node.kind === kind).map((node) => <button key={node.id} type="button" className={selection === node.id ? "is-selected" : ""} style={{ paddingInlineStart: `${Math.min(node.depth, 5) * 12 + 10}px` }} onClick={() => setSelection(node.id)} aria-current={selection === node.id ? "true" : undefined}>
-            <strong>{node.label}</strong><span>{node.detail}</span>
+            {kind === "department" && departmentsById.get(node.sourceId)
+              ? <DepartmentIdentityMark department={departmentsById.get(node.sourceId)!} label size={25} />
+              : <strong>{node.label}</strong>}
+            <span>{node.detail}</span>
           </button>)}
         </section>)}
         {!matches.length && <p className="muted">No matching resources.</p>}
       </nav>
       <div className="people-company-graph-detail-v507">
         {!selected ? <div className="people-company-graph-empty-v507"><strong>Explore the company structure</strong><p>Select a department, team or person to see its authoritative relationships. This view does not create a second organization directory.</p></div> : <>
-          <header><div><small>{selected.kind}</small><h3>{selected.label}</h3><p>{selected.detail}</p></div>{selected.kind === "person" && <ClusterButton variant="secondary" onClick={() => onOpenPerson(selected.sourceId)}>Open profile</ClusterButton>}</header>
+          <header><div><small>{selected.kind}</small>{selected.kind === "department" && departmentsById.get(selected.sourceId) ? <h3><DepartmentIdentityMark department={departmentsById.get(selected.sourceId)!} size={32} label /></h3> : <h3>{selected.label}</h3>}<p>{selected.detail}</p></div>{selected.kind === "person" && <ClusterButton variant="secondary" onClick={() => onOpenPerson(selected.sourceId)}>Open profile</ClusterButton>}</header>
           {canEdit && workspaceId && selected.kind === "department" && <DepartmentEditor key={`${selected.sourceId}:${(departments.find((row) => row.id === selected.sourceId) as (CompanyGraphDepartment & { revision?: number }) | undefined)?.revision || 1}`} department={departments.find((row) => row.id === selected.sourceId)} departments={departments} people={people} workspaceId={workspaceId} onChanged={onChanged} />}
           <section><h4>Relationships</h4>{!related.length && <p className="muted">No linked resources.</p>}
             <div className="people-company-graph-links-v507">{related.map((edge, index) => {
