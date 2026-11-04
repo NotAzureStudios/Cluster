@@ -982,6 +982,24 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         const previous = validateClusterPermissionBundles(current.studioPermissionBundles || []);
         const bundles = validateClusterPermissionBundles(safeBody.studioPermissionBundles ?? current.studioPermissionBundles ?? []);
         if (safeBody.studioPermissionBundles !== undefined) validateClusterBundleRevisionChanges(previous, bundles);
+        if (safeBody.studioRoleDefinitions !== undefined) {
+          const earlier = Array.isArray(current.studioRoleDefinitions) ? current.studioRoleDefinitions : [];
+          const proposedById = new Map<string, any>((safeBody.studioRoleDefinitions || []).map((role: any) => [String(role?.id || "").trim().toLowerCase(), role]));
+          const revokedIds = earlier.filter((role: any) => {
+            const priorId = String(role?.id || "").trim().toLowerCase();
+            const proposed = proposedById.get(priorId);
+            return priorId && (!proposed || (role.enabled !== false && proposed.enabled === false));
+          }).map((role: any) => String(role.id).trim().toLowerCase());
+          if (revokedIds.length) {
+            const assignment = await prisma.workspaceMember.findFirst({
+              where: { role: { in: revokedIds } }, select: { role: true },
+            });
+            if (assignment) throw Object.assign(
+              new Error(`Role "${assignment.role}" is assigned to users. Reassign those accounts before disabling or removing the role.`),
+              { code: "ROLE_IN_USE" },
+            );
+          }
+        }
         const projectPolicies = validateClusterProjectBundlePolicies(safeBody.studioProjectBundlePolicies ?? current.studioProjectBundlePolicies ?? [], bundles);
         if (safeBody.studioProjectBundlePolicies !== undefined && projectPolicies.length) {
           const projects = await prisma.project.findMany({ where: { id: { in: projectPolicies.map((item) => item.projectId) }, archived: false }, select: { id: true } });
@@ -1004,6 +1022,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
           }
         }
       } catch (error) {
+        if ((error as any)?.code === "ROLE_IN_USE") {
+          return reply.code(409).send({ ok: false, code: "ROLE_IN_USE", error: error instanceof Error ? error.message : "Assigned roles cannot be removed." });
+        }
         return reply.code(400).send({ ok: false, code: "PERMISSION_BUNDLE_INVALID", error: error instanceof Error ? error.message : "Invalid permission bundles." });
       }
     }
