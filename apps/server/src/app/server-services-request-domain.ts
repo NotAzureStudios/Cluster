@@ -61,6 +61,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
   
   const SERVER_MANAGED_SETTING_KEYS = new Set<keyof SettingPayload>([
     "serverInstanceId", "serverDataEpoch", "serverDisplayName", "lanDiscoveryEnabled",
+    "serverResourceProfile", "serverResourceWorkerCap", "serverResourceRecoveryHoldMs",
     "discordWebhookUrl", "discordVoiceUrl", "discordMessagePrefix", "discordBotToken", "discordGuildId",
     "discordForumChannelId", "discordChatChannelId", "discordAdminRoleId", "discordApplicationId", "discordApplicationPublicKey",
     "serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins",
