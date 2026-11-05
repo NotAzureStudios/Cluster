@@ -29,7 +29,7 @@ const artifact=path.resolve(option("--artifact"));
 const feed=option("--feed-url"), download=option("--artifact-url"), output=path.resolve(option("--output"));
 const privateKeyFile=process.env.CLUSTER_SERVER_SIGNING_KEY_FILE;
 assert(privateKeyFile && fs.existsSync(privateKeyFile),"Set CLUSTER_SERVER_SIGNING_KEY_FILE to a protected Ed25519 private key path");
-const trustedPem=fs.readFileSync(path.join(root,"apps/server-launcher-go/assets/server-update-public-key.pem"),"utf8").trim();
+const trustedPem=fs.readFileSync(path.join(root,"apps/server-launcher-go/assets/server-update-public-key.pem"),"utf8").replace(/\r\n/g,"\n").trim();
 const key=createPrivateKey(fs.readFileSync(privateKeyFile));
 assert(key.asymmetricKeyType==="ed25519","Release signing requires Ed25519");
 const publicPem=createPublicKey(key).export({format:"pem",type:"spki"}).toString().trim();

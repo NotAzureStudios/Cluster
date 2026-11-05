@@ -61,7 +61,7 @@ async function respondToInteraction(interaction, responsePayload) {
   if (!interaction?.id || !interaction?.token || !responsePayload) return;
   const response = await fetch(`https://discord.com/api/v10/interactions/${encodeURIComponent(interaction.id)}/${encodeURIComponent(interaction.token)}/callback`, {
     method: "POST",
-    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/1.1.1" },
+    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/1.1.2" },
     body: JSON.stringify(responsePayload),
   });
   if (!response.ok) console.error(`Discord interaction response failed: ${response.status} ${(await response.text()).slice(0, 500)}`);
@@ -72,7 +72,7 @@ async function editDeferredInteraction(interaction, responsePayload) {
   const content = responsePayload?.data || { content: "Cluster processed the command.", allowed_mentions: { parse: [] } };
   const result = await fetch(url, {
     method: "PATCH",
-    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/1.1.1" },
+    headers: { "content-type": "application/json", "user-agent": "ClusterDiscordGatewayRelay/1.1.2" },
     body: JSON.stringify({ ...content, flags: undefined }),
   });
   if (!result.ok) console.error(`Discord deferred reply failed: ${result.status}`);
