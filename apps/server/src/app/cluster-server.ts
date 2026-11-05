@@ -1071,6 +1071,7 @@ registerHealthOperationsRoutes({
   readSettings,
   listBackupManifests,
   logSecurityEvent,
+  hasToolPermission,
   readinessProbe,
   writableStorageProbe,
   operationalHealthSnapshot,
