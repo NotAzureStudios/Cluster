@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterSettingsChoiceGroup, ClusterSettingsRow, ClusterSettingsSection } from "../../components/ClusterSettingsPrimitives";
-import { performanceSummary, type PerformanceSummary } from "../../core/performance";
+import { performanceSummary, startPerformanceFrameSampling, type PerformanceSummary } from "../../core/performance";
 import { getRendererCapabilitiesSnapshot, subscribeRendererCapabilities } from "../../core/render-capabilities";
 import {
   DEFAULT_DEVICE_PERFORMANCE_PREFERENCES,
@@ -21,6 +21,13 @@ export function DevicePerformanceSettingsSection() {
   const [capabilities, setCapabilities] = useState(getRendererCapabilitiesSnapshot);
   const [storageError, setStorageError] = useState(false);
   const [report, setReport] = useState<PerformanceSummary | null>(null);
+  const [sampling, setSampling] = useState(false);
+  const [samplingError, setSamplingError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeRendererCapabilities(() => setCapabilities(getRendererCapabilitiesSnapshot()));
@@ -35,6 +42,20 @@ export function DevicePerformanceSettingsSection() {
     } else {
       setStorageError(true);
     }
+  }
+
+  function captureFrameSample() {
+    setSamplingError(null);
+    const started = startPerformanceFrameSampling(5_000, () => {
+      if (!mountedRef.current) return;
+      setSampling(false);
+      setReport(performanceSummary());
+    });
+    if (!started) {
+      setSamplingError("Frame sampling is unavailable while the window is hidden or a capture is already running.");
+      return;
+    }
+    setSampling(true);
   }
 
   return <div className="settings-section-v092" id="account-performance-controls-v1">
@@ -89,13 +110,19 @@ export function DevicePerformanceSettingsSection() {
       <ClusterSettingsSection
         title="Performance diagnostics"
         summary="Read existing in-session telemetry on demand. No extra polling or continuous profiler is started."
-        actions={<ClusterButton type="button" variant="secondary" onClick={() => setReport(performanceSummary())}>Refresh measurements</ClusterButton>}
+        actions={<>
+          <ClusterButton type="button" variant="secondary" disabled={sampling} onClick={captureFrameSample}>{sampling ? "Capturing…" : "Capture 5s frame sample"}</ClusterButton>
+          <ClusterButton type="button" variant="secondary" onClick={() => setReport(performanceSummary())}>Refresh measurements</ClusterButton>
+        </>}
       >
         {report ? <>
           <p>Runtime health: <strong>{report.health.status}</strong> · Samples: <strong>{report.count}</strong></p>
           <p className="muted">API requests: {report.health.requestRatePerMinute}/min · Main-thread long tasks: {report.health.longTasksPerMinute}/min · Cache hit rate: {report.cache.hitRate}%</p>
           <p className="muted">INP: {report.webVitals.inpMs == null ? "Unavailable" : report.webVitals.inpMs + " ms"} · JS heap: {report.memory.usedBytes == null ? "Unavailable" : (report.memory.usedBytes / 1048576).toFixed(1) + " MiB"}</p>
+          <p className="muted">Frame sample: {report.frameSample ? `${report.frameSample.missedPercent}% estimated missed frames across ${report.frameSample.samples} sampled frame intervals` : "Not captured"}</p>
         </> : <p className="muted">Select Refresh measurements to inspect the current session. Metrics are unavailable until the browser records them.</p>}
+        {samplingError && <p role="alert">{samplingError}</p>}
+        <p className="muted">Frame sampling is opt-in, lasts up to five seconds, and does not run continuously while idle.</p>
       </ClusterSettingsSection>
     </div>
     <p className="muted">Stored locally on this device and applied immediately. Server CPU/RAM limits, background workers, and transfer scheduling remain under Server Configuration.</p>
