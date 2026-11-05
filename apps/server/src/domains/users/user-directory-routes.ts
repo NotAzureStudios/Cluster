@@ -8,10 +8,12 @@ import { decodePeopleCursor, encodePeopleCursor, filterPeopleDataRows, peopleDat
 import type { ActivityRecordInput } from "../activity/activity-service.js";
 import { expertiseSchema, normalizeExpertise, parseJsonRecord as parseProfileJsonRecord, profileFieldDefinitionsSchema, validateCustomProfileFields, workingHoursSchema } from "./people-profile-contract.js";
 import { PeopleGovernanceError, lockPeopleProfile, validateManagerAssignment } from "./people-governance.js";
+import { assignableStudioRoles, assignWorkspaceRole, requireAssignableStudioRole } from "./people-role-governance.js";
 import { applyDisclosureObligations, userDisclosureObligations } from "../access/disclosure.js";
 import { syncUserWorkforceAuthorities } from "../workforce/workforce-normalization.js";
 import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-authority.js";
-import { validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
+import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
+import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 
 type UserDirectoryRouteDependencies = {
   app: FastifyInstance;
@@ -36,14 +38,42 @@ type UserDirectoryRouteDependencies = {
 
 export function registerUserDirectoryRoutes(deps: UserDirectoryRouteDependencies) {
   const { app, prisma, getCurrentUser, getWorkspaceRole, hasToolPermission, serializeUserLite, serializeUserPrivate, serializeUserPublicProfile, parseObject, normalizeAuthUsername, hashPassword, generateTemporaryPassword, logSecurityEvent, logActivity, canViewPrivateUserProfile, serializeActivityEvent, readSettings, authorization } = deps;
+app.get("/api/admin/users/assignable-roles", async (request, reply) => {
+  const actor = await getCurrentUser(request);
+  if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: actor.id }, orderBy: { workspaceId: "asc" },
+    select: { workspaceId: true, role: true },
+  });
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return reply.code(403).send({ ok: false, code: "ROLE_ADMIN_REQUIRED" });
+  }
+  const definitions = assignableStudioRoles(await readSettings());
+  const counts = await prisma.workspaceMember.groupBy({
+    by: ["role"], where: { workspaceId: membership.workspaceId }, _count: { _all: true },
+  });
+  const countByRole = new Map<string, number>(counts.map((row: any) => [String(row.role), Number(row._count?._all || 0)]));
+  return {
+    workspaceId: membership.workspaceId,
+    actorRole: membership.role,
+    roles: definitions.map((role) => ({ ...role, members: countByRole.get(role.id) || 0 })),
+  };
+});
 app.get("/api/users", async (request, reply) => {
   const viewer = await getCurrentUser(request);
+  if (!viewer) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const viewerMembership = await prisma.workspaceMember.findFirst({
+    where: { userId: viewer.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!viewerMembership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const workspaceId = viewerMembership.workspaceId;
   const viewerRole = viewer ? await getWorkspaceRole(viewer.id) : null;
   const privateDecision = viewer ? await authorization.authorize(request, "manage", { kind: "tool", tool: "people" }, { minimum: "manage", surface: "api" }) : null;
   const includePrivate = Boolean(privateDecision?.allowed);
   const disclosure = userDisclosureObligations({ includePrivate, includeSecurityState: includePrivate, surface: "api" });
   const includeRawSummary = Boolean(viewer && ["owner", "admin"].includes(String(viewerRole || "")));
   const query = userDirectoryPageQuerySchema.parse(request.query || {});
+  if (query.includeArchived && !includePrivate) return reply.code(403).send({ ok: false, code: "PEOPLE_ARCHIVED_DENIED" });
   if (query.summary) {
     const requestedDataQuery = parseClusterDataQueryParameter(query.dataQuery);
     const dataQuery = normalizeClusterDataQuery({ ...requestedDataQuery, page: { cursor: query.cursor || null, limit: query.limit } }, { fields: PEOPLE_DATA_FIELDS, defaultLimit: query.limit, maxLimit: 1000 });
@@ -52,7 +82,7 @@ app.get("/api/users", async (request, reply) => {
     const users = await prisma.user.findMany({
       where: {
         archived: query.includeArchived ? undefined : false,
-        memberships: query.role ? { some: { role: query.role } } : undefined,
+        memberships: { some: { workspaceId, ...(query.role ? { role: query.role } : {}) } },
       },
       include: { memberships: true, ...WORKFORCE_USER_AUTHORITY_INCLUDE },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
@@ -60,6 +90,7 @@ app.get("/api/users", async (request, reply) => {
     });
     const projected = users.map((user: any) => ({
       ...serializeUserLite(user),
+      workspaceRole: user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member",
       updatedAt: user.updatedAt,
       ...(includePrivate ? { accountState: user.accountState, accountType: user.accountType, accessExpiresAt: user.accessExpiresAt } : {}),
     }));
@@ -94,7 +125,7 @@ app.get("/api/users", async (request, reply) => {
     where: {
       archived: query.includeArchived ? undefined : false,
       employment: query.department ? { is: { department: { is: { name: query.department } } } } : undefined,
-      memberships: query.role ? { some: { role: query.role } } : undefined,
+      memberships: { some: { workspaceId, ...(query.role ? { role: query.role } : {}) } },
       ...(cursorWhere(cursor, "updatedAt", "desc") || {}),
     },
     include: {
@@ -111,8 +142,8 @@ app.get("/api/users", async (request, reply) => {
   const page = buildCursorPage(users, query.limit, "updatedAt");
   const items = page.items.map((user: any) => applyDisclosureObligations({
     ...(includePrivate ? serializeUserPrivate(user) : serializeUserPublicProfile(user)),
-    workspaceRole: user.memberships[0]?.role || "member",
-    isAdmin: ["owner", "admin"].includes(user.memberships[0]?.role || "member"),
+    workspaceRole: user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member",
+    isAdmin: ["owner", "admin"].includes(user.memberships.find((membership: any) => membership.workspaceId === workspaceId)?.role || "member"),
     privateProfile: includePrivate,
     sensitiveProfileHidden: !includePrivate,
     toolPermissions: includePrivate ? parseObject(user.toolPermissions) : {},
@@ -130,7 +161,14 @@ app.get("/api/users", async (request, reply) => {
 app.post("/api/users", async (request, reply) => {
   const actor = await getCurrentUser(request);
   if (!actor) return reply.code(401).send({ ok: false, error: "Login required." });
-  const workspace = await prisma.workspace.findFirstOrThrow();
+  const actorMembership = await prisma.workspaceMember.findFirst({
+    where: { userId: actor.id }, orderBy: { workspaceId: "asc" },
+    select: { workspaceId: true, role: true },
+  });
+  if (!actorMembership || !["owner", "admin"].includes(actorMembership.role)) {
+    return reply.code(403).send({ ok: false, code: "ROLE_ADMIN_REQUIRED" });
+  }
+  const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: actorMembership.workspaceId } });
   const body = z
     .object({
       username: z.string().min(3).max(32),
@@ -140,10 +178,10 @@ app.post("/api/users", async (request, reply) => {
       avatarUrl: z.string().url().optional().nullable(),
       title: z.string().optional().nullable(),
       department: z.string().optional().nullable(),
-      legalName: z.string().optional().nullable(),
+      legalName: z.string().max(160).optional().nullable(),
       preferredName: z.string().optional().nullable(),
-      pronouns: z.string().optional().nullable(),
-      phoneNumber: z.string().optional().nullable(),
+      pronouns: z.string().max(160).optional().nullable(),
+      phoneNumber: z.string().max(60).optional().nullable(),
       alternatePhoneNumber: z.string().optional().nullable(),
       alternateEmails: z.array(z.string()).optional().default([]),
       addressLine1: z.string().optional().nullable(),
@@ -162,7 +200,7 @@ app.post("/api/users", async (request, reply) => {
       workLocation: z.string().optional().nullable(),
       hideLegalName: z.boolean().optional(),
       hideLocation: z.boolean().optional(),
-      timezone: z.string().optional().nullable(),
+      timezone: z.string().max(100).refine(validPeopleTimeZone, "Choose a valid IANA time zone.").optional().nullable(),
       skills: z.array(z.string()).optional().default([]),
       expertise: expertiseSchema.optional().default([]),
       workingHours: workingHoursSchema.optional().default({}),
@@ -170,13 +208,22 @@ app.post("/api/users", async (request, reply) => {
       managerUserId: z.string().optional().nullable(),
       capacityHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
       minimumHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
-      notes: z.string().optional().nullable(),
-      startDate: z.string().optional().nullable(),
+      notes: z.string().max(4000).optional().nullable(),
+      startDate: z.string().max(64).refine(validPeopleStartDate, "Choose a valid employment date.").optional().nullable(),
       role: z.string().trim().min(1).max(80).default("member"),
       toolPermissions: z.record(z.string()).optional(),
       projectPermissions: z.record(z.string()).optional(),
     })
     .parse(request.body);
+  try {
+    const role = requireAssignableStudioRole(await readSettings(), body.role);
+    if (role.privileged && actorMembership.role !== "owner") {
+      return reply.code(403).send({ ok: false, code: "ROLE_OWNER_REQUIRED", error: "Only a workspace owner can assign owner/admin roles." });
+    }
+  } catch (error) {
+    if (error instanceof PeopleGovernanceError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
+    throw error;
+  }
   if (body.minimumHours != null && body.capacityHours != null && body.minimumHours > body.capacityHours) {
     return reply.code(400).send({
       ok: false,
@@ -201,13 +248,20 @@ app.post("/api/users", async (request, reply) => {
       },
     },
   });
-  const managerRecord = body.managerUserId ? await prisma.user.findFirst({ where: { id: body.managerUserId, archived: false }, select: { id: true, displayName: true, preferredName: true, username: true } }) : null;
+  const managerRecord = body.managerUserId ? await prisma.user.findFirst({ where: { id: body.managerUserId, archived: false, memberships: { some: { workspaceId: workspace.id } } }, select: { id: true, displayName: true, preferredName: true, username: true } }) : null;
   if (body.managerUserId && !managerRecord) return reply.code(400).send({ ok: false, error: "Choose an active manager." });
   if (body.managerUserId === actor.id && body.username === actor.username) return reply.code(400).send({ ok: false, error: "A person cannot manage themselves." });
   if (body.projectPermissions && Object.keys(body.projectPermissions).length)
     return reply.code(409).send({ ok: false, code: "SCOPED_GRANT_REVIEW_REQUIRED", error: "Initial Project grants require independent approval after identity provisioning." });
   // Expiring accounts cannot be provisioned without a valid finite access window.
-  validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  try {
+    validateReturnAccessWindow(body.accountType || "employee", body.accessExpiresAt ? new Date(body.accessExpiresAt) : null);
+  } catch (error) {
+    if (error instanceof StudioReturnError) {
+      return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
+    }
+    throw error;
+  }
   const commonData = {
     employeeNumber: body.employeeNumber?.trim() || null,
     displayName: body.displayName?.trim() || null,
@@ -307,10 +361,10 @@ app.patch("/api/users/:userId", async (request, reply) => {
       avatarUrl: z.string().url().optional().nullable(),
       title: z.string().optional().nullable(),
       department: z.string().optional().nullable(),
-      legalName: z.string().optional().nullable(),
+      legalName: z.string().max(160).optional().nullable(),
       preferredName: z.string().optional().nullable(),
-      pronouns: z.string().optional().nullable(),
-      phoneNumber: z.string().optional().nullable(),
+      pronouns: z.string().max(160).optional().nullable(),
+      phoneNumber: z.string().max(60).optional().nullable(),
       alternatePhoneNumber: z.string().optional().nullable(),
       alternateEmails: z.array(z.string()).optional(),
       addressLine1: z.string().optional().nullable(),
@@ -329,7 +383,7 @@ app.patch("/api/users/:userId", async (request, reply) => {
       workLocation: z.string().optional().nullable(),
       hideLegalName: z.boolean().optional(),
       hideLocation: z.boolean().optional(),
-      timezone: z.string().optional().nullable(),
+      timezone: z.string().max(100).refine(validPeopleTimeZone, "Choose a valid IANA time zone.").optional().nullable(),
       skills: z.array(z.string()).optional(),
       expertise: expertiseSchema.optional(),
       workingHours: workingHoursSchema.optional(),
@@ -338,8 +392,8 @@ app.patch("/api/users/:userId", async (request, reply) => {
       expectedProfileRevision: z.coerce.number().int().min(1).optional(),
       capacityHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
       minimumHours: z.coerce.number().int().min(0).max(168).optional().nullable(),
-      notes: z.string().optional().nullable(),
-      startDate: z.string().optional().nullable(),
+      notes: z.string().max(4000).optional().nullable(),
+      startDate: z.string().max(64).refine(validPeopleStartDate, "Choose a valid employment date.").optional().nullable(),
       archived: z.boolean().optional(),
       role: z.string().trim().min(1).max(80).optional(),
       toolPermissions: z.record(z.string()).optional(),
@@ -349,15 +403,30 @@ app.patch("/api/users/:userId", async (request, reply) => {
   if (!actor) {
     return reply.code(401).send({ ok: false, error: "Login required." });
   }
-  const existingUser = await prisma.user.findUnique({ where: { id: params.userId } });
-  if (!existingUser) return reply.code(404).send({ ok: false, error: "User not found." });
-  const profileDefinitions = profileFieldDefinitionsSchema.parse((await readSettings()).studioPeopleProfileFields || []);
+  const actorMembership = await prisma.workspaceMember.findFirst({
+    where: { userId: actor.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!actorMembership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const existingUser = await prisma.user.findFirst({
+    where: { id: params.userId, memberships: { some: { workspaceId: actorMembership.workspaceId } } },
+    select: { id: true },
+  });
+  if (!existingUser) return reply.code(404).send({ ok: false, code: "USER_NOT_FOUND" });
+  const profileSettings = await readSettings();
+  const profileDefinitions = profileFieldDefinitionsSchema.parse(profileSettings.studioPeopleProfileFields || []);
   let updated: any;
+  let roleChange: { changed: boolean; from: string; to: string; workspaceId: string } | null = null;
   try {
-    updated = await prisma.$transaction(async (tx: any) => {
+    const outcome = await prisma.$transaction(async (tx: any) => {
       await lockPeopleProfile(tx, params.userId);
+      let transactionRoleChange: { changed: boolean; from: string; to: string; workspaceId: string } | null = null;
       const fresh = await tx.user.findUnique({ where: { id: params.userId }, include: { employment: true, workingPattern: true } });
       if (!fresh) throw new PeopleGovernanceError("USER_NOT_FOUND", "User not found.", 404);
+      const targetMembership = await tx.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: actorMembership.workspaceId, userId: params.userId } },
+        select: { userId: true },
+      });
+      if (!targetMembership) throw new PeopleGovernanceError("USER_NOT_IN_WORKSPACE", "This account is not part of your workspace.", 404);
       // Archive is an offboarding lifecycle transition, not an editable profile preference.
       if (body.archived !== undefined || fresh.archived || fresh.accountState === "PRIVACY_ERASED")
         throw new PeopleGovernanceError("PEOPLE_LIFECYCLE_GOVERNED", "Archived people must use the governed return-to-studio workflow. Archiving requires offboarding.", 409);
@@ -365,10 +434,16 @@ app.patch("/api/users/:userId", async (request, reply) => {
       if (body.accessExpiresAt !== undefined) throw new PeopleGovernanceError("ACCESS_RENEWAL_GOVERNED", "Access expiration can only be changed through two-person Access Renewal review.", 409);
       if (body.accountType && ["contractor", "client", "guest"].includes(body.accountType)) validateReturnAccessWindow(body.accountType, fresh.accessExpiresAt, new Date());
       if (body.expectedProfileRevision && Number(fresh.profileRevision || 1) !== body.expectedProfileRevision) throw new PeopleGovernanceError("PROFILE_REVISION_CONFLICT", "This profile changed since it was opened.", 409, { currentRevision: Number(fresh.profileRevision || 1) });
+      if (body.role) {
+        if (!body.expectedProfileRevision) throw new PeopleGovernanceError("ROLE_PROFILE_REVISION_REQUIRED", "Reload this profile before changing its role.", 428);
+        transactionRoleChange = await assignWorkspaceRole(tx, {
+          actorId: actor.id, targetUserId: params.userId, requestedRole: body.role, settings: profileSettings,
+        });
+      }
       const effectiveCapacity = body.capacityHours === undefined ? fresh.employment?.capacityHours ?? null : body.capacityHours;
       const effectiveMinimum = body.minimumHours === undefined ? fresh.employment?.minimumHours ?? null : body.minimumHours;
       if (effectiveMinimum != null && effectiveCapacity != null && effectiveMinimum > effectiveCapacity) throw new PeopleGovernanceError("PROFILE_CAPACITY_INVALID", "Minimum hours cannot exceed capacity hours.", 400);
-      if (body.managerUserId !== undefined) await validateManagerAssignment(tx, params.userId, body.managerUserId);
+      if (body.managerUserId !== undefined) await validateManagerAssignment(tx, params.userId, body.managerUserId, actorMembership.workspaceId);
       await tx.user.update({
         where: { id: params.userId },
         data: {
@@ -414,24 +489,30 @@ app.patch("/api/users/:userId", async (request, reply) => {
         workspaceId: membership.workspaceId, userId: params.userId,
         input: { ...body, expertise: body.expertise === undefined ? undefined : normalizeExpertise(body.expertise) },
       });
-      // Workspace role updates must share the same transaction as the People
-      // profile revision. A failed role write rolls the entire edit back.
-      if (body.role) {
-        const workspace = await tx.workspace.findFirstOrThrow();
-        await tx.workspaceMember.upsert({
-          where: { workspaceId_userId: { workspaceId: workspace.id, userId: params.userId } },
-          update: { role: body.role },
-          create: { workspaceId: workspace.id, userId: params.userId, role: body.role },
-        });
-      }
-      return tx.user.findUniqueOrThrow({
+      const person = await tx.user.findUniqueOrThrow({
         where: { id: params.userId },
         include: { memberships: true, ...WORKFORCE_USER_AUTHORITY_INCLUDE, _count: { select: { assignedCards: true, comments: true, activityEvents: true } } },
       });
+      return { person, roleChange: transactionRoleChange };
     });
+    updated = outcome.person;
+    roleChange = outcome.roleChange;
   } catch (error) {
     if (error instanceof PeopleGovernanceError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message, ...(error.details || {}) });
+    if (error instanceof StudioReturnError) return reply.code(error.statusCode).send({ ok: false, code: error.code, error: error.message });
     throw error;
+  }
+  if (roleChange?.changed) {
+    await logSecurityEvent({
+      event: "account.role_changed",
+      actorUserId: actor.id,
+      targetUserId: params.userId,
+      workspaceId: roleChange.workspaceId,
+      result: "SUCCESS",
+      reasonCode: "ADMIN_ROLE_REASSIGNMENT",
+      request,
+      metadata: { previousRole: roleChange.from, newRole: roleChange.to },
+    });
   }
   await logActivity({
     userId: actor?.id,
@@ -443,19 +524,25 @@ app.patch("/api/users/:userId", async (request, reply) => {
   });
   return {
     ...serializeUserPrivate(updated),
-    workspaceRole: body.role || updated.memberships[0]?.role || "member",
+    workspaceRole: body.role || updated.memberships.find((membership: any) => membership.workspaceId === actorMembership.workspaceId)?.role || "member",
     counts: updated._count,
     lastActivityAt: null,
   };
 });
-app.get("/api/users/:userId/profile", async (request) => {
+app.get("/api/users/:userId/profile", async (request, reply) => {
   const viewer = await getCurrentUser(request);
+  if (!viewer) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: viewer.id }, select: { workspaceId: true }, orderBy: { workspaceId: "asc" },
+  });
+  if (!membership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED" });
+  const workspaceId = membership.workspaceId;
   const viewerRole = viewer ? await getWorkspaceRole(viewer.id) : null;
   const params = z.object({ userId: z.string() }).parse(request.params);
   const includeRawSummary = Boolean(viewer && ["owner", "admin"].includes(String(viewerRole || "")));
   const canSeeActivity = Boolean(viewer && hasToolPermission(viewer, viewerRole, "activity", "view"));
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: params.userId },
+  const user = await prisma.user.findFirst({
+    where: { id: params.userId, memberships: { some: { workspaceId } } },
     include: {
       memberships: true,
       ...WORKFORCE_USER_AUTHORITY_INCLUDE,
@@ -475,6 +562,7 @@ app.get("/api/users/:userId/profile", async (request) => {
       } : {}),
     },
   });
+  if (!user) return reply.code(404).send({ ok: false, code: "USER_NOT_FOUND" });
   const includePrivate = await canViewPrivateUserProfile(viewer, user.id);
   const detailDisclosure = userDisclosureObligations({ includePrivate, includeSecurityState: includePrivate, surface: "api" });
   const viewerIsSelf = Boolean(viewer?.id && viewer.id === user.id);
@@ -484,21 +572,27 @@ app.get("/api/users/:userId/profile", async (request) => {
   const visibleCustomFields = Object.fromEntries(visibleProfileFields.filter((field) => rawCustomFields[field.id] !== undefined).map((field) => [field.id, rawCustomFields[field.id]]));
   const visibleActivity = canSeeActivity ? (await authorization.filterActivityEventsForRequest(request, user.activityEvents || [], "view")).slice(0, 20) : [];
   const directReports = await prisma.user.findMany({
-    where: { archived: false, employment: { is: { managerUserId: user.id, active: true } } },
+    where: { archived: false, memberships: { some: { workspaceId } }, employment: { is: { managerUserId: user.id, active: true } } },
     include: WORKFORCE_USER_AUTHORITY_INCLUDE,
     orderBy: [{ displayName: "asc" }, { username: "asc" }],
     take: 500,
   });
+  const managerMember = user.employment?.managerUserId
+    ? await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: user.employment.managerUserId } },
+      select: { userId: true },
+    })
+    : null;
   return applyDisclosureObligations({
     ...(includePrivate ? serializeUserPrivate(user) : serializeUserPublicProfile(user)),
     customProfileFields: visibleCustomFields,
     privateProfile: includePrivate,
     sensitiveProfileHidden: !includePrivate,
-    workspaceRole: user.memberships[0]?.role || "member",
+    workspaceRole: user.memberships.find((row: any) => row.workspaceId === workspaceId)?.role || "member",
     ...(includeRawSummary ? { counts: user._count } : {}),
     lastActivityAt: visibleActivity[0]?.createdAt ?? null,
     recentActivity: visibleActivity.map(serializeActivityEvent),
-    manager: user.employment?.manager || null,
+    manager: managerMember ? user.employment?.manager || null : null,
     directReports: directReports.map(serializeUserLite),
     profileFieldDefinitions: visibleProfileFields,
   }, detailDisclosure);

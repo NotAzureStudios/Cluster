@@ -34,6 +34,7 @@ type Props = {
 
 export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets }: Props) {
   const status = projectStatusLabel(project);
+  const activeSectionLabel = tabs.find((item) => item.id === activeTab)?.label || "Overview";
   const targetDate = project.targetDate
     ? new Date(project.targetDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
     : "Not set";
@@ -43,6 +44,7 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
       <div className="project-head-breadcrumb-rc25">
         <ClusterButton variant="quiet" size="compact" className="project-back-v147" onClick={onBack}><ClusterIcon name="chevron-left" /> Projects</ClusterButton>
         <span aria-hidden="true">/</span><span>{typeLabel}</span>
+        <span aria-hidden="true">/</span><span aria-current="page" className="project-breadcrumb-current-v11">{activeSectionLabel}</span>
       </div>
       <div className="project-hero-main-rc24 project-hero-main-rc25">
         <div className="project-hero-identity-rc24 project-hero-identity-rc25">

@@ -1,0 +1,34 @@
+name: v1.1 People Workspace Boundary
+
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - 'apps/server/src/domains/users/user-directory-routes.ts'
+      - 'tools/scripts/cluster-v11-people-workspace-boundary-tests.mjs'
+      - '.github/workflows/v11-people-workspace-boundary.yml'
+  push:
+    branches: [development, security/v1.1-people-workspace-boundary]
+    paths:
+      - 'apps/server/src/domains/users/user-directory-routes.ts'
+      - 'tools/scripts/cluster-v11-people-workspace-boundary-tests.mjs'
+      - '.github/workflows/v11-people-workspace-boundary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  people-workspace-scope:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - run: node tools/scripts/cluster-v11-people-workspace-boundary-tests.mjs

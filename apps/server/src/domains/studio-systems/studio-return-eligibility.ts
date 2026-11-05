@@ -1,6 +1,13 @@
 /** Return-to-studio is identity recovery, never restoration of previous grants. */
 export class StudioReturnError extends Error {
-  constructor(public code: string, message: string, public statusCode = 409) { super(message); this.name = "StudioReturnError"; }
+  readonly code: string;
+  readonly statusCode: number;
+  constructor(code: string, message: string, statusCode = 409) {
+    super(message);
+    this.name = "StudioReturnError";
+    this.code = code;
+    this.statusCode = statusCode;
+  }
 }
 export function requireReturnEligible(input: {
   caseRow: any; subject: any; latestCompletedCaseId: string | null;

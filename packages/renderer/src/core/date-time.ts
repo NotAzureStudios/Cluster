@@ -36,3 +36,12 @@ export function compactDateTime(value?: string | null) {
     minute: "2-digit",
   });
 }
+
+/** Date-only native fields and create handoffs are local civil dates, not
+ * midnight-UTC timestamps. The latter can shift to yesterday/tomorrow in
+ * time zones far from UTC. */
+export function toLocalDateInput(value: Date = new Date()): string {
+  if (!Number.isFinite(value.getTime())) return "";
+  return `${String(value.getFullYear()).padStart(4, "0")}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+

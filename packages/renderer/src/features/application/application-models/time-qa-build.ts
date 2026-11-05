@@ -170,4 +170,4 @@ export type BuildPlatformProfile = {
   tips: string[];
 };
 
-export type SettingsSection = "profile" | "appearance" | "home" | "navigation" | "privacy" | "pin" | "shortcuts" | "accessibility" | "notifications" | "desktop" | "licenses" | "forms";
+export type SettingsSection = "profile" | "appearance" | "performance" | "home" | "navigation" | "privacy" | "pin" | "shortcuts" | "accessibility" | "notifications" | "desktop" | "licenses" | "forms";

@@ -3,12 +3,19 @@ import type { RuntimeTelemetrySnapshot } from "./runtime-telemetry.js";
 import { assessRuntimeSaturation, type RuntimeSaturationState } from "./operational-health.js";
 import type { BackgroundJobQueueCounts } from "../domains/jobs/job-types.js";
 import type { RequestWorkClass } from "./request-workload.js";
+import { computeGovernedJobConcurrency, normalizeServerResourceProfile, type ServerResourceProfile } from "./server-resource-policy.js";
 
 export type ResourceGovernorMode = RuntimeSaturationState;
+export type ResourceGovernorProfile = ServerResourceProfile;
 
 export type ResourceGovernorSnapshot = {
   mode: ResourceGovernorMode;
   observedMode: ResourceGovernorMode;
+  profile: ResourceGovernorProfile;
+  /** Active boot-time cap after limits; base worker pool can be smaller. */
+  maximumJobConcurrency: number;
+  /** Hysteresis delay between overload recovery steps. */
+  recoveryHoldMs: number;
   changedAt: string;
   recoveryCandidateSince: string | null;
   requestCapacityScale: number;
@@ -81,7 +88,20 @@ export class ResourceGovernor {
   constructor(private readonly options: {
     recoveryHoldMs?: number;
     maximumJobConcurrency?: number;
+    profile?: ResourceGovernorProfile;
   } = {}) {}
+
+  profile(): ResourceGovernorProfile {
+    return normalizeServerResourceProfile(this.options.profile);
+  }
+
+  private maximumJobConcurrency(): number {
+    return boundedNumber(this.options.maximumJobConcurrency ?? process.env.CLUSTER_JOB_WORKER_MAX_CONCURRENCY, 1, 128, 128);
+  }
+
+  private recoveryHoldMs(): number {
+    return boundedNumber(this.options.recoveryHoldMs ?? process.env.CLUSTER_RESOURCE_RECOVERY_HOLD_MS, 1_000, 120_000, 7_500);
+  }
 
   observe(runtime: RuntimeTelemetrySnapshot, queue?: BackgroundJobQueueCounts | null) {
     if (queue) this.queue = { ...queue };
@@ -114,7 +134,7 @@ export class ResourceGovernor {
     } else if (observedRank < currentRank) {
       const now = new Date();
       if (!this.recoveryCandidateSince) this.recoveryCandidateSince = now;
-      const recoveryHoldMs = boundedNumber(this.options.recoveryHoldMs ?? process.env.CLUSTER_RESOURCE_RECOVERY_HOLD_MS, 1_000, 120_000, 7_500);
+      const recoveryHoldMs = this.recoveryHoldMs();
       if (now.getTime() - this.recoveryCandidateSince.getTime() >= recoveryHoldMs) {
         // Recover one level at a time to avoid immediately flooding a node that
         // has only just returned to healthy telemetry.
@@ -140,13 +160,15 @@ export class ResourceGovernor {
 
   jobConcurrency(baseConcurrency: number) {
     const base = Math.max(1, Math.round(baseConcurrency || 1));
-    const configuredMax = boundedNumber(this.options.maximumJobConcurrency ?? process.env.CLUSTER_JOB_WORKER_MAX_CONCURRENCY, 1, 256, 128);
-    if (this.mode === "critical") return 0;
-    let target = Math.max(1, Math.floor(base * POLICY[this.mode].backgroundConcurrencyScale));
-    if (this.mode === "normal" && this.queue && this.queue.queued >= base * 8) {
-      target = Math.ceil(base * 1.25);
-    }
-    return Math.min(configuredMax, target);
+    const configuredMax = this.maximumJobConcurrency();
+    return computeGovernedJobConcurrency({
+      base,
+      mode: this.mode,
+      policyScale: POLICY[this.mode].backgroundConcurrencyScale,
+      profile: this.profile(),
+      workerCap: configuredMax,
+      queued: this.queue?.queued ?? null,
+    });
   }
 
   allowsTask(workloadClass: "interactive" | "background" | "maintenance") {
@@ -175,6 +197,9 @@ export class ResourceGovernor {
     return {
       mode: this.mode,
       observedMode: this.observedMode,
+      profile: this.profile(),
+      maximumJobConcurrency: this.maximumJobConcurrency(),
+      recoveryHoldMs: this.recoveryHoldMs(),
       changedAt: this.changedAt.toISOString(),
       recoveryCandidateSince: this.recoveryCandidateSince?.toISOString() || null,
       requestCapacityScale: policy.requestCapacityScale,

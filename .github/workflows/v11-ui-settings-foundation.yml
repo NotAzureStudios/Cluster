@@ -1,0 +1,113 @@
+name: Cluster 1.1 UI settings foundation
+
+on:
+  pull_request:
+    paths:
+      - "packages/renderer/src/components/ClusterSettingsPrimitives.tsx"
+      - "packages/renderer/src/components/cluster-settings-interactions.ts"
+      - "packages/renderer/src/components/cluster-settings-primitives.css"
+      - "packages/renderer/src/features/settings/**"
+      - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
+      - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "tools/scripts/cluster-qt-native-bridge-performance-tests.mjs"
+      - "apps/desktop-qt/qml/pages/SharedRendererPage.qml"
+      - "apps/server/src/core/server-resource-policy.ts"
+      - "apps/server/src/core/resource-governor.ts"
+      - "apps/server/src/app/cluster-server.ts"
+      - "apps/server/src/app/server-routes-configuration-integrations.ts"
+      - "apps/server/src/app/server-composition-types.ts"
+      - "apps/server/src/app/server-services-request-domain.ts"
+      - "packages/renderer/src/features/application/application-models/custom-admin-automation.ts"
+      - "packages/renderer/src/features/application/application-models/settings-server.ts"
+      - "packages/renderer/src/core/visible-job-polling.ts"
+      - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
+      - "packages/renderer/src/features/projects/ProjectsPage.tsx"
+      - "packages/renderer/src/features/projects/project-snapshot-batching.ts"
+      - "packages/renderer/src/features/whiteboards/WhiteboardWorkspacePage.tsx"
+      - "packages/renderer/src/features/whiteboards/use-whiteboard-viewport.ts"
+      - "packages/renderer/src/features/whiteboards/whiteboard-connector-adjacency.ts"
+      - "packages/renderer/src/core/device-performance.ts"
+      - "packages/renderer/src/core/render-capabilities.ts"
+      - "packages/renderer/src/core/renderer-budget.ts"
+      - "packages/renderer/src/core/visual-system.ts"
+      - "packages/renderer/src/core/perceived-performance.ts"
+      - "packages/renderer/src/core/performance.ts"
+      - "packages/renderer/src/components/ClusterDataTable.tsx"
+      - "packages/renderer/src/styles/renderer-performance.css"
+      - "packages/renderer/src/styles.css"
+      - ".github/workflows/v11-ui-settings-foundation.yml"
+  push:
+    branches:
+      - feat/v11-ui-interactions-settings-foundation
+    paths:
+      - "packages/renderer/src/components/ClusterSettingsPrimitives.tsx"
+      - "packages/renderer/src/components/cluster-settings-interactions.ts"
+      - "packages/renderer/src/components/cluster-settings-primitives.css"
+      - "packages/renderer/src/features/settings/**"
+      - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
+      - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "tools/scripts/cluster-qt-native-bridge-performance-tests.mjs"
+      - "apps/desktop-qt/qml/pages/SharedRendererPage.qml"
+      - "apps/server/src/core/server-resource-policy.ts"
+      - "apps/server/src/core/resource-governor.ts"
+      - "apps/server/src/app/cluster-server.ts"
+      - "apps/server/src/app/server-routes-configuration-integrations.ts"
+      - "apps/server/src/app/server-composition-types.ts"
+      - "apps/server/src/app/server-services-request-domain.ts"
+      - "packages/renderer/src/features/application/application-models/custom-admin-automation.ts"
+      - "packages/renderer/src/features/application/application-models/settings-server.ts"
+      - "packages/renderer/src/core/visible-job-polling.ts"
+      - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
+      - "packages/renderer/src/features/projects/ProjectsPage.tsx"
+      - "packages/renderer/src/features/projects/project-snapshot-batching.ts"
+      - "packages/renderer/src/features/whiteboards/WhiteboardWorkspacePage.tsx"
+      - "packages/renderer/src/features/whiteboards/use-whiteboard-viewport.ts"
+      - "packages/renderer/src/features/whiteboards/whiteboard-connector-adjacency.ts"
+      - "packages/renderer/src/core/device-performance.ts"
+      - "packages/renderer/src/core/render-capabilities.ts"
+      - "packages/renderer/src/core/renderer-budget.ts"
+      - "packages/renderer/src/core/visual-system.ts"
+      - "packages/renderer/src/core/perceived-performance.ts"
+      - "packages/renderer/src/core/performance.ts"
+      - "packages/renderer/src/components/ClusterDataTable.tsx"
+      - "packages/renderer/src/styles/renderer-performance.css"
+      - "packages/renderer/src/styles.css"
+      - ".github/workflows/v11-ui-settings-foundation.yml"
+  workflow_dispatch:
+
+jobs:
+  ui-settings-regression:
+    name: Shared controls and renderer build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Run UI settings foundation tests
+        run: node tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs
+      - name: Verify device rendering and UI performance contracts
+        run: npm run performance:settings:check
+      - name: Verify hidden polling and Project portfolio efficiency
+        run: npm run performance:ui:check
+      - name: Verify server resource policy and protection gates
+        run: npm run performance:server:check
+      - name: Verify Qt native bridge adaptive polling contracts
+        run: npm run performance:desktop:check
+      - name: Build shared contract declarations
+        run: npm run build --workspace=@cluster/shared
+      - name: Type-check actual renderer
+        run: npm run build --workspace=@cluster/renderer

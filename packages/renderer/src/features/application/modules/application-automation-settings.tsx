@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../../core/api";
 import { useProjectWorkflowList } from "../../../core/project-workflow-storage";
 import { TOOL_LEVEL_OPTIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel, type ToolPermissions } from "../../../core/permissions";
+import { ClusterPermissionMatrix, type ClusterPermissionMatrixChoice } from "../../../components/ClusterPermissionMatrix";
 import { localId } from "../../../core/storage";
 import { addDays, compactDateTime, toDateTimeLocalInput } from "../../../core/date-time";
 import { levelLabel } from "../../../core/format";
@@ -1222,10 +1223,25 @@ export const STUDIO_PERMISSION_GROUPS: Array<{ label: string; description: strin
     tools: ["viewer", "library", "packets"],
   },
   {
+    label: "Studio assets and source",
+    description: "Inventory, protected Vault access, and source control.",
+    tools: ["inventory", "vault", "sourceControl"],
+  },
+  {
     label: "Studio administration",
     description: "People, activity, integrations, and protected configuration surfaces.",
     tools: ["people", "activity", "integrations", "serverConfig"],
   },
+];
+
+/** Inherit is a real draft choice, not equivalent to explicit No access. */
+const PERMISSION_MATRIX_CHOICES: readonly ClusterPermissionMatrixChoice<ToolPermissionLevel | "inherit">[] = [
+  { value: "inherit", label: "Inherit", description: "Use the current baseline from the parent policy and role preset." },
+  ...TOOL_LEVEL_OPTIONS.map((level) => ({
+    value: level,
+    label: level === "none" ? "None" : level[0].toUpperCase() + level.slice(1),
+    description: level === "none" ? "Explicitly disable access." : "Set explicit " + level + " access.",
+  })),
 ];
 
 export function StudioPermissionEditor({
@@ -1241,41 +1257,25 @@ export function StudioPermissionEditor({
 }) {
   return (
     <div className="studio-permission-editor-v272">
-      {STUDIO_PERMISSION_GROUPS.map((group) => (
-        <section key={group.label} className="studio-permission-group-v272">
-          <div className="studio-permission-group-head-v272">
-            <div>
-              <strong>{group.label}</strong>
-              <span>{group.description}</span>
-            </div>
-          </div>
-          <div className="studio-permission-list-v272">
-            {group.tools.map((toolKey) => {
-              const option = TOOL_PERMISSION_OPTIONS.find((item) => item.key === toolKey);
-              const explicit = permissions?.[toolKey];
-              const effective = explicit || inherited[toolKey] || "none";
-              return (
-                <label key={toolKey} className="studio-permission-row-v272">
-                  <span className="studio-permission-copy-v272">
-                    <strong>{option?.label || toolKey}</strong>
-                    <small>{option?.description}</small>
-                  </span>
-                  <span className="studio-permission-effective-v272">Effective: {effective}</span>
-                  <ClusterNativeSelect value={explicit || "inherit"} disabled={readOnly} onChange={(event) => onChange(toolKey, event.target.value as ToolPermissionLevel | "inherit") }>
-                    <option value="inherit">Inherit ({inherited[toolKey] || "none"})</option>
-                    {TOOL_LEVEL_OPTIONS.map((level) => (
-                      <option key={level} value={level}>
-                        {level === "none" ? "No access" : level[0].toUpperCase() + level.slice(1)}
-                      </option>
-                    ))}
-                  </ClusterNativeSelect>
-                </label>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+      <ClusterPermissionMatrix<ToolPermissionKey, ToolPermissionLevel | "inherit">
+        label="Studio tool permission overrides"
+        groups={STUDIO_PERMISSION_GROUPS.map((group) => ({
+          id: group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          label: group.label,
+          description: group.description,
+          rows: group.tools.map((toolKey) => {
+            const tool = TOOL_PERMISSION_OPTIONS.find((item) => item.key === toolKey);
+            return { key: toolKey, label: tool?.label || toolKey, description: tool?.description };
+          }),
+        }))}
+        choices={PERMISSION_MATRIX_CHOICES}
+        value={permissions}
+        inherited={inherited}
+        onChange={onChange}
+        readOnly={readOnly}
+        inheritValue="inherit"
+        fallbackEffective="none"
+      />
     </div>
   );
 }
-

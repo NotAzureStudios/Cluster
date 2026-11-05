@@ -6,7 +6,7 @@ import { api, apiErrorPresentation, queryApi } from "../../core/api";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { findLikelyDuplicates, type DuplicateCandidate, type SmartWorkspaceContext } from "../../core/smart-interface";
 import { localId, unique } from "../../core/storage";
-import { addDays, toDateTimeLocalInput } from "../../core/date-time";
+import { addDays, toDateTimeLocalInput, toLocalDateInput } from "../../core/date-time";
 import { formatRelativeTime, levelLabel } from "../../core/format";
 import { uploadNativeProjectFile } from "../../core/desktop";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -101,7 +101,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const [boardId, setBoardId] = useState(boards[0]?.id || "");
   const [ticketTargetBoardId, setTicketTargetBoardId] = useState("");
   const [ticketTargetListId, setTicketTargetListId] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => toLocalDateInput());
   const [busy, setBusy] = useState(false);
   const createIntentRef = useRef(createClusterCreateIntentControl());
   // A drawer is remounted per authenticated identity. Abort old requests on
@@ -125,7 +125,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const [projectLeadId, setProjectLeadId] = useState("");
   const [projectObjective, setProjectObjective] = useState("");
   const [projectClientName, setProjectClientName] = useState("");
-  const [projectStartDate, setProjectStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [projectStartDate, setProjectStartDate] = useState(() => toLocalDateInput());
   const [projectTargetDate, setProjectTargetDate] = useState("");
   const [projectPriority, setProjectPriority] = useState<Priority>("medium");
   const [projectTags, setProjectTags] = useState("");
@@ -306,7 +306,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setDetails(handoff?.details || "");
     setProjectId(preferredProjectId);
     setBoardId(preferredBoard?.id || "");
-    setDate(handoff?.date || new Date().toISOString().slice(0, 10));
+    setDate(handoff?.date || toLocalDateInput());
     setProjectType((settings?.defaultProjectTypeId || "general") as ProjectKind);
     setProductionProfile("generic");
     setProjectTypeTemplate("");
@@ -316,7 +316,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setProjectLeadId(currentUser.id);
     setProjectObjective("");
     setProjectClientName("");
-    setProjectStartDate(new Date().toISOString().slice(0, 10));
+    setProjectStartDate(toLocalDateInput());
     setProjectTargetDate("");
     setProjectPriority("medium");
     setProjectTags("");
@@ -339,9 +339,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setTimelineEndTime("10:00");
     setTimelineColor("#4f8df7");
     setMeetingEndDate(
-      addDays(new Date(`${handoff?.date || new Date().toISOString().slice(0, 10)}T00:00:00`), 14)
-        .toISOString()
-        .slice(0, 10),
+      toLocalDateInput(addDays(new Date(`${handoff?.date || toLocalDateInput()}T00:00:00`), 14)),
     );
     setMeetingCapacity("40");
     setWhiteboardTemplate("blank");
@@ -1286,9 +1284,7 @@ ${bugActual}`,
           start: date,
           end:
             meetingEndDate ||
-            addDays(new Date(`${date}T00:00:00`), 14)
-              .toISOString()
-              .slice(0, 10),
+            toLocalDateInput(addDays(new Date(`${date}T00:00:00`), 14)),
           capacity: meetingCapacity || "40",
           status: "planned",
           createdAt: new Date().toISOString(),

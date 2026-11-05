@@ -34,7 +34,8 @@ import { BoardFilterPanel } from "./BoardFilterPanel";
 import { BoardCalendarView, BoardListView, BoardTableView, BoardTimelineView, type BoardViewMode, type BoardViewRow } from "./BoardAlternativeViews";
 import { BoardCardTile, isCardOverdue } from "./BoardCardTile";
 import { BoardPlanningInsights } from "./BoardPlanningInsights";
-import { boardBlockedCardIds } from "./board-planning-intelligence";
+import { boardActiveBlockerRows } from "./board-planning-intelligence";
+import { addVisibleBoardSelection, countVisibleBoardSelection, pruneBoardSelection, removeVisibleBoardSelection } from "./board-selection-projection";
 import { BOARD_TEMPLATES, boardTemplateColumns, type BoardTemplateId } from "./board-templates";
 import { BOARD_APPEARANCE_PRESETS, DEFAULT_BOARD_LABELS, boardThemeBackground } from "./board-appearance";
 import { EMPTY_BOARD_MOVE_HISTORY, recordBoardCardMove, completeBoardCardMove, discardConflictedBoardCard, canReplayBoardSavedMove, type BoardCardMoveHistory } from "./board-card-move-history";
@@ -766,8 +767,21 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   const backlogList = useMemo(() => (board ? board.lists.find((list) => list.title.toLowerCase().includes("backlog")) || board.lists[0] : null), [board]);
   const visibleLists = useMemo(() => (!board ? [] : hideDone && doneList ? board.lists.filter((list) => list.id !== doneList.id) : board.lists), [board, hideDone, doneList]);
   const normalizedQuery = deferredQuery.trim().toLowerCase();
-  const doneCardIds = useMemo(() => new Set((board?.lists || []).filter((list) => list.isDone).flatMap((list) => list.cards.map((card) => card.id))), [board]);
-  const blockedCardIds = useMemo(() => boardBlockedCardIds(planningPayload?.dependencies || [], doneCardIds), [planningPayload?.dependencies, doneCardIds]);
+  // Planning responses can outlive a Board switch. Never apply the old
+  // Board's relationships or projected Done states to the newly selected one.
+  const activePlanningPayload = planningPayload?.boardId === board?.id ? planningPayload : null;
+  const localCardIds = useMemo(() => new Set(cards.map((card) => card.id)), [cards]);
+  const doneCardIds = useMemo(() => {
+    const ids = new Set((board?.lists || []).filter((list) => list.isDone).flatMap((list) => list.cards.map((card) => card.id)));
+    for (const projection of activePlanningPayload?.projections || []) {
+      if (projection.owningListDone) ids.add(projection.cardId);
+    }
+    return ids;
+  }, [board, activePlanningPayload?.projections]);
+  const blockedCardIds = useMemo(() => new Set(
+    boardActiveBlockerRows(activePlanningPayload?.dependencies || [], doneCardIds, localCardIds)
+      .map((row) => row.blockedCardId),
+  ), [activePlanningPayload?.dependencies, doneCardIds, localCardIds]);
   const cardFilters = useMemo(() => ({ normalizedQuery, priorityFilter, labelFilter, categoryFilter, issueFilter, assigneeFilter, viewPreset, currentUserId: currentUser.id, blockedCardIds }), [normalizedQuery, priorityFilter, labelFilter, categoryFilter, issueFilter, assigneeFilter, viewPreset, currentUser.id, blockedCardIds]);
   const visibleCardsByList = useMemo(() => new Map(visibleLists.map((list) => [
     list.id,
@@ -794,6 +808,14 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     return "Cards";
   }, [groupMode, userById]);
   const selectedCards = useMemo(() => Array.from(selectedCardIds, (id) => cardById.get(id)).filter((card): card is Card => Boolean(card)), [cardById, selectedCardIds]);
+  const visibleCardIds = useMemo(() => visibleRows.map((row) => row.card.id), [visibleRows]);
+  const visibleSelectedCount = countVisibleBoardSelection(selectedCardIds, visibleCardIds);
+  const selectedOutsideViewCount = selectedCards.length - visibleSelectedCount;
+  useEffect(() => {
+    if (!board?.id) return;
+    const currentBoardIds = new Set(cardById.keys());
+    setSelectedCardIds((current) => pruneBoardSelection(current, currentBoardIds));
+  }, [board?.id, cardById]);
   const boardSelectionAnchor = useMemo(() => {
     if (!selectedCards.length) return null;
     const labels = selectedCards.slice(0, 3).map((card) => card.title);
@@ -865,7 +887,10 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
     });
   }
   function selectAllVisibleCards() {
-    setSelectedCardIds(new Set(visibleRows.map((row) => row.card.id)));
+    setSelectedCardIds((current) => addVisibleBoardSelection(current, visibleCardIds));
+  }
+  function deselectVisibleCards() {
+    setSelectedCardIds((current) => removeVisibleBoardSelection(current, visibleCardIds));
   }
   async function runSelectedBoardBulk(
     label: string,
@@ -1206,7 +1231,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <article className="panel">
               <span>Unassigned</span><strong>{unassignedCount}</strong><em>{linkedCount} linked to Source Control</em>
             </article>
-            <BoardPlanningInsights board={board} cards={cards} users={users} payload={planningPayload} error={planningError} />
+            <BoardPlanningInsights board={board} cards={cards} users={users} payload={activePlanningPayload} error={planningError} />
           </div>
         )}
 
@@ -1215,6 +1240,11 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <ClusterTextInput ref={searchInputRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards, labels, assignees, Source Control issues…  /" aria-label="Search board cards" />
           </div>
           <span className="control-result">{filteredCount} cards</span>
+          <ClusterButton size="compact" variant="quiet" className="board-select-visible-v11"
+            onClick={selectAllVisibleCards} disabled={bulkBusy || !visibleCardIds.length || visibleSelectedCount === visibleCardIds.length}
+            aria-label={`Add ${visibleCardIds.length - visibleSelectedCount} visible Board Cards to selection`}>
+            Select visible
+          </ClusterButton>
           <div className="board-view-mode-v489" role="group" aria-label="Board layout">
             {([
               ["kanban", "Board"],
@@ -1331,8 +1361,14 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
           />
         )}
 
-        <ClusterBulkActionBar selectionCount={selectedCardIds.size} label="Selected card actions" onClear={() => setSelectedCardIds(new Set())} className="board-bulk-bar-v489">
-          <ClusterButton size="compact" variant="quiet" onClick={selectAllVisibleCards} disabled={bulkBusy || selectedCardIds.size === visibleRows.length}>Select visible</ClusterButton>
+        <ClusterBulkActionBar selectionCount={selectedCards.length} label="Selected card actions" onClear={() => setSelectedCardIds(new Set())} className="board-bulk-bar-v489">
+          <ClusterButton size="compact" variant="quiet" onClick={deselectVisibleCards}
+            disabled={bulkBusy || !visibleSelectedCount} aria-label={`Deselect ${visibleSelectedCount} Cards in the current filtered view`}>
+            Deselect visible
+          </ClusterButton>
+          {selectedOutsideViewCount > 0 ? <span className="board-selection-hidden-v11" role="status">
+            {selectedOutsideViewCount} selected outside current filters
+          </span> : null}
           {bulkBusy && bulkOperationAbortRef.current ? <ClusterButton size="compact" variant="secondary" onClick={() => { bulkOperationAbortRef.current?.abort(); setCategoryStatus("Stopping after the current card. Already submitted changes are preserved."); }}>Cancel remaining</ClusterButton> : null}
           <ClusterButton size="compact" variant="quiet" selected={showSelectionDiscussion} onClick={() => setShowSelectionDiscussion((value) => !value)}>Discuss selection</ClusterButton>
           <ClusterSelect ariaLabel="Bulk priority" value={bulkPriority} placeholder="Set priority" onChange={(value) => setBulkPriority(value as Priority | "")} options={[{ value: "", label: "Set priority" }, { value: "urgent", label: "Urgent" }, { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }]} />

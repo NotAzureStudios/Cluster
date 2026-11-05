@@ -1,3 +1,6 @@
+import { DEVICE_PERFORMANCE_CHANGED_EVENT, DEVICE_PERFORMANCE_STORAGE_KEY, readDevicePerformancePreferences, resolveDeviceRendererQuality } from "./device-performance";
+import { effectiveRendererBlurPx } from "./renderer-budget";
+
 export type RendererHost = "web" | "desktop";
 export type RendererQualityTier = "full" | "balanced" | "reduced";
 export type RendererPointerMode = "fine" | "coarse" | "mixed" | "unknown";
@@ -38,6 +41,7 @@ type DocumentWithViewTransitions = Document & {
 const listeners = new Set<CapabilityListener>();
 let cleanupCallbacks: Array<() => void> = [];
 let initialized = false;
+let cachedWebGl2: boolean | null = null;
 let current: RendererCapabilities = Object.freeze({
   host: "web",
   devicePixelRatio: 1,
@@ -88,13 +92,18 @@ function classifyViewport(width: number): RendererCapabilities["viewportClass"] 
 }
 
 function detectWebGl2() {
+  if (cachedWebGl2 !== null) return cachedWebGl2;
   if (typeof document === "undefined") return false;
   try {
+    // Capability probing must not create a new graphics context on every resize.
     const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true }));
+    const context = canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true });
+    cachedWebGl2 = Boolean(context);
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
-    return false;
+    cachedWebGl2 = false;
   }
+  return cachedWebGl2;
 }
 
 function chooseQualityTier(input: Omit<RendererCapabilities, "qualityTier">): RendererQualityTier {
@@ -130,7 +139,7 @@ function readCapabilities(host: RendererHost): RendererCapabilities {
     webgl2: detectWebGl2(),
     webgpu: Boolean(browserNavigator.gpu),
   } satisfies Omit<RendererCapabilities, "qualityTier">;
-  return Object.freeze({ ...base, qualityTier: chooseQualityTier(base) });
+  return Object.freeze({ ...base, qualityTier: resolveDeviceRendererQuality(chooseQualityTier(base), base) });
 }
 
 function applyCapabilityAttributes(capabilities: RendererCapabilities) {
@@ -138,6 +147,15 @@ function applyCapabilityAttributes(capabilities: RendererCapabilities) {
   const root = document.documentElement;
   root.dataset.rendererHost = capabilities.host;
   root.dataset.rendererQuality = capabilities.qualityTier;
+  root.dataset.devicePerformanceProfile = readDevicePerformancePreferences().profile;
+  // This is an inline visual customization variable, so CSS selectors alone
+  // cannot cap it. Apply the same budget on profile changes and when Appearance
+  // changes the preferred value.
+  const preferredBlur = Number.parseFloat(root.style.getPropertyValue("--cluster-preferred-glass-blur"));
+  const effectiveBlur = `${effectiveRendererBlurPx(preferredBlur, capabilities.qualityTier)}px`;
+  if (root.style.getPropertyValue("--glass-blur") !== effectiveBlur) {
+    root.style.setProperty("--glass-blur", effectiveBlur);
+  }
   root.dataset.rendererPointer = capabilities.pointer;
   root.dataset.rendererBackdrop = capabilities.backdropFilter ? "supported" : "fallback";
   root.dataset.rendererViewTransitions = capabilities.viewTransitions ? "supported" : "fallback";
@@ -152,6 +170,9 @@ function applyCapabilityAttributes(capabilities: RendererCapabilities) {
 
 function publish(next: RendererCapabilities) {
   const changed = JSON.stringify(next) !== JSON.stringify(current);
+  const profileChanged = typeof document !== "undefined"
+    && document.documentElement.dataset.devicePerformanceProfile !== readDevicePerformancePreferences().profile;
+  if (!changed && !profileChanged) return;
   current = next;
   applyCapabilityAttributes(current);
   if (changed) listeners.forEach((listener) => listener());
@@ -180,8 +201,25 @@ export function initializeRendererCapabilities(host: RendererHost) {
     "(forced-colors: active)",
   ].forEach((query) => watchMedia(query, refresh));
   if (typeof window !== "undefined") {
-    window.addEventListener("resize", refresh, { passive: true });
-    cleanupCallbacks.push(() => window.removeEventListener("resize", refresh));
+    let resizeFrame = 0;
+    const onResize = () => {
+      if (resizeFrame) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0;
+        refresh();
+      });
+    };
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh);
+    const onStorage = (event: StorageEvent) => { if (event.key === DEVICE_PERFORMANCE_STORAGE_KEY) refresh(); };
+    window.addEventListener("storage", onStorage);
+    cleanupCallbacks.push(() => {
+      window.removeEventListener("resize", onResize);
+      if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = 0;
+    });
+    cleanupCallbacks.push(() => window.removeEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh));
+    cleanupCallbacks.push(() => window.removeEventListener("storage", onStorage));
   }
   return current;
 }
@@ -199,5 +237,6 @@ export function disposeRendererCapabilities() {
   cleanupCallbacks.forEach((cleanup) => cleanup());
   cleanupCallbacks = [];
   listeners.clear();
+  cachedWebGl2 = null;
   initialized = false;
 }

@@ -8,16 +8,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, queryApi } from "../../core/api";
 import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
-import { DEFAULT_MEMBER_TOOL_PERMISSIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
+import { DEFAULT_MEMBER_TOOL_PERMISSIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
 import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../core/options";
 import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
+import { ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
+import { ClusterSettingsSearch } from "../../components/ClusterSettingsSearch";
+import { buildStudioSettingsSearchEntries } from "./studio-settings-search";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { ResourceIconPicker } from "../../components/ResourceIconPicker";
+import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -29,6 +32,12 @@ import { PROJECT_STATUS_OPTIONS } from "../projects/projects-utils";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Settings, StudioDepartmentDefinition, StudioRoleDefinition, StudioSettingsSection } from "../application/application-models";
 import "./settings-workspace.css";
+import "./people-management-layout-v11.css";
+import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
+import { RoleMembershipReviewPanel, type RoleMemberSnapshot } from "./RoleMembershipReviewPanel";
+import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
+import { ClusterEffectiveAccessInspector, type ClusterEffectiveAccessPreview } from "../../components/ClusterEffectiveAccessInspector";
+import { filterRoleDirectory, type RoleDirectoryFilter } from "./role-directory-filter";
 
 import type { StudioSettingsPageProps } from "./settings-workspace-contracts";
 import { STUDIO_SETTINGS_DEPENDENCIES } from "./studio-settings-dependencies";
@@ -40,6 +49,7 @@ import { DASHBOARD_WIDGETS, HOME_WIDGET_PERMISSIONS, homeWidgetExtensionPolicyFr
 import { useHomeWidgetLibrary } from "../home-widgets/home-widget-library";
 import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, STUDIO_ACTION_RULES } from "./studio-settings-state";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 import { StudioDomainsPanel } from "../domains/DomainManagementPanel";
 import { VersioningAdminPage } from "../admin/ProductionIntegrationAdminPages";
 
@@ -52,6 +62,13 @@ const STUDIO_SETTINGS_NAV_ICONS: Record<StudioSettingsSection, import("../../com
 };
 
 const SETTINGS_EXTENSION_RENDER_BATCH = 80;
+const ROLE_DIRECTORY_FILTER_OPTIONS: readonly { value: RoleDirectoryFilter; label: string; needsCounts?: boolean }[] = [
+  { value: "all", label: "All" },
+  { value: "enabled", label: "Active" },
+  { value: "disabled", label: "Disabled" },
+  { value: "assigned", label: "Assigned", needsCounts: true },
+  { value: "unassigned", label: "Unused", needsCounts: true },
+];
 
 export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSection, initialSubsection, onSubsectionChange, onSectionChange }: StudioSettingsPageProps) {
   const { withoutServerManagedSettings, DEFAULT_CREATE_PROJECT_FIELDS, DEFAULT_CREATE_BUILD_FIELDS, DEFAULT_BUILD_STATUSES, DEFAULT_QA_CHECKLIST, DEFAULT_QA_SEVERITIES, DEFAULT_QA_CATEGORIES, DEFAULT_WEBHOOK_EVENTS, DEFAULT_ROLE_CREATE_ROLES, DEFAULT_ROLE_APPROVAL_ROLES, studioSlug, splitCsv, normalizeRoleId, roleLabelFromId, mergeStudioDepartments, mergeStudioRoles, rolesCsvFromIds, rolePermissionTemplateOptions, permissionTemplateTools, departmentPermissionsFromSettings, DEFAULT_PROJECT_TYPE_PRESETS, slugProjectTypeId, sanitizeProjectTypePreset, mergeProjectTypePresets, writeProjectTypePresetsCache, projectTypePresetsFromSettings, readFileAsDataUrl, normalizeClusterAccent, applyCustomization, CustomFieldDefinitionsPanel, AutomationRulesPanel, StudioPermissionEditor } = STUDIO_SETTINGS_DEPENDENCIES;
@@ -106,7 +123,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   useEffect(() => { onSectionChange?.(section); }, [section]);
   const [newBundleLabel, setNewBundleLabel] = useState("");
   const [selectedBundleId, setSelectedBundleId] = useState("");
-  const [bundlePreview, setBundlePreview] = useState<{ changes: Array<{ tool: string; current: { level: string }; proposed: { level: string; provenance?: { effective?: { label: string } } } }> } | null>(null);
+  const [bundlePreview, setBundlePreview] = useState<(ClusterEffectiveAccessPreview & { requestKey: string }) | null>(null);
   const [bundlePreviewError, setBundlePreviewError] = useState("");
   const [bundlePreviewLoading, setBundlePreviewLoading] = useState(false);
   const permissionPreviewSequence = useRef(0);
@@ -121,6 +138,41 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("studio");
   const [roleEditorTab, setRoleEditorTab] = useState<"details" | "permissions" | "actions">("details");
   const [departmentEditorTab, setDepartmentEditorTab] = useState<"details" | "permissions" | "roles">("details");
+  const [departmentCreationOpen, setDepartmentCreationOpen] = useState(false);
+  const [roleCreationOpen, setRoleCreationOpen] = useState(false);
+  const [roleDirectorySearch, setRoleDirectorySearch] = useState("");
+  const [roleDirectoryFilter, setRoleDirectoryFilter] = useState<RoleDirectoryFilter>("all");
+  const [roleMemberCounts, setRoleMemberCounts] = useState<Record<string, number> | null>(null);
+  const [roleMemberCountsError, setRoleMemberCountsError] = useState("");
+  const [roleMemberSnapshot, setRoleMemberSnapshot] = useState<RoleMemberSnapshot | null>(null);
+  const [roleMemberReviewLoading, setRoleMemberReviewLoading] = useState(false);
+  const [roleMemberReviewError, setRoleMemberReviewError] = useState("");
+  const roleMemberReviewSequence = useRef(0);
+  useEffect(() => {
+    // Never carry a private member list between roles or signed-in editors.
+    roleMemberReviewSequence.current += 1;
+    setRoleMemberSnapshot(null);
+    setRoleMemberReviewLoading(false);
+    setRoleMemberReviewError("");
+  }, [currentUser.id, selectedRoleId, section]);
+  useEffect(() => {
+    if (section !== "roles" || !currentUser.isAdmin) return;
+    let cancelled = false;
+    setRoleMemberCounts(null);
+    setRoleMemberCountsError("");
+    void queryApi<{ roles: Array<{ id: string; members: number }> }>("/api/admin/users/assignable-roles", {
+      staleMs: 15_000, maxAgeMs: 60_000, persist: false, tags: ["roles", "users", "people"],
+    }).then(({ roles }) => {
+      if (!cancelled) setRoleMemberCounts(Object.fromEntries(roles.map((role) => [role.id, role.members])));
+    }).catch((error: unknown) => {
+      if (!cancelled) setRoleMemberCountsError(error instanceof Error ? error.message : "Member counts unavailable.");
+    });
+    return () => { cancelled = true; };
+  }, [section, currentUser.id, currentUser.isAdmin]);
+  const [workforceDepartmentRows, setWorkforceDepartmentRows] = useState<Array<{ id: string; name: string; color?: string | null; iconId?: string | null }>>([]);
+  useEffect(() => { setWorkforceDepartmentRows([]); }, [currentUser.id]);
+  const workforceDepartmentById = useMemo(() => new Map(workforceDepartmentRows.map((department) => [department.id, department])), [workforceDepartmentRows]);
+
   const [selectedProjectTypeId, setSelectedProjectTypeId] = useState("");
   const studioDraftTimer = useRef<number | null>(null);
   const studioDraftKey = `studio-settings:${currentUser.id}`;
@@ -302,6 +354,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(key))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => {
@@ -333,6 +386,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (["studioPermissionBundles", "studioRoleDefinitions", "studioDepartmentDefinitions"].includes(String(field))) {
       permissionPreviewSequence.current += 1;
       setBundlePreview(null);
+      setBundlePreviewError("");
       setBundlePreviewLoading(false);
     }
     setSettings((prev) => { const merged = { ...prev, ...updates }; persistStudioDraft(merged); return merged; });
@@ -461,12 +515,23 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     setBundlePreviewError("");
     setBundlePreviewLoading(true);
     const sequence = ++permissionPreviewSequence.current;
+    const requestBody = {
+      roleId,
+      departmentId,
+      studioPermissionBundles: settings.studioPermissionBundles || [],
+      studioRoleDefinitions: mergeStudioRoles(settings),
+      studioDepartmentDefinitions: mergeStudioDepartments(settings.studioDepartmentDefinitions),
+    };
+    const requestKey = JSON.stringify(requestBody);
     try {
-      const result = await api<{ ok: boolean; changes: Array<{ tool: string; current: { level: string }; proposed: { level: string; provenance?: { effective?: { label: string } } } }> }>("/api/access/permission-preview", {
+      const result = await api<ClusterEffectiveAccessPreview>("/api/access/permission-preview", {
         method: "POST",
-        body: JSON.stringify({ roleId, departmentId, studioPermissionBundles: settings.studioPermissionBundles || [], studioRoleDefinitions: mergeStudioRoles(settings), studioDepartmentDefinitions: mergeStudioDepartments(settings.studioDepartmentDefinitions) }),
+        body: requestKey,
       });
-      if (permissionPreviewSequence.current === sequence) setBundlePreview(result);
+      if (!result.ok || result.roleId !== roleId || result.departmentId !== departmentId || !result.matrix || !Array.isArray(result.changes)) {
+        throw new Error("The server returned an incomplete or mismatched role-policy preview.");
+      }
+      if (permissionPreviewSequence.current === sequence) setBundlePreview({ ...result, requestKey });
     } catch (error) {
       if (permissionPreviewSequence.current === sequence) setBundlePreviewError(error instanceof Error ? error.message : "Could not preview access policy.");
     } finally {
@@ -508,34 +573,53 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     else nextPermissions[tool] = level;
     updateStudioRole(id, { toolPermissions: nextPermissions });
   }
-  function renameStudioRole(id: string, nextRawId: string) {
-    const nextId = normalizeRoleId(nextRawId);
-    const roles = mergeStudioRoles(settings);
-    const target = roles.find((role) => role.id === id);
-    if (!target || target.locked || !nextId || nextId === id) return;
-    if (roles.some((role) => role.id === nextId)) {
-      setStatus(`Role key already exists: ${nextId}`);
-      return;
+  async function loadRoleMembers(roleId: string) {
+    if (!currentUser.isAdmin || section !== "roles") return;
+    const ownerId = currentUser.id;
+    const sequence = ++roleMemberReviewSequence.current;
+    setRoleMemberSnapshot(null);
+    setRoleMemberReviewError("");
+    setRoleMemberReviewLoading(true);
+    try {
+      const page = await queryApi<{ items: RoleMemberSnapshot["items"]; hasMore: boolean }>(
+        `/api/users?role=${encodeURIComponent(roleId)}&paged=true&limit=25&includeArchived=true`,
+        { force: true, staleMs: 0, persist: false, tags: ["people", "roles", "users"] },
+      );
+      if (!Array.isArray(page.items) || typeof page.hasMore !== "boolean") {
+        throw new Error("The server returned an incomplete role membership response.");
+      }
+      if (roleMemberReviewSequence.current === sequence) {
+        setRoleMemberSnapshot({ roleId, ownerId, items: page.items, hasMore: page.hasMore });
+      }
+    } catch (cause) {
+      if (roleMemberReviewSequence.current === sequence) {
+        setRoleMemberReviewError(cause instanceof Error ? cause.message : "Role membership review is unavailable.");
+      }
+    } finally {
+      if (roleMemberReviewSequence.current === sequence) setRoleMemberReviewLoading(false);
     }
-    const replaceRoleId = (value: string) => (normalizeRoleId(value) === id ? nextId : normalizeRoleId(value));
-    patch(
-      "studioRoleDefinitions",
-      roles.map((role) => (role.id === id ? { ...role, id: nextId } : role)),
+  }
+
+  async function roleHasAssignments(id: string): Promise<boolean> {
+    // A role definition is a permission policy, not a user record. Never
+    // delete or disable it while stored membership roles still reference it.
+    const page = await queryApi<{ items: Array<{ id: string }> }>(
+      `/api/users?role=${encodeURIComponent(id)}&paged=true&limit=1&includeArchived=true`,
+      { force: true, staleMs: 0, persist: false },
     );
-    (["studioProjectCreateRolesCsv", "studioBuildApprovalRolesCsv", "studioQaApprovalRolesCsv", "studioAdminRolesCsv"] as const).forEach((key) => patch(key, rolesCsvFromIds(splitCsv(settings[key]).map(replaceRoleId))));
-    patch(
-      "projectTypePresets",
-      projectTypePresets.map((preset) => ({
-        ...preset,
-        approvalRoles: (preset.approvalRoles || []).map(replaceRoleId),
-      })),
-    );
-    patch(
-      "studioDepartmentDefinitions",
-      mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => (department.leadRoleId === id ? { ...department, leadRoleId: nextId } : department)),
-    );
-    if (settings.studioDefaultWorkspaceRole === id) patch("studioDefaultWorkspaceRole", nextId);
-    setStatus(`Role key changed from ${id} to ${nextId}. Existing users keep their current stored role until their profiles are updated.`);
+    return page.items.length > 0;
+  }
+  async function setStudioRoleEnabled(id: string, enabled: boolean) {
+    if (enabled) { updateStudioRole(id, { enabled: true }); return; }
+    try {
+      if (await roleHasAssignments(id)) {
+        setStatus("This role is still assigned to users. Reassign them before disabling it.");
+        return;
+      }
+      updateStudioRole(id, { enabled: false });
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : "Could not verify role assignments.");
+    }
   }
   function addStudioRole() {
     const label = newRoleLabel.trim();
@@ -560,26 +644,49 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     ];
     patch("studioRoleDefinitions", next);
     setNewRoleLabel("");
+    setRoleCreationOpen(false);
     setSelectedRoleId(id);
     setRoleEditorTab("details");
     setStatus(`Added editable role: ${label}`);
   }
-  function removeStudioRole(id: string) {
+  async function removeStudioRole(id: string) {
     const roles = mergeStudioRoles(settings);
     const target = roles.find((role) => role.id === id);
     if (!target) return;
+    try {
+      if (await roleHasAssignments(id)) {
+        setStatus("This role is assigned to users. Reassign members before changing its availability.");
+        return;
+      }
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : "Could not verify role assignments.");
+      return;
+    }
     if (target.locked) {
       updateStudioRole(id, { enabled: false });
-    } else {
-      patch(
-        "studioRoleDefinitions",
-        roles.filter((role) => role.id !== id),
-      );
+      setStatus("Built-in role disabled. The role key remains reserved.");
+      return;
     }
+    if (!(await confirmCluster({
+      title: `Remove role ${target.label}?`,
+      message: "This unassigned role's permission definition will be removed. This cannot be undone after saving Studio Settings.",
+      confirmLabel: "Remove role",
+      tone: "danger",
+    }))) return;
+    patch("studioRoleDefinitions", roles.filter((role) => role.id !== id));
     (["studioProjectCreateRolesCsv", "studioBuildApprovalRolesCsv", "studioQaApprovalRolesCsv", "studioAdminRolesCsv"] as const).forEach((key) => {
       const next = splitCsv(settings[key]).filter((item) => normalizeRoleId(item) !== id);
       patch(key, rolesCsvFromIds(next));
     });
+    if (settings.studioDefaultWorkspaceRole === id) patch("studioDefaultWorkspaceRole", "member");
+    patch("studioDepartmentDefinitions", mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) =>
+      department.leadRoleId === id ? { ...department, leadRoleId: undefined } : department,
+    ));
+    patch("projectTypePresets", projectTypePresets.map((preset) => ({
+      ...preset, approvalRoles: (preset.approvalRoles || []).filter((roleId) => normalizeRoleId(roleId) !== id),
+    })));
+    setSelectedRoleId("member");
+    setStatus(`Removed unassigned role definition ${target.label} and its policy references from the draft.`);
   }
   function updateStudioDepartment(id: string, patchDepartment: Partial<StudioDepartmentDefinition>) {
     const next = mergeStudioDepartments(settings.studioDepartmentDefinitions).map((department) => (department.id === id ? { ...department, ...patchDepartment, id } : department));
@@ -617,6 +724,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     ]);
     setNewDepartmentLabel("");
     setNewDepartmentTeam("");
+    setDepartmentCreationOpen(false);
     setSelectedDepartmentId(id);
     setDepartmentEditorTab("details");
     setStatus(`Added department: ${label}`);
@@ -837,10 +945,30 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   }, [projectTypePresets, selectedProjectTypeId]);
   const enabledPresetCount = projectTypePresets.filter((preset) => preset.enabled !== false).length;
   const starterCount = [settings.defaultCreateStarterBoard, settings.defaultCreateStarterWhiteboard].filter((value) => value !== false).length;
+  const roleDepartmentLabels = Object.fromEntries(studioDepartments.map((department) => [department.id, department.label]));
+  const visibleStudioRoles = filterRoleDirectory(studioRoles, {
+    search: roleDirectorySearch,
+    filter: roleDirectoryFilter,
+    departmentLabels: roleDepartmentLabels,
+    memberCounts: roleMemberCounts,
+  });
   const selectedRole = studioRoles.find((role) => role.id === selectedRoleId) || studioRoles[0];
   const selectedDepartment = studioDepartments.find((department) => department.id === selectedDepartmentId) || studioDepartments[0];
   const selectedDepartmentRoles = selectedDepartment ? studioRoles.filter((role) => role.departmentId === selectedDepartment.id) : [];
   const selectedRoleDepartment = selectedRole ? studioDepartments.find((department) => department.id === selectedRole.departmentId) : undefined;
+  const selectedRolePreviewRequest = selectedRole ? {
+    roleId: selectedRole.id,
+    departmentId: selectedRole.departmentId || null,
+    studioPermissionBundles: settings.studioPermissionBundles || [],
+    studioRoleDefinitions: studioRoles,
+    studioDepartmentDefinitions: studioDepartments,
+  } : null;
+  // Never show a previously authorized preview against a changed draft, role,
+  // department or account. The backend remains the source of truth.
+  const activeRolePreview = bundlePreview && selectedRolePreviewRequest
+    && bundlePreview.roleId === selectedRole.id
+    && bundlePreview.requestKey === JSON.stringify(selectedRolePreviewRequest)
+      ? bundlePreview : null;
   const selectedDepartmentInheritedPermissions = selectedDepartment ? {
     ...permissionTemplateTools(selectedDepartment.permissionTemplateKey || "member"),
     ...Object.assign({}, ...resolveAssignedPermissionBundles(studioBundles, selectedDepartment.permissionBundleIds).map((bundle) => bundle.toolPermissions)),
@@ -901,6 +1029,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       onChange={setSection}
       items={studioSections.map((item) => ({ id: item.key, label: item.label, group: item.group, icon: STUDIO_SETTINGS_NAV_ICONS[item.key] }))}
     >
+      <ClusterSettingsSearch label="Find studio settings" entries={buildStudioSettingsSearchEntries(studioSections)} onNavigate={(entry) => setSection(entry.section)} />
       {heldStudioDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated Studio settings draft">
         <strong>Stored Studio draft needs review</strong>
         <p className="muted">This draft was saved before the current server Settings snapshot or has no trusted baseline. It was not applied automatically. Loading it may overwrite newer administrator changes if you save it.</p>
@@ -929,15 +1058,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                     <h3>Workspace identity</h3>
                     <span>Shown in shared app chrome</span>
                   </div>
-                  <div className="two-col compact-fields-v092">
-                    <div className="field">
-                      <label>Studio / organization name</label>
-                      <ClusterInput value={settings.studioName || ""} onChange={(e) => patch("studioName", e.target.value)} placeholder="Your studio" />
-                    </div>
-                    <div className="field">
-                      <label>Workspace name</label>
-                      <ClusterInput value={settings.workspaceName || ""} onChange={(e) => patch("workspaceName", e.target.value)} placeholder="Cluster Workspace" />
-                    </div>
+                  <div className="two-col compact-fields-v092 studio-identity-controls-v11">
+                    <ClusterSettingsRow label="Studio / organization name" controlId="studio-name-field-v11">
+                      <ClusterInput id="studio-name-field-v11" value={settings.studioName || ""} onChange={(e) => patch("studioName", e.target.value)} placeholder="Your studio" />
+                    </ClusterSettingsRow>
+                    <ClusterSettingsRow label="Workspace name" controlId="studio-workspace-field-v11">
+                      <ClusterInput id="studio-workspace-field-v11" value={settings.workspaceName || ""} onChange={(e) => patch("workspaceName", e.target.value)} placeholder="Cluster Workspace" />
+                    </ClusterSettingsRow>
                     <div className="field span-2">
                       <label>Organization logo</label>
                       <div className="studio-logo-controls-v239">
@@ -970,20 +1097,18 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                         applyCustomization({ ...settings, studioSecondaryColor: value });
                       }}
                     />
-                    <div className="field">
-                      <label>Project code prefix</label>
-                      <ClusterInput value={settings.studioProjectCodePrefix || "CLST"} onChange={(e) => patch("studioProjectCodePrefix", e.target.value.toUpperCase())} placeholder="CLST" />
-                    </div>
-                    <div className="field">
-                      <label>Studio timezone</label>
-                      <ClusterNativeSelect value={settings.studioTimezone || "America/New_York"} onChange={(e) => patch("studioTimezone", e.target.value)}>
+                    <ClusterSettingsRow label="Project code prefix" controlId="studio-code-prefix-field-v11" help="Used when generating new project codes. Existing project identities are not renamed.">
+                      <ClusterInput id="studio-code-prefix-field-v11" value={settings.studioProjectCodePrefix || "CLST"} onChange={(e) => patch("studioProjectCodePrefix", e.target.value.toUpperCase())} placeholder="CLST" />
+                    </ClusterSettingsRow>
+                    <ClusterSettingsRow label="Studio timezone" controlId="studio-timezone-field-v11">
+                      <ClusterNativeSelect id="studio-timezone-field-v11" value={settings.studioTimezone || "America/New_York"} onChange={(e) => patch("studioTimezone", e.target.value)}>
                         {optionsWithCurrent(TIMEZONE_OPTIONS, settings.studioTimezone || "America/New_York").map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
                       </ClusterNativeSelect>
-                    </div>
+                    </ClusterSettingsRow>
                   </div>
                   <div className="logo-preview-card logo-preview-card-v092">
                     {settings.organizationLogoUrl ? <img loading="lazy" decoding="async" src={settings.organizationLogoUrl} alt="Organization logo preview" /> : <div className="logo-preview-empty">Logo</div>}
@@ -1012,54 +1137,44 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           />}
 
           {section === "departments" && (
-            <div className="settings-section-v092 studio-settings-section-v272">
+            <div className="settings-section-v092 studio-settings-section-v272 studio-people-management-v11 studio-departments-management-v11">
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Organization</p>
                   <h2>Departments</h2>
                 </div>
-                <span className="studio-section-count-v272">{enabledStudioDepartments.length} active</span>
+                <div className="studio-people-manager-head-actions-v11">
+                  <span className="studio-section-count-v272">{enabledStudioDepartments.length} access templates</span>
+                </div>
               </div>
 
-              <div className="studio-policy-strip-v272">
-                <div className="field">
-                  <label>Default department</label>
-                  <ClusterNativeSelect value={settings.studioDefaultDepartmentId || defaultDepartment?.id || "studio"} onChange={(event) => patch("studioDefaultDepartmentId", event.target.value)}>
-                    {enabledStudioDepartments.map((department) => (
-                      <option key={department.id} value={department.id}>{department.label}</option>
-                    ))}
-                  </ClusterNativeSelect>
-                </div>
-                <div className="field">
-                  <label>Capacity policy</label>
-                  <ClusterNativeSelect value={settings.studioDepartmentCapacityMode || "advisory"} onChange={(event) => patch("studioDepartmentCapacityMode", event.target.value as Settings["studioDepartmentCapacityMode"])}>
-                    <option value="off">Do not track targets</option>
-                    <option value="advisory">Show capacity guidance</option>
-                    <option value="required">Require capacity on profiles</option>
-                  </ClusterNativeSelect>
-                </div>
-                <label className="studio-setting-toggle-v272">
-                  <ClusterInput type="checkbox" checked={settings.studioDepartmentRequired !== false} onChange={(event) => patch("studioDepartmentRequired", event.target.checked)} />
-                  <span><strong>Required</strong></span>
-                </label>
-              </div>
+              <WorkforceDepartmentManager key={currentUser.id} canEdit={Boolean(currentUser.isAdmin)} onRowsLoaded={setWorkforceDepartmentRows} />
 
+              <details className="studio-advanced-access-v11 studio-department-templates-v11">
+                <summary><strong>Department access templates & defaults</strong><span>Permission inheritance, role suggestions and onboarding policies</span></summary>
+                <div className="studio-department-policy-actions-v11">
+                  <span>These templates are permission policies, not separate organizational departments.</span>
+                  <ClusterButton type="button" variant="secondary" size="compact" aria-expanded={departmentCreationOpen} onClick={() => setDepartmentCreationOpen((open) => !open)}>{departmentCreationOpen ? "Close template form" : "New access template"}</ClusterButton>
+                </div>
+              {departmentCreationOpen && (
               <div className="studio-create-strip-v272">
-                <div><strong>New</strong></div>
+                <div><strong>New policy template</strong></div>
                 <ClusterInput value={newDepartmentLabel} onChange={(event) => setNewDepartmentLabel(event.target.value)} placeholder="Department name" />
                 <ClusterInput value={newDepartmentTeam} onChange={(event) => setNewDepartmentTeam(event.target.value)} placeholder="Default team name" />
-                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add department</ClusterButton>
+                <ClusterButton type="button" variant="secondary" onClick={addStudioDepartment} disabled={!newDepartmentLabel.trim()}>Add template</ClusterButton>
               </div>
-
+              )}
               <div className="studio-entity-manager-v272">
-                <aside className="studio-entity-list-v272" aria-label="Departments">
+                <aside className="studio-entity-list-v272" aria-label="Department access templates">
                   <div className="studio-entity-list-head-v272">
                     <strong>Directory</strong>
                     <span>{studioDepartments.length}</span>
                   </div>
                   {departmentRoleCoverage.map((department) => (
                     <ClusterButton type="button" key={department.id} className={selectedDepartment?.id === department.id ? "active" : ""} onClick={() => { setSelectedDepartmentId(department.id); setDepartmentEditorTab("details"); }}>
-                      <span className="studio-entity-icon-rc46" aria-hidden="true"><ResourceIdentityMark iconId={department.iconId} label={department.label} accentColor={department.accentColor} /></span>
+                      <span className="studio-entity-icon-rc46" aria-hidden="true">{workforceDepartmentById.get(department.workforceDepartmentId || "")
+                          ? <DepartmentIdentityMark department={workforceDepartmentById.get(department.workforceDepartmentId || "")!} size={24} />
+                          : <ResourceIdentityMark iconId="glyph:users" label={department.label} accentColor="#81919b" />}</span>
                       <span className="studio-entity-list-copy-v272">
                         <strong>{department.label}</strong>
                         {department.defaultTeamName && <small>{department.defaultTeamName}</small>}
@@ -1073,7 +1188,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   <div className="studio-entity-editor-v272">
                     <header className="studio-entity-editor-head-v272">
                       <div className="studio-department-heading-rc46">
-                        <ResourceIdentityMark iconId={selectedDepartment.iconId} label={selectedDepartment.label} accentColor={selectedDepartment.accentColor} />
+                        {workforceDepartmentById.get(selectedDepartment.workforceDepartmentId || "")
+                          ? <DepartmentIdentityMark department={workforceDepartmentById.get(selectedDepartment.workforceDepartmentId || "")!} size={30} />
+                          : <ResourceIdentityMark iconId="glyph:users" label={selectedDepartment.label} accentColor="#81919b" />}
                         <div><h3>{selectedDepartment.label}</h3>
                         {selectedDepartment.description && <p>{selectedDepartment.description}</p>}
                         </div>
@@ -1100,8 +1217,17 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="studio-editor-panel-v272">
                         
                         <div className="studio-form-grid-v272">
-                          <div className="field span-2"><label>Department icon</label><ResourceIconPicker label={selectedDepartment.label} value={selectedDepartment.iconId} onChange={(iconId) => updateStudioDepartment(selectedDepartment.id, { iconId })} /></div>
-                          <div className="field"><ColorField label="Accent" value={selectedDepartment.accentColor || "#57c1ff"} onChange={(accentColor) => updateStudioDepartment(selectedDepartment.id, { accentColor })} /></div>
+                          <div className="field span-2"><div className="studio-department-template-note-v11">The linked Workforce Department owns its icon, color and organizational membership. This template controls access defaults, not the department's appearance.</div></div>
+                          <div className="field span-2">
+                            <label>Linked Workforce Department</label>
+                            <ClusterNativeSelect value={selectedDepartment.workforceDepartmentId || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { workforceDepartmentId: event.target.value || null })}>
+                              <option value="">No link · policy template only</option>
+                              {selectedDepartment.workforceDepartmentId && !workforceDepartmentById.has(selectedDepartment.workforceDepartmentId) && <option value={selectedDepartment.workforceDepartmentId} disabled>Unavailable or archived department</option>}
+                              {workforceDepartmentRows.map((department) => <option key={department.id} value={department.id} disabled={studioDepartments.some((template) => template.id !== selectedDepartment.id && template.workforceDepartmentId === department.id)}>{department.name}</option>)}
+                            </ClusterNativeSelect>
+                            <small>Links by immutable department ID. A link does not grant permissions automatically; role policies still define access.</small>
+                          </div>
+                          
                           <div className="field"><label>Name</label><ClusterInput value={selectedDepartment.label} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { label: event.target.value })} /></div>
                           <div className="field"><label>Default team</label><ClusterInput value={selectedDepartment.defaultTeamName || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { defaultTeamName: event.target.value })} placeholder="Team suggestion" /></div>
                           <div className="field"><label>Lead role</label><ClusterNativeSelect value={selectedDepartment.leadRoleId || ""} onChange={(event) => updateStudioDepartment(selectedDepartment.id, { leadRoleId: event.target.value })}><option value="">No lead role</option>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Used for coverage and leadership suggestions.</small></div>
@@ -1152,20 +1278,183 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                 )}
               </div>
+
+              <div className="studio-policy-strip-v272">
+                <div className="field">
+                  <label>Default department</label>
+                  <ClusterNativeSelect value={settings.studioDefaultDepartmentId || defaultDepartment?.id || "studio"} onChange={(event) => patch("studioDefaultDepartmentId", event.target.value)}>
+                    {enabledStudioDepartments.map((department) => (
+                      <option key={department.id} value={department.id}>{department.label}</option>
+                    ))}
+                  </ClusterNativeSelect>
+                </div>
+                <div className="field">
+                  <label>Capacity policy</label>
+                  <ClusterNativeSelect value={settings.studioDepartmentCapacityMode || "advisory"} onChange={(event) => patch("studioDepartmentCapacityMode", event.target.value as Settings["studioDepartmentCapacityMode"])}>
+                    <option value="off">Do not track targets</option>
+                    <option value="advisory">Show capacity guidance</option>
+                    <option value="required">Require capacity on profiles</option>
+                  </ClusterNativeSelect>
+                </div>
+                <label className="studio-setting-toggle-v272">
+                  <ClusterInput type="checkbox" checked={settings.studioDepartmentRequired !== false} onChange={(event) => patch("studioDepartmentRequired", event.target.checked)} />
+                  <span><strong>Required</strong></span>
+                </label>
+              </div>
+              </details>
+
             </div>
           )}
 
           {section === "roles" && (
-            <div className="settings-section-v092 studio-settings-section-v272">
+            <div className="settings-section-v092 studio-settings-section-v272 studio-people-management-v11 studio-roles-management-v11">
               <div className="settings-panel-head-v092 studio-section-intro-v272">
                 <div>
                   <p className="eyebrow">Access</p>
                   <h2>Roles & permissions</h2>
                   <p className="muted tight">Build reusable access profiles for studio members. Department access is inherited first, role access is applied next, and user-specific permissions remain the final override.</p>
                 </div>
-                <span className="studio-section-count-v272">{enabledStudioRoles.length} active</span>
+                <div className="studio-people-manager-head-actions-v11">
+                  <span className="studio-section-count-v272">{enabledStudioRoles.length} active</span>
+                  <ClusterButton type="button" variant="primary" size="compact" aria-expanded={roleCreationOpen} onClick={() => setRoleCreationOpen((open) => !open)}>{roleCreationOpen ? "Close form" : "New role"}</ClusterButton>
+                </div>
               </div>
 
+              {roleCreationOpen && (
+              <div className="studio-create-strip-v272 studio-create-role-v272">
+                <div><strong>Add role</strong><span>Create a role from a permission preset, then refine its access.</span></div>
+                <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" />
+                <div className="studio-role-entity-field-v11">
+                  <ClusterEntityPicker ariaLabel="New role department" value={newRoleDepartmentId}
+                    entities={enabledStudioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department" }))}
+                    onChange={setNewRoleDepartmentId} allowClear={false} placeholder="Choose department" searchPlaceholder="Find a department" />
+                </div>
+                <ClusterNativeSelect value={newRoleTemplateKey} onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
+                <ClusterButton type="button" variant="secondary" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add role</ClusterButton>
+              </div>
+              )}
+
+              <div className="studio-entity-manager-v272">
+                <aside className="studio-entity-list-v272" aria-label="Studio roles">
+                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{visibleStudioRoles.length} / {studioRoles.length}</span></div>
+                  <label className="studio-role-directory-search-v11">
+                    <span>Find roles</span>
+                    <ClusterInput type="search" value={roleDirectorySearch} placeholder="Search roles or departments…" autoComplete="off" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
+                  </label>
+                  <div className="studio-role-directory-filters-v11" role="group" aria-label="Filter roles">
+                    {ROLE_DIRECTORY_FILTER_OPTIONS.map((option) => (
+                      <ClusterButton type="button" variant="quiet" size="compact" key={option.value}
+                        aria-pressed={roleDirectoryFilter === option.value}
+                        className={roleDirectoryFilter === option.value ? "active" : ""}
+                        disabled={option.needsCounts && !roleMemberCounts}
+                        onClick={() => setRoleDirectoryFilter(option.value)}>{option.label}</ClusterButton>
+                    ))}
+                  </div>
+                  {roleMemberCountsError && <small className="studio-role-directory-warning-v11" role="status">Member counts unavailable. Assignment filters are disabled; role editing still works.</small>}
+                  {visibleStudioRoles.map((role) => (
+                    <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setBundlePreviewError(""); setBundlePreviewLoading(false); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
+                      <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
+                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? `${roleMemberCounts[role.id]} members` : role.permissionTemplateKey || "Custom"}</span>
+                    </ClusterButton>
+                  ))}
+                  {!visibleStudioRoles.length && <p className="studio-role-directory-empty-v11">No roles match the current filters.</p>}
+                </aside>
+
+                {selectedRole && (
+                  <div className="studio-entity-editor-v272">
+                    {!visibleStudioRoles.some((role) => role.id === selectedRole.id) && (
+                      <div className="studio-role-directory-hidden-v11" role="status">
+                        <span>The selected role is hidden by the current filters.</span>
+                        <ClusterButton type="button" size="compact" variant="quiet" onClick={() => { setRoleDirectorySearch(""); setRoleDirectoryFilter("all"); }}>Clear filters</ClusterButton>
+                      </div>
+                    )}
+                    <header className="studio-entity-editor-head-v272">
+                      <div><span className="eyebrow">Role · {selectedRole.id}</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p>{roleMemberCounts && typeof roleMemberCounts[selectedRole.id] === "number" && <small className="studio-role-member-count-v11">{roleMemberCounts[selectedRole.id]} assigned workspace members</small>}</div>
+                      <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => void setStudioRoleEnabled(selectedRole.id, event.target.checked)} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
+                    </header>
+
+                    <ClusterSegmentedControl
+                      value={roleEditorTab}
+                      onChange={setRoleEditorTab}
+                      label="Role settings"
+                      className="studio-editor-tabs-v272"
+                      options={[
+                        { value: "details", label: "Details" },
+                        { value: "permissions", label: "Tool access" },
+                        { value: "actions", label: "Protected actions" },
+                      ]}
+                    />
+
+                    {roleEditorTab === "details" && (
+                      <div className="studio-editor-panel-v272">
+                        <div className="studio-explanation-v272"><strong>Role identity and defaults</strong><span>These values are suggested when this role is assigned to a user. Changing a role does not silently overwrite existing user profile fields.</span></div>
+                        <div className="studio-form-grid-v272">
+                          <div className="field"><label>Display name</label><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></div>
+                          <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} readOnly disabled aria-label="Immutable role key" /><small>Role IDs are immutable because account memberships and permission policies reference them. Create a new role to change the key.</small></div>
+                          <div className="field studio-role-entity-field-v11"><span>Department</span>
+                            <ClusterEntityPicker ariaLabel="Role department" value={selectedRole.departmentId || ""}
+                              entities={[
+                                ...(selectedRole.departmentId && !studioDepartments.some((department) => department.id === selectedRole.departmentId)
+                                  ? [{ id: selectedRole.departmentId, label: "Existing department unavailable", disabled: true, kind: "department" }]
+                                  : []),
+                                ...studioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department", disabled: department.enabled === false })),
+                              ]}
+                              onChange={(departmentId) => updateStudioRole(selectedRole.id, { departmentId, toolPermissions: {} })}
+                              placeholder="No department" searchPlaceholder="Find a department" allowClear />
+                            <small>Provides the inherited baseline. Changing it clears role-specific overrides.</small>
+                          </div>
+                          <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
+                          <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
+                        </div>
+                        {currentUser.isAdmin && (
+                          <RoleMembershipReviewPanel
+                            roleId={selectedRole.id}
+                            snapshot={roleMemberSnapshot?.ownerId === currentUser.id && roleMemberSnapshot?.roleId === selectedRole.id ? roleMemberSnapshot : null}
+                            loading={roleMemberReviewLoading}
+                            error={roleMemberReviewError}
+                            onRefresh={() => void loadRoleMembers(selectedRole.id)}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {roleEditorTab === "permissions" && (
+                      <div className="studio-editor-panel-v272">
+                        <div className="studio-explanation-v272"><strong>Role tool access</strong><span>{selectedRoleDepartment ? `This role starts with the ${selectedRoleDepartment.label} department baseline.` : "This role starts with the studio member baseline."} The preset is applied next, followed by the explicit overrides below.</span></div>
+                        <div className="field studio-template-field-v272"><label>Role permission preset</label><ClusterNativeSelect value={selectedRole.permissionTemplateKey || "member"} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => updateStudioRole(selectedRole.id, { permissionTemplateKey: event.target.value, toolPermissions: {} })}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect><small>Changing the preset clears role-specific overrides. Owner and Admin always retain management access.</small></div>
+                        <div className="studio-explanation-v272"><strong>Assigned role bundles</strong><span>Applied in the listed order after the role preset, before explicit overrides.</span></div>
+                        <div className="studio-action-rule-list-v272">{studioBundles.map((bundle) => <label key={bundle.id} className="studio-action-rule-v272"><span><strong>{bundle.label}</strong><small>rev {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</small></span><ClusterInput type="checkbox" checked={(selectedRole.permissionBundleIds || []).includes(bundle.id)} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => assignBundle("role", selectedRole.id, bundle.id, event.target.checked)} /></label>)}</div>
+                        <StudioPermissionEditor permissions={selectedRole.toolPermissions} inherited={selectedRoleInheritedPermissions} readOnly={["owner", "admin"].includes(selectedRole.id)} onChange={(tool, level) => updateStudioRolePermission(selectedRole.id, tool, level)} />
+                        <div className="button-row compact"><ClusterButton type="button" variant="secondary" disabled={bundlePreviewLoading} onClick={() => void previewPermissionBundleChanges(selectedRole.id, selectedRole.departmentId || null)}>{bundlePreviewLoading ? "Comparing…" : "Preview effective-access changes"}</ClusterButton></div>
+                        {bundlePreviewError && <p role="alert">{bundlePreviewError}</p>}
+                        {activeRolePreview && (
+                          <ClusterEffectiveAccessInspector
+                            key={activeRolePreview.requestKey}
+                            preview={activeRolePreview}
+                            tools={TOOL_PERMISSION_OPTIONS.map((tool) => ({ key: tool.key, label: tool.label }))}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {roleEditorTab === "actions" && (
+                      <div className="studio-editor-panel-v272">
+                        <div className="studio-explanation-v272"><strong>Protected action policy</strong><span>These permissions control studio-wide actions that are not represented by ordinary page access. Server-side checks continue to protect administrator-only operations.</span></div>
+                        <div className="studio-action-rule-list-v272">
+                          {studioActionRules.map((rule) => (
+                            <label key={`${selectedRole.id}-${rule.key}`} className="studio-action-rule-v272">
+                              <span><strong>{rule.label}</strong><small>{rule.detail}</small></span>
+                              <ClusterInput type="checkbox" checked={roleIsSelected(rule.key, selectedRole.id)} onChange={(event) => setRoleList(rule.key, selectedRole.id, event.target.checked)} />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <details className="studio-advanced-access-v11">
+                <summary><strong>Advanced access policies</strong><span>Workspace defaults, reusable bundles and project access ceilings</span></summary>
               <div className="studio-policy-strip-v272">
                 <div className="field"><label>Access model</label><ClusterNativeSelect value={settings.studioRolePermissionMode || "role-based"} onChange={(event) => patch("studioRolePermissionMode", event.target.value as Settings["studioRolePermissionMode"])}><option value="open">Open defaults</option><option value="role-based">Role-based access</option><option value="locked">Explicit access only</option></ClusterNativeSelect><small>Role-based access is recommended for normal studio use.</small></div>
                 <div className="field"><label>Default role</label><ClusterNativeSelect value={settings.studioDefaultWorkspaceRole || "member"} onChange={(event) => patch("studioDefaultWorkspaceRole", event.target.value)}>{enabledStudioRoles.map((role) => <option key={role.id} value={role.id}>{role.label}</option>)}</ClusterNativeSelect><small>Preselected when administrators create a user.</small></div>
@@ -1207,87 +1496,8 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   {!studioBundles.length && <small>Create a permission bundle above before assigning a ceiling.</small>}
                 </div>)}
               </section>
+              </details>
 
-              <div className="studio-create-strip-v272 studio-create-role-v272">
-                <div><strong>Add role</strong><span>Create a role from a permission preset, then refine its access.</span></div>
-                <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" />
-                <ClusterNativeSelect value={newRoleDepartmentId} onChange={(event) => setNewRoleDepartmentId(event.target.value)}>{enabledStudioDepartments.map((department) => <option key={department.id} value={department.id}>{department.label}</option>)}</ClusterNativeSelect>
-                <ClusterNativeSelect value={newRoleTemplateKey} onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
-                <ClusterButton type="button" variant="secondary" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add role</ClusterButton>
-              </div>
-
-              <div className="studio-entity-manager-v272">
-                <aside className="studio-entity-list-v272" aria-label="Studio roles">
-                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{studioRoles.length}</span></div>
-                  {studioRoles.map((role) => (
-                    <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
-                      <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
-                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : role.permissionTemplateKey || "Custom"}</span>
-                    </ClusterButton>
-                  ))}
-                </aside>
-
-                {selectedRole && (
-                  <div className="studio-entity-editor-v272">
-                    <header className="studio-entity-editor-head-v272">
-                      <div><span className="eyebrow">Role</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p></div>
-                      <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => updateStudioRole(selectedRole.id, { enabled: event.target.checked })} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
-                    </header>
-
-                    <ClusterSegmentedControl
-                      value={roleEditorTab}
-                      onChange={setRoleEditorTab}
-                      label="Role settings"
-                      className="studio-editor-tabs-v272"
-                      options={[
-                        { value: "details", label: "Details" },
-                        { value: "permissions", label: "Tool access" },
-                        { value: "actions", label: "Protected actions" },
-                      ]}
-                    />
-
-                    {roleEditorTab === "details" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Role identity and defaults</strong><span>These values are suggested when this role is assigned to a user. Changing a role does not silently overwrite existing user profile fields.</span></div>
-                        <div className="studio-form-grid-v272">
-                          <div className="field"><label>Display name</label><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></div>
-                          <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} disabled={selectedRole.locked} onChange={(event) => renameStudioRole(selectedRole.id, event.target.value)} /><small>{selectedRole.locked ? "Built-in role keys cannot be renamed." : "Used by stored user records and policy rules."}</small></div>
-                          <div className="field"><label>Department</label><ClusterNativeSelect value={selectedRole.departmentId || ""} onChange={(event) => updateStudioRole(selectedRole.id, { departmentId: event.target.value, toolPermissions: {} })}><option value="">No department</option>{studioDepartments.map((department) => <option key={department.id} value={department.id}>{department.label}</option>)}</ClusterNativeSelect><small>Provides the baseline permission layer.</small></div>
-                          <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
-                          <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
-                        </div>
-                      </div>
-                    )}
-
-                    {roleEditorTab === "permissions" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Role tool access</strong><span>{selectedRoleDepartment ? `This role starts with the ${selectedRoleDepartment.label} department baseline.` : "This role starts with the studio member baseline."} The preset is applied next, followed by the explicit overrides below.</span></div>
-                        <div className="field studio-template-field-v272"><label>Role permission preset</label><ClusterNativeSelect value={selectedRole.permissionTemplateKey || "member"} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => updateStudioRole(selectedRole.id, { permissionTemplateKey: event.target.value, toolPermissions: {} })}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect><small>Changing the preset clears role-specific overrides. Owner and Admin always retain management access.</small></div>
-                        <div className="studio-explanation-v272"><strong>Assigned role bundles</strong><span>Applied in the listed order after the role preset, before explicit overrides.</span></div>
-                        <div className="studio-action-rule-list-v272">{studioBundles.map((bundle) => <label key={bundle.id} className="studio-action-rule-v272"><span><strong>{bundle.label}</strong><small>rev {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</small></span><ClusterInput type="checkbox" checked={(selectedRole.permissionBundleIds || []).includes(bundle.id)} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => assignBundle("role", selectedRole.id, bundle.id, event.target.checked)} /></label>)}</div>
-                        <StudioPermissionEditor permissions={selectedRole.toolPermissions} inherited={selectedRoleInheritedPermissions} readOnly={["owner", "admin"].includes(selectedRole.id)} onChange={(tool, level) => updateStudioRolePermission(selectedRole.id, tool, level)} />
-                        <div className="button-row compact"><ClusterButton type="button" variant="secondary" disabled={bundlePreviewLoading} onClick={() => void previewPermissionBundleChanges(selectedRole.id, selectedRole.departmentId || null)}>{bundlePreviewLoading ? "Comparing…" : "Preview effective-access changes"}</ClusterButton></div>
-                        {bundlePreviewError && <p role="alert">{bundlePreviewError}</p>}
-                        {bundlePreview && <div role="status" className="studio-action-rule-list-v272"><strong>{bundlePreview.changes.length ? `${bundlePreview.changes.length} effective policy differences` : "No effective access differences"}</strong>{bundlePreview.changes.map((change) => <div key={change.tool} className="studio-action-rule-v272"><span><strong>{change.tool}</strong><small>{change.current.level} → {change.proposed.level}</small></span><small>{change.proposed.provenance?.effective?.label || "Inherited"}</small></div>)}</div>}
-                      </div>
-                    )}
-
-                    {roleEditorTab === "actions" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Protected action policy</strong><span>These permissions control studio-wide actions that are not represented by ordinary page access. Server-side checks continue to protect administrator-only operations.</span></div>
-                        <div className="studio-action-rule-list-v272">
-                          {studioActionRules.map((rule) => (
-                            <label key={`${selectedRole.id}-${rule.key}`} className="studio-action-rule-v272">
-                              <span><strong>{rule.label}</strong><small>{rule.detail}</small></span>
-                              <ClusterInput type="checkbox" checked={roleIsSelected(rule.key, selectedRole.id)} onChange={(event) => setRoleList(rule.key, selectedRole.id, event.target.checked)} />
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           )}
 

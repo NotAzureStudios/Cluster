@@ -28,9 +28,15 @@ import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh
 import { ClusterInput } from "../../components/ClusterNativeControls";
 import { ClusterModal } from "../../components/ClusterModal";
 import { createCalendarMutationGate } from "./calendar-mutation-gate";
+import { calendarDateInputValue, parseCalendarLocalDate, shiftCalendarWindow } from "./calendar-date-navigation";
+import { CalendarYearNavigator } from "./CalendarYearNavigator";
+import { calendarViewNeedsEvents, calendarViewNeedsTimeline } from "./calendar-view-data-policy";
+import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
+import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
+import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
 
 function openSharedCalendarCreate(date = new Date()) {
-  openSharedCreate("calendar", { date: date.toISOString().slice(0, 10) });
+  openSharedCreate("calendar", { date: calendarDateInputValue(date) });
 }
 
 type Project = { id: string; name: string };
@@ -116,7 +122,6 @@ type Settings = { notifyUpcomingEvents?: boolean; notifyDueDates?: boolean };
 function displayUserName(user?: User | null) { return user?.preferredName || user?.displayName || user?.username || "Unknown user"; }
 function levelLabel(value: string) { return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 function monthStart(value: Date) { return new Date(value.getFullYear(), value.getMonth(), 1); }
-function addMonths(value: Date, amount: number) { return new Date(value.getFullYear(), value.getMonth() + amount, value.getDate()); }
 function addDays(value: Date, amount: number) { const next = new Date(value); next.setDate(next.getDate() + amount); return next; }
 function weekStart(value = new Date()) { const next = new Date(value); next.setHours(0, 0, 0, 0); next.setDate(next.getDate() - next.getDay()); return next; }
 function sameDate(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
@@ -125,8 +130,8 @@ function toDateInputValue(value?: string | null) { if (!value) return ""; const 
 function toDateTimeLocalInput(value?: string | null) { if (!value) return ""; const date = new Date(value); const offset = date.getTimezoneOffset() * 60000; return new Date(date.getTime() - offset).toISOString().slice(0, 16); }
 function fromDateTimeLocalInput(value: string) { return new Date(value).toISOString(); }
 
-function CalendarTimelineOverlayPanel({ entries }: { entries: TimelineEntry[] }) {
-  const overlays = entries.filter((entry) => entry.source === "manual" || entry.source === "card");
+function CalendarTimelineOverlayPanel({ items }: { items: CalendarDisplayItem[] }) {
+  const overlays = items.filter((item) => Boolean(item.overlay));
   return (
     <section className="panel calendar-sync-panel-v121">
       <div className="section-heading">
@@ -219,8 +224,11 @@ function UpcomingPanel({ compact = false }: { compact?: boolean }) {
 
 export default function CalendarPage({ projects }: { projects: Project[] }) {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
-  const [view, setView] = useState<"month" | "week" | "day" | "agenda">("month");
+  const preferredMonthDayRef = useRef(anchorDate.getDate());
+  const [view, setView] = useState<"year" | "month" | "week" | "day" | "agenda">("month");
   const userChangedView = useRef(false);
+  const calendarViewRef = useRef(view);
+  calendarViewRef.current = view;
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsSnapshotPath, setEventsSnapshotPath] = useState("");
   const [timelineEntries, setTimelineEntries] = useState<TimelineEntry[]>([]);
@@ -232,10 +240,21 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const openedOccurrenceRef = useRef<string | null>(null);
   const [creatingDate, setCreatingDate] = useState<Date | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [selectedDayLimit, setSelectedDayLimit] = useState(25);
+  const [agendaLimit, setAgendaLimit] = useState(20);
+  const [focusDayKey, setFocusDayKey] = useState<string | null>(null);
+  const selectedDayInspectorRef = useRef<HTMLElement | null>(null);
+  const overflowReturnFocusRef = useRef<HTMLButtonElement | null>(null);
   const [projectFilter, setProjectFilter] = useState(() => readClusterWorkProjectContext() || "all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [layers, setLayers] = useState<CalendarLayerVisibility>(() => ({ ...DEFAULT_CALENDAR_LAYER_VISIBILITY }));
+  const calendarLayerRef = useRef(layers);
+  calendarLayerRef.current = layers;
+  function toggleCalendarLayer(layer: CalendarLayer) {
+    setLayers((current) => ({ ...current, [layer]: !current[layer] }));
+  }
   const [showPlanningTools, setShowPlanningTools] = useState(false);
   const [status, setStatus] = useState("");
   const eventsRequestSequence = useRef(0);
@@ -255,6 +274,9 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
         const date = new Date(occurrence || event.startsAt);
         setAnchorDate(date);
         setSelectedDate(date);
+        setSelectedDayLimit(25);
+        overflowReturnFocusRef.current = null;
+        preferredMonthDayRef.current = date.getDate();
         setProjectFilter(event.projectId || "studio");
         setSelectedOccurrenceStart(occurrence);
         setEditing(event);
@@ -279,7 +301,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(activeWeekStart, index));
 
   const range = useMemo(() => {
-    if (view === "month") return { start: monthDays[0], end: addDays(monthDays[41], 1) };
+    if (view === "month" || view === "year") return { start: monthDays[0], end: addDays(monthDays[41], 1) };
     if (view === "week") return { start: activeWeekStart, end: addDays(activeWeekStart, 7) };
     if (view === "day") return { start: new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate()), end: addDays(new Date(anchorDate.getFullYear(), anchorDate.getMonth(), anchorDate.getDate()), 1) };
     return { start: new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 1, 1), end: new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 3, 1) };
@@ -310,6 +332,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadEvents(force = false) {
     const sequence = ++eventsRequestSequence.current;
+    if (!calendarViewNeedsEvents(calendarViewRef.current, calendarLayerRef.current)) return;
     try {
       const result = await queryApi<CalendarEvent[]>(eventsPath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["calendar"] });
       if (sequence !== eventsRequestSequence.current) return;
@@ -321,6 +344,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }
   async function loadTimeline(force = false) {
     const sequence = ++timelineRequestSequence.current;
+    if (!calendarViewNeedsTimeline(calendarViewRef.current, calendarLayerRef.current)) return;
     try {
       const result = await queryApi<TimelinePayload>(timelinePath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["timeline", "calendar-overlays"] });
       if (sequence !== timelineRequestSequence.current) return;
@@ -366,16 +390,32 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
   }, [projectFilter, preferenceReload]);
 
   useEffect(() => { void loadUsers(); return () => { usersRequestSequence.current += 1; }; }, []);
-  useEffect(() => { void loadEvents(); return () => { eventsRequestSequence.current += 1; }; }, [eventsPath]);
-  useEffect(() => { void loadTimeline(); return () => { timelineRequestSequence.current += 1; }; }, [timelinePath]);
-  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar") void loadEvents(true); }), [range.start.getTime(), range.end.getTime()]);
+  useEffect(() => {
+    if (!calendarViewNeedsEvents(view, layers)) {
+      eventsRequestSequence.current += 1;
+      setEventsSnapshotPath("");
+      return;
+    }
+    void loadEvents();
+    return () => { eventsRequestSequence.current += 1; };
+  }, [eventsPath, view, layers.events]);
+  useEffect(() => {
+    if (!calendarViewNeedsTimeline(view, layers)) {
+      timelineRequestSequence.current += 1;
+      setTimelineSnapshotPath("");
+      return;
+    }
+    void loadTimeline();
+    return () => { timelineRequestSequence.current += 1; };
+  }, [timelinePath, view, layers.timeline, layers.cards]);
+  useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, (change) => { if (change.resource.kind === "calendar" && calendarViewNeedsEvents(calendarViewRef.current, calendarLayerRef.current)) void loadEvents(true); }), [range.start.getTime(), range.end.getTime(), view]);
   useEffect(() => subscribeClusterCohesionEvent<Partial<ClusterPersonSummary>>(CLUSTER_PERSON_CHANGED_EVENT, () => { void loadUsers(); }), []);
   useResourceChangeRefresh(async () => {
     await Promise.all([loadEvents(true), loadTimeline(true)]);
   }, { kinds: ["calendar", "meeting", "timeline", "card", "scheduler"], debounceMs: 220 });
 
-  const visibleTimelineEntries = timelineSnapshotPath === timelinePath ? timelineEntries : [];
-  const visibleEvents = eventsSnapshotPath === eventsPath ? events : [];
+  const visibleTimelineEntries = calendarViewNeedsTimeline(view, layers) && timelineSnapshotPath === timelinePath ? timelineEntries : [];
+  const visibleEvents = calendarViewNeedsEvents(view, layers) && eventsSnapshotPath === eventsPath ? events : [];
   const overlayItems = useMemo<CalendarDisplayItem[]>(() => visibleTimelineEntries.map((entry) => ({
     id: `overlay:${entry.source}:${entry.id}`,
     projectId: entry.projectId || entry.project?.id || null,
@@ -395,16 +435,10 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     overlay: { source: entry.source === "card" ? "card" : "timeline", sourceId: entry.id, boardId: entry.boardId || null, readOnly: true },
   })), [visibleTimelineEntries]);
 
-  const filteredEvents = useMemo<CalendarDisplayItem[]>(() => {
-    const query = search.trim().toLowerCase();
-    const displayEvents: CalendarDisplayItem[] = [...visibleEvents, ...overlayItems];
-    return displayEvents
-      .filter((event) => projectFilter === "all" || (projectFilter === "studio" ? !event.projectId : event.projectId === projectFilter))
-      .filter((event) => typeFilter === "all" || (event.eventType || "meeting") === typeFilter)
-      .filter((event) => event.overlay ? ownerFilter === "all" : (ownerFilter === "all" || (ownerFilter === "unassigned" ? !event.ownerId : event.ownerId === ownerFilter)))
-      .filter((event) => !query || [event.title, event.description, event.location, event.project?.name, event.eventType, event.status, event.overlay?.source].filter(Boolean).join(" ").toLowerCase().includes(query))
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  }, [visibleEvents, overlayItems, projectFilter, typeFilter, ownerFilter, search]);
+  const filteredEvents = useMemo<CalendarDisplayItem[]>(() => filterCalendarDisplayItems(
+    visibleEvents, overlayItems,
+    { project: projectFilter, type: typeFilter, owner: ownerFilter, search, layers },
+  ), [visibleEvents, overlayItems, projectFilter, typeFilter, ownerFilter, search, layers]);
 
   function openDisplayItem(item: CalendarDisplayItem) {
     if (!item.overlay) {
@@ -422,50 +456,105 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     }
   }
 
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalendarDisplayItem[]>();
-    for (const event of filteredEvents) {
-      const key = toDateInputValue(event.startsAt);
-      map.set(key, [...(map.get(key) || []), event]);
-    }
-    return map;
-  }, [filteredEvents]);
-
-  const selectedKey = toDateInputValue(selectedDate.toISOString());
+  const eventsByDay = useMemo(() => indexCalendarEventsByLocalDay(filteredEvents), [filteredEvents]);
+  // Local-day controls must not round-trip midnight through UTC.
+  const selectedKey = calendarDateInputValue(selectedDate);
   const selectedEvents = eventsByDay.get(selectedKey) || [];
-  const upcomingEvents = filteredEvents.filter((event) => new Date(event.startsAt).getTime() >= Date.now()).slice(0, 20);
+  const visibleSelectedEvents = calendarEventPage(selectedEvents, selectedDayLimit);
+  const agendaEvents = calendarEventPage(filteredEvents, agendaLimit);
+  const agendaScopeKey = [range.start.getTime(), range.end.getTime(), projectFilter, typeFilter, ownerFilter, search, layers.events, layers.timeline, layers.cards].join("|");
+  useEffect(() => { setAgendaLimit(20); }, [agendaScopeKey]);
+  useEffect(() => {
+    if (!focusDayKey || focusDayKey !== selectedKey) return;
+    selectedDayInspectorRef.current?.focus({ preventScroll: true });
+    setFocusDayKey(null);
+  }, [focusDayKey, selectedKey]);
   const projectName = (id?: string | null) => projects.find((project) => project.id === id)?.name || "Studio";
   const userName = (id?: string | null) => users.find((user) => user.id === id) ? displayUserName(users.find((user) => user.id === id) as User) : "Unassigned";
 
-  const conflictIds = useMemo(() => {
-    const ids = new Set<string>();
-    const timed = filteredEvents.filter((event) => !event.allDay && !event.overlay);
-    for (let i = 0; i < timed.length; i += 1) {
-      const aStart = new Date(timed[i].startsAt).getTime();
-      const aEnd = timed[i].endsAt ? new Date(timed[i].endsAt as string).getTime() : aStart + 60 * 60 * 1000;
-      for (let j = i + 1; j < timed.length; j += 1) {
-        if (timed[i].ownerId && timed[j].ownerId && timed[i].ownerId !== timed[j].ownerId) continue;
-        const bStart = new Date(timed[j].startsAt).getTime();
-        const bEnd = timed[j].endsAt ? new Date(timed[j].endsAt as string).getTime() : bStart + 60 * 60 * 1000;
-        if (aStart < bEnd && bStart < aEnd) { ids.add(timed[i].occurrenceKey || timed[i].id); ids.add(timed[j].occurrenceKey || timed[j].id); }
-      }
-    }
-    return ids;
-  }, [filteredEvents]);
+  const conflictIds = useMemo(() => visibleCalendarConflictIds(filteredEvents), [filteredEvents]);
 
-  function moveWindow(amount: number) {
-    if (view === "month" || view === "agenda") setAnchorDate(addMonths(anchorDate, amount));
-    else if (view === "week") setAnchorDate(addDays(anchorDate, amount * 7));
-    else setAnchorDate(addDays(anchorDate, amount));
+  function selectCalendarDate(date: Date) {
+    setSelectedDate(date);
+    setSelectedDayLimit(25);
+    preferredMonthDayRef.current = date.getDate();
+    overflowReturnFocusRef.current = null;
   }
 
-  const rangeLabel = view === "month"
-    ? anchorDate.toLocaleString([], { month: "long", year: "numeric" })
+  function openCalendarDayOverflow(date: Date, trigger: HTMLButtonElement) {
+    selectCalendarDate(date);
+    overflowReturnFocusRef.current = trigger;
+    setFocusDayKey(calendarDateInputValue(date));
+  }
+
+  function returnToCalendarDay() {
+    const trigger = overflowReturnFocusRef.current;
+    if (!trigger) return;
+    overflowReturnFocusRef.current = null;
+    if (trigger.isConnected) trigger.focus({ preventScroll: true });
+  }
+
+  function jumpToCalendarDate(value: string) {
+    const date = parseCalendarLocalDate(value);
+    if (!date) return; // Native date field may temporarily be empty or incomplete.
+    preferredMonthDayRef.current = date.getDate();
+    setAnchorDate(date);
+    setSelectedDate(date);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+  }
+
+  function changeCalendarView(next: "year" | "month" | "week" | "day" | "agenda") {
+    userChangedView.current = true;
+    overflowReturnFocusRef.current = null;
+    setSelectedDayLimit(25);
+    if (next === "day" || next === "week") {
+      // Selecting a date in Month then entering Day must show that date's
+      // fetched range, not the original month anchor's unrelated day.
+      setAnchorDate(selectedDate);
+      preferredMonthDayRef.current = selectedDate.getDate();
+    }
+    setView(next);
+  }
+
+  function moveWindow(amount: number) {
+    const next = shiftCalendarWindow(anchorDate, selectedDate, view, amount, preferredMonthDayRef.current);
+    setAnchorDate(next.anchor);
+    setSelectedDate(next.selected);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+  }
+
+  const rangeLabel = view === "year"
+    ? String(anchorDate.getFullYear())
+    : view === "month"
+      ? anchorDate.toLocaleString([], { month: "long", year: "numeric" })
     : view === "week"
       ? `${weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" })} – ${weekDays[6].toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`
       : view === "day"
         ? anchorDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-        : "Upcoming schedule";
+        : `${range.start.toLocaleDateString([], { month: "short", year: "numeric" })} – ${addDays(range.end, -1).toLocaleDateString([], { month: "short", year: "numeric" })}`;
+
+  function openYearMonth(monthIndex: number) {
+    userChangedView.current = true;
+    const month = new Date(anchorDate.getFullYear(), monthIndex, 1);
+    preferredMonthDayRef.current = 1;
+    setAnchorDate(month);
+    setSelectedDate(month);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+    setView("month");
+  }
+
+  function openYearDay(day: Date) {
+    userChangedView.current = true;
+    preferredMonthDayRef.current = day.getDate();
+    setAnchorDate(day);
+    setSelectedDate(day);
+    setSelectedDayLimit(25);
+    overflowReturnFocusRef.current = null;
+    setView("day");
+  }
 
   const eventTypes = ["meeting", "review", "deadline", "release", "milestone", "focus", "availability", "client", "production", "publishing", "maintenance", "other"];
 
@@ -475,7 +564,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
         className="cluster-page-header"
         title="Calendar"
         description="Coordinate meetings, reviews, deadlines, releases, milestones, and production commitments across the studio."
-        metrics={[
+        metrics={view === "year" ? [] : [
           { label: "Visible", value: filteredEvents.length },
           { label: "Overlays", value: filteredEvents.filter((event) => Boolean(event.overlay)).length },
           { label: "Conflicts", value: conflictIds.size, tone: conflictIds.size ? "warning" : "neutral" },
@@ -489,30 +578,96 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       {status && <div className="status-box system-status-box-v053">{status}</div>}
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
-        <ClusterSegmentedControl value={view} onChange={(next) => { userChangedView.current = true; setView(next); }} label="Calendar view" options={(["month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
-        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); setAnchorDate(now); setSelectedDate(now); }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong></div>
+        <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["year", "month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
+        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong>
+          <label className="calendar-date-jump-v11">
+            <span>Go to date</span>
+            <ClusterInput type="date" aria-label="Jump to calendar date"
+              value={calendarDateInputValue(anchorDate)}
+              onChange={(event) => jumpToCalendarDate(event.target.value)} />
+          </label>
+        </div>
         <div className="calendar-filter-row-v189 calendar-filter-row-v190">
           <ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search schedule" />
           <ClusterSelect value={projectFilter} onChange={setProjectFilter} ariaLabel="Filter calendar by project" options={[{ value: "all", label: "All projects" }, { value: "studio", label: "Studio only" }, ...projects.map((project) => ({ value: project.id, label: project.name }))]} />
           <ClusterSelect value={typeFilter} onChange={setTypeFilter} ariaLabel="Filter calendar by type" options={[{ value: "all", label: "All types" }, ...eventTypes.map((type) => ({ value: type, label: levelLabel(type) }))]} />
           <ClusterSelect value={ownerFilter} onChange={setOwnerFilter} ariaLabel="Filter calendar by owner" options={[{ value: "all", label: "All owners" }, { value: "unassigned", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: displayUserName(user) }))]} />
         </div>
+        {view !== "year" ? <div className="calendar-layer-controls-v11" role="group" aria-label="Calendar visibility layers">
+          <span>Show on calendar</span>
+          {([
+            ["events", "Events"],
+            ["timeline", "Timeline"],
+            ["cards", "Card deadlines"],
+          ] as const).map(([layer, label]) => (
+            <ClusterButton key={layer} size="compact" variant="quiet"
+              className="calendar-layer-toggle-v11" selected={layers[layer]} aria-pressed={layers[layer]}
+              onClick={() => toggleCalendarLayer(layer)}>{label}</ClusterButton>
+          ))}
+        </div> : null}
       </div>
 
-      {showPlanningTools && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel entries={visibleTimelineEntries} /></div>}
+      {showPlanningTools && view !== "year" && <div className="calendar-planning-tools-v189"><UpcomingPanel compact /><CalendarTimelineOverlayPanel items={filteredEvents} /></div>}
+      {view !== "year" && !layers.events && !layers.timeline && !layers.cards ? (
+        <p className="calendar-layers-empty-v11" role="status">All Calendar layers are hidden. Turn on a layer to display authorized events or work.</p>
+      ) : null}
 
-      <div className="calendar-workspace-v189">
+      <div className={`calendar-workspace-v189 ${view === "year" ? "calendar-workspace-year-v11" : ""}`}>
         <section className="panel calendar-main-v189">
-          {view === "month" && <div className="calendar-month-scroll-v495"><div className="calendar-weekdays calendar-weekdays-v189">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid calendar-grid-v189">{monthDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section className={`calendar-day calendar-day-v189 ${day.getMonth() !== month.getMonth() ? "muted-day" : ""} ${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`} key={key}><div className="calendar-day-head-v189"><ClusterButton unstyled type="button" className="calendar-day-select-v393" onClick={() => setSelectedDate(day)} aria-label={`Select ${dayLabel}`}><strong>{day.getDate()}</strong></ClusterButton>{dayEvents.length > 0 && <span>{dayEvents.length}</span>}<ClusterButton unstyled type="button" className="calendar-day-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></div><div className="calendar-event-stack">{dayEvents.slice(0, 3).map((event) => <ClusterButton unstyled type="button" className={`calendar-chip ${event.overlay ? "calendar-overlay-readonly-v505" : ""} ${conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""}`} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)} style={runtimeStyle({ borderColor: event.color || undefined })}><i style={runtimeStyle({ background: event.color || undefined })} /><span>{event.title}</span></ClusterButton>)}{dayEvents.length > 3 && <span className="calendar-more">+{dayEvents.length - 3} more</span>}</div></section>; })}</div></div>}
+          {view === "year" && <CalendarYearNavigator
+            year={anchorDate.getFullYear()}
+            selectedDate={selectedDate}
+            onOpenMonth={openYearMonth}
+            onOpenDay={openYearDay}
+          />}
+          {view === "month" && <div className="calendar-month-scroll-v495"><div className="calendar-weekdays calendar-weekdays-v189">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid calendar-grid-v189">{monthDays.map((day) => { const key = calendarDateInputValue(day); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section className={`calendar-day calendar-day-v189 ${day.getMonth() !== month.getMonth() ? "muted-day" : ""} ${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`} key={key}><div className="calendar-day-head-v189"><ClusterButton unstyled type="button" className="calendar-day-select-v393" onClick={() => selectCalendarDate(day)} aria-label={`Select ${dayLabel}`}><strong>{day.getDate()}</strong></ClusterButton>{dayEvents.length > 0 && <span>{dayEvents.length}</span>}<ClusterButton unstyled type="button" className="calendar-day-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></div><div className="calendar-event-stack">{dayEvents.slice(0, 3).map((event) => <ClusterButton unstyled type="button" className={`calendar-chip ${event.overlay ? "calendar-overlay-readonly-v505" : ""} ${conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""}`} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)} style={runtimeStyle({ borderColor: event.color || undefined })}><i style={runtimeStyle({ background: event.color || undefined })} /><span>{event.title}</span></ClusterButton>)}{dayEvents.length > 3 ? <ClusterButton type="button" variant="quiet" size="compact" className="calendar-more calendar-more-action-v11"
+  onClick={(event) => openCalendarDayOverflow(day, event.currentTarget)}
+  aria-label={`Show all ${dayEvents.length} events on ${dayLabel}`} aria-controls="calendar-selected-day-inspector-v11">
+  +{dayEvents.length - 3} more
+</ClusterButton> : null}</div></section>; })}</div></div>}
 
-          {view === "week" && <div className="calendar-week-view-v189">{weekDays.map((day) => { const key = toDateInputValue(day.toISOString()); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section key={key} className={`${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`}><header><ClusterButton unstyled type="button" className="calendar-week-day-trigger-v393" onClick={() => setSelectedDate(day)} aria-label={`Select ${dayLabel}`}><span>{day.toLocaleDateString([], { weekday: "short" })}</span><strong>{day.getDate()}</strong></ClusterButton><ClusterButton unstyled type="button" className="calendar-week-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></header><div>{dayEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></ClusterButton>)}</div></section>; })}</div>}
+          {view === "week" && <div className="calendar-week-view-v189">{weekDays.map((day) => { const key = calendarDateInputValue(day); const dayEvents = eventsByDay.get(key) || []; const dayLabel = day.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }); return <section key={key} className={`${sameDate(day, new Date()) ? "today" : ""} ${sameDate(day, selectedDate) ? "selected" : ""}`}><header><ClusterButton unstyled type="button" className="calendar-week-day-trigger-v393" onClick={() => selectCalendarDate(day)} aria-label={`Select ${dayLabel}`}><span>{day.toLocaleDateString([], { weekday: "short" })}</span><strong>{day.getDate()}</strong></ClusterButton><ClusterButton unstyled type="button" className="calendar-week-add-v393" onClick={() => openSharedCalendarCreate(day)} aria-label={`Add event on ${dayLabel}`}>+</ClusterButton></header><div>{calendarEventPage(dayEvents, 25).map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></ClusterButton>)}
+              {dayEvents.length > 25 ? <ClusterButton variant="quiet" size="compact" className="calendar-week-more-v11"
+                onClick={(event) => openCalendarDayOverflow(day, event.currentTarget)}
+                aria-label={`Show all ${dayEvents.length} events on ${dayLabel}`}
+                aria-controls="calendar-selected-day-inspector-v11">
+                Show all {dayEvents.length} events
+              </ClusterButton> : null}
+            </div></section>; })}</div>}
 
-          {view === "day" && <div className="calendar-day-view-v190">{selectedEvents.length ? selectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><time>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : levelLabel(event.status || "scheduled")}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." actions={<ClusterButton onClick={() => openSharedCalendarCreate(selectedDate)} variant="secondary">Add event</ClusterButton>} />}</div>}
+          {view === "day" && <div className="calendar-day-view-v190">{selectedEvents.length ? visibleSelectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><time>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : levelLabel(event.status || "scheduled")}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." actions={<ClusterButton onClick={() => openSharedCalendarCreate(selectedDate)} variant="secondary">Add event</ClusterButton>} />}
+            {selectedEvents.length > selectedDayLimit ? <ClusterButton type="button" variant="secondary" size="compact"
+              className="calendar-event-next-v11" onClick={() => setSelectedDayLimit((limit) => limit + 25)}>
+              Show next {Math.min(25, selectedEvents.length - selectedDayLimit)} events · {selectedEvents.length - selectedDayLimit} remaining
+            </ClusterButton> : null}</div>}
 
-          {view === "agenda" && <div className="calendar-agenda-v189">{upcomingEvents.length ? upcomingEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><time><strong>{new Date(event.startsAt).toLocaleDateString([], { month: "short", day: "numeric" })}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source overlay" : event.description || "No description"}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}{event.location ? ` · ${event.location}` : ""}</em></div></ClusterButton>) : <RequestEmptyState compact kind="filtered" title="No upcoming events match these filters" description="Clear or change the current filters to widen the agenda." />}</div>}
+          {view === "agenda" && <div className="calendar-agenda-v189">{filteredEvents.length > agendaEvents.length && <p role="status" className="calendar-agenda-limit-v11">Showing {agendaEvents.length} of {filteredEvents.length} authorized events in this date range. Load more below or narrow the filters.</p>}{agendaEvents.length ? agendaEvents.map((event) => <ClusterButton unstyled type="button" className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} key={event.occurrenceKey || event.id} onClick={() => openDisplayItem(event)}><time><strong>{new Date(event.startsAt).toLocaleDateString([], { month: "short", day: "numeric" })}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></time><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source overlay" : event.description || "No description"}</span><em>{event.project?.name || projectName(event.projectId)} · {userName(event.ownerId)}{event.location ? ` · ${event.location}` : ""}</em></div></ClusterButton>) : <RequestEmptyState compact kind="filtered" title="No events match this agenda range" description="Change the date range or filters to widen the agenda." />}
+            {filteredEvents.length > agendaLimit ? <ClusterButton type="button" variant="secondary" size="compact"
+              className="calendar-event-next-v11" onClick={() => setAgendaLimit((limit) => limit + 20)}>
+              Show next {Math.min(20, filteredEvents.length - agendaLimit)} events · {filteredEvents.length - agendaLimit} remaining
+            </ClusterButton> : null}</div>}
         </section>
 
-        <aside className="panel calendar-inspector-v189"><div className="calendar-inspector-head-v189"><div><span>{selectedDate.toLocaleDateString([], { weekday: "long" })}</span><strong>{selectedDate.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</strong></div><ClusterButton type="button" className="" onClick={() => openSharedCalendarCreate(selectedDate)} variant="quiet" size="compact">Add</ClusterButton></div><div className="calendar-selected-list-v189">{selectedEvents.length ? selectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." />}</div><div className="calendar-inspector-summary-v189"><span><strong>{selectedEvents.length}</strong> Today</span><span><strong>{selectedEvents.filter((event) => event.status === "tentative").length}</strong> Tentative</span><span><strong>{selectedEvents.filter((event) => conflictIds.has(event.occurrenceKey || event.id)).length}</strong> Conflicts</span></div></aside>
+        {view !== "year" && <aside ref={selectedDayInspectorRef} id="calendar-selected-day-inspector-v11"
+          className="panel calendar-inspector-v189" role="region"
+          aria-labelledby="calendar-selected-day-heading-v11"
+          aria-describedby="calendar-selected-day-description-v11"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || event.defaultPrevented || !overflowReturnFocusRef.current) return;
+            event.preventDefault();
+            event.stopPropagation();
+            returnToCalendarDay();
+          }}>
+          <p id="calendar-selected-day-description-v11" className="sr-only-v204">
+            Events and read-only overlays for the selected date. After Show more, press Escape to return to the calendar.
+          </p>
+          <div className="calendar-inspector-head-v189"><div><span>{selectedDate.toLocaleDateString([], { weekday: "long" })}</span><strong id="calendar-selected-day-heading-v11">{selectedDate.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</strong></div><ClusterButton type="button" className="" onClick={() => openSharedCalendarCreate(selectedDate)} variant="quiet" size="compact">Add</ClusterButton></div><div className="calendar-selected-list-v189">{selectedEvents.length ? visibleSelectedEvents.map((event) => <ClusterButton unstyled type="button" key={event.occurrenceKey || event.id} className={conflictIds.has(event.occurrenceKey || event.id) ? "conflict" : ""} onClick={() => openDisplayItem(event)}><i style={runtimeStyle({ background: event.color || undefined })} /><div><strong>{event.title}</strong><span>{event.allDay ? "All day" : new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><em>{levelLabel(event.eventType || "meeting")} · {event.overlay ? "Read-only source" : userName(event.ownerId)}</em></div></ClusterButton>) : <RequestEmptyState compact kind="empty" title="Nothing scheduled" description="This day has no scheduled events." />}
+            {selectedEvents.length > selectedDayLimit ? <ClusterButton type="button" variant="secondary" size="compact"
+              className="calendar-event-next-v11" onClick={() => setSelectedDayLimit((limit) => limit + 25)}>
+              Show next {Math.min(25, selectedEvents.length - selectedDayLimit)} events · {selectedEvents.length - selectedDayLimit} remaining
+            </ClusterButton> : null}
+          </div><div className="calendar-inspector-summary-v189"><span><strong>{selectedEvents.length}</strong> Selected</span><span><strong>{selectedEvents.filter((event) => event.status === "tentative").length}</strong> Tentative</span><span><strong>{selectedEvents.filter((event) => conflictIds.has(event.occurrenceKey || event.id)).length}</strong> Conflicts</span></div></aside>}
       </div>
 
       {(editing || creatingDate) && <EventEditor key={`${currentUserId}:${editing?.id || "new"}:${selectedOccurrenceStart || "series"}`} event={editing} date={creatingDate} occurrenceStartsAt={selectedOccurrenceStart} projects={projects} users={users} currentUserId={currentUserId} onClose={() => { if (editing) calendarDetailHistory.closeDetail(); else setCreatingDate(null); }} onSaved={(change) => { if (change.saved) { commitEvent(change.saved); void loadEvents(true); } if (change.deletedId) removeEvent(change.deletedId); setSelectedOccurrenceStart(null); if (editing) calendarDetailHistory.closeDetail(); setCreatingDate(null); }} />}

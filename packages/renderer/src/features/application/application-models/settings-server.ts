@@ -25,6 +25,8 @@ export type ProjectTypePreset = ClusterProjectTypeDefinition;
 
 export type StudioDepartmentDefinition = {
   id: string;
+  /** Immutable ID of an optional Workforce Department this access template describes. */
+  workforceDepartmentId?: string | null;
   label: string;
   /** Offline preset from Cluster's curated icon catalog. Never a remote URL. */
   iconId?: string | null;
@@ -63,6 +65,9 @@ export type Settings = {
   setupMode?: string;
   serverInstanceId?: string;
   serverDisplayName?: string;
+  serverResourceProfile?: "automatic" | "interactive-first" | "background-throughput";
+  serverResourceWorkerCap?: number;
+  serverResourceRecoveryHoldMs?: number;
   lanDiscoveryEnabled?: boolean;
   appDisplayName?: string;
   studioName?: string;

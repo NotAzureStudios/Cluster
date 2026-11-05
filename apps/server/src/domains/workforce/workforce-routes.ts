@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { acquireTransactionAdvisoryLock } from "../../core/postgres-advisory-lock.js";
 
+const departmentColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
+const departmentIconSchema = z.enum([
+  "glyph:project", "glyph:game", "glyph:code", "glyph:video",
+  "glyph:image", "glyph:model", "glyph:folder", "glyph:library",
+  "glyph:work", "glyph:calendar", "glyph:packet", "glyph:grid",
+  "glyph:check", "glyph:users", "brand:as-git", "brand:discord",
+  "brand:steam", "brand:epic", "brand:unreal", "brand:blender",
+  "brand:curseforge", "brand:minecraft",
+]).nullable().optional();
+
 
 function parseJson(value: unknown, fallback: any) {
   if (value && typeof value === "object") return value;
@@ -21,7 +31,7 @@ function publicEmployment(row: any) {
   return {
     id: row.id,
     departmentId: row.departmentId || null,
-    department: row.department ? { id: row.department.id, name: row.department.name, color: row.department.color || null } : null,
+    department: row.department ? { id: row.department.id, name: row.department.name, color: row.department.color || null, iconId: row.department.iconId || null } : null,
     jobRoleId: row.jobRoleId || null,
     jobRole: row.jobRole ? { id: row.jobRole.id, name: row.jobRole.name } : null,
     managerUserId: row.managerUserId || null,
@@ -146,7 +156,7 @@ export function registerWorkforceRoutes(deps: any) {
     });
     return {
       generatedAt: new Date().toISOString(), workspaceId,
-      departments: departments.map((row: any) => ({ id: row.id, name: row.name, description: row.description || null, parentId: row.parentId || null, leadUserId: row.leadUserId || null, color: row.color || null, archived: Boolean(row.archived), members: Number(row._count?.employments || 0), teams: Number(row._count?.teams || 0), revision: Number(row.revision || 1) })),
+      departments: departments.map((row: any) => ({ id: row.id, name: row.name, description: row.description || null, parentId: row.parentId || null, leadUserId: row.leadUserId || null, color: row.color || null, iconId: row.iconId || null, archived: Boolean(row.archived), members: Number(row._count?.employments || 0), teams: Number(row._count?.teams || 0), revision: Number(row.revision || 1) })),
       jobRoles: jobRoles.map((row: any) => ({ id: row.id, name: row.name, description: row.description || null, departmentId: row.departmentId || null, departmentName: row.department?.name || null, defaultCapacityHours: row.defaultCapacityHours ?? null, defaultMinimumHours: row.defaultMinimumHours ?? null, members: Number(row._count?.employments || 0), archived: Boolean(row.archived), revision: Number(row.revision || 1) })),
       skills: skills.map((row: any) => ({ id: row.id, name: row.name, description: row.description || null, people: Number(row._count?.people || 0), archived: Boolean(row.archived) })),
       teams: teams.map((team: any) => ({ id: team.id, name: team.name, description: team.description || null, departmentId: team.departmentId || null, department: team.departmentAuthority ? { id: team.departmentAuthority.id, name: team.departmentAuthority.name } : null, leadUserId: team.leadUserId || null, roles: team.roles.map((role: any) => ({ id: role.id, name: role.name, description: role.description || null })), members: team.members.map((member: any) => ({ userId: member.userId, roleId: member.teamRoleId || null, role: member.teamRole?.name || member.roleLabel || null, allocationPercent: Number(member.allocationPercent || 0), primary: Boolean(member.primaryMembership) })), archived: Boolean(team.archived), revision: Number(team.revision || 1) })),
@@ -178,18 +188,22 @@ export function registerWorkforceRoutes(deps: any) {
 
   app.post("/api/admin/workforce/departments", async (request: any, reply: any) => {
     const identity = await actorFor(request, reply, "edit"); if (!identity?.user) return;
-    const body = z.object({ workspaceId: z.string().min(1), name: z.string().trim().min(1).max(120), description: z.string().trim().max(1000).nullable().optional(), parentId: z.string().min(1).nullable().optional(), leadUserId: z.string().min(1).nullable().optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional() }).parse(request.body || {});
-    if (!(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: body.workspaceId, userId: identity.user.id } } })))
-      return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED", error: "You cannot manage another workspace's organization." });
+    const body = z.object({ workspaceId: z.string().min(1).optional(), name: z.string().trim().min(1).max(120), description: z.string().trim().max(1000).nullable().optional(), parentId: z.string().min(1).nullable().optional(), leadUserId: z.string().min(1).nullable().optional(), color: departmentColorSchema, iconId: departmentIconSchema }).parse(request.body || {});
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId: identity.user.id, ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}) },
+      orderBy: { workspaceId: "asc" }, select: { workspaceId: true },
+    });
+    if (!membership) return reply.code(403).send({ ok: false, code: "WORKSPACE_ACCESS_DENIED", error: "You cannot manage another workspace's organization." });
+    const workspaceId = membership.workspaceId;
     if (body.parentId) {
-      const parent = await prisma.department.findFirst({ where: { id: body.parentId, workspaceId: body.workspaceId, archived: false }, select: { id: true } });
+      const parent = await prisma.department.findFirst({ where: { id: body.parentId, workspaceId, archived: false }, select: { id: true } });
       if (!parent) return reply.code(400).send({ ok: false, code: "DEPARTMENT_PARENT_INVALID", error: "Parent must be an active department in this workspace." });
     }
     if (body.leadUserId) {
-      const lead = await prisma.user.findFirst({ where: { id: body.leadUserId, archived: false, memberships: { some: { workspaceId: body.workspaceId } } }, select: { id: true } });
+      const lead = await prisma.user.findFirst({ where: { id: body.leadUserId, archived: false, memberships: { some: { workspaceId } } }, select: { id: true } });
       if (!lead) return reply.code(400).send({ ok: false, code: "DEPARTMENT_LEAD_INVALID", error: "Lead must belong to this workspace." });
     }
-    const department = await prisma.department.create({ data: { ...body, description: body.description || null, parentId: body.parentId || null, leadUserId: body.leadUserId || null, color: body.color || null } });
+    const department = await prisma.department.create({ data: { ...body, workspaceId, description: body.description || null, parentId: body.parentId || null, leadUserId: body.leadUserId || null, color: body.color || null, iconId: body.iconId || null } });
     return reply.code(201).send({ ok: true, department });
   });
 
@@ -202,6 +216,8 @@ export function registerWorkforceRoutes(deps: any) {
       description: z.string().trim().max(1000).nullable(),
       parentId: z.string().trim().min(1).nullable(),
       leadUserId: z.string().trim().min(1).nullable(),
+      color: departmentColorSchema,
+      iconId: departmentIconSchema,
     }).strict().parse(request.body || {});
     const existing = await prisma.department.findUnique({ where: { id }, select: { id: true, workspaceId: true } });
     if (!existing) return reply.code(404).send({ ok: false, code: "DEPARTMENT_NOT_FOUND" });
@@ -229,7 +245,7 @@ export function registerWorkforceRoutes(deps: any) {
         const lead = await tx.user.findFirst({ where: { id: body.leadUserId, archived: false, memberships: { some: { workspaceId: existing.workspaceId } } }, select: { id: true } });
         if (!lead) return { code: "DEPARTMENT_LEAD_INVALID", status: 400 };
       }
-      const department = await tx.department.update({ where: { id }, data: { name: body.name, description: body.description, parentId: body.parentId, leadUserId: body.leadUserId, revision: { increment: 1 } } });
+      const department = await tx.department.update({ where: { id }, data: { name: body.name, description: body.description, parentId: body.parentId, leadUserId: body.leadUserId, ...(body.color !== undefined ? { color: body.color } : {}), ...(body.iconId !== undefined ? { iconId: body.iconId } : {}), revision: { increment: 1 } } });
       return { department };
     });
     if ("code" in outcome) return reply.code(outcome.status).send({ ok: false, code: outcome.code });

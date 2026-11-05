@@ -15,6 +15,12 @@ import { NumberStepper } from "../../components/NumberStepper";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { ColorField } from "../../components/ColorField";
 import { ClusterToggle } from "../../components/ClusterToggle";
+import { ClusterSettingsChoiceGroup, ClusterSettingsRow } from "../../components/ClusterSettingsPrimitives";
+import { ClusterSettingsSearch } from "../../components/ClusterSettingsSearch";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ACCOUNT_SETTINGS_SEARCH_ENTRIES } from "./account-settings-search";
+import { ClusterNotificationDeliveryMatrix } from "../notifications/ClusterNotificationDeliveryMatrix";
+import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { configureClusterSounds, previewClusterNotificationSound, previewClusterUiSound } from "../../core/cluster-sounds";
@@ -25,11 +31,12 @@ import { ErrorCodeReferencePanel } from "./ErrorCodeReferencePanel";
 import { PrivacyDataControlCenter } from "../legal/PrivacyDataControlCenter";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { NOTIFICATION_CATEGORIES, NOTIFICATION_CATEGORY_DETAILS, NOTIFICATION_DELIVERY_OPTIONS, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationCategory, type NotificationDeliveryMode, type NotificationToolMode } from "../notifications/notification-preferences";
+import { NOTIFICATION_CATEGORIES, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationToolMode } from "../notifications/notification-preferences";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { AccountAccessibilitySettingsSection } from "./AccountAccessibilitySettingsSection";
+import { DevicePerformanceSettingsSection } from "./DevicePerformanceSettingsSection";
 import { DesktopDevicePackagesPanel } from "./DesktopDevicePackagesPanel";
 import { MyFormsPanel } from "./MyFormsPanel";
 import { MyInventoryLicensesPanel } from "./MyInventoryLicensesPanel";
@@ -218,6 +225,17 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryCodes, setMfaRecoveryCodes] = useState<string[]>([]);
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [settingsSearchJump, setSettingsSearchJump] = useState<{ section: SettingsSection; targetId: string | null } | null>(null);
+  useEffect(() => {
+    if (!settingsSearchJump || settingsSearchJump.section !== section) return;
+    const frame = requestAnimationFrame(() => {
+      const target = (settingsSearchJump.targetId && document.getElementById(settingsSearchJump.targetId))
+        || document.getElementById("account-settings-section-focus-v11");
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "start", behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [settingsSearchJump, section]);
   const [discordOAuth, setDiscordOAuth] = useState<{ configured: boolean; required: boolean } | null>(null);
   const [discordOAuthError, setDiscordOAuthError] = useState(false);
   // OAuth readiness is a one-shot read when the profile editor is opened, never polled.
@@ -1111,6 +1129,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     pin: currentUser.pinConfigured ? "configured" : "required",
     notifications: settings.userDigestCadence || `${settings.notificationLookaheadDays || 7} days`,
     appearance: settings.interfaceDensity || "compact",
+    performance: "device-local",
     navigation: settings.userStartScreen || "dashboard",
     home: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length} widgets`,
     shortcuts: settings.userShortcutProfile || "default",
@@ -1122,7 +1141,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const notificationCategoryDelivery = normalizedNotificationCategoryDelivery(settings);
   const notificationToolModes = normalizedNotificationToolModes(settings);
   const enabledNotificationCount = NOTIFICATION_CATEGORIES.filter((category) => notificationCategoryDelivery[category] !== "off").length;
-  const notificationCategoryIcon = (category: NotificationCategory): ClusterIconName => ({ mentions: "comment", approvals: "check", work: "work", schedule: "calendar", delivery: "cloud", qa: "check", system: "warning", activity: "activity" } satisfies Record<NotificationCategory, ClusterIconName>)[category];
   const profileSaveRecovery = profileSaveError ? apiErrorPresentation(profileSaveError) : null;
   if (loading) return <SettingsLoadingState label="Loading account settings" />;
   if (loadError) return (
@@ -1135,13 +1153,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       className="settings-workspace-v298 settings-page-v092 account-settings-page-v267 account-settings-console-v271 settings-console-v269"
       title="Account Settings"
       icon="user"
-      description={`Personal preferences, profile, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
+      description={`Personal preferences, performance, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
       metrics={[
         { label: "Notifications", value: `${enabledNotificationCount}/${NOTIFICATION_CATEGORIES.length}`, tone: enabledNotificationCount ? "good" : "warning" },
         { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
-      actions={section === "licenses" || section === "forms" ? null : section === "profile" ? (
+      actions={section === "licenses" || section === "forms" || (section === "performance" && !dirty) ? null : section === "profile" ? (
         <ClusterButton type="button" variant={profileDirty ? "primary" : "secondary"} onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
           {profileSaving ? "Saving…" : profileDirty ? "Save profile" : "Saved"}
         </ClusterButton>
@@ -1154,9 +1172,18 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       navLabel="Account settings sections"
       activeId={section}
       onChange={(nextSection) => { setSection(nextSection); onSectionChange?.(nextSection); }}
-      primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "navigation"] as SettingsSection[]}
+      primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "performance", "navigation"] as SettingsSection[]}
       items={settingsSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.domain }))}
     >
+      <ClusterSettingsSearch
+        label="Find account settings"
+        entries={ACCOUNT_SETTINGS_SEARCH_ENTRIES}
+        onNavigate={(entry) => {
+          setSection(entry.section);
+          onSectionChange?.(entry.section);
+          setSettingsSearchJump({ section: entry.section, targetId: entry.targetId || null });
+        }}
+      />
       {heldAccountDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated account settings draft">
         <strong>Local draft needs review</strong>
         <p className="muted">This draft was saved under an earlier or unknown account preferences revision. It was not applied automatically. Restoring it may replace newer changes.</p>
@@ -1175,7 +1202,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       /> : null}
 
       <div className="settings-primary-layout-v469 settings-layout settings-layout-v092">
-        <div className="settings-content panel settings-content-v092 settings-content-v267">
+        <div id="account-settings-section-focus-v11" tabIndex={-1} className="settings-content panel settings-content-v092 settings-content-v267">
           {section === "profile" && (
             <div className="settings-section-v092 profile-editor-v473">
               <div className="settings-panel-head-v092 profile-editor-head-v473">
@@ -1336,7 +1363,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
 
           {section === "appearance" && (
             <div className="settings-section-v092 appearance-section-v092">
-              <div className="settings-panel-head-v092" id="appearance-theme-v546">
+              <div className="settings-panel-head-v092" id="appearance-theme-v546" tabIndex={-1}>
                 <p className="eyebrow">Interface</p>
                 <h2>Appearance</h2>
                 <ClusterButton type="button" variant="secondary" onClick={applyVisualDefaults}>
@@ -1354,23 +1381,18 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     <h3>Theme</h3>
                     <span>Base contrast</span>
                   </div>
-                  <div className="segmented-choice-v267">
-                    {(["light", "dark", "system"] as AppTheme[]).map((option) => (
-                      <ClusterButton
-                        key={option}
-                        type="button"
-                        className={theme === option ? "active" : ""}
-                        onClick={() => {
-                          setDirty(true);
-                          onThemeChange(option);
-                        }}
-                      >
-                        {option === "system" ? "System" : option === "light" ? "Light" : "Dark"}
-                      </ClusterButton>
-                    ))}
-                  </div>
+                  <ClusterSettingsChoiceGroup<AppTheme>
+                    label="Theme"
+                    value={theme}
+                    onChange={(option) => { setDirty(true); onThemeChange(option); }}
+                    options={[
+                      { value: "dark", label: "Dark", preview: <span className="cluster-settings-theme-preview-v11" data-theme="dark"><i /><i /></span> },
+                      { value: "light", label: "Light", preview: <span className="cluster-settings-theme-preview-v11" data-theme="light"><i /><i /></span> },
+                      { value: "system", label: "System", preview: <span className="cluster-settings-theme-preview-v11" data-theme="system"><i /><i /></span> },
+                    ]}
+                  />
                 </section>
-                <section id="appearance-materials-v546" className="settings-card-v092 span-3 appearance-surface-combined-v270">
+                <section id="appearance-materials-v546" tabIndex={-1} className="settings-card-v092 span-3 appearance-surface-combined-v270">
                   <div className="settings-card-head-v092">
                     <h3>Materials & background</h3>
                     <span>Color foundation, texture, elevation and glass</span>
@@ -1452,11 +1474,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 </section>
               </div>
 
-              <DesignSystemPreview />
+              <ClusterDisclosureGroup className="settings-component-gallery-v11" title="Design system gallery" summary="Optional examples of Cluster controls and interaction patterns">
+                <DesignSystemPreview />
+              </ClusterDisclosureGroup>
               <div className="appearance-layout-v093">
                 <AppearanceShellPreview settings={settings} theme={theme} />
                 <div className="settings-card-grid-v092 appearance-card-grid-v092">
-                  <div id="appearance-layout-v546" className="settings-card-v092">
+                  <div id="appearance-layout-v546" tabIndex={-1} className="settings-card-v092">
                     <div className="settings-card-head-v092">
                       <h3>Layout & navigation</h3>
                       <span>Density and chrome</span>
@@ -1485,16 +1509,18 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                         </div>
                         <small className="muted">Scrollbars stay available; high contrast always favors visibility.</small>
                       </div>
-                      <div className="field">
-                        <label>Density</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Interface density">
-                          {(["dense", "compact", "comfortable"] as Array<NonNullable<Settings["interfaceDensity"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.interfaceDensity || "compact") === option ? "active" : ""} onClick={() => patch("interfaceDensity", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
+                      <ClusterSettingsRow label="Density" description="Choose how tightly controls and content are arranged.">
+                        <ClusterSettingsChoiceGroup<NonNullable<Settings["interfaceDensity"]>>
+                          label="Interface density" density="compact"
+                          value={settings.interfaceDensity || "compact"}
+                          onChange={(option) => patch("interfaceDensity", option)}
+                          options={[
+                            { value: "dense", label: "Dense" },
+                            { value: "compact", label: "Compact" },
+                            { value: "comfortable", label: "Comfortable" },
+                          ]}
+                        />
+                      </ClusterSettingsRow>
                       <div className="field">
                         <label>Sidebar surface</label>
                         <div className="segmented-choice-v267" role="group" aria-label="Sidebar surface">
@@ -1563,7 +1589,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   </div>
                   <div className="settings-card-v092">
                     <div className="settings-card-head-v092">
-                      <h3 id="appearance-motion-v546">Motion & interaction</h3>
+                      <h3 id="appearance-motion-v546" tabIndex={-1}>Motion & interaction</h3>
                       <span>Feedback, shape, and movement</span>
                     </div>
                     <div className="settings-stack compact-fields-v092">
@@ -1609,6 +1635,8 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
               </div>
             </div>
           )}
+
+          {section === "performance" && <DevicePerformanceSettingsSection />}
 
           {section === "navigation" && (
             <div className="settings-section-v092 user-settings-navigation-v166">
@@ -1790,13 +1818,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div>
                   </div>
                 </div>
-                <div className="settings-card-v092">
+                <div className="settings-card-v092" id="account-quiet-hours-v11" tabIndex={-1}>
                   <div className="settings-card-head-v092">
                     <h3>Quiet hours</h3>
                     <span>{settings.userQuietHoursEnabled ? "active" : "off"}</span>
                   </div>
                   <div className="settings-stack compact-fields-v092">
-                    <ClusterToggle checked={settings.userQuietHoursEnabled ?? false} onCheckedChange={(checked) => patch("userQuietHoursEnabled", checked)} label="Enable quiet hours" />
+                    <ClusterSettingsRow label="Quiet hours" description="Schedule when routine alerts should stay quiet."><ClusterToggle checked={settings.userQuietHoursEnabled ?? false} onCheckedChange={(checked) => patch("userQuietHoursEnabled", checked)} aria-label="Enable quiet hours" /></ClusterSettingsRow>
                     <div className="field">
                       <label>During quiet hours</label>
                       <ClusterNativeSelect value={settings.notificationQuietHoursBehavior || "critical-only"} onChange={(e) => patch("notificationQuietHoursBehavior", e.target.value as Settings["notificationQuietHoursBehavior"])}>
@@ -1825,43 +1853,19 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div> : null}
                   </div>
                 </div>
-                <div className="settings-card-v092 span-2 notification-types-card-v473">
-                  <div className="settings-card-head-v092">
-                    <div>
-                      <h3>Notification types</h3>
-                      <p className="muted tight">Set delivery independently for every category. Off removes that category from the inbox and unread count; Silent keeps it available without a toast or native push.</p>
-                    </div>
-                    <span>{enabledNotificationCount}/{NOTIFICATION_CATEGORIES.length} active</span>
-                  </div>
-                  <div className="notification-type-list-v473">
-                    {NOTIFICATION_CATEGORIES.map((category) => {
-                      const detail = NOTIFICATION_CATEGORY_DETAILS[category];
-                      const mode = notificationCategoryDelivery[category];
-                      const enabled = mode !== "off";
-                      return (
-                        <div className="notification-type-row-v473" key={category} data-category={category} data-enabled={enabled ? "true" : "false"}>
-                          <span className="notification-type-icon-v473"><ClusterIcon name={notificationCategoryIcon(category)} /></span>
-                          <span className="notification-type-copy-v473"><strong>{detail.label}</strong><small>{detail.description}</small></span>
-                          <ClusterNativeSelect
-                            className="notification-delivery-select-v473"
-                            value={mode}
-                            onChange={(event) => {
-                              const nextMode = event.target.value as NotificationDeliveryMode;
-                              const nextDelivery = { ...notificationCategoryDelivery, [category]: nextMode };
-                              patch("notificationCategoryDelivery", nextDelivery);
-                              if (nextMode === "native" || nextMode === "both") setStatus(settings.browserNotifications ? "Native delivery enabled for this notification type." : "Native delivery selected. Enable native alerts on this device to receive system notifications here.");
-                            }}
-                            aria-label={`${detail.label} delivery`}
-                          >
-                            {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                          </ClusterNativeSelect>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="notification-delivery-legend-v473">
-                    {NOTIFICATION_DELIVERY_OPTIONS.map((option) => <span key={option.value}><strong>{option.label}</strong><small>{option.detail}</small></span>)}
-                  </div>
+                <div className="settings-card-v092 span-2 notification-types-card-v473" id="account-notification-delivery-v11" tabIndex={-1}>
+                  <ClusterNotificationDeliveryMatrix
+                    value={notificationCategoryDelivery}
+                    nativePermissionReady={Boolean(settings.browserNotifications)}
+                    onChange={(category, nextMode) => {
+                      patch("notificationCategoryDelivery", { ...notificationCategoryDelivery, [category]: nextMode });
+                      if (nextMode === "native" || nextMode === "both") {
+                        setStatus(settings.browserNotifications
+                          ? "Native delivery enabled for this category."
+                          : "Native delivery selected. Enable native alerts on this device to receive system notifications here.");
+                      }
+                    }}
+                  />
                 </div>
                 <div className="settings-card-v092 span-2 project-notification-settings-v261 notification-tool-settings-v495">
                   <div className="settings-card-head-v092"><h3>Tool notification levels</h3><span>{NOTIFICATION_TOOLS.filter((tool) => notificationToolModes[tool] !== "off").length}/{NOTIFICATION_TOOLS.length} active</span></div>
@@ -2222,17 +2226,11 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           </div>
           <div className="settings-context-block-v267">
             <span className="eyebrow">Sync</span>
-            <strong>{section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
-            <small>{lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
-            {section === "forms" || section === "licenses" ? <small>Resource actions are saved in their respective panels.</small> : section === "profile" ? (
-              <ClusterButton variant="primary" type="button" onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
-                {profileSaving ? "Saving…" : "Save profile"}
-              </ClusterButton>
-            ) : (
-              <ClusterButton variant="primary" type="button" onClick={save} disabled={saving || !dirty}>
-                {saving ? "Saving…" : "Save settings"}
-              </ClusterButton>
-            )}
+            <strong>{section === "performance" ? (dirty ? "Other account changes not saved" : "Device-local preferences") : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
+            <small>{section === "performance" ? "Performance changes apply immediately and remain on this device." : lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
+            {section === "forms" || section === "licenses" || section === "performance"
+              ? <small>{section === "performance" ? "Rendering settings stay on this device. Save any other pending account changes with the header action." : "Resources are saved in their own panels."}</small>
+              : <small>Save pending changes using the single action in the page header.</small>}
           </div>
         </aside>
       </div>

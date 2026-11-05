@@ -22,6 +22,8 @@ Item {
     property string pendingSignOutProfileId: ""
     property int signOutPollCount: 0
     property bool capabilityPumpBusy: false
+    property int nativeCapabilityPollInterval: 100
+    property int emptyCapabilityPollCount: 0
     property int lastDropCount: 0
     property bool dropReceiptVisible: false
     readonly property string normalizedServerUrl: {
@@ -92,6 +94,14 @@ Item {
                 let requests = []
                 try { requests = JSON.parse(result) } catch (_) { return }
                 if (!Array.isArray(requests)) return
+                if (requests.length) {
+                    root.emptyCapabilityPollCount = 0
+                    root.nativeCapabilityPollInterval = 100
+                } else {
+                    root.emptyCapabilityPollCount += 1
+                    if (root.emptyCapabilityPollCount >= 6)
+                        root.nativeCapabilityPollInterval = 300
+                }
                 for (let index = 0; index < requests.length && index < 8; index += 1) {
                     const requestJson = JSON.stringify(requests[index])
                     if (requestJson.length <= 16384)
@@ -135,15 +145,19 @@ Item {
         }
     }
 
+    // Poll the capability bridge at 100ms while active. On repeated empty
+    // queues back off to 300ms foreground or 1000ms background. This is still
+    // a live bridge: queued native requests are never dropped while hidden.
     Timer {
-        interval: 100
+        id: nativeCapabilityPollTimer
+        interval: Qt.application.state === Qt.ApplicationActive ? root.nativeCapabilityPollInterval : 1000
         repeat: true
         running: root.rendererReady
         onTriggered: root.pumpNativeCapabilities()
     }
 
     Timer {
-        interval: 10000
+        interval: Qt.application.state === Qt.ApplicationActive ? 10000 : 30000
         repeat: true
         running: root.rendererReady
         onTriggered: root.pullRendererState()
@@ -315,6 +329,8 @@ Item {
         onLoadingChanged: function(request) {
             if (request.status === WebView.LoadStartedStatus) {
                 root.rendererReady = false
+                root.emptyCapabilityPollCount = 0
+                root.nativeCapabilityPollInterval = 100
                 const target = String(request.url || "")
                 if (target !== "about:blank" && !clusterApp.isAllowedRendererUrl(target)) {
                     webView.stop()

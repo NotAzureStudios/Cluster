@@ -7,6 +7,8 @@ import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup"
 import { ClusterFilterPopover } from "../../components/ClusterFilterPopover";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api";
+import { subscribeResourceChanges, subscribeResourceChangeFeedResets } from "../../core/resource-change-client";
+import { useVisibleRefresh } from "../../core/visible-refresh";
 import { useClusterCursorData, type ClusterCursorPage } from "../../components/useClusterCursorData";
 import { clusterDataQueryParameter } from "../../components/data-view-query";
 import { addDays } from "../../core/date-time";
@@ -29,10 +31,14 @@ import type { BuildMilestonePlanItem, Project, ProjectSnapshot, TimelineEntry, T
 import { projectScheduleState, projectSetupChecklist } from "./project-list-utils";
 import { ProjectPortfolioInspector } from "./ProjectPortfolioInspector";
 import { ProjectPortfolioItem } from "./ProjectPortfolioItem";
+import { projectInspectorReturnFocus } from "./project-inspector-focus";
 import { projectAttentionScore, type ProjectPortfolioFocus } from "./project-portfolio-model";
+import { planMissingProjectSnapshotBatches, projectRevisionKey, projectSnapshotInvalidationTarget, projectSnapshotRetryDelayMs } from "./project-snapshot-batching";
 import "./projects.css";
 
 const PROJECT_RENDER_BATCH = 120;
+const PROJECT_NAME_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const PROJECT_PRIORITY_SCORE: Readonly<Record<string, number>> = { urgent: 4, high: 3, medium: 2, low: 1 };
 
 function projectSnapshotHealth(snapshot?: ProjectSnapshot | null) {
   if (!snapshot) return null;
@@ -134,8 +140,16 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [density, setDensity] = useServerState<"compact" | "comfortable">("user", "projects.portfolio-density", "comfortable", { merge: (value, fallback) => value === "compact" || value === "comfortable" ? value : fallback });
   const [focus, setFocus] = useServerState<ProjectPortfolioFocus>("user", "projects.portfolio-focus", "all");
   const [pinnedProjectIds, setPinnedProjectIds] = useServerState<string[]>("user", "projects.pinned", [], { merge: (value) => Array.isArray(value) ? value.map(String) : [] });
+  const pinnedProjectSet = useMemo(() => new Set(pinnedProjectIds), [pinnedProjectIds]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
+  const inspectorReturnFocusRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    // The inspector is non-modal; announce the opened panel without trapping
+    // focus or stealing focus repeatedly during ordinary data updates.
+    if (inspectorOpen) inspectorPanelRef.current?.focus({ preventScroll: true });
+  }, [inspectorOpen]);
   const [browserFiltersOpen, setBrowserFiltersOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [intelligenceOpen, setIntelligenceOpen] = useState(false);
@@ -143,6 +157,11 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [projectRenderLimit, setProjectRenderLimit] = useState(PROJECT_RENDER_BATCH);
   const [portfolioIntelligence, setPortfolioIntelligence] = useState<PortfolioIntelligence | null>(null);
   const [projectSnapshots, setProjectSnapshots] = useState<Record<string, ProjectSnapshot>>({});
+  const projectSnapshotCacheRef = useRef<Record<string, ProjectSnapshot>>({});
+  const projectSnapshotRevisionsRef = useRef<Map<string, string>>(new Map());
+  const [projectSnapshotRefreshEpoch, setProjectSnapshotRefreshEpoch] = useState(0);
+  const [portfolioAuthorityEpoch, setPortfolioAuthorityEpoch] = useState(0);
+  const projectSnapshotRetryAttemptsRef = useRef(0);
   const [projectTableLayout, setProjectTableLayout] = useState<ClusterDataViewLayout | null>(null);
   const [projectGroups, setProjectGroups] = useState<ClusterDataGroup[]>([]);
   const [projectProjections, setProjectProjections] = useState<ClusterDataProjection[]>(() => DEFAULT_PROJECT_PROJECTIONS);
@@ -193,25 +212,213 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     };
   }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, projectServerSorts, projectServerGroups, projectProjections, projectPortableDerivedPlan.fields, projectAnalyticalSelectionSet, analyticsOpen, viewMode]);
   const projectServerQueryKey = useMemo(() => JSON.stringify(projectServerDataQuery), [projectServerDataQuery]);
+  const projectSeedRevisionKey = useMemo(() => projectRevisionKey(projects), [projects]);
   const projectCursor = useClusterCursorData<Project>({
-    resetKey: `${projects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")}::${projectServerQueryKey}`,
+    resetKey: `${projectSeedRevisionKey}::${projectServerQueryKey}::authority=${portfolioAuthorityEpoch}`,
     rowKey: (project) => project.id,
-    placeholderRows: deferredQuery.trim() ? [] : projects,
+    // A role or access-policy change must not resurrect old project names in
+    // placeholder state while the authoritative Project cursor revalidates.
+    placeholderRows: portfolioAuthorityEpoch > 0 || deferredQuery.trim() ? [] : projects,
     loadPage: async (cursor): Promise<ClusterCursorPage<Project>> => api<ClusterCursorPage<Project>>(`/api/projects?paged=true&limit=80&dataQuery=${clusterDataQueryParameter(projectServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   });
   const portfolioProjects = projectCursor.rows;
+  const portfolioRevisionKey = useMemo(() => projectRevisionKey(portfolioProjects), [portfolioProjects]);
+  const loadedProjectIds = useMemo(() => new Set(portfolioProjects.map((project) => project.id)), [portfolioProjects]);
+  const loadedProjectIdsRef = useRef(loadedProjectIds);
+  loadedProjectIdsRef.current = loadedProjectIds;
 
   useEffect(() => {
-    const ids = portfolioProjects.map((project) => project.id).filter(Boolean);
-    if (!ids.length) { setProjectSnapshots({}); return; }
+    let timer = 0;
+    let allInvalidated = false;
+    let portfolioAccessChanged = false;
+    const pendingIds = new Set<string>();
+    const flush = () => {
+      timer = 0;
+      if (document.visibilityState !== "visible" || (!allInvalidated && !pendingIds.size)) return;
+      const revisions = projectSnapshotRevisionsRef.current;
+      const cache = projectSnapshotCacheRef.current;
+      if (allInvalidated) {
+        revisions.clear();
+        for (const id of Object.keys(cache)) delete cache[id];
+      } else {
+        for (const id of pendingIds) { revisions.delete(id); delete cache[id]; }
+      }
+      allInvalidated = false;
+      pendingIds.clear();
+      if (portfolioAccessChanged) {
+        portfolioAccessChanged = false;
+        setPortfolioAuthorityEpoch((epoch) => epoch + 1);
+      }
+      setProjectSnapshots({ ...cache });
+      setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+    };
+    const scheduleFlush = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = 0;
+      // Resource changes are remembered while hidden, but do not wake a
+      // background Projects renderer or issue HTTP until visibility resumes.
+      if (document.visibilityState === "visible") timer = window.setTimeout(flush, 200);
+    };
+    const schedule = (id: string | "all", refreshAuthority = false) => {
+      // An update to a different Project should not re-render or refetch the
+      // current portfolio. New rows are already covered when the cursor grows.
+      if (id !== "all" && !loadedProjectIdsRef.current.has(id)) return;
+      if (refreshAuthority) portfolioAccessChanged = true;
+      if (id === "all") {
+        allInvalidated = true;
+        pendingIds.clear();
+      } else if (!allInvalidated) pendingIds.add(id);
+      scheduleFlush();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && (allInvalidated || pendingIds.size)) scheduleFlush();
+      else if (timer) { window.clearTimeout(timer); timer = 0; }
+    };
+    const unsubChanges = subscribeResourceChanges(({ change }) => {
+      const target = projectSnapshotInvalidationTarget(change);
+      // Membership/role/policy changes may revoke entire Projects, not merely
+      // fields in an existing snapshot. Requery the authorized portfolio.
+      const accessChange = ["user", "team", "department", "job_role", "policy"].includes(change.resource.kind);
+      if (target) schedule(target, accessChange);
+    });
+    const unsubReset = subscribeResourceChangeFeedResets(() => schedule("all", true));
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      unsubChanges();
+      unsubReset();
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, []);
+
+  // Server-derived badges can change with time, and an SSE gap is possible.
+  // Recovery is visible-only: hidden Project pages never retain this timer.
+  useVisibleRefresh(() => {
+    projectSnapshotRevisionsRef.current.clear();
+    setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+  }, { enabled: portfolioProjects.length > 0, intervalMs: 180_000, minimumGapMs: 1_000, refreshOnFocus: false });
+
+  useEffect(() => {
+    // Only retain snapshots for projects in the currently authorized, loaded
+    // portfolio, at the exact revision that produced their derived badges.
+    const activeRevisions = new Map(portfolioProjects.map((project) => [project.id, project.updatedAt || ""] as const));
+    const cache = projectSnapshotCacheRef.current;
+    const knownRevisions = projectSnapshotRevisionsRef.current;
+    let pruned = false;
+    for (const id of Object.keys(cache)) {
+      if (!activeRevisions.has(id) || knownRevisions.get(id) !== activeRevisions.get(id)) {
+        delete cache[id];
+        knownRevisions.delete(id);
+        pruned = true;
+      }
+    }
+    if (pruned || !activeRevisions.size) setProjectSnapshots({ ...cache });
+
+    // Adding the next 80 projects must not redownload previous pages.
+    // Keep each URL bounded, and avoid a large synchronous response commit.
+    const batches = planMissingProjectSnapshotBatches(portfolioProjects, knownRevisions, 80);
+    if (!batches.length) {
+      projectSnapshotRetryAttemptsRef.current = 0;
+      return;
+    }
     let active = true;
-    const query = encodeURIComponent(ids.join(","));
-    api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${query}`).then((payload) => {
+    const requests = new AbortController();
+    let retryTimer = 0;
+    let retryPending = false;
+    let retryAt = 0;
+    let publishTimer = 0;
+    let publishPending = false;
+    const flushSnapshots = () => {
+      if (!active || !publishPending || document.visibilityState !== "visible") return;
+      if (publishTimer) window.clearTimeout(publishTimer);
+      publishTimer = 0;
+      publishPending = false;
+      // One React update for a group of replies, rather than rebuilding the
+      // entire portfolio after every 80-ID network response.
+      setProjectSnapshots({ ...cache });
+    };
+    const queueSnapshotPublish = () => {
+      publishPending = true;
+      if (publishTimer || document.visibilityState !== "visible") return;
+      publishTimer = window.setTimeout(() => {
+        publishTimer = 0;
+        flushSnapshots();
+      }, 125);
+    };
+    const scheduleRetry = () => {
+      if (!active || !retryPending || document.visibilityState !== "visible"
+        || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = window.setTimeout(() => {
+        retryTimer = 0;
+        if (active && document.visibilityState === "visible") {
+          setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+        }
+      }, Math.max(0, retryAt - Date.now()));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        if (retryTimer) window.clearTimeout(retryTimer);
+        if (publishTimer) window.clearTimeout(publishTimer);
+        retryTimer = 0;
+        publishTimer = 0;
+      } else {
+        flushSnapshots();
+        if (retryPending) scheduleRetry();
+      }
+    };
+    const onOnline = () => { if (retryPending) scheduleRetry(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", onOnline);
+    void (async () => {
+      let failed = false;
+      for (let offset = 0; offset < batches.length; offset += 2) {
+        const responses = await Promise.allSettled(batches.slice(offset, offset + 2).map((ids) =>
+          api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`, { signal: requests.signal }),
+        ));
+        if (!active) return;
+        let changed = false;
+        for (const response of responses) {
+          if (response.status !== "fulfilled") {
+            failed = true;
+            continue;
+          }
+          for (const snapshot of response.value.snapshots || []) {
+            if (!activeRevisions.has(snapshot.projectId)) continue;
+            const revision = activeRevisions.get(snapshot.projectId)!;
+            knownRevisions.set(snapshot.projectId, revision);
+            cache[snapshot.projectId] = snapshot;
+            changed = true;
+          }
+        }
+        if (changed) queueSnapshotPublish();
+      }
       if (!active) return;
-      setProjectSnapshots(Object.fromEntries((payload.snapshots || []).map((snapshot) => [snapshot.projectId, snapshot])));
-    }).catch(() => { if (active) setProjectSnapshots({}); });
-    return () => { active = false; };
-  }, [portfolioProjects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")]);
+      flushSnapshots();
+      if (failed) {
+        // Cap retries. A persistent outage falls back to the periodic visible
+        // recovery probe rather than producing unbounded network chatter.
+        const attempts = ++projectSnapshotRetryAttemptsRef.current;
+        if (attempts <= 4) {
+          retryPending = true;
+          retryAt = Date.now() + projectSnapshotRetryDelayMs(attempts);
+          scheduleRetry();
+        }
+      } else {
+        projectSnapshotRetryAttemptsRef.current = 0;
+      }
+    })();
+    return () => {
+      active = false;
+      // Abort superseded page/query requests before fetching a newer snapshot
+      // generation. Ignoring stale results alone still wastes server work.
+      requests.abort();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", onOnline);
+      if (retryTimer) window.clearTimeout(retryTimer);
+      if (publishTimer) window.clearTimeout(publishTimer);
+    };
+  }, [portfolioRevisionKey, projectSnapshotRefreshEpoch]);
 
   useEffect(() => {
     if (!inspectorOpen && !analyticsOpen && !intelligenceOpen) return;
@@ -277,7 +484,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     return { project, snapshot, entries, members, memberCount, gaps, status, completeness, source, stage, health, attentionScore, scheduleState, projectWhiteboards, latest: projectLatestTimestamp(project) };
   }), [portfolioProjects, projectSnapshots, timelineEntriesByProject, whiteboardsByProject, users, importantBuildEntries, projectMembers, projectSetupGaps, normalizeProjectStatus, projectCompleteness, projectSourceMeta, projectBuildStage, projectLatestTimestamp, projectHealth, projectAssignedIds]);
   const focusCounts = useMemo(() => facts.reduce<Record<ProjectPortfolioFocus, number>>((counts, fact) => {
-    const pinned = pinnedProjectIds.includes(fact.project.id);
+    const pinned = pinnedProjectSet.has(fact.project.id);
     const matches = (key: ProjectPortfolioFocus) => key === "all" ? true
       : key === "pinned" ? pinned
       : key === "at_risk" ? fact.attentionScore > 0
@@ -286,7 +493,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       : fact.latest >= Date.now() - 86_400_000 * 14;
     (Object.keys(counts) as ProjectPortfolioFocus[]).forEach((key) => { if (matches(key)) counts[key] += 1; });
     return counts;
-  }, { all: 0, pinned: 0, at_risk: 0, due_soon: 0, unscheduled: 0, recent: 0 }), [facts, pinnedProjectIds]);
+  }, { all: 0, pinned: 0, at_risk: 0, due_soon: 0, unscheduled: 0, recent: 0 }), [facts, pinnedProjectSet]);
   const filteredFacts = useMemo(() => facts.filter((fact) => {
     const { project, status, source } = fact;
     const health = fact.health;
@@ -300,19 +507,19 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     if (sourceFilter === "external" && !external) return false;
     if (priorityFilter !== "all" && (project.priority || "medium") !== priorityFilter) return false;
     if (scheduleFilter !== "all" && fact.scheduleState !== scheduleFilter) return false;
-    return focus === "all" ? true : focus === "pinned" ? pinnedProjectIds.includes(project.id) : focus === "at_risk" ? fact.attentionScore > 0 : focus === "due_soon" ? fact.scheduleState === "due_soon" : focus === "unscheduled" ? fact.scheduleState === "unscheduled" : fact.latest >= Date.now() - 86_400_000 * 14;
-  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, pinnedProjectIds, projectHasGit, isExternalProject, projectHealth]);
+    return focus === "all" ? true : focus === "pinned" ? pinnedProjectSet.has(project.id) : focus === "at_risk" ? fact.attentionScore > 0 : focus === "due_soon" ? fact.scheduleState === "due_soon" : focus === "unscheduled" ? fact.scheduleState === "unscheduled" : fact.latest >= Date.now() - 86_400_000 * 14;
+  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, pinnedProjectSet, projectHasGit, isExternalProject]);
   const rawPrimarySortMode = normalizedProjectSorts[0]?.fieldId === "project" ? "name" : (normalizedProjectSorts[0]?.fieldId || "attention");
   const primarySortMode = (["updated", "readiness", "attention", "name", "target", "priority", "status", "health", "stage", "source", "people"] as readonly string[]).includes(rawPrimarySortMode) ? rawPrimarySortMode : "attention";
   const sortedFacts = useMemo(() => [...filteredFacts].sort((a, b) => {
-    const pinDelta = Number(pinnedProjectIds.includes(b.project.id)) - Number(pinnedProjectIds.includes(a.project.id));
+    const pinDelta = Number(pinnedProjectSet.has(b.project.id)) - Number(pinnedProjectSet.has(a.project.id));
     if (pinDelta) return pinDelta;
     const values = (fact: (typeof facts)[number], fieldId: string): string | number => {
       if (fieldId === "name" || fieldId === "project") return fact.project.name;
       if (fieldId === "target") return fact.project.targetDate ? new Date(fact.project.targetDate).getTime() : Number.MAX_SAFE_INTEGER;
-      if (fieldId === "priority") return ({ urgent: 4, high: 3, medium: 2, low: 1 } as Record<string, number>)[fact.project.priority || "medium"] || 0;
+      if (fieldId === "priority") return PROJECT_PRIORITY_SCORE[fact.project.priority || "medium"] || 0;
       if (fieldId === "readiness") return fact.completeness;
-      if (fieldId === "attention") return fact.attentionScore + (pinnedProjectIds.includes(fact.project.id) ? 2 : 0);
+      if (fieldId === "attention") return fact.attentionScore + (pinnedProjectSet.has(fact.project.id) ? 2 : 0);
       if (fieldId === "updated") return fact.latest;
       if (fieldId === "status") return fact.status;
       if (fieldId === "health") return fact.health.label;
@@ -324,11 +531,11 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     for (const sort of normalizedProjectSorts) {
       const left = values(a, sort.fieldId);
       const right = values(b, sort.fieldId);
-      const comparison = typeof left === "number" && typeof right === "number" ? left - right : String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+      const comparison = typeof left === "number" && typeof right === "number" ? left - right : PROJECT_NAME_COLLATOR.compare(String(left), String(right));
       if (comparison) return comparison * (sort.direction === "asc" ? 1 : -1);
     }
     return b.latest - a.latest;
-  }), [filteredFacts, pinnedProjectIds, normalizedProjectSorts, facts, projectHealth, projectAssignedIds]);
+  }), [filteredFacts, pinnedProjectSet, normalizedProjectSorts]);
 
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
@@ -356,7 +563,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "target", header: "Target", defaultWidth: 150, sortValue: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate) : null, cell: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate).toLocaleDateString() : "Unscheduled" },
     { id: "attention", header: "Attention", hiddenByDefault: true, sortValue: (fact) => fact.attentionScore, cell: (fact) => fact.attentionScore },
     { id: "updated", header: "Updated", hiddenByDefault: true, sortValue: (fact) => fact.latest, cell: (fact) => new Date(fact.latest).toLocaleString() },
-    { id: "priority", header: "Priority", hiddenByDefault: true, sortValue: (fact) => ({ urgent: 4, high: 3, medium: 2, low: 1 } as Record<string, number>)[fact.project.priority || "medium"] || 0, groupValue: (fact) => fact.project.priority || "medium", cell: (fact) => fact.project.priority || "medium" },
+    { id: "priority", header: "Priority", hiddenByDefault: true, sortValue: (fact) => PROJECT_PRIORITY_SCORE[fact.project.priority || "medium"] || 0, groupValue: (fact) => fact.project.priority || "medium", cell: (fact) => fact.project.priority || "medium" },
     ...projectDerivedFields.map((derived): ClusterDataTableColumn<(typeof facts)[number]> => ({
     id: derived.id,
     header: derived.label,
@@ -371,7 +578,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       return typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: derived.display?.precision ?? 2 }) : String(value ?? "—");
     },
   })),
-  ], [projectTypeBadge, projectStatusLabel, projectHealth, projectAssignedIds, projectHasGit, isExternalProject, pinnedProjectIds, projectDerivedFields]);
+  ], [projectTypeBadge, projectStatusLabel, projectHasGit, isExternalProject, projectDerivedFields, onOpenProject]);
   useEffect(() => { setProjectRenderLimit(PROJECT_RENDER_BATCH); }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, normalizedProjectSorts]);
   useEffect(() => {
     const selectedIndex = sortedFacts.findIndex((fact) => fact.project.id === selectedProjectId);
@@ -419,6 +626,20 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "due_soon", label: "Due soon", count: focusCounts.due_soon, icon: "calendar" as const },
     { id: "unscheduled", label: "No target date", count: focusCounts.unscheduled, icon: "calendar" as const },
   ] as const;
+  function openInspector(projectId: string, trigger: HTMLElement) {
+    // Row actions can be rendered inside a floating menu. Restore keyboard
+    // focus to the stable underlying Project tile, not an unmounted menu item.
+    inspectorReturnFocusRef.current = projectInspectorReturnFocus(projectId, trigger, document);
+    setSelectedProjectId(projectId);
+    setInspectorOpen(true);
+  }
+  function dismissInspector() {
+    setInspectorOpen(false);
+    const returnTo = inspectorReturnFocusRef.current;
+    inspectorReturnFocusRef.current = null;
+    if (returnTo?.isConnected) returnTo.focus({ preventScroll: true });
+    else searchRef.current?.focus({ preventScroll: true });
+  }
   function chooseBrowserFocus(next: ProjectPortfolioFocus) {
     setStatusFilter("all");
     setSourceFilter("all");
@@ -651,7 +872,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     key={fact.project.id}
                     project={fact.project}
                     selected={selectedProject?.id === fact.project.id}
-                    pinned={pinnedProjectIds.includes(fact.project.id)}
+                    pinned={pinnedProjectSet.has(fact.project.id)}
                     density={density}
                     health={fact.health}
                     schedule={fact.snapshot ? { label: fact.snapshot.schedule.label, tone: projectSnapshotScheduleTone(fact.snapshot), detail: fact.snapshot.schedule.label } : undefined}
@@ -662,7 +883,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     gaps={fact.gaps}
                     memberCount={fact.memberCount}
                     onSelect={() => onOpenProject(fact.project.id)}
-                    onInspect={() => { setSelectedProjectId(fact.project.id); setInspectorOpen(true); }}
+                    onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
                   />
                 )) : (
@@ -678,8 +899,21 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 {hasMoreProjects ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" onClick={() => setProjectRenderLimit((current) => current + PROJECT_RENDER_BATCH)}>Show {Math.min(PROJECT_RENDER_BATCH, sortedFacts.length - visibleFacts.length)} more · {sortedFacts.length - visibleFacts.length} loaded locally</ClusterButton></div> : projectCursor.hasMore ? <div className="project-list-more-v494"><ClusterButton variant="quiet" size="compact" disabled={projectCursor.loading} onClick={projectCursor.loadMore}>{projectCursor.loading ? "Loading more…" : "Load 80 more projects from server"}</ClusterButton></div> : null}
               </div>}
             </section>
-            {inspectorOpen ? <div className="projects-browser-inspector-shell-rc25">
-              <div className="projects-browser-inspector-toolbar-rc25"><strong>Project details</strong><ClusterButton variant="quiet" size="compact" onClick={() => setInspectorOpen(false)} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton></div>
+            {inspectorOpen ? <div ref={inspectorPanelRef} role="dialog" aria-modal="false"
+              aria-labelledby="projects-browser-inspector-heading-rc25"
+              aria-describedby="projects-browser-inspector-help-v11"
+              tabIndex={-1} className="projects-browser-inspector-shell-rc25"
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || event.defaultPrevented) return;
+                event.preventDefault();
+                event.stopPropagation();
+                dismissInspector();
+              }}>
+              <div className="projects-browser-inspector-toolbar-rc25">
+                <strong id="projects-browser-inspector-heading-rc25">Project details{selectedProject ? ` · ${selectedProject.name}` : ""}</strong>
+                <ClusterButton variant="quiet" size="compact" onClick={dismissInspector} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton>
+              </div>
+              <p id="projects-browser-inspector-help-v11" className="sr-only-v204">Read-only project preview. Press Escape to close and return to the project list.</p>
               <ProjectPortfolioInspector
               project={selectedProject}
               health={selectedFact?.health || null}

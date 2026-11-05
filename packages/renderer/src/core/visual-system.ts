@@ -1,4 +1,5 @@
 import semanticPalette from "../../../shared/appearance/semantic-palette.json";
+import { effectiveRendererBlurPx } from "./renderer-budget";
 import {
   readAccessibilitySystemPreferences,
   resolveAccessibilityPreferences,
@@ -327,7 +328,13 @@ export function applyVisualContext(root: HTMLElement, context: EffectiveVisualCo
   root.style.setProperty("--radius-lg", `${context.radius + 6}px`);
   root.style.setProperty("--glass-alpha", String(context.glassStrength / 100));
   root.style.setProperty("--glass-percent", `${context.glassStrength}%`);
-  root.style.setProperty("--glass-blur", `${Math.round(8 + (context.glassStrength / 100) * 18)}px`);
+  const preferredGlassBlur = Math.round(8 + (context.glassStrength / 100) * 18);
+  const currentTier = root.dataset.rendererQuality;
+  const rendererTier = currentTier === "reduced" ? "reduced" : currentTier === "balanced" ? "balanced" : "full";
+  // Appearance owns the preferred strength, while Performance owns the maximum
+  // render cost. Neither control should silently reset the other's policy.
+  root.style.setProperty("--cluster-preferred-glass-blur", `${preferredGlassBlur}px`);
+  root.style.setProperty("--glass-blur", `${effectiveRendererBlurPx(preferredGlassBlur, rendererTier)}px`);
   root.style.setProperty("--cluster-pattern-opacity", String(context.backgroundPatternIntensity / 100));
   root.style.setProperty("--cluster-pattern-percent", `${context.backgroundPatternIntensity}%`);
   root.style.setProperty("--cluster-pattern-scale", `${patternScalePx}px`);

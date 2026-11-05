@@ -1,0 +1,4 @@
+.cluster-department-identity-v11{display:inline-flex;align-items:center;gap:7px;vertical-align:middle;min-width:0;color:inherit}
+.cluster-department-identity-icon-v11{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;max-width:100%;border-radius:7px;overflow:hidden;background:color-mix(in srgb,var(--cluster-dept-accent,#57c1ff) 12%,transparent);color:var(--cluster-dept-accent,#57c1ff)}
+.cluster-department-identity-icon-v11 .resource-identity-mark{inline-size:100%;block-size:100%;color:var(--cluster-dept-accent,#57c1ff)}
+.cluster-department-identity-label-v11{display:inline-block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:inherit;font:inherit}

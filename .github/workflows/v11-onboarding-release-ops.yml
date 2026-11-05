@@ -1,0 +1,34 @@
+name: v1.1 Onboarding release history and task diagnostics
+on:
+  push:
+    branches: [fix/v11-onboarding-release-task-diagnostics]
+  pull_request:
+    paths:
+      - "packages/renderer/src/features/changelog/**"
+      - "packages/renderer/src/features/people/**"
+      - "packages/renderer/src/features/admin/**"
+      - "tools/scripts/cluster-v11-onboarding-release-ops-tests.mjs"
+      - ".github/workflows/v11-onboarding-release-ops.yml"
+  workflow_dispatch:
+
+jobs:
+  renderer-regression:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Source and behavior checks
+        run: node tools/scripts/cluster-v11-onboarding-release-ops-tests.mjs
+      - name: Build shared declarations
+        run: npm run build --workspace=@cluster/shared
+      - name: Typecheck renderer
+        run: npm run build --workspace=@cluster/renderer

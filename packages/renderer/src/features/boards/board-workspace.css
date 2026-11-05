@@ -962,3 +962,137 @@
 .board-simple-create-v28 select{min-width:175px;border:1px solid var(--border);padding:9px;border-radius:9px;background:var(--panel);color:var(--text);}
 .board-simple-create-v28 [role=status]{flex-basis:100%;color:var(--text-muted);font-size:12px;}
 @media(max-width:640px){.board-simple-create-v28>*{flex:1 1 100%;max-width:none!important;min-width:0!important;}}
+
+/* v1.1 Board Calendar. Overflow is an action, not a decorative dead end. */
+.board-calendar-view-v489 .board-calendar-more-v489{
+  display:block;width:100%;min-width:0;min-height:30px;padding:4px 6px;
+  text-align:left;color:var(--text-muted);font-size:.7rem;border-radius:7px;
+}
+.board-calendar-view-v489 .board-calendar-more-v489:hover,
+.board-calendar-view-v489 .board-calendar-more-v489:focus-visible{
+  color:var(--text);background:var(--surface-soft);
+}
+.board-calendar-day-detail-v11{
+  margin:10px 5px 2px;min-width:0;border:1px solid var(--border);
+  border-radius:12px;background:var(--surface-soft);overflow:hidden;
+}
+.board-calendar-day-detail-v11:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:2px;
+}
+.board-calendar-day-detail-head-v11{
+  padding:10px 12px;display:flex;gap:12px;align-items:center;
+  justify-content:space-between;border-bottom:1px solid var(--border);
+}
+.board-calendar-day-detail-head-v11>div{display:grid;gap:3px;min-width:0}
+.board-calendar-day-detail-head-v11 strong{font-size:.84rem;overflow-wrap:anywhere}
+.board-calendar-day-detail-head-v11 span{color:var(--text-muted);font-size:.72rem}
+.board-calendar-day-detail-list-v11{
+  display:grid;gap:0;overflow:auto;max-height:min(52vh,480px);overscroll-behavior:contain;
+}
+.board-calendar-day-detail-list-v11>div{
+  display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;
+  padding:5px 10px;border-bottom:1px solid var(--border-subtle);align-items:center;
+}
+.board-calendar-day-detail-card-v11{min-width:0;text-align:left;display:grid;justify-items:start;gap:3px}
+.board-calendar-day-detail-card-v11 strong{
+  min-width:0;max-width:100%;font-size:.75rem;overflow-wrap:anywhere;
+}
+.board-calendar-day-detail-card-v11 span{font-size:.67rem;color:var(--text-muted)}
+.board-calendar-day-detail-list-v11>p{padding:10px 12px}
+.board-calendar-view-v489 .board-calendar-show-more-v11{
+  display:block;width:calc(100% - 20px);margin:10px;
+  min-height:36px;text-align:center;white-space:normal;
+}
+.board-calendar-invalid-due-v11{
+  margin:8px 10px;padding:8px;border-radius:8px;
+  background:var(--surface-soft);color:var(--text-muted);font-size:.7rem;line-height:1.45;
+}
+@media(pointer:coarse){
+  .board-calendar-view-v489 .board-calendar-more-v489,
+  .board-calendar-view-v489 .board-calendar-show-more-v11,
+  .board-calendar-day-detail-head-v11 button{min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  .board-calendar-day-detail-list-v11{scroll-behavior:auto}
+}
+
+/* v1.1: Board List and Table mount only explicitly requested rows. */
+.board-view-load-more-v11{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:10px;padding:10px 12px;border-top:1px solid var(--border-subtle);
+  color:var(--text-muted);font-size:.72rem;
+}
+.board-view-load-more-v11 .cluster-button-v425{
+  min-height:36px;white-space:normal;flex:0 0 auto;
+}
+.board-table-load-more-v11{
+  margin-top:8px;border:1px solid var(--border-subtle);border-radius:10px;
+  background:var(--surface-soft);
+}
+@media(max-width:580px){
+  .board-view-load-more-v11{align-items:stretch;flex-direction:column}
+  .board-view-load-more-v11 .cluster-button-v425{width:100%}
+}
+@media(pointer:coarse){
+  .board-view-load-more-v11 .cluster-button-v425{min-height:44px}
+}
+
+/* v1.1: active dependencies are explainable and individually actionable. */
+.board-active-blockers-v11{display:grid;gap:10px;min-width:0;padding:12px}
+.board-active-blockers-v11>.panel-title-row{align-items:start;gap:12px}
+.board-active-blockers-v11>.panel-title-row>strong{font-variant-numeric:tabular-nums}
+.board-blocker-list-v11{display:grid;gap:8px}
+.board-blocker-card-v11{
+  display:grid;gap:6px;min-width:0;padding:9px 11px;border:1px solid var(--border-subtle);
+  border-left:3px solid var(--accent,#57c1ff);border-radius:10px;background:var(--surface-soft);
+}
+.board-blocker-open-v11{display:grid;gap:4px;text-align:left;justify-items:start;min-width:0}
+.board-blocker-open-v11 strong{font-size:.77rem;overflow-wrap:anywhere}
+.board-blocker-open-v11 span{color:var(--text-muted);font-size:.69rem;white-space:normal}
+.board-blocker-dependencies-v11>summary{
+  cursor:pointer;color:var(--muted);font-size:.7rem;padding:5px 3px;border-radius:6px;
+}
+.board-blocker-dependencies-v11[open]>summary{margin-bottom:7px}
+.board-blocker-dependencies-v11 ul{list-style:none;display:grid;gap:5px;margin:0;padding:0}
+.board-blocker-dependencies-v11 li{min-width:0}
+.board-blocker-dependencies-v11 li>button{
+  display:grid;gap:2px;justify-items:start;text-align:left;min-width:0;
+  padding:7px 9px;border-radius:8px;width:100%;
+}
+.board-blocker-dependencies-v11 li>button:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.board-blocker-dependencies-v11 li strong{font-size:.72rem;overflow-wrap:anywhere}
+.board-blocker-dependencies-v11 li span{font-size:.67rem;color:var(--text-muted);overflow-wrap:anywhere}
+.board-blocker-dependencies-v11>summary:focus-visible,
+.board-blocker-open-v11:focus-visible,
+.board-blocker-dependencies-v11 li>button:focus-visible{
+  outline:2px solid var(--accent,#57c1ff);outline-offset:2px;
+}
+.board-blockers-more-v11{width:100%;min-height:38px;white-space:normal}
+@media(pointer:coarse){
+  .board-blocker-dependencies-v11>summary,
+  .board-blocker-open-v11,
+  .board-blocker-dependencies-v11 li>button,
+  .board-blockers-more-v11{min-height:44px}
+}
+
+/* 1.1: Make deliberately bounded Board dependency graphs transparent. */
+.board-dependency-coverage-v11{
+  margin:8px 0 0;padding:9px 11px;border:1px solid var(--border-subtle);
+  border-radius:8px;background:var(--surface-soft);color:var(--text-muted);
+  font-size:.7rem;line-height:1.5;overflow-wrap:anywhere;
+}
+
+/* 1.1: multi-filter selection must be visible and never lose prior Card IDs. */
+.board-select-visible-v11{min-height:36px;white-space:nowrap;flex:0 0 auto}
+.board-selection-hidden-v11{
+  display:inline-flex;align-items:center;min-height:30px;max-width:100%;
+  font-size:.71rem;line-height:1.4;color:var(--text-muted);
+  padding:5px 8px;border:1px solid var(--border-subtle);border-radius:8px;
+}
+@media(pointer:coarse){
+  .board-select-visible-v11,.board-bulk-bar-v489 .cluster-button-v425{min-height:44px}
+}
+@media(max-width:580px){
+  .board-select-visible-v11{white-space:normal}
+  .board-selection-hidden-v11{width:100%}
+}

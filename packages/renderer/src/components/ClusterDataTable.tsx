@@ -18,6 +18,9 @@ import { useClusterRowWindow } from "./useClusterRowWindow";
 import { copyClusterText } from "../core/clipboard";
 
 
+const EMPTY_SELECTED_KEYS: ReadonlySet<string> = new Set<string>();
+const NOOP_SELECTION_CHANGE = (_keys: Set<string>) => undefined;
+
 export type ClusterDataTableSummaryScope = "visible" | "selected" | "dataset";
 
 export type ClusterDataTableSummaryRow = {
@@ -262,9 +265,15 @@ export function ClusterDataTable<T>({
   const stableRowKey = stableRowKeyRef.current!;
   const visibleColumnSet = useMemo(() => new Set(layout.visibleFieldIds), [layout.visibleFieldIds]);
   const orderedColumns = useMemo(() => layout.fieldOrder.map((id) => columns.find((column) => column.id === id)).filter(Boolean) as ClusterDataTableColumn<T>[], [columns, layout.fieldOrder]);
-  const visibleColumns = orderedColumns.filter((column) => column.hideable === false || visibleColumnSet.has(column.id));
+  const visibleColumns = useMemo(
+    () => orderedColumns.filter((column) => column.hideable === false || visibleColumnSet.has(column.id)),
+    [orderedColumns, visibleColumnSet],
+  );
   const pinnedSet = useMemo(() => new Set(layout.pinnedFieldIds), [layout.pinnedFieldIds]);
-  const renderedColumns = [...visibleColumns.filter((column) => pinnedSet.has(column.id)), ...visibleColumns.filter((column) => !pinnedSet.has(column.id))];
+  const renderedColumns = useMemo(
+    () => [...visibleColumns.filter((column) => pinnedSet.has(column.id)), ...visibleColumns.filter((column) => !pinnedSet.has(column.id))],
+    [visibleColumns, pinnedSet],
+  );
   const pinnedOffsets = useMemo(() => {
     let offset = selectable ? SELECT_COLUMN_WIDTH : 0;
     const values = new Map<string, number>();
@@ -328,8 +337,15 @@ export function ClusterDataTable<T>({
   useEffect(() => {
     if (!incremental?.hasMore) incrementalRequestLengthRef.current = -1;
   }, [incremental?.hasMore]);
-  const visibleKeys = useMemo(() => sortedRows.map(stableRowKey), [sortedRows, stableRowKey]);
-  const selection = useClusterSelection({ keys: visibleKeys, selectedKeys: selectedKeys || new Set<string>(), onSelectionChange: onSelectionChange || (() => undefined) });
+  // Large read-only tables should not key and index every row for selection
+  // handlers that are never offered. Virtual scrolling now retains stable
+  // column and selection identities across row-window updates.
+  const visibleKeys = useMemo(() => selectable ? sortedRows.map(stableRowKey) : [], [selectable, sortedRows, stableRowKey]);
+  const selection = useClusterSelection({
+    keys: visibleKeys,
+    selectedKeys: selectedKeys || EMPTY_SELECTED_KEYS,
+    onSelectionChange: onSelectionChange || NOOP_SELECTION_CHANGE,
+  });
   const selectedCount = selectable ? selection.visibleSelectedCount : 0;
   const allSelected = selectable && selection.allVisibleSelected;
 

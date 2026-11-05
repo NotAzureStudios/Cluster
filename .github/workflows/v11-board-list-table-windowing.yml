@@ -1,0 +1,42 @@
+name: Cluster 1.1 Board List Table Windowing
+on:
+  pull_request:
+    branches: [development]
+    paths:
+      - "packages/renderer/src/features/boards/BoardAlternativeViews.tsx"
+      - "packages/renderer/src/features/boards/board-calendar-projection.ts"
+      - "packages/renderer/src/features/boards/board-visible-page.ts"
+      - "packages/renderer/src/features/boards/board-workspace.css"
+      - "tools/scripts/cluster-v11-board-calendar-overflow-tests.mjs"
+      - "tools/scripts/cluster-v11-board-list-table-windowing-tests.mjs"
+      - ".github/workflows/v11-board-list-table-windowing.yml"
+  push:
+    branches: [perf/v11-board-list-table-windowing]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  board-windowing:
+    name: Board List/Table (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.20.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Bounded List/Table rows and Card interactions
+        run: node tools/scripts/cluster-v11-board-list-table-windowing-tests.mjs
+      - name: Existing Calendar and Card date regressions
+        run: node tools/scripts/cluster-v11-board-calendar-overflow-tests.mjs && node tools/scripts/cluster-v11-board-civil-dates-tests.mjs && node tools/scripts/cluster-v11-board-completed-deadlines-tests.mjs
+        shell: bash
+      - name: Shared contracts
+        run: npm run build --workspace=@cluster/shared
+      - name: Renderer compile and type-check
+        run: npm run build --workspace=@cluster/renderer

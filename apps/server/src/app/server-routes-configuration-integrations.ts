@@ -10,6 +10,8 @@ import { safeUrl, validateCorsOrigins } from "../core/security.js";
 import { databaseProviderFromUrl } from "../core/database-provider.js";
 import { packetsSettingsSchemaShape } from "../core/packets-settings.js";
 import { profileFieldDefinitionsSchema } from "../domains/users/people-profile-contract.js";
+import { validateStudioDepartmentPolicyLinks } from "../domains/departments/department-policy-link.js";
+import { revokedStudioRoleIds } from "../domains/users/people-role-governance.js";
 import { BOOT_SECRET_SETTING_KEYS, encryptionKeyConfigured, encryptionKeyId, previousEncryptionKeyIds, SENSITIVE_SETTING_KEYS } from "../core/setting-crypto.js";
 import { OperationCancelledError, withRequestCancellation } from "../core/operation-cancellation.js";
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
@@ -404,6 +406,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       .object({
         appDisplayName: z.string().optional(),
         serverDisplayName: z.string().trim().min(1).max(120).optional(),
+        serverResourceProfile: z.enum(["automatic", "interactive-first", "background-throughput"]).optional(),
+        serverResourceWorkerCap: z.number().int().min(1).max(128).optional(),
+        serverResourceRecoveryHoldMs: z.number().int().min(1_000).max(120_000).optional(),
         lanDiscoveryEnabled: z.boolean().optional(),
         studioName: z.string().optional(),
         organizationLogoUrl: z.string().optional(),
@@ -982,6 +987,24 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         const previous = validateClusterPermissionBundles(current.studioPermissionBundles || []);
         const bundles = validateClusterPermissionBundles(safeBody.studioPermissionBundles ?? current.studioPermissionBundles ?? []);
         if (safeBody.studioPermissionBundles !== undefined) validateClusterBundleRevisionChanges(previous, bundles);
+        if (safeBody.studioRoleDefinitions !== undefined) {
+          const revokedIds = revokedStudioRoleIds(current, {
+            ...current,
+            studioRoleDefinitions: safeBody.studioRoleDefinitions,
+          });
+          if (revokedIds.length) {
+            const assignment = await prisma.workspaceMember.findFirst({
+              where: { role: { in: revokedIds } }, select: { role: true },
+            });
+            if (assignment) throw Object.assign(
+              new Error(`Role "${assignment.role}" is assigned to users. Reassign those accounts before disabling or removing the role.`),
+              { code: "ROLE_IN_USE" },
+            );
+          }
+        }
+        if (safeBody.studioDepartmentDefinitions !== undefined) {
+          await validateStudioDepartmentPolicyLinks(prisma, admin.id, safeBody.studioDepartmentDefinitions);
+        }
         const projectPolicies = validateClusterProjectBundlePolicies(safeBody.studioProjectBundlePolicies ?? current.studioProjectBundlePolicies ?? [], bundles);
         if (safeBody.studioProjectBundlePolicies !== undefined && projectPolicies.length) {
           const projects = await prisma.project.findMany({ where: { id: { in: projectPolicies.map((item) => item.projectId) }, archived: false }, select: { id: true } });
@@ -1004,6 +1027,12 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
           }
         }
       } catch (error) {
+        if ((error as any)?.code === "DEPARTMENT_POLICY_LINK_INVALID") {
+          return reply.code(400).send({ ok: false, code: "DEPARTMENT_POLICY_LINK_INVALID", error: error instanceof Error ? error.message : "Invalid department link." });
+        }
+        if ((error as any)?.code === "ROLE_IN_USE") {
+          return reply.code(409).send({ ok: false, code: "ROLE_IN_USE", error: error instanceof Error ? error.message : "Assigned roles cannot be removed." });
+        }
         return reply.code(400).send({ ok: false, code: "PERMISSION_BUNDLE_INVALID", error: error instanceof Error ? error.message : "Invalid permission bundles." });
       }
     }

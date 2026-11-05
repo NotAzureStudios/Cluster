@@ -1,0 +1,64 @@
+/* v1.1 People administration: task-first, with policy machinery behind disclosure. */
+.studio-people-management-v11{gap:13px}
+.studio-people-manager-head-actions-v11{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}
+.studio-people-manager-head-actions-v11 .studio-section-count-v272{white-space:nowrap}
+.studio-people-management-v11 .studio-create-strip-v272{margin:0;border-color:var(--border);border-radius:11px}
+.studio-people-management-v11 .studio-entity-manager-v272{grid-template-columns:minmax(270px,300px) minmax(0,1fr);gap:12px;border:0;background:transparent}
+.studio-people-management-v11 .studio-entity-list-v272{border:0;border-radius:12px;background:var(--surface-soft);max-height:min(75vh,850px);padding:9px}
+.studio-people-management-v11 .studio-entity-editor-v272{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--panel)}
+.studio-people-management-v11 .studio-entity-list-v272>button{border:0;border-left:2px solid transparent;border-radius:6px;padding-inline:10px;min-height:52px}
+.studio-people-management-v11 .studio-entity-list-v272>button:hover{background:var(--panel)}
+.studio-people-management-v11 .studio-entity-list-v272>button.active{border-color:var(--accent,#57c1ff);background:var(--panel);box-shadow:none}
+.studio-people-management-v11 .studio-entity-editor-head-v272{padding:16px 18px 12px}
+.studio-people-management-v11 .studio-editor-tabs-v272{padding-inline:18px}
+.studio-people-management-v11 .studio-editor-panel-v272{min-width:0}
+.studio-advanced-access-v11{display:grid;gap:0;border:1px solid var(--border);border-radius:12px;background:var(--panel);min-width:0;overflow:hidden}
+.studio-advanced-access-v11:not([open]){display:block}
+.studio-advanced-access-v11>summary{cursor:pointer;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;list-style:none;color:var(--text);font-size:.77rem}
+.studio-advanced-access-v11>summary::-webkit-details-marker{display:none}
+.studio-advanced-access-v11>summary::before{content:"›";font-size:1.25rem;line-height:.8;color:var(--muted);transform:rotate(0deg);transition:transform .12s ease}
+.studio-advanced-access-v11[open]>summary::before{transform:rotate(90deg)}
+.studio-advanced-access-v11>summary>span{font-size:.7rem;color:var(--muted);font-weight:400}
+.studio-advanced-access-v11>summary:focus-visible{outline:2px solid var(--accent,#57c1ff);outline-offset:-3px}
+.studio-advanced-access-v11[open]>summary{border-bottom:1px solid var(--border)}
+.studio-advanced-access-v11>.studio-policy-strip-v272,.studio-advanced-access-v11>.studio-editor-panel-v272{margin:12px 14px}
+.studio-advanced-access-v11>.studio-entity-editor-v272{margin:12px 14px}
+@media(max-width:1180px){.studio-people-management-v11 .studio-entity-manager-v272{grid-template-columns:minmax(220px,260px) minmax(0,1fr)}}
+@media(max-width:950px){.studio-people-management-v11 .studio-entity-manager-v272{grid-template-columns:minmax(0,1fr)}.studio-people-management-v11 .studio-entity-list-v272{display:flex;flex-direction:column;max-height:280px}.studio-people-management-v11 .studio-entity-list-head-v272{width:100%}}
+@media(max-width:620px){.studio-people-manager-head-actions-v11{justify-content:flex-start}.studio-people-management-v11 .studio-create-strip-v272,.studio-people-management-v11 .studio-create-strip-v272.studio-create-role-v272{grid-template-columns:minmax(0,1fr)}.studio-people-management-v11 .studio-entity-editor-head-v272{flex-wrap:wrap;padding:14px}.studio-people-management-v11 .studio-editor-tabs-v272{overflow-x:auto;white-space:nowrap}.studio-advanced-access-v11>summary{align-items:flex-start;flex-direction:column;gap:5px}}
+@media(prefers-reduced-motion:reduce){.studio-advanced-access-v11>summary::before{transition:none}}
+
+
+/* Access templates are separate from canonical department identity records. */
+.studio-department-policy-actions-v11{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 14px}
+.studio-department-policy-actions-v11>span{color:var(--muted);font-size:.7rem;line-height:1.45}
+.studio-department-templates-v11>.studio-entity-manager-v272{margin:10px 14px;min-width:0}
+.studio-department-templates-v11>.studio-create-strip-v272{margin:0 14px 12px}
+.studio-department-templates-v11>.studio-policy-strip-v272{margin:12px 14px}
+.studio-department-template-note-v11{font-size:.71rem;line-height:1.5;padding:10px 12px;border-radius:8px;background:var(--surface-soft);color:var(--muted)}
+@media(max-width:950px){.studio-department-templates-v11>.studio-entity-manager-v272{grid-template-columns:minmax(0,1fr)}}
+
+
+/* v1.1: Discord-inspired searchable role list, with authoritative counts. */
+.studio-role-directory-search-v11{display:grid;gap:5px;padding:2px 7px 9px;min-width:0}
+.studio-role-directory-search-v11>span{font-size:.65rem;color:var(--muted)}
+.studio-role-directory-search-v11 input{width:100%;min-width:0}
+.studio-role-directory-warning-v11,.studio-role-directory-empty-v11{display:block;color:var(--muted);font-size:.68rem;line-height:1.4;padding:8px 10px;margin:0}
+.studio-role-member-count-v11{display:block;color:var(--muted);font-size:.68rem;margin-top:6px}
+.studio-roles-management-v11 .studio-entity-list-meta-v272{max-width:98px}
+
+/* Role directory filters are local projections over authorized role records. */
+.studio-role-directory-filters-v11{display:flex;flex-wrap:wrap;gap:4px;padding:0 7px 8px}
+.studio-role-directory-filters-v11>button{border:1px solid transparent;border-radius:7px;min-height:34px;padding:5px 8px;font-size:.68rem;white-space:nowrap}
+.studio-role-directory-filters-v11>button[aria-pressed="true"]{border-color:var(--accent,#57c1ff);background:color-mix(in srgb,var(--accent,#57c1ff) 11%,var(--panel));color:var(--text)}
+.studio-role-directory-filters-v11>button:focus-visible{outline:2px solid var(--accent,#57c1ff);outline-offset:2px}
+.studio-role-directory-filters-v11>button:disabled{opacity:.45}
+.studio-role-directory-hidden-v11{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:var(--surface-soft);font-size:.7rem;color:var(--muted)}
+.studio-role-directory-hidden-v11>button{flex-shrink:0}
+.studio-role-entity-field-v11{display:grid;gap:6px;min-width:0;align-content:start}
+.studio-role-entity-field-v11>span{font-size:.7rem;font-weight:650;color:var(--text)}
+.studio-role-entity-field-v11 .cluster-select-v227{width:100%;min-width:0}
+.studio-role-entity-field-v11 .cluster-select-trigger-v227{width:100%;min-width:0;min-height:40px}
+.studio-role-entity-field-v11>small{font-size:.68rem;line-height:1.45;color:var(--muted)}
+@media(pointer:coarse){.studio-role-directory-filters-v11>button{min-height:44px}.studio-role-entity-field-v11 .cluster-select-trigger-v227{min-height:44px}}
+@media(max-width:620px){.studio-role-directory-hidden-v11{flex-wrap:wrap}}

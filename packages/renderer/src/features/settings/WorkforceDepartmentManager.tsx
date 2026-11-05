@@ -1,0 +1,297 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, queryApi } from "../../core/api";
+import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
+import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
+import { departmentLeadChoices, departmentParentChoices } from "./department-assignment-choices";
+import { departmentAncestorIds, projectDepartmentHierarchy } from "./department-hierarchy";
+import { ClusterTextInput } from "../../components/ClusterTextInput";
+import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
+import { ResourceIconPicker } from "../../components/ResourceIconPicker";
+import { confirmCluster } from "../../components/cluster-dialog-service";
+import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+import "./workforce-department-manager.css";
+
+type DepartmentRow = {
+  id: string; workspaceId: string; name: string; description?: string | null;
+  parentId?: string | null; leadUserId?: string | null;
+  color?: string | null; iconId?: string | null;
+  revision: number; members: number; teams: number;
+};
+type Draft = { name: string; description: string; parentId: string; leadUserId: string; color: string; iconId: string | null };
+type DepartmentLead = { id: string; label: string; username: string };
+type LeadDirectory = { workspaceId: string; people: DepartmentLead[] };
+const emptyDraft = (): Draft => ({ name: "", description: "", parentId: "", leadUserId: "", color: "#57c1ff", iconId: null });
+const fromRow = (row?: DepartmentRow): Draft => row
+  ? { name: row.name, description: row.description || "", parentId: row.parentId || "", leadUserId: row.leadUserId || "", color: row.color || "#57c1ff", iconId: row.iconId || null }
+  : emptyDraft();
+
+/**
+ * Canonical Workforce Department identity editor. Settings-defined department
+ * access templates are NOT organizational records and cannot own appearance.
+ */
+export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit: boolean; onRowsLoaded?: (rows: DepartmentRow[]) => void }) {
+  const [rows, setRows] = useState<DepartmentRow[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState("");
+  const [collapsedDepartmentIds, setCollapsedDepartmentIds] = useState<Set<string>>(() => new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  const [leadOptions, setLeadOptions] = useState<DepartmentLead[]>([]);
+  const [leadLoading, setLeadLoading] = useState(true);
+  const [leadError, setLeadError] = useState("");
+
+  const selected = rows.find((row) => row.id === selectedId);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(creating ? emptyDraft() : fromRow(selected));
+  const { confirmDiscard } = useUnsavedChangesGuard({
+    dirty,
+    title: "Discard department changes?",
+    message: "This department has unsaved changes. Discard them and continue?",
+  });
+  const hierarchy = useMemo(() =>
+    projectDepartmentHierarchy(rows, search, collapsedDepartmentIds), [rows, search, collapsedDepartmentIds]);
+  const visible = hierarchy.entries;
+  const selectedHidden = Boolean(selected && !creating && !visible.some((entry) => entry.row.id === selected.id));
+  const selectedPath = useMemo(() => selected ? departmentAncestorIds(rows, selected.id)
+    .reverse().map((id) => rows.find((row) => row.id === id)?.name || id) : [], [rows, selectedId]);
+  function toggleDepartmentExpanded(id: string) {
+    setCollapsedDepartmentIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function revealSelectedDepartment() {
+    setSearch("");
+    if (!selected) return;
+    const ancestors = new Set(departmentAncestorIds(rows, selected.id));
+    setCollapsedDepartmentIds((current) => new Set([...current].filter((id) => !ancestors.has(id))));
+  }
+  const invalidParents = useMemo(() => {
+    if (!selected) return new Set<string>();
+    const excluded = new Set([selected.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const row of rows) if (row.parentId && excluded.has(row.parentId) && !excluded.has(row.id)) {
+        excluded.add(row.id); changed = true;
+      }
+    }
+    return excluded;
+  }, [rows, selectedId]);
+
+  const load = useCallback(async (preferredId?: string) => {
+    setLoading(true);
+    try {
+      const result = await queryApi<DepartmentRow[]>("/api/departments", {
+        force: true, staleMs: 0, persist: false, tags: ["departments", "people", "workforce"],
+      });
+      setRows(result);
+      onRowsLoaded?.(result);
+      const next = result.find((row) => row.id === preferredId) || result[0];
+      if (next) { setSelectedId(next.id); setDraft(fromRow(next)); setCreating(false); }
+      else { setSelectedId(""); setDraft(emptyDraft()); setCreating(false); }
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to load departments.");
+    } finally { setLoading(false); }
+  }, [onRowsLoaded]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // Read a minimal authorized roster once, not the entire Workforce context.
+  // View-only users may read department leaders, but cannot change assignments.
+  useEffect(() => {
+    let cancelled = false;
+    void queryApi<LeadDirectory>("/api/departments/lead-options", {
+      force: true, staleMs: 0, persist: false, tags: ["departments", "people", "workforce"],
+    }).then((result) => {
+      if (!cancelled) { setLeadOptions(result.people); setLeadLoading(false); setLeadError(""); }
+    }).catch((cause: unknown) => {
+      if (!cancelled) {
+        setLeadLoading(false);
+        setLeadError(cause instanceof Error ? cause.message : "Department lead choices unavailable.");
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function choose(id: string) {
+    if (saving || (dirty && !(await confirmDiscard()))) return;
+    const next = rows.find((row) => row.id === id);
+    if (!next) return;
+    setCreating(false); setSelectedId(id); setDraft(fromRow(next)); setError(""); setStatus("");
+  }
+
+  async function beginCreate() {
+    if (!canEdit || saving || (dirty && !(await confirmDiscard()))) return;
+    setCreating(true); setSelectedId(""); setDraft(emptyDraft()); setError(""); setStatus("");
+  }
+
+  function update<K extends keyof Draft>(key: K, value: Draft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+    setError("");
+  }
+
+  async function save() {
+    if (!canEdit || saving) return;
+    const name = draft.name.trim();
+    if (!name) { setError("Enter a department name."); return; }
+    if (name.length > 120) { setError("Department names cannot exceed 120 characters."); return; }
+    if (draft.description.trim().length > 1000) { setError("Description cannot exceed 1000 characters."); return; }
+    if (rows.some((row) => row.id !== selected?.id && row.name.toLowerCase() === name.toLowerCase())) {
+      setError("A department with this name already exists."); return;
+    }
+    setSaving(true); setError(""); setStatus("");
+    const body = {
+      name, description: draft.description.trim() || null,
+      parentId: draft.parentId || null,
+      leadUserId: draft.leadUserId || null,
+      color: draft.color, iconId: draft.iconId,
+    };
+    try {
+      const response = creating
+        ? await api<{ department: DepartmentRow }>("/api/admin/workforce/departments", { method: "POST", body: JSON.stringify(body) })
+        : await api<{ department: DepartmentRow }>(`/api/admin/workforce/departments/${encodeURIComponent(selected!.id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ ...body, expectedRevision: selected!.revision }),
+        });
+      const saved = { ...selected, ...response.department, members: selected?.members || 0, teams: selected?.teams || 0 } as DepartmentRow;
+      setRows((current) => [...current.filter((row) => row.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
+      setSelectedId(saved.id); setCreating(false); setDraft(fromRow(saved));
+      setStatus(`Saved department ${saved.name}.`);
+      // A committed write is successful even if the follow-up read fails.
+      try { await load(saved.id); } catch { /* load() reports the fetch failure in the UI */ }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Unable to save department.";
+      setError(/DEPARTMENT_REVISION_CONFLICT|409/i.test(message)
+        ? "This department was edited elsewhere. Refresh and review the latest version before saving."
+        : message);
+    } finally { setSaving(false); }
+  }
+
+  return <section className="studio-workforce-department-manager-v11" aria-label="Canonical workforce departments">
+    <div className="studio-workforce-department-heading-v11">
+      <div><h3>Department directory</h3><p>Icons, colors and hierarchy are stored on the actual department and reused across Cluster.</p>{!canEdit && <p>Editing department identity requires administrator access.</p>}</div>
+      <ClusterButton size="compact" variant="primary" disabled={!canEdit || loading || saving} onClick={() => void beginCreate()}>New department</ClusterButton>
+    </div>
+    <div className="studio-workforce-department-layout-v11">
+      <aside className="studio-workforce-department-list-v11">
+        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names and descriptions…" /></label>
+        <div className="studio-workforce-hierarchy-toolbar-v11">
+          <span role="status">{search.trim()
+            ? `${hierarchy.matches} match${hierarchy.matches === 1 ? "" : "es"} · ${hierarchy.total} departments`
+            : `${hierarchy.total} departments · ${hierarchy.rootCount} root groups`}</span>
+          <div className="studio-workforce-hierarchy-actions-v11">
+            <button type="button" disabled={loading || !hierarchy.expandableIds.length || !collapsedDepartmentIds.size}
+              onClick={() => setCollapsedDepartmentIds(new Set())}>Expand all</button>
+            <button type="button" disabled={loading || !hierarchy.expandableIds.length || Boolean(search.trim())}
+              onClick={() => setCollapsedDepartmentIds(new Set(hierarchy.expandableIds))}>Collapse all</button>
+          </div>
+        </div>
+        {selectedHidden && (
+          <div className="studio-workforce-hierarchy-hidden-v11" role="status">
+            <span>The selected department is hidden by the current search or collapsed branches.</span>
+            <button type="button" onClick={revealSelectedDepartment}>Reveal selected</button>
+          </div>
+        )}
+        {loading && <p role="status" className="studio-workforce-hierarchy-empty-v11">Loading departments…</p>}
+        {!loading && !visible.length && (
+          <p className="studio-workforce-hierarchy-empty-v11">
+            {rows.length ? "No departments match this search." : "No departments created yet."}
+          </p>
+        )}
+        <ul className="studio-workforce-department-list-rows-v11" aria-label="Department hierarchy">
+          {visible.map((entry) => {
+            const row = entry.row;
+            return (
+              <li key={row.id} style={{ paddingInlineStart: `${Math.min(entry.depth, 10) * 14}px` }}
+                className={entry.matchesSearch ? "" : "search-context"}>
+                {entry.hasChildren ? (
+                  <button type="button" className="studio-workforce-hierarchy-expand-v11"
+                    aria-label={`${entry.expanded ? "Collapse" : "Expand"} ${row.name}`}
+                    aria-expanded={entry.expanded} disabled={Boolean(search.trim()) || saving}
+                    onClick={() => toggleDepartmentExpanded(row.id)}>
+                    <span aria-hidden="true">{entry.expanded ? "▾" : "▸"}</span>
+                  </button>
+                ) : <span className="studio-workforce-hierarchy-indent-v11" aria-hidden="true" />}
+                <button type="button" className={`studio-workforce-hierarchy-select-v11 ${!creating && selectedId === row.id ? "active" : ""}`}
+                  aria-current={!creating && selectedId === row.id ? "true" : undefined}
+                  aria-label={`${row.name}${entry.ancestorNames.length ? `, within ${entry.ancestorNames.join(" / ")}` : ", top level"}`}
+                  disabled={saving} onClick={() => void choose(row.id)}>
+                  <DepartmentIdentityMark department={row} size={27} />
+                  <span className="studio-workforce-hierarchy-label-v11">
+                    <strong>{row.name}</strong>
+                    <small>{row.members} members · {row.teams} teams{entry.orphanedParent ? " · Parent unavailable" : ""}</small>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+      <div className="studio-workforce-department-editor-v11">
+        <header>
+          <div>
+            <span className="eyebrow">{creating ? "New department" : "Department identity"}</span>
+            <h4>{creating ? "Create department" : selected?.name || "Select a department"}</h4>
+            {!creating && selected && (
+              <p className="studio-workforce-hierarchy-breadcrumb-v11" aria-label="Saved department location">
+                {selectedPath.length ? `${selectedPath.join(" / ")} / ${selected.name}` : `Top level / ${selected.name}`}
+              </p>
+            )}
+          </div>
+          <DepartmentIdentityMark department={{ name: draft.name || "Department", color: draft.color, iconId: draft.iconId }} size={40} />
+        </header>
+        <div className="studio-workforce-department-fields-v11">
+          <label><span>Name</span><ClusterInput value={draft.name} maxLength={120} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("name", event.target.value)} /></label>
+          <div className="studio-workforce-department-entity-field-v11">
+            <span>Parent department</span>
+            <ClusterEntityPicker
+              value={draft.parentId}
+              entities={departmentParentChoices(rows, invalidParents, draft.parentId)}
+              onChange={(value) => update("parentId", value)}
+              ariaLabel="Parent department"
+              placeholder="No parent department"
+              searchPlaceholder="Find a department"
+              allowClear
+              disabled={!canEdit || saving || loading || (!creating && !selected)}
+              emptyMessage="No eligible parent departments"
+            />
+          </div>
+          <div className="studio-workforce-department-entity-field-v11">
+            <span>Department lead</span>
+            <ClusterEntityPicker
+              value={draft.leadUserId}
+              entities={departmentLeadChoices(leadOptions, draft.leadUserId)}
+              onChange={(value) => update("leadUserId", value)}
+              ariaLabel="Department lead"
+              placeholder="Unassigned"
+              searchPlaceholder="Find an eligible member"
+              allowClear
+              disabled={!canEdit || saving || loading || leadLoading || Boolean(leadError) || (!creating && !selected)}
+              emptyMessage="No eligible people found"
+            />
+          </div>
+          <label><span>Accent color</span><ClusterInput type="color" aria-label="Department accent color" value={draft.color} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("color", event.target.value)} /></label>
+          <div className="studio-workforce-department-icon-field-v11"><span>Department icon</span><ResourceIconPicker label={draft.name || "Department"} value={draft.iconId} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(iconId) => update("iconId", iconId)} /></div>
+          <label className="studio-workforce-department-description-v11"><span>Description</span><ClusterTextarea value={draft.description} maxLength={1000} disabled={!canEdit || saving || loading || (!creating && !selected)} onChange={(event) => update("description", event.target.value)} /></label>
+        </div>
+        {leadLoading && <p role="status" className="studio-workforce-department-hint-v11">Loading eligible department leads…</p>}
+        {leadError && <p role="status" className="studio-workforce-department-hint-v11">Lead choices could not be loaded. The existing assignment is preserved. {leadError}</p>}
+        {selected && !creating && <p className="studio-workforce-department-hint-v11">Department leaders must be active members of this workspace. Job roles are managed in People → Organization. Changes here use revision checks.</p>}
+        {error && <p role="alert" className="studio-workforce-department-error-v11">{error}</p>}
+        {status && <p role="status" className="studio-workforce-department-status-v11">{status}</p>}
+        <div className="studio-workforce-department-actions-v11">
+          <span>{dirty ? "Unsaved changes" : creating ? "Enter the department details" : "Current saved version"}</span>
+          <ClusterButton size="compact" variant="secondary" disabled={!canEdit || saving || loading || (!creating && !selected)} onClick={() => { void (async () => { if (dirty && !(await confirmDiscard())) return; if (creating) { setCreating(false); setSelectedId(rows[0]?.id || ""); setDraft(fromRow(rows[0])); } else setDraft(fromRow(selected)); setError(""); })(); }}>Cancel</ClusterButton>
+          <ClusterButton size="compact" variant="primary" disabled={!canEdit || saving || loading || (!creating && !selected) || (!creating && !dirty)} onClick={() => void save()}>{saving ? "Saving…" : creating ? "Create department" : "Save changes"}</ClusterButton>
+        </div>
+      </div>
+    </div>
+  </section>;
+}

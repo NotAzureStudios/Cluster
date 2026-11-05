@@ -37,16 +37,23 @@ export function useWhiteboardViewport(
   const measure = useCallback(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    setViewport({
+    const next = {
       x: wrap.scrollLeft / Math.max(zoom, 0.05),
       y: wrap.scrollTop / Math.max(zoom, 0.05),
       width: wrap.clientWidth / Math.max(zoom, 0.05),
       height: wrap.clientHeight / Math.max(zoom, 0.05),
-    });
+    };
+    // Repeated resize/scroll events with identical geometry must not
+    // invalidate the Whiteboard spatial query and renderer.
+    setViewport((previous) => (
+      previous.x === next.x && previous.y === next.y
+      && previous.width === next.width && previous.height === next.height
+        ? previous : next
+    ));
   }, [wrapRef, zoom]);
 
   const scheduleMeasure = useCallback(() => {
-    if (frameRef.current !== null) return;
+    if (document.visibilityState !== "visible" || frameRef.current !== null) return;
     frameRef.current = window.requestAnimationFrame(() => {
       frameRef.current = null;
       measure();
@@ -60,12 +67,19 @@ export function useWhiteboardViewport(
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleMeasure);
     observer?.observe(wrap);
     wrap.addEventListener("scroll", scheduleMeasure, { passive: true });
-    document.addEventListener("visibilitychange", scheduleMeasure);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") { scheduleMeasure(); return; }
+      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       observer?.disconnect();
       wrap.removeEventListener("scroll", scheduleMeasure);
-      document.removeEventListener("visibilitychange", scheduleMeasure);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      // A canceled frame must never block future measurements after zoom.
+      frameRef.current = null;
     };
   }, [measure, scheduleMeasure, wrapRef]);
 

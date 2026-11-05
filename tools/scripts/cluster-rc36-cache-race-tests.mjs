@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const ts = (() => { try { return require('typescript'); } catch { return require(path.join(require('node:child_process').execFileSync('npm', ['root', '-g'], {encoding:'utf8'}).trim(), 'typescript/lib/typescript.js')); } })();
-const root = path.resolve(new URL('../..', import.meta.url).pathname);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 function loadModule(rel, deps) {
   const text = fs.readFileSync(path.join(root, rel), 'utf8');
   const output = ts.transpileModule(text,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
