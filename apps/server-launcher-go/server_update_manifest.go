@@ -4,6 +4,7 @@ package main
 // A channel changes the eligible server installer, not the source checkout or database.
 import (
 	"bytes"
+	_ "embed"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
@@ -22,9 +23,8 @@ import (
 	"strings"
 )
 
-const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
------END PUBLIC KEY-----`
+//go:embed assets/server-update-public-key.pem
+var serverUpdatePublicKeyPEM string
 
 var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
 var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)$`)
