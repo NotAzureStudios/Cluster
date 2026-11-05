@@ -49,4 +49,26 @@ assert.match(read("packages/renderer/src/core/render-capabilities.ts"), /resolve
 assert.match(read("packages/renderer/src/features/settings/account-settings-registry.ts"), /key: "performance"/);
 assert.match(read("packages/renderer/src/features/settings/AccountSettingsPage.tsx"), /<DevicePerformanceSettingsSection \/>/);
 assert.match(read("packages/renderer/src/features/settings/account-settings-search.ts"), /section: "performance"/);
-console.log("Cluster performance settings: policy and integration assertions passed.");
+const stylesheet = read("packages/renderer/src/styles.css");
+const performanceCss = read("packages/renderer/src/styles/renderer-performance.css");
+const renderer = read("packages/renderer/src/core/render-capabilities.ts");
+const scroll = read("packages/renderer/src/core/perceived-performance.ts");
+const table = read("packages/renderer/src/components/ClusterDataTable.tsx");
+const telemetry = read("packages/renderer/src/core/performance.ts");
+const settings = read("packages/renderer/src/features/settings/AccountSettingsPage.tsx");
+
+assert.match(stylesheet, /@import "\.\/styles\/renderer-performance\.css";/);
+assert.match(performanceCss, /data-renderer-quality="reduced"/);
+assert.match(performanceCss, /backdrop-filter: none !important;/);
+assert.match(performanceCss, /data-device-performance-profile="efficient"/);
+assert.match(renderer, /cachedWebGl2 !== null/);
+assert.match(renderer, /dataset\.devicePerformanceProfile/);
+assert.match(renderer, /resizeFrame = window\.requestAnimationFrame/);
+assert.match(scroll, /persistenceTimerRef\.current = window\.setTimeout/);
+assert.match(scroll, /setScrollTop\(latestScrollTop\.current\)/);
+assert.match(table, /const renderedColumns = useMemo\(/);
+assert.match(table, /selectable \? sortedRows\.map\(stableRowKey\) : \[\]/);
+assert.match(telemetry, /recentMetrics = metrics\.filter/);
+assert.match(settings, /section === "performance" && !dirty/);
+
+console.log("Cluster performance settings: device policy, rendering, scrolling, table and telemetry assertions passed.");
