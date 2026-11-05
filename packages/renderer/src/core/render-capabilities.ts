@@ -1,4 +1,5 @@
 import { DEVICE_PERFORMANCE_CHANGED_EVENT, DEVICE_PERFORMANCE_STORAGE_KEY, readDevicePerformancePreferences, resolveDeviceRendererQuality } from "./device-performance";
+import { effectiveRendererBlurPx } from "./renderer-budget";
 
 export type RendererHost = "web" | "desktop";
 export type RendererQualityTier = "full" | "balanced" | "reduced";
@@ -147,6 +148,14 @@ function applyCapabilityAttributes(capabilities: RendererCapabilities) {
   root.dataset.rendererHost = capabilities.host;
   root.dataset.rendererQuality = capabilities.qualityTier;
   root.dataset.devicePerformanceProfile = readDevicePerformancePreferences().profile;
+  // This is an inline visual customization variable, so CSS selectors alone
+  // cannot cap it. Apply the same budget on profile changes and when Appearance
+  // changes the preferred value.
+  const preferredBlur = Number.parseFloat(root.style.getPropertyValue("--cluster-preferred-glass-blur"));
+  const effectiveBlur = `${effectiveRendererBlurPx(preferredBlur, capabilities.qualityTier)}px`;
+  if (root.style.getPropertyValue("--glass-blur") !== effectiveBlur) {
+    root.style.setProperty("--glass-blur", effectiveBlur);
+  }
   root.dataset.rendererPointer = capabilities.pointer;
   root.dataset.rendererBackdrop = capabilities.backdropFilter ? "supported" : "fallback";
   root.dataset.rendererViewTransitions = capabilities.viewTransitions ? "supported" : "fallback";
