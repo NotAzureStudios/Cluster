@@ -310,6 +310,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       return;
     }
     let active = true;
+    const requests = new AbortController();
     let retryTimer = 0;
     let retryPending = false;
     let retryAt = 0;
@@ -361,7 +362,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       let failed = false;
       for (let offset = 0; offset < batches.length; offset += 2) {
         const responses = await Promise.allSettled(batches.slice(offset, offset + 2).map((ids) =>
-          api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`),
+          api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`, { signal: requests.signal }),
         ));
         if (!active) return;
         let changed = false;
@@ -397,6 +398,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     })();
     return () => {
       active = false;
+      // Abort superseded page/query requests before fetching a newer snapshot
+      // generation. Ignoring stale results alone still wastes server work.
+      requests.abort();
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("online", onOnline);
       if (retryTimer) window.clearTimeout(retryTimer);
