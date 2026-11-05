@@ -233,3 +233,59 @@ func TestEmbeddedServerPublisherKeyIsDedicatedAndPinned(t *testing.T) {
 		t.Fatal("embedded Server update trust accepted an unrelated signing key")
 	}
 }
+
+func TestStableServerReleaseSequenceAcrossMinorVersionBoundary(t *testing.T) {
+	cases := []struct {
+		release string
+		channel string
+		sequence int
+		valid bool
+	}{
+		{"1.0.5", "main", 55, true},
+		{"1.0.10000", "main", 10050, true},
+		{"1.1.0", "main", 100000, true},
+		{"1.1.1", "main", 100001, true},
+		{"1.2.0", "main", 200000, true},
+		{"1.1.0", "development", 0, false},
+		{"1.0.0", "main", 0, false},
+		{"1.0.10001", "main", 0, false},
+		{"1.1.100000", "main", 0, false},
+		{"1.01.0", "main", 0, false},
+		{"2.0.0", "main", 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.release+"-"+tc.channel, func(t *testing.T) {
+			sequence, ok := serverUpdateSequence(tc.release, tc.channel)
+			if ok != tc.valid || (ok && sequence != tc.sequence) {
+				t.Fatalf("release %s / %s: sequence %d, valid %v; expected %d, %v", tc.release, tc.channel, sequence, ok, tc.sequence, tc.valid)
+			}
+		})
+	}
+}
+
+func TestSignedStableServerOneOneManifestRequiresNewSequence(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil { t.Fatal(err) }
+	feed, err := url.Parse("https://updates.example.test/main/release.json")
+	if err != nil { t.Fatal(err) }
+	makeManifest := func(sequence json.Number) []byte {
+		return fixtureSignedServerUpdate(t, func(m map[string]any) {
+			m["channel"] = "main"
+			m["release"] = "1.1.0"
+			m["sequence"] = sequence
+			m["artifact"].(map[string]any)["url"] = "https://updates.example.test/main/Cluster-Server-Installer.exe"
+		}, priv)
+	}
+	if _, err := verifyServerUpdateManifestWithKey(makeManifest("100000"), feed, "main", pub); err != nil {
+		t.Fatalf("signed 1.1.0 manifest rejected: %v", err)
+	}
+	if _, err := verifyServerUpdateManifestWithKey(makeManifest("56"), feed, "main", pub); err == nil {
+		t.Fatal("1.1.0 manifest accepted a reused 1.0.x release sequence")
+	}
+	root := t.TempDir()
+	releaseMarker := []byte(`{"schema":1,"managedInstaller":true,"releaseChannel":"stable","releaseCandidate":"1.1.0","releaseSequence":100000}`)
+	if err := os.WriteFile(filepath.Join(root, "CLUSTER_RELEASE.json"), releaseMarker, 0600); err != nil { t.Fatal(err) }
+	if got := installedServerReleaseSequence(root); got != 100000 {
+		t.Fatalf("installed Server 1.1.0 sequence: %d", got)
+	}
+}
