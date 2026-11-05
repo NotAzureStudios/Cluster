@@ -60,5 +60,5 @@ assert.match(go,/release\.Channel != "stable"/,'Go bootstrap must recognize stab
 const builder=fs.readFileSync(path.join(root,'tools/scripts/build-cluster-installer.mjs'),'utf8');
 assert.match(builder,/const stableRelease=/,'Prebuilt packager must admit stable 1.0.x identities');
 const preflight=fs.readFileSync(path.join(root,'tools/scripts/cluster-rc-preflight.mjs'),'utf8');
-assert.match(preflight,/metadata\.channel==='stable'/,'Preflight must recognize stable release');
+assert.match(preflight,/validStableServerRelease\(metadata\)/,'Preflight must enforce canonical stable release sequence');
 console.log('Cluster '+version+' source and six locked workspaces are aligned; Qt Desktop retains independent version '+toolchain.desktop.parityVersionHold);
