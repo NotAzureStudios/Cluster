@@ -224,36 +224,50 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     let timer = 0;
     let allInvalidated = false;
     const pendingIds = new Set<string>();
+    const flush = () => {
+      timer = 0;
+      if (document.visibilityState !== "visible" || (!allInvalidated && !pendingIds.size)) return;
+      const revisions = projectSnapshotRevisionsRef.current;
+      const cache = projectSnapshotCacheRef.current;
+      if (allInvalidated) {
+        revisions.clear();
+        for (const id of Object.keys(cache)) delete cache[id];
+      } else {
+        for (const id of pendingIds) { revisions.delete(id); delete cache[id]; }
+      }
+      allInvalidated = false;
+      pendingIds.clear();
+      setProjectSnapshots({ ...cache });
+      setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+    };
+    const scheduleFlush = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = 0;
+      // Resource changes are remembered while hidden, but do not wake a
+      // background Projects renderer or issue HTTP until visibility resumes.
+      if (document.visibilityState === "visible") timer = window.setTimeout(flush, 200);
+    };
     const schedule = (id: string | "all") => {
       if (id === "all") {
         allInvalidated = true;
         pendingIds.clear();
       } else if (!allInvalidated) pendingIds.add(id);
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        timer = 0;
-        const revisions = projectSnapshotRevisionsRef.current;
-        const cache = projectSnapshotCacheRef.current;
-        if (allInvalidated) {
-          revisions.clear();
-          for (const id of Object.keys(cache)) delete cache[id];
-        } else {
-          for (const id of pendingIds) { revisions.delete(id); delete cache[id]; }
-        }
-        allInvalidated = false;
-        pendingIds.clear();
-        setProjectSnapshots({ ...cache });
-        setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
-      }, 200);
+      scheduleFlush();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && (allInvalidated || pendingIds.size)) scheduleFlush();
+      else if (timer) { window.clearTimeout(timer); timer = 0; }
     };
     const unsubChanges = subscribeResourceChanges(({ change }) => {
       const target = projectSnapshotInvalidationTarget(change);
       if (target) schedule(target);
     });
     const unsubReset = subscribeResourceChangeFeedResets(() => schedule("all"));
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       unsubChanges();
       unsubReset();
+      document.removeEventListener("visibilitychange", onVisibility);
       if (timer) window.clearTimeout(timer);
     };
   }, []);
