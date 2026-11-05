@@ -22,7 +22,10 @@ export function DevicePerformanceSettingsSection() {
   const [storageError, setStorageError] = useState(false);
   const [report, setReport] = useState<PerformanceSummary | null>(null);
 
-  useEffect(() => subscribeRendererCapabilities(() => setCapabilities(getRendererCapabilitiesSnapshot())), []);
+  useEffect(() => {
+    const unsubscribe = subscribeRendererCapabilities(() => setCapabilities(getRendererCapabilitiesSnapshot()));
+    return () => { unsubscribe(); };
+  }, []);
 
   function update(changes: Partial<DevicePerformancePreferences>) {
     const next = { ...preferences, ...changes };
