@@ -1159,7 +1159,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
-      actions={section === "licenses" || section === "forms" || section === "performance" ? null : section === "profile" ? (
+      actions={section === "licenses" || section === "forms" || (section === "performance" && !dirty) ? null : section === "profile" ? (
         <ClusterButton type="button" variant={profileDirty ? "primary" : "secondary"} onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
           {profileSaving ? "Saving…" : profileDirty ? "Save profile" : "Saved"}
         </ClusterButton>
@@ -2226,10 +2226,10 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           </div>
           <div className="settings-context-block-v267">
             <span className="eyebrow">Sync</span>
-            <strong>{section === "performance" ? "Device-local preferences" : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
+            <strong>{section === "performance" ? (dirty ? "Other account changes not saved" : "Device-local preferences") : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
             <small>{section === "performance" ? "Performance changes apply immediately and remain on this device." : lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
             {section === "forms" || section === "licenses" || section === "performance"
-              ? <small>{section === "performance" ? "Not included in account-wide settings synchronization." : "Resources are saved in their own panels."}</small>
+              ? <small>{section === "performance" ? "Rendering settings stay on this device. Save any other pending account changes with the header action." : "Resources are saved in their own panels."}</small>
               : <small>Save pending changes using the single action in the page header.</small>}
           </div>
         </aside>
