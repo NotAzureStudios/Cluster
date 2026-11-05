@@ -59,4 +59,39 @@ test("orphan preservation: project/library schema uses SetNull, not cascade", ()
   assert.match(worker, /Project workspace/);
 });
 
+test("an existing Git repository cannot be overwritten by project provisioning", () => {
+  const source = read("apps/server/src/domains/source-control/git-repository-runtime.ts");
+  const begin = source.indexOf("  async function initializeManagedRepository(");
+  const end = source.indexOf("  async function deleteManagedRepository(", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const provision = source.slice(begin, end);
+  assert.match(provision, /await fs\.mkdir\(target\)/);
+  assert.match(provision, /targetOwnedByThisAttempt = true/);
+  assert.match(provision, /Repository storage already exists/);
+  assert.match(provision, /if \(targetOwnedByThisAttempt\) await fs\.rm\(target/);
+  assert.doesNotMatch(provision, /await fs\.rm\(target[^\n]*\n\s*await fs\.rm\(seed/);
+  assert.match(provision, /await fs\.mkdtemp\(/);
+  assert.match(provision, /if \(seed\) await fs\.rm\(seed/);
+});
+
+test("Git provisioning failure retains its database repository binding and ID", () => {
+  const source = read("apps/server/src/domains/projects/project-source-provisioning.ts");
+  assert.match(source, /existing\?\.repository\?\.healthState === "healthy" && existing\.repository\.headRevision/);
+  assert.match(source, /let repository: any = existing\?\.repository \|\| null/);
+  assert.match(source, /syncState: "error"/);
+  assert.match(source, /healthState: "degraded"/);
+  assert.doesNotMatch(source, /gitRuntime\.deleteManagedRepository\(/);
+  assert.doesNotMatch(source, /sourceRepository\.delete\(/);
+});
+
+test("1.1.1 manual publisher validates the monotonic patch release sequence", () => {
+  const release = JSON.parse(read("config/release-candidate.json"));
+  const workflow = read(".github/workflows/publish-cluster-1-1-1-manual.yml");
+  assert.equal(release.release, "1.1.1");
+  assert.equal(release.sequence, 100001);
+  assert.match(workflow, /assert metadata\['sequence'\]==100001/);
+  assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$SERVER_SHA"/);
+  assert.match(workflow, /gh release create v1\.1\.1/);
+});
+
 console.log(checks + "/" + checks + " Project provisioning data-preservation checks passed");
