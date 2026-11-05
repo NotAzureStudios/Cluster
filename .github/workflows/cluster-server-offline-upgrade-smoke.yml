@@ -80,7 +80,7 @@ jobs:
           npm run cluster:installer:build
           if ($LASTEXITCODE -ne 0) { throw 'Unsigned test installer packaging failed' }
           if (!(Test-Path bin/Cluster-Installer.exe)) { throw 'No candidate installer' }
-      - name: Fetch published 1.0.2 installer from THIS repository
+      - name: Fetch published 1.0.5 installer from THIS repository
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
