@@ -10,6 +10,11 @@ on:
       - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
       - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "packages/renderer/src/core/visible-job-polling.ts"
+      - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
+      - "packages/renderer/src/features/projects/ProjectsPage.tsx"
+      - "packages/renderer/src/features/projects/project-snapshot-batching.ts"
       - "packages/renderer/src/core/device-performance.ts"
       - "packages/renderer/src/core/render-capabilities.ts"
       - "packages/renderer/src/core/renderer-budget.ts"
@@ -31,6 +36,11 @@ on:
       - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
       - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "packages/renderer/src/core/visible-job-polling.ts"
+      - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
+      - "packages/renderer/src/features/projects/ProjectsPage.tsx"
+      - "packages/renderer/src/features/projects/project-snapshot-batching.ts"
       - "packages/renderer/src/core/device-performance.ts"
       - "packages/renderer/src/core/render-capabilities.ts"
       - "packages/renderer/src/core/renderer-budget.ts"
@@ -63,6 +73,8 @@ jobs:
         run: node tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs
       - name: Verify device rendering and UI performance contracts
         run: npm run performance:settings:check
+      - name: Verify hidden polling and Project portfolio efficiency
+        run: npm run performance:ui:check
       - name: Build shared contract declarations
         run: npm run build --workspace=@cluster/shared
       - name: Type-check actual renderer
