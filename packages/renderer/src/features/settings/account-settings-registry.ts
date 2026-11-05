@@ -5,6 +5,7 @@ export type AccountSettingsDomain =
   | "Privacy & Security"
   | "Notifications"
   | "Appearance & Layout"
+  | "Performance"
   | "Navigation"
   | "Accessibility"
   | "Device"
@@ -16,6 +17,7 @@ export const ACCOUNT_SETTINGS_SECTIONS = [
   { key: "pin", label: "Security PIN", description: "Create or change the PIN used for protected actions.", domain: "Privacy & Security", order: 30 },
   { key: "notifications", label: "Notifications", description: "Inbox delivery, reminders, quiet hours, and project controls.", domain: "Notifications", order: 40 },
   { key: "appearance", label: "Appearance", description: "Theme, typography, surfaces, density, and personal color.", domain: "Appearance & Layout", order: 50 },
+  { key: "performance", label: "Performance", description: "Device rendering quality, hardware-aware effects, and diagnostics.", domain: "Performance", order: 55 },
   { key: "navigation", label: "Navigation", description: "Landing screen, taskbar labels, search, and pinned tools.", domain: "Navigation", order: 60 },
   { key: "home", label: "Home", description: "Choose the widgets and density used on Home.", domain: "Appearance & Layout", order: 70 },
   { key: "shortcuts", label: "Shortcuts", description: "Keyboard profile, command palette shortcut, and filters.", domain: "Navigation", order: 80 },
