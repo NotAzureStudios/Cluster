@@ -12,6 +12,8 @@ on:
       - "tools/scripts/cluster-performance-settings-tests.mjs"
       - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
       - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "tools/scripts/cluster-qt-native-bridge-performance-tests.mjs"
+      - "apps/desktop-qt/qml/pages/SharedRendererPage.qml"
       - "apps/server/src/core/server-resource-policy.ts"
       - "apps/server/src/core/resource-governor.ts"
       - "apps/server/src/app/cluster-server.ts"
@@ -50,6 +52,8 @@ on:
       - "tools/scripts/cluster-performance-settings-tests.mjs"
       - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
       - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "tools/scripts/cluster-qt-native-bridge-performance-tests.mjs"
+      - "apps/desktop-qt/qml/pages/SharedRendererPage.qml"
       - "apps/server/src/core/server-resource-policy.ts"
       - "apps/server/src/core/resource-governor.ts"
       - "apps/server/src/app/cluster-server.ts"
@@ -101,6 +105,8 @@ jobs:
         run: npm run performance:ui:check
       - name: Verify server resource policy and protection gates
         run: npm run performance:server:check
+      - name: Verify Qt native bridge adaptive polling contracts
+        run: npm run performance:desktop:check
       - name: Build shared contract declarations
         run: npm run build --workspace=@cluster/shared
       - name: Type-check actual renderer
