@@ -333,7 +333,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       }, 125);
     };
     const scheduleRetry = () => {
-      if (!active || !retryPending || document.visibilityState !== "visible") return;
+      if (!active || !retryPending || document.visibilityState !== "visible"
+        || (typeof navigator !== "undefined" && !navigator.onLine)) return;
       if (retryTimer) window.clearTimeout(retryTimer);
       retryTimer = window.setTimeout(() => {
         retryTimer = 0;
@@ -353,7 +354,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
         if (retryPending) scheduleRetry();
       }
     };
+    const onOnline = () => { if (retryPending) scheduleRetry(); };
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("online", onOnline);
     void (async () => {
       let failed = false;
       for (let offset = 0; offset < batches.length; offset += 2) {
@@ -395,6 +398,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     return () => {
       active = false;
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("online", onOnline);
       if (retryTimer) window.clearTimeout(retryTimer);
       if (publishTimer) window.clearTimeout(publishTimer);
     };
