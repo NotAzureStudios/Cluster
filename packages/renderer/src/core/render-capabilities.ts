@@ -1,3 +1,5 @@
+import { DEVICE_PERFORMANCE_CHANGED_EVENT, DEVICE_PERFORMANCE_STORAGE_KEY, resolveDeviceRendererQuality } from "./device-performance";
+
 export type RendererHost = "web" | "desktop";
 export type RendererQualityTier = "full" | "balanced" | "reduced";
 export type RendererPointerMode = "fine" | "coarse" | "mixed" | "unknown";
@@ -130,7 +132,7 @@ function readCapabilities(host: RendererHost): RendererCapabilities {
     webgl2: detectWebGl2(),
     webgpu: Boolean(browserNavigator.gpu),
   } satisfies Omit<RendererCapabilities, "qualityTier">;
-  return Object.freeze({ ...base, qualityTier: chooseQualityTier(base) });
+  return Object.freeze({ ...base, qualityTier: resolveDeviceRendererQuality(chooseQualityTier(base), base) });
 }
 
 function applyCapabilityAttributes(capabilities: RendererCapabilities) {
@@ -181,7 +183,12 @@ export function initializeRendererCapabilities(host: RendererHost) {
   ].forEach((query) => watchMedia(query, refresh));
   if (typeof window !== "undefined") {
     window.addEventListener("resize", refresh, { passive: true });
+    window.addEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh);
+    const onStorage = (event: StorageEvent) => { if (event.key === DEVICE_PERFORMANCE_STORAGE_KEY) refresh(); };
+    window.addEventListener("storage", onStorage);
     cleanupCallbacks.push(() => window.removeEventListener("resize", refresh));
+    cleanupCallbacks.push(() => window.removeEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh));
+    cleanupCallbacks.push(() => window.removeEventListener("storage", onStorage));
   }
   return current;
 }
