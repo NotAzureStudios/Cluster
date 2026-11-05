@@ -61,7 +61,7 @@ export function DevicePerformanceSettingsSection() {
             { value: "automatic", label: "Automatic", description: "Choose an effect budget based on device capabilities." },
             { value: "efficient", label: "Efficient", description: "Minimize decorative rendering effects." },
             { value: "balanced", label: "Balanced", description: "Moderate visual effects and rendering overhead." },
-            { value: "performance", label: "Performance", description: "Allow full-quality effects when supported." },
+            { value: "performance", label: "Performance", description: "Favor responsive interactions by reducing decorative effects." },
             { value: "custom", label: "Custom", description: "Choose the rendering quality budget directly." },
           ]}
         />
