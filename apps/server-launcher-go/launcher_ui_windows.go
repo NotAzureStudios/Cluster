@@ -436,9 +436,10 @@ type windowsControlPanel struct {
 	lastPortsPID         int
 	lastPortsSummary     string
 	updateMu              sync.Mutex
-	updateMessage         string
-	updateOfferDownload   bool
- updateOfferInstall    bool
+	updateMessage          string
+	updateOfferDownload    bool
+	updateOfferInstall     bool
+	updateManualReleaseURL string
 	closing               bool
 	trayRegistered        bool
 	taskbarCreatedMessage uint32
@@ -1059,10 +1060,12 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
 		ui.updateMu.Lock()
 		message := ui.updateMessage
 		offerDownload := ui.updateOfferDownload
-  offerInstall := ui.updateOfferInstall
+		offerInstall := ui.updateOfferInstall
+		manualReleaseURL := ui.updateManualReleaseURL
 		ui.updateMessage = ""
 		ui.updateOfferDownload = false
-  ui.updateOfferInstall = false
+		ui.updateOfferInstall = false
+		ui.updateManualReleaseURL = ""
 		ui.updateMu.Unlock()
 		if message != "" {
 			if offerDownload {
@@ -1075,6 +1078,11 @@ func windowsPanelWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintp
     if messageBox(hwnd,"Install Signed Cluster Server Update",question,mbYesNo|mbIconQuestion)==idYes {
      ui.controller.BeginSignedServerInstallation()
     }
+			} else if manualReleaseURL != "" {
+				question := message + "\r\n\r\nOpen the official GitHub release page for a manual upgrade? No installer will be downloaded or run automatically."
+				if messageBox(hwnd, "Manual Cluster Server Update Available", question, mbYesNo|mbIconQuestion) == idYes {
+					_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", manualReleaseURL).Start()
+				}
 			} else {
 				messageBox(hwnd, "Cluster Server Updates", message, 0)
 			}
@@ -1936,6 +1944,7 @@ func (c *windowsServerController) reportServerUpdateResult(message string) {
  c.ui.updateMessage = message
  c.ui.updateOfferDownload = false
  c.ui.updateOfferInstall = false
+ c.ui.updateManualReleaseURL = ""
  c.ui.updateMu.Unlock()
  procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
 }
@@ -1946,6 +1955,7 @@ func (c *windowsServerController) reportServerUpdateInstallOffer(message string)
  c.ui.updateMessage=message
  c.ui.updateOfferInstall=true
  c.ui.updateOfferDownload=false
+ c.ui.updateManualReleaseURL=""
  c.ui.updateMu.Unlock()
  procPostMessageW.Call(c.ui.hwnd,wmAppUpdate,0,0)
 }
@@ -2044,7 +2054,8 @@ func (c *windowsServerController) CheckForUpdates() {
 		c.ui.updateMu.Lock()
 		c.ui.updateMessage = result.Message
 		c.ui.updateOfferDownload = result.Available && result.DownloadURL != ""
-  c.ui.updateOfferInstall = false
+		c.ui.updateOfferInstall = false
+		c.ui.updateManualReleaseURL = result.ManualReleaseURL
 		c.ui.updateMu.Unlock()
 		procPostMessageW.Call(c.ui.hwnd, wmAppUpdate, 0, 0)
 	}()
