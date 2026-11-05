@@ -91,7 +91,10 @@ const CLIENT_RUNTIME_BUDGETS = Object.freeze({
 
 let initialized = false;
 let frameHandle = 0;
+let startupFrameHandle = 0;
 let visibilityHandler: (() => void) | null = null;
+let samplingActive = false;
+let samplingDeadline = 0;
 let lastFrameAt = 0;
 let frameSamples = 0;
 let droppedFrames = 0;
@@ -308,27 +311,58 @@ function observe(type: string, callback: (entry: PerformanceEntry) => void) {
   }
 }
 
+function stopFrameSampling() {
+  if (frameHandle) window.cancelAnimationFrame(frameHandle);
+  frameHandle = 0;
+  if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+  visibilityHandler = null;
+  if (samplingActive && frameSamples) {
+    recordPerformanceMetric({
+      name: "on-demand animation frame sample",
+      category: "render",
+      durationMs: droppedFrames ? (droppedFrames / frameSamples) * 100 : 0,
+      startedAt: Date.now(),
+      detail: { samples: frameSamples, droppedFrames, droppedPercent: round((droppedFrames / frameSamples) * 100) },
+    });
+  }
+  samplingActive = false;
+  samplingDeadline = 0;
+  frameSamples = 0;
+  droppedFrames = 0;
+  lastFrameAt = 0;
+}
+
 function monitorFrames(timestamp: number) {
-  if (!initialized) return;
+  if (!initialized || !samplingActive || document.visibilityState !== "visible") {
+    stopFrameSampling();
+    return;
+  }
+  frameHandle = 0;
   if (lastFrameAt) {
     const delta = timestamp - lastFrameAt;
     frameSamples += 1;
     if (delta > 34) droppedFrames += Math.max(1, Math.round(delta / 16.67) - 1);
-    if (frameSamples >= 120) {
-      recordPerformanceMetric({
-        name: "animation frame health",
-        category: "render",
-        durationMs: droppedFrames ? (droppedFrames / frameSamples) * 100 : 0,
-        startedAt: Date.now(),
-        detail: { samples: frameSamples, droppedFrames, droppedPercent: round((droppedFrames / Math.max(1, frameSamples)) * 100) },
-      });
-      frameSamples = 0;
-      droppedFrames = 0;
-    }
   }
   lastFrameAt = timestamp;
-  if (document.visibilityState === "visible") frameHandle = window.requestAnimationFrame(monitorFrames);
-  else { frameHandle = 0; lastFrameAt = 0; }
+  if (timestamp < samplingDeadline) frameHandle = window.requestAnimationFrame(monitorFrames);
+  else stopFrameSampling();
+}
+
+/** Optional short capture. Do not keep a 60 FPS profiler running while idle. */
+export function startPerformanceFrameSampling(durationMs = 5_000): boolean {
+  if (!initialized || samplingActive || typeof window === "undefined" || document.visibilityState !== "visible") return false;
+  const boundedDuration = Math.max(1_000, Math.min(15_000, Math.round(durationMs)));
+  samplingActive = true;
+  samplingDeadline = performance.now() + boundedDuration;
+  lastFrameAt = 0;
+  frameSamples = 0;
+  droppedFrames = 0;
+  visibilityHandler = () => {
+    if (document.visibilityState !== "visible") stopFrameSampling();
+  };
+  document.addEventListener("visibilitychange", visibilityHandler);
+  frameHandle = window.requestAnimationFrame(monitorFrames);
+  return true;
 }
 
 export function initializePerformanceMonitoring() {
@@ -382,18 +416,13 @@ export function initializePerformanceMonitoring() {
     });
   });
 
-  frameHandle = window.requestAnimationFrame((timestamp) => {
+  startupFrameHandle = window.requestAnimationFrame((timestamp) => {
+    startupFrameHandle = 0;
     firstFrameMs = round(timestamp);
     recordPerformanceMetric({ name: `${STARTUP_CLASS.classification}-startup-first-frame`, category: "navigation", durationMs: timestamp, startedAt: performance.timeOrigin, detail: { startupClass: STARTUP_CLASS.classification } });
-    frameHandle = 0;
-    monitorFrames(timestamp);
+    // The first-frame metric is sufficient for normal startup. Continuous
+    // sampling is deliberately not activated until a user requests it.
   });
-  visibilityHandler = () => {
-    if (!initialized || document.visibilityState !== "visible" || frameHandle) return;
-    lastFrameAt = 0;
-    frameHandle = window.requestAnimationFrame(monitorFrames);
-  };
-  document.addEventListener("visibilitychange", visibilityHandler);
   window.addEventListener("load", () => {
     const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
     if (!navigation) return;
@@ -420,8 +449,9 @@ export function disposePerformanceMonitoring() {
   initialized = false;
   observers.splice(0).forEach((observer) => observer.disconnect());
   if (typeof window !== "undefined") {
-    window.cancelAnimationFrame(frameHandle);
-    if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+    stopFrameSampling();
+    if (startupFrameHandle) window.cancelAnimationFrame(startupFrameHandle);
+    startupFrameHandle = 0;
   }
   visibilityHandler = null;
   frameHandle = 0;
