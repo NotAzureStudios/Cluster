@@ -235,12 +235,12 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
 
     // Adding the next 80 projects must not redownload previous pages.
     // Keep each URL bounded, and avoid a large synchronous response commit.
-    const batches = planMissingProjectSnapshotBatches(portfolioProjects, knownRevisions, 40);
+    const batches = planMissingProjectSnapshotBatches(portfolioProjects, knownRevisions, 80);
     if (!batches.length) return;
     let active = true;
     void (async () => {
-      for (let offset = 0; offset < batches.length; offset += 3) {
-        const responses = await Promise.allSettled(batches.slice(offset, offset + 3).map((ids) =>
+      for (let offset = 0; offset < batches.length; offset += 2) {
+        const responses = await Promise.allSettled(batches.slice(offset, offset + 2).map((ids) =>
           api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`),
         ));
         if (!active) return;
