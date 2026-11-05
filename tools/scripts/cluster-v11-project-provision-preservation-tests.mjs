@@ -59,6 +59,18 @@ test("orphan preservation: project/library schema uses SetNull, not cascade", ()
   assert.match(worker, /Project workspace/);
 });
 
+test("missing Git or required LFS fails before creating project/Library rows", () => {
+  const preflightStart = worker.indexOf("if (sourcePlan.shouldProvision && !request.sourceRepositoryId)");
+  const createStart = worker.indexOf("project = await input.prisma.project.create(");
+  const preflight = worker.slice(preflightStart, createStart);
+  assert.ok(preflightStart >= 0 && createStart > preflightStart, "preflight must precede project write");
+  assert.match(preflight, /input\.gitRuntime\.inspect\?\.\(true\)/);
+  assert.match(preflight, /PROJECT_SOURCE_RUNTIME_UNAVAILABLE/);
+  assert.match(preflight, /PROJECT_SOURCE_LFS_UNAVAILABLE/);
+  assert.match(preflight, /terminalJobFailure: true/);
+  assert.match(preflight, /No project was created/);
+});
+
 test("an existing Git repository cannot be overwritten by project provisioning", () => {
   const source = read("apps/server/src/domains/source-control/git-repository-runtime.ts");
   const begin = source.indexOf("  async function initializeManagedRepository(");
