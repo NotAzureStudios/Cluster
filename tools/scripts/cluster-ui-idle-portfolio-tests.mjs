@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { startVisibleJobPolling } from "../../packages/renderer/src/core/visible-job-polling.ts";
 import { projectRevisionKey, planMissingProjectSnapshotBatches } from "../../packages/renderer/src/features/projects/project-snapshot-batching.ts";
+import { buildWhiteboardConnectorAdjacency, selectedWhiteboardConnectorIds } from "../../packages/renderer/src/features/whiteboards/whiteboard-connector-adjacency.ts";
 
 function makeHarness(initialVisibility = "hidden") {
   let nextTimer = 1;
@@ -108,13 +109,40 @@ assert.deepEqual(planMissingProjectSnapshotBatches([{ id: "p", updatedAt: "rev2"
 assert.notEqual(projectRevisionKey(projects), projectRevisionKey([...projects.slice(0, 2), { ...projects[2], updatedAt: "rev2" }, ...projects.slice(3)]));
 assert.ok(batches.every((batch) => batch.length <= 40));
 
+const elements = [
+  { id: "n1", type: "rectangle" },
+  { id: "n2", type: "rectangle" },
+  { id: "n3", type: "rectangle" },
+  { id: "connector-a", type: "line", fromId: "n1", toId: "n2" },
+  { id: "connector-b", type: "arrow", fromId: "n2", toId: "n1" },
+  { id: "connector-loop", type: "line", fromId: "n1", toId: "n1" },
+  { id: "connector-other", type: "line", fromId: "n3", toId: null },
+  { id: "ordinary-shape", type: "sticky", fromId: "n1", toId: "n2" },
+];
+const adjacency = buildWhiteboardConnectorAdjacency(elements);
+assert.deepEqual(adjacency.get("n1"), ["connector-a", "connector-b", "connector-loop"]);
+assert.deepEqual(adjacency.get("n2"), ["connector-a", "connector-b"]);
+assert.deepEqual([...selectedWhiteboardConnectorIds(new Set(["n1", "n2"]), adjacency)].sort(),
+  ["connector-a", "connector-b", "connector-loop"]);
+assert.deepEqual([...selectedWhiteboardConnectorIds(new Set(["n3"]), adjacency)], ["connector-other"]);
+assert.equal(selectedWhiteboardConnectorIds(new Set(), adjacency).size, 0);
+
 const read = (path) => readFileSync(new URL("../../" + path, import.meta.url), "utf8");
 const library = read("packages/renderer/src/features/library/LibraryWorkspacePage.tsx");
 const portfolio = read("packages/renderer/src/features/projects/ProjectsPage.tsx");
+const whiteboard = read("packages/renderer/src/features/whiteboards/WhiteboardWorkspacePage.tsx");
+const whiteboardViewport = read("packages/renderer/src/features/whiteboards/use-whiteboard-viewport.ts");
 assert.equal((library.match(/startVisibleJobPolling\(refresh,/g) || []).length, 5);
 assert.doesNotMatch(library, /window\.setInterval\(\(\) => void refresh\(\)/);
 assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, knownRevisions, 40\)/);
 assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 3\)/);
 assert.match(portfolio, /const projectSeedRevisionKey = useMemo/);
 assert.match(portfolio, /const pinnedProjectSet = useMemo/);
-console.log("Cluster UI idle and portfolio performance: polling, pagination and source contracts passed.");
+assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
+assert.match(whiteboard, /selectedWhiteboardConnectorIds\(selectedIds, connectorAdjacency\)/);
+assert.match(whiteboard, /for \(const id of priorityElementIds\)/);
+assert.match(whiteboard, /for \(const id of selectedConnectorIds\)/);
+assert.match(whiteboard, /useVisibleTicker\(\(\) => setFacilitatorClock/);
+assert.match(whiteboardViewport, /previous\.x === next\.x && previous\.y === next\.y/);
+assert.match(whiteboardViewport, /frameRef\.current = null;/);
+console.log("Cluster UI responsiveness: Library polling, Project snapshots and Whiteboard spatial priority contracts passed.");
