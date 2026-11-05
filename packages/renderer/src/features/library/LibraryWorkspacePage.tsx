@@ -185,7 +185,10 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
   }
 
   const rootHasChildren = Boolean((byParent.get("root") || []).length || (showFiles && (filesByParent.get("root") || []).length));
-  const expandableFolderIds = folders.filter((folder) => Boolean((byParent.get(folder.id) || []).length || (showFiles && (filesByParent.get(folder.id) || []).length))).map((folder) => folder.id);
+  const expandableFolderIds = useMemo(
+    () => folders.filter((folder) => Boolean((byParent.get(folder.id) || []).length || (showFiles && (filesByParent.get(folder.id) || []).length))).map((folder) => folder.id),
+    [folders, byParent, filesByParent, showFiles],
+  );
   const allExpanded = expandableFolderIds.every((id) => expanded.has(id)) && expanded.has("root");
   return <div className="library-tree-shell-v229">
     <div className="library-tree-toolbar-v13">
@@ -1843,10 +1846,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   function clearFilters() { setFilters({ projectId: "", ownerId: "", type: "all", status: "active", mimeGroup: "all", visibility: "all", modified: "any", tag: "", pinned: "all", sort: "updated-desc" }); setQuery(""); }
   function openLibrarySection(section: LibrarySection) { setLibrarySection(section); if (section !== "collection") setActiveCollection(null); if (section !== "folder") setFolderId(null); setActiveItem(null); setActiveId(null); setSelectedIds(new Set()); }
 
-  const currentFolder = folders.find((folder) => folder.id === folderId) || null;
+  const currentFolder = folderById.get(folderId || "") || null;
   const parentFolderId = currentFolder?.parentId || null;
   const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
-  const storageBytes = items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0);
+  const storageBytes = useMemo(() => items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0), [items]);
   const popularTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of items) for (const raw of item.tags || []) { const tag = String(raw || "").trim(); if (tag) counts.set(tag, (counts.get(tag) || 0) + 1); }
