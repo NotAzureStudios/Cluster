@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import {stableServerSequence} from "./cluster-server-release-sequence.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const viewer = (name) => readFileSync(resolve(root, "packages/renderer/src/features/viewer", name), "utf8");
@@ -80,7 +81,8 @@ await check("Existing newer release metadata is not replaced by RC73", () => {
   const release=JSON.parse(readFileSync(resolve(root,"config/release-candidate.json"),"utf8"));
   assert.equal(release.channel,"stable");
   assert.equal(release.release,release.sourceVersion);
-  assert.match(release.release,/^1\.0\.[1-9][0-9]*$/);
+  assert.notEqual(stableServerSequence(release.release),null);
+  assert.equal(release.sequence,stableServerSequence(release.release));
   assert.equal(release.certification,"install-test-pending");
 });
 console.log(count + "/10 targeted RC73 viewer reconciliation checks passed");
