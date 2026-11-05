@@ -177,7 +177,13 @@ const app = Fastify({
 const prisma = createPrismaClient({ log: [{ emit: "event", level: "query" }] });
 const databaseBudget = databaseResourceBudget(DATABASE_URL);
 const runtimeTelemetry = new RuntimeTelemetry();
-const resourceGovernor = new ResourceGovernor();
+const resourceGovernor = new ResourceGovernor({
+  // Server-managed performance controls take effect at the next supervised
+  // restart, just like other boot configuration settings.
+  profile: BOOT_SETTINGS.serverResourceProfile,
+  maximumJobConcurrency: BOOT_SETTINGS.serverResourceWorkerCap,
+  recoveryHoldMs: BOOT_SETTINGS.serverResourceRecoveryHoldMs,
+});
 const gpuTelemetry = new GpuTelemetry();
 const databasePoolMax = databaseBudget.apiPoolMax;
 const securityTelemetry = new SecurityTelemetry();
