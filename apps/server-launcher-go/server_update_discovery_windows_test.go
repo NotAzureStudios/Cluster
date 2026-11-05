@@ -154,3 +154,38 @@ func TestCanonicalGitHubReleaseMetadataIsInformationalOnly(t *testing.T) {
 		})
 	}
 }
+
+func TestOfficialReleaseRequiresExactProjectTagAndServerInstallerReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		payload string
+	}{
+		{
+			name: "desktop-only release",
+			payload: `{"tag_name":"v1.0.6","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.6","assets":[{"name":"Cluster-Desktop-Installer.exe"}]}`,
+		},
+		{
+			name: "server installer without receipt",
+			payload: `{"tag_name":"v1.0.6","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.6","assets":[{"name":"Cluster-Installer.exe"}]}`,
+		},
+		{
+			name: "incorrect release link",
+			payload: `{"tag_name":"v1.0.6","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.5","assets":[{"name":"Cluster-Installer.exe"},{"name":"Cluster-server-build-receipt.json"}]}`,
+		},
+		{
+			name: "other product release",
+			payload: `{"tag_name":"v2.0.0","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/v2.0.0","assets":[{"name":"Cluster-Installer.exe"},{"name":"Cluster-server-build-receipt.json"}]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := serverUpdateDiscoveryFixture(t)
+			transport := serverUpdateResponseTransport(func(*http.Request) (*http.Response, error) {
+				return serverUpdateResponse(http.StatusOK, tc.payload, int64(len(tc.payload))), nil
+			})
+			result := checkOfficialServerReleaseWithClient(root, &http.Client{Transport: transport, Timeout: time.Second})
+			if result.Available || result.DownloadURL != "" || result.ManualReleaseURL != "" {
+				t.Fatalf("incomplete or untrusted release was offered: %+v", result)
+			}
+		})
+	}
+}
