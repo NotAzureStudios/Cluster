@@ -35,10 +35,21 @@ export function planMissingProjectSnapshotBatches(
  * Irrelevant events should not wake every loaded portfolio.
  */
 export const PROJECT_SNAPSHOT_DEPENDENCY_KINDS = [
+  // Derived snapshot contents: project readiness, schedule, lead, builds and QA.
   "project", "board", "timeline", "calendar", "meeting",
-  "build", "qa_plan", "qa_session", "release",
-  "user", "team", "library", "file", "control",
+  "build", "qa_plan", "qa_session", "release", "approval",
+  // These may change displayed identity or effective permissions.
+  "user", "team", "department", "job_role", "policy",
 ] as const;
+
+const GLOBAL_SNAPSHOT_INVALIDATION_KINDS: ReadonlySet<string> =
+  new Set(["user", "team", "department", "job_role", "policy"]);
+
+/** Retry failed network batches with capped backoff, not an idle polling loop. */
+export function projectSnapshotRetryDelayMs(attempt: number): number {
+  const index = Math.max(0, Math.min(4, Math.floor(Number.isFinite(attempt) ? attempt : 1) - 1));
+  return Math.min(60_000, 5_000 * 2 ** index);
+}
 
 export function projectSnapshotInvalidationTarget(change: {
   resource: { kind: string; id: string; projectId?: string | null };
@@ -46,6 +57,6 @@ export function projectSnapshotInvalidationTarget(change: {
   const resource = change.resource;
   if (!(PROJECT_SNAPSHOT_DEPENDENCY_KINDS as readonly string[]).includes(resource.kind)) return null;
   if (resource.kind === "project") return resource.id || "all";
-  if (resource.kind === "user" || resource.kind === "team") return "all";
+  if (GLOBAL_SNAPSHOT_INVALIDATION_KINDS.has(resource.kind)) return "all";
   return resource.projectId || "all";
 }
