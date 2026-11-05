@@ -1,4 +1,4 @@
-name: Cluster 1.0.5 offline Windows upgrade smoke
+name: Cluster Windows offline upgrade smoke
 
 on:
   pull_request:
@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   upgrade:
-    name: Preserve data during an offline Windows 1.0.2 to 1.0.5 upgrade
+    name: Preserve data during an offline Windows 1.0.5 to next-release upgrade
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           node tools/scripts/cluster-suite-version-contract.mjs
-          if ($LASTEXITCODE -ne 0) { throw '1.0.5 version contract failed' }
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate version contract failed' }
           node tools/scripts/cluster-release-lockfile-check.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Lockfile verification failed' }
       - name: Build unsigned candidate without bypassing main release branch protection
@@ -85,18 +85,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.2'
+          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.5'
           New-Item -ItemType Directory -Force -Path $prior | Out-Null
-          gh release download v1.0.2 --repo ${{ github.repository }} --pattern 'Cluster-Installer.exe' --dir $prior
-          if ($LASTEXITCODE -ne 0) { throw 'Published v1.0.2 Server installer could not be retrieved' }
+          gh release download v1.0.5 --repo ${{ github.repository }} --pattern 'Cluster-Installer.exe' --dir $prior
+          if ($LASTEXITCODE -ne 0) { throw 'Published v1.0.5 Server installer could not be retrieved' }
           if (!(Test-Path (Join-Path $prior 'Cluster-Installer.exe'))) { throw 'Published Server installer missing' }
       - name: Execute disposable offline in-place upgrade and preservation test
         shell: pwsh
         run: |
-          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.2\Cluster-Installer.exe'
+          $prior = Join-Path $env:RUNNER_TEMP 'cluster-prior-1.0.5\Cluster-Installer.exe'
           $candidate = Join-Path (Get-Location).Path 'bin\Cluster-Installer.exe'
-          & pwsh -NoProfile -NonInteractive -File tools/installer/Smoke-Cluster-Windows-Upgrade.ps1 -PriorInstaller $prior -CandidateInstaller $candidate
-          if ($LASTEXITCODE -ne 0) { throw 'Offline 1.0.2 -> 1.0.5 upgrade or preservation failed' }
+          $candidateIdentity = Get-Content -LiteralPath 'config/release-candidate.json' -Raw | ConvertFrom-Json
+          if ($candidateIdentity.channel -ne 'stable' -or [int]$candidateIdentity.sequence -le 55) {
+            throw 'Offline upgrade candidate must be newer than the published 1.0.5 Server installer'
+          }
+          & pwsh -NoProfile -NonInteractive -File tools/installer/Smoke-Cluster-Windows-Upgrade.ps1 -PriorInstaller $prior -CandidateInstaller $candidate -PriorSequence 55 -CandidateSequence ([int]$candidateIdentity.sequence)
+          if ($LASTEXITCODE -ne 0) { throw 'Offline 1.0.5 -> candidate upgrade or preservation failed' }
 
 # This is a disposable OFFLINE, no-PostgreSQL-running smoke. It is not
 # authorization to expose automatic install, bypass the publisher signature,
