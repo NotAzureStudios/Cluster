@@ -631,7 +631,7 @@ func checkOfficialServerReleaseWithClient(root string, client *http.Client) upda
 	if json.Unmarshal(raw, &latest)!=nil { return updateCheckResult{Message:"Official GitHub release metadata was invalid."} }
 	release := strings.TrimPrefix(strings.TrimSpace(latest.TagName), "v")
 	next, valid := serverUpdateSequence(release, "main")
-	if !valid || !strings.HasPrefix(latest.HTMLURL,"https://github.com/NotAzureStudios/Cluster/releases/tag/v") {
+	if !valid || latest.HTMLURL != "https://github.com/NotAzureStudios/Cluster/releases/tag/"+latest.TagName {
 		return updateCheckResult{Message:"Official release metadata did not identify a supported Cluster Server release."}
 	}
 	hasInstaller := false
