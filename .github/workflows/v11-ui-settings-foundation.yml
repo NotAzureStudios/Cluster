@@ -11,6 +11,15 @@ on:
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
       - "tools/scripts/cluster-performance-settings-tests.mjs"
       - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "apps/server/src/core/server-resource-policy.ts"
+      - "apps/server/src/core/resource-governor.ts"
+      - "apps/server/src/app/cluster-server.ts"
+      - "apps/server/src/app/server-routes-configuration-integrations.ts"
+      - "apps/server/src/app/server-composition-types.ts"
+      - "apps/server/src/app/server-services-request-domain.ts"
+      - "packages/renderer/src/features/application/application-models/custom-admin-automation.ts"
+      - "packages/renderer/src/features/application/application-models/settings-server.ts"
       - "packages/renderer/src/core/visible-job-polling.ts"
       - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
       - "packages/renderer/src/features/projects/ProjectsPage.tsx"
@@ -40,6 +49,15 @@ on:
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
       - "tools/scripts/cluster-performance-settings-tests.mjs"
       - "tools/scripts/cluster-ui-idle-portfolio-tests.mjs"
+      - "tools/scripts/cluster-server-resource-performance-tests.mjs"
+      - "apps/server/src/core/server-resource-policy.ts"
+      - "apps/server/src/core/resource-governor.ts"
+      - "apps/server/src/app/cluster-server.ts"
+      - "apps/server/src/app/server-routes-configuration-integrations.ts"
+      - "apps/server/src/app/server-composition-types.ts"
+      - "apps/server/src/app/server-services-request-domain.ts"
+      - "packages/renderer/src/features/application/application-models/custom-admin-automation.ts"
+      - "packages/renderer/src/features/application/application-models/settings-server.ts"
       - "packages/renderer/src/core/visible-job-polling.ts"
       - "packages/renderer/src/features/library/LibraryWorkspacePage.tsx"
       - "packages/renderer/src/features/projects/ProjectsPage.tsx"
@@ -81,6 +99,8 @@ jobs:
         run: npm run performance:settings:check
       - name: Verify hidden polling and Project portfolio efficiency
         run: npm run performance:ui:check
+      - name: Verify server resource policy and protection gates
+        run: npm run performance:server:check
       - name: Build shared contract declarations
         run: npm run build --workspace=@cluster/shared
       - name: Type-check actual renderer
