@@ -28,3 +28,24 @@ export function planMissingProjectSnapshotBatches(
   }
   return batches;
 }
+
+/**
+ * Project snapshot fields depend on several independent domains, not just
+ * project.updatedAt. An unscoped event requires conservative invalidation.
+ * Irrelevant events should not wake every loaded portfolio.
+ */
+export const PROJECT_SNAPSHOT_DEPENDENCY_KINDS = [
+  "project", "board", "timeline", "calendar", "meeting",
+  "build", "qa_plan", "qa_session", "release",
+  "user", "team", "library", "file", "control",
+] as const;
+
+export function projectSnapshotInvalidationTarget(change: {
+  resource: { kind: string; id: string; projectId?: string | null };
+}): string | "all" | null {
+  const resource = change.resource;
+  if (!(PROJECT_SNAPSHOT_DEPENDENCY_KINDS as readonly string[]).includes(resource.kind)) return null;
+  if (resource.kind === "project") return resource.id || "all";
+  if (resource.kind === "user" || resource.kind === "team") return "all";
+  return resource.projectId || "all";
+}
