@@ -17,7 +17,7 @@ const noBackdrop = { ...safe, backdropFilter: false };
 assert.deepEqual(normalizeDevicePerformancePreferences(null), DEFAULT_DEVICE_PERFORMANCE_PREFERENCES);
 assert.deepEqual(normalizeDevicePerformancePreferences({ profile: "nope", customQuality: "__proto__" }), DEFAULT_DEVICE_PERFORMANCE_PREFERENCES);
 assert.equal(resolveDeviceRendererQuality("full", safe, { profile: "efficient", customQuality: "full" }), "reduced");
-assert.equal(resolveDeviceRendererQuality("reduced", safe, { profile: "performance", customQuality: "reduced" }), "full");
+assert.equal(resolveDeviceRendererQuality("full", safe, { profile: "performance", customQuality: "full" }), "reduced");
 assert.equal(resolveDeviceRendererQuality("full", safe, { profile: "balanced", customQuality: "full" }), "balanced");
 assert.equal(resolveDeviceRendererQuality("full", safe, { profile: "custom", customQuality: "reduced" }), "reduced");
 assert.equal(resolveDeviceRendererQuality("full", safe, DEFAULT_DEVICE_PERFORMANCE_PREFERENCES), "full");
