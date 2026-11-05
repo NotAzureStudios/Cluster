@@ -65,6 +65,9 @@ export type Settings = {
   setupMode?: string;
   serverInstanceId?: string;
   serverDisplayName?: string;
+  serverResourceProfile?: "automatic" | "interactive-first" | "background-throughput";
+  serverResourceWorkerCap?: number;
+  serverResourceRecoveryHoldMs?: number;
   lanDiscoveryEnabled?: boolean;
   appDisplayName?: string;
   studioName?: string;
