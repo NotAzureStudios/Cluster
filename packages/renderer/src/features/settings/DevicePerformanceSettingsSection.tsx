@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterSettingsChoiceGroup, ClusterSettingsRow, ClusterSettingsSection } from "../../components/ClusterSettingsPrimitives";
-import { performanceSummary, startPerformanceFrameSampling, type PerformanceSummary } from "../../core/performance";
+import { downloadPerformanceReport, performanceSummary, startPerformanceFrameSampling, type PerformanceSummary } from "../../core/performance";
 import { getRendererCapabilitiesSnapshot, subscribeRendererCapabilities } from "../../core/render-capabilities";
 import {
   DEFAULT_DEVICE_PERFORMANCE_PREFERENCES,
@@ -113,6 +113,7 @@ export function DevicePerformanceSettingsSection() {
         actions={<>
           <ClusterButton type="button" variant="secondary" disabled={sampling} onClick={captureFrameSample}>{sampling ? "Capturing…" : "Capture 5s frame sample"}</ClusterButton>
           <ClusterButton type="button" variant="secondary" onClick={() => setReport(performanceSummary())}>Refresh measurements</ClusterButton>
+          <ClusterButton type="button" variant="secondary" onClick={downloadPerformanceReport}>Export report</ClusterButton>
         </>}
       >
         {report ? <>
@@ -122,7 +123,7 @@ export function DevicePerformanceSettingsSection() {
           <p className="muted">Frame sample: {report.frameSample ? `${report.frameSample.missedPercent}% estimated missed frames across ${report.frameSample.samples} sampled frame intervals` : "Not captured"}</p>
         </> : <p className="muted">Select Refresh measurements to inspect the current session. Metrics are unavailable until the browser records them.</p>}
         {samplingError && <p role="alert">{samplingError}</p>}
-        <p className="muted">Frame sampling is opt-in, lasts up to five seconds, and does not run continuously while idle.</p>
+        <p className="muted">Frame sampling is opt-in, lasts up to five seconds, and does not run continuously while idle. Exported reports stay on your device but may include resource filenames and timing metadata.</p>
       </ClusterSettingsSection>
     </div>
     <p className="muted">Stored locally on this device and applied immediately. Server CPU/RAM limits, background workers, and transfer scheduling remain under Server Configuration.</p>
