@@ -150,14 +150,14 @@ Item {
     // a live bridge: queued native requests are never dropped while hidden.
     Timer {
         id: nativeCapabilityPollTimer
-        interval: Qt.application.active ? root.nativeCapabilityPollInterval : 1000
+        interval: Qt.application.state === Qt.ApplicationActive ? root.nativeCapabilityPollInterval : 1000
         repeat: true
         running: root.rendererReady
         onTriggered: root.pumpNativeCapabilities()
     }
 
     Timer {
-        interval: Qt.application.active ? 10000 : 30000
+        interval: Qt.application.state === Qt.ApplicationActive ? 10000 : 30000
         repeat: true
         running: root.rendererReady
         onTriggered: root.pullRendererState()
