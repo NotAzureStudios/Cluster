@@ -33,7 +33,7 @@ import { ProjectPortfolioInspector } from "./ProjectPortfolioInspector";
 import { ProjectPortfolioItem } from "./ProjectPortfolioItem";
 import { projectInspectorReturnFocus } from "./project-inspector-focus";
 import { projectAttentionScore, type ProjectPortfolioFocus } from "./project-portfolio-model";
-import { planMissingProjectSnapshotBatches, projectRevisionKey, projectSnapshotInvalidationTarget } from "./project-snapshot-batching";
+import { planMissingProjectSnapshotBatches, projectRevisionKey, projectSnapshotInvalidationTarget, projectSnapshotRetryDelayMs } from "./project-snapshot-batching";
 import "./projects.css";
 
 const PROJECT_RENDER_BATCH = 120;
@@ -160,6 +160,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const projectSnapshotCacheRef = useRef<Record<string, ProjectSnapshot>>({});
   const projectSnapshotRevisionsRef = useRef<Map<string, string>>(new Map());
   const [projectSnapshotRefreshEpoch, setProjectSnapshotRefreshEpoch] = useState(0);
+  const projectSnapshotRetryAttemptsRef = useRef(0);
   const [projectTableLayout, setProjectTableLayout] = useState<ClusterDataViewLayout | null>(null);
   const [projectGroups, setProjectGroups] = useState<ClusterDataGroup[]>([]);
   const [projectProjections, setProjectProjections] = useState<ClusterDataProjection[]>(() => DEFAULT_PROJECT_PROJECTIONS);
@@ -304,9 +305,33 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     // Adding the next 80 projects must not redownload previous pages.
     // Keep each URL bounded, and avoid a large synchronous response commit.
     const batches = planMissingProjectSnapshotBatches(portfolioProjects, knownRevisions, 80);
-    if (!batches.length) return;
+    if (!batches.length) {
+      projectSnapshotRetryAttemptsRef.current = 0;
+      return;
+    }
     let active = true;
+    let retryTimer = 0;
+    let retryPending = false;
+    let retryAt = 0;
+    const scheduleRetry = () => {
+      if (!active || !retryPending || document.visibilityState !== "visible") return;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = window.setTimeout(() => {
+        retryTimer = 0;
+        if (active && document.visibilityState === "visible") {
+          setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+        }
+      }, Math.max(0, retryAt - Date.now()));
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        if (retryTimer) window.clearTimeout(retryTimer);
+        retryTimer = 0;
+      } else if (retryPending) scheduleRetry();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void (async () => {
+      let failed = false;
       for (let offset = 0; offset < batches.length; offset += 2) {
         const responses = await Promise.allSettled(batches.slice(offset, offset + 2).map((ids) =>
           api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`),
@@ -314,7 +339,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
         if (!active) return;
         let changed = false;
         for (const response of responses) {
-          if (response.status !== "fulfilled") continue;
+          if (response.status !== "fulfilled") {
+            failed = true;
+            continue;
+          }
           for (const snapshot of response.value.snapshots || []) {
             if (!activeRevisions.has(snapshot.projectId)) continue;
             const revision = activeRevisions.get(snapshot.projectId)!;
@@ -325,8 +353,25 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
         }
         if (changed) setProjectSnapshots({ ...cache });
       }
+      if (!active) return;
+      if (failed) {
+        // Cap retries. A persistent outage falls back to the periodic visible
+        // recovery probe rather than producing unbounded network chatter.
+        const attempts = ++projectSnapshotRetryAttemptsRef.current;
+        if (attempts <= 4) {
+          retryPending = true;
+          retryAt = Date.now() + projectSnapshotRetryDelayMs(attempts);
+          scheduleRetry();
+        }
+      } else {
+        projectSnapshotRetryAttemptsRef.current = 0;
+      }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (retryTimer) window.clearTimeout(retryTimer);
+    };
   }, [portfolioRevisionKey, projectSnapshotRefreshEpoch]);
 
   useEffect(() => {
