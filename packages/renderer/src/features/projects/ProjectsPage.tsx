@@ -35,6 +35,8 @@ import { planMissingProjectSnapshotBatches, projectRevisionKey } from "./project
 import "./projects.css";
 
 const PROJECT_RENDER_BATCH = 120;
+const PROJECT_NAME_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const PROJECT_PRIORITY_SCORE: Readonly<Record<string, number>> = { urgent: 4, high: 3, medium: 2, low: 1 };
 
 function projectSnapshotHealth(snapshot?: ProjectSnapshot | null) {
   if (!snapshot) return null;
@@ -136,6 +138,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [density, setDensity] = useServerState<"compact" | "comfortable">("user", "projects.portfolio-density", "comfortable", { merge: (value, fallback) => value === "compact" || value === "comfortable" ? value : fallback });
   const [focus, setFocus] = useServerState<ProjectPortfolioFocus>("user", "projects.portfolio-focus", "all");
   const [pinnedProjectIds, setPinnedProjectIds] = useServerState<string[]>("user", "projects.pinned", [], { merge: (value) => Array.isArray(value) ? value.map(String) : [] });
+  const pinnedProjectSet = useMemo(() => new Set(pinnedProjectIds), [pinnedProjectIds]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
@@ -322,7 +325,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     return { project, snapshot, entries, members, memberCount, gaps, status, completeness, source, stage, health, attentionScore, scheduleState, projectWhiteboards, latest: projectLatestTimestamp(project) };
   }), [portfolioProjects, projectSnapshots, timelineEntriesByProject, whiteboardsByProject, users, importantBuildEntries, projectMembers, projectSetupGaps, normalizeProjectStatus, projectCompleteness, projectSourceMeta, projectBuildStage, projectLatestTimestamp, projectHealth, projectAssignedIds]);
   const focusCounts = useMemo(() => facts.reduce<Record<ProjectPortfolioFocus, number>>((counts, fact) => {
-    const pinned = pinnedProjectIds.includes(fact.project.id);
+    const pinned = pinnedProjectSet.has(fact.project.id);
     const matches = (key: ProjectPortfolioFocus) => key === "all" ? true
       : key === "pinned" ? pinned
       : key === "at_risk" ? fact.attentionScore > 0
@@ -331,7 +334,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       : fact.latest >= Date.now() - 86_400_000 * 14;
     (Object.keys(counts) as ProjectPortfolioFocus[]).forEach((key) => { if (matches(key)) counts[key] += 1; });
     return counts;
-  }, { all: 0, pinned: 0, at_risk: 0, due_soon: 0, unscheduled: 0, recent: 0 }), [facts, pinnedProjectIds]);
+  }, { all: 0, pinned: 0, at_risk: 0, due_soon: 0, unscheduled: 0, recent: 0 }), [facts, pinnedProjectSet]);
   const filteredFacts = useMemo(() => facts.filter((fact) => {
     const { project, status, source } = fact;
     const health = fact.health;
@@ -345,19 +348,19 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     if (sourceFilter === "external" && !external) return false;
     if (priorityFilter !== "all" && (project.priority || "medium") !== priorityFilter) return false;
     if (scheduleFilter !== "all" && fact.scheduleState !== scheduleFilter) return false;
-    return focus === "all" ? true : focus === "pinned" ? pinnedProjectIds.includes(project.id) : focus === "at_risk" ? fact.attentionScore > 0 : focus === "due_soon" ? fact.scheduleState === "due_soon" : focus === "unscheduled" ? fact.scheduleState === "unscheduled" : fact.latest >= Date.now() - 86_400_000 * 14;
-  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, pinnedProjectIds, projectHasGit, isExternalProject, projectHealth]);
+    return focus === "all" ? true : focus === "pinned" ? pinnedProjectSet.has(project.id) : focus === "at_risk" ? fact.attentionScore > 0 : focus === "due_soon" ? fact.scheduleState === "due_soon" : focus === "unscheduled" ? fact.scheduleState === "unscheduled" : fact.latest >= Date.now() - 86_400_000 * 14;
+  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, pinnedProjectSet, projectHasGit, isExternalProject]);
   const rawPrimarySortMode = normalizedProjectSorts[0]?.fieldId === "project" ? "name" : (normalizedProjectSorts[0]?.fieldId || "attention");
   const primarySortMode = (["updated", "readiness", "attention", "name", "target", "priority", "status", "health", "stage", "source", "people"] as readonly string[]).includes(rawPrimarySortMode) ? rawPrimarySortMode : "attention";
   const sortedFacts = useMemo(() => [...filteredFacts].sort((a, b) => {
-    const pinDelta = Number(pinnedProjectIds.includes(b.project.id)) - Number(pinnedProjectIds.includes(a.project.id));
+    const pinDelta = Number(pinnedProjectSet.has(b.project.id)) - Number(pinnedProjectSet.has(a.project.id));
     if (pinDelta) return pinDelta;
     const values = (fact: (typeof facts)[number], fieldId: string): string | number => {
       if (fieldId === "name" || fieldId === "project") return fact.project.name;
       if (fieldId === "target") return fact.project.targetDate ? new Date(fact.project.targetDate).getTime() : Number.MAX_SAFE_INTEGER;
-      if (fieldId === "priority") return ({ urgent: 4, high: 3, medium: 2, low: 1 } as Record<string, number>)[fact.project.priority || "medium"] || 0;
+      if (fieldId === "priority") return PROJECT_PRIORITY_SCORE[fact.project.priority || "medium"] || 0;
       if (fieldId === "readiness") return fact.completeness;
-      if (fieldId === "attention") return fact.attentionScore + (pinnedProjectIds.includes(fact.project.id) ? 2 : 0);
+      if (fieldId === "attention") return fact.attentionScore + (pinnedProjectSet.has(fact.project.id) ? 2 : 0);
       if (fieldId === "updated") return fact.latest;
       if (fieldId === "status") return fact.status;
       if (fieldId === "health") return fact.health.label;
@@ -369,11 +372,11 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     for (const sort of normalizedProjectSorts) {
       const left = values(a, sort.fieldId);
       const right = values(b, sort.fieldId);
-      const comparison = typeof left === "number" && typeof right === "number" ? left - right : String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+      const comparison = typeof left === "number" && typeof right === "number" ? left - right : PROJECT_NAME_COLLATOR.compare(String(left), String(right));
       if (comparison) return comparison * (sort.direction === "asc" ? 1 : -1);
     }
     return b.latest - a.latest;
-  }), [filteredFacts, pinnedProjectIds, normalizedProjectSorts, facts, projectHealth, projectAssignedIds]);
+  }), [filteredFacts, pinnedProjectSet, normalizedProjectSorts]);
 
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
@@ -401,7 +404,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "target", header: "Target", defaultWidth: 150, sortValue: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate) : null, cell: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate).toLocaleDateString() : "Unscheduled" },
     { id: "attention", header: "Attention", hiddenByDefault: true, sortValue: (fact) => fact.attentionScore, cell: (fact) => fact.attentionScore },
     { id: "updated", header: "Updated", hiddenByDefault: true, sortValue: (fact) => fact.latest, cell: (fact) => new Date(fact.latest).toLocaleString() },
-    { id: "priority", header: "Priority", hiddenByDefault: true, sortValue: (fact) => ({ urgent: 4, high: 3, medium: 2, low: 1 } as Record<string, number>)[fact.project.priority || "medium"] || 0, groupValue: (fact) => fact.project.priority || "medium", cell: (fact) => fact.project.priority || "medium" },
+    { id: "priority", header: "Priority", hiddenByDefault: true, sortValue: (fact) => PROJECT_PRIORITY_SCORE[fact.project.priority || "medium"] || 0, groupValue: (fact) => fact.project.priority || "medium", cell: (fact) => fact.project.priority || "medium" },
     ...projectDerivedFields.map((derived): ClusterDataTableColumn<(typeof facts)[number]> => ({
     id: derived.id,
     header: derived.label,
@@ -416,7 +419,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       return typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: derived.display?.precision ?? 2 }) : String(value ?? "—");
     },
   })),
-  ], [projectTypeBadge, projectStatusLabel, projectHealth, projectAssignedIds, projectHasGit, isExternalProject, pinnedProjectIds, projectDerivedFields]);
+  ], [projectTypeBadge, projectStatusLabel, projectHasGit, isExternalProject, projectDerivedFields, onOpenProject]);
   useEffect(() => { setProjectRenderLimit(PROJECT_RENDER_BATCH); }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, normalizedProjectSorts]);
   useEffect(() => {
     const selectedIndex = sortedFacts.findIndex((fact) => fact.project.id === selectedProjectId);
@@ -710,7 +713,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     key={fact.project.id}
                     project={fact.project}
                     selected={selectedProject?.id === fact.project.id}
-                    pinned={pinnedProjectIds.includes(fact.project.id)}
+                    pinned={pinnedProjectSet.has(fact.project.id)}
                     density={density}
                     health={fact.health}
                     schedule={fact.snapshot ? { label: fact.snapshot.schedule.label, tone: projectSnapshotScheduleTone(fact.snapshot), detail: fact.snapshot.schedule.label } : undefined}
