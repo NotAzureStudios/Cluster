@@ -211,15 +211,20 @@ export function performanceSummary(): PerformanceSummary {
   });
 
   const sessionAgeMs = Date.now() - SESSION_STARTED_AT;
-  const sessionMinutes = Math.max(sessionAgeMs / 60_000, 1 / 60);
+  // The metric buffer is bounded. Dividing its retained samples by the entire
+  // session age increasingly understates load during long-running sessions.
+  const rateWindowMs = Math.min(sessionAgeMs, 5 * 60_000);
+  const rateWindowStartedAt = Date.now() - rateWindowMs;
+  const recentMetrics = metrics.filter((metric) => metric.startedAt >= rateWindowStartedAt);
+  const rateWindowMinutes = Math.max(rateWindowMs / 60_000, 1 / 60);
   const routeMetrics = metrics.filter((metric) => metric.category === "navigation" && metric.name.startsWith("route "));
   const routeSummary = summarizeMetrics(routeMetrics);
   const networkSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "network"));
   const renderSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "render" && metric.name.startsWith("React ")));
   const searchSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "search"));
   const interactionSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "interaction"));
-  const requestRatePerMinute = round(metrics.filter((metric) => metric.category === "network").length / sessionMinutes);
-  const longTasksPerMinute = round(metrics.filter((metric) => metric.category === "long-task").length / sessionMinutes);
+  const requestRatePerMinute = round(recentMetrics.filter((metric) => metric.category === "network").length / rateWindowMinutes);
+  const longTasksPerMinute = round(recentMetrics.filter((metric) => metric.category === "long-task").length / rateWindowMinutes);
   const memory = memorySnapshot();
   const heapUsedMiB = memory.usedBytes == null ? null : memory.usedBytes / 1024 / 1024;
   const heapUtilization = memory.usedBytes != null && memory.limitBytes ? memory.usedBytes / memory.limitBytes : null;
@@ -238,8 +243,8 @@ export function performanceSummary(): PerformanceSummary {
     healthCheck("heap-used", "Renderer heap", "MiB", heapUsedMiB, CLIENT_RUNTIME_BUDGETS.heapUsedMiB, "max", "Chromium JS heap when the runtime exposes memory telemetry."),
     healthCheck("heap-utilization", "Renderer heap utilization", "ratio", heapUtilization, CLIENT_RUNTIME_BUDGETS.heapUtilization, "max", "Used JS heap relative to the browser heap limit."),
     healthCheck("cache-hit", "Query cache hit rate", "ratio", cacheRequests >= 10 ? cacheHitRatio : null, CLIENT_RUNTIME_BUDGETS.cacheHitRate, "min", "Eligible query lookups served by memory, inflight dedupe, or durable cache."),
-    healthCheck("request-rate", "API request chatter", "requests/min", sessionAgeMs >= 60_000 ? requestRatePerMinute : null, CLIENT_RUNTIME_BUDGETS.requestRatePerMinute, "max", "Average client API requests per minute after the first minute."),
-    healthCheck("long-task-rate", "Main-thread long tasks", "tasks/min", sessionAgeMs >= 60_000 ? longTasksPerMinute : null, CLIENT_RUNTIME_BUDGETS.longTasksPerMinute, "max", "Long tasks per minute while the renderer is active."),
+    healthCheck("request-rate", "API request chatter", "requests/min", sessionAgeMs >= 60_000 ? requestRatePerMinute : null, CLIENT_RUNTIME_BUDGETS.requestRatePerMinute, "max", "Client API requests per minute in the last five minutes (or available session time)."),
+    healthCheck("long-task-rate", "Main-thread long tasks", "tasks/min", sessionAgeMs >= 60_000 ? longTasksPerMinute : null, CLIENT_RUNTIME_BUDGETS.longTasksPerMinute, "max", "Long tasks per minute in the last five minutes (or available session time)."),
   ];
   const failures = checks.filter((check) => check.status === "fail").length;
   const warnings = checks.filter((check) => check.status === "warn").length;
