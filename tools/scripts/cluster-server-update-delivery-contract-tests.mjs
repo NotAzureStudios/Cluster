@@ -12,7 +12,7 @@ const signer = read("tools/scripts/cluster-sign-server-release.mjs");
 const publish = read(".github/workflows/cluster-server-signed-main-publish.yml");
 const build = read(".github/workflows/cluster-server-windows-build.yml");
 const networkCI = read(".github/workflows/network-configuration-regressions.yml");
-const serverPublisherKey = read("apps/server-launcher-go/assets/server-update-public-key.pem").trim();
+const serverPublisherKey = read("apps/server-launcher-go/assets/server-update-public-key.pem").replace(/\r\n/g,"\n").trim();
 const desktopPublisherKey = read("apps/desktop-qt/assets/update-public-key.pem").trim();
 
 let checks = 0;
