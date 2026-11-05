@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { createPublicKey } from "node:crypto";
 
 const read = p => fs.readFileSync(p,"utf8");
 const manifest = read("apps/server-launcher-go/server_update_manifest.go");
@@ -9,6 +10,8 @@ const ui = read("apps/server-launcher-go/launcher_ui_windows.go");
 const signer = read("tools/scripts/cluster-sign-server-release.mjs");
 const publish = read(".github/workflows/cluster-server-signed-main-publish.yml");
 const build = read(".github/workflows/cluster-server-windows-build.yml");
+const serverPublisherKey = read("apps/server-launcher-go/assets/server-update-public-key.pem").trim();
+const desktopPublisherKey = read("apps/desktop-qt/assets/update-public-key.pem").trim();
 
 let checks = 0;
 function ok(test, why){assert.ok(test,why);checks++;}
@@ -43,6 +46,11 @@ ok(signer.includes(String.raw`/^1\.0\.0-rc\.([1-9][0-9]*)$/`),"RC release versio
 ok(signer.includes("receipt.commit===commit.stdout.trim()"),"signer requires matching source revision");
 ok(signer.includes("receipt.artifacts") && signer.includes("matchingArtifacts"),"signer requires a hashed build receipt");
 ok(signer.includes("publicPem===trustedPem"),"signer pins publisher identity");
+ok(createPublicKey(serverPublisherKey).asymmetricKeyType === "ed25519", "Server update publisher is a valid Ed25519 public key");
+ok(serverPublisherKey !== desktopPublisherKey, "Server publisher key is intentionally isolated from Desktop");
+ok(manifest.includes("//go:embed assets/server-update-public-key.pem"), "Server verification embeds the dedicated publisher key");
+ok(signer.includes('apps/server-launcher-go/assets/server-update-public-key.pem'), "Server signer checks the same key that the Server runtime embeds");
+ok(!signer.includes('apps/desktop-qt/assets/update-public-key.pem'), "Server signer must not share Desktop publisher trust");
 
 // Publication is a separate, privileged process. No publish before success.
 ok(publish.includes("workflow_run.conclusion == 'success'"),"failed build cannot publish");
