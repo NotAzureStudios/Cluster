@@ -26,6 +26,7 @@ export function usePersistedScrollPosition(key: string) {
   const elementRef = useRef<HTMLDivElement>(null);
   const latestScrollTop = useRef(readScrollPosition(key));
   const frameRef = useRef<number | null>(null);
+  const persistenceTimerRef = useRef<number | null>(null);
   const [scrollTop, setScrollTop] = useState(latestScrollTop.current);
 
   useEffect(() => {
@@ -40,18 +41,29 @@ export function usePersistedScrollPosition(key: string) {
 
   useEffect(() => () => {
     if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    if (persistenceTimerRef.current !== null) window.clearTimeout(persistenceTimerRef.current);
+    persistenceTimerRef.current = null;
+    // Always flush the latest position on unmount or route change.
     writeScrollPosition(key, latestScrollTop.current);
   }, [key]);
 
   const onScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
-    const next = event.currentTarget.scrollTop;
-    latestScrollTop.current = next;
-    setScrollTop(next);
-    if (frameRef.current !== null) return;
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
-      writeScrollPosition(key, latestScrollTop.current);
-    });
+    // Scroll events can fire several times per paint. Update consuming lists at
+    // most once per animation frame, and avoid synchronous storage on each frame.
+    latestScrollTop.current = event.currentTarget.scrollTop;
+    if (frameRef.current === null) {
+      frameRef.current = window.requestAnimationFrame(() => {
+        frameRef.current = null;
+        setScrollTop(latestScrollTop.current);
+      });
+    }
+    if (persistenceTimerRef.current === null) {
+      persistenceTimerRef.current = window.setTimeout(() => {
+        persistenceTimerRef.current = null;
+        writeScrollPosition(key, latestScrollTop.current);
+      }, 250);
+    }
   }, [key]);
 
   return { elementRef, scrollTop, onScroll };
