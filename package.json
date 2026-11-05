@@ -15,6 +15,7 @@
     "integrations/discord-bot"
   ],
   "scripts": {
+    "performance:settings:check": "node --experimental-strip-types tools/scripts/cluster-performance-settings-tests.mjs",
     "release:profiles": "node tools/scripts/cluster-platform-release.mjs --list",
     "release:plan:server": "node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development",
     "release:plan:desktop": "node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64",
