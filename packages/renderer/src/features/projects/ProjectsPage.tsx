@@ -160,6 +160,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const projectSnapshotCacheRef = useRef<Record<string, ProjectSnapshot>>({});
   const projectSnapshotRevisionsRef = useRef<Map<string, string>>(new Map());
   const [projectSnapshotRefreshEpoch, setProjectSnapshotRefreshEpoch] = useState(0);
+  const [portfolioAuthorityEpoch, setPortfolioAuthorityEpoch] = useState(0);
   const projectSnapshotRetryAttemptsRef = useRef(0);
   const [projectTableLayout, setProjectTableLayout] = useState<ClusterDataViewLayout | null>(null);
   const [projectGroups, setProjectGroups] = useState<ClusterDataGroup[]>([]);
@@ -213,9 +214,11 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const projectServerQueryKey = useMemo(() => JSON.stringify(projectServerDataQuery), [projectServerDataQuery]);
   const projectSeedRevisionKey = useMemo(() => projectRevisionKey(projects), [projects]);
   const projectCursor = useClusterCursorData<Project>({
-    resetKey: `${projectSeedRevisionKey}::${projectServerQueryKey}`,
+    resetKey: `${projectSeedRevisionKey}::${projectServerQueryKey}::authority=${portfolioAuthorityEpoch}`,
     rowKey: (project) => project.id,
-    placeholderRows: deferredQuery.trim() ? [] : projects,
+    // A role or access-policy change must not resurrect old project names in
+    // placeholder state while the authoritative Project cursor revalidates.
+    placeholderRows: portfolioAuthorityEpoch > 0 || deferredQuery.trim() ? [] : projects,
     loadPage: async (cursor): Promise<ClusterCursorPage<Project>> => api<ClusterCursorPage<Project>>(`/api/projects?paged=true&limit=80&dataQuery=${clusterDataQueryParameter(projectServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   });
   const portfolioProjects = projectCursor.rows;
@@ -227,6 +230,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   useEffect(() => {
     let timer = 0;
     let allInvalidated = false;
+    let portfolioAccessChanged = false;
     const pendingIds = new Set<string>();
     const flush = () => {
       timer = 0;
@@ -241,6 +245,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       }
       allInvalidated = false;
       pendingIds.clear();
+      if (portfolioAccessChanged) {
+        portfolioAccessChanged = false;
+        setPortfolioAuthorityEpoch((epoch) => epoch + 1);
+      }
       setProjectSnapshots({ ...cache });
       setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
     };
@@ -251,10 +259,11 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       // background Projects renderer or issue HTTP until visibility resumes.
       if (document.visibilityState === "visible") timer = window.setTimeout(flush, 200);
     };
-    const schedule = (id: string | "all") => {
+    const schedule = (id: string | "all", refreshAuthority = false) => {
       // An update to a different Project should not re-render or refetch the
       // current portfolio. New rows are already covered when the cursor grows.
       if (id !== "all" && !loadedProjectIdsRef.current.has(id)) return;
+      if (refreshAuthority) portfolioAccessChanged = true;
       if (id === "all") {
         allInvalidated = true;
         pendingIds.clear();
@@ -267,9 +276,12 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     };
     const unsubChanges = subscribeResourceChanges(({ change }) => {
       const target = projectSnapshotInvalidationTarget(change);
-      if (target) schedule(target);
+      // Membership/role/policy changes may revoke entire Projects, not merely
+      // fields in an existing snapshot. Requery the authorized portfolio.
+      const accessChange = ["user", "team", "department", "job_role", "policy"].includes(change.resource.kind);
+      if (target) schedule(target, accessChange);
     });
-    const unsubReset = subscribeResourceChangeFeedResets(() => schedule("all"));
+    const unsubReset = subscribeResourceChangeFeedResets(() => schedule("all", true));
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       unsubChanges();
