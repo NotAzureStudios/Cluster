@@ -141,12 +141,15 @@ func TestCanonicalGitHubReleaseMetadataIsInformationalOnly(t *testing.T) {
 				if request.URL.String() != "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest" {
 					t.Fatalf("unexpected release API: %s", request.URL)
 				}
-				body := `{"tag_name":"` + test.tag + `","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/` + test.tag + `"}`
+				body := `{"tag_name":"` + test.tag + `","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/` + test.tag + `","assets":[{"name":"Cluster-Installer.exe"},{"name":"Cluster-server-build-receipt.json"}]}`
 				return serverUpdateResponse(http.StatusOK, body, int64(len(body))), nil
 			})
 			lookup := checkOfficialServerReleaseWithClient(root, &http.Client{Timeout: time.Second, Transport: transport})
 			if lookup.Available || lookup.DownloadURL != "" || !strings.Contains(lookup.Message, test.expected) {
 				t.Fatalf("release metadata not safely displayed: %+v", lookup)
+			}
+			if (test.tag == "v1.0.6") != (lookup.ManualReleaseURL != "") {
+				t.Fatalf("manual release link offered for wrong version: %+v", lookup)
 			}
 		})
 	}
