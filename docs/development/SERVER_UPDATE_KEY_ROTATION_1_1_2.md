@@ -17,7 +17,7 @@ This release replaces the pinned **Server** Ed25519 update-manifest verification
 From the repository root on a secure workstation, with the private PEM in a protected local file, run:
 
 ```powershell
-node -e "const crypto=require('node:crypto'),fs=require('node:fs');const actual=crypto.createPublicKey(crypto.createPrivateKey(fs.readFileSync(process.argv[1]))).export({type:'spki',format:'pem'}).toString().trim();const trusted=fs.readFileSync('apps/server-launcher-go/assets/server-update-public-key.pem','utf8').trim();if(actual!==trusted){console.error('KEY MISMATCH');process.exit(1)}console.log('Signing key matches pinned public key')" '.\cluster-server-private.pem'
+node -e "const crypto=require('node:crypto'),fs=require('node:fs');const actual=crypto.createPublicKey(crypto.createPrivateKey(fs.readFileSync(process.argv[1]))).export({type:'spki',format:'pem'}).toString().trim();const trusted=fs.readFileSync('apps/server-launcher-go/assets/server-update-public-key.pem','utf8').replace(/\r\n/g,'\n').trim();if(actual!==trusted){console.error('KEY MISMATCH');process.exit(1)}console.log('Signing key matches pinned public key')" '.\cluster-server-private.pem'
 ```
 
 Never send the private key through chat, commit it, or attach it to a release. This key controls signed **update manifest authenticity**, not Windows SmartScreen publisher reputation.
