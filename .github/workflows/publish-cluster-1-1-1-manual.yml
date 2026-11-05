@@ -37,7 +37,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Admit only unpublished Cluster 1.1.1
+        id: eligibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("config/release-candidate.json"))["release"])')"
+          if test "$version" != 1.1.1 || gh release view v1.1.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "One-time 1.1.1 publication is not needed; skipping."
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
       - name: Verify version, ancestry, and immutable Windows build
+        if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -61,6 +75,7 @@ jobs:
           fi
 
       - name: Download exactly the reviewed Windows Server build
+        if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -109,6 +124,7 @@ jobs:
           PY
 
       - name: Retain unchanged Qt Desktop downloads
+        if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -140,6 +156,7 @@ jobs:
           PY
 
       - name: Publish verified 1.1.1 direct-download release
+        if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
