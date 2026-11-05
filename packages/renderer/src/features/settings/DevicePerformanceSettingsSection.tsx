@@ -5,6 +5,7 @@ import { downloadPerformanceReport, performanceSummary, startPerformanceFrameSam
 import { getRendererCapabilitiesSnapshot, subscribeRendererCapabilities } from "../../core/render-capabilities";
 import {
   DEFAULT_DEVICE_PERFORMANCE_PREFERENCES,
+  DEVICE_PERFORMANCE_STORAGE_KEY,
   readDevicePerformancePreferences,
   writeDevicePerformancePreferences,
   type DevicePerformancePreferences,
@@ -31,7 +32,17 @@ export function DevicePerformanceSettingsSection() {
 
   useEffect(() => {
     const unsubscribe = subscribeRendererCapabilities(() => setCapabilities(getRendererCapabilitiesSnapshot()));
-    return () => { unsubscribe(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === DEVICE_PERFORMANCE_STORAGE_KEY) {
+        setPreferences(readDevicePerformancePreferences());
+        setStorageError(false);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   function update(changes: Partial<DevicePerformancePreferences>) {
