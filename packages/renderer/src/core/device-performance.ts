@@ -62,7 +62,7 @@ export function resolveDeviceRendererQuality(
   switch (preferences.profile) {
     case "efficient": return "reduced";
     case "balanced": return "balanced";
-    case "performance": return "full";
+    case "performance": return "reduced";
     case "custom": return preferences.customQuality;
     default: return detected;
   }
