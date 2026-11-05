@@ -7,6 +7,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, ty
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
+import { startVisibleJobPolling } from "../../core/visible-job-polling";
 import { LibraryIcon, folderIconName, itemIconName } from "./LibraryIcons";
 import { LibraryAuthenticatedImage, LibraryModelThumbnail, LibraryPreview, LibraryTextPreview, LibraryVideoThumbnail, LibraryViewerModal } from "./LibraryMediaPreview";
 import { libraryFileUrl } from "./library-file-url";
@@ -1320,10 +1321,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         if (!disposed) setBackgroundBulkJob((current) => current && current.id === id ? { ...current, message: `Status unavailable: ${error instanceof Error ? error.message : "Try again later"}` } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 2500);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 2500);
+    return () => { disposed = true; stop(); };
   }, [backgroundBulkJob?.id, backgroundBulkJob?.status]);
 
   // A durable hierarchy operation can outlive this browser view. Poll only
@@ -1360,10 +1359,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         }
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [hierarchyMoveJob?.id, hierarchyMoveJob?.status]);
 
   async function cancelHierarchyMove() {
@@ -1406,10 +1403,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [hierarchyLifecycleJob?.id, hierarchyLifecycleJob?.status]);
 
   async function cancelHierarchyLifecycle() {
@@ -1455,10 +1450,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         setStorageRepair((current) => current && current.id === id ? { ...current, message: `Repair status temporarily unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [storageRepair?.id, storageRepair?.status]);
 
   async function startLibraryOrphanAudit() {
@@ -1521,10 +1514,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         }
       } finally { fetching = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6500);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6500);
+    return () => { disposed = true; stop(); };
   }, [orphanAudit?.id, orphanAudit?.status]);
 
   async function cancelBackgroundBulk() {
