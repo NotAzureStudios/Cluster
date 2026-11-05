@@ -163,7 +163,7 @@ assert.match(portfolio, /document\.visibilityState === "visible"/);
 assert.match(portfolio, /intervalMs: 180_000/);
 assert.match(portfolio, /if \(attempts <= 4\)/);
 assert.match(portfolio, /projectSnapshotRetryDelayMs\(attempts\)/);
-assert.match(portfolio, /retryPending \&\& document\.visibilityState !== "visible"/);
+assert.match(portfolio, /!retryPending \|\| document\.visibilityState !== "visible"/);
 assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
 assert.match(whiteboard, /selectedWhiteboardConnectorIds\(selectedIds, connectorAdjacency\)/);
 assert.match(whiteboard, /for \(const id of priorityElementIds\)/);
