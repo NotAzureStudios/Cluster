@@ -56,6 +56,8 @@ ok(signer.includes("receipt.commit===commit.stdout.trim()"),"signer requires mat
 ok(signer.includes("receipt.artifacts") && signer.includes("matchingArtifacts"),"signer requires a hashed build receipt");
 ok(signer.includes("publicPem===trustedPem"),"signer pins publisher identity");
 ok(createPublicKey(serverPublisherKey).asymmetricKeyType === "ed25519", "Server update publisher is a valid Ed25519 public key");
+const approvedServerKey = ["-----BEGIN PUBLIC KEY-----", "MCowBQYDK2VwAyEAV+3AhLPapkCghOUR4oE+3fUHXYjXDFHUGsQPMcxtkz4=", "-----END PUBLIC KEY-----"].join("\n");
+ok(serverPublisherKey === approvedServerKey, "1.1.2 Server update publisher public key matches reviewed key rotation");
 ok(serverPublisherKey !== desktopPublisherKey, "Server publisher key is intentionally isolated from Desktop");
 ok(manifest.includes("//go:embed assets/server-update-public-key.pem"), "Server verification embeds the dedicated publisher key");
 ok(signer.includes('apps/server-launcher-go/assets/server-update-public-key.pem'), "Server signer checks the same key that the Server runtime embeds");
