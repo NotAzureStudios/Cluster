@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"encoding/base64"
 	"encoding/json"
 	"net/url"
@@ -196,5 +198,38 @@ func TestOfficialServerMainFeedAndRedirectBoundaries(t *testing.T) {
 	}
 	if !serverUpdateRedirectAllowed(custom, custom) {
 		t.Fatal("trusted same-origin custom feed was rejected")
+	}
+}
+
+func TestEmbeddedServerPublisherKeyIsDedicatedAndPinned(t *testing.T) {
+	serverPEM, err := os.ReadFile(filepath.Join("assets", "server-update-public-key.pem"))
+	if err != nil { t.Fatal(err) }
+	if strings.TrimSpace(string(serverPEM)) != strings.TrimSpace(serverUpdatePublicKeyPEM) {
+		t.Fatal("Server manifest verification and signer must use exactly the same embedded public key")
+	}
+	desktopPEM, err := os.ReadFile(filepath.Join("..", "desktop-qt", "assets", "update-public-key.pem"))
+	if err != nil { t.Fatal(err) }
+	if strings.TrimSpace(string(serverPEM)) == strings.TrimSpace(string(desktopPEM)) {
+		t.Fatal("Server update publisher trust must not use the Desktop publisher key")
+	}
+	block, rest := pem.Decode(serverPEM)
+	if block == nil || block.Type != "PUBLIC KEY" || len(strings.TrimSpace(string(rest))) != 0 {
+		t.Fatal("Dedicated Server publisher trust must be one PEM public key")
+	}
+	pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil { t.Fatal(err) }
+	key, ok := pkix.(ed25519.PublicKey)
+	if !ok || len(key) != ed25519.PublicKeySize {
+		t.Fatal("Dedicated Server publisher trust must be Ed25519")
+	}
+	// An attacker with any unrelated Ed25519 key must not produce an
+	// acceptable manifest by merely choosing an expected release identity.
+	_, untrusted, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil { t.Fatal(err) }
+	feed, err := url.Parse("https://updates.example.test/development/release.json")
+	if err != nil { t.Fatal(err) }
+	raw := fixtureSignedServerUpdate(t, nil, untrusted)
+	if _, err := verifyServerUpdateManifest(raw, feed, "development"); err == nil {
+		t.Fatal("embedded Server update trust accepted an unrelated signing key")
 	}
 }
