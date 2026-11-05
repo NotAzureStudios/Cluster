@@ -133,7 +133,7 @@ func TestCanonicalGitHubReleaseMetadataIsInformationalOnly(t *testing.T) {
 		expected string
 	}{
 		{"v1.0.5", "latest published release"},
-		{"v1.0.6", "Your installation is older"},
+		{"v1.1.0", "Your installation is older"},
 	} {
 		t.Run(test.tag, func(t *testing.T) {
 			root := serverUpdateDiscoveryFixture(t)
@@ -148,7 +148,7 @@ func TestCanonicalGitHubReleaseMetadataIsInformationalOnly(t *testing.T) {
 			if lookup.Available || lookup.DownloadURL != "" || !strings.Contains(lookup.Message, test.expected) {
 				t.Fatalf("release metadata not safely displayed: %+v", lookup)
 			}
-			if (test.tag == "v1.0.6") != (lookup.ManualReleaseURL != "") {
+			if (test.tag == "v1.1.0") != (lookup.ManualReleaseURL != "") {
 				t.Fatalf("manual release link offered for wrong version: %+v", lookup)
 			}
 		})
