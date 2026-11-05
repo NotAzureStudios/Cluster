@@ -30,6 +30,7 @@ const read = (path) => readFileSync(new URL("../../" + path, import.meta.url), "
 const governor = read("apps/server/src/core/resource-governor.ts");
 const server = read("apps/server/src/app/cluster-server.ts");
 const routes = read("apps/server/src/app/server-routes-configuration-integrations.ts");
+const diagnostics = read("apps/server/src/app/server-routes-health-operations.ts");
 const keys = read("apps/server/src/app/server-services-request-domain.ts");
 const model = read("apps/server/src/app/server-composition-types.ts");
 const uiModel = read("packages/renderer/src/features/application/application-models/settings-server.ts");
@@ -56,5 +57,10 @@ assert.match(ui, /renderSectionFields\("performance"\)/);
 assert.match(routeModels, /"performance"/);
 assert.match(routing, /"overview", "performance"/);
 assert.match(ui, /restart: true/);
+assert.match(diagnostics, /"\/api\/server-config\/performance\/runtime"/);
+assert.match(diagnostics, /"serverConfig", "manage"/);
+assert.match(diagnostics, /Cache-Control", "private, no-store"/);
+assert.match(ui, /refreshGovernorRuntime\(\)/);
+assert.match(ui, /Active resource governor/);
 
 console.log("Cluster server resource performance: profile policy, overload safety and secure configuration assertions passed.");
