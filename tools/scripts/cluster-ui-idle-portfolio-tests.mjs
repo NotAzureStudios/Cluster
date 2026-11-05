@@ -134,8 +134,8 @@ const whiteboard = read("packages/renderer/src/features/whiteboards/WhiteboardWo
 const whiteboardViewport = read("packages/renderer/src/features/whiteboards/use-whiteboard-viewport.ts");
 assert.equal((library.match(/startVisibleJobPolling\(refresh,/g) || []).length, 5);
 assert.doesNotMatch(library, /window\.setInterval\(\(\) => void refresh\(\)/);
-assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, knownRevisions, 40\)/);
-assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 3\)/);
+assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, knownRevisions, 80\)/);
+assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 2\)/);
 assert.match(portfolio, /const projectSeedRevisionKey = useMemo/);
 assert.match(portfolio, /const pinnedProjectSet = useMemo/);
 assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
