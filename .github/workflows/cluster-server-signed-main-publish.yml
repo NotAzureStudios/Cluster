@@ -98,7 +98,7 @@ jobs:
             installer = (Join-Path $staging 'Cluster-Installer.exe')
             receipt = (Join-Path $staging 'build-receipt.json')
           }
-          $valid = @($preserved, $flat | Where-Object {
+          $valid = @(@($preserved, $flat) | Where-Object {
             (Test-Path -LiteralPath $_.installer -PathType Leaf) -and
             (Test-Path -LiteralPath $_.receipt -PathType Leaf)
           })
