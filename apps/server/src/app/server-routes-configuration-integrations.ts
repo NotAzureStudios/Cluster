@@ -406,6 +406,9 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       .object({
         appDisplayName: z.string().optional(),
         serverDisplayName: z.string().trim().min(1).max(120).optional(),
+        serverResourceProfile: z.enum(["automatic", "interactive-first", "background-throughput"]).optional(),
+        serverResourceWorkerCap: z.number().int().min(1).max(128).optional(),
+        serverResourceRecoveryHoldMs: z.number().int().min(1_000).max(120_000).optional(),
         lanDiscoveryEnabled: z.boolean().optional(),
         studioName: z.string().optional(),
         organizationLogoUrl: z.string().optional(),

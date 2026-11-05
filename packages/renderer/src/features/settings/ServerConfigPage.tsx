@@ -52,9 +52,38 @@ type LocalListenerDiagnostic = { configuredHost: string; port: number; probeHost
 type LocalNetworkDiagnostics = { ok: boolean; checkedAt: string; web: LocalListenerDiagnostic; api: LocalListenerDiagnostic; external: "not_checked"; note: string };
 const NETWORK_REVIEW_FIELDS = ["serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled"] as const;
 
+type ServerGovernorRuntimeRead = {
+  ok: true;
+  checkedAt: string;
+  governor: {
+    mode: "normal" | "busy" | "saturated" | "critical";
+    profile: "automatic" | "interactive-first" | "background-throughput";
+    maximumJobConcurrency: number;
+    recoveryHoldMs: number;
+    requestCapacityScale: number;
+    backgroundConcurrencyScale: number;
+    allowBackgroundTasks: boolean;
+    allowMaintenanceTasks: boolean;
+    allowedJobQueues: string[];
+    runtime: {
+      cpuPercent: number;
+      eventLoopP95Ms: number;
+      databaseUtilization: number;
+      requestP95Ms: number;
+    };
+  };
+};
+
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
 
 const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
+  { key: "serverResourceProfile", label: "Resource scheduling profile", section: "performance", group: "Background worker policy", type: "select", restart: true, wide: true, options: [
+    { value: "automatic", label: "Automatic (recommended)" },
+    { value: "interactive-first", label: "Interactive first · reduce background work" },
+    { value: "background-throughput", label: "Background throughput · increase normal-load workers" },
+  ] },
+  { key: "serverResourceWorkerCap", label: "Maximum concurrent background jobs", section: "performance", group: "Worker limits", type: "number", min: 1, max: 128, step: 1, placeholder: "128 (default)", restart: true },
+  { key: "serverResourceRecoveryHoldMs", label: "Overload recovery hold (milliseconds)", section: "performance", group: "Worker limits", type: "number", min: 1000, max: 120000, step: 500, placeholder: "7500 (default)", restart: true },
   { key: "maintenanceWindowEnabled", label: "Enable maintenance window planning", section: "maintenance", group: "Planned service windows", type: "boolean" },
   { key: "maintenanceWindowTimezone", label: "Maintenance timezone (IANA)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "America/New_York" },
   { key: "maintenanceWindowDaysCsv", label: "Weekdays (Sun, Mon, Tue...)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "Sun" },
@@ -572,6 +601,9 @@ const SERVER_CONFIG_HELP: Partial<Record<keyof Settings, string>> = {
   allowedUploadMimeCsv: "Comma-separated MIME patterns accepted by the global upload gate. Tool-specific rules can narrow this further.",
   logLevel: "Minimum server log severity. Debug and trace create much larger logs and should be temporary.",
   enableRequestLogs: "Record one log entry for each HTTP request. Useful for diagnosis, noisy for long-term production use.",
+  serverResourceProfile: "Automatic retains measured load-based scheduling. Interactive first limits background concurrency; Background throughput increases normal-load workers only. Critical overload controls still apply.",
+  serverResourceWorkerCap: "Hard cap for claimed durable background workers. Does not replace queue authorization, rate limits, or job admission safety.",
+  serverResourceRecoveryHoldMs: "Time required before the governor relaxes an overload state, one level at a time. Changes take effect after a managed server restart.",
   dataRootOverride: "Absolute directory containing Cluster projects, Library files, exports, runtime data, and system state.",
   uploadRootOverride: "Absolute directory used for uploaded file payloads when it must differ from the main data root.",
   configFileOverride: "Absolute path to the JSON configuration file loaded at startup.",
@@ -665,6 +697,23 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [webhookAllowHttpPrivate, setWebhookAllowHttpPrivate] = useState(false);
   const [webhookSecret, setWebhookSecret] = useState<{ name: string; value: string } | null>(null);
   const [operationsLoading, setOperationsLoading] = useState(false);
+  const [governorRuntime, setGovernorRuntime] = useState<ServerGovernorRuntimeRead | null>(null);
+  const [governorRuntimeLoading, setGovernorRuntimeLoading] = useState(false);
+  const [governorRuntimeError, setGovernorRuntimeError] = useState("");
+  async function refreshGovernorRuntime() {
+    if (governorRuntimeLoading) return;
+    setGovernorRuntimeLoading(true);
+    setGovernorRuntimeError("");
+    try {
+      const result = await api<ServerGovernorRuntimeRead>("/api/server-config/performance/runtime");
+      setGovernorRuntime(result);
+    } catch (reason) {
+      setGovernorRuntime(null);
+      setGovernorRuntimeError(reason instanceof Error ? reason.message : "Resource diagnostics unavailable.");
+    } finally {
+      setGovernorRuntimeLoading(false);
+    }
+  }
   const [maintenanceWindows, setMaintenanceWindows] = useState<MaintenanceWindowPreview | null>(null);
   const [maintenanceWindowsError, setMaintenanceWindowsError] = useState("");
   const [maintenanceWindowsLoading, setMaintenanceWindowsLoading] = useState(false);
@@ -678,8 +727,12 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [section, setSection] = useState<ServerConfigSection>(() => {
     const requested = initialSection || window.sessionStorage.getItem("cluster-server-config-section");
     window.sessionStorage.removeItem("cluster-server-config-section");
-    return (["overview", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"] as ServerConfigSection[]).includes(requested as ServerConfigSection) ? (requested as ServerConfigSection) : "overview";
+    return (["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"] as ServerConfigSection[]).includes(requested as ServerConfigSection) ? (requested as ServerConfigSection) : "overview";
   });
+  useEffect(() => {
+    if (section === "performance") void refreshGovernorRuntime();
+  }, [section]);
+
   function selectSection(nextSection: ServerConfigSection) {
     setSection(nextSection);
     onSectionChange?.(nextSection);
@@ -1221,7 +1274,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const normalizedSearch = configSearch.trim().toLowerCase();
   const visibleAdvancedFields = SERVER_CONFIG_FIELDS.filter((field) => !normalizedSearch || `${field.label} ${SERVER_CONFIG_HELP[field.key] || ""} ${String(field.key)} ${field.group} ${field.section}`.toLowerCase().includes(normalizedSearch));
   function renderField(field: ServerConfigField) {
-    const value = settings[field.key];
+    const value = field.key === "serverResourceProfile" ? (settings.serverResourceProfile ?? "automatic") : settings[field.key];
     const changed = JSON.stringify(value) !== JSON.stringify(savedSettings[field.key]);
     const inputId = "server-config-field-" + String(field.key);
     const className = "server-config-field-v238 server-config-compact-field-v11" + (field.wide ? " span-2" : "") + (changed ? " is-dirty" : "");
@@ -1279,6 +1332,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     icon: ClusterIconName;
   }> = [
     { id: "overview", label: "Overview", group: "Runtime", icon: "home" },
+    { id: "performance", label: "Performance & resources", group: "Runtime", icon: "settings", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "performance").length },
     { id: "maintenance", label: "Maintenance", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
     { id: "network", label: "Network", group: "Runtime", icon: "cloud", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
     { id: "domains", label: "Domains & gateways", group: "Runtime", icon: "link" },
@@ -1656,6 +1710,43 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
               </div>
             )}
             <p className="muted tight">PostgreSQL/Garnet, gateway certificates, firewall policy and owning process IDs are checked by their respective native or operations tools. A preview cannot certify them. Only the independent Windows Service can verify or automatically restore a staged rollout after its first failed start. This does not validate external gateway or TLS reachability.</p>
+          </section>
+        </>
+      )}
+      {section === "performance" && (
+        <>
+          <div className="hint-box">
+            <strong>Server performance & resources</strong>
+            <span>These settings control the existing Windows-hosted Resource Governor. Interactive requests and required job queues remain protected under load. Changes are saved with the Security PIN and take effect only after a managed server restart.</span>
+          </div>
+          {renderSectionFields("performance")}
+          <section className="panel server-config-group-v238" aria-label="Resource governor safety policy">
+            <div className="server-config-group-head-v238"><h2>Automatic overload protection</h2></div>
+            <p className="muted tight">The governor continuously evaluates CPU, event-loop delay, database pressure and request latency. Busy, saturated and critical states still reduce background admission regardless of profile. The background worker cap cannot increase the server's physical capacity.</p>
+            <p className="muted tight">Saved configuration is authoritative. Changing these controls does not start or cancel a job.</p>
+          </section>
+          <section className="panel server-config-group-v238" aria-label="Resource governor runtime diagnostics">
+            <div className="server-config-group-head-v238">
+              <div><h2>Active resource governor</h2><p className="muted tight">A single explicit diagnostic read when this section opens, plus manual refresh. No new background polling.</p></div>
+              <ClusterButton type="button" variant="secondary" onClick={() => void refreshGovernorRuntime()} disabled={governorRuntimeLoading}>
+                {governorRuntimeLoading ? "Checking…" : "Refresh runtime"}
+              </ClusterButton>
+            </div>
+            {governorRuntimeError ? <p role="alert">{governorRuntimeError}</p> : null}
+            {governorRuntime ? <div aria-live="polite">
+              <p><strong>Observed mode:</strong> <SettingsStateChip tone={governorRuntime.governor.mode === "normal" ? "success" : governorRuntime.governor.mode === "busy" ? "warning" : "danger"}>{governorRuntime.governor.mode}</SettingsStateChip></p>
+              <p><strong>Active profile:</strong> {governorRuntime.governor.profile.replaceAll("-", " ")} · saved profile: {String(savedSettings.serverResourceProfile || "automatic").replaceAll("-", " ")}</p>
+              <p className="muted tight">
+                <strong>Active worker cap:</strong> {governorRuntime.governor.maximumJobConcurrency} · <strong>Active recovery hold:</strong> {governorRuntime.governor.recoveryHoldMs.toLocaleString()} ms
+              </p>
+              {(savedSettings.serverResourceProfile && savedSettings.serverResourceProfile !== governorRuntime.governor.profile
+                || savedSettings.serverResourceWorkerCap != null && savedSettings.serverResourceWorkerCap !== governorRuntime.governor.maximumJobConcurrency
+                || savedSettings.serverResourceRecoveryHoldMs != null && savedSettings.serverResourceRecoveryHoldMs !== governorRuntime.governor.recoveryHoldMs)
+                && <SettingsStateChip tone="warning" icon="refresh">Saved policy differs from active runtime. Managed server restart required.</SettingsStateChip>}
+              <p className="muted tight">Overload scheduling factor before profile adjustments: {Math.round(governorRuntime.governor.backgroundConcurrencyScale * 100)}%. Background work {governorRuntime.governor.allowBackgroundTasks ? "allowed" : "deferred"}; maintenance {governorRuntime.governor.allowMaintenanceTasks ? "allowed" : "deferred"}.</p>
+              <p className="muted tight">CPU: {governorRuntime.governor.runtime.cpuPercent.toFixed(1)}% · Event-loop p95: {governorRuntime.governor.runtime.eventLoopP95Ms.toFixed(1)} ms · Database utilization: {Math.round(governorRuntime.governor.runtime.databaseUtilization * 100)}% · Request p95: {governorRuntime.governor.runtime.requestP95Ms.toFixed(1)} ms</p>
+              <p className="muted tight">Measured {compactDateTime(governorRuntime.checkedAt)}. These are point-in-time readings, not a live benchmark.</p>
+            </div> : !governorRuntimeLoading ? <p className="muted tight">No runtime measurements loaded.</p> : null}
           </section>
         </>
       )}

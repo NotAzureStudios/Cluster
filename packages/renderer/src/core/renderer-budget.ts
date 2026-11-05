@@ -20,7 +20,7 @@ export const RENDERER_EFFECT_BUDGETS = Object.freeze({
   }),
   balanced: Object.freeze({
     maxBackdropRegions: 4,
-    maxBackdropBlurPx: 24,
+    maxBackdropBlurPx: 10,
     maxContinuousRenderSurfaces: 2,
     maxEffectDevicePixelRatio: 1.5,
     domNodeWarning: 6_000,
@@ -39,3 +39,10 @@ export const RENDERER_EFFECT_BUDGETS = Object.freeze({
 export function rendererEffectBudget(tier: RendererQualityTier): RendererEffectBudget {
   return RENDERER_EFFECT_BUDGETS[tier];
 }
+
+/** Cap the user's preferred glass strength without overwriting that preference. */
+export function effectiveRendererBlurPx(preferredPx: number, tier: RendererQualityTier): number {
+  const valid = Number.isFinite(preferredPx) ? Math.max(0, preferredPx) : 16;
+  return Math.min(valid, rendererEffectBudget(tier).maxBackdropBlurPx);
+}
+

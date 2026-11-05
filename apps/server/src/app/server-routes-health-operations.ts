@@ -97,6 +97,23 @@ export function registerHealthOperationsRoutes(deps: ServerRouteRegistrationDeps
     };
   });
 
+  // Explicit, no-polling diagnostics. The editor does not request this unless
+  // Performance & Resources is opened; no mutation or restart is performed.
+  app.get("/api/server-config/performance/runtime", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    const user = await getCurrentUser(request);
+    if (!user) return reply.code(401).send({ ok: false, code: "LOGIN_REQUIRED" });
+    const decorated = await decorateUserForClient(user);
+    if (!decorated?.isAdmin && !deps.hasToolPermission(user, decorated?.workspaceRole, "serverConfig", "manage")) {
+      return reply.code(403).send({ ok: false, code: "SERVER_CONFIG_MANAGE_REQUIRED" });
+    }
+    return {
+      ok: true,
+      checkedAt: new Date().toISOString(),
+      governor: resourceGovernor.snapshot(),
+    };
+  });
+
   app.get("/api/kiosk/public", async (request, reply) => {
     const query = z.object({ profile: z.string().trim().regex(/^[a-z0-9][a-z0-9_-]{0,47}$/i).optional() }).parse(request.query || {});
     const settings = await readSettings();

@@ -1,0 +1,63 @@
+/* Renderer device performance policy.
+ * This maps the capability tier into actual paint work. Keep this file narrowly
+ * scoped to decorative effects; it must never disable focus, selection, or
+ * accessibility signaling. Applied after visual-system.css, before production-ui.
+ */
+:root[data-renderer-quality="balanced"] {
+  --glass-blur: 10px;
+}
+
+:root[data-renderer-quality="reduced"] {
+  --glass-blur: 0px;
+  --cluster-material-sheen: none;
+  --cluster-material-elevation: none;
+}
+
+/* Several legacy components hard-code blur instead of using --glass-blur.
+   An explicit reduced tier must not leave those expensive layers enabled. */
+:root[data-renderer-quality="reduced"] :where(
+  .panel,
+  .settings-card-v092,
+  .tool-page-header,
+  .cluster-tool-header-v228,
+  .data-view-toolbar,
+  .modal-card,
+  .popover,
+  .cluster-floating-surface-v504,
+  .cluster-taskbar,
+  .cluster-sidebar-shell,
+  .taskbar-unified-v3430,
+  #cluster-sidebar.cluster-sidebar,
+  .modal-backdrop,
+  .chat-launcher
+) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Avoid translucent cards becoming unreadable when backdrop blur is disabled. */
+:root[data-renderer-quality="reduced"][data-card-style="glass"] :where(
+  .panel,
+  .settings-card-v092,
+  .tool-page-header,
+  .cluster-tool-header-v228,
+  .data-view-toolbar,
+  .modal-card,
+  .popover,
+  .cluster-floating-surface-v504
+) {
+  background-color: var(--cluster-surface-1);
+}
+
+/* Balanced also caps fixed-cost blur on common, broad surfaces. */
+:root[data-renderer-quality="balanced"] :where(.panel, .modal-backdrop, .chat-launcher) {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Efficient saves work beyond the reduced graphics tier, without touching
+   user-selected reduced-motion or the semantics of actionable controls. */
+:root[data-device-performance-profile="efficient"] {
+  --cluster-material-sheen: none;
+  --cluster-material-elevation: none;
+}

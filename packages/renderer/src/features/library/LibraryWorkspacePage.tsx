@@ -7,6 +7,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, ty
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
+import { startVisibleJobPolling } from "../../core/visible-job-polling";
 import { LibraryIcon, folderIconName, itemIconName } from "./LibraryIcons";
 import { LibraryAuthenticatedImage, LibraryModelThumbnail, LibraryPreview, LibraryTextPreview, LibraryVideoThumbnail, LibraryViewerModal } from "./LibraryMediaPreview";
 import { libraryFileUrl } from "./library-file-url";
@@ -184,7 +185,10 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
   }
 
   const rootHasChildren = Boolean((byParent.get("root") || []).length || (showFiles && (filesByParent.get("root") || []).length));
-  const expandableFolderIds = folders.filter((folder) => Boolean((byParent.get(folder.id) || []).length || (showFiles && (filesByParent.get(folder.id) || []).length))).map((folder) => folder.id);
+  const expandableFolderIds = useMemo(
+    () => folders.filter((folder) => Boolean((byParent.get(folder.id) || []).length || (showFiles && (filesByParent.get(folder.id) || []).length))).map((folder) => folder.id),
+    [folders, byParent, filesByParent, showFiles],
+  );
   const allExpanded = expandableFolderIds.every((id) => expanded.has(id)) && expanded.has("root");
   return <div className="library-tree-shell-v229">
     <div className="library-tree-toolbar-v13">
@@ -1320,10 +1324,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         if (!disposed) setBackgroundBulkJob((current) => current && current.id === id ? { ...current, message: `Status unavailable: ${error instanceof Error ? error.message : "Try again later"}` } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 2500);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 2500);
+    return () => { disposed = true; stop(); };
   }, [backgroundBulkJob?.id, backgroundBulkJob?.status]);
 
   // A durable hierarchy operation can outlive this browser view. Poll only
@@ -1360,10 +1362,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         }
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [hierarchyMoveJob?.id, hierarchyMoveJob?.status]);
 
   async function cancelHierarchyMove() {
@@ -1406,10 +1406,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [hierarchyLifecycleJob?.id, hierarchyLifecycleJob?.status]);
 
   async function cancelHierarchyLifecycle() {
@@ -1455,10 +1453,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         setStorageRepair((current) => current && current.id === id ? { ...current, message: `Repair status temporarily unavailable: ${reason instanceof Error ? reason.message : "Retrying"}` } : current);
       } finally { polling = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6000);
+    return () => { disposed = true; stop(); };
   }, [storageRepair?.id, storageRepair?.status]);
 
   async function startLibraryOrphanAudit() {
@@ -1521,10 +1517,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         }
       } finally { fetching = false; }
     }
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 6500);
-    document.addEventListener("visibilitychange", refresh);
-    return () => { disposed = true; window.clearInterval(interval); document.removeEventListener("visibilitychange", refresh); };
+    const stop = startVisibleJobPolling(refresh, 6500);
+    return () => { disposed = true; stop(); };
   }, [orphanAudit?.id, orphanAudit?.status]);
 
   async function cancelBackgroundBulk() {
@@ -1852,10 +1846,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   function clearFilters() { setFilters({ projectId: "", ownerId: "", type: "all", status: "active", mimeGroup: "all", visibility: "all", modified: "any", tag: "", pinned: "all", sort: "updated-desc" }); setQuery(""); }
   function openLibrarySection(section: LibrarySection) { setLibrarySection(section); if (section !== "collection") setActiveCollection(null); if (section !== "folder") setFolderId(null); setActiveItem(null); setActiveId(null); setSelectedIds(new Set()); }
 
-  const currentFolder = folders.find((folder) => folder.id === folderId) || null;
+  const currentFolder = folderById.get(folderId || "") || null;
   const parentFolderId = currentFolder?.parentId || null;
   const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
-  const storageBytes = items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0);
+  const storageBytes = useMemo(() => items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0), [items]);
   const popularTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of items) for (const raw of item.tags || []) { const tag = String(raw || "").trim(); if (tag) counts.set(tag, (counts.get(tag) || 0) + 1); }

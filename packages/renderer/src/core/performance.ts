@@ -2,6 +2,7 @@ export type ClusterPerformanceCategory =
   | "navigation"
   | "network"
   | "render"
+  | "frame-sample"
   | "long-task"
   | "cache"
   | "search"
@@ -51,6 +52,7 @@ export type PerformanceSummary = {
   violations: BudgetViolation[];
   startup: { classification: StartupClass; previousSessionAgeMs: number | null; domContentLoadedMs: number | null; loadMs: number | null; firstFrameMs: number | null };
   renderHealth: RenderHealth;
+  frameSample: { samples: number; missedFrames: number; missedPercent: number } | null;
   health: { status: ClientPerformanceHealthStatus; failures: number; warnings: number; requestRatePerMinute: number; longTasksPerMinute: number; checks: ClientPerformanceHealthCheck[] };
 };
 
@@ -91,7 +93,12 @@ const CLIENT_RUNTIME_BUDGETS = Object.freeze({
 
 let initialized = false;
 let frameHandle = 0;
+let startupFrameHandle = 0;
 let visibilityHandler: (() => void) | null = null;
+let samplingActive = false;
+let samplingDeadline = 0;
+let samplingStartedAt = 0;
+let samplingCompleted: (() => void) | null = null;
 let lastFrameAt = 0;
 let frameSamples = 0;
 let droppedFrames = 0;
@@ -211,16 +218,27 @@ export function performanceSummary(): PerformanceSummary {
   });
 
   const sessionAgeMs = Date.now() - SESSION_STARTED_AT;
-  const sessionMinutes = Math.max(sessionAgeMs / 60_000, 1 / 60);
+  // The metric buffer is bounded. Dividing its retained samples by the entire
+  // session age increasingly understates load during long-running sessions.
+  const rateWindowMs = Math.min(sessionAgeMs, 5 * 60_000);
+  const rateWindowStartedAt = Date.now() - rateWindowMs;
+  const recentMetrics = metrics.filter((metric) => metric.startedAt >= rateWindowStartedAt);
+  const rateWindowMinutes = Math.max(rateWindowMs / 60_000, 1 / 60);
   const routeMetrics = metrics.filter((metric) => metric.category === "navigation" && metric.name.startsWith("route "));
   const routeSummary = summarizeMetrics(routeMetrics);
   const networkSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "network"));
   const renderSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "render" && metric.name.startsWith("React ")));
   const searchSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "search"));
   const interactionSummary = summarizeMetrics(metrics.filter((metric) => metric.category === "interaction"));
-  const requestRatePerMinute = round(metrics.filter((metric) => metric.category === "network").length / sessionMinutes);
-  const longTasksPerMinute = round(metrics.filter((metric) => metric.category === "long-task").length / sessionMinutes);
+  const requestRatePerMinute = round(recentMetrics.filter((metric) => metric.category === "network").length / rateWindowMinutes);
+  const longTasksPerMinute = round(recentMetrics.filter((metric) => metric.category === "long-task").length / rateWindowMinutes);
   const memory = memorySnapshot();
+  const recentFrameSample = [...metrics].reverse().find((metric) => metric.category === "frame-sample");
+  const frameSample = recentFrameSample ? {
+    samples: Number(recentFrameSample.detail?.samples || 0),
+    missedFrames: Number(recentFrameSample.detail?.droppedFrames || 0),
+    missedPercent: Number(recentFrameSample.detail?.droppedPercent || 0),
+  } : null;
   const heapUsedMiB = memory.usedBytes == null ? null : memory.usedBytes / 1024 / 1024;
   const heapUtilization = memory.usedBytes != null && memory.limitBytes ? memory.usedBytes / memory.limitBytes : null;
   const startupBudget = STARTUP_CLASS.classification === "warm" ? CLIENT_RUNTIME_BUDGETS.warmFirstFrameMs : STARTUP_CLASS.classification === "reload" ? CLIENT_RUNTIME_BUDGETS.reloadFirstFrameMs : CLIENT_RUNTIME_BUDGETS.coldFirstFrameMs;
@@ -238,8 +256,8 @@ export function performanceSummary(): PerformanceSummary {
     healthCheck("heap-used", "Renderer heap", "MiB", heapUsedMiB, CLIENT_RUNTIME_BUDGETS.heapUsedMiB, "max", "Chromium JS heap when the runtime exposes memory telemetry."),
     healthCheck("heap-utilization", "Renderer heap utilization", "ratio", heapUtilization, CLIENT_RUNTIME_BUDGETS.heapUtilization, "max", "Used JS heap relative to the browser heap limit."),
     healthCheck("cache-hit", "Query cache hit rate", "ratio", cacheRequests >= 10 ? cacheHitRatio : null, CLIENT_RUNTIME_BUDGETS.cacheHitRate, "min", "Eligible query lookups served by memory, inflight dedupe, or durable cache."),
-    healthCheck("request-rate", "API request chatter", "requests/min", sessionAgeMs >= 60_000 ? requestRatePerMinute : null, CLIENT_RUNTIME_BUDGETS.requestRatePerMinute, "max", "Average client API requests per minute after the first minute."),
-    healthCheck("long-task-rate", "Main-thread long tasks", "tasks/min", sessionAgeMs >= 60_000 ? longTasksPerMinute : null, CLIENT_RUNTIME_BUDGETS.longTasksPerMinute, "max", "Long tasks per minute while the renderer is active."),
+    healthCheck("request-rate", "API request chatter", "requests/min", sessionAgeMs >= 60_000 ? requestRatePerMinute : null, CLIENT_RUNTIME_BUDGETS.requestRatePerMinute, "max", "Client API requests per minute in the last five minutes (or available session time)."),
+    healthCheck("long-task-rate", "Main-thread long tasks", "tasks/min", sessionAgeMs >= 60_000 ? longTasksPerMinute : null, CLIENT_RUNTIME_BUDGETS.longTasksPerMinute, "max", "Long tasks per minute in the last five minutes (or available session time)."),
   ];
   const failures = checks.filter((check) => check.status === "fail").length;
   const warnings = checks.filter((check) => check.status === "warn").length;
@@ -259,6 +277,7 @@ export function performanceSummary(): PerformanceSummary {
     violations,
     startup: { classification: STARTUP_CLASS.classification, previousSessionAgeMs: STARTUP_CLASS.previousSessionAgeMs, domContentLoadedMs: startupDomContentLoadedMs, loadMs: startupLoadMs, firstFrameMs },
     renderHealth: { commits: renderCommits, mounts: renderMounts, updates: renderUpdates, nestedUpdates: renderNestedUpdates, totalActualMs: round(renderTotalActualMs), averageActualMs: renderCommits ? round(renderTotalActualMs / renderCommits) : 0, maximumActualMs: round(renderMaximumActualMs) },
+    frameSample,
     health: { status: healthStatus, failures, warnings, requestRatePerMinute, longTasksPerMinute, checks },
   };
 }
@@ -303,27 +322,68 @@ function observe(type: string, callback: (entry: PerformanceEntry) => void) {
   }
 }
 
+function stopFrameSampling() {
+  if (frameHandle) window.cancelAnimationFrame(frameHandle);
+  frameHandle = 0;
+  if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+  visibilityHandler = null;
+  if (samplingActive && frameSamples) {
+    recordPerformanceMetric({
+      name: "on-demand animation frame sample",
+      category: "frame-sample",
+      durationMs: Math.max(0, performance.now() - samplingStartedAt),
+      startedAt: Date.now(),
+      detail: {
+        samples: frameSamples,
+        droppedFrames,
+        droppedPercent: round((droppedFrames / (frameSamples + droppedFrames)) * 100),
+      },
+    });
+  }
+  const completed = samplingCompleted;
+  samplingCompleted = null;
+  samplingActive = false;
+  samplingDeadline = 0;
+  samplingStartedAt = 0;
+  frameSamples = 0;
+  droppedFrames = 0;
+  lastFrameAt = 0;
+  completed?.();
+}
+
 function monitorFrames(timestamp: number) {
-  if (!initialized) return;
+  if (!initialized || !samplingActive || document.visibilityState !== "visible") {
+    stopFrameSampling();
+    return;
+  }
+  frameHandle = 0;
   if (lastFrameAt) {
     const delta = timestamp - lastFrameAt;
     frameSamples += 1;
     if (delta > 34) droppedFrames += Math.max(1, Math.round(delta / 16.67) - 1);
-    if (frameSamples >= 120) {
-      recordPerformanceMetric({
-        name: "animation frame health",
-        category: "render",
-        durationMs: droppedFrames ? (droppedFrames / frameSamples) * 100 : 0,
-        startedAt: Date.now(),
-        detail: { samples: frameSamples, droppedFrames, droppedPercent: round((droppedFrames / Math.max(1, frameSamples)) * 100) },
-      });
-      frameSamples = 0;
-      droppedFrames = 0;
-    }
   }
   lastFrameAt = timestamp;
-  if (document.visibilityState === "visible") frameHandle = window.requestAnimationFrame(monitorFrames);
-  else { frameHandle = 0; lastFrameAt = 0; }
+  if (timestamp < samplingDeadline) frameHandle = window.requestAnimationFrame(monitorFrames);
+  else stopFrameSampling();
+}
+
+/** Optional short capture. Do not keep a 60 FPS profiler running while idle. */
+export function startPerformanceFrameSampling(durationMs = 5_000, onComplete?: () => void): boolean {
+  if (!initialized || samplingActive || typeof window === "undefined" || document.visibilityState !== "visible") return false;
+  const boundedDuration = Math.max(1_000, Math.min(15_000, Math.round(durationMs)));
+  samplingActive = true;
+  samplingStartedAt = performance.now();
+  samplingDeadline = samplingStartedAt + boundedDuration;
+  samplingCompleted = onComplete || null;
+  lastFrameAt = 0;
+  frameSamples = 0;
+  droppedFrames = 0;
+  visibilityHandler = () => {
+    if (document.visibilityState !== "visible") stopFrameSampling();
+  };
+  document.addEventListener("visibilitychange", visibilityHandler);
+  frameHandle = window.requestAnimationFrame(monitorFrames);
+  return true;
 }
 
 export function initializePerformanceMonitoring() {
@@ -377,18 +437,13 @@ export function initializePerformanceMonitoring() {
     });
   });
 
-  frameHandle = window.requestAnimationFrame((timestamp) => {
+  startupFrameHandle = window.requestAnimationFrame((timestamp) => {
+    startupFrameHandle = 0;
     firstFrameMs = round(timestamp);
     recordPerformanceMetric({ name: `${STARTUP_CLASS.classification}-startup-first-frame`, category: "navigation", durationMs: timestamp, startedAt: performance.timeOrigin, detail: { startupClass: STARTUP_CLASS.classification } });
-    frameHandle = 0;
-    monitorFrames(timestamp);
+    // The first-frame metric is sufficient for normal startup. Continuous
+    // sampling is deliberately not activated until a user requests it.
   });
-  visibilityHandler = () => {
-    if (!initialized || document.visibilityState !== "visible" || frameHandle) return;
-    lastFrameAt = 0;
-    frameHandle = window.requestAnimationFrame(monitorFrames);
-  };
-  document.addEventListener("visibilitychange", visibilityHandler);
   window.addEventListener("load", () => {
     const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
     if (!navigation) return;
@@ -415,8 +470,9 @@ export function disposePerformanceMonitoring() {
   initialized = false;
   observers.splice(0).forEach((observer) => observer.disconnect());
   if (typeof window !== "undefined") {
-    window.cancelAnimationFrame(frameHandle);
-    if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+    stopFrameSampling();
+    if (startupFrameHandle) window.cancelAnimationFrame(startupFrameHandle);
+    startupFrameHandle = 0;
   }
   visibilityHandler = null;
   frameHandle = 0;

@@ -10,6 +10,7 @@ const CONTROLS: readonly ClusterSettingsSearchEntry<SettingsSection>[] = [
   { id: "materials", label: "Surface material & background", section: "appearance", keywords: "glass gradient texture corner border pattern", targetId: "appearance-materials-v546" },
   { id: "layout", label: "Layout and navigation appearance", section: "appearance", keywords: "sidebar taskbar docked floating widths", targetId: "appearance-layout-v546" },
   { id: "motion", label: "Animation and motion", section: "appearance", keywords: "reduced motion transitions", targetId: "appearance-motion-v546" },
+  { id: "device-performance", label: "Device performance profile and effect quality", section: "performance", keywords: "automatic efficient balanced custom speed rendering gpu effects diagnostics", targetId: "account-performance-controls-v1" },
   { id: "notification-categories", label: "Notification delivery by category", section: "notifications", description: "Toast, native push, both, silent or off", keywords: "inbox approvals system mentions qa work schedule delivery activity", targetId: "account-notification-delivery-v11" },
   { id: "notification-sounds", label: "Notification sounds", section: "notifications", keywords: "volume interface sounds alerts" },
   { id: "quiet-hours", label: "Quiet hours and digest", section: "notifications", keywords: "mute timezone schedule time weekly daily", targetId: "account-quiet-hours-v11" },

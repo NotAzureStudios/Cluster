@@ -40,6 +40,9 @@
 @import "./styles/adaptive-accessibility.css";
 @import "./styles/responsive.css";
 
+/* 5a. Runtime quality tier reduces expensive effects before final production tokens. */
+@import "./styles/renderer-performance.css";
+
 /* 6. Production contract intentionally loads last and must stay free of !important. */
 @import "./styles/design-system/production-ui.css";
 

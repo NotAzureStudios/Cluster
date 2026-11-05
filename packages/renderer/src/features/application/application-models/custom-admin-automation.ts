@@ -70,7 +70,7 @@ export type CustomFieldValueRecord = ClusterCustomFieldValue & { updatedAt: stri
 
 export type StudioSettingsSection = "identity" | "domains" | "privacy" | "kiosk" | "studioSystems" | "people" | "roles" | "departments" | "defaults" | "createFields" | "customFields" | "automations" | "workflow" | "builds" | "versioning" | "qa" | "starters" | "projectTypes" | "whiteboards";
 
-export type ServerConfigSection = "overview" | "network" | "domains" | "security" | "storage" | "backups" | "maintenance" | "integrations" | "sessions" | "advanced";
+export type ServerConfigSection = "overview" | "network" | "domains" | "security" | "storage" | "backups" | "performance" | "maintenance" | "integrations" | "sessions" | "advanced";
 
 export type ServerConfigFieldType = "text" | "password" | "number" | "boolean" | "textarea" | "select" | "date" | "time";
 

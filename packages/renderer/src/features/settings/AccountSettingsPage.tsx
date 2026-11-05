@@ -36,6 +36,7 @@ import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { NOTIFICATION_CATEGORIES, NOTIFICATION_TOOLS, NOTIFICATION_TOOL_DETAILS, normalizedNotificationCategoryDelivery, normalizedNotificationToolModes, type NotificationToolMode } from "../notifications/notification-preferences";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { AccountAccessibilitySettingsSection } from "./AccountAccessibilitySettingsSection";
+import { DevicePerformanceSettingsSection } from "./DevicePerformanceSettingsSection";
 import { DesktopDevicePackagesPanel } from "./DesktopDevicePackagesPanel";
 import { MyFormsPanel } from "./MyFormsPanel";
 import { MyInventoryLicensesPanel } from "./MyInventoryLicensesPanel";
@@ -1128,6 +1129,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     pin: currentUser.pinConfigured ? "configured" : "required",
     notifications: settings.userDigestCadence || `${settings.notificationLookaheadDays || 7} days`,
     appearance: settings.interfaceDensity || "compact",
+    performance: "device-local",
     navigation: settings.userStartScreen || "dashboard",
     home: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length} widgets`,
     shortcuts: settings.userShortcutProfile || "default",
@@ -1151,13 +1153,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       className="settings-workspace-v298 settings-page-v092 account-settings-page-v267 account-settings-console-v271 settings-console-v269"
       title="Account Settings"
       icon="user"
-      description={`Personal preferences, profile, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
+      description={`Personal preferences, performance, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
       metrics={[
         { label: "Notifications", value: `${enabledNotificationCount}/${NOTIFICATION_CATEGORIES.length}`, tone: enabledNotificationCount ? "good" : "warning" },
         { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
-      actions={section === "licenses" || section === "forms" ? null : section === "profile" ? (
+      actions={section === "licenses" || section === "forms" || (section === "performance" && !dirty) ? null : section === "profile" ? (
         <ClusterButton type="button" variant={profileDirty ? "primary" : "secondary"} onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
           {profileSaving ? "Saving…" : profileDirty ? "Save profile" : "Saved"}
         </ClusterButton>
@@ -1170,7 +1172,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       navLabel="Account settings sections"
       activeId={section}
       onChange={(nextSection) => { setSection(nextSection); onSectionChange?.(nextSection); }}
-      primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "navigation"] as SettingsSection[]}
+      primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "performance", "navigation"] as SettingsSection[]}
       items={settingsSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.domain }))}
     >
       <ClusterSettingsSearch
@@ -1633,6 +1635,8 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
               </div>
             </div>
           )}
+
+          {section === "performance" && <DevicePerformanceSettingsSection />}
 
           {section === "navigation" && (
             <div className="settings-section-v092 user-settings-navigation-v166">
@@ -2222,10 +2226,10 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           </div>
           <div className="settings-context-block-v267">
             <span className="eyebrow">Sync</span>
-            <strong>{section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
-            <small>{lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
-            {section === "forms" || section === "licenses"
-              ? <small>Resources are saved in their own panels.</small>
+            <strong>{section === "performance" ? (dirty ? "Other account changes not saved" : "Device-local preferences") : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
+            <small>{section === "performance" ? "Performance changes apply immediately and remain on this device." : lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
+            {section === "forms" || section === "licenses" || section === "performance"
+              ? <small>{section === "performance" ? "Rendering settings stay on this device. Save any other pending account changes with the header action." : "Resources are saved in their own panels."}</small>
               : <small>Save pending changes using the single action in the page header.</small>}
           </div>
         </aside>
