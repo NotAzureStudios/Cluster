@@ -24,10 +24,12 @@ function writeScrollPosition(key: string, scrollTop: number) {
 
 export function usePersistedScrollPosition(key: string) {
   const elementRef = useRef<HTMLDivElement>(null);
-  const latestScrollTop = useRef(readScrollPosition(key));
+  // Lazy initialization avoids a synchronous sessionStorage read on every
+  // scroll-driven rerender; the effect below handles route-key changes.
+  const [scrollTop, setScrollTop] = useState(() => readScrollPosition(key));
+  const latestScrollTop = useRef(scrollTop);
   const frameRef = useRef<number | null>(null);
   const persistenceTimerRef = useRef<number | null>(null);
-  const [scrollTop, setScrollTop] = useState(latestScrollTop.current);
 
   useEffect(() => {
     const restored = readScrollPosition(key);
