@@ -133,6 +133,9 @@ const portfolio = read("packages/renderer/src/features/projects/ProjectsPage.tsx
 const whiteboard = read("packages/renderer/src/features/whiteboards/WhiteboardWorkspacePage.tsx");
 const whiteboardViewport = read("packages/renderer/src/features/whiteboards/use-whiteboard-viewport.ts");
 assert.equal((library.match(/startVisibleJobPolling\(refresh,/g) || []).length, 5);
+assert.match(library, /const storageBytes = useMemo\(\(\) => items\.reduce/);
+assert.match(library, /const currentFolder = folderById\.get/);
+assert.match(library, /const expandableFolderIds = useMemo/);
 assert.doesNotMatch(library, /window\.setInterval\(\(\) => void refresh\(\)/);
 assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, knownRevisions, 80\)/);
 assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 2\)/);
