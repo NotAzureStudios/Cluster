@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { clearPerformanceMetrics, performanceSummary, recordPerformanceMetric } from "../../packages/renderer/src/core/performance.ts";
+import { effectiveRendererBlurPx } from "../../packages/renderer/src/core/renderer-budget.ts";
 import { readFileSync } from "node:fs";
 import {
   DEVICE_PERFORMANCE_STORAGE_KEY,
@@ -9,6 +10,11 @@ import {
   resolveDeviceRendererQuality,
   writeDevicePerformancePreferences,
 } from "../../packages/renderer/src/core/device-performance.ts";
+
+assert.equal(effectiveRendererBlurPx(26, "reduced"), 0);
+assert.equal(effectiveRendererBlurPx(26, "balanced"), 24);
+assert.equal(effectiveRendererBlurPx(26, "full"), 26);
+assert.equal(effectiveRendererBlurPx(Number.NaN, "full"), 16);
 
 const safe = { reducedTransparency: false, forcedColors: false, backdropFilter: true };
 const reducedTransparency = { ...safe, reducedTransparency: true };
@@ -57,6 +63,7 @@ const scroll = read("packages/renderer/src/core/perceived-performance.ts");
 const table = read("packages/renderer/src/components/ClusterDataTable.tsx");
 const telemetry = read("packages/renderer/src/core/performance.ts");
 const settings = read("packages/renderer/src/features/settings/AccountSettingsPage.tsx");
+const appearanceRuntime = read("packages/renderer/src/core/visual-system.ts");
 
 assert.match(stylesheet, /@import "\.\/styles\/renderer-performance\.css";/);
 assert.match(performanceCss, /data-renderer-quality="reduced"/);
@@ -64,6 +71,9 @@ assert.match(performanceCss, /backdrop-filter: none !important;/);
 assert.match(performanceCss, /data-device-performance-profile="efficient"/);
 assert.match(renderer, /cachedWebGl2 !== null/);
 assert.match(renderer, /dataset\.devicePerformanceProfile/);
+assert.match(renderer, /effectiveRendererBlurPx\(preferredBlur, capabilities\.qualityTier\)/);
+assert.match(appearanceRuntime, /--cluster-preferred-glass-blur/);
+assert.match(appearanceRuntime, /effectiveRendererBlurPx\(preferredGlassBlur, rendererTier\)/);
 assert.match(renderer, /resizeFrame = window\.requestAnimationFrame/);
 assert.match(scroll, /persistenceTimerRef\.current = window\.setTimeout/);
 assert.match(scroll, /setScrollTop\(latestScrollTop\.current\)/);
