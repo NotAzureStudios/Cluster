@@ -5,10 +5,12 @@ import type { BackgroundJobQueueCounts } from "../domains/jobs/job-types.js";
 import type { RequestWorkClass } from "./request-workload.js";
 
 export type ResourceGovernorMode = RuntimeSaturationState;
+export type ResourceGovernorProfile = "automatic" | "interactive-first" | "background-throughput";
 
 export type ResourceGovernorSnapshot = {
   mode: ResourceGovernorMode;
   observedMode: ResourceGovernorMode;
+  profile: ResourceGovernorProfile;
   changedAt: string;
   recoveryCandidateSince: string | null;
   requestCapacityScale: number;
@@ -81,7 +83,13 @@ export class ResourceGovernor {
   constructor(private readonly options: {
     recoveryHoldMs?: number;
     maximumJobConcurrency?: number;
+    profile?: ResourceGovernorProfile;
   } = {}) {}
+
+  profile(): ResourceGovernorProfile {
+    return this.options.profile === "interactive-first" || this.options.profile === "background-throughput"
+      ? this.options.profile : "automatic";
+  }
 
   observe(runtime: RuntimeTelemetrySnapshot, queue?: BackgroundJobQueueCounts | null) {
     if (queue) this.queue = { ...queue };
@@ -142,9 +150,16 @@ export class ResourceGovernor {
     const base = Math.max(1, Math.round(baseConcurrency || 1));
     const configuredMax = boundedNumber(this.options.maximumJobConcurrency ?? process.env.CLUSTER_JOB_WORKER_MAX_CONCURRENCY, 1, 256, 128);
     if (this.mode === "critical") return 0;
-    let target = Math.max(1, Math.floor(base * POLICY[this.mode].backgroundConcurrencyScale));
-    if (this.mode === "normal" && this.queue && this.queue.queued >= base * 8) {
-      target = Math.ceil(base * 1.25);
+    const profile = this.profile();
+    const scale = POLICY[this.mode].backgroundConcurrencyScale;
+    // Profiles may only tune noncritical capacity. They must never override
+    // saturation shedding or block user-triggered durable queue admission.
+    const multiplier = this.mode === "normal"
+      ? (profile === "interactive-first" ? 0.5 : profile === "background-throughput" ? 1.25 : 1)
+      : this.mode === "busy" && profile === "interactive-first" ? 0.65 : 1;
+    let target = Math.max(1, Math.floor(base * scale * multiplier));
+    if (this.mode === "normal" && profile !== "interactive-first" && this.queue && this.queue.queued >= base * 8) {
+      target = Math.max(target, Math.ceil(base * 1.25));
     }
     return Math.min(configuredMax, target);
   }
@@ -175,6 +190,7 @@ export class ResourceGovernor {
     return {
       mode: this.mode,
       observedMode: this.observedMode,
+      profile: this.profile(),
       changedAt: this.changedAt.toISOString(),
       recoveryCandidateSince: this.recoveryCandidateSince?.toISOString() || null,
       requestCapacityScale: policy.requestCapacityScale,
