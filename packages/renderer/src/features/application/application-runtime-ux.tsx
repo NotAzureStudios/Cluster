@@ -8,7 +8,7 @@ import { ADAPTIVE_MEDIA } from "../../core/adaptive-layout";
 import type { ServerConfigSection, SettingsSection, SetupStatus, User } from "./application-models";
 
 const ACCOUNT_SETTINGS_SECTIONS = new Set<SettingsSection>(["profile", "appearance", "performance", "home", "navigation", "privacy", "pin", "shortcuts", "accessibility", "notifications", "desktop", "forms", "licenses"]);
-const SERVER_CONFIG_SECTIONS = new Set<ServerConfigSection>(["overview", "network", "security", "storage", "backups", "integrations", "sessions", "advanced"]);
+const SERVER_CONFIG_SECTIONS = new Set<ServerConfigSection>(["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"]);
 
 export type NavigationRecoveryNotice = {
   title: string;
