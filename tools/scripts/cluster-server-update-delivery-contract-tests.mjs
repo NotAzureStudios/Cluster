@@ -69,7 +69,7 @@ ok(publish.includes("environment: server-release"),"protected release environmen
 ok(publish.includes("CLUSTER_SERVER_SIGNING_KEY_PEM"),"publishing needs protected Ed25519 key");
 ok(publish.includes('if ($head -ne $env:BUILT_SHA)'),"stale builds cannot publish");
 ok(publish.includes("Required CI did not finish successfully"),"publisher waits for independent CI");
-ok(networkCI.includes("  push:\n    branches: [main]"), "required network release gate runs on the main commit as well as PRs");
+ok(networkCI.replaceAll("\r\n","\n").includes("  push:\n    branches: [main]"), "required network release gate runs on the main commit as well as PRs");
 ok(publish.includes("'Managed network access regressions'"), "publisher retains network security gate rather than bypassing it");
 ok(publish.indexOf('gh release create "$tag"') < publish.indexOf("gh release upload server-main"),"immutable release exists before mutable manifest pointer updates");
 ok(publish.includes("server-main") && publish.includes("server-v"),"server channel isolated from desktop latest releases");
