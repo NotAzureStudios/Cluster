@@ -52,6 +52,26 @@ type LocalListenerDiagnostic = { configuredHost: string; port: number; probeHost
 type LocalNetworkDiagnostics = { ok: boolean; checkedAt: string; web: LocalListenerDiagnostic; api: LocalListenerDiagnostic; external: "not_checked"; note: string };
 const NETWORK_REVIEW_FIELDS = ["serverHost", "serverPort", "webHost", "webPort", "allowInsecureLanHttp", "webTlsCertFile", "webTlsKeyFile", "publicApiUrl", "publicWebUrl", "corsOrigins", "trustedProxy", "sessionSecure", "lanDiscoveryEnabled"] as const;
 
+type ServerGovernorRuntimeRead = {
+  ok: true;
+  checkedAt: string;
+  governor: {
+    mode: "normal" | "busy" | "saturated" | "critical";
+    profile: "automatic" | "interactive-first" | "background-throughput";
+    requestCapacityScale: number;
+    backgroundConcurrencyScale: number;
+    allowBackgroundTasks: boolean;
+    allowMaintenanceTasks: boolean;
+    allowedJobQueues: string[];
+    runtime: {
+      cpuPercent: number;
+      eventLoopP95Ms: number;
+      databaseUtilization: number;
+      requestP95Ms: number;
+    };
+  };
+};
+
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
 
 const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
@@ -675,6 +695,23 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [webhookAllowHttpPrivate, setWebhookAllowHttpPrivate] = useState(false);
   const [webhookSecret, setWebhookSecret] = useState<{ name: string; value: string } | null>(null);
   const [operationsLoading, setOperationsLoading] = useState(false);
+  const [governorRuntime, setGovernorRuntime] = useState<ServerGovernorRuntimeRead | null>(null);
+  const [governorRuntimeLoading, setGovernorRuntimeLoading] = useState(false);
+  const [governorRuntimeError, setGovernorRuntimeError] = useState("");
+  async function refreshGovernorRuntime() {
+    if (governorRuntimeLoading) return;
+    setGovernorRuntimeLoading(true);
+    setGovernorRuntimeError("");
+    try {
+      const result = await api<ServerGovernorRuntimeRead>("/api/server-config/performance/runtime");
+      setGovernorRuntime(result);
+    } catch (reason) {
+      setGovernorRuntime(null);
+      setGovernorRuntimeError(reason instanceof Error ? reason.message : "Resource diagnostics unavailable.");
+    } finally {
+      setGovernorRuntimeLoading(false);
+    }
+  }
   const [maintenanceWindows, setMaintenanceWindows] = useState<MaintenanceWindowPreview | null>(null);
   const [maintenanceWindowsError, setMaintenanceWindowsError] = useState("");
   const [maintenanceWindowsLoading, setMaintenanceWindowsLoading] = useState(false);
@@ -690,6 +727,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     window.sessionStorage.removeItem("cluster-server-config-section");
     return (["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"] as ServerConfigSection[]).includes(requested as ServerConfigSection) ? (requested as ServerConfigSection) : "overview";
   });
+  useEffect(() => {
+    if (section === "performance") void refreshGovernorRuntime();
+  }, [section]);
+
   function selectSection(nextSection: ServerConfigSection) {
     setSection(nextSection);
     onSectionChange?.(nextSection);
@@ -1680,7 +1721,23 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           <section className="panel server-config-group-v238" aria-label="Resource governor safety policy">
             <div className="server-config-group-head-v238"><h2>Automatic overload protection</h2></div>
             <p className="muted tight">The governor continuously evaluates CPU, event-loop delay, database pressure and request latency. Busy, saturated and critical states still reduce background admission regardless of profile. The background worker cap cannot increase the server's physical capacity.</p>
-            <p className="muted tight">Saved configuration is authoritative. Current Resource Governor state is reported in Operations diagnostics; changing these controls does not start or cancel a job.</p>
+            <p className="muted tight">Saved configuration is authoritative. Changing these controls does not start or cancel a job.</p>
+          </section>
+          <section className="panel server-config-group-v238" aria-label="Resource governor runtime diagnostics">
+            <div className="server-config-group-head-v238">
+              <div><h2>Active resource governor</h2><p className="muted tight">A single explicit diagnostic read when this section opens, plus manual refresh. No new background polling.</p></div>
+              <ClusterButton type="button" variant="secondary" onClick={() => void refreshGovernorRuntime()} disabled={governorRuntimeLoading}>
+                {governorRuntimeLoading ? "Checking…" : "Refresh runtime"}
+              </ClusterButton>
+            </div>
+            {governorRuntimeError ? <p role="alert">{governorRuntimeError}</p> : null}
+            {governorRuntime ? <div aria-live="polite">
+              <p><strong>Observed mode:</strong> <SettingsStateChip tone={governorRuntime.governor.mode === "normal" ? "success" : governorRuntime.governor.mode === "busy" ? "warning" : "danger"}>{governorRuntime.governor.mode}</SettingsStateChip></p>
+              <p><strong>Active profile:</strong> {governorRuntime.governor.profile.replaceAll("-", " ")} · saved profile: {String(savedSettings.serverResourceProfile || "automatic").replaceAll("-", " ")}</p>
+              <p className="muted tight">Background capacity: {Math.round(governorRuntime.governor.backgroundConcurrencyScale * 100)}% of automatic baseline in the observed mode. Background work {governorRuntime.governor.allowBackgroundTasks ? "allowed" : "deferred"}; maintenance {governorRuntime.governor.allowMaintenanceTasks ? "allowed" : "deferred"}.</p>
+              <p className="muted tight">CPU: {governorRuntime.governor.runtime.cpuPercent.toFixed(1)}% · Event-loop p95: {governorRuntime.governor.runtime.eventLoopP95Ms.toFixed(1)} ms · Database utilization: {Math.round(governorRuntime.governor.runtime.databaseUtilization * 100)}% · Request p95: {governorRuntime.governor.runtime.requestP95Ms.toFixed(1)} ms</p>
+              <p className="muted tight">Measured {compactDateTime(governorRuntime.checkedAt)}. These are point-in-time readings, not a live benchmark.</p>
+            </div> : !governorRuntimeLoading ? <p className="muted tight">No runtime measurements loaded.</p> : null}
           </section>
         </>
       )}
