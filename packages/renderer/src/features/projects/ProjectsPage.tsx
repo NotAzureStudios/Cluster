@@ -313,6 +313,25 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     let retryTimer = 0;
     let retryPending = false;
     let retryAt = 0;
+    let publishTimer = 0;
+    let publishPending = false;
+    const flushSnapshots = () => {
+      if (!active || !publishPending || document.visibilityState !== "visible") return;
+      if (publishTimer) window.clearTimeout(publishTimer);
+      publishTimer = 0;
+      publishPending = false;
+      // One React update for a group of replies, rather than rebuilding the
+      // entire portfolio after every 80-ID network response.
+      setProjectSnapshots({ ...cache });
+    };
+    const queueSnapshotPublish = () => {
+      publishPending = true;
+      if (publishTimer || document.visibilityState !== "visible") return;
+      publishTimer = window.setTimeout(() => {
+        publishTimer = 0;
+        flushSnapshots();
+      }, 125);
+    };
     const scheduleRetry = () => {
       if (!active || !retryPending || document.visibilityState !== "visible") return;
       if (retryTimer) window.clearTimeout(retryTimer);
@@ -326,8 +345,13 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible") {
         if (retryTimer) window.clearTimeout(retryTimer);
+        if (publishTimer) window.clearTimeout(publishTimer);
         retryTimer = 0;
-      } else if (retryPending) scheduleRetry();
+        publishTimer = 0;
+      } else {
+        flushSnapshots();
+        if (retryPending) scheduleRetry();
+      }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     void (async () => {
@@ -351,9 +375,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
             changed = true;
           }
         }
-        if (changed) setProjectSnapshots({ ...cache });
+        if (changed) queueSnapshotPublish();
       }
       if (!active) return;
+      flushSnapshots();
       if (failed) {
         // Cap retries. A persistent outage falls back to the periodic visible
         // recovery probe rather than producing unbounded network chatter.
@@ -371,6 +396,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       active = false;
       document.removeEventListener("visibilitychange", onVisibilityChange);
       if (retryTimer) window.clearTimeout(retryTimer);
+      if (publishTimer) window.clearTimeout(publishTimer);
     };
   }, [portfolioRevisionKey, projectSnapshotRefreshEpoch]);
 
