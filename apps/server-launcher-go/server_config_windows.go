@@ -578,9 +578,10 @@ func syncWindowsStartupRegistration(enabled bool) error {
 }
 
 type updateCheckResult struct {
-	Message     string
-	DownloadURL string
-	Available   bool
+	Message          string
+	DownloadURL      string
+	Available        bool
+	ManualReleaseURL string // UI-only GitHub link, never authorized for staging/install
 }
 
 func configuredUpdateManifestURL(root string) string {
@@ -622,19 +623,35 @@ func checkOfficialServerReleaseWithClient(root string, client *http.Client) upda
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024+1))
 	if err != nil || len(raw)>256*1024 { return updateCheckResult{Message:"Official release metadata could not be read within the size limit."} }
-	var latest struct { TagName string `json:"tag_name"`; HTMLURL string `json:"html_url"` }
+	var latest struct {
+		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
+		Assets []struct { Name string `json:"name"` } `json:"assets"`
+	}
 	if json.Unmarshal(raw, &latest)!=nil { return updateCheckResult{Message:"Official GitHub release metadata was invalid."} }
 	release := strings.TrimPrefix(strings.TrimSpace(latest.TagName), "v")
 	next, valid := serverUpdateSequence(release, "main")
-	if !valid || !strings.HasPrefix(latest.HTMLURL,"https://github.com/NotAzureStudios/Cluster/releases/") {
+	if !valid || !strings.HasPrefix(latest.HTMLURL,"https://github.com/NotAzureStudios/Cluster/releases/tag/v") {
 		return updateCheckResult{Message:"Official release metadata did not identify a supported Cluster Server release."}
+	}
+	hasInstaller := false
+	hasReceipt := false
+	for _, asset := range latest.Assets {
+		if asset.Name == "Cluster-Installer.exe" { hasInstaller = true }
+		if asset.Name == "Cluster-server-build-receipt.json" { hasReceipt = true }
+	}
+	if !hasInstaller || !hasReceipt {
+		return updateCheckResult{Message:"The latest GitHub release has no complete Cluster Windows Server installer and integrity receipt. No automatic update is available."}
 	}
 	current := installedServerReleaseSequence(root)
 	if current == 0 {
 		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured. Release: %s",release,latest.HTMLURL)}
 	}
 	if next > current {
-		return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is published. Your installation is older. Manual upgrade: %s. One-click signed installation is not configured.",release,latest.HTMLURL)}
+		return updateCheckResult{
+			Message: fmt.Sprintf("Cluster Server %s is published. Your installation is older. The signed automatic-update feed is not configured. Review and back up your installation before using the official manual installer: %s",release,latest.HTMLURL),
+			ManualReleaseURL: latest.HTMLURL,
+		}
 	}
 	return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is the latest published release (installed sequence %d). No signed automatic-update feed is configured. Manual releases: %s",release,current,latest.HTMLURL)}
 }
