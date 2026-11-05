@@ -4,6 +4,7 @@ package main
 // A channel changes the eligible server installer, not the source checkout or database.
 import (
 	"bytes"
+	_ "embed"
 	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
@@ -22,12 +23,11 @@ import (
 	"strings"
 )
 
-const serverUpdatePublicKeyPEM = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA62Eyij8r2Cg/ulPG7qlQdUX2Lm+YgEnVRfcjoNjikWk=
------END PUBLIC KEY-----`
+//go:embed assets/server-update-public-key.pem
+var serverUpdatePublicKeyPEM string
 
 var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
-var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)$`)
+var serverStableReleasePattern = regexp.MustCompile(`^1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
  
 // Server-only rolling signed release pointer. It does NOT depend on GitHub's
@@ -35,15 +35,22 @@ var serverStableReleasePattern = regexp.MustCompile(`^1\.0\.([1-9][0-9]*)$`)
 const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
 const officialServerGitHubReleaseAssetPrefix = "/github-production-release-asset/1431753697/"
 
-// Stable patch releases follow the sequence established for 1.0.x.
-// Development RC updates remain isolated from the main channel.
+// 1.0.x retains its existing sequence (50 + patch). Starting with 1.1.0,
+// each minor release occupies a nonoverlapping 100000-sequence range.
+// This preserves upgrades from 1.0.5 and avoids sequence collisions.
 func serverUpdateSequence(release, channel string) (int, bool) {
 	if channel == "main" {
 		match := serverStableReleasePattern.FindStringSubmatch(release)
 		if match == nil { return 0, false }
-		patch, err := strconv.Atoi(match[1])
-		if err != nil || patch > 10000 { return 0, false }
-		return 50 + patch, true
+		minor, minorErr := strconv.Atoi(match[1])
+		patch, patchErr := strconv.Atoi(match[2])
+		if minorErr != nil || patchErr != nil { return 0, false }
+		if minor == 0 {
+			if patch < 1 || patch > 10000 { return 0, false }
+			return 50 + patch, true
+		}
+		if minor > 1000 || patch > 99999 { return 0, false }
+		return minor * 100000 + patch, true
 	}
 	if channel == "development" {
 		match := serverReleasePattern.FindStringSubmatch(release)

@@ -10,6 +10,7 @@ import {fileURLToPath} from 'node:url';
 
 const sourceRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const preflightSource=fs.readFileSync(path.join(sourceRoot,'tools/scripts/cluster-rc-preflight.mjs'),'utf8');
+const versionSequenceSource=fs.readFileSync(path.join(sourceRoot,'tools/scripts/cluster-server-release-sequence.mjs'),'utf8');
 const installerSource=fs.readFileSync(path.join(sourceRoot,'tools/installer/Install-Cluster.ps1'),'utf8');
 const packagerSource=fs.readFileSync(path.join(sourceRoot,'tools/scripts/build-cluster-installer.mjs'),'utf8');
 const smokeSource=fs.readFileSync(path.join(sourceRoot,'tools/scripts/cluster-rc-smoke.mjs'),'utf8');
@@ -30,6 +31,7 @@ function run(args=[]){
 }
 try{
  put('tools/scripts/cluster-rc-preflight.mjs',preflightSource);
+ put('tools/scripts/cluster-server-release-sequence.mjs',versionSequenceSource);
  const release=JSON.parse(fs.readFileSync(path.join(sourceRoot,'config/release-candidate.json'),'utf8'));
  const toolchain=JSON.parse(fs.readFileSync(path.join(sourceRoot,'config/toolchain-versions.json'),'utf8'));
  put('config/release-candidate.json',JSON.stringify(release));

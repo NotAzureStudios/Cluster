@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { createPublicKey } from "node:crypto";
+import {stableServerSequence, validStableServerRelease} from "./cluster-server-release-sequence.mjs";
 
 const read = p => fs.readFileSync(p,"utf8");
 const manifest = read("apps/server-launcher-go/server_update_manifest.go");
@@ -9,6 +11,8 @@ const ui = read("apps/server-launcher-go/launcher_ui_windows.go");
 const signer = read("tools/scripts/cluster-sign-server-release.mjs");
 const publish = read(".github/workflows/cluster-server-signed-main-publish.yml");
 const build = read(".github/workflows/cluster-server-windows-build.yml");
+const serverPublisherKey = read("apps/server-launcher-go/assets/server-update-public-key.pem").trim();
+const desktopPublisherKey = read("apps/desktop-qt/assets/update-public-key.pem").trim();
 
 let checks = 0;
 function ok(test, why){assert.ok(test,why);checks++;}
@@ -38,11 +42,23 @@ ok(ui.includes("ui.controller.StageServerUpdate()"), "signed download path is un
 
 // Source version must sign correctly. Avoid regex literal accidentally treating
 // backslash-plus-dot as a release character sequence.
-ok(signer.includes(String.raw`/^1\.0\.([1-9][0-9]*)$/`),"stable release version regex uses escaped dots");
+ok(signer.includes("stableServerSequence(release.release)"), "signer shares canonical 1.0/1.1 release sequencing");
+ok(stableServerSequence("1.0.5") === 55, "legacy 1.0.5 remains sequence 55");
+ok(stableServerSequence("1.0.10000") === 10050, "historic 1.0 patch limit remains ordered");
+ok(stableServerSequence("1.1.0") === 100000, "Server 1.1.0 advances beyond 1.0.x");
+ok(stableServerSequence("1.1.1") === 100001 && stableServerSequence("1.2.0") === 200000, "new minor versions have non-overlapping sequences");
+ok(["1.0.0", "1.1.100000", "1.01.0", "2.0.0"].every(s=>stableServerSequence(s) === null), "invalid releases fail closed");
+ok(validStableServerRelease({channel:"stable",release:"1.1.0",sourceVersion:"1.1.0",sequence:100000}), "installer admits valid 1.1.0 stable release identity");
+ok(!validStableServerRelease({channel:"stable",release:"1.1.0",sourceVersion:"1.1.0",sequence:56}), "installer rejects reused 1.0.x sequence");
 ok(signer.includes(String.raw`/^1\.0\.0-rc\.([1-9][0-9]*)$/`),"RC release version regex uses escaped dots");
 ok(signer.includes("receipt.commit===commit.stdout.trim()"),"signer requires matching source revision");
 ok(signer.includes("receipt.artifacts") && signer.includes("matchingArtifacts"),"signer requires a hashed build receipt");
 ok(signer.includes("publicPem===trustedPem"),"signer pins publisher identity");
+ok(createPublicKey(serverPublisherKey).asymmetricKeyType === "ed25519", "Server update publisher is a valid Ed25519 public key");
+ok(serverPublisherKey !== desktopPublisherKey, "Server publisher key is intentionally isolated from Desktop");
+ok(manifest.includes("//go:embed assets/server-update-public-key.pem"), "Server verification embeds the dedicated publisher key");
+ok(signer.includes('apps/server-launcher-go/assets/server-update-public-key.pem'), "Server signer checks the same key that the Server runtime embeds");
+ok(!signer.includes('apps/desktop-qt/assets/update-public-key.pem'), "Server signer must not share Desktop publisher trust");
 
 // Publication is a separate, privileged process. No publish before success.
 ok(publish.includes("workflow_run.conclusion == 'success'"),"failed build cannot publish");

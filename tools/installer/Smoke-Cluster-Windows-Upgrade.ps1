@@ -1,15 +1,20 @@
 # Disposable OFFLINE in-place upgrade test for the Cluster Windows installer.
-# Exercises the real published 1.0.2 installer and prebuilt 1.0.5 candidate.
+# Exercises a previously published installer and the next prebuilt candidate.
 # Does not run a database or certify the native update executor.
 [CmdletBinding()]
 param(
   [Parameter(Mandatory=$true)][string]$PriorInstaller,
-  [Parameter(Mandatory=$true)][string]$CandidateInstaller
+  [Parameter(Mandatory=$true)][string]$CandidateInstaller,
+  [Parameter(Mandatory=$true)][int]$PriorSequence,
+  [Parameter(Mandatory=$true)][int]$CandidateSequence
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $PriorInstaller = [IO.Path]::GetFullPath($PriorInstaller)
 $CandidateInstaller = [IO.Path]::GetFullPath($CandidateInstaller)
+if ($PriorSequence -le 0 -or $CandidateSequence -le $PriorSequence) {
+  throw 'Upgrade smoke requires a strictly newer candidate release sequence.'
+}
 foreach ($installer in @($PriorInstaller,$CandidateInstaller)) {
   if (!(Test-Path -LiteralPath $installer -PathType Leaf)) { throw "Missing installer: $installer" }
 }
@@ -19,7 +24,7 @@ $managed = Join-Path $scratch 'Cluster\Server'
 $exe = Join-Path $scratch 'Cluster-Installer.exe'
 $previousCI = $env:CLUSTER_INSTALLER_CI_INSTALL_ONLY
 $previousModulePath = $env:PSModulePath
-# The released 1.0.2 installer invokes Windows PowerShell 5.1 even when this
+# The published prior installer may invoke Windows PowerShell 5.1 even when this
 # test uses pwsh 7. CI must expose the built-in WinPS Utility module (which
 # contains Get-FileHash) to that child instead of inheriting only pwsh 7 paths.
 $windowsPowerShellModules = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\Modules'
@@ -44,9 +49,9 @@ function Confirm-Release([int]$expected) {
   }
 }
 try {
-  Write-Host 'Installing published 1.0.2 to a clean disposable folder...'
+  Write-Host "Installing published previous Server sequence $PriorSequence to a clean disposable folder..."
   Invoke-BundledInstaller $PriorInstaller
-  Confirm-Release 52
+  Confirm-Release $PriorSequence
 
   $dataRoot = Join-Path $managed 'data'
   $pgDir = Join-Path $dataRoot 'postgresql'
@@ -62,9 +67,9 @@ try {
   $libHash = (Get-FileHash -LiteralPath (Join-Path $libDir 'keep.txt') -Algorithm SHA256).Hash
   $envHash = (Get-FileHash -LiteralPath $envPath -Algorithm SHA256).Hash
 
-  Write-Host 'Upgrading the SAME managed installation to 1.0.5 with auto-start disabled...'
+  Write-Host "Upgrading the SAME managed installation to Server sequence $CandidateSequence with auto-start disabled..."
   Invoke-BundledInstaller $CandidateInstaller
-  Confirm-Release 55
+  Confirm-Release $CandidateSequence
 
   foreach ($pair in @(
       @{File=(Join-Path $pgDir 'CI-SENTINEL');Hash=$pgHash},
@@ -83,7 +88,7 @@ try {
   if (Test-Path -LiteralPath (Join-Path $managed 'Cluster\Server')) {
     throw 'Unexpected nested Server installation'
   }
-  Write-Host 'PASS: real 1.0.2->1.0.5 offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot.'
+  Write-Host "PASS: real $PriorSequence -> $CandidateSequence offline upgrade preserved PostgreSQL/Library/config fixtures and previous application snapshot."
   Write-Host "Disposable smoke root: $scratch"
 } finally {
   $env:PSModulePath = $previousModulePath

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {validStableServerRelease} from './cluster-server-release-sequence.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const metadata=JSON.parse(fs.readFileSync(path.join(root,'config/release-candidate.json'),'utf8'));
 const built=process.argv.includes('--built');
@@ -26,7 +27,10 @@ if(!validPrebuilt)requiredSources.push('tools/installer/Install-Cluster.ps1');
 const requiredArtifacts=['packages/shared/dist/index.js','apps/server/dist/index.js','apps/web/dist/index.html','apps/web/dist/assets','apps/server/src/generated/prisma','apps/server/dist/generated/prisma/client.js','node_modules/@prisma/client/package.json','bin/ClusterServer.exe','bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe','bin/cluster-workstation-service.exe'];
 const failures=[],evidence={release:metadata.release,channel:metadata.channel,sourceVersion:metadata.sourceVersion,checks:{},artifacts:{},warnings:[]};
 const check=(name,ok)=>{evidence.checks[name]=ok;if(!ok)failures.push(name);};
-check('Release metadata',metadata.schema===1&&Number.isInteger(metadata.sequence)&&metadata.sequence>=1&&((metadata.channel==='stable'&&/^1\.0\.[1-9][0-9]*$/.test(metadata.release))||(metadata.channel==='rc'&&/^1\.0\.0-rc\.[1-9][0-9]*$/.test(metadata.release)))&&((metadata.channel==='stable'&&metadata.release===metadata.sourceVersion)||metadata.channel==='rc'));
+check('Release metadata',metadata.schema===1&&Number.isInteger(metadata.sequence)&&metadata.sequence>=1&&
+ ((validStableServerRelease(metadata))||
+  (metadata.channel==='rc'&&/^1\.0\.0-rc\.[1-9][0-9]*$/.test(metadata.release)&&
+   metadata.sequence===Number(metadata.release.split('.').at(-1)))));
 const toolchain=JSON.parse(fs.readFileSync(path.join(root,'config/toolchain-versions.json'),'utf8'));
 check('Toolchain version agreement',toolchain.cluster===metadata.sourceVersion);
 if(prebuiltMetadata)check('Prebuilt runtime identity',validPrebuilt);

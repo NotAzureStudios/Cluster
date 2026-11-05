@@ -93,7 +93,7 @@ jobs:
             throw 'Protected CLUSTER_SERVER_SIGNING_KEY_PEM is not configured; no unsigned release may be published'
           }
           $metadata = Get-Content -LiteralPath 'config/release-candidate.json' -Raw | ConvertFrom-Json
-          if ($metadata.channel -ne 'stable' -or $metadata.release -notmatch '^1[.]0[.][1-9][0-9]*$') { throw 'Invalid stable Server release identity' }
+          if ($metadata.channel -ne 'stable' -or $metadata.release -notmatch '^1[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)$') { throw 'Invalid stable Server release identity' }
           $tag = "server-v$($metadata.release)"
           gh release view "$tag" --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {

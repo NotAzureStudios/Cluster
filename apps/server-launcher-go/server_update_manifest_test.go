@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"encoding/base64"
 	"encoding/json"
 	"net/url"
@@ -196,5 +198,94 @@ func TestOfficialServerMainFeedAndRedirectBoundaries(t *testing.T) {
 	}
 	if !serverUpdateRedirectAllowed(custom, custom) {
 		t.Fatal("trusted same-origin custom feed was rejected")
+	}
+}
+
+func TestEmbeddedServerPublisherKeyIsDedicatedAndPinned(t *testing.T) {
+	serverPEM, err := os.ReadFile(filepath.Join("assets", "server-update-public-key.pem"))
+	if err != nil { t.Fatal(err) }
+	if strings.TrimSpace(string(serverPEM)) != strings.TrimSpace(serverUpdatePublicKeyPEM) {
+		t.Fatal("Server manifest verification and signer must use exactly the same embedded public key")
+	}
+	desktopPEM, err := os.ReadFile(filepath.Join("..", "desktop-qt", "assets", "update-public-key.pem"))
+	if err != nil { t.Fatal(err) }
+	if strings.TrimSpace(string(serverPEM)) == strings.TrimSpace(string(desktopPEM)) {
+		t.Fatal("Server update publisher trust must not use the Desktop publisher key")
+	}
+	block, rest := pem.Decode(serverPEM)
+	if block == nil || block.Type != "PUBLIC KEY" || len(strings.TrimSpace(string(rest))) != 0 {
+		t.Fatal("Dedicated Server publisher trust must be one PEM public key")
+	}
+	pkix, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil { t.Fatal(err) }
+	key, ok := pkix.(ed25519.PublicKey)
+	if !ok || len(key) != ed25519.PublicKeySize {
+		t.Fatal("Dedicated Server publisher trust must be Ed25519")
+	}
+	// An attacker with any unrelated Ed25519 key must not produce an
+	// acceptable manifest by merely choosing an expected release identity.
+	_, untrusted, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil { t.Fatal(err) }
+	feed, err := url.Parse("https://updates.example.test/development/release.json")
+	if err != nil { t.Fatal(err) }
+	raw := fixtureSignedServerUpdate(t, nil, untrusted)
+	if _, err := verifyServerUpdateManifest(raw, feed, "development"); err == nil {
+		t.Fatal("embedded Server update trust accepted an unrelated signing key")
+	}
+}
+
+func TestStableServerReleaseSequenceAcrossMinorVersionBoundary(t *testing.T) {
+	cases := []struct {
+		release string
+		channel string
+		sequence int
+		valid bool
+	}{
+		{"1.0.5", "main", 55, true},
+		{"1.0.10000", "main", 10050, true},
+		{"1.1.0", "main", 100000, true},
+		{"1.1.1", "main", 100001, true},
+		{"1.2.0", "main", 200000, true},
+		{"1.1.0", "development", 0, false},
+		{"1.0.0", "main", 0, false},
+		{"1.0.10001", "main", 0, false},
+		{"1.1.100000", "main", 0, false},
+		{"1.01.0", "main", 0, false},
+		{"2.0.0", "main", 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.release+"-"+tc.channel, func(t *testing.T) {
+			sequence, ok := serverUpdateSequence(tc.release, tc.channel)
+			if ok != tc.valid || (ok && sequence != tc.sequence) {
+				t.Fatalf("release %s / %s: sequence %d, valid %v; expected %d, %v", tc.release, tc.channel, sequence, ok, tc.sequence, tc.valid)
+			}
+		})
+	}
+}
+
+func TestSignedStableServerOneOneManifestRequiresNewSequence(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil { t.Fatal(err) }
+	feed, err := url.Parse("https://updates.example.test/main/release.json")
+	if err != nil { t.Fatal(err) }
+	makeManifest := func(sequence json.Number) []byte {
+		return fixtureSignedServerUpdate(t, func(m map[string]any) {
+			m["channel"] = "main"
+			m["release"] = "1.1.0"
+			m["sequence"] = sequence
+			m["artifact"].(map[string]any)["url"] = "https://updates.example.test/main/Cluster-Server-Installer.exe"
+		}, priv)
+	}
+	if _, err := verifyServerUpdateManifestWithKey(makeManifest("100000"), feed, "main", pub); err != nil {
+		t.Fatalf("signed 1.1.0 manifest rejected: %v", err)
+	}
+	if _, err := verifyServerUpdateManifestWithKey(makeManifest("56"), feed, "main", pub); err == nil {
+		t.Fatal("1.1.0 manifest accepted a reused 1.0.x release sequence")
+	}
+	root := t.TempDir()
+	releaseMarker := []byte(`{"schema":1,"managedInstaller":true,"releaseChannel":"stable","releaseCandidate":"1.1.0","releaseSequence":100000}`)
+	if err := os.WriteFile(filepath.Join(root, "CLUSTER_RELEASE.json"), releaseMarker, 0600); err != nil { t.Fatal(err) }
+	if got := installedServerReleaseSequence(root); got != 100000 {
+		t.Fatalf("installed Server 1.1.0 sequence: %d", got)
 	}
 }

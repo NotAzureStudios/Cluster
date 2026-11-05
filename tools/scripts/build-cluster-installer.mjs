@@ -8,6 +8,7 @@ import { deflateRawSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isDesktopOnlyDistributionPath } from './cluster-distribution-scope.mjs';
+import {validStableServerRelease} from './cluster-server-release-sequence.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const installer=path.join(root,'tools','installer');
 const embedded=path.join(installer,'assets','bundled-source.zip');
@@ -83,8 +84,7 @@ function run(){
     if(lock.lockfileVersion<3||lock.name!==pkg.name||lock.version!==pkg.version||lock.packages?.['']?.version!==pkg.version)
       throw new Error('Prebuilt installer BLOCKED: package-lock.json does not match root package');
     const release=JSON.parse(fs.readFileSync(path.join(root,'config/release-candidate.json'),'utf8'));
-    const stableRelease=release.channel==='stable'&&/^1\.0\.[1-9][0-9]*$/.test(release.release)&&
-      release.release===release.sourceVersion&&Number.isInteger(release.sequence)&&release.sequence>=51;
+    const stableRelease=validStableServerRelease(release);
     const legacyRC=release.channel==='rc'&&/^1\.0\.0-rc\.[1-9][0-9]*$/.test(release.release)&&
       release.sequence===Number(release.release.split('.').at(-1));
     if(release.sourceVersion!==pkg.version||!(stableRelease||legacyRC))
