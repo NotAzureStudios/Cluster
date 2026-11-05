@@ -58,6 +58,8 @@ type ServerGovernorRuntimeRead = {
   governor: {
     mode: "normal" | "busy" | "saturated" | "critical";
     profile: "automatic" | "interactive-first" | "background-throughput";
+    maximumJobConcurrency: number;
+    recoveryHoldMs: number;
     requestCapacityScale: number;
     backgroundConcurrencyScale: number;
     allowBackgroundTasks: boolean;
@@ -1734,6 +1736,13 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             {governorRuntime ? <div aria-live="polite">
               <p><strong>Observed mode:</strong> <SettingsStateChip tone={governorRuntime.governor.mode === "normal" ? "success" : governorRuntime.governor.mode === "busy" ? "warning" : "danger"}>{governorRuntime.governor.mode}</SettingsStateChip></p>
               <p><strong>Active profile:</strong> {governorRuntime.governor.profile.replaceAll("-", " ")} · saved profile: {String(savedSettings.serverResourceProfile || "automatic").replaceAll("-", " ")}</p>
+              <p className="muted tight">
+                <strong>Active worker cap:</strong> {governorRuntime.governor.maximumJobConcurrency} · <strong>Active recovery hold:</strong> {governorRuntime.governor.recoveryHoldMs.toLocaleString()} ms
+              </p>
+              {(savedSettings.serverResourceProfile && savedSettings.serverResourceProfile !== governorRuntime.governor.profile
+                || savedSettings.serverResourceWorkerCap != null && savedSettings.serverResourceWorkerCap !== governorRuntime.governor.maximumJobConcurrency
+                || savedSettings.serverResourceRecoveryHoldMs != null && savedSettings.serverResourceRecoveryHoldMs !== governorRuntime.governor.recoveryHoldMs)
+                && <SettingsStateChip tone="warning" icon="refresh">Saved policy differs from active runtime. Managed server restart required.</SettingsStateChip>}
               <p className="muted tight">Overload scheduling factor before profile adjustments: {Math.round(governorRuntime.governor.backgroundConcurrencyScale * 100)}%. Background work {governorRuntime.governor.allowBackgroundTasks ? "allowed" : "deferred"}; maintenance {governorRuntime.governor.allowMaintenanceTasks ? "allowed" : "deferred"}.</p>
               <p className="muted tight">CPU: {governorRuntime.governor.runtime.cpuPercent.toFixed(1)}% · Event-loop p95: {governorRuntime.governor.runtime.eventLoopP95Ms.toFixed(1)} ms · Database utilization: {Math.round(governorRuntime.governor.runtime.databaseUtilization * 100)}% · Request p95: {governorRuntime.governor.runtime.requestP95Ms.toFixed(1)} ms</p>
               <p className="muted tight">Measured {compactDateTime(governorRuntime.checkedAt)}. These are point-in-time readings, not a live benchmark.</p>
