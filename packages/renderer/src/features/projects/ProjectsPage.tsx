@@ -219,6 +219,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   });
   const portfolioProjects = projectCursor.rows;
   const portfolioRevisionKey = useMemo(() => projectRevisionKey(portfolioProjects), [portfolioProjects]);
+  const loadedProjectIds = useMemo(() => new Set(portfolioProjects.map((project) => project.id)), [portfolioProjects]);
+  const loadedProjectIdsRef = useRef(loadedProjectIds);
+  loadedProjectIdsRef.current = loadedProjectIds;
 
   useEffect(() => {
     let timer = 0;
@@ -248,6 +251,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       if (document.visibilityState === "visible") timer = window.setTimeout(flush, 200);
     };
     const schedule = (id: string | "all") => {
+      // An update to a different Project should not re-render or refetch the
+      // current portfolio. New rows are already covered when the cursor grows.
+      if (id !== "all" && !loadedProjectIdsRef.current.has(id)) return;
       if (id === "all") {
         allInvalidated = true;
         pendingIds.clear();
