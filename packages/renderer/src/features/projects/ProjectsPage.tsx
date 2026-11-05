@@ -31,6 +31,7 @@ import { ProjectPortfolioInspector } from "./ProjectPortfolioInspector";
 import { ProjectPortfolioItem } from "./ProjectPortfolioItem";
 import { projectInspectorReturnFocus } from "./project-inspector-focus";
 import { projectAttentionScore, type ProjectPortfolioFocus } from "./project-portfolio-model";
+import { planMissingProjectSnapshotBatches, projectRevisionKey } from "./project-snapshot-batching";
 import "./projects.css";
 
 const PROJECT_RENDER_BATCH = 120;
@@ -151,6 +152,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [projectRenderLimit, setProjectRenderLimit] = useState(PROJECT_RENDER_BATCH);
   const [portfolioIntelligence, setPortfolioIntelligence] = useState<PortfolioIntelligence | null>(null);
   const [projectSnapshots, setProjectSnapshots] = useState<Record<string, ProjectSnapshot>>({});
+  const projectSnapshotCacheRef = useRef<Record<string, ProjectSnapshot>>({});
+  const projectSnapshotRevisionsRef = useRef<Map<string, string>>(new Map());
   const [projectTableLayout, setProjectTableLayout] = useState<ClusterDataViewLayout | null>(null);
   const [projectGroups, setProjectGroups] = useState<ClusterDataGroup[]>([]);
   const [projectProjections, setProjectProjections] = useState<ClusterDataProjection[]>(() => DEFAULT_PROJECT_PROJECTIONS);
@@ -201,25 +204,59 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     };
   }, [deferredQuery, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, projectServerSorts, projectServerGroups, projectProjections, projectPortableDerivedPlan.fields, projectAnalyticalSelectionSet, analyticsOpen, viewMode]);
   const projectServerQueryKey = useMemo(() => JSON.stringify(projectServerDataQuery), [projectServerDataQuery]);
+  const projectSeedRevisionKey = useMemo(() => projectRevisionKey(projects), [projects]);
   const projectCursor = useClusterCursorData<Project>({
-    resetKey: `${projects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")}::${projectServerQueryKey}`,
+    resetKey: `${projectSeedRevisionKey}::${projectServerQueryKey}`,
     rowKey: (project) => project.id,
     placeholderRows: deferredQuery.trim() ? [] : projects,
     loadPage: async (cursor): Promise<ClusterCursorPage<Project>> => api<ClusterCursorPage<Project>>(`/api/projects?paged=true&limit=80&dataQuery=${clusterDataQueryParameter(projectServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
   });
   const portfolioProjects = projectCursor.rows;
+  const portfolioRevisionKey = useMemo(() => projectRevisionKey(portfolioProjects), [portfolioProjects]);
 
   useEffect(() => {
-    const ids = portfolioProjects.map((project) => project.id).filter(Boolean);
-    if (!ids.length) { setProjectSnapshots({}); return; }
+    // Only retain snapshots for projects in the currently authorized, loaded
+    // portfolio, at the exact revision that produced their derived badges.
+    const activeRevisions = new Map(portfolioProjects.map((project) => [project.id, project.updatedAt || ""] as const));
+    const cache = projectSnapshotCacheRef.current;
+    const knownRevisions = projectSnapshotRevisionsRef.current;
+    let pruned = false;
+    for (const id of Object.keys(cache)) {
+      if (!activeRevisions.has(id) || knownRevisions.get(id) !== activeRevisions.get(id)) {
+        delete cache[id];
+        knownRevisions.delete(id);
+        pruned = true;
+      }
+    }
+    if (pruned || !activeRevisions.size) setProjectSnapshots({ ...cache });
+
+    // Adding the next 80 projects must not redownload previous pages.
+    // Keep each URL bounded, and avoid a large synchronous response commit.
+    const batches = planMissingProjectSnapshotBatches(portfolioProjects, knownRevisions, 40);
+    if (!batches.length) return;
     let active = true;
-    const query = encodeURIComponent(ids.join(","));
-    api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${query}`).then((payload) => {
-      if (!active) return;
-      setProjectSnapshots(Object.fromEntries((payload.snapshots || []).map((snapshot) => [snapshot.projectId, snapshot])));
-    }).catch(() => { if (active) setProjectSnapshots({}); });
+    void (async () => {
+      for (let offset = 0; offset < batches.length; offset += 3) {
+        const responses = await Promise.allSettled(batches.slice(offset, offset + 3).map((ids) =>
+          api<{ schema: 1; snapshots: ProjectSnapshot[] }>(`/api/projects/snapshots?ids=${encodeURIComponent(ids.join(","))}`),
+        ));
+        if (!active) return;
+        let changed = false;
+        for (const response of responses) {
+          if (response.status !== "fulfilled") continue;
+          for (const snapshot of response.value.snapshots || []) {
+            if (!activeRevisions.has(snapshot.projectId)) continue;
+            const revision = activeRevisions.get(snapshot.projectId)!;
+            knownRevisions.set(snapshot.projectId, revision);
+            cache[snapshot.projectId] = snapshot;
+            changed = true;
+          }
+        }
+        if (changed) setProjectSnapshots({ ...cache });
+      }
+    })();
     return () => { active = false; };
-  }, [portfolioProjects.map((project) => `${project.id}:${project.updatedAt || ""}`).join("|")]);
+  }, [portfolioRevisionKey]);
 
   useEffect(() => {
     if (!inspectorOpen && !analyticsOpen && !intelligenceOpen) return;
