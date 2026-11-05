@@ -2,6 +2,7 @@ export type ClusterPerformanceCategory =
   | "navigation"
   | "network"
   | "render"
+  | "frame-sample"
   | "long-task"
   | "cache"
   | "search"
@@ -51,6 +52,7 @@ export type PerformanceSummary = {
   violations: BudgetViolation[];
   startup: { classification: StartupClass; previousSessionAgeMs: number | null; domContentLoadedMs: number | null; loadMs: number | null; firstFrameMs: number | null };
   renderHealth: RenderHealth;
+  frameSample: { samples: number; missedFrames: number; missedPercent: number } | null;
   health: { status: ClientPerformanceHealthStatus; failures: number; warnings: number; requestRatePerMinute: number; longTasksPerMinute: number; checks: ClientPerformanceHealthCheck[] };
 };
 
@@ -95,6 +97,8 @@ let startupFrameHandle = 0;
 let visibilityHandler: (() => void) | null = null;
 let samplingActive = false;
 let samplingDeadline = 0;
+let samplingStartedAt = 0;
+let samplingCompleted: (() => void) | null = null;
 let lastFrameAt = 0;
 let frameSamples = 0;
 let droppedFrames = 0;
@@ -229,6 +233,12 @@ export function performanceSummary(): PerformanceSummary {
   const requestRatePerMinute = round(recentMetrics.filter((metric) => metric.category === "network").length / rateWindowMinutes);
   const longTasksPerMinute = round(recentMetrics.filter((metric) => metric.category === "long-task").length / rateWindowMinutes);
   const memory = memorySnapshot();
+  const recentFrameSample = [...metrics].reverse().find((metric) => metric.category === "frame-sample");
+  const frameSample = recentFrameSample ? {
+    samples: Number(recentFrameSample.detail?.samples || 0),
+    missedFrames: Number(recentFrameSample.detail?.droppedFrames || 0),
+    missedPercent: Number(recentFrameSample.detail?.droppedPercent || 0),
+  } : null;
   const heapUsedMiB = memory.usedBytes == null ? null : memory.usedBytes / 1024 / 1024;
   const heapUtilization = memory.usedBytes != null && memory.limitBytes ? memory.usedBytes / memory.limitBytes : null;
   const startupBudget = STARTUP_CLASS.classification === "warm" ? CLIENT_RUNTIME_BUDGETS.warmFirstFrameMs : STARTUP_CLASS.classification === "reload" ? CLIENT_RUNTIME_BUDGETS.reloadFirstFrameMs : CLIENT_RUNTIME_BUDGETS.coldFirstFrameMs;
@@ -267,6 +277,7 @@ export function performanceSummary(): PerformanceSummary {
     violations,
     startup: { classification: STARTUP_CLASS.classification, previousSessionAgeMs: STARTUP_CLASS.previousSessionAgeMs, domContentLoadedMs: startupDomContentLoadedMs, loadMs: startupLoadMs, firstFrameMs },
     renderHealth: { commits: renderCommits, mounts: renderMounts, updates: renderUpdates, nestedUpdates: renderNestedUpdates, totalActualMs: round(renderTotalActualMs), averageActualMs: renderCommits ? round(renderTotalActualMs / renderCommits) : 0, maximumActualMs: round(renderMaximumActualMs) },
+    frameSample,
     health: { status: healthStatus, failures, warnings, requestRatePerMinute, longTasksPerMinute, checks },
   };
 }
@@ -319,17 +330,25 @@ function stopFrameSampling() {
   if (samplingActive && frameSamples) {
     recordPerformanceMetric({
       name: "on-demand animation frame sample",
-      category: "render",
-      durationMs: droppedFrames ? (droppedFrames / frameSamples) * 100 : 0,
+      category: "frame-sample",
+      durationMs: Math.max(0, performance.now() - samplingStartedAt),
       startedAt: Date.now(),
-      detail: { samples: frameSamples, droppedFrames, droppedPercent: round((droppedFrames / frameSamples) * 100) },
+      detail: {
+        samples: frameSamples,
+        droppedFrames,
+        droppedPercent: round((droppedFrames / (frameSamples + droppedFrames)) * 100),
+      },
     });
   }
+  const completed = samplingCompleted;
+  samplingCompleted = null;
   samplingActive = false;
   samplingDeadline = 0;
+  samplingStartedAt = 0;
   frameSamples = 0;
   droppedFrames = 0;
   lastFrameAt = 0;
+  completed?.();
 }
 
 function monitorFrames(timestamp: number) {
@@ -349,11 +368,13 @@ function monitorFrames(timestamp: number) {
 }
 
 /** Optional short capture. Do not keep a 60 FPS profiler running while idle. */
-export function startPerformanceFrameSampling(durationMs = 5_000): boolean {
+export function startPerformanceFrameSampling(durationMs = 5_000, onComplete?: () => void): boolean {
   if (!initialized || samplingActive || typeof window === "undefined" || document.visibilityState !== "visible") return false;
   const boundedDuration = Math.max(1_000, Math.min(15_000, Math.round(durationMs)));
   samplingActive = true;
-  samplingDeadline = performance.now() + boundedDuration;
+  samplingStartedAt = performance.now();
+  samplingDeadline = samplingStartedAt + boundedDuration;
+  samplingCompleted = onComplete || null;
   lastFrameAt = 0;
   frameSamples = 0;
   droppedFrames = 0;
