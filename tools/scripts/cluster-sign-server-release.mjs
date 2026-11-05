@@ -28,11 +28,11 @@ const artifact=path.resolve(option("--artifact"));
 const feed=option("--feed-url"), download=option("--artifact-url"), output=path.resolve(option("--output"));
 const privateKeyFile=process.env.CLUSTER_SERVER_SIGNING_KEY_FILE;
 assert(privateKeyFile && fs.existsSync(privateKeyFile),"Set CLUSTER_SERVER_SIGNING_KEY_FILE to a protected Ed25519 private key path");
-const trustedPem=fs.readFileSync(path.join(root,"apps/desktop-qt/assets/update-public-key.pem"),"utf8").trim();
+const trustedPem=fs.readFileSync(path.join(root,"apps/server-launcher-go/assets/server-update-public-key.pem"),"utf8").trim();
 const key=createPrivateKey(fs.readFileSync(privateKeyFile));
 assert(key.asymmetricKeyType==="ed25519","Release signing requires Ed25519");
 const publicPem=createPublicKey(key).export({format:"pem",type:"spki"}).toString().trim();
-assert(publicPem===trustedPem,"Signing key does not match the trusted Cluster release publisher key");
+assert(publicPem===trustedPem,"Signing key does not match the trusted Cluster Server update publisher key");
 const feedURL=new URL(feed), artifactURL=new URL(download);
 function allowed(u) {
  return !u.username&&!u.password&&!u.hash&&(u.protocol==="https:"||(u.protocol==="http:"&&["localhost","127.0.0.1","[::1]"].includes(u.hostname)));
