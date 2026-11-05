@@ -7,6 +7,8 @@ import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup"
 import { ClusterFilterPopover } from "../../components/ClusterFilterPopover";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api";
+import { subscribeResourceChanges, subscribeResourceChangeFeedResets } from "../../core/resource-change-client";
+import { useVisibleRefresh } from "../../core/visible-refresh";
 import { useClusterCursorData, type ClusterCursorPage } from "../../components/useClusterCursorData";
 import { clusterDataQueryParameter } from "../../components/data-view-query";
 import { addDays } from "../../core/date-time";
@@ -31,7 +33,7 @@ import { ProjectPortfolioInspector } from "./ProjectPortfolioInspector";
 import { ProjectPortfolioItem } from "./ProjectPortfolioItem";
 import { projectInspectorReturnFocus } from "./project-inspector-focus";
 import { projectAttentionScore, type ProjectPortfolioFocus } from "./project-portfolio-model";
-import { planMissingProjectSnapshotBatches, projectRevisionKey } from "./project-snapshot-batching";
+import { planMissingProjectSnapshotBatches, projectRevisionKey, projectSnapshotInvalidationTarget } from "./project-snapshot-batching";
 import "./projects.css";
 
 const PROJECT_RENDER_BATCH = 120;
@@ -157,6 +159,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [projectSnapshots, setProjectSnapshots] = useState<Record<string, ProjectSnapshot>>({});
   const projectSnapshotCacheRef = useRef<Record<string, ProjectSnapshot>>({});
   const projectSnapshotRevisionsRef = useRef<Map<string, string>>(new Map());
+  const [projectSnapshotRefreshEpoch, setProjectSnapshotRefreshEpoch] = useState(0);
   const [projectTableLayout, setProjectTableLayout] = useState<ClusterDataViewLayout | null>(null);
   const [projectGroups, setProjectGroups] = useState<ClusterDataGroup[]>([]);
   const [projectProjections, setProjectProjections] = useState<ClusterDataProjection[]>(() => DEFAULT_PROJECT_PROJECTIONS);
@@ -218,6 +221,51 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const portfolioRevisionKey = useMemo(() => projectRevisionKey(portfolioProjects), [portfolioProjects]);
 
   useEffect(() => {
+    let timer = 0;
+    let allInvalidated = false;
+    const pendingIds = new Set<string>();
+    const schedule = (id: string | "all") => {
+      if (id === "all") {
+        allInvalidated = true;
+        pendingIds.clear();
+      } else if (!allInvalidated) pendingIds.add(id);
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = 0;
+        const revisions = projectSnapshotRevisionsRef.current;
+        const cache = projectSnapshotCacheRef.current;
+        if (allInvalidated) {
+          revisions.clear();
+          for (const id of Object.keys(cache)) delete cache[id];
+        } else {
+          for (const id of pendingIds) { revisions.delete(id); delete cache[id]; }
+        }
+        allInvalidated = false;
+        pendingIds.clear();
+        setProjectSnapshots({ ...cache });
+        setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+      }, 200);
+    };
+    const unsubChanges = subscribeResourceChanges(({ change }) => {
+      const target = projectSnapshotInvalidationTarget(change);
+      if (target) schedule(target);
+    });
+    const unsubReset = subscribeResourceChangeFeedResets(() => schedule("all"));
+    return () => {
+      unsubChanges();
+      unsubReset();
+      if (timer) window.clearTimeout(timer);
+    };
+  }, []);
+
+  // Server-derived badges can change with time, and an SSE gap is possible.
+  // Recovery is visible-only: hidden Project pages never retain this timer.
+  useVisibleRefresh(() => {
+    projectSnapshotRevisionsRef.current.clear();
+    setProjectSnapshotRefreshEpoch((epoch) => epoch + 1);
+  }, { enabled: portfolioProjects.length > 0, intervalMs: 180_000, minimumGapMs: 1_000, refreshOnFocus: false });
+
+  useEffect(() => {
     // Only retain snapshots for projects in the currently authorized, loaded
     // portfolio, at the exact revision that produced their derived badges.
     const activeRevisions = new Map(portfolioProjects.map((project) => [project.id, project.updatedAt || ""] as const));
@@ -259,7 +307,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       }
     })();
     return () => { active = false; };
-  }, [portfolioRevisionKey]);
+  }, [portfolioRevisionKey, projectSnapshotRefreshEpoch]);
 
   useEffect(() => {
     if (!inspectorOpen && !analyticsOpen && !intelligenceOpen) return;
