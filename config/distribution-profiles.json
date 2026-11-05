@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceVersion": "1.0.5",
+  "sourceVersion": "1.0.6",
   "profiles": {
     "server-windows-x64": {
       "product": "cluster-server",
