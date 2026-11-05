@@ -26,6 +26,15 @@ ok(manifest.includes("officialServerGitHubReleaseAssetPrefix"),"repo-specific Gi
 ok(manifest.includes("feed.String()!=defaultOfficialMainServerUpdateFeedURL"),"custom feed cannot use GitHub CDN exception");
 ok(stage.includes("serverUpdateRedirectAllowed(feed, req.URL)"),"signed downloads and manifests apply redirect policy");
 ok(settings.includes("serverUpdateRedirectAllowed(parsed, req.URL)"),"check-only HTTP client applies same redirect policy");
+ok(settings.includes("checkUpdateManifestWithTransport"), "update discovery supports offline Windows regression tests");
+ok(settings.includes("result.Available = false") && settings.includes('result.DownloadURL = ""'), "unsigned GitHub fallback cannot authorize an installer");
+ok(settings.includes("checkOfficialServerReleaseWithClient"), "official release metadata is read-only and testable");
+ok(settings.includes("ManualReleaseURL: latest.HTMLURL"), "only verified newer official releases produce a manual link");
+ok(settings.includes("hasInstaller") && settings.includes("hasReceipt"), "manual release discovery requires both installer and integrity receipt");
+ok(settings.includes("response.ContentLength > maxServerManifestBytes"), "oversized update bodies are rejected before download");
+ok(settings.includes("Server update rejected:"), "signed JSON verification failures must still fail closed");
+ok(ui.includes("manualReleaseURL != \"\"") && ui.includes("url.dll,FileProtocolHandler"), "manual GitHub releases open only after user confirmation");
+ok(ui.includes("ui.controller.StageServerUpdate()"), "signed download path is unchanged and separate from manual releases");
 
 // Source version must sign correctly. Avoid regex literal accidentally treating
 // backslash-plus-dot as a release character sequence.
