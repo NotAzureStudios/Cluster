@@ -155,6 +155,10 @@ assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, k
 assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 2\)/);
 assert.match(portfolio, /const projectSeedRevisionKey = useMemo/);
 assert.match(portfolio, /const pinnedProjectSet = useMemo/);
+assert.match(portfolio, /authority=\$\{portfolioAuthorityEpoch\}/);
+assert.match(portfolio, /portfolioAuthorityEpoch > 0 \|\| deferredQuery\.trim\(\)/);
+assert.match(portfolio, /setPortfolioAuthorityEpoch\(\(epoch\) => epoch \+ 1\)/);
+assert.match(portfolio, /subscribeResourceChangeFeedResets\(\(\) => schedule\("all", true\)\)/);
 assert.match(portfolio, /subscribeResourceChanges/);
 assert.match(portfolio, /subscribeResourceChangeFeedResets/);
 assert.match(portfolio, /projectSnapshotRefreshEpoch/);
