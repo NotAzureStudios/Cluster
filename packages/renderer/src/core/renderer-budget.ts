@@ -20,7 +20,7 @@ export const RENDERER_EFFECT_BUDGETS = Object.freeze({
   }),
   balanced: Object.freeze({
     maxBackdropRegions: 4,
-    maxBackdropBlurPx: 24,
+    maxBackdropBlurPx: 10,
     maxContinuousRenderSurfaces: 2,
     maxEffectDevicePixelRatio: 1.5,
     domNodeWarning: 6_000,
