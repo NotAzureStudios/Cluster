@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { startVisibleJobPolling } from "../../packages/renderer/src/core/visible-job-polling.ts";
-import { projectRevisionKey, planMissingProjectSnapshotBatches, projectSnapshotInvalidationTarget } from "../../packages/renderer/src/features/projects/project-snapshot-batching.ts";
+import { projectRevisionKey, planMissingProjectSnapshotBatches, projectSnapshotInvalidationTarget, projectSnapshotRetryDelayMs } from "../../packages/renderer/src/features/projects/project-snapshot-batching.ts";
 import { buildWhiteboardConnectorAdjacency, selectedWhiteboardConnectorIds } from "../../packages/renderer/src/features/whiteboards/whiteboard-connector-adjacency.ts";
 
 function makeHarness(initialVisibility = "hidden") {
@@ -114,6 +114,12 @@ assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "calendar", i
 assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "qa_session", id: "q1", projectId: "p2" } }), "p2");
 assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "project", id: "p2" } }), "p2");
 assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "team", id: "team-1", projectId: "p2" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "department", id: "d1", projectId: "p2" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "job_role", id: "r1" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "policy", id: "p1" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "file", id: "f1", projectId: "p1" } }), null);
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "approval", id: "a1", projectId: "p2" } }), "p2");
+assert.deepEqual([1, 2, 3, 4, 5, 100].map(projectSnapshotRetryDelayMs), [5000, 10000, 20000, 40000, 60000, 60000]);
 assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "timeline", id: "t1" } }), "all");
 assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "automation_run", id: "a1" } }), null);
 
@@ -155,6 +161,9 @@ assert.match(portfolio, /projectSnapshotRefreshEpoch/);
 assert.match(portfolio, /!loadedProjectIdsRef\.current\.has\(id\)/);
 assert.match(portfolio, /document\.visibilityState === "visible"/);
 assert.match(portfolio, /intervalMs: 180_000/);
+assert.match(portfolio, /if \(attempts <= 4\)/);
+assert.match(portfolio, /projectSnapshotRetryDelayMs\(attempts\)/);
+assert.match(portfolio, /retryPending \&\& document\.visibilityState !== "visible"/);
 assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
 assert.match(whiteboard, /selectedWhiteboardConnectorIds\(selectedIds, connectorAdjacency\)/);
 assert.match(whiteboard, /for \(const id of priorityElementIds\)/);
