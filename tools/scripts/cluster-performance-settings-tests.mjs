@@ -12,7 +12,7 @@ import {
 } from "../../packages/renderer/src/core/device-performance.ts";
 
 assert.equal(effectiveRendererBlurPx(26, "reduced"), 0);
-assert.equal(effectiveRendererBlurPx(26, "balanced"), 24);
+assert.equal(effectiveRendererBlurPx(26, "balanced"), 10);
 assert.equal(effectiveRendererBlurPx(26, "full"), 26);
 assert.equal(effectiveRendererBlurPx(Number.NaN, "full"), 16);
 
