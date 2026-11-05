@@ -104,7 +104,6 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
     await throwIfCancelled();
     await updateProgress(5, "Creating or resuming project authority");
     let project = await input.prisma.project.findUnique({ where: { provisioningKey: request.provisioningKey }, include: { memberships: true } });
-    let projectCreatedByOperation = false;
     if (!project) {
       project = await input.prisma.project.create({
         data: {
@@ -139,7 +138,6 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
         },
         include: { memberships: true },
       });
-      projectCreatedByOperation = true;
       stepReceipts.push({ id: "project", state: "created", resourceId: project.id });
     } else {
       stepReceipts.push({ id: "project", state: "reused", resourceId: project.id });
@@ -212,9 +210,15 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
         stepReceipts.push({ id: "source", state: sourceState, resourceId: source.binding.id });
         if (!source.reused) await input.logActivity?.({ userId: parsed.actorId, projectId: project.id, type: "created", entityType: "source_repository", entityId: source.repository.id, title: "Project repository created", message: `${source.repository.name} · ${source.initialized.defaultBranch}`, metadata: { hostingMode: "cluster", lfs: source.initialized.lfs, ignoreTemplate: sourcePlan.defaults.ignoreTemplate, projectType: parsed.typeDefinition.id, productionProfile: profile.id } });
       } catch (error) {
-        if (projectCreatedByOperation) await input.prisma.project.delete({ where: { id: project.id } }).catch(() => undefined);
-        const rollbackMessage = projectCreatedByOperation ? "The partial project was rolled back." : "The existing project was preserved.";
-        throw Object.assign(new Error(`Cluster could not provision the project repository. ${rollbackMessage}`), { code: "PROJECT_SOURCE_PROVISION_FAILED", cause: error });
+        // The project, its board, membership and Library are durable authority.
+        // A Git failure must never destroy them or orphan its project folder.
+        // The stable provisioningKey lets a failed operation retry this exact project.
+        const reason = error instanceof Error ? error.message : String(error);
+        throw Object.assign(new Error(`Project "${request.name}" was saved (ID ${project.id}), but Source Control setup failed: ${reason}. The project and its Library were preserved. Retry this provisioning operation after correcting the Git runtime; do not create a second project.`), {
+          code: "PROJECT_SOURCE_PROVISION_FAILED",
+          projectId: project.id,
+          cause: error,
+        });
       }
     } else stepReceipts.push({ id: "source", state: "skipped" });
 

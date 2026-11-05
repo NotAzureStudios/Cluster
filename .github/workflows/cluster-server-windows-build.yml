@@ -59,6 +59,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Managed database URL bootstrap regression failed' }
           node tools/scripts/cluster-prebuilt-install-gate-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Installer first-install regression test failed' }
+          node tools/scripts/cluster-v11-project-provision-preservation-tests.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Project provisioning data-preservation regression failed' }
           node tools/scripts/cluster-platform-release-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Release profile contract regression failed' }
       - name: Build complete precompiled Windows Server installer

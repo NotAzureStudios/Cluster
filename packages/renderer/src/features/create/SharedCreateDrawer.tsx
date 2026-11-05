@@ -118,6 +118,9 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const [projectAliases, setProjectAliases] = useState("");
   const [workspacePresetKey, setWorkspacePresetKey] = useState("standard");
   const [projectProvisioningKey, setProjectProvisioningKey] = useState(() => crypto.randomUUID());
+  // A failed async provisioning operation may have already saved the project.
+  // Resume that exact operation instead of creating another project/folder.
+  const [projectProvisionRetryId, setProjectProvisionRetryId] = useState<string | null>(null);
   const [projectTypeTemplate, setProjectTypeTemplate] = useState("");
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>(settings?.defaultProjectStatus || "active");
   const [projectExternal, setProjectExternal] = useState((settings?.defaultProjectSource || "internal") === "external");
@@ -1028,7 +1031,9 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
             ? `Cluster repo · ${sourcePreview.defaults.defaultBranch} · ${sourcePreview.defaults.ignoreTemplate}${sourcePreview.defaults.lfs ? " · LFS" : ""}`
             : `off by default · ${sourcePreview.capability}`;
         setStatus(`Plan verified · ${verifiedPreview.preview.steps.filter((step) => step.action !== "skip").length} active steps · Source Control: ${sourceSummary}.`);
-        const started = await createMutation<{ ok: boolean; operation: ProjectProvisionOperation }>("/api/projects/provision", { method: "POST", body: JSON.stringify(provisioningRequest) });
+        const started = projectProvisionRetryId
+          ? await api<{ ok: boolean; operation: ProjectProvisionOperation }>(`/api/projects/provision/${encodeURIComponent(projectProvisionRetryId)}/retry`, { method: "POST", signal: createSessionController.current.signal })
+          : await createMutation<{ ok: boolean; operation: ProjectProvisionOperation }>("/api/projects/provision", { method: "POST", body: JSON.stringify(provisioningRequest) });
         let operation = started.operation;
         for (let poll = 0; poll < 360 && !["succeeded", "failed", "dead-letter", "cancelled"].includes(operation.status); poll += 1) {
           setStatus(`${operation.progressMessage || "Provisioning project workspace"} · ${Math.round(operation.progress || 0)}%`);
@@ -1038,7 +1043,11 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
           const snapshot = await api<{ ok: boolean; operation: ProjectProvisionOperation }>(`/api/projects/provision/${operation.id}`, { signal: createSessionController.current.signal });
           operation = snapshot.operation;
         }
-        if (operation.status !== "succeeded" || !operation.result?.projectId) throw new Error(operation.lastError || `Project provisioning ended in ${operation.status}.`);
+        if (operation.status !== "succeeded" || !operation.result?.projectId) {
+          if (["failed", "dead-letter", "cancelled"].includes(operation.status)) setProjectProvisionRetryId(operation.id);
+          throw new Error(operation.lastError || `Project provisioning ended in ${operation.status}.`);
+        }
+        setProjectProvisionRetryId(null);
         createIntentRef.current.commit();
         // A successful server create must still open its exact record if the
         // optional list refresh fails. Admission rechecks Project access.
@@ -1356,9 +1365,12 @@ ${bugActual}`,
         else if (mode === "whiteboard") void onReloadWhiteboards().catch(() => undefined);
       } else {
         setCreateError(detail);
+        const savedProjectNeedsSource = mode === "project" && err instanceof Error && /project .+ was saved|project and its library were preserved/i.test(err.message);
         setStatus(createIntentRef.current.committed
           ? `Item created, but a follow-up action failed: ${detail.title}. Do not submit it again.`
-          : `${detail.title} · ${detail.code}`);
+          : savedProjectNeedsSource
+            ? "Project saved. Git setup failed, but your project and Library are preserved. Choose Retry project setup after checking the Server Git runtime. Do not create a second project."
+            : `${detail.title} · ${detail.code}`);
       }
     } finally {
       createIntentRef.current.finish();
@@ -2050,7 +2062,7 @@ ${bugActual}`,
               </ClusterButton>
               <ClusterButton type="button" variant="secondary" onClick={() => void submitSharedCreate("another")} disabled={busy || createIntentRef.current.committed} title="Create this item and stay in the drawer">Create another</ClusterButton>
               <ClusterButton type="button" variant="primary" onClick={() => void submitSharedCreate("open")} disabled={createIntentRef.current.committed} busy={busy} busyLabel="Creating…" title={createIntentRef.current.committed ? "This Create already committed; close to review the item" : "Create · Ctrl/Cmd+Enter"}>
-                {createIntentRef.current.committed ? "Already created" : duplicateOverride ? "Create anyway & open" : `Create & open ${selectedMode?.label || "item"}`}
+                {createIntentRef.current.committed ? "Already created" : mode === "project" && projectProvisionRetryId ? "Retry project setup" : duplicateOverride ? "Create anyway & open" : `Create & open ${selectedMode?.label || "item"}`}
               </ClusterButton>
             </div>
           </footer>
