@@ -152,6 +152,8 @@ assert.match(portfolio, /const pinnedProjectSet = useMemo/);
 assert.match(portfolio, /subscribeResourceChanges/);
 assert.match(portfolio, /subscribeResourceChangeFeedResets/);
 assert.match(portfolio, /projectSnapshotRefreshEpoch/);
+assert.match(portfolio, /!loadedProjectIdsRef\.current\.has\(id\)/);
+assert.match(portfolio, /document\.visibilityState === "visible"/);
 assert.match(portfolio, /intervalMs: 180_000/);
 assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
 assert.match(whiteboard, /selectedWhiteboardConnectorIds\(selectedIds, connectorAdjacency\)/);
