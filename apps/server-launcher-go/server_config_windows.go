@@ -138,7 +138,7 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 	if section == "Updates" {
 		return []nativeSettingSpec{
 			{Key: "native.updateChannel", Label: "Server update channel", Section: "Updates", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Main uses reviewed Server releases; development uses test releases. This never changes Desktop or Web update channels."},
-			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "The official signed Cluster Server main channel is configured automatically. Override only for another trusted, signed JSON feed; never paste an EXE or GitHub page."},
+			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "Uses the signed Server main channel when published. Until then Check Updates reads official release metadata only; unsigned releases require manual review/install. Override only with a trusted signed JSON feed, not an EXE or GitHub release page."},
 			{Key: "native.developmentUpdateManifestUrl", Label: "Development: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a development-channel signed JSON Cluster Server manifest. Do not paste an installer, repository or release page."},
 		}
 	}
@@ -578,9 +578,10 @@ func syncWindowsStartupRegistration(enabled bool) error {
 }
 
 type updateCheckResult struct {
-	Message     string
-	DownloadURL string
-	Available   bool
+	Message          string
+	DownloadURL      string
+	Available        bool
+	ManualReleaseURL string // UI-only GitHub link, never authorized for staging/install
 }
 
 func configuredUpdateManifestURL(root string) string {
@@ -599,10 +600,17 @@ func configuredUpdateManifestURL(root string) string {
 // studio's canonical GitHub release. GitHub release metadata is never treated
 // as an authenticated update manifest and cannot stage or execute an EXE.
 func checkOfficialServerRelease(root string) updateCheckResult {
-	const latestEndpoint = "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest"
 	client := &http.Client{Timeout: 8*time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		return errors.New("official release API redirected unexpectedly")
 	}}
+	return checkOfficialServerReleaseWithClient(root, client)
+}
+
+// GitHub's latest release response is informational only: it is never an
+// installer admission path. The injected client permits offline regression
+// tests without contacting GitHub or changing the pinned signing trust root.
+func checkOfficialServerReleaseWithClient(root string, client *http.Client) updateCheckResult {
+	const latestEndpoint = "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest"
 	req, err := http.NewRequest(http.MethodGet, latestEndpoint, nil)
 	if err != nil { return updateCheckResult{Message:"No signed Server update feed is configured."} }
 	req.Header.Set("User-Agent", "ClusterServer/"+version)
@@ -615,30 +623,67 @@ func checkOfficialServerRelease(root string) updateCheckResult {
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 256*1024+1))
 	if err != nil || len(raw)>256*1024 { return updateCheckResult{Message:"Official release metadata could not be read within the size limit."} }
-	var latest struct { TagName string `json:"tag_name"`; HTMLURL string `json:"html_url"` }
+	var latest struct {
+		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
+		Assets []struct { Name string `json:"name"` } `json:"assets"`
+	}
 	if json.Unmarshal(raw, &latest)!=nil { return updateCheckResult{Message:"Official GitHub release metadata was invalid."} }
 	release := strings.TrimPrefix(strings.TrimSpace(latest.TagName), "v")
 	next, valid := serverUpdateSequence(release, "main")
-	if !valid || !strings.HasPrefix(latest.HTMLURL,"https://github.com/NotAzureStudios/Cluster/releases/") {
+	if !valid || latest.HTMLURL != "https://github.com/NotAzureStudios/Cluster/releases/tag/"+latest.TagName {
 		return updateCheckResult{Message:"Official release metadata did not identify a supported Cluster Server release."}
+	}
+	hasInstaller := false
+	hasReceipt := false
+	for _, asset := range latest.Assets {
+		if asset.Name == "Cluster-Installer.exe" { hasInstaller = true }
+		if asset.Name == "Cluster-server-build-receipt.json" { hasReceipt = true }
+	}
+	if !hasInstaller || !hasReceipt {
+		return updateCheckResult{Message:"The latest GitHub release has no complete Cluster Windows Server installer and integrity receipt. No automatic update is available."}
 	}
 	current := installedServerReleaseSequence(root)
 	if current == 0 {
-		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured.",release)}
+		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured. Release: %s",release,latest.HTMLURL)}
 	}
 	if next > current {
-		return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is published. Your installation is older. Manual upgrade: %s. One-click signed installation is not configured.",release,latest.HTMLURL)}
+		return updateCheckResult{
+			Message: fmt.Sprintf("Cluster Server %s is published. Your installation is older. The signed automatic-update feed is not configured. Review and back up your installation before using the official manual installer: %s",release,latest.HTMLURL),
+			ManualReleaseURL: latest.HTMLURL,
+		}
 	}
-	return updateCheckResult{Message:fmt.Sprintf("Latest official Server release is %s. No signed automatic-update feed is configured; installed release sequence %d.",release,current)}
+	return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is the latest published release (installed sequence %d). No signed automatic-update feed is configured. Manual releases: %s",release,current,latest.HTMLURL)}
 }
 
 func checkUpdateManifest(root string) updateCheckResult {
+	return checkUpdateManifestWithTransport(root, http.DefaultTransport, checkOfficialServerRelease)
+}
+
+// Signed feeds remain the ONLY source of executable update authority.
+// When the official main feed is unpublished or answers with a GitHub HTML
+// page/archive, Check Updates may display canonical release metadata instead.
+// An operator-supplied feed must still fail closed on malformed content.
+func checkUpdateManifestWithTransport(root string, transport http.RoundTripper, releaseLookup func(string) updateCheckResult) updateCheckResult {
 	prefs := loadNativePanelPreferences(root)
 	channel := prefs.UpdateChannel
-	if channel != "development" { channel = "main" }
+	if channel != "development" {
+		channel = "main"
+	}
 	source := configuredUpdateManifestURL(root)
+	officialFeed := channel == "main" && source == defaultOfficialMainServerUpdateFeedURL
+	informationalFallback := func(reason string) updateCheckResult {
+		result := releaseLookup(root)
+		// Never admit an unsigned GitHub release to the signed staging path.
+		result.Available = false
+		result.DownloadURL = ""
+		result.Message = "Signed automatic-update feed unavailable (" + reason + "). " + result.Message
+		return result
+	}
 	if source == "" {
-		if channel == "main" { return checkOfficialServerRelease(root) }
+		if channel == "main" {
+			return informationalFallback("no feed configured")
+		}
 		return updateCheckResult{Message: "No signed development update feed is configured. Configure a trusted manifest URL in Settings → Updates."}
 	}
 	parsed, err := url.Parse(source)
@@ -648,39 +693,73 @@ func checkUpdateManifest(root string) updateCheckResult {
 	if hint := serverUpdateFeedLinkHint(parsed); hint != "" {
 		return updateCheckResult{Message: hint}
 	}
-	client := &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 || !serverUpdateRedirectAllowed(parsed, req.URL) { return errors.New("update feed redirected to an untrusted origin") }
+	client := &http.Client{Timeout: 8 * time.Second, Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		if len(via) >= 5 || !serverUpdateRedirectAllowed(parsed, req.URL) {
+			return errors.New("update feed redirected to an untrusted origin")
+		}
 		return nil
 	}}
 	req, err := http.NewRequest(http.MethodGet, source, nil)
-	if err != nil { return updateCheckResult{Message: "Invalid update request: " + err.Error()} }
+	if err != nil {
+		return updateCheckResult{Message: "Invalid update request: " + err.Error()}
+	}
 	req.Header.Set("User-Agent", "ClusterServer/"+version)
 	response, err := client.Do(req)
-	if err != nil { return updateCheckResult{Message: "Update check failed: " + err.Error()} }
+	if err != nil {
+		if officialFeed {
+			return informationalFallback("official feed request failed")
+		}
+		return updateCheckResult{Message: "Update check failed: " + err.Error()}
+	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-  if source == defaultOfficialMainServerUpdateFeedURL && response.StatusCode == http.StatusNotFound {
-   return updateCheckResult{Message: "Cluster Server's official signed main update channel has not been published yet. The Windows Server build exists, but a protected publisher must sign and publish it before Check Updates can offer it. No unsigned installer was downloaded."}
-  }
-  return updateCheckResult{Message: fmt.Sprintf("Signed Server update feed returned HTTP %d; update discovery is not available.",response.StatusCode)}
- }
-	raw, err := io.ReadAll(io.LimitReader(response.Body, 256*1024+1))
-	if err != nil { return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()} }
-	if len(raw) > 256*1024 { return updateCheckResult{Message: "The update feed response is larger than the 256 KiB JSON manifest limit. Check that you pasted a signed JSON manifest URL, not a .exe installer download or a GitHub release page."} }
-	if bytes := strings.TrimSpace(string(raw[:min(len(raw), 96)])); strings.HasPrefix(bytes, "MZ") || strings.HasPrefix(bytes, "PK") || strings.HasPrefix(strings.ToLower(bytes), "<!doctype") || strings.HasPrefix(strings.ToLower(bytes), "<html") {
-		return updateCheckResult{Message: "The update URL returned an executable/archive or HTML page, not a signed JSON manifest. Configure the signed feed URL under Settings → Updates."}
+		if officialFeed {
+			return informationalFallback(fmt.Sprintf("official feed HTTP %d", response.StatusCode))
+		}
+		return updateCheckResult{Message: fmt.Sprintf("Signed Server update feed returned HTTP %d; update discovery is not available.", response.StatusCode)}
+	}
+	// Reject oversized downloads using Content-Length before reading any body
+	// bytes. Also bound unknown-length streams. Never increase the manifest cap.
+	if response.ContentLength > maxServerManifestBytes {
+		if officialFeed {
+			return informationalFallback("official feed returned oversized content")
+		}
+		return updateCheckResult{Message: "The configured update feed returned an oversized response, not a signed JSON Server manifest. Check Settings → Updates."}
+	}
+	raw, err := io.ReadAll(io.LimitReader(response.Body, maxServerManifestBytes+1))
+	if err != nil {
+		return updateCheckResult{Message: "Update manifest could not be read: " + err.Error()}
+	}
+	if len(raw) > maxServerManifestBytes {
+		if officialFeed {
+			return informationalFallback("official feed returned oversized content")
+		}
+		return updateCheckResult{Message: "The configured update feed returned an oversized response, not a signed JSON Server manifest. Check Settings → Updates."}
+	}
+	prefix := strings.ToLower(strings.TrimSpace(string(raw[:min(len(raw), 96)])))
+	if strings.HasPrefix(prefix, "mz") || strings.HasPrefix(prefix, "pk") || strings.HasPrefix(prefix, "<!doctype") || strings.HasPrefix(prefix, "<html") || (officialFeed && !strings.HasPrefix(prefix, "{")) {
+		if officialFeed {
+			return informationalFallback("official feed returned non-JSON content")
+		}
+		return updateCheckResult{Message: "The configured update URL returned an executable, archive or HTML page, not a signed JSON manifest. Correct Settings → Updates."}
 	}
 	manifest, err := verifyServerUpdateManifest(raw, parsed, channel)
-	if err != nil { return updateCheckResult{Message: "Server update rejected: " + err.Error()} }
+	if err != nil {
+		// A syntactically JSON manifest with a wrong/missing signature is a
+		// security failure, not permission to use an unsigned release instead.
+		return updateCheckResult{Message: "Server update rejected: " + err.Error()}
+	}
 	current := installedServerReleaseSequence(root)
 	if manifest.Sequence > current {
 		return updateCheckResult{
 			Message: fmt.Sprintf("%s Windows Server channel: signed Cluster %s (sequence %d) available; currently %s (sequence %d). Download only a matching verified installer.", channel, manifest.Release, manifest.Sequence, displayReleaseVersion(root), current),
-			DownloadURL: manifest.Artifact.URL, Available:true,
+			DownloadURL: manifest.Artifact.URL, Available: true,
 		}
 	}
-	if manifest.Sequence == current { return updateCheckResult{Message: fmt.Sprintf("%s Windows Server channel is current (%s).", channel, displayReleaseVersion(root))} }
-	return updateCheckResult{Message: fmt.Sprintf("Selected %s release %s is older than installed %s; automatic downgrades are disabled.",channel,manifest.Release,displayReleaseVersion(root))}
+	if manifest.Sequence == current {
+		return updateCheckResult{Message: fmt.Sprintf("%s Windows Server channel is current (%s).", channel, displayReleaseVersion(root))}
+	}
+	return updateCheckResult{Message: fmt.Sprintf("Selected %s release %s is older than installed %s; automatic downgrades are disabled.", channel, manifest.Release, displayReleaseVersion(root))}
 }
 
 func firstManifestString(m map[string]any, keys ...string) string {
