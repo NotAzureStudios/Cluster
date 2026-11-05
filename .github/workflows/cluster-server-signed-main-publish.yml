@@ -80,11 +80,47 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          gh run download "$env:BUILT_RUN_ID" --repo "$env:GITHUB_REPOSITORY" --pattern 'cluster-server-unsigned-windows-x64-*' --dir .
-          if ($LASTEXITCODE -ne 0) { throw 'Could not download the exact verified Windows Server build artifact' }
-          foreach ($required in @('bin/Cluster-Installer.exe','artifacts/release-profiles/server-windows-x64/build-receipt.json')) {
-            if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw "Release artifact missing $required" }
+          # Pattern downloads create an artifact-name subdirectory. Pin the exact
+          # SHA-named artifact and extract it into an isolated directory instead.
+          $artifactName = "cluster-server-unsigned-windows-x64-$env:BUILT_SHA"
+          $staging = Join-Path $env:RUNNER_TEMP 'cluster-server-signed-publisher-input'
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          gh run download "$env:BUILT_RUN_ID" --repo "$env:GITHUB_REPOSITORY" --name "$artifactName" --dir "$staging"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the exact reviewed Windows Server build artifact' }
+          # upload-artifact can preserve relative paths or flatten a multi-path
+          # artifact depending on its common directory. Admit only these two
+          # known layouts, never choose a file by recursive glob.
+          $preserved = @{
+            installer = (Join-Path $staging 'bin/Cluster-Installer.exe')
+            receipt = (Join-Path $staging 'artifacts/release-profiles/server-windows-x64/build-receipt.json')
           }
+          $flat = @{
+            installer = (Join-Path $staging 'Cluster-Installer.exe')
+            receipt = (Join-Path $staging 'build-receipt.json')
+          }
+          $valid = @(@($preserved, $flat) | Where-Object {
+            (Test-Path -LiteralPath $_.installer -PathType Leaf) -and
+            (Test-Path -LiteralPath $_.receipt -PathType Leaf)
+          })
+          if ($valid.Count -ne 1) { throw "Expected exactly one reviewed Server installer/receipt layout; got $($valid.Count)" }
+          $source = $valid[0]
+          $buildReceipt = Get-Content -LiteralPath $source.receipt -Raw | ConvertFrom-Json
+          if ($buildReceipt.commit -ne $env:BUILT_SHA -or $buildReceipt.product -ne 'cluster-server' -or
+              $buildReceipt.profile -ne 'server-windows-x64' -or $buildReceipt.channel -ne 'main' -or
+              !$buildReceipt.built -or $buildReceipt.signed -or $buildReceipt.certified) {
+            throw 'Downloaded Server build receipt is not an admissible unsigned main build'
+          }
+          $installerEvidence = @($buildReceipt.artifacts | Where-Object { $_.path -ceq 'bin/Cluster-Installer.exe' })
+          if ($installerEvidence.Count -ne 1) { throw 'Downloaded receipt does not uniquely identify the Server installer' }
+          $installerFile = Get-Item -LiteralPath $source.installer -ErrorAction Stop
+          if ($installerFile.Length -ne [long]$installerEvidence[0].bytes -or
+              (Get-FileHash -LiteralPath $source.installer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $installerEvidence[0].sha256) {
+            throw 'Downloaded Server installer differs from reviewed build receipt'
+          }
+          New-Item -ItemType Directory -Path 'bin','artifacts/release-profiles/server-windows-x64' -Force | Out-Null
+          Copy-Item -LiteralPath $source.installer -Destination 'bin/Cluster-Installer.exe' -ErrorAction Stop
+          Copy-Item -LiteralPath $source.receipt -Destination 'artifacts/release-profiles/server-windows-x64/build-receipt.json' -ErrorAction Stop
+          Write-Host "Admitted exact reviewed Server artifact $artifactName (SHA-256 verified)."
       - name: Sign the immutable versioned Server installer
         shell: pwsh
         run: |

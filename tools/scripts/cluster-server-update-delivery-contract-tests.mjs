@@ -69,6 +69,14 @@ ok(publish.includes("environment: server-release"),"protected release environmen
 ok(publish.includes("CLUSTER_SERVER_SIGNING_KEY_PEM"),"publishing needs protected Ed25519 key");
 ok(publish.includes('if ($head -ne $env:BUILT_SHA)'),"stale builds cannot publish");
 ok(publish.includes("Required CI did not finish successfully"),"publisher waits for independent CI");
+ok(publish.includes('$artifactName = "cluster-server-unsigned-windows-x64-$env:BUILT_SHA"'), "publisher pins the exact CI SHA-named artifact");
+ok(publish.includes('--name "$artifactName" --dir "$staging"'), "publisher downloads one named artifact into isolated staging");
+ok(!publish.includes("--pattern 'cluster-server-unsigned-windows-x64-*' --dir ."), "publisher cannot download globbed artifacts into source root");
+ok(publish.includes("Join-Path $staging 'bin/Cluster-Installer.exe'") && publish.includes("Join-Path $staging 'Cluster-Installer.exe'"), "publisher handles only explicit preserved and flattened installer layouts");
+ok(publish.includes('if ($valid.Count -ne 1)'), "publisher rejects missing or ambiguous artifact layouts");
+ok(publish.includes("$buildReceipt.commit -ne $env:BUILT_SHA"), "publisher re-verifies downloaded build SHA against receipt");
+ok(publish.includes("Get-FileHash -LiteralPath $source.installer -Algorithm SHA256"), "publisher checks downloaded installer SHA-256 before signing");
+ok(publish.indexOf("Get-FileHash -LiteralPath $source.installer") < publish.indexOf("Copy-Item -LiteralPath $source.installer"), "release input checked before copying into signing paths");
 ok(networkCI.replaceAll("\r\n","\n").includes("  push:\n    branches: [main]"), "required network release gate runs on the main commit as well as PRs");
 ok(publish.includes("'Managed network access regressions'"), "publisher retains network security gate rather than bypassing it");
 ok(publish.indexOf('gh release create "$tag"') < publish.indexOf("gh release upload server-main"),"immutable release exists before mutable manifest pointer updates");
