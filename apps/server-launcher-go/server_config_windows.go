@@ -138,7 +138,7 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 	if section == "Updates" {
 		return []nativeSettingSpec{
 			{Key: "native.updateChannel", Label: "Server update channel", Section: "Updates", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Main uses reviewed Server releases; development uses test releases. This never changes Desktop or Web update channels."},
-			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "The official signed Cluster Server main channel is configured automatically. Override only for another trusted, signed JSON feed; never paste an EXE or GitHub page."},
+			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "Uses the signed Server main channel when published. Until then Check Updates reads official release metadata only; unsigned releases require manual review/install. Override only with a trusted signed JSON feed, not an EXE or GitHub release page."},
 			{Key: "native.developmentUpdateManifestUrl", Label: "Development: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a development-channel signed JSON Cluster Server manifest. Do not paste an installer, repository or release page."},
 		}
 	}
