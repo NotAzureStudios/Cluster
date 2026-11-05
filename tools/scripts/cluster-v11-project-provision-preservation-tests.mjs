@@ -96,14 +96,21 @@ test("Git provisioning failure retains its database repository binding and ID", 
   assert.doesNotMatch(source, /sourceRepository\.delete\(/);
 });
 
-test("1.1.1 manual publisher validates the monotonic patch release sequence", () => {
+test("active manual publisher matches current monotonic stable release identity", () => {
   const release = JSON.parse(read("config/release-candidate.json"));
-  const workflow = read(".github/workflows/publish-cluster-1-1-1-manual.yml");
-  assert.equal(release.release, "1.1.1");
-  assert.equal(release.sequence, 100001);
-  assert.match(workflow, /assert metadata\['sequence'\]==100001/);
-  assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$SERVER_SHA"/);
-  assert.match(workflow, /gh release create v1\.1\.1/);
+  const version = String(release.release || "");
+  assert.match(version, /^1\.[1-9][0-9]*\.(0|[1-9][0-9]*)$/);
+  assert.equal(release.sourceVersion, version);
+  assert.equal(release.channel, "stable");
+  const [major, minor, patch] = version.split(".").map(Number);
+  assert.equal(major, 1);
+  assert.equal(release.sequence, minor * 100000 + patch);
+  const workflowPath = ".github/workflows/publish-cluster-" + version.replaceAll(".", "-") + "-manual.yml";
+  const workflow = read(workflowPath);
+  assert.ok(workflow.includes("assert metadata['sequence']==" + release.sequence));
+  assert.ok(workflow.includes('test "$(git rev-parse HEAD)" = "$SERVER_SHA"'));
+  assert.ok(workflow.includes("gh release create v" + version));
+  assert.ok(workflow.includes("SERVER_ARTIFACT: cluster-server-unsigned-windows-x64-"));
 });
 
 console.log(checks + "/" + checks + " Project provisioning data-preservation checks passed");
