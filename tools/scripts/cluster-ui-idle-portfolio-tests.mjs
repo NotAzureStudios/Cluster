@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { startVisibleJobPolling } from "../../packages/renderer/src/core/visible-job-polling.ts";
-import { projectRevisionKey, planMissingProjectSnapshotBatches } from "../../packages/renderer/src/features/projects/project-snapshot-batching.ts";
+import { projectRevisionKey, planMissingProjectSnapshotBatches, projectSnapshotInvalidationTarget } from "../../packages/renderer/src/features/projects/project-snapshot-batching.ts";
 import { buildWhiteboardConnectorAdjacency, selectedWhiteboardConnectorIds } from "../../packages/renderer/src/features/whiteboards/whiteboard-connector-adjacency.ts";
 
 function makeHarness(initialVisibility = "hidden") {
@@ -109,6 +109,14 @@ assert.deepEqual(planMissingProjectSnapshotBatches([{ id: "p", updatedAt: "rev2"
 assert.notEqual(projectRevisionKey(projects), projectRevisionKey([...projects.slice(0, 2), { ...projects[2], updatedAt: "rev2" }, ...projects.slice(3)]));
 assert.ok(batches.every((batch) => batch.length <= 40));
 
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "build", id: "b1", projectId: "p1" } }), "p1");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "calendar", id: "e1", projectId: "p1" } }), "p1");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "qa_session", id: "q1", projectId: "p2" } }), "p2");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "project", id: "p2" } }), "p2");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "team", id: "team-1", projectId: "p2" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "timeline", id: "t1" } }), "all");
+assert.equal(projectSnapshotInvalidationTarget({ resource: { kind: "automation_run", id: "a1" } }), null);
+
 const elements = [
   { id: "n1", type: "rectangle" },
   { id: "n2", type: "rectangle" },
@@ -141,6 +149,10 @@ assert.match(portfolio, /planMissingProjectSnapshotBatches\(portfolioProjects, k
 assert.match(portfolio, /Promise\.allSettled\(batches\.slice\(offset, offset \+ 2\)/);
 assert.match(portfolio, /const projectSeedRevisionKey = useMemo/);
 assert.match(portfolio, /const pinnedProjectSet = useMemo/);
+assert.match(portfolio, /subscribeResourceChanges/);
+assert.match(portfolio, /subscribeResourceChangeFeedResets/);
+assert.match(portfolio, /projectSnapshotRefreshEpoch/);
+assert.match(portfolio, /intervalMs: 180_000/);
 assert.match(whiteboard, /buildWhiteboardConnectorAdjacency\(visibleElements\)/);
 assert.match(whiteboard, /selectedWhiteboardConnectorIds\(selectedIds, connectorAdjacency\)/);
 assert.match(whiteboard, /for \(const id of priorityElementIds\)/);
