@@ -49,4 +49,4 @@ assert.match(read("packages/renderer/src/core/render-capabilities.ts"), /resolve
 assert.match(read("packages/renderer/src/features/settings/account-settings-registry.ts"), /key: "performance"/);
 assert.match(read("packages/renderer/src/features/settings/AccountSettingsPage.tsx"), /<DevicePerformanceSettingsSection \/>/);
 assert.match(read("packages/renderer/src/features/settings/account-settings-search.ts"), /section: "performance"/);
-console.log("Cluster performance settings: 17 policy and integration assertions passed.");
+console.log("Cluster performance settings: policy and integration assertions passed.");
