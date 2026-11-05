@@ -12,6 +12,9 @@ export type SettingPayload = Record<string, unknown> & PacketsSettingsPayload & 
   serverInstanceId?: string;
   serverDataEpoch?: string;
   serverDisplayName?: string;
+  serverResourceProfile?: "automatic" | "interactive-first" | "background-throughput";
+  serverResourceWorkerCap?: number;
+  serverResourceRecoveryHoldMs?: number;
   lanDiscoveryEnabled?: boolean;
   appDisplayName?: string;
   studioName?: string;
