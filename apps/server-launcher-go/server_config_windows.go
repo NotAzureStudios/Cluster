@@ -599,10 +599,17 @@ func configuredUpdateManifestURL(root string) string {
 // studio's canonical GitHub release. GitHub release metadata is never treated
 // as an authenticated update manifest and cannot stage or execute an EXE.
 func checkOfficialServerRelease(root string) updateCheckResult {
-	const latestEndpoint = "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest"
 	client := &http.Client{Timeout: 8*time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		return errors.New("official release API redirected unexpectedly")
 	}}
+	return checkOfficialServerReleaseWithClient(root, client)
+}
+
+// GitHub's latest release response is informational only: it is never an
+// installer admission path. The injected client permits offline regression
+// tests without contacting GitHub or changing the pinned signing trust root.
+func checkOfficialServerReleaseWithClient(root string, client *http.Client) updateCheckResult {
+	const latestEndpoint = "https://api.github.com/repos/NotAzureStudios/Cluster/releases/latest"
 	req, err := http.NewRequest(http.MethodGet, latestEndpoint, nil)
 	if err != nil { return updateCheckResult{Message:"No signed Server update feed is configured."} }
 	req.Header.Set("User-Agent", "ClusterServer/"+version)
@@ -624,12 +631,12 @@ func checkOfficialServerRelease(root string) updateCheckResult {
 	}
 	current := installedServerReleaseSequence(root)
 	if current == 0 {
-		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured.",release)}
+		return updateCheckResult{Message:fmt.Sprintf("Official release %s found. Installed release could not be verified; manual review required. A signed automatic-update feed is not configured. Release: %s",release,latest.HTMLURL)}
 	}
 	if next > current {
 		return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is published. Your installation is older. Manual upgrade: %s. One-click signed installation is not configured.",release,latest.HTMLURL)}
 	}
-	return updateCheckResult{Message:fmt.Sprintf("Latest official Server release is %s. No signed automatic-update feed is configured; installed release sequence %d.",release,current)}
+	return updateCheckResult{Message:fmt.Sprintf("Cluster Server %s is the latest published release (installed sequence %d). No signed automatic-update feed is configured. Manual releases: %s",release,current,latest.HTMLURL)}
 }
 
 func checkUpdateManifest(root string) updateCheckResult {
