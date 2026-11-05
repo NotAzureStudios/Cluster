@@ -1,4 +1,4 @@
-import { DEVICE_PERFORMANCE_CHANGED_EVENT, DEVICE_PERFORMANCE_STORAGE_KEY, resolveDeviceRendererQuality } from "./device-performance";
+import { DEVICE_PERFORMANCE_CHANGED_EVENT, DEVICE_PERFORMANCE_STORAGE_KEY, readDevicePerformancePreferences, resolveDeviceRendererQuality } from "./device-performance";
 
 export type RendererHost = "web" | "desktop";
 export type RendererQualityTier = "full" | "balanced" | "reduced";
@@ -40,6 +40,7 @@ type DocumentWithViewTransitions = Document & {
 const listeners = new Set<CapabilityListener>();
 let cleanupCallbacks: Array<() => void> = [];
 let initialized = false;
+let cachedWebGl2: boolean | null = null;
 let current: RendererCapabilities = Object.freeze({
   host: "web",
   devicePixelRatio: 1,
@@ -90,13 +91,18 @@ function classifyViewport(width: number): RendererCapabilities["viewportClass"] 
 }
 
 function detectWebGl2() {
+  if (cachedWebGl2 !== null) return cachedWebGl2;
   if (typeof document === "undefined") return false;
   try {
+    // Capability probing must not create a new graphics context on every resize.
     const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true }));
+    const context = canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: true });
+    cachedWebGl2 = Boolean(context);
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
-    return false;
+    cachedWebGl2 = false;
   }
+  return cachedWebGl2;
 }
 
 function chooseQualityTier(input: Omit<RendererCapabilities, "qualityTier">): RendererQualityTier {
@@ -140,6 +146,7 @@ function applyCapabilityAttributes(capabilities: RendererCapabilities) {
   const root = document.documentElement;
   root.dataset.rendererHost = capabilities.host;
   root.dataset.rendererQuality = capabilities.qualityTier;
+  root.dataset.devicePerformanceProfile = readDevicePerformancePreferences().profile;
   root.dataset.rendererPointer = capabilities.pointer;
   root.dataset.rendererBackdrop = capabilities.backdropFilter ? "supported" : "fallback";
   root.dataset.rendererViewTransitions = capabilities.viewTransitions ? "supported" : "fallback";
@@ -154,6 +161,9 @@ function applyCapabilityAttributes(capabilities: RendererCapabilities) {
 
 function publish(next: RendererCapabilities) {
   const changed = JSON.stringify(next) !== JSON.stringify(current);
+  const profileChanged = typeof document !== "undefined"
+    && document.documentElement.dataset.devicePerformanceProfile !== readDevicePerformancePreferences().profile;
+  if (!changed && !profileChanged) return;
   current = next;
   applyCapabilityAttributes(current);
   if (changed) listeners.forEach((listener) => listener());
@@ -182,11 +192,23 @@ export function initializeRendererCapabilities(host: RendererHost) {
     "(forced-colors: active)",
   ].forEach((query) => watchMedia(query, refresh));
   if (typeof window !== "undefined") {
-    window.addEventListener("resize", refresh, { passive: true });
+    let resizeFrame = 0;
+    const onResize = () => {
+      if (resizeFrame) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0;
+        refresh();
+      });
+    };
+    window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh);
     const onStorage = (event: StorageEvent) => { if (event.key === DEVICE_PERFORMANCE_STORAGE_KEY) refresh(); };
     window.addEventListener("storage", onStorage);
-    cleanupCallbacks.push(() => window.removeEventListener("resize", refresh));
+    cleanupCallbacks.push(() => {
+      window.removeEventListener("resize", onResize);
+      if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = 0;
+    });
     cleanupCallbacks.push(() => window.removeEventListener(DEVICE_PERFORMANCE_CHANGED_EVENT, refresh));
     cleanupCallbacks.push(() => window.removeEventListener("storage", onStorage));
   }
@@ -206,5 +228,6 @@ export function disposeRendererCapabilities() {
   cleanupCallbacks.forEach((cleanup) => cleanup());
   cleanupCallbacks = [];
   listeners.clear();
+  cachedWebGl2 = null;
   initialized = false;
 }
