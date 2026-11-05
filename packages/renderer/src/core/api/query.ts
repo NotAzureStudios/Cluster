@@ -59,6 +59,31 @@ function noteRateLimitedRead(key: string, error: unknown) {
   }
 }
 
+// An IndexedDB upgrade/block or slow desktop bridge must not delay the
+// first online GET. Retain the same already-authorized disk promise so a
+// network failure can still use an offline snapshot, within a second bounded
+// recovery window. Permission denials never permit disk fallback.
+export const ONLINE_DURABLE_READ_BUDGET_MS = 180;
+export const FAILED_NETWORK_DURABLE_RECOVERY_MS = 750;
+
+async function boundedDurableRead<T>(pending: Promise<T>, waitMs: number): Promise<T | null> {
+  if (!isOnline() || typeof setTimeout !== "function") return pending;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      pending,
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), waitMs); }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+async function readDurableForNavigation(path: string) {
+  const pending = readCachedResponse(path).catch(() => null);
+  return { first: await boundedDurableRead(pending, ONLINE_DURABLE_READ_BUDGET_MS), pending };
+}
+
 async function revalidateCachedQuery<T>(path: string, memoryKey: string, options: QueryApiOptions, staleMs: number, maxAgeMs: number) {
   const generation = currentSessionCacheGeneration();
   const existing = backgroundRevalidations.get(memoryKey);
@@ -136,7 +161,8 @@ export async function queryApi<T>(path: string, options: QueryApiOptions = {}): 
     const ownsCacheEntry = () => generation === currentSessionCacheGeneration() && queryCache.get(memoryKey)?.promise === promise;
     // An unavailable, blocked, or corrupt IndexedDB store must not prevent an
     // online GET. Explicit refresh never needs a durable-cache read.
-    const durable = persist && !options.force ? await readCachedResponse(path).catch(() => null) : null;
+    const durableAttempt = persist && !options.force ? await readDurableForNavigation(path) : null;
+    const durable = durableAttempt?.first ?? null;
     if (!options.force && durable && durable.expiresAt > Date.now() && ownsCacheEntry()) {
       const fresh = durable.staleAt > Date.now();
       setQueryCache(memoryKey, { value: durable.value, staleAt: durable.staleAt, expiresAt: durable.expiresAt, tags: durable.tags || options.tags || [] });
@@ -203,9 +229,14 @@ export async function queryApi<T>(path: string, options: QueryApiOptions = {}): 
       return value;
     } catch (error) {
       noteRateLimitedRead(backoffKey, error);
-      if (ownsCacheEntry() && durable && durable.expiresAt > Date.now() && isApiNetworkFailure(error)) {
-        setQueryCache(memoryKey, { value: durable.value, staleAt: Date.now() + Math.min(staleMs, 5_000), expiresAt: durable.expiresAt, tags: durable.tags || options.tags || [] });
-        return durable.value as T;
+      if (ownsCacheEntry() && isApiNetworkFailure(error)) {
+        const fallback = durable || (durableAttempt?.pending
+          ? await boundedDurableRead(durableAttempt.pending, FAILED_NETWORK_DURABLE_RECOVERY_MS)
+          : null);
+        if (ownsCacheEntry() && fallback && fallback.expiresAt > Date.now()) {
+          setQueryCache(memoryKey, { value: fallback.value, staleAt: Date.now() + Math.min(staleMs, 5_000), expiresAt: fallback.expiresAt, tags: fallback.tags || options.tags || [] });
+          return fallback.value as T;
+        }
       }
       throw error;
     }
