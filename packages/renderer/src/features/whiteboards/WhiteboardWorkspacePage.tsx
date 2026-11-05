@@ -74,12 +74,14 @@ import { WorkspaceDirectory } from "../workspaces/WorkspaceDirectory";
 import "./whiteboard-workspace.css";
 import { runtimeStyle } from "../../core/runtime-style";
 import { useVisibleRefresh } from "../../core/visible-refresh";
+import { useVisibleTicker } from "../../core/visible-ticker";
 import { useProjectWorkflowList } from "../../core/project-workflow-storage";
 import { CollaborationPanel } from "../../components/CollaborationPanel";
 import { SavedViewsToolbar } from "../../components/SavedViewsToolbar";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 import { buildWhiteboardSpatialIndex, queryWhiteboardSpatialIndex } from "./whiteboard-spatial-index";
+import { buildWhiteboardConnectorAdjacency, selectedWhiteboardConnectorIds } from "./whiteboard-connector-adjacency";
 import { buildProjectRelationshipDiagram, buildSourceControlDiagram, type WhiteboardSourceControlDiagramPayload } from "./whiteboard-generated-diagrams";
 import { applyWhiteboardOperations, buildWhiteboardOperations, planWhiteboardFeedSync, whiteboardOperationTargets, type WhiteboardOperation, type WhiteboardOperationBatchResult, type WhiteboardOperationFeed } from "./whiteboard-operations";
 import { reviewWhiteboardConflict, type WhiteboardConflictChoice } from "./whiteboard-conflict-review";
@@ -786,24 +788,33 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
   const interactionElementId = interaction && interaction.mode !== "erase" ? interaction.id : null;
   const remoteSelectedElementIds = whiteboardPresenceIndex.selectedElementIds;
   const spatialIndex = useMemo(() => buildWhiteboardSpatialIndex(deferredVisibleElements), [deferredVisibleElements]);
+  const connectorAdjacency = useMemo(() => buildWhiteboardConnectorAdjacency(visibleElements), [visibleElements]);
+  const selectedConnectorIds = useMemo(
+    () => selectedWhiteboardConnectorIds(selectedIds, connectorAdjacency),
+    [selectedIds, connectorAdjacency],
+  );
+  const priorityElementIds = useMemo(() => {
+    const priority = new Set<string>(selectedIds);
+    for (const id of remoteSelectedElementIds) priority.add(id);
+    if (interactionElementId) priority.add(interactionElementId);
+    return priority;
+  }, [selectedIds, remoteSelectedElementIds, interactionElementId]);
   const renderedElements = useMemo(() => {
     const nearby = queryWhiteboardSpatialIndex(spatialIndex, canvasViewport, 160);
     const keep = new Map<string, WhiteboardElement>();
-    for (const deferred of nearby) {
-      const current = elementById.get(deferred.id);
+    const addCurrentVisible = (id: string) => {
+      const current = elementById.get(id);
       if (current && (!current.categoryId || !hiddenCategoryIds.has(current.categoryId))) keep.set(current.id, current);
-    }
-    for (const element of visibleElements) {
-      const followsSelection = (element.type === "line" || element.type === "arrow")
-        && ((element.fromId && selectedIds.has(element.fromId)) || (element.toId && selectedIds.has(element.toId)));
-      if (selectedIds.has(element.id) || interactionElementId === element.id || remoteSelectedElementIds.has(element.id) || followsSelection) keep.set(element.id, element);
-    }
+    };
+    for (const deferred of nearby) addCurrentVisible(deferred.id);
+    // Preserve selected/remote/dragged nodes and attached connector
+    // candidates without scanning the entire document on every pan frame.
+    for (const id of priorityElementIds) addCurrentVisible(id);
+    for (const id of selectedConnectorIds) addCurrentVisible(id);
     return Array.from(keep.values()).filter((element) =>
-      selectedIds.has(element.id)
-      || interactionElementId === element.id
-      || remoteSelectedElementIds.has(element.id)
+      priorityElementIds.has(element.id)
       || boundsIntersectWhiteboardViewport(whiteboardElementBounds(element), canvasViewport));
-  }, [spatialIndex, elementById, hiddenCategoryIds, visibleElements, selectedIds, interactionElementId, remoteSelectedElementIds, canvasViewport]);
+  }, [spatialIndex, elementById, hiddenCategoryIds, priorityElementIds, selectedConnectorIds, canvasViewport]);
   const outlineElements = useMemo(() => buildWhiteboardOutline(deferredElements, hiddenCategoryIds, outlineQuery, outlineLabelFilter, WHITEBOARD_TOOL_META), [deferredElements, hiddenCategoryIds, outlineQuery, outlineLabelFilter]);
   const visibleOutlineElements = useMemo(() => outlineElements.slice(0, outlineRenderLimit), [outlineElements, outlineRenderLimit]);
   const hasMoreOutlineElements = visibleOutlineElements.length < outlineElements.length;
@@ -849,11 +860,8 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
     return Array.from(latest.entries()).filter(([, value]) => value.action === "voted on whiteboard item").map(([userId]) => userId);
   }, [whiteboardCollaboration.actions, selectedId]);
   const currentUserVoted = Boolean(whiteboardCollaboration.me?.id && selectedVotes.includes(whiteboardCollaboration.me.id));
-  useEffect(() => {
-    if (!facilitatorTimerRemaining) return;
-    const timer = window.setInterval(() => setFacilitatorClock(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [facilitatorTimerEnd, facilitatorTimerRemaining > 0]);
+  // Clocks do not need a running timer while this Whiteboard is hidden.
+  useVisibleTicker(() => setFacilitatorClock(Date.now()), 1_000, facilitatorTimerRemaining > 0);
   function remoteElementEditor(elementId: string) {
     return whiteboardPresenceIndex.editorByElementId.get(elementId) || null;
   }
