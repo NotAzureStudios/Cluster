@@ -48,6 +48,11 @@ for (const name of ["serverResourceProfile", "serverResourceWorkerCap", "serverR
 assert.match(routes, /serverResourceWorkerCap: z\.number\(\)\.int\(\)\.min\(1\)\.max\(128\)/);
 assert.match(routes, /serverResourceRecoveryHoldMs: z\.number\(\)\.int\(\)\.min\(1_000\)\.max\(120_000\)/);
 assert.match(governor, /computeGovernedJobConcurrency\(/);
+assert.match(governor, /maximumJobConcurrency: this\.maximumJobConcurrency\(\)/);
+assert.match(governor, /recoveryHoldMs: this\.recoveryHoldMs\(\)/);
+assert.match(ui, /governorRuntime\.governor\.maximumJobConcurrency/);
+assert.match(ui, /governorRuntime\.governor\.recoveryHoldMs/);
+assert.match(ui, /Saved policy differs from active runtime/);
 assert.match(governor, /allowsTask\(workloadClass/);
 assert.match(server, /profile: BOOT_SETTINGS\.serverResourceProfile/);
 assert.match(server, /maximumJobConcurrency: BOOT_SETTINGS\.serverResourceWorkerCap/);
