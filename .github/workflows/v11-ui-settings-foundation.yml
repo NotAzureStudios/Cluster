@@ -9,6 +9,14 @@ on:
       - "packages/renderer/src/features/settings/**"
       - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "packages/renderer/src/core/device-performance.ts"
+      - "packages/renderer/src/core/render-capabilities.ts"
+      - "packages/renderer/src/core/perceived-performance.ts"
+      - "packages/renderer/src/core/performance.ts"
+      - "packages/renderer/src/components/ClusterDataTable.tsx"
+      - "packages/renderer/src/styles/renderer-performance.css"
+      - "packages/renderer/src/styles.css"
       - ".github/workflows/v11-ui-settings-foundation.yml"
   push:
     branches:
@@ -20,6 +28,14 @@ on:
       - "packages/renderer/src/features/settings/**"
       - "docs/development/CLUSTER_1_1_UI_INTERACTIONS_ROADMAP.md"
       - "tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs"
+      - "tools/scripts/cluster-performance-settings-tests.mjs"
+      - "packages/renderer/src/core/device-performance.ts"
+      - "packages/renderer/src/core/render-capabilities.ts"
+      - "packages/renderer/src/core/perceived-performance.ts"
+      - "packages/renderer/src/core/performance.ts"
+      - "packages/renderer/src/components/ClusterDataTable.tsx"
+      - "packages/renderer/src/styles/renderer-performance.css"
+      - "packages/renderer/src/styles.css"
       - ".github/workflows/v11-ui-settings-foundation.yml"
   workflow_dispatch:
 
@@ -41,6 +57,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Run UI settings foundation tests
         run: node tools/scripts/cluster-v11-ui-settings-foundation-tests.mjs
+      - name: Verify device rendering and UI performance contracts
+        run: npm run performance:settings:check
       - name: Build shared contract declarations
         run: npm run build --workspace=@cluster/shared
       - name: Type-check actual renderer
