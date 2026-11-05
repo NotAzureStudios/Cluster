@@ -659,6 +659,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       throw createHttpError("PROJECT_CREATE_FAILED", "Cluster could not create the project workspace. No project was saved.", 500);
     }
     let provisionedSource: any = null;
+    const creationWarnings: Array<{ code: string; message: string }> = [];
     if (shouldProvisionSource) {
       try {
         if (!gitRuntime) throw new Error("Cluster Git runtime is unavailable.");
@@ -666,12 +667,16 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         provisionedSource = await provisionClusterManagedProjectRepository({ prisma, gitRuntime, workspaceId: workspace.id, project, projectDirectory, definition: configuredType, productionProfile: productionProfile.id, defaults: sourceControlDefaults });
         project.sourceBindings = [{ ...provisionedSource.binding, repository: provisionedSource.repository }];
       } catch (error) {
-        app.log.error({ err: error, projectId: project.id }, "project source-control provisioning failed");
-        await prisma.project.delete({ where: { id: project.id } }).catch(() => undefined);
-        throw createHttpError("PROJECT_SOURCE_PROVISION_FAILED", "Cluster could not provision the project repository. The project was rolled back and no partial workspace was kept.", 500);
+        app.log.error({ err: error, projectId: project.id }, "project source-control provisioning failed; project preserved");
+        // Source Control setup is not permission to delete a committed project.
+        // Allow the user to open the project and repair its Git integration.
+        creationWarnings.push({
+          code: "PROJECT_SOURCE_DEFERRED",
+          message: "The project was saved, but its Git repository could not be initialized. Source Control is not ready; review Server Git diagnostics before retrying setup.",
+        });
       }
     }
-    await logActivity({ userId: user?.id, projectId: project.id, type: "created", entityType: "project", entityId: project.id, title: "Project created", message: project.name, metadata: { sourceControl: shouldProvisionSource ? "provisioned" : projectCapabilities.sourceControl, repositoryId: provisionedSource?.repository?.id || null } });
+    await logActivity({ userId: user?.id, projectId: project.id, type: "created", entityType: "project", entityId: project.id, title: "Project created", message: project.name, metadata: { sourceControl: provisionedSource ? "provisioned" : shouldProvisionSource ? "pending" : projectCapabilities.sourceControl, repositoryId: provisionedSource?.repository?.id || null } });
     if (provisionedSource) await logActivity({ userId: user?.id, projectId: project.id, type: "created", entityType: "source_repository", entityId: provisionedSource.repository.id, title: "Project repository created", message: `${provisionedSource.repository.name} · ${provisionedSource.initialized.defaultBranch}`, metadata: { hostingMode: "cluster", lfs: provisionedSource.initialized.lfs, projectType: configuredType.id } });
     const starterWhiteboard = project.whiteboards?.[0];
     if (starterWhiteboard) {
@@ -687,7 +692,6 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       });
     }
     let libraryFolder: any = null;
-    const creationWarnings: Array<{ code: string; message: string }> = [];
     if (body.createLibraryFolder) {
       try {
         libraryFolder = await prisma.libraryItem.create({
