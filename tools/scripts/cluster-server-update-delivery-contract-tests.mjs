@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createPublicKey } from "node:crypto";
+import {stableServerSequence, validStableServerRelease} from "./cluster-server-release-sequence.mjs";
 
 const read = p => fs.readFileSync(p,"utf8");
 const manifest = read("apps/server-launcher-go/server_update_manifest.go");
@@ -41,7 +42,14 @@ ok(ui.includes("ui.controller.StageServerUpdate()"), "signed download path is un
 
 // Source version must sign correctly. Avoid regex literal accidentally treating
 // backslash-plus-dot as a release character sequence.
-ok(signer.includes(String.raw`/^1\.0\.([1-9][0-9]*)$/`),"stable release version regex uses escaped dots");
+ok(signer.includes("stableServerSequence(release.release)"), "signer shares canonical 1.0/1.1 release sequencing");
+ok(stableServerSequence("1.0.5") === 55, "legacy 1.0.5 remains sequence 55");
+ok(stableServerSequence("1.0.10000") === 10050, "historic 1.0 patch limit remains ordered");
+ok(stableServerSequence("1.1.0") === 100000, "Server 1.1.0 advances beyond 1.0.x");
+ok(stableServerSequence("1.1.1") === 100001 && stableServerSequence("1.2.0") === 200000, "new minor versions have non-overlapping sequences");
+ok(["1.0.0", "1.1.100000", "1.01.0", "2.0.0"].every(s=>stableServerSequence(s) === null), "invalid releases fail closed");
+ok(validStableServerRelease({channel:"stable",release:"1.1.0",sourceVersion:"1.1.0",sequence:100000}), "installer admits valid 1.1.0 stable release identity");
+ok(!validStableServerRelease({channel:"stable",release:"1.1.0",sourceVersion:"1.1.0",sequence:56}), "installer rejects reused 1.0.x sequence");
 ok(signer.includes(String.raw`/^1\.0\.0-rc\.([1-9][0-9]*)$/`),"RC release version regex uses escaped dots");
 ok(signer.includes("receipt.commit===commit.stdout.trim()"),"signer requires matching source revision");
 ok(signer.includes("receipt.artifacts") && signer.includes("matchingArtifacts"),"signer requires a hashed build receipt");
