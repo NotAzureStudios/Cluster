@@ -1,5 +1,5 @@
 {
-  "cluster": "1.0.5",
+  "cluster": "1.0.6",
   "node": {
     "channel": "lts",
     "version": "24.20.0"
