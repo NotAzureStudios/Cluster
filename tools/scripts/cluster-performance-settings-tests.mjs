@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { clearPerformanceMetrics, performanceSummary, recordPerformanceMetric } from "../../packages/renderer/src/core/performance.ts";
 import { readFileSync } from "node:fs";
 import {
   DEVICE_PERFORMANCE_STORAGE_KEY,
@@ -70,5 +71,23 @@ assert.match(table, /const renderedColumns = useMemo\(/);
 assert.match(table, /selectable \? sortedRows\.map\(stableRowKey\) : \[\]/);
 assert.match(telemetry, /recentMetrics = metrics\.filter/);
 assert.match(settings, /section === "performance" && !dirty/);
+
+assert.match(telemetry, /startPerformanceFrameSampling\(durationMs = 5_000, onComplete/);
+assert.match(telemetry, /startupFrameHandle = window\.requestAnimationFrame/);
+assert.doesNotMatch(telemetry, /frameHandle = window\.requestAnimationFrame\(\(timestamp\)/);
+assert.match(read("packages/renderer/src/features/settings/DevicePerformanceSettingsSection.tsx"), /Capture 5s frame sample/);
+
+clearPerformanceMetrics();
+recordPerformanceMetric({
+  name: "on-demand animation frame sample",
+  category: "frame-sample",
+  durationMs: 100,
+  startedAt: Date.now(),
+  detail: { samples: 200, droppedFrames: 5, droppedPercent: 2.4 },
+});
+const frameHealth = performanceSummary().frameSample;
+assert.deepEqual(frameHealth, { samples: 200, missedFrames: 5, missedPercent: 2.4 });
+clearPerformanceMetrics();
+assert.equal(performanceSummary().frameSample, null);
 
 console.log("Cluster performance settings: device policy, rendering, scrolling, table and telemetry assertions passed.");
