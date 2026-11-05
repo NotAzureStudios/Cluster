@@ -173,12 +173,25 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     if (inputData.lfs && !runtime.lfsAvailable) throw new Error("Git LFS is required for this project type but is not available in the configured Git runtime.");
     const defaultBranch = safeBranchName(inputData.defaultBranch || "main");
     const target = repositoryPath(inputData.repositoryId, inputData.repositoryPath);
-    const seed = path.join(workspacesRoot, "provisioning", safeStorageSegment(inputData.repositoryId, "repository-seed"));
-    await fs.mkdir(path.dirname(seed), { recursive: true });
+    const seedRoot = path.join(workspacesRoot, "provisioning");
+    await fs.mkdir(seedRoot, { recursive: true });
     await fs.mkdir(path.dirname(target), { recursive: true });
-    await fs.rm(target, { recursive: true, force: true });
-    await fs.rm(seed, { recursive: true, force: true });
+    // Exclusive reservation: never wipe or reinitialize a repository that
+    // already exists. It may hold commits from an interrupted provision.
+    let targetOwnedByThisAttempt = false;
+    let seed: string | null = null;
     try {
+      try {
+        await fs.mkdir(target);
+        targetOwnedByThisAttempt = true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+          throw new Error("Repository storage already exists. Preserve it and inspect the interrupted project setup before retrying; Cluster will not overwrite existing Git history.");
+        }
+        throw error;
+      }
+      // Each attempt owns only its own scratch checkout, not another job's.
+      seed = await fs.mkdtemp(path.join(seedRoot, safeStorageSegment(inputData.repositoryId, "repository-seed") + "-"));
       await run(["init", "--bare", "--initial-branch", defaultBranch, target], { timeoutMs: 60_000 });
       if (inputData.lfs) await fs.mkdir(path.join(target, "lfs"), { recursive: true });
       await run(["init", "--initial-branch", defaultBranch, seed], { timeoutMs: 60_000 });
@@ -207,10 +220,12 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
       await run(["push", "-u", "origin", `HEAD:refs/heads/${defaultBranch}`], { cwd: seed, timeoutMs: 300_000 });
       return { defaultBranch, headRevision, lfs: Boolean(inputData.lfs), lfsVersion: inputData.lfs ? runtime.lfsVersion : null, mirrorState: "ready" as const };
     } catch (error) {
-      await fs.rm(target, { recursive: true, force: true }).catch(() => undefined);
+      // Only a directory created exclusively by this attempt can be cleaned.
+      // An existing repository is never deleted due to a provisioning retry.
+      if (targetOwnedByThisAttempt) await fs.rm(target, { recursive: true, force: true }).catch(() => undefined);
       throw new Error(sanitizeGitError(error));
     } finally {
-      await fs.rm(seed, { recursive: true, force: true }).catch(() => undefined);
+      if (seed) await fs.rm(seed, { recursive: true, force: true }).catch(() => undefined);
     }
   }
   async function deleteManagedRepository(repositoryId: string, repositoryPathOverride?: string | null) { await fs.rm(repositoryPath(repositoryId, repositoryPathOverride), { recursive: true, force: true }); }

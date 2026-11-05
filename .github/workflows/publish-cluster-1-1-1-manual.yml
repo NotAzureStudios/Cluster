@@ -63,7 +63,7 @@ jobs:
           assert metadata['release']=='1.1.1'
           assert metadata['sourceVersion']=='1.1.1'
           assert metadata['channel']=='stable'
-          assert metadata['sequence']==100000
+          assert metadata['sequence']==100001
           assert package['version']=='1.1.1'
           PY
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.head_sha')" = "$SERVER_SHA"

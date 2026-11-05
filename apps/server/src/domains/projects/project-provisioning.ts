@@ -99,6 +99,27 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
     const roleLabels = { ...request.roleLabels, [request.leadId]: request.roleLabels[request.leadId] || "Project Lead" };
     const sourcePlan = projectSourceControlPlan(parsed.typeDefinition, profile.id, request.sourceControl);
     if (sourcePlan.required && request.sourceControl === "disabled" && !request.sourceRepositoryId) throw Object.assign(new Error(`${parsed.typeDefinition.label} projects require Cluster Source Control.`), { code: "PROJECT_SOURCE_REQUIRED" });
+    // Check the exact Git runtime used by the Server worker before writing any
+    // Project, Board or Library rows. A missing runtime is a configuration
+    // failure, not something to retry five times with partial workspaces.
+    if (sourcePlan.shouldProvision && !request.sourceRepositoryId) {
+      if (!input.gitRuntime) {
+        throw Object.assign(new Error("Cluster Git runtime is not configured. No project was created. Configure the Server Git runtime and retry."), {
+          code: "PROJECT_SOURCE_RUNTIME_UNAVAILABLE",
+          terminalJobFailure: true,
+        });
+      }
+      const inspection = await input.gitRuntime.inspect?.(true);
+      if (inspection && (!inspection.available || (sourcePlan.defaults.lfs && !inspection.lfsAvailable))) {
+        const message = !inspection.available
+          ? "Git is unavailable to the Cluster Server process. Install or configure Git for Windows, restart Cluster Server, and retry."
+          : "Git LFS is required for this project type but is unavailable to Cluster Server. Install Git LFS, restart Cluster Server, and retry.";
+        throw Object.assign(new Error(`${message} No project was created.`), {
+          code: !inspection.available ? "PROJECT_SOURCE_RUNTIME_UNAVAILABLE" : "PROJECT_SOURCE_LFS_UNAVAILABLE",
+          terminalJobFailure: true,
+        });
+      }
+    }
     const stepReceipts: Array<{ id: string; state: "created" | "reused" | "skipped" | "ready"; resourceId?: string | null }> = [];
 
     await throwIfCancelled();
