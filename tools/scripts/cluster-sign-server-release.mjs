@@ -5,6 +5,7 @@ import path from "node:path";
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {stableServerSequence} from "./cluster-server-release-sequence.mjs";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const args=process.argv.slice(2);
@@ -56,11 +57,11 @@ assert(receipt.built===true && receipt.certified===false && receipt.product==="c
   && receipt.profile==="server-windows-x64" && receipt.channel===channel,
   "Server distribution receipt product/channel mismatch");
 const release=JSON.parse(fs.readFileSync(path.join(root,"config/release-candidate.json"),"utf8"));
-const stablePatch = /^1\.0\.([1-9][0-9]*)$/.exec(release.release);
 const rcSequence = /^1\.0\.0-rc\.([1-9][0-9]*)$/.exec(release.release);
-const validStable = channel === "main" && stablePatch && Number(stablePatch[1]) + 50 === release.sequence;
+const stableSequence = stableServerSequence(release.release);
+const validStable = channel === "main" && stableSequence !== null && stableSequence === release.sequence;
 const validRC = channel === "development" && rcSequence && Number(rcSequence[1]) === release.sequence;
-assert(Boolean(validStable || validRC), "Signed Server update identity must match main stable or development RC release sequence");
+assert(Boolean(validStable || validRC), "Signed Server update identity must match stable or development RC release sequence");
 const branch=spawnSync("git",["branch","--show-current"],{cwd:root,encoding:"utf8"});
 assert(branch.status===0&&branch.stdout.trim()===(channel==="main"?"main":"development"),"Publisher must sign from the matching reviewed main/development branch");
 for(const command of [["diff","--quiet"],["diff","--cached","--quiet"]]){
