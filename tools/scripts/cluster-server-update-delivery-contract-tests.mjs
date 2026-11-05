@@ -11,6 +11,7 @@ const ui = read("apps/server-launcher-go/launcher_ui_windows.go");
 const signer = read("tools/scripts/cluster-sign-server-release.mjs");
 const publish = read(".github/workflows/cluster-server-signed-main-publish.yml");
 const build = read(".github/workflows/cluster-server-windows-build.yml");
+const networkCI = read(".github/workflows/network-configuration-regressions.yml");
 const serverPublisherKey = read("apps/server-launcher-go/assets/server-update-public-key.pem").trim();
 const desktopPublisherKey = read("apps/desktop-qt/assets/update-public-key.pem").trim();
 
@@ -68,6 +69,8 @@ ok(publish.includes("environment: server-release"),"protected release environmen
 ok(publish.includes("CLUSTER_SERVER_SIGNING_KEY_PEM"),"publishing needs protected Ed25519 key");
 ok(publish.includes('if ($head -ne $env:BUILT_SHA)'),"stale builds cannot publish");
 ok(publish.includes("Required CI did not finish successfully"),"publisher waits for independent CI");
+ok(networkCI.replaceAll("\r\n","\n").includes("  push:\n    branches: [main]"), "required network release gate runs on the main commit as well as PRs");
+ok(publish.includes("'Managed network access regressions'"), "publisher retains network security gate rather than bypassing it");
 ok(publish.indexOf('gh release create "$tag"') < publish.indexOf("gh release upload server-main"),"immutable release exists before mutable manifest pointer updates");
 ok(publish.includes("server-main") && publish.includes("server-v"),"server channel isolated from desktop latest releases");
 ok(!publish.includes("release upload \"$tag\" --clobber"),"immutable versioned installer cannot be overwritten");

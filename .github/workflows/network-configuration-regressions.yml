@@ -1,6 +1,10 @@
 name: Managed network access regressions
 
 on:
+  # Every reviewed main commit must pass this gate before signed Server
+  # publication. PR-only checks do not exist on the immutable main SHA.
+  push:
+    branches: [main]
   pull_request:
     branches: [main, development]
     paths:
