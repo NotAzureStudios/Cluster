@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SERVER_RUN: '42099271777'
       SERVER_SHA: '793380786b3f06756c1987c957aa767b7497dc41'
       SERVER_ARTIFACT: 'cluster-server-unsigned-windows-x64-793380786b3f06756c1987c957aa767b7497dc41'
@@ -144,13 +144,13 @@ jobs:
           cat > "$RUNNER_TEMP/cluster-1-1-0-notes.md" <<'NOTES'
           ## Cluster Server 1.1.0 (Windows x64)
 
-          **Manual installation release.** The Windows Server installer was compiled and clean-install-smoke-tested by successful [Windows build #42099271777](https://github.com/NotAzureStudios/Cluster/actions/runs/42099271777), using source commit \`793380786b3f06756c1987c957aa767b7497dc41\`.
+          **Manual installation release.** The Windows Server installer was compiled and clean-install-smoke-tested by successful [Windows build #42099271777](https://github.com/NotAzureStudios/Cluster/actions/runs/42099271777), using source commit `793380786b3f06756c1987c957aa767b7497dc41`.
 
           Download **Cluster-Installer.exe** and verify its SHA-256 against **Cluster-server-build-receipt.json**.
 
-          **This installer is unsigned.** It is a manually downloaded release, not an update delivered by the separate signed \`server-main\` channel. The signing publisher remains blocked until the release key is corrected; that protection has not been bypassed.
+          **This installer is unsigned.** It is a manually downloaded release, not an update delivered by the separate signed `server-main` channel. The signing publisher remains blocked until the release key is corrected; that protection has not been bypassed.
 
-          **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed \`Cluster\` folder: for \`D:\Cluster-Server\Cluster\Server\`, run \`D:\Cluster-Server\Cluster-Installer.exe\`; for \`C:\Cluster\Server\`, run \`C:\Cluster-Installer.exe\`. Do not run the installer from Downloads or inside \`Cluster\Server\`, because its location determines the target. Verify the installed release, login, data, and Library after the upgrade. A populated database upgrade and rollback have not been certified by this release pipeline.
+          **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed `Cluster` folder: for `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`; for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`. Do not run the installer from Downloads or inside `Cluster\Server`, because its location determines the target. Verify the installed release, login, data, and Library after the upgrade. A populated database upgrade and rollback have not been certified by this release pipeline.
 
           **Qt Desktop:** The existing independent Desktop 0.482.0 packages are carried forward unchanged, byte-for-byte, from v1.0.5.
           NOTES
