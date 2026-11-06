@@ -7,6 +7,7 @@ const applications = read("packages/renderer/src/features/settings/StudioApplica
 const scoped = read("packages/renderer/src/features/settings/StudioScopedGrantsPanel.tsx");
 const renewals = read("packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx");
 const offboarding = read("packages/renderer/src/features/settings/StudioOffboardingPanel.tsx");
+const forms = read("packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx");
 
 let count = 0;
 function check(name, passed) { assert.ok(passed, name); count++; console.log("PASS", name); }
@@ -39,6 +40,22 @@ check("Application transition discards all local drafts only after confirmation"
   applications.includes('setUsername("");') &&
   applications.includes('setSelectedFields([]);') &&
   applications.includes('setOnboardingVersionId("");'));
+
+check("Form reviews keep typed notes when the same record refreshes",
+  forms.includes("reviewBaselineRef.current") &&
+  forms.includes("baseline.revision !== selected.updatedAt && note === baseline.note") &&
+  !forms.includes('setNote(selected?.reviewNote || ""); setDecision("approved");'));
+check("Form response selection and filters warn about unsaved changes",
+  forms.includes("async function confirmResponseTransition()") &&
+  forms.includes('onClick={() => void chooseResponse(item.id)}') &&
+  forms.includes('void changeReviewFilter(event.target.value)'));
+check("Form review and follow-up writes block record switching",
+  forms.includes('disabled={busy || followupBusy} onClick={() => void chooseResponse(item.id)}') &&
+  forms.includes("mutationLock.current || followupLock.current") &&
+  forms.includes("dirty: reviewDraftDirty || followupDraftDirty"));
+check("Form follow-up drafts return to defaults after a successful creation",
+  forms.includes('setFollowupTitle("Review follow-up");') &&
+  forms.includes('setFollowupPriority("medium");'));
 
 check("Grant creation explains a competing existing grant",
   scoped.includes('const requestBlocker =') &&
