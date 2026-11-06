@@ -149,6 +149,17 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
   }), [items]);
   const types = Array.from(new Set(items.map((item) => item.type))).sort();
 
+  async function discardApprovalDrafts() {
+    if (!noteDraftCount) return;
+    const confirmed = await confirmCluster({
+      title: "Discard approval note drafts?",
+      message: "Unsaved decision notes will be cleared from this device. No approvals will be changed.",
+      confirmLabel: "Discard drafts",
+      tone: "danger",
+    });
+    if (confirmed) setNotesById({});
+  }
+
   async function decide(item: ApprovalItem, decision: "approved" | "rejected") {
     if (decidingRef.current || item.status !== "pending") return;
     decidingRef.current = true;
@@ -211,7 +222,7 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
     </div>
     {error && <div className="error-box slim">{error}</div>}
     {message && <div className="status-box slim">{message}</div>}
-    {noteDraftCount > 0 && <span className="muted" role="status">{noteDraftCount} unsaved approval note{noteDraftCount === 1 ? "" : "s"} retained across filters</span>}
+    {noteDraftCount > 0 && <div className="button-row"><span className="muted" role="status">{noteDraftCount} unsaved approval note{noteDraftCount === 1 ? "" : "s"} retained across filters</span><ClusterButton type="button" variant="quiet" size="compact" disabled={Boolean(busyId)} onClick={() => void discardApprovalDrafts()}>Discard note drafts</ClusterButton></div>}
     {warnings.length > 0 && <div className="hint-box slim">Some approval sources were unavailable: {warnings.join(" · ")}</div>}
     <div className="admin-approval-queue-tools-v530">
       <span>{visible.length} matching request{visible.length === 1 ? "" : "s"}</span>
