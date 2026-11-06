@@ -8,6 +8,7 @@ const scoped = read("packages/renderer/src/features/settings/StudioScopedGrantsP
 const renewals = read("packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx");
 const offboarding = read("packages/renderer/src/features/settings/StudioOffboardingPanel.tsx");
 const forms = read("packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx");
+const approvals = read("packages/renderer/src/features/admin/AdminApprovalCenter.tsx");
 
 let count = 0;
 function check(name, passed) { assert.ok(passed, name); count++; console.log("PASS", name); }
@@ -56,6 +57,16 @@ check("Form review and follow-up writes block record switching",
 check("Form follow-up drafts return to defaults after a successful creation",
   forms.includes('setFollowupTitle("Review follow-up");') &&
   forms.includes('setFollowupPriority("medium");'));
+
+check("Approval notes follow request IDs across selections and filters",
+  approvals.includes('const [notesById, setNotesById] = useState<Record<string, string>>({});') &&
+  approvals.includes('const note = selected ? notesById[selected.id] || "" : "";') &&
+  approvals.includes("dirty: noteDraftCount > 0") &&
+  !approvals.includes('useEffect(() => { setNote(""); }, [selectedId])'));
+check("Approval decisions submit the captured matching note, not another selection's note",
+  approvals.includes('const submittedNote = notesById[item.id]?.trim() || null;') &&
+  approvals.includes('body: JSON.stringify({ decision, note: submittedNote })') &&
+  approvals.includes('delete updated[item.id]'));
 
 check("Grant creation explains a competing existing grant",
   scoped.includes('const requestBlocker =') &&
