@@ -105,3 +105,52 @@ jobs:
 # This is a disposable OFFLINE, no-PostgreSQL-running smoke. It is not
 # authorization to expose automatic install, bypass the publisher signature,
 # merge a release, or certify live Windows Service recovery.
+
+  published-1-1-2-upgrade:
+    name: Verify published 1.1.1 to 1.1.2 Windows offline preservation
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout audited upgrade smoke harness
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Download and hash-pin both immutable published Server installers
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $releases = @(
+            @{ Tag='v1.1.1'; Bytes=240159232; Sha256='0604f59d73c9cf64858196d17b8e0da4980ec9ec6cf9b9b1a07683682e84db97' },
+            @{ Tag='v1.1.2'; Bytes=240163328; Sha256='f1a9a8f0accdd016ed29822d9313d680553980f4826d3dbff92595f7b8978673' }
+          )
+          foreach ($release in $releases) {
+            $target = Join-Path $env:RUNNER_TEMP "cluster-published-$($release.Tag)"
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            gh release download $release.Tag --repo $env:GITHUB_REPOSITORY --pattern 'Cluster-Installer.exe' --dir $target
+            if ($LASTEXITCODE -ne 0) { throw "Cannot download immutable Server release $($release.Tag)" }
+            $installer = Join-Path $target 'Cluster-Installer.exe'
+            $file = Get-Item -LiteralPath $installer -ErrorAction Stop
+            if ($file.Length -ne $release.Bytes) { throw "Unexpected installer size: $($release.Tag)" }
+            $digest = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($digest -cne $release.Sha256) { throw "Pinned installer digest mismatch: $($release.Tag)" }
+            $stream = [IO.File]::OpenRead($installer)
+            try {
+              if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw "Not a Windows PE installer: $($release.Tag)" }
+            } finally { $stream.Dispose() }
+            Write-Host "Verified immutable published $($release.Tag) installer size and SHA-256."
+          }
+      - name: Upgrade the same disposable Windows installation without losing stored files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $prior = Join-Path $env:RUNNER_TEMP 'cluster-published-v1.1.1/Cluster-Installer.exe'
+          $candidate = Join-Path $env:RUNNER_TEMP 'cluster-published-v1.1.2/Cluster-Installer.exe'
+          & pwsh -NoProfile -NonInteractive -File tools/installer/Smoke-Cluster-Windows-Upgrade.ps1 -PriorInstaller $prior -CandidateInstaller $candidate -PriorSequence 100001 -CandidateSequence 100002
+          if ($LASTEXITCODE -ne 0) { throw 'Published 1.1.1 -> 1.1.2 offline Windows upgrade failed' }
+
+# This published-artifact upgrade test covers installation, byte-for-byte
+# preservation of inactive PostgreSQL/Library/config fixtures, and rollback
+# snapshot retention. It does NOT certify a running PostgreSQL database,
+# service shutdown/recovery, live user sessions, or populated-server rollback.
