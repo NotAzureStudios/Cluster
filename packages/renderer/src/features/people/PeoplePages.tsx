@@ -57,6 +57,7 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
+import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
@@ -216,9 +217,35 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
   const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
+  const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
   const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+  const [createAccountError, setCreateAccountError] = useState("");
+  const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
+  const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
+    canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
+  const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
+  const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
+    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
+  const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
+    dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
+    title: "Discard account draft?",
+    message: "The new account has not been created. Closing will discard the entered information.",
+  });
+  function patchCreateAccountDraft(changes: Partial<typeof createAccountDraft>) {
+    setCreateAccountDraft((draft) => ({ ...draft, ...changes }));
+    setCreateAccountError("");
+  }
+  async function toggleCreateAccount() {
+    if (createAccountBusy) return;
+    if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
+    if (createAccountOpen) {
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountError("");
+    }
+    setCreateAccountOpen((open) => !open);
+  }
   const [directoryRefresh, setDirectoryRefresh] = useState(0);
   useEffect(() => {
     if (effectiveAdminMode) return;
@@ -400,15 +427,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   async function createPersonAccount() {
     if (!effectiveAdminMode || accountCreateGateRef.current) return;
     const username = createAccountDraft.username.trim();
-    if (username.length < 3) { setLoadStatus("Username must contain at least 3 characters."); return; }
-    const assignable = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
-    if (!canChooseStudioRole(assignable, createRoleCatalog?.actorRole)) {
-      setLoadStatus("Choose an enabled workspace role you are authorized to assign before creating this account.");
+    if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {
+      setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.");
       return;
     }
     accountCreateGateRef.current = true;
     const scope = currentUser.id;
     setCreateAccountBusy(true);
+    setCreateAccountError("");
     setLoadStatus("Creating account…");
     try {
       const created = await api<PeopleProfilePayload & { temporaryPassword: string }>("/api/users", {
@@ -432,7 +458,11 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       const refreshWarning = await reconcileAfterCommit(() => loadProfiles(created.id, true, true));
       if (refreshWarning) setLoadStatus(`Account created for ${displayUserName(created)}, but the directory refresh failed. The temporary password above remains valid; refresh People manually. ${refreshWarning}`);
     } catch (error) {
-      if (accountScopeRef.current === scope) setLoadStatus(error instanceof Error ? error.message : "Account creation failed.");
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Account creation failed.";
+        setCreateAccountError(message);
+        setLoadStatus(message);
+      }
     } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
   }
   async function issuePasswordResetForProfile() {
@@ -798,7 +828,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         title="People"
         actions={<>
           <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => loadProfiles() }]} />
-          {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => setCreateAccountOpen((open) => !open)}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
           <ClusterButton variant="primary" onClick={() => { openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
@@ -815,24 +845,26 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       </div>
 
       {effectiveAdminMode && createAccountOpen && <section className="people-admin-create-v536 panel" aria-label="Create Cluster account">
-        <header><div><strong>Create account</strong><span>Provision identity and workspace access. Cluster issues a one-time temporary password; the new member signs in and chooses their own permanent password.</span></div></header>
+        <header><div><strong>Create account</strong><span>Choose identity, account type, and starting role. A temporary password is issued after creation.</span></div></header>
         <div className="people-admin-create-grid-v536">
-          <label className="field"><span>Username</span><ClusterTextInput autoFocus value={createAccountDraft.username} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, username: event.target.value }))} placeholder="username" /></label>
-          <label className="field"><span>Display name</span><ClusterTextInput value={createAccountDraft.displayName} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, displayName: event.target.value }))} placeholder="Display name" /></label>
-          <label className="field"><span>Email</span><ClusterTextInput value={createAccountDraft.email} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="name@example.com" /></label>
-          <label className="field"><span>Access expires</span><ClusterInput type="date" value={createAccountDraft.accessExpiresAt} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accessExpiresAt: event.target.value }))} /><small>Required for contractor, client and guest accounts.</small></label>
-          <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accountType: event.target.value }))}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
-          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, role: event.target.value }))}>
+          <label className="field"><span>Username</span><ClusterTextInput autoFocus maxLength={32} value={createAccountDraft.username} onChange={(event) => patchCreateAccountDraft({ username: event.target.value })} placeholder="username" /></label>
+          <label className="field"><span>Display name</span><ClusterTextInput value={createAccountDraft.displayName} onChange={(event) => patchCreateAccountDraft({ displayName: event.target.value })} placeholder="Display name" /></label>
+          <label className="field"><span>Email</span><ClusterTextInput type="email" value={createAccountDraft.email} onChange={(event) => patchCreateAccountDraft({ email: event.target.value })} placeholder="name@example.com" /></label>
+          <label className="field"><span>Access expires</span><ClusterInput type="date" value={createAccountDraft.accessExpiresAt} onChange={(event) => patchCreateAccountDraft({ accessExpiresAt: event.target.value })} /><small>{["contractor", "client", "guest"].includes(createAccountDraft.accountType) ? "Required for this account type." : "Optional for employees."}</small></label>
+          <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => patchCreateAccountDraft({ accountType: event.target.value })}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
+          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => patchCreateAccountDraft({ role: event.target.value })}>
             {!createRoleCatalog?.roles.some((role) => role.id === createAccountDraft.role) && <option value={createAccountDraft.role} disabled>{createAccountDraft.role} (unavailable)</option>}
             {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, createRoleCatalog?.actorRole)}>
-              {role.label}{role.enabled ? "" : " (disabled)"} · {role.members} members
+              {role.label}{role.enabled ? "" : " (disabled)"}
             </option>)}
           </ClusterNativeSelect>
           <small>Only roles you can assign appear as enabled options. Owner and administrator roles require an owner.</small>
           {createRoleLoading && <small role="status">Loading workspace roles…</small>}
           {createRoleError && <small role="alert">{createRoleError}</small>}
           </label>
-          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError)} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
+          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError) || Boolean(createAccountBlocker)} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
+          {!createAccountBusy && !createRoleLoading && createAccountBlocker && <p className="people-create-validation-v11" role="status">{createAccountBlocker}</p>}
+          {createAccountError && <p className="people-create-validation-error-v11" role="alert">{createAccountError}</p>}
         </div>
       </section>}
 
