@@ -4,6 +4,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { confirmCluster } from "../../components/cluster-dialog-service";
+import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { RequestErrorState } from "../../components/RequestState";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 
@@ -49,6 +50,7 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
   const [credential, setCredential] = useState<CreatedCredential | null>(null);
   const mutationRef = useRef(false);
   const loadGenerationRef = useRef(0);
+  const navigationConfirmRef = useRef(false);
 
   async function load(force = false, cursor: string | null = cursorHistory[pageIndex] || null) {
     const generation = ++loadGenerationRef.current;
@@ -101,23 +103,84 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
     setUsername(""); setOnboardingVersionId("");
   }, [selectedId]);
 
-  async function applyFilters() {
-    if (busyAction) return;
+  const unsavedNote = Boolean(selected && note !== (selected.reviewNote || ""));
+  // Also protect the one-time password when the user closes the browser or
+  // navigates away through a shared Cluster workspace control.
+  useUnsavedChangesGuard({
+    dirty: unsavedNote || Boolean(credential),
+    title: "Leave application review?",
+    message: credential
+      ? "A one-time account password is still visible and cannot be retrieved later. Copy it before leaving."
+      : "An unsaved application review note will be lost.",
+    confirmLabel: "Discard and leave",
+  });
+
+  async function confirmReviewNavigation() {
+    if (navigationConfirmRef.current || busyAction) return false;
+    if (!credential && !unsavedNote) return true;
+    navigationConfirmRef.current = true;
+    try {
+      const warnings = [
+        ...(credential ? [`The one-time password for @${credential.username} cannot be recovered after leaving. Copy it first.`] : []),
+        ...(unsavedNote ? ["Your unsaved reviewer note will be discarded."] : []),
+      ];
+      return await confirmCluster({
+        title: credential ? "Discard one-time credentials?" : "Discard unsaved review note?",
+        message: warnings.join("\\n"),
+        confirmLabel: "Discard and continue",
+        tone: "danger",
+      });
+    } finally {
+      navigationConfirmRef.current = false;
+    }
+  }
+  function discardTransientReview() {
     setCredential(null);
+    setNote(selected?.reviewNote || "");
+  }
+  async function selectApplication(nextId: string) {
+    if (nextId === selectedId || loading || busyAction) return;
+    if (!(await confirmReviewNavigation())) return;
+    discardTransientReview();
+    setSelectedId(nextId);
+  }
+  async function dismissCredentials() {
+    if (!credential || navigationConfirmRef.current) return;
+    navigationConfirmRef.current = true;
+    try {
+      const accepted = await confirmCluster({
+        title: "Dismiss one-time password?",
+        message: `The temporary password for @${credential.username} cannot be retrieved from this application later. Copy it before dismissing.`,
+        confirmLabel: "Dismiss password",
+        tone: "danger",
+      });
+      if (accepted) setCredential(null);
+    } finally { navigationConfirmRef.current = false; }
+  }
+  async function openCreatedPerson() {
+    if (!credential || !(await confirmReviewNavigation())) return;
+    const id = credential.id;
+    discardTransientReview();
+    openClusterWorkNavigation({ screen: "people", inspectScope: "person", inspectId: id });
+  }
+
+  async function applyFilters() {
+    if (busyAction || loading || !(await confirmReviewNavigation())) return;
+    discardTransientReview();
     setCursorHistory([null]); setPageIndex(0);
     await load(true, null);
   }
   async function nextPage() {
-    if (loading || !page.hasMore || !page.nextCursor) return;
-    setCredential(null);
+    if (loading || busyAction || !page.hasMore || !page.nextCursor || !(await confirmReviewNavigation())) return;
+    discardTransientReview();
     const nextIndex = pageIndex + 1;
     setCursorHistory((current) => [...current.slice(0, nextIndex), page.nextCursor]);
     setPageIndex(nextIndex);
     await load(true, page.nextCursor);
   }
   async function previousPage() {
-    if (loading || pageIndex <= 0) return;
-    setCredential(null);
+    if (loading || busyAction || pageIndex <= 0 || !(await confirmReviewNavigation())) return;
+    discardTransientReview();
     const previousIndex = pageIndex - 1;
     setPageIndex(previousIndex);
     await load(true, cursorHistory[previousIndex] || null);
@@ -172,13 +235,13 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
         <ClusterNativeSelect value={formFilter} onChange={(event) => setFormFilter(event.target.value)}><option value="">All application forms</option>{formOptions.map((form) => <option key={form.id} value={form.id}>{form.title}</option>)}</ClusterNativeSelect>
         <ClusterButton type="button" variant="quiet" disabled={Boolean(busyAction) || loading} onClick={() => void applyFilters()}>{loading ? "Loading…" : "Apply filters"}</ClusterButton>
       </div>
-      <div className="studio-entity-list-v272">{applications.map((item) => <ClusterButton type="button" key={item.id} disabled={Boolean(busyAction)} className={item.id === selectedId ? "active" : ""} onClick={() => { setCredential(null); setSelectedId(item.id); }}><span className="studio-entity-list-copy-v272"><strong>{item.respondentName || item.respondentEmail || "Unnamed applicant"}</strong><small>{item.form?.title || "Application"} · {item.status.replace("_", " ")}</small></span><span className="studio-entity-list-meta-v272">{new Date(item.submittedAt).toLocaleDateString()}</span></ClusterButton>)}</div>
+      <div className="studio-entity-list-v272">{applications.map((item) => <ClusterButton type="button" key={item.id} disabled={Boolean(busyAction)} className={item.id === selectedId ? "active" : ""} onClick={() => void selectApplication(item.id)}><span className="studio-entity-list-copy-v272"><strong>{item.respondentName || item.respondentEmail || "Unnamed applicant"}</strong><small>{item.form?.title || "Application"} · {item.status.replace("_", " ")}</small></span><span className="studio-entity-list-meta-v272">{new Date(item.submittedAt).toLocaleDateString()}</span></ClusterButton>)}</div>
       <div className="button-row"><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || pageIndex === 0} onClick={() => void previousPage()}>Previous</ClusterButton><span>Page {pageIndex + 1}</span><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || !page.hasMore} onClick={() => void nextPage()}>Next</ClusterButton></div>
     </aside>
     <section className="studio-systems-editor-v34f">
       {Boolean(loadError) && <div role="alert" className="error-box">The application list could not refresh. Previously loaded data is shown. <ClusterButton size="compact" variant="secondary" disabled={loading} onClick={() => void load(true)}>Retry</ClusterButton></div>}
       {status && <div className="studio-explanation-v272" role="status"><strong>Status</strong><span>{status}</span></div>}
-      {credential && <div className="settings-card-v092" role="group" aria-label="New account temporary credentials"><strong>Temporary credentials for @{credential.username}</strong><p>Copy this password now. It is not available from the application record later.</p><code>{credential.password}</code><span>{credential.onboardingText}</span><span>Account starts with member-only access and must change the temporary password on first sign-in. Review any additional permissions separately in People.</span><div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => openClusterWorkNavigation({ screen: "people", inspectScope: "person", inspectId: credential.id })}>Open created Person</ClusterButton><ClusterCopyButton text={credential.id} copiedLabel="Person ID copied">Copy Person ID</ClusterCopyButton><ClusterCopyButton text={credential.password} copiedLabel="Password copied">Copy password</ClusterCopyButton><ClusterButton type="button" variant="quiet" onClick={() => setCredential(null)}>Dismiss credentials</ClusterButton></div></div>}
+      {credential && <div className="settings-card-v092" role="group" aria-label="New account temporary credentials"><strong>Temporary credentials for @{credential.username}</strong><p>Copy this password now. It is not available from the application record later.</p><code>{credential.password}</code><span>{credential.onboardingText}</span><span>Account starts with member-only access and must change the temporary password on first sign-in. Review any additional permissions separately in People.</span><div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => void openCreatedPerson()}>Open created Person</ClusterButton><ClusterCopyButton text={credential.id} copiedLabel="Person ID copied">Copy Person ID</ClusterCopyButton><ClusterCopyButton text={credential.password} copiedLabel="Password copied">Copy password</ClusterCopyButton><ClusterButton type="button" variant="quiet" onClick={() => void dismissCredentials()}>Dismiss credentials</ClusterButton></div></div>}
       {selected ? <>
         <header className="studio-entity-editor-head-v272"><div><span className="eyebrow">Application review</span><h3>{selected.respondentName || selected.respondentEmail || "Applicant"}</h3><p>{selected.respondentEmail || "No email mapped"} · {selected.status.replace("_", " ")}</p></div></header>
         <div className="studio-form-field-list-v34f">{(selected.answerFields?.length ? selected.answerFields : Object.entries(selected.answers || {}).map(([fieldId, value]) => ({ fieldId, label: fieldId, type: "unknown", value }))).map((field) => <div className="settings-card-v092" key={field.fieldId}><strong>{field.label}</strong><span>{valueText(field.value)}</span></div>)}</div>
