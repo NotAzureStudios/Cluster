@@ -3,6 +3,7 @@ import type { AuthRouteDependencies } from "./auth-types.js";
 import { nextAuthenticationGeneration, nextVerificationGeneration, revokeUserSecurityVerifications } from "../../core/security-verification.js";
 import { hashSecurityPin } from "../../core/security-pin-credential.js";
 import { PASSWORD_MIN_LENGTH } from "../../core/auth.js";
+import { resolveAdminActivationState } from "./admin-account-activation-policy.js";
 
 export function registerAuthAdminRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -222,11 +223,9 @@ app.patch("/api/admin/users/:userId/account-state", async (request, reply) => {
       error: "The account must complete password setup before it can be activated.",
     });
   }
-  // Re-enabling an account must never bypass its one-time password handoff.
-  // Both initial provision and a governed password reset clear passwordChangedAt.
-  // The user must still change that temporary password after suspension ends.
+  // Re-enabling never bypasses initial provision or password-reset handoff.
   const state = body.state === "ACTIVE"
-    ? (target.passwordChangedAt ? nextAccountState(target.discordUserId, REQUIRE_DISCORD_LINK) : "PASSWORD_CHANGE_REQUIRED")
+    ? resolveAdminActivationState(target, REQUIRE_DISCORD_LINK, nextAccountState)
     : body.state;
   const now = new Date();
   const disablingAccess = state !== "ACTIVE";
