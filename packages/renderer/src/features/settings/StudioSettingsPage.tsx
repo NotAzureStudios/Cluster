@@ -1507,15 +1507,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 <div>
                   <p className="eyebrow">Projects</p>
                   <h2><ClusterIcon name="project" aria-hidden="true" /> Project defaults</h2>
-                  <p className="muted tight">Set the initial values and starter structure used by project creation. Project type presets can still replace fields that are specific to a production platform.</p>
+                  <p className="muted tight">Choose the defaults for new projects.</p>
                 </div>
                 <ClusterButton type="button" variant="secondary" onClick={() => setSection("projectTypes")}><ClusterIcon name="settings" aria-hidden="true" /> Manage project types</ClusterButton>
               </div>
 
-              <div className="studio-defaults-preview-heading-v103">
-                <h3><ClusterIcon name="grid" aria-hidden="true" /> New project starter preview</h3>
-                <SettingsStateChip tone={dirty ? "warning" : "neutral"} icon={dirty ? "note" : "check"}>{dirty ? "Contains unsaved changes" : "Current draft matches saved settings"}</SettingsStateChip>
-              </div>
+              <details className="studio-settings-disclosure-v112"><summary>Project creation preview</summary>
               <div className="studio-systems-status-overview-v103 studio-project-defaults-preview-v103" aria-label="New project configuration preview">
                 <article><div><ClusterIcon name="project" aria-hidden="true" /><span>Project type</span></div><strong>{projectTypePresets.find((preset) => preset.id === (settings.defaultProjectTypeId || projectTypePresets[0]?.id))?.label || "General"}</strong><SettingsStateChip tone="info" icon="settings">{settings.defaultProjectSource === "external" ? "External project source" : "Internal project source"}</SettingsStateChip></article>
                 <article><div><ClusterIcon name="lock" aria-hidden="true" /><span>Initial visibility</span></div><strong>{settings.defaultProjectVisibility === "private" ? "Private" : settings.defaultProjectVisibility === "external_review" ? "External review" : "Studio"}</strong><SettingsStateChip tone="neutral" icon="lock">Permissions apply separately</SettingsStateChip></article>
@@ -1524,23 +1521,24 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 <article><div><ClusterIcon name="folder" aria-hidden="true" /><span>Library folder</span></div><strong>Included</strong><SettingsStateChip tone="neutral" icon="lock">Protected project folder</SettingsStateChip></article>
               </div>
               <p className="muted tight studio-project-defaults-disclaimer-v103">Preview of the currently selected defaults. Project-type presets, object permissions and creation rules still determine the final project; this panel does not create anything.</p>
+                </details>
               <div className="studio-defaults-layout-v272">
                 <section className="studio-settings-block-v272">
-                  <header><div><strong>Creation defaults</strong><span>Initial classification and visibility for every new project.</span></div></header>
+                  <header><div><strong>Creation defaults</strong></div></header>
                   <div className="studio-form-grid-v272">
-                    <div className="field"><label>Project type</label><ClusterNativeSelect value={settings.defaultProjectTypeId || projectTypePresets[0]?.id || "general"} onChange={(event) => patch("defaultProjectTypeId", event.target.value)}>{projectTypePresets.filter((preset) => preset.enabled !== false).map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</ClusterNativeSelect><small>Controls platform-specific fields and starter structure.</small></div>
-                    <div className="field"><label>Status</label><ClusterNativeSelect value={settings.defaultProjectStatus || "active"} onChange={(event) => patch("defaultProjectStatus", event.target.value as ProjectStatus)}>{PROJECT_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ClusterNativeSelect><small>Projects can be changed after creation.</small></div>
+                    <div className="field"><label>Project type</label><ClusterNativeSelect value={settings.defaultProjectTypeId || projectTypePresets[0]?.id || "general"} onChange={(event) => patch("defaultProjectTypeId", event.target.value)}>{projectTypePresets.filter((preset) => preset.enabled !== false).map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</ClusterNativeSelect></div>
+                    <div className="field"><label>Status</label><ClusterNativeSelect value={settings.defaultProjectStatus || "active"} onChange={(event) => patch("defaultProjectStatus", event.target.value as ProjectStatus)}>{PROJECT_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</ClusterNativeSelect></div>
                     <div className="field"><label>Source</label><ClusterNativeSelect value={settings.defaultProjectSource || "internal"} onChange={(event) => patch("defaultProjectSource", event.target.value as Settings["defaultProjectSource"])}><option value="internal">Internal studio project</option><option value="external">External or partner project</option></ClusterNativeSelect><small>External projects can require additional ownership information.</small></div>
                     <div className="field"><label>Visibility</label><ClusterNativeSelect value={settings.defaultProjectVisibility || "studio"} onChange={(event) => patch("defaultProjectVisibility", event.target.value as Settings["defaultProjectVisibility"])}><option value="private">Private until shared</option><option value="studio">Visible to studio members</option><option value="external_review">Prepared for external review</option></ClusterNativeSelect><small>Folder and user permissions still determine actual access.</small></div>
                   </div>
                 </section>
 
                 <section className="studio-settings-block-v272">
-                  <header><div><strong>Starter workspace</strong><span>Choose which tools are created with the project.</span></div></header>
+                  <header><div><strong>Starter workspace</strong></div></header>
                   <div className="studio-toggle-grid-v272">
                     <label className="studio-setting-toggle-v272"><ClusterInput type="checkbox" checked={settings.defaultCreateStarterBoard !== false} onChange={(event) => patch("defaultCreateStarterBoard", event.target.checked)} /><span><strong>Starter board</strong><small>Create the board defined by the project type preset.</small></span></label>
                     <label className="studio-setting-toggle-v272"><ClusterInput type="checkbox" checked={settings.defaultCreateStarterWhiteboard !== false} onChange={(event) => patch("defaultCreateStarterWhiteboard", event.target.checked)} /><span><strong>Starter whiteboard</strong><small>Create a planning canvas linked to the project.</small></span></label>
-                    <div className="studio-setting-toggle-v272 locked"><ClusterInput type="checkbox" checked readOnly /><span><strong>Library folder</strong><small>Always create a protected project folder in Library.</small></span></div>
+                    <div className="studio-setting-toggle-v272 locked"><ClusterInput type="checkbox" checked readOnly /><span><strong>Library folder</strong><small>Always included</small></span></div>
                   </div>
                   <div className="studio-form-grid-v272 compact">
                     <div className="field"><label>Board naming</label><ClusterNativeSelect value={settings.defaultProjectBoardNameMode || "type"} onChange={(event) => patch("defaultProjectBoardNameMode", event.target.value as Settings["defaultProjectBoardNameMode"])}><option value="type">Use the preset board name</option><option value="project">Use the project name</option></ClusterNativeSelect></div>
@@ -1549,12 +1547,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </section>
 
                 <section className="studio-settings-block-v272">
-                  <header><div><strong>Home dashboard default and governance</strong><span>Recommend useful defaults, require critical widgets, or remove widgets that do not belong in this Studio.</span></div></header>
+                  <header><div><strong>Home dashboard</strong></div></header>
                   <div className="studio-form-grid-v272 compact">
-                    <div className="field"><label>Recommended layout</label><ClusterSelect ariaLabel="Recommended Home layout" value={settings.studioHomeDefaultPreset || "balanced"} options={[{ value: "balanced", label: "Balanced" }, { value: "quiet", label: "Quiet" }, { value: "core-tools", label: "Core + tools" }, { value: "everything", label: "Everything" }]} onChange={(value) => patch("studioHomeDefaultPreset", value as Settings["studioHomeDefaultPreset"])} /><small>Preset recovery remains user-invoked. The widget set below is a separate Studio recommendation.</small></div>
-                    <div className="info-row"><span>Preset policy</span><strong>Recommended, not locked</strong><small>The named preset remains a user-invoked recovery path.</small></div><div className="info-row"><span>Managed rules</span><strong>{parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).length} required · {parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).length} unavailable</strong><small>Required and unavailable rules apply when Home layouts or saved profiles are restored.</small></div>
+                    <div className="field"><label>Recommended layout</label><ClusterSelect ariaLabel="Recommended Home layout" value={settings.studioHomeDefaultPreset || "balanced"} options={[{ value: "balanced", label: "Balanced" }, { value: "quiet", label: "Quiet" }, { value: "core-tools", label: "Core + tools" }, { value: "everything", label: "Everything" }]} onChange={(value) => patch("studioHomeDefaultPreset", value as Settings["studioHomeDefaultPreset"])} /></div>
+                    
                   </div>
-                  <div className="studio-home-governance-grid-v486">
+                  <details className="studio-settings-disclosure-v112"><summary>Widget rules · {parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).length} required · {parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).length} unavailable</summary><div className="studio-home-governance-grid-v486">
                     {DASHBOARD_WIDGETS.filter((widget) => !widget.desktopOnly).map((widget) => {
                       const required = parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).includes(widget.key);
                       const unavailable = parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).includes(widget.key);
@@ -1582,8 +1580,10 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       return <div className="studio-home-department-widget-grid-v488">{DASHBOARD_WIDGETS.filter((widget) => !widget.desktopOnly).map((widget) => <ClusterButton key={`${department.id}-${widget.key}`} variant={departmentRecommended.has(widget.key) ? "secondary" : "quiet"} size="compact" disabled={unavailable.has(widget.key)} aria-pressed={departmentRecommended.has(widget.key)} onClick={() => toggleDepartmentHomeRecommendation(department.id, widget.key, !departmentRecommended.has(widget.key))}>{widget.label}</ClusterButton>)}</div>;
                     })()}
                   </div>
+                </details>
                 </section>
 
+                <details className="studio-settings-disclosure-v112"><summary>Extension widget settings</summary>
                 <section className="studio-settings-block-v272">
                   <header><div><strong>Extension widget policy</strong><span>Control declarative Home extensions, review data permissions, and audit the local Desktop widget inventory without enabling executable plugins.</span></div></header>
                   <div className="studio-form-grid-v272 compact">
@@ -1605,6 +1605,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   {customWidgetLibrary.desktop && <div className="home-widget-library-actions-v484"><ClusterButton variant="secondary" size="compact" disabled={customWidgetLibrary.loading} onClick={() => void customWidgetLibrary.refresh()}>Rescan inventory</ClusterButton><ClusterButton variant="secondary" size="compact" onClick={() => void customWidgetLibrary.openFolder()}>Open local library</ClusterButton><span>{customWidgetLibrary.status?.widgetCount || 0} installed · {customWidgetLibrary.status?.invalidCount || 0} rejected</span></div>}
                   {Boolean(customWidgetLibrary.status?.invalidWidgets?.length) && <div className="home-widget-library-message-v484" role="status"><strong>Rejected local manifests</strong>{customWidgetLibrary.status!.invalidWidgets.slice(0, 5).map((item) => <span key={item.entry}>{item.entry}: {item.reason}</span>)}</div>}
                 </section>
+                </details>
 
                 <section className="studio-settings-block-v272">
                   <header><div><strong>Work item defaults</strong><span>Applied when a card or task is created without an explicit value.</span></div></header>
