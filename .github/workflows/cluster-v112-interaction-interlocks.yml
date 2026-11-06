@@ -1,0 +1,44 @@
+name: Cluster interaction interlock regressions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/settings/StudioApplicationsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioScopedGrantsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioOffboardingPanel.tsx'
+      - 'tools/scripts/cluster-v112-interaction-interlock-tests.mjs'
+      - '.github/workflows/cluster-v112-interaction-interlocks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/settings/StudioApplicationsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioScopedGrantsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioOffboardingPanel.tsx'
+      - 'tools/scripts/cluster-v112-interaction-interlock-tests.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-workflow-interlocks:
+    name: Review and permission gates (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Verify blocked-workflow and draft-safety regressions
+        run: node tools/scripts/cluster-v112-interaction-interlock-tests.mjs
