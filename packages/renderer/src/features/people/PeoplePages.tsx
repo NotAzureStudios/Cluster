@@ -1319,10 +1319,12 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   onSave={async (changes) => {
                     await api(`/api/users/${encodeURIComponent(profile.id)}`, { method: "PATCH", body: JSON.stringify(changes) });
                     setDirectoryRefresh((current) => current + 1);
-                    await loadProfile(profile.id, true);
-                    setEditorDirty(false);
-                    setProfileViewState("overview");
-                    setLoadStatus(`User details saved for ${displayUserName(profile)}.`);
+                    const refreshed = await loadProfile(profile.id, true);
+                    if (!refreshed) throw new Error("User details were saved, but the profile could not be refreshed. Reopen this person before continuing.");
+                    setLoadStatus(`User details saved for ${displayUserName(refreshed)}.`);
+                    // Keep the editor open so a pending role choice can be applied
+                    // after the new authoritative profile revision is received.
+                    return refreshed;
                   }}
                 />}
 

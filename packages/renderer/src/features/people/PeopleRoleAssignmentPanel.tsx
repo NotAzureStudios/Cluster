@@ -94,14 +94,13 @@ export function PeopleRoleAssignmentPanel({
 
   return <section className="people-user-editor-section-v106 people-role-assignment-v11" aria-label="Workspace role assignment">
     <h4>Workspace role</h4>
-    <p>Roles determine access. Assignment is a separate, audited security operation.</p>
     <div className="people-role-assignment-actions-v11">
       <label className="people-user-editor-field-v106">
         <span>Assigned role</span>
         <ClusterNativeSelect value={draftRole} disabled={busy || loading || self || !catalog} onChange={(event) => { setDraftRole(event.target.value); setError(""); setSuccess(""); }}>
           {!catalog?.roles.some((role) => role.id === draftRole) && <option value={draftRole} disabled>{draftRole} (unavailable)</option>}
           {(catalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!role.enabled || (role.privileged && catalog?.actorRole !== "owner" && role.id !== savedRole)}>
-            {role.label}{role.enabled ? "" : " (disabled)"} · {role.members} members
+            {role.label}{role.enabled ? "" : " (disabled)"}
           </option>)}
         </ClusterNativeSelect>
       </label>
@@ -110,7 +109,11 @@ export function PeopleRoleAssignmentPanel({
         <ClusterButton type="button" size="compact" variant="secondary" disabled={disabled} onClick={() => void apply()}>{busy ? "Updating…" : "Apply role change"}</ClusterButton>
       </div>
     </div>
-    <small>{self ? "You cannot change your own workspace role." : profileDirty ? "Save identity and employment changes before changing access." : ownerRequired ? "Only a workspace owner may assign or remove privileged roles." : "Role names and permission rules are edited in Roles & Permissions."}</small>
+    {(self || ownerRequired || (profileDirty && roleDirty)) && <small role="status">{self
+      ? "You cannot change your own role. Another authorized administrator must do it."
+      : ownerRequired
+        ? "Only a workspace owner can change administrator or owner roles."
+        : "Save profile details first. Your role selection will remain here."}</small>}
     {error && <p className="people-user-editor-error-v106" role="alert">{error}</p>}
     {success && <p className="people-user-editor-status-v11" role="status">{success}</p>}
   </section>;

@@ -2049,3 +2049,18 @@
   block-size: 20px;
   color: var(--accent);
 }
+
+/* v1.1.2 settings density: reveal advanced material only when requested. */
+.studio-settings-disclosure-v112{display:block;min-width:0;border:1px solid var(--border);border-radius:12px;background:var(--panel);overflow:hidden}
+.studio-settings-disclosure-v112>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:11px 14px;color:var(--text);font-size:.79rem;font-weight:600;list-style:none}
+.studio-settings-disclosure-v112>summary::-webkit-details-marker{display:none}
+.studio-settings-disclosure-v112>summary::after{content:"+";color:var(--muted);font-size:1rem;line-height:1}
+.studio-settings-disclosure-v112[open]>summary{border-bottom:1px solid var(--border)}
+.studio-settings-disclosure-v112[open]>summary::after{content:"−"}
+.studio-settings-disclosure-v112>summary:focus-visible{outline:2px solid var(--accent,var(--primary));outline-offset:-3px}
+.studio-settings-disclosure-v112>.studio-project-defaults-preview-v103,
+.studio-settings-disclosure-v112>.studio-home-governance-grid-v486,
+.studio-settings-disclosure-v112>.studio-home-role-recommendations-v487,
+.studio-settings-disclosure-v112>.studio-home-department-recommendations-v488{margin:12px}
+.studio-settings-disclosure-v112>.studio-project-defaults-disclaimer-v103{margin:0 12px 12px}
+.studio-settings-disclosure-v112>.studio-settings-block-v272{margin:12px}
