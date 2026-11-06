@@ -8,6 +8,7 @@ on:
       - 'packages/renderer/src/features/settings/StudioScopedGrantsPanel.tsx'
       - 'packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx'
       - 'packages/renderer/src/features/settings/StudioOffboardingPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx'
       - 'tools/scripts/cluster-v112-interaction-interlock-tests.mjs'
       - '.github/workflows/cluster-v112-interaction-interlocks.yml'
   push:
@@ -17,6 +18,7 @@ on:
       - 'packages/renderer/src/features/settings/StudioScopedGrantsPanel.tsx'
       - 'packages/renderer/src/features/settings/StudioAccessRenewalsPanel.tsx'
       - 'packages/renderer/src/features/settings/StudioOffboardingPanel.tsx'
+      - 'packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx'
       - 'tools/scripts/cluster-v112-interaction-interlock-tests.mjs'
 
 permissions:
