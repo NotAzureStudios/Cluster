@@ -467,18 +467,33 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
   }
   async function issuePasswordResetForProfile() {
-    if (!effectiveAdminMode || !profile || adminActionBusy) return;
+    if (!effectiveAdminMode || !profile || adminActionBusy || profile.id === currentUser.id) return;
     const scope = currentUser.id;
+    const targetId = profile.id;
+    const name = displayUserName(profile);
     setAdminActionBusy("password-reset");
     try {
-      const result = await api<{ ok: boolean; username: string; temporaryPassword: string }>(`/api/admin/users/${profile.id}/password-reset`, { method: "POST" });
-      if (accountScopeRef.current !== scope) return; // Response contains a one-time password.
+      const confirmed = await confirmCluster({
+        title: "Issue temporary password?",
+        message: `Reset ${name}'s password and revoke existing sessions? A new one-time password will be shown once; it must be shared privately.`,
+        confirmLabel: "Reset password",
+        tone: "danger",
+      });
+      if (!confirmed || accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      const result = await api<{ ok: boolean; username: string; temporaryPassword: string }>(`/api/admin/users/${encodeURIComponent(targetId)}/password-reset`, { method: "POST" });
+      if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: result.username, temporaryPassword: result.temporaryPassword });
-      setLoadStatus(`Password reset issued for ${displayUserName(profile)}. Existing sessions were revoked. Copy the temporary password above.`);
-      const refreshWarning = await reconcileAfterCommit(async () => { await loadProfile(profile.id, true); setDirectoryRefresh((current) => current + 1); });
-      if (refreshWarning) setLoadStatus(`Password reset succeeded, but profile refresh failed. The temporary password above remains valid. ${refreshWarning}`);
-    } catch (error) { if (accountScopeRef.current === scope) setLoadStatus(error instanceof Error ? error.message : "Password reset failed."); }
-    finally { if (accountScopeRef.current === scope) setAdminActionBusy(""); }
+      setLoadStatus(`Password reset issued for ${name}. Existing sessions were revoked. Copy the temporary password from the handoff dialog.`);
+      setAdminActionFeedback({ message: "Temporary password issued; sessions revoked. Complete the private credential handoff.", error: false });
+      const refreshWarning = await reconcileAfterCommit(async () => { await loadProfile(targetId, true); setDirectoryRefresh((current) => current + 1); });
+      if (refreshWarning) setLoadStatus(`Password reset succeeded, but profile refresh failed. The temporary password remains valid. ${refreshWarning}`);
+    } catch (error) {
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Password reset failed.";
+        setLoadStatus(message);
+        setAdminActionFeedback({ message, error: true });
+      }
+    } finally { if (accountScopeRef.current === scope) setAdminActionBusy(""); }
   }
   async function setProfileAccountState(state: "ACTIVE" | "SUSPENDED" | "DISABLED") {
     if (!effectiveAdminMode || !profile || adminActionBusy || accountStateActionGateRef.current) return;
@@ -518,16 +533,31 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }
   async function setProfileToolPermission(toolKey: string, level: string) {
     if (!effectiveAdminMode || !profile || adminActionBusy) return;
+    const targetId = profile.id;
+    const previousLevel = String(profile.toolPermissions?.[toolKey] || "inherit");
+    if (level === previousLevel) return;
+    const toolLabel = TOOL_PERMISSION_OPTIONS.find((tool) => tool.key === toolKey)?.label || toolKey;
     setAdminActionBusy(`tool:${toolKey}`);
     try {
+      const confirmed = await confirmCluster({
+        title: "Change tool access?",
+        message: `Change ${displayUserName(profile)}'s ${toolLabel} override from ${previousLevel} to ${level}? This affects effective access and will be enforced by the server.`,
+        confirmLabel: "Apply access change",
+        tone: "danger",
+      });
+      if (!confirmed || activeProfileIdRef.current !== targetId) return;
       const next = { ...(profile.toolPermissions || {}) } as Record<string, string>;
       if (level === "inherit") delete next[toolKey]; else next[toolKey] = level;
-      await api(`/api/users/${profile.id}`, { method: "PATCH", body: JSON.stringify({ toolPermissions: next }) });
-      await loadProfile(profile.id, true);
+      await api(`/api/users/${encodeURIComponent(targetId)}`, { method: "PATCH", body: JSON.stringify({ toolPermissions: next }) });
+      await loadProfile(targetId, true);
       setDirectoryRefresh((current) => current + 1);
-      setLoadStatus("Tool access updated.");
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Tool access update failed."); }
-    finally { setAdminActionBusy(""); }
+      setLoadStatus(`${toolLabel} access updated.`);
+      setAdminActionFeedback({ message: `${toolLabel} access updated to ${level}.`, error: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Tool access update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
+    } finally { setAdminActionBusy(""); }
   }
 
   async function patchProfileAdministration(patch: Record<string, unknown>, status: string) {
