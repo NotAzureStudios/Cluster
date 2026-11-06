@@ -53,6 +53,11 @@ jobs:
           }
       - name: Restore pinned dependencies
         run: npm ci --no-audit --no-fund
+      - name: Generate pinned Prisma client
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
       - name: Compile complete Server and Web application
         run: npm run build
         env:
