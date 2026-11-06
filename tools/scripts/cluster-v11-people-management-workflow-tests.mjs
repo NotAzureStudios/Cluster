@@ -83,4 +83,16 @@ check("account type changes are deliberate, error-local, and cannot create an un
   assert.ok(people.includes('onChange={(event) => void changeProfileAccountType(event.target.value)}'));
   assert.ok(people.includes('adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"}'));
 });
+check("password reset prompts before revoking sessions", () => {
+  assert.ok(people.includes('title: "Issue temporary password?"'));
+  assert.ok(people.includes('confirmLabel: "Reset password"'));
+  assert.ok(people.includes('if (!confirmed || accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;'));
+  assert.ok(people.includes('setAdminActionFeedback({ message: "Temporary password issued; sessions revoked.'));
+});
+check("tool overrides require confirmation and person identity checks", () => {
+  assert.ok(people.includes('title: "Change tool access?"'));
+  assert.ok(people.includes('confirmLabel: "Apply access change"'));
+  assert.ok(people.includes('if (!confirmed || activeProfileIdRef.current !== targetId) return;'));
+  assert.ok(people.includes('if (level === previousLevel) return;'));
+});
 console.log(`People management workflow: ${count} checks passed.`);
