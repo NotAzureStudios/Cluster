@@ -534,7 +534,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   async function setProfileToolPermission(toolKey: string, level: string) {
     if (!effectiveAdminMode || !profile || adminActionBusy) return;
     const targetId = profile.id;
-    const previousLevel = String(profile.toolPermissions?.[toolKey] || "inherit");
+    const previousOverrides = (profile.toolPermissions || {}) as Record<string, string>;
+    const previousLevel = String(previousOverrides[toolKey] || "inherit");
     if (level === previousLevel) return;
     const toolLabel = TOOL_PERMISSION_OPTIONS.find((tool) => tool.key === toolKey)?.label || toolKey;
     setAdminActionBusy(`tool:${toolKey}`);
