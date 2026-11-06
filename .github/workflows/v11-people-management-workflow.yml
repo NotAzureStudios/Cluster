@@ -1,0 +1,60 @@
+name: v1.1 People management safety and UX
+
+on:
+  pull_request:
+    branches: [main, 'fix/people-save-role-ui-copy-1-1-2']
+    paths:
+      - 'packages/renderer/src/features/people/**'
+      - 'apps/server/src/domains/auth/admin-account-activation-policy.ts'
+      - 'apps/server/src/domains/auth/auth-admin-routes.ts'
+      - 'tools/scripts/cluster-v11-people-management-workflow-tests.mjs'
+      - '.github/workflows/v11-people-management-workflow.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/people/**'
+      - 'apps/server/src/domains/auth/admin-account-activation-policy.ts'
+      - 'apps/server/src/domains/auth/auth-admin-routes.ts'
+      - 'tools/scripts/cluster-v11-people-management-workflow-tests.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  people-management:
+    name: People validation, security and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Run account lifecycle and validation tests
+        run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-people-management-workflow-tests.mjs
+      - name: Preserve existing editor and role assignment contracts
+        shell: pwsh
+        run: |
+          foreach ($script in @(
+            'cluster-people-admin-editor-tests.mjs',
+            'cluster-v11-user-editor-details-tests.mjs',
+            'cluster-v11-role-assignment-tests.mjs'
+          )) {
+            node --disable-warning=ExperimentalWarning --experimental-strip-types (Join-Path tools/scripts $script)
+            if ($LASTEXITCODE -ne 0) { throw "People regression failed: $script" }
+          }
+      - name: Restore pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Compile complete Server and Web application
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
