@@ -35,6 +35,22 @@ export function StudioScopedGrantsPanel() {
   const person = useMemo(() => result.people.find((row) => row.id === userId), [result.people, userId]);
   const matching = result.grants.filter((grant) => grant.targetId === projectId && grant.subjectId === userId);
   const existing = matching.length === 1 ? matching[0] : null;
+  const requestedExpiry = expiry ? new Date(`${expiry}T23:59:59`) : null;
+  const requestBlocker = !person
+    ? "Choose an active recipient."
+    : !projectId
+      ? "Choose a managed Project."
+      : operation === "grant" && matching.length
+        ? "An active grant already exists. Choose Extend existing grant instead."
+        : operation === "extend" && !existing
+          ? matching.length > 1 ? "Multiple grants exist. Resolve them before extending." : "There is no single active grant to extend."
+          : !expiry || !requestedExpiry || !Number.isFinite(requestedExpiry.getTime()) || requestedExpiry <= new Date()
+            ? "Choose a future expiration date."
+            : person.accessExpiresAt && requestedExpiry > new Date(person.accessExpiresAt)
+              ? "Grant expiry cannot exceed the account\u0027s expiry."
+              : reason.trim().length < 12
+                ? "Enter a business reason with at least 12 characters."
+                : "";
   useEffect(() => { if (operation === "extend" && existing) setLevel(existing.level as "view" | "contribute" | "manage"); }, [operation, existing?.id, existing?.level]);
   async function run(action: () => Promise<unknown>, confirmation: string) {
     if (locked.current) return;
@@ -57,7 +73,8 @@ export function StudioScopedGrantsPanel() {
   }
   return <div className="settings-stack-v092">
     <div className="settings-card-v092"><h3>Scoped Project grants</h3>
-      <p>Request time-limited Project access for a person. A different Studio administrator must approve. Resource expiry is enforced by the Access Rule service even if reminder workers are offline. A grant expires independently, but inherited baseline access may remain. Tool ceilings and explicit deny rules still apply. This does not provision Inventory keys, Package licenses, or Library source access.</p>
+      <p>Request time-limited Project access. A different administrator must approve; existing permission ceilings still apply.</p>
+      <details><summary>Scope and limitations</summary><p>Baseline access may remain after grant expiry. Explicit denies still apply. A grant does not provision Inventory keys, Package licenses, or Library source access.</p></details>
       <ClusterButton variant="secondary" type="button" disabled={busy || loading} onClick={() => void load(true).catch((error) => setStatus(String(error)))}>Refresh grants</ClusterButton>
       {Object.values(result.truncated).some(Boolean) && <p role="status">One or more lists reached their safety limit. Narrow the studio scope or use dedicated management views before proceeding.</p>}
       {status && <p role="status">{status}</p>}
@@ -71,13 +88,14 @@ export function StudioScopedGrantsPanel() {
       <div className="field"><label>Access level</label><ClusterNativeSelect disabled={busy || operation === "extend"} value={level} onChange={(event) => setLevel(event.target.value as "view" | "contribute" | "manage")}><option value="view">View</option><option value="contribute">Contribute</option><option value="manage">Manage</option></ClusterNativeSelect></div>
       <div className="field"><label>Grant expires (end of local day, maximum 180 days)</label><ClusterInput type="date" value={expiry} disabled={busy} onChange={(event) => setExpiry(event.target.value)} /></div>
       <div className="field"><label>Business justification</label><ClusterTextarea rows={3} value={reason} disabled={busy} onChange={(event) => setReason(event.target.value)} /></div>
-      <ClusterButton type="button" disabled={busy || loading || !person || !projectId || !expiry || reason.trim().length < 12 || (operation === "extend" ? !existing : matching.length > 0)} onClick={submit}>Submit for independent review</ClusterButton>
+      {requestBlocker && !loading && !busy && <p className="muted" role="status">{requestBlocker}</p>}
+      <ClusterButton type="button" disabled={busy || loading || Boolean(requestBlocker)} onClick={submit}>Submit for independent review</ClusterButton>
     </div>
     <div className="settings-card-v092"><h3>Pending decisions</h3>
       {result.requests.filter((request) => request.status === "pending").map((request) => <div key={request.id} className="settings-card-v092">
         <strong>{result.people.find((person) => person.id === request.userId)?.displayName || request.userId}</strong> · {result.projects.find((project) => project.id === request.targetId)?.name || request.targetId}
         <p>{request.operation} · {request.level} until {readableDate(request.expiresAt)}</p><p>Reason: {request.reason}</p>
-        <div className="field"><label>Decision reason</label><ClusterTextarea rows={2} disabled={busy} value={reviews[request.id] || ""} onChange={(event) => setReviews((old) => ({ ...old, [request.id]: event.target.value }))} /></div>
+        <div className="field"><label>Decision reason (8+ characters)</label><ClusterTextarea rows={2} disabled={busy} value={reviews[request.id] || ""} onChange={(event) => setReviews((old) => ({ ...old, [request.id]: event.target.value }))} /></div>
         <div className="button-row"><ClusterButton type="button" disabled={busy || (reviews[request.id] || "").trim().length < 8} onClick={() => review(request, "approved")}>Approve grant</ClusterButton><ClusterButton type="button" variant="secondary" disabled={busy || (reviews[request.id] || "").trim().length < 8} onClick={() => review(request, "rejected")}>Reject</ClusterButton></div>
       </div>)}
       {!loading && !result.requests.some((request) => request.status === "pending") && <p>No pending scoped grants.</p>}
