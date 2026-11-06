@@ -50,7 +50,7 @@ import {
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { copyClusterText } from "../../core/clipboard";
-import { promptCluster } from "../../components/cluster-dialog-service";
+import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { PersonnelRecordsPanel } from "./PersonnelRecordsPanel";
 import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } from "./WorkforceAvailabilityExceptions";
