@@ -104,29 +104,31 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
   }, [selectedId]);
 
   const unsavedNote = Boolean(selected && note !== (selected.reviewNote || ""));
+  const unsavedConversion = Boolean(selected?.status === "approved" && (username.trim() || onboardingVersionId || selectedFields.length));
   // Also protect the one-time password when the user closes the browser or
   // navigates away through a shared Cluster workspace control.
   useUnsavedChangesGuard({
-    dirty: unsavedNote || Boolean(credential),
+    dirty: unsavedNote || unsavedConversion || Boolean(credential),
     title: "Leave application review?",
     message: credential
       ? "A one-time account password is still visible and cannot be retrieved later. Copy it before leaving."
-      : "An unsaved application review note will be lost.",
+      : "Unsaved application notes or account-creation selections will be lost.",
     confirmLabel: "Discard and leave",
   });
 
   async function confirmReviewNavigation() {
     if (navigationConfirmRef.current || busyAction) return false;
-    if (!credential && !unsavedNote) return true;
+    if (!credential && !unsavedNote && !unsavedConversion) return true;
     navigationConfirmRef.current = true;
     try {
       const warnings = [
         ...(credential ? [`The one-time password for @${credential.username} cannot be recovered after leaving. Copy it first.`] : []),
         ...(unsavedNote ? ["Your unsaved reviewer note will be discarded."] : []),
+        ...(unsavedConversion ? ["The drafted username, onboarding choice, and profile field selections will be discarded."] : []),
       ];
       return await confirmCluster({
-        title: credential ? "Discard one-time credentials?" : "Discard unsaved review note?",
-        message: warnings.join("\\n"),
+        title: credential ? "Discard one-time credentials?" : "Discard application changes?",
+        message: warnings.join("\n"),
         confirmLabel: "Discard and continue",
         tone: "danger",
       });
@@ -137,6 +139,9 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
   function discardTransientReview() {
     setCredential(null);
     setNote(selected?.reviewNote || "");
+    setUsername("");
+    setSelectedFields([]);
+    setOnboardingVersionId("");
   }
   async function selectApplication(nextId: string) {
     if (nextId === selectedId || loading || busyAction) return;
