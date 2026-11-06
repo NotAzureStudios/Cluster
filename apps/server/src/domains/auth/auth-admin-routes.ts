@@ -222,7 +222,12 @@ app.patch("/api/admin/users/:userId/account-state", async (request, reply) => {
       error: "The account must complete password setup before it can be activated.",
     });
   }
-  const state = body.state === "ACTIVE" ? nextAccountState(target.discordUserId, REQUIRE_DISCORD_LINK) : body.state;
+  // Re-enabling an account must never bypass its one-time password handoff.
+  // Both initial provision and a governed password reset clear passwordChangedAt.
+  // The user must still change that temporary password after suspension ends.
+  const state = body.state === "ACTIVE"
+    ? (target.passwordChangedAt ? nextAccountState(target.discordUserId, REQUIRE_DISCORD_LINK) : "PASSWORD_CHANGE_REQUIRED")
+    : body.state;
   const now = new Date();
   const disablingAccess = state !== "ACTIVE";
   const operations: any[] = [
