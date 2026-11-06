@@ -217,6 +217,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
   const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
+  const [adminActionFeedback, setAdminActionFeedback] = useState<{ message: string; error: boolean } | null>(null);
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
@@ -505,8 +506,11 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       await loadProfile(userId, true);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(`${name} account state updated. Sign-in requirements and policy checks remain enforced by the server.`);
+      setAdminActionFeedback({ message: `Account ${state.toLowerCase()}. Sign-in policies remain enforced.`, error: false });
     } catch (error) {
-      setLoadStatus(error instanceof Error ? error.message : "Account state update failed.");
+      const message = error instanceof Error ? error.message : "Account state update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
     } finally {
       accountStateActionGateRef.current = false;
       setAdminActionBusy("");
@@ -534,8 +538,29 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       await loadProfile(profile.id, true);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(status);
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Account administration update failed."); }
+      setAdminActionFeedback({ message: status, error: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Account administration update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
+    }
     finally { setAdminActionBusy(""); }
+  }
+  async function changeProfileAccountType(nextType: string) {
+    if (!effectiveAdminMode || !profile || adminActionBusy || nextType === (profile.accountType || "employee")) return;
+    if (["contractor", "client", "guest"].includes(nextType) &&
+      (!profile.accessExpiresAt || new Date(profile.accessExpiresAt) <= new Date())) {
+      setAdminActionFeedback({ error: true, message: "External account types require a future access expiry. The current renewal flow cannot assign an initial expiry to a permanent account." });
+      return;
+    }
+    const personId = profile.id;
+    const accepted = await confirmCluster({
+      title: "Change account type?",
+      message: `Change ${displayUserName(profile)} to ${nextType}? Account identity type and role permissions are separate. Existing access grants are not automatically changed.`,
+      confirmLabel: "Change account type",
+    });
+    if (!accepted || activeProfileIdRef.current !== personId) return;
+    await patchProfileAdministration({ accountType: nextType }, "Account type updated.");
   }
 
   async function copyProfileLink(person: User) { const url = new URL(window.location.href); url.hash = "#people"; url.searchParams.set("inspect", `person:${person.id}`); const copied = await copyClusterText(url.toString()); setLoadStatus(copied ? "Profile link copied." : "Profile link could not be copied on this device."); }
@@ -554,6 +579,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setProfileCalendarLoading(false);
     setProfile(null);
     setSelectedUserId(userId);
+    setAdminActionFeedback(null);
     setProfileViewState("overview");
     setLoadStatus("Loading profile...");
     try {
@@ -1329,13 +1355,16 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     {effectiveAdminMode && <section className="people-section-v244 people-account-admin-v536">
                       <header className="people-section-heading-v417"><div><h3>Account administration</h3><span>Lifecycle and recovery actions for this person</span></div><strong>{profile.archived ? "Archived" : String(profile.accountState || "ACTIVE").replaceAll("_", " ")}</strong></header>
                       <div className="people-admin-account-fields-v536">
-                        <label><span>Account type</span><ClusterNativeSelect value={profile.accountType || "employee"} disabled={Boolean(adminActionBusy)} onChange={(event) => void patchProfileAdministration({ accountType: event.target.value }, "Account type updated.")}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
+                        <label><span>Account type</span><ClusterNativeSelect value={profile.accountType || "employee"} disabled={Boolean(adminActionBusy)} onChange={(event) => void changeProfileAccountType(event.target.value)}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect><small>External account types require a future access expiry.</small></label>
                         <div><span>Access expires</span><strong>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "No expiry"}</strong><small>Extensions require another admin’s approval in Studio Settings → Studio Systems → Access renewals.</small></div>
                       </div>
                       <div className="people-admin-action-groups-v536">
                         <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || !["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase())} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "DISABLED"} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
                         <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
                       </div>
+                      {adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"} className={adminActionFeedback.error ? "people-user-editor-error-v106" : "people-user-editor-status-v11"}>{adminActionFeedback.message}</p>}
+                      {profile.id === currentUser.id && <small className="muted">You cannot suspend or disable your own account.</small>}
+                      {!["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase()) && <small className="muted">Reactivation is only for suspended or disabled accounts. Setup and recovery are separate.</small>}
                     </section>}
                     {effectiveAdminMode && <section className="people-section-v244 people-tool-access-editor-v536">
                       <header className="people-section-heading-v417"><div><h3>Tool access</h3><span>Explicit overrides. Inherit follows the workspace role and account type defaults.</span></div></header>
