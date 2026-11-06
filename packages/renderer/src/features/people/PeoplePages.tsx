@@ -480,15 +480,37 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     finally { if (accountScopeRef.current === scope) setAdminActionBusy(""); }
   }
   async function setProfileAccountState(state: "ACTIVE" | "SUSPENDED" | "DISABLED") {
-    if (!effectiveAdminMode || !profile || adminActionBusy) return;
+    if (!effectiveAdminMode || !profile || adminActionBusy || accountStateActionGateRef.current) return;
+    const userId = profile.id;
+    const name = displayUserName(profile);
+    const currentState = String(profile.accountState || "ACTIVE").toUpperCase();
+    if (state === currentState || (state !== "ACTIVE" && userId === currentUser.id)) return;
+    if (state === "ACTIVE" && !["SUSPENDED", "DISABLED"].includes(currentState)) {
+      setLoadStatus("Activate is for suspended or disabled accounts. Finish password setup or recovery through the account's existing workflow.");
+      return;
+    }
+    accountStateActionGateRef.current = true;
     setAdminActionBusy(`state:${state}`);
     try {
-      await api(`/api/admin/users/${profile.id}/account-state`, { method: "PATCH", body: JSON.stringify({ state }) });
-      await loadProfile(profile.id, true);
+      const confirmed = await confirmCluster({
+        title: state === "ACTIVE" ? "Reactivate account?" : state === "SUSPENDED" ? "Suspend account?" : "Disable account?",
+        message: state === "ACTIVE"
+          ? `Restore sign-in eligibility for ${name}? Expired and archived accounts still require governed recovery. Temporary-password setup is not skipped.`
+          : `Change ${name} to ${state.toLowerCase()}? Active sessions will be revoked${state === "DISABLED" ? ", and registered devices and authenticators will be revoked" : ""}.`,
+        confirmLabel: state === "ACTIVE" ? "Reactivate" : state === "SUSPENDED" ? "Suspend account" : "Disable account",
+        tone: state === "ACTIVE" ? "default" : "danger",
+      });
+      if (!confirmed || activeProfileIdRef.current !== userId) return;
+      await api(`/api/admin/users/${encodeURIComponent(userId)}/account-state`, { method: "PATCH", body: JSON.stringify({ state }) });
+      await loadProfile(userId, true);
       setDirectoryRefresh((current) => current + 1);
-      setLoadStatus(`${displayUserName(profile)} account set to ${state.toLowerCase()}.`);
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Account state update failed."); }
-    finally { setAdminActionBusy(""); }
+      setLoadStatus(`${name} account state updated. Sign-in requirements and policy checks remain enforced by the server.`);
+    } catch (error) {
+      setLoadStatus(error instanceof Error ? error.message : "Account state update failed.");
+    } finally {
+      accountStateActionGateRef.current = false;
+      setAdminActionBusy("");
+    }
   }
   async function setProfileToolPermission(toolKey: string, level: string) {
     if (!effectiveAdminMode || !profile || adminActionBusy) return;
@@ -1311,7 +1333,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         <div><span>Access expires</span><strong>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "No expiry"}</strong><small>Extensions require another admin’s approval in Studio Settings → Studio Systems → Access renewals.</small></div>
                       </div>
                       <div className="people-admin-action-groups-v536">
-                        <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy)} onClick={() => void setProfileAccountState("ACTIVE")}>Activate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
+                        <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || !["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase())} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "DISABLED"} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
                         <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
                       </div>
                     </section>}
