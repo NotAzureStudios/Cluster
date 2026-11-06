@@ -48,6 +48,16 @@ export function StudioAccessRenewalsPanel() {
   }
   useEffect(() => { void load().catch((error) => setStatus(error instanceof Error ? error.message : "Access data unavailable.")); }, []);
   const current = useMemo(() => expiring.find((user) => user.id === userId), [expiring, userId]);
+  const proposedExpiry = expiresDate ? new Date(`${expiresDate}T23:59:59`) : null;
+  const requestBlocker = !current
+    ? "Select an expiring account."
+    : !proposedExpiry || !Number.isFinite(proposedExpiry.getTime())
+      ? "Choose a new expiry date."
+      : proposedExpiry <= new Date() || proposedExpiry <= new Date(current.accessExpiresAt)
+        ? "The new expiry must extend access into the future."
+        : reason.trim().length < 12
+          ? "Enter a business reason with at least 12 characters."
+          : "";
   async function run<T>(action: () => Promise<T>, done: string) {
     if (locked.current) return;
     locked.current = true; setBusy(true); setStatus("");
@@ -70,7 +80,7 @@ export function StudioAccessRenewalsPanel() {
     void run(() => api(`/api/studio-systems/access-renewals/${encodeURIComponent(row.id)}/review`, { method: "POST", body: JSON.stringify({ decision, reason: reviewReason }) }), `Access renewal ${decision}. Existing permissions and entitlements were not changed.`);
   }
   return <div className="settings-stack-v092">
-    <div className="settings-card-v092"><h3>Access renewals</h3><p>Expiring access is denied immediately by authorization. Renewal requires a request and approval from a different administrator. A renewal does not recreate old credentials, roles, Project grants, or inventory entitlements.</p>
+    <div className="settings-card-v092"><h3>Access renewals</h3><p>Renewals require approval from a different administrator. Expired access stays blocked until approved.</p>
       <ClusterButton variant="secondary" type="button" disabled={busy || loading} onClick={() => void load(true).catch((error) => setStatus(String(error)))}>Refresh access and decisions</ClusterButton>
       {status && <p role="status">{status}</p>}
     </div>
@@ -82,13 +92,14 @@ export function StudioAccessRenewalsPanel() {
       {current && <p className="muted">{current.accountType} · {current.accountState} · current expiry {formatDate(current.accessExpiresAt)}</p>}
       <div className="field"><label>New expiry date (end of your local day)</label><ClusterInput type="date" value={expiresDate} disabled={busy} onChange={(event) => setExpiresDate(event.target.value)} /></div>
       <div className="field"><label>Business reason</label><ClusterTextarea value={reason} disabled={busy} rows={3} onChange={(event) => setReason(event.target.value)} placeholder="Why does this access need to continue?" /></div>
-      <ClusterButton type="button" disabled={!current || busy || reason.trim().length < 12 || !expiresDate} onClick={requestRenewal}>Request access renewal</ClusterButton>
+      {requestBlocker && !busy && !loading && <p className="muted" role="status">{requestBlocker}</p>}
+      <ClusterButton type="button" disabled={busy || loading || Boolean(requestBlocker)} onClick={requestRenewal}>Request access renewal</ClusterButton>
     </div>
     <div className="settings-card-v092"><h3>Review queue</h3><p>Approval requires a different authorized person. Changed profile revisions or expiry windows invalidate stale requests. Offboarding closes pending reviews and resolves their actions.</p>
       {requests.filter((row) => row.status === "pending").map((row) => <div key={row.id} className="settings-card-v092">
         <strong>{row.subject?.displayName || row.userId}</strong><p>Current: {formatDate(row.previousExpiresAt)} · Proposed: {formatDate(row.requestedExpiresAt)}</p>
         <p>Request: {row.reason}</p>
-        <div className="field"><label>Review reason</label><ClusterTextarea value={reviewReasons[row.id] || ""} rows={2} disabled={busy} onChange={(event) => setReviewReasons((old) => ({ ...old, [row.id]: event.target.value }))} /></div>
+        <div className="field"><label>Review reason (8+ characters)</label><ClusterTextarea value={reviewReasons[row.id] || ""} rows={2} disabled={busy} onChange={(event) => setReviewReasons((old) => ({ ...old, [row.id]: event.target.value }))} /></div>
         <div className="button-row"><ClusterButton type="button" disabled={busy || (reviewReasons[row.id] || "").trim().length < 8} onClick={() => review(row, "approved")}>Approve extension</ClusterButton><ClusterButton variant="secondary" type="button" disabled={busy || (reviewReasons[row.id] || "").trim().length < 8} onClick={() => review(row, "rejected")}>Reject request</ClusterButton></div>
       </div>)}
       {!loading && !requests.some((row) => row.status === "pending") && <p>No outstanding access-renewal requests.</p>}

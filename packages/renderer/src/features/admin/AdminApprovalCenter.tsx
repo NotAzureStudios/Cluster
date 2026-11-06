@@ -5,6 +5,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { confirmCluster } from "../../components/cluster-dialog-service";
+import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { api } from "../../core/api";
 import { copyWorkLink } from "../workflow/work-actions";
 import "./admin-workflows.css";
@@ -34,7 +35,8 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
   const [sortMode, setSortMode] = useState<ApprovalSort>("priority");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [note, setNote] = useState("");
+  // Notes follow approval IDs, never the current queue index.
+  const [notesById, setNotesById] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -110,8 +112,6 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
     }
   }
   useEffect(() => { void load(); }, []);
-  // A note belongs to the selected request, never the next request clicked in the queue.
-  useEffect(() => { setNote(""); }, [selectedId]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -133,6 +133,13 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
   }, [visible, selectedId, targetId]);
 
   const selected = visible.find((item) => item.id === selectedId) || null;
+  const note = selected ? notesById[selected.id] || "" : "";
+  const noteDraftCount = Object.values(notesById).filter((value) => Boolean(value.trim())).length;
+  useUnsavedChangesGuard({
+    dirty: noteDraftCount > 0,
+    title: "Discard unsaved approval notes?",
+    message: "Some approval decisions have draft notes that have not been submitted.",
+  });
   const counts = useMemo(() => ({
     pending: items.filter((item) => item.status === "pending").length,
     urgent: items.filter((item) => item.status === "pending" && approvalPriority(item) === "urgent").length,
@@ -142,9 +149,21 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
   }), [items]);
   const types = Array.from(new Set(items.map((item) => item.type))).sort();
 
+  async function discardApprovalDrafts() {
+    if (!noteDraftCount) return;
+    const confirmed = await confirmCluster({
+      title: "Discard approval note drafts?",
+      message: "Unsaved decision notes will be cleared from this device. No approvals will be changed.",
+      confirmLabel: "Discard drafts",
+      tone: "danger",
+    });
+    if (confirmed) setNotesById({});
+  }
+
   async function decide(item: ApprovalItem, decision: "approved" | "rejected") {
     if (decidingRef.current || item.status !== "pending") return;
     decidingRef.current = true;
+    const submittedNote = notesById[item.id]?.trim() || null;
     setBusyId(item.id);
     setMessage("");
     setError("");
@@ -161,8 +180,8 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
       }
       // Server enforces one-time pending transitions. Local locking prevents accidental
       // duplicate submissions while React has not yet repainted the button.
-      await api(`/api/admin/approvals/${encodeURIComponent(item.id)}/decision`, { method: "POST", body: JSON.stringify({ decision, note: note.trim() || null }) });
-      setNote("");
+      await api(`/api/admin/approvals/${encodeURIComponent(item.id)}/decision`, { method: "POST", body: JSON.stringify({ decision, note: submittedNote }) });
+      setNotesById((current) => { const updated = { ...current }; delete updated[item.id]; return updated; });
       setMessage(`${item.title} ${decision}.`);
       // Reconcile the local queue immediately. If the subsequent refresh fails,
       // a resolved request must not remain actionable as if nothing happened.
@@ -203,6 +222,7 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
     </div>
     {error && <div className="error-box slim">{error}</div>}
     {message && <div className="status-box slim">{message}</div>}
+    {noteDraftCount > 0 && <div className="button-row"><span className="muted" role="status">{noteDraftCount} unsaved approval note{noteDraftCount === 1 ? "" : "s"} retained across filters</span><ClusterButton type="button" variant="quiet" size="compact" disabled={Boolean(busyId)} onClick={() => void discardApprovalDrafts()}>Discard note drafts</ClusterButton></div>}
     {warnings.length > 0 && <div className="hint-box slim">Some approval sources were unavailable: {warnings.join(" · ")}</div>}
     <div className="admin-approval-queue-tools-v530">
       <span>{visible.length} matching request{visible.length === 1 ? "" : "s"}</span>
@@ -213,7 +233,7 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
         {visible.length ? visible.map((item) => <ClusterButton unstyled type="button" key={item.id} className={selectedId === item.id ? "active" : ""} onClick={() => setSelectedId(item.id)}><span className={`approval-priority-v249 ${approvalPriority(item)}`}>{approvalPriority(item)}</span><span><strong>{item.title}</strong><em>{typeLabel(item.type)} · {item.requestedByName || "Person"}</em></span><span><b>{ageDays(item)}d</b><em>{item.status}</em></span></ClusterButton>) : <ClusterEmptyState compact kind="filtered" title="No approvals" description="No approval requests match the current filters." />}
       </div>
       <aside className="admin-approval-detail-v249">
-        {selected ? <><header><div><span className={`approval-priority-v249 ${approvalPriority(selected)}`}>{approvalPriority(selected)}</span><h3>{selected.title}</h3><em>{typeLabel(selected.type)} · {selected.status}</em></div></header><dl><div><dt>Requested by</dt><dd>{selected.requestedByName || "Person"}</dd></div><div><dt>Requested</dt><dd>{dateLabel(selected.createdAt)} · {ageDays(selected)} day{ageDays(selected) === 1 ? "" : "s"} ago</dd></div>{selected.projectId && <div><dt>Project</dt><dd>{projects.find((project) => project.id === selected.projectId)?.name || selected.projectId}</dd></div>}{selected.startsAt && <div><dt>Dates</dt><dd>{dateLabel(selected.startsAt)} – {dateLabel(selected.endsAt)}</dd></div>}{selected.reason && <div><dt>Reason</dt><dd>{selected.reason}</dd></div>}</dl>{selected.status === "pending" ? <><label><span>Decision note</span><ClusterTextArea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Explain the decision when context matters." /></label><div className="button-row"><ClusterButton type="button" className="" disabled={Boolean(busyId)} onClick={() => void decide(selected, "rejected")} variant="secondary">Reject</ClusterButton><ClusterButton type="button" className="" disabled={Boolean(busyId)} onClick={() => void decide(selected, "approved")} variant="primary">Approve</ClusterButton></div></> : <div className={`admin-approval-resolved-v249 ${selected.status}`}>{selected.status}</div>}</> : <ClusterEmptyState compact kind="empty" title="Select an approval" description="Choose a request to review its context and record a decision." />}
+        {selected ? <><header><div><span className={`approval-priority-v249 ${approvalPriority(selected)}`}>{approvalPriority(selected)}</span><h3>{selected.title}</h3><em>{typeLabel(selected.type)} · {selected.status}</em></div></header><dl><div><dt>Requested by</dt><dd>{selected.requestedByName || "Person"}</dd></div><div><dt>Requested</dt><dd>{dateLabel(selected.createdAt)} · {ageDays(selected)} day{ageDays(selected) === 1 ? "" : "s"} ago</dd></div>{selected.projectId && <div><dt>Project</dt><dd>{projects.find((project) => project.id === selected.projectId)?.name || selected.projectId}</dd></div>}{selected.startsAt && <div><dt>Dates</dt><dd>{dateLabel(selected.startsAt)} – {dateLabel(selected.endsAt)}</dd></div>}{selected.reason && <div><dt>Reason</dt><dd>{selected.reason}</dd></div>}</dl>{selected.status === "pending" ? <><label><span>Decision note</span><ClusterTextArea value={note} onChange={(event) => setNotesById((current) => ({ ...current, [selected.id]: event.target.value }))} placeholder="Explain the decision when context matters." /></label><div className="button-row"><ClusterButton type="button" className="" disabled={Boolean(busyId)} onClick={() => void decide(selected, "rejected")} variant="secondary">Reject</ClusterButton><ClusterButton type="button" className="" disabled={Boolean(busyId)} onClick={() => void decide(selected, "approved")} variant="primary">Approve</ClusterButton></div></> : <div className={`admin-approval-resolved-v249 ${selected.status}`}>{selected.status}</div>}</> : <ClusterEmptyState compact kind="empty" title="Select an approval" description="Choose a request to review its context and record a decision." />}
       </aside>
     </div>
   </section>;
