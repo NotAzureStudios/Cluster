@@ -16,6 +16,7 @@ import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems
 import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 import { registerPeopleAccountManagementRoutes } from "./people-account-management-routes.js";
 import { registerPeopleProvisioningPreviewRoutes } from "./people-provisioning-preview-routes.js";
+import { registerPeopleRoleChangePreviewRoutes } from "./people-role-change-preview-routes.js";
 
 type UserDirectoryRouteDependencies = {
   app: FastifyInstance;
