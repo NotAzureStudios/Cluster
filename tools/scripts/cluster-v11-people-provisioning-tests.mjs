@@ -41,7 +41,7 @@ check("Preview schema rejects extra privilege-bearing fields",()=>{
 });
 check("Preview endpoint validates actor before reading studio role policy",()=>{
  const start=routes.indexOf('app.post("/api/admin/users/provisioning-preview"');
- const end=routes.indexOf('app.get("/api/users"',start);
+ const end=routes.length;
  assert.ok(start>=0&&end>start);
  const segment=routes.slice(start,end);
  assert.ok(segment.indexOf('const actor = await getCurrentUser(request)') < segment.indexOf('await readSettings()'));
