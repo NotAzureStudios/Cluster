@@ -104,7 +104,7 @@ check("Account fetch is generation guarded and search is deferred", () => {
   assert.ok(admin.includes('const current = ++generation.current'));
   assert.ok(admin.includes('if (current !== generation.current) return;'));
   assert.ok(admin.includes('if (requestGeneration !== generation.current) return;'));
-  assert.ok(admin.includes('if (loading || paging.current)'));
+  assert.ok(admin.includes('if (!nextCursor || loading || paging.current)'));
 });
 
 check("Admin workspace is responsive without bloating the general People layout", () => {
