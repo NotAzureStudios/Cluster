@@ -5,10 +5,12 @@ on:
     branches: [main, 'feat/people-guided-provisioning-v11']
     paths:
       - 'apps/server/src/domains/users/people-role-transition-preview.ts'
+      - 'apps/server/src/domains/users/people-administration-preflight-routes.ts'
       - 'apps/server/src/domains/users/user-directory-routes.ts'
       - 'packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx'
       - 'packages/renderer/src/features/settings/people-management-layout-v11.css'
       - 'tools/scripts/cluster-v11-people-role-transition-preview-tests.mjs'
+      - 'tools/scripts/cluster-v11-people-preflight-http-smoke.mjs'
       - '.github/workflows/v11-people-role-preview.yml'
 
 permissions:
@@ -46,3 +48,7 @@ jobs:
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
       - name: Test role preflight and UI identity contract
         run: node tools/scripts/cluster-v11-people-role-transition-preview-tests.mjs
+      - name: Test compiled Fastify preflights
+        run: node tools/scripts/cluster-v11-people-preflight-http-smoke.mjs
+      - name: Recheck provisioning preflight inherited from PR 124
+        run: node tools/scripts/cluster-v11-people-provisioning-tests.mjs
