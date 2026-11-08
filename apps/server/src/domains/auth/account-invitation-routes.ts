@@ -15,8 +15,8 @@ const revokeParams = z.object({ invitationId: z.string().min(1).max(160) });
 /** The activation protocol deliberately does NOT create a session. A member
  * must use normal sign-in and all configured MFA/Discord gates afterward. */
 export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
-  const { app, prisma, getCurrentSession, authorization, hashPassword, nextAccountState,
-    validateNewPassword, readSettings, getCurrentSession: getSession,
+  const { app, prisma, authorization, hashPassword, nextAccountState,
+    validateNewPassword,
     rateLimitKey, hashToken, logSecurityEvent, onUserSessionsRevoked,
     requireDiscordLink, passwordMinLength, passwordMaxLength, webOrigin } = deps;
 
@@ -73,10 +73,20 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
     const expiresAt = new Date(now.getTime() + ACCOUNT_INVITATION_TTL_MS);
     const { token, digest } = createAccountInvitationToken();
     const issued = await prisma.$transaction(async (tx: any) => {
+      // Recheck actor membership within the same transaction so an account
+      // cannot be invited after its issuer lost the required studio authority.
+      const actorNow = await tx.workspaceMember.findFirst({
+        where: { workspaceId: actor.membership.workspaceId, userId: actor.admin.id },
+        select: { role: true },
+      });
+      if (!actorNow || !["owner", "admin"].includes(actorNow.role) ||
+          (["owner", "admin"].includes(target.memberships[0]?.role) && actorNow.role !== "owner"))
+        return null;
       // Compare-and-swap protects concurrent issuance and lifecycle changes.
       const changed = await tx.user.updateMany({
         where: {
           id: target.id, archived: false, accountState: "PASSWORD_CHANGE_REQUIRED",
+          memberships: { some: { workspaceId: actor.membership.workspaceId } },
           passwordChangedAt: null, authenticationGeneration: target.authenticationGeneration,
           OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: now } }],
         },
@@ -184,7 +194,9 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
     }).strict().safeParse(request.body);
     if (!body.success) return reply.code(400).send(publicInvalid);
     const digest = accountInvitationDigest(body.data.token);
-    const rateKey = `account-activation:${digest.slice(0,24)}:${hashToken(String(request.ip || "local")).slice(0,16)}`;
+    const ipDigest = hashToken(String(request.ip || "local")).slice(0,16);
+    if (await rateLimitKey(reply, `account-activation-ip:${ipDigest}`, 30, 15 * 60 * 1000)) return;
+    const rateKey = `account-activation:${digest.slice(0,24)}:${ipDigest}`;
     if (await rateLimitKey(reply, rateKey, 5, 15 * 60 * 1000)) return;
     const invitation = await prisma.studioAccountInvitation.findUnique({
       where: { tokenHash: digest },
@@ -216,6 +228,7 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
       const changed = await tx.user.updateMany({
         where: {
           id: invitation.userId, archived: false, accountState: "PASSWORD_CHANGE_REQUIRED",
+          memberships: { some: { workspaceId: invitation.workspaceId } },
           passwordChangedAt: null, authenticationGeneration: invitation.authGeneration,
           OR: [{ accessExpiresAt: null }, { accessExpiresAt: { gt: now } }],
         },
@@ -245,7 +258,7 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
     if (!consumed) return reply.code(400).send(publicInvalid);
     onUserSessionsRevoked(consumed, "account_invitation_activated");
     await logSecurityEvent({
-      event: "account.invitation_activated", actorUserId: consumed, targetUserId: consumed,
+      event: "account.invitation_activated", actorUserId: null, targetUserId: consumed,
       workspaceId: invitation.workspaceId, result: "SUCCESS", reasonCode: "SELF_SET_PASSWORD", request,
       metadata: { invitationId: invitation.id, sessionCreated: false },
     });
