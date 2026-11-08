@@ -21,8 +21,9 @@ export async function runPrismaScalarAnalytics(input: {
     if (!prismaField) continue;
     let grouped = facetGroupsByField.get(prismaField);
     if (!grouped) {
-      grouped = await input.model.groupBy({ by: [prismaField], where: input.where, _count: { _all: true } });
-      facetGroupsByField.set(prismaField, grouped);
+      const fetched: any[] = await input.model.groupBy({ by: [prismaField], where: input.where, _count: { _all: true } });
+      grouped = fetched;
+      facetGroupsByField.set(prismaField, fetched);
     }
     const buckets = grouped.map((row: any) => ({ value: row[prismaField] ?? null, count: Number(row?._count?._all || 0) })).sort((a: any, b: any) => b.count - a.count || String(a.value ?? "").localeCompare(String(b.value ?? ""))).slice(0, 50);
     facets.push({ fieldId, buckets });
