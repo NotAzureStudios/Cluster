@@ -5,16 +5,20 @@ on:
     branches: [main, 'feat/people-accounts-context-navigation-v11']
     paths:
       - 'apps/server/src/domains/users/people-provisioning-preview-routes.ts'
+      - 'apps/server/src/domains/users/people-role-change-preview-routes.ts'
       - 'apps/server/src/domains/users/user-directory-routes.ts'
       - 'packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx'
+      - 'packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx'
       - 'packages/renderer/src/features/people/PeoplePages.tsx'
       - 'packages/renderer/src/features/people/people-account-provisioning-wizard.css'
+      - 'packages/renderer/src/features/people/people-role-impact-preview.css'
       - 'tools/scripts/cluster-v11-guided-provisioning-*.mjs'
       - '.github/workflows/v11-guided-provisioning.yml'
   push:
     branches: [main]
     paths:
       - 'apps/server/src/domains/users/people-provisioning-preview-routes.ts'
+      - 'apps/server/src/domains/users/people-role-change-preview-routes.ts'
       - 'packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx'
       - 'tools/scripts/cluster-v11-guided-provisioning-*.mjs'
 
@@ -57,5 +61,7 @@ jobs:
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
       - name: Exercise compiled Fastify authorization and provisioning preview
         run: node tools/scripts/cluster-v11-guided-provisioning-route-smoke.mjs
+      - name: Verify compiled role-change preview, owner protection and access deltas
+        run: node tools/scripts/cluster-v11-role-change-preview-route-smoke.mjs
       - name: Preserve existing account directory security tests
         run: node tools/scripts/cluster-v11-people-account-management-route-smoke.mjs
