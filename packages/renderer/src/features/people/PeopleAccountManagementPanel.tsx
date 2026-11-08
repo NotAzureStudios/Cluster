@@ -54,11 +54,13 @@ const accountStateLabel = (account: AccountSummary) => {
 
 export function PeopleAccountManagementPanel({
   refreshVersion,
+  active,
   onOpenAccount,
   accountCreationOpen,
   onToggleCreateAccount,
 }: {
   refreshVersion: number;
+  active: boolean;
   onOpenAccount: (id: string, view: AccountView) => void;
   accountCreationOpen: boolean;
   onToggleCreateAccount: () => void;
@@ -75,6 +77,7 @@ export function PeopleAccountManagementPanel({
   const [roles, setRoles] = useState<RoleCatalog["roles"]>([]);
   const [roleLoading, setRoleLoading] = useState(true);
   const [roleError, setRoleError] = useState("");
+  const roleCatalogLoadedRef = useRef(false);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -95,18 +98,22 @@ export function PeopleAccountManagementPanel({
   const paramsKey = params.toString();
 
   useEffect(() => {
+    if (!active || roleCatalogLoadedRef.current) return;
     let cancelled = false;
+    setRoleLoading(true);
+    setRoleError("");
     void queryApi<RoleCatalog>("/api/admin/users/assignable-roles", {
       staleMs: 60_000, tags: ["roles", "users", "people"],
     }).then((result) => {
-      if (!cancelled) setRoles(result.roles);
+      if (!cancelled) { setRoles(result.roles); roleCatalogLoadedRef.current = true; }
     }).catch((cause) => {
       if (!cancelled) setRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
     }).finally(() => { if (!cancelled) setRoleLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
+    if (!active) { generation.current += 1; paging.current = false; setLoading(false); setLoadingMore(false); return; }
     const current = ++generation.current;
     paging.current = false;
     setAccounts([]);
@@ -128,10 +135,10 @@ export function PeopleAccountManagementPanel({
       if (current === generation.current) setLoading(false);
     });
     return () => { generation.current += 1; };
-  }, [paramsKey, refreshVersion, reloadKey]);
+  }, [paramsKey, refreshVersion, reloadKey, active]);
 
   async function loadMore() {
-    if (!nextCursor || loading || paging.current) return;
+    if (!active || !nextCursor || loading || paging.current) return;
     paging.current = true;
     const requestGeneration = generation.current;
     setLoadingMore(true);

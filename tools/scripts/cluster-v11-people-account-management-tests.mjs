@@ -84,7 +84,7 @@ check("Pagination and query size remain bounded and invalid cursors rejected", (
 });
 
 check("General People directory no longer uses client-only account filters", () => {
-  assert.ok(people.includes('workforceMode === "accounts" && <PeopleAccountManagementPanel'));
+  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
   assert.ok(!people.includes('accountFilter === "attention"'));
   assert.ok(!people.includes('accountFilter === "restricted"'));
   assert.ok(!people.includes('&includeArchived=true'));
@@ -111,17 +111,34 @@ check("Account fetch is generation guarded and search is debounced", () => {
   assert.ok(admin.includes('const current = ++generation.current'));
   assert.ok(admin.includes('if (current !== generation.current) return;'));
   assert.ok(admin.includes('if (requestGeneration !== generation.current) return;'));
-  assert.ok(admin.includes('if (!nextCursor || loading || paging.current)'));
+  assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
+  assert.ok(admin.includes('if (!active || roleCatalogLoadedRef.current) return;'));
 });
 
 check("Admin workspace is responsive without bloating the general People layout", () => {
   assert.ok(css.includes('.people-account-management-v11'));
   assert.ok(css.includes('@media(max-width:670px)'));
-  assert.ok(people.includes('adminMode && currentUser.isAdmin ? "accounts" : "directory"'));
+  assert.ok(people.includes('adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory"'));
   assert.ok(people.includes('enabled: workforceMode === "directory"'));
   assert.ok(people.includes('if (workforceModeRef.current === "accounts") return;'));
   assert.ok(people.includes('previous === "accounts" && workforceMode !== "accounts"'));
   assert.ok(people.includes('!activateTarget && !contextOnly'));
 });
 
+check("Opening an account does not destroy active account filters or result context", () => {
+  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
+  assert.ok(people.includes('active={workforceMode === "accounts"}'));
+  assert.ok(admin.includes('if (!active) { generation.current += 1; paging.current = false;'));
+  assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
+});
+check("Returning from user editing and access preserves Accounts navigation and guards drafts", () => {
+  assert.ok(people.includes('const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);'));
+  assert.ok(people.includes('async function changeWorkforceMode(next: typeof workforceMode)'));
+  assert.ok(people.includes('if (!(await confirmEditorDiscard())) return;'));
+  assert.ok(people.includes('Back to Accounts'));
+  assert.ok(people.includes('setAccountsReturnAvailable(true);'));
+});
+check("Deep-linked users retain their profile rather than getting an empty admin Accounts view", () => {
+  assert.ok(people.includes('!readClusterDetailSelection("person") ? "accounts" : "directory"'));
+});
 console.log(`People account management: ${count} contract and runtime checks passed.`);
