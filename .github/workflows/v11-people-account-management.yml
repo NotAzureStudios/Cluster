@@ -2,7 +2,7 @@ name: v1.1 People account management
 
 on:
   pull_request:
-    branches: [main, 'fix/people-management-workflow-polish-1-1-next']
+    branches: [main, 'fix/people-management-workflow-polish-1-1-next', 'feat/people-management-accounts-v11']
     paths:
       - 'apps/server/src/domains/users/people-account-management-*.ts'
       - 'apps/server/src/domains/users/user-directory-routes.ts'
