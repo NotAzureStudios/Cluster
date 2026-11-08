@@ -56,6 +56,8 @@ jobs:
         env:
           DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Check compiled Fastify issuance, rotation, activation and revocation
+        run: node tools/scripts/cluster-v11-account-invitation-http-smoke.mjs
   disposable-postgres:
     name: PostgreSQL 18 invitation atomicity
     runs-on: ubuntu-latest
