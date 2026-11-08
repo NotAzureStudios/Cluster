@@ -7,6 +7,7 @@ const layout = read("packages/renderer/src/features/auth/AuthEntryLayout.tsx");
 const firstLogin = read("packages/renderer/src/features/auth/FirstLoginExperience.tsx");
 const css = read("packages/renderer/src/features/auth/auth.css");
 const gate = read("packages/renderer/src/features/auth/AuthenticatedEntryGate.tsx");
+const cover = read("packages/renderer/src/features/auth/PublicClusterCover.tsx");
 let checks=0;
 function check(name,condition) {assert.ok(condition,name);checks++;console.log("PASS",name);}
 
@@ -65,6 +66,12 @@ check("Recovery keeps generic non-enumerating response and a clear back path",
   screen.includes('Cluster does not reveal whether an account exists') &&
   screen.includes('"/api/auth/password-reset-request"') &&
   screen.includes('Back to sign in'));
+check("Studio cover, loading, error and application routes share the login design",
+  cover.includes('if (loadError && !cover) return <AuthEntryLayout>') &&
+  cover.includes('if (!cover) return <AuthEntryLayout>') &&
+  cover.includes('mode="setup" cardClassName="cluster-auth-application-v11"') &&
+  cover.includes('return <AuthEntryLayout studioName={cover.studioName}>') &&
+  css.includes('cluster-auth-application-v11'));
 check("First-login remains server-backed, with readable step progress",
   firstLogin.includes('aria-current={item === step ? "step" : undefined}') &&
   firstLogin.includes('Step {index + 1} of {STEPS.length}') &&
