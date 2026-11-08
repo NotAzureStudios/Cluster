@@ -182,6 +182,7 @@ model StudioAccountInvitation {
   revokedById    String?
   tokenHash      String   @unique
   authGeneration Int
+  roleAtIssue    String
   expiresAt      DateTime
   createdAt      DateTime @default(now())
   consumedAt     DateTime?
