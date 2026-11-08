@@ -294,6 +294,8 @@ export function registerStudioOnboardingRoutes(deps: any) {
         where: { planVersionId_userId: { planVersionId: version.id, userId: target.id } },
         select: { id: true, status: true, dueAt: true },
       });
+      if (!created?.count && assignment.status !== "active")
+        return { ok: false, status: 409, code: "ONBOARDING_ASSIGNMENT_INACTIVE", error: "An inactive assignment already exists. Use the governed reactivation process." };
       return {
         ok: true, created: Number(created?.count || 0) > 0,
         assignmentId: assignment.id, status: assignment.status,
