@@ -116,6 +116,10 @@ check("Admin workspace is responsive without bloating the general People layout"
   assert.ok(css.includes('.people-account-management-v11'));
   assert.ok(css.includes('@media(max-width:670px)'));
   assert.ok(people.includes('adminMode && currentUser.isAdmin ? "accounts" : "directory"'));
+  assert.ok(people.includes('enabled: workforceMode === "directory"'));
+  assert.ok(people.includes('if (workforceModeRef.current === "accounts") return;'));
+  assert.ok(people.includes('previous === "accounts" && workforceMode !== "accounts"'));
+  assert.ok(people.includes('!activateTarget && !contextOnly'));
 });
 
 console.log(`People account management: ${count} contract and runtime checks passed.`);
