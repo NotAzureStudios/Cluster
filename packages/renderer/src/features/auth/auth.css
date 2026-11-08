@@ -128,3 +128,17 @@
   .cluster-auth-entry-card-v11 .managed-auth-brand-row:empty{display:none}
 }
 @media(prefers-reduced-motion:reduce){.cluster-auth-entry-v11 *{scroll-behavior:auto}}
+
+
+/* First-login stage navigation is informational; step changes remain governed
+   by the existing server-backed onboarding progress workflow. */
+.cluster-auth-entry-card-v11>.cluster-brand-logo{display:none}
+.cluster-auth-entry-card-v11 .cluster-first-login-progress-v11{min-width:0}
+.cluster-first-login-progress-v11 ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));list-style:none;gap:5px;margin:0;padding:0}
+.cluster-first-login-progress-v11 li{display:grid;gap:3px;justify-items:center;padding:8px 2px;border-top:3px solid var(--border,var(--ds-border));text-align:center;color:var(--muted);font-size:.62rem}
+.cluster-first-login-progress-v11 li strong{font-size:.75rem}
+.cluster-first-login-progress-v11 li[aria-current=step]{border-top-color:var(--cluster-brand-blue,#57c1ff);color:var(--text);font-weight:700}
+.cluster-first-login-progress-v11 small{display:block;margin-top:5px;color:var(--muted);font-size:.7rem}
+.cluster-auth-entry-card-v11 .studio-form-field-list-v34f{max-height:min(42dvh,360px);overflow-y:auto}
+.cluster-auth-entry-card-v11 .studio-form-field-list-v34f>.settings-card-v092{min-width:0}
+@media(max-width:480px){.cluster-first-login-progress-v11 li span{display:none}.cluster-first-login-progress-v11 li{padding:7px 0}}
