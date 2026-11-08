@@ -5,6 +5,7 @@ on:
     branches: [main, 'feat/people-onboarding-targeted-assignment-v11']
     paths:
       - 'apps/server/src/domains/auth/account-invitation-*.ts'
+      - 'apps/server/src/domains/users/people-role-governance.ts'
       - 'apps/server/src/domains/auth/auth-routes.ts'
       - 'apps/server/prisma/schema.prisma'
       - 'apps/server/prisma/migrations/20261116000000_v11_account_activation_invitations/**'
@@ -18,6 +19,7 @@ on:
     branches: [main]
     paths:
       - 'apps/server/src/domains/auth/account-invitation-*.ts'
+      - 'apps/server/src/domains/users/people-role-governance.ts'
       - 'packages/renderer/src/features/auth/AccountInvitationActivation.tsx'
       - 'tools/scripts/cluster-v11-account-invitation-*.mjs'
 
@@ -58,6 +60,8 @@ jobs:
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
       - name: Check compiled Fastify issuance, rotation, activation and revocation
         run: node tools/scripts/cluster-v11-account-invitation-http-smoke.mjs
+      - name: Check invitation revocation on canonical workspace role changes
+        run: node tools/scripts/cluster-v11-account-invitation-role-revocation.mjs
   disposable-postgres:
     name: PostgreSQL 18 invitation atomicity
     runs-on: ubuntu-latest
