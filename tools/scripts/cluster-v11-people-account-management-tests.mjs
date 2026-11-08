@@ -72,6 +72,8 @@ check("Admin API rejects ordinary accounts before running private listing query"
   assert.ok(api.includes('where: rowsWhere'));
   assert.ok(api.includes('take: query.limit + 1'));
   assert.ok(!api.includes('WORKFORCE_USER_AUTHORITY_INCLUDE'));
+  assert.ok(api.includes('const employment = user.employment?.workspaceId === membership.workspaceId ? user.employment : null;'));
+  assert.ok(!api.includes('department: user.employment?.department?.name'));
 });
 
 check("Pagination and query size remain bounded and invalid cursors rejected", () => {
