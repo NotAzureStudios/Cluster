@@ -1,0 +1,48 @@
+name: v1.1 People role preview
+
+on:
+  pull_request:
+    branches: [main, 'feat/people-guided-provisioning-v11']
+    paths:
+      - 'apps/server/src/domains/users/people-role-transition-preview.ts'
+      - 'apps/server/src/domains/users/user-directory-routes.ts'
+      - 'packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx'
+      - 'packages/renderer/src/features/settings/people-management-layout-v11.css'
+      - 'tools/scripts/cluster-v11-people-role-transition-preview-tests.mjs'
+      - '.github/workflows/v11-people-role-preview.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-role-preview:
+    name: Role review and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Restore pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Build Server and Web
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Test role preflight and UI identity contract
+        run: node tools/scripts/cluster-v11-people-role-transition-preview-tests.mjs
