@@ -287,11 +287,12 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
   const [provisioningUri, setProvisioningUri] = useState("");
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryCodesSaved, setRecoveryCodesSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function startEnrollment() {
-    setBusy(true); setError(""); setRecoveryCodes([]);
+    setBusy(true); setError(""); setRecoveryCodes([]); setRecoveryCodesSaved(false);
     try {
       const result = await api<{ ok: boolean; secret: string; provisioningUri: string }>("/api/auth/mfa/enroll/start", { method: "POST" });
       setSecret(result.secret); setProvisioningUri(result.provisioningUri); setCode("");
@@ -303,7 +304,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     event.preventDefault(); setBusy(true); setError("");
     try {
       const result = await api<{ ok: boolean; recoveryCodes: string[] }>("/api/auth/mfa/enroll/verify", { method: "POST", body: JSON.stringify({ code }) });
-      setRecoveryCodes(result.recoveryCodes || []); setSecret(""); setProvisioningUri("");
+      setRecoveryCodes(result.recoveryCodes || []); setRecoveryCodesSaved(false); setSecret(""); setProvisioningUri("");
     } catch (reason) { setError(errorMessage(reason, "The authenticator code was not accepted.")); }
     finally { setBusy(false); }
   }
@@ -317,6 +318,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
       const credential = await createWebAuthnCredential(start.publicKey);
       const enrolled = await api<{ recoveryCodes: string[] }>("/api/auth/mfa/passkeys/enroll/verify", { method: "POST", body: JSON.stringify({ credential }) });
       setSecret(""); setProvisioningUri("");
+      setRecoveryCodesSaved(false);
       setRecoveryCodes(enrolled.recoveryCodes || []);
       if (!enrolled.recoveryCodes?.length) await continueToWorkspace();
     } catch (reason) { setError(errorMessage(reason, "Passkey enrollment failed.")); }
@@ -346,7 +348,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
       <ClusterButton type="submit" className="" disabled={busy || code.length !== 6} variant="primary">{busy ? "Verifying…" : "Verify authenticator"}</ClusterButton>
       <ClusterButton type="button" className="" disabled={busy} onClick={startEnrollment} variant="secondary">Generate a new setup secret</ClusterButton>
     </form>}
-    {recoveryCodes.length > 0 && <div className="managed-auth-form"><div className="hint-box security-recovery-codes-v495"><strong>Save these recovery codes now</strong><p>Each code works once. Cluster stores only hashes and cannot show these values again.</p><div>{recoveryCodes.map((value) => <code key={value}>{value}</code>)}</div></div><ClusterCopyButton text={recoveryCodes.join("\n")} copiedLabel="Recovery codes copied">Copy recovery codes</ClusterCopyButton><ClusterButton type="button" className="" disabled={busy} onClick={continueToWorkspace} variant="primary">{busy ? "Finishing…" : "I saved the codes · Continue"}</ClusterButton></div>}
+    {recoveryCodes.length > 0 && <div className="managed-auth-form"><div className="hint-box security-recovery-codes-v495"><strong>Save these recovery codes now</strong><p>Each code works once. Cluster stores only hashes and cannot show these values again.</p><div>{recoveryCodes.map((value) => <code key={value}>{value}</code>)}</div></div><ClusterCopyButton text={recoveryCodes.join("\n")} copiedLabel="Recovery codes copied">Copy recovery codes</ClusterCopyButton><label className="cluster-auth-recovery-ack-v11"><ClusterInput type="checkbox" checked={recoveryCodesSaved} onChange={(event) => setRecoveryCodesSaved(event.target.checked)} /><span>I securely saved these one-time codes.</span></label><ClusterButton type="button" className="" disabled={busy || !recoveryCodesSaved} onClick={continueToWorkspace} variant="primary">{busy ? "Finishing…" : "Continue"}</ClusterButton></div>}
     {error && <div className="error-box" role="alert">{error}</div>}
     <ClusterButton type="button" className="" disabled={busy} onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     <AuthLegalLinks />
