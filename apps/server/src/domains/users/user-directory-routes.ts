@@ -15,6 +15,7 @@ import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-au
 import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
 import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 import { registerPeopleAccountManagementRoutes } from "./people-account-management-routes.js";
+import { registerPeopleProvisioningPreviewRoutes } from "./people-provisioning-preview-routes.js";
 
 type UserDirectoryRouteDependencies = {
   app: FastifyInstance;
@@ -40,6 +41,7 @@ type UserDirectoryRouteDependencies = {
 export function registerUserDirectoryRoutes(deps: UserDirectoryRouteDependencies) {
   const { app, prisma, getCurrentUser, getWorkspaceRole, hasToolPermission, serializeUserLite, serializeUserPrivate, serializeUserPublicProfile, parseObject, normalizeAuthUsername, hashPassword, generateTemporaryPassword, logSecurityEvent, logActivity, canViewPrivateUserProfile, serializeActivityEvent, readSettings, authorization } = deps;
   registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser });
+  registerPeopleProvisioningPreviewRoutes({ app, prisma, getCurrentUser, readSettings, normalizeAuthUsername, authorization });
 app.get("/api/admin/users/assignable-roles", async (request, reply) => {
   const actor = await getCurrentUser(request);
   if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
