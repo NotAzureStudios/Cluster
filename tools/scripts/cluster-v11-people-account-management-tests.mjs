@@ -99,8 +99,8 @@ check("Account toolbar and page navigation offer task-first actions", () => {
   assert.ok(people.includes('setProfileViewState(pending.view)'));
 });
 
-check("Account fetch is generation guarded and search is deferred", () => {
-  assert.ok(admin.includes('const deferredSearch = useDeferredValue(search)'));
+check("Account fetch is generation guarded and search is debounced", () => {
+  assert.ok(admin.includes('setSettledSearch(search.trim()), 250'));
   assert.ok(admin.includes('const current = ++generation.current'));
   assert.ok(admin.includes('if (current !== generation.current) return;'));
   assert.ok(admin.includes('if (requestGeneration !== generation.current) return;'));
