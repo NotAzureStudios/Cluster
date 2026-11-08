@@ -961,7 +961,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           openFullProfile(id);
           if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
         }}
-        onCreateAccount={() => { setCreateAccountOpen(true); }}
+        accountCreationOpen={createAccountOpen}
+        onToggleCreateAccount={() => { void toggleCreateAccount(); }}
       />}
 
       {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
