@@ -45,6 +45,8 @@ jobs:
         env:
           DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Database analytics query budget regression
+        run: node tools/scripts/cluster-performance-analytics-query-tests.mjs
       - name: Assert compiled outputs exist
         shell: pwsh
         run: |
