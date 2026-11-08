@@ -97,6 +97,9 @@ check("Account toolbar and page navigation offer task-first actions", () => {
   assert.ok(admin.includes('onOpenAccount(account.id, "access")'));
   assert.ok(people.includes('pendingManagedAccountViewRef.current = { id, view }'));
   assert.ok(people.includes('setProfileViewState(pending.view)'));
+  assert.ok(people.includes("accountCreationOpen={createAccountOpen}"));
+  assert.ok(admin.includes("onToggleCreateAccount"));
+  assert.ok(admin.includes('Role filter unavailable: {roleError}'));
 });
 
 check("Account fetch is generation guarded and search is debounced", () => {
