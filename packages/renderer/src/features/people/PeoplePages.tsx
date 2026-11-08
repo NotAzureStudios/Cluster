@@ -916,7 +916,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       />
 
       <div className="people-workforce-modebar-v504">
-        <ClusterSegmentedControl value={workforceMode} onChange={setWorkforceMode} label="People workspace" options={[
+        <ClusterSegmentedControl value={workforceMode} onChange={(value) => setWorkforceMode(value as typeof workforceMode)} label="People workspace" options={[
           { value: "directory", label: "Directory" },
           ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
           { value: "organization", label: "Organization" },
