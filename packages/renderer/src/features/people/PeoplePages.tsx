@@ -135,6 +135,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
   const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin ? "accounts" : "directory");
+  const workforceModeRef = useRef(workforceMode);
+  workforceModeRef.current = workforceMode;
+  const previousWorkforceModeRef = useRef(workforceMode);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -360,7 +363,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (profileView === "calendar" && profile?.id) await loadProfileCalendar(profile.id, true);
   }, { kinds: ["calendar", "meeting"], debounceMs: 220 });
 
-  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false) {
+  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false, contextOnly = false) {
     const sequence = ++peopleLoadSequenceRef.current;
     if (activateTarget) {
       const nextId = targetUserId || currentUser.id;
@@ -376,6 +379,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (sequence !== peopleLoadSequenceRef.current) return;
     }
+    // Sensitive account administration needs only the selected profile. Avoid
+    // three heavyweight workforce calls until the user opens a workforce tab.
+    if (workforceModeRef.current === "accounts") return;
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -385,10 +391,22 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setAssignments(assignmentResult);
     setPeopleContext(contextResult);
     setWorkforceContext(workforceResult);
-    if (!activateTarget && activeProfileIdRef.current === targetUserId && targetUserId) {
+    if (!activateTarget && !contextOnly && activeProfileIdRef.current === targetUserId && targetUserId) {
       await loadProfile(targetUserId, force);
     }
   }
+  useEffect(() => {
+    if (!effectiveAdminMode && workforceMode === "accounts") setWorkforceMode("directory");
+  }, [effectiveAdminMode, workforceMode]);
+  useEffect(() => {
+    const previous = previousWorkforceModeRef.current;
+    previousWorkforceModeRef.current = workforceMode;
+    if (previous === "accounts" && workforceMode !== "accounts") {
+      void loadProfiles(activeProfileIdRef.current, false, false, true).catch((error) => {
+        setLoadStatus(error instanceof Error ? error.message : "People context load failed");
+      });
+    }
+  }, [workforceMode]);
   useEffect(() => {
     const initialTarget = readClusterDetailSelection("person") || currentUser.id;
     activeProfileIdRef.current = initialTarget;
