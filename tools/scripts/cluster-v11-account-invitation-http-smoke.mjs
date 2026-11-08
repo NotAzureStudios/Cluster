@@ -17,13 +17,15 @@ function addUser(id, role="member", overrides={}) {
 addUser("pending");
 addUser("pending2");
 addUser("pending3");
+addUser("pending4");
 addUser("privileged","admin");
 addUser("active","member",{accountState:"ACTIVE",passwordChangedAt:new Date()});
 addUser("expired","member",{accessExpiresAt:new Date("2020-01-01")});
 
 const prisma={
+  $queryRawUnsafe:async()=>[{lock:""}],
   workspaceMember:{
-    async findFirst({where}) {return {workspaceId:"studio-a",role:where.userId==="owner"?"owner":where.userId==="admin"?"admin":"member"};},
+    async findFirst({where}) {return {workspaceId:"studio-a",role:where.userId==="owner"?"owner":where.userId==="admin"?"admin":users.get(where.userId)?.role||"member"};},
   },
   user:{
     async findFirst({where}){
@@ -177,6 +179,14 @@ try{
     assert.notEqual(a,b);
     assert.equal((await activate(a)).statusCode,400);
     assert.equal((await activate(b)).statusCode,200);
+  });
+  await check("A later workspace role change invalidates outstanding activation links",async()=>{
+    const ticket=rawToken(await issue("owner","pending4"));
+    users.get("pending4").role="owner";
+    const res=await activate(ticket);
+    assert.equal(res.statusCode,400);
+    assert.equal(res.json().code,"ACCOUNT_INVITATION_UNAVAILABLE");
+    assert.equal(users.get("pending4").passwordChangedAt,null);
   });
   await check("Explicit revocation blocks redemption",async()=>{
     const token=rawToken(await issue("owner","pending3"));
