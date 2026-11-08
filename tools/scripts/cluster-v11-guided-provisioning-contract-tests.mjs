@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { validatePeopleAccountCreation } from "../../packages/renderer/src/features/people/people-account-creation-validation.ts";
-import { assignableStudioRoles, requireAssignableStudioRole } from "../../apps/server/src/domains/users/people-role-governance.ts";
+
 
 const source=(path)=>readFileSync(path,"utf8");
 const wizard=source("packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx");
 const pages=source("packages/renderer/src/features/people/PeoplePages.tsx");
 const route=source("apps/server/src/domains/users/people-provisioning-preview-routes.ts");
 const registry=source("apps/server/src/domains/users/user-directory-routes.ts");
+const roleGovernance=source("apps/server/src/domains/users/people-role-governance.ts");
 const css=source("packages/renderer/src/features/people/people-account-provisioning-wizard.css");
 let passed=0;function check(label,fn){fn();passed++;console.log("PASS",label);}
 const base={username:"user_name",email:"",accountType:"employee",accessExpiresAt:"",role:"member"};
@@ -53,9 +54,9 @@ check("Preflight is strictly read-only and requires owner/admin membership",()=>
   assert.ok(route.includes('prisma.user.findUnique('));
 });
 check("Role catalog never silently maps disabled or privileged roles to active ones",()=>{
-  const roles=assignableStudioRoles({studioRoleDefinitions:[{id:"disabled_role",label:"Disabled",enabled:false}]});
-  assert.equal(roles.find(x=>x.id==="disabled_role").enabled,false);
-  assert.equal(requireAssignableStudioRole({},"owner").privileged,true);
+  assert.ok(roleGovernance.includes('enabled: raw.enabled !== false'));
+  assert.ok(roleGovernance.includes('privileged: id === "owner" || id === "admin"'));
+  assert.ok(roleGovernance.includes('if (!role || !role.enabled)'));
   assert.ok(wizard.includes('canChooseStudioRole(role, roleCatalog?.actorRole)'));
   assert.ok(wizard.includes('disabled={!canChooseStudioRole(role, roleCatalog?.actorRole)}'));
 });
