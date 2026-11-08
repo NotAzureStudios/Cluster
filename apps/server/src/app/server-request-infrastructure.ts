@@ -167,10 +167,10 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const serverState = getServerState();
     reply.header("X-Cluster-Server-State", publicServerRuntimeState(serverState));
     reply.header("X-Cluster-Server-Mode", serverState.mode);
-    const saturation = assessRuntimeSaturation(runtimeTelemetry.snapshot());
-    const governorSnapshot = resourceGovernor.snapshot();
+    const saturation = assessRuntimeSaturation(runtimeTelemetry.admissionSnapshot());
+    const governorMode = resourceGovernor.currentMode();
     reply.header("X-Cluster-Saturation", saturation.state);
-    reply.header("X-Cluster-Governor", governorSnapshot.mode);
+    reply.header("X-Cluster-Governor", governorMode);
 
     const workPolicy = requestWorkPolicy({ pathname, method: request.method, globalBodyLimitBytes: runtimeConfig.bodyLimit, uploadLimitBytes, avatarUploadLimitBytes });
     requestWorkPolicies.set(request, workPolicy);
@@ -180,7 +180,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     if (!admission.allow && context.policy.isApi && !pathname.startsWith("/api/meta/") && !pathname.startsWith("/health")) {
       const retryAfter = String(admission.retryAfterSeconds || 3);
       reply.header("Retry-After", retryAfter);
-      reply.header("X-Cluster-Backpressure", resourceGovernor.snapshot().mode);
+      reply.header("X-Cluster-Backpressure", governorMode);
       reply.code(503).send({
         ok: false,
         code: "SERVER_SATURATED",
@@ -191,7 +191,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
         retryable: true,
         requestId: String(request.id),
         contractVersion: API_CONTRACT.version,
-        details: { mode: resourceGovernor.snapshot().mode, workClass: workPolicy.workClass, reason: admission.reason },
+        details: { mode: governorMode, workClass: workPolicy.workClass, reason: admission.reason },
       });
       return;
     }

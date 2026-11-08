@@ -192,6 +192,9 @@ export class ResourceGovernor {
     return { allow: true, retryAfterSeconds: null, reason: null };
   }
 
+  /** Read the mode for response headers without allocating a full diagnostics snapshot. */
+  currentMode(): ResourceGovernorMode { return this.mode; }
+
   snapshot(): ResourceGovernorSnapshot {
     const policy = POLICY[this.mode];
     return {

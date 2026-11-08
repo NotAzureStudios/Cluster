@@ -65,6 +65,16 @@ export type RuntimeTelemetrySnapshot = {
   }>;
 };
 
+/** Minimal inputs for per-request overload admission; full diagnostics stay on demand. */
+export type RuntimeSaturationSignals = {
+  process: Pick<RuntimeTelemetrySnapshot["process"], "cpuPercent">;
+  requests: Pick<RuntimeTelemetrySnapshot["requests"], "total" | "p95Ms" | "p99Ms" | "longLived">;
+  eventLoop: Pick<RuntimeTelemetrySnapshot["eventLoop"], "utilization" | "p95Ms" | "p99Ms">;
+  gc: Pick<RuntimeTelemetrySnapshot["gc"], "p99PauseMs">;
+  database: Pick<RuntimeTelemetrySnapshot["database"], "waitingConnections" | "utilization">;
+  memory: Pick<RuntimeTelemetrySnapshot["memory"], "heapUsedMiB" | "heapLimitMiB">;
+};
+
 type RouteMetric = { count: number; errors: number; totalMs: number; maxMs: number; samples: number[] };
 type RequestRateSample = { at: number; total: number };
 
@@ -111,6 +121,7 @@ export class RuntimeTelemetry {
   private readonly requestRateSamples: RequestRateSample[] = [];
   private readonly gcObserver: PerformanceObserver;
   private databasePressure = { poolMax: 0, totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingConnections: 0, utilization: 0, sampledAt: null as string | null };
+  private admissionCache: { at: number; snapshot: RuntimeSaturationSignals } | null = null;
 
   constructor(private readonly options: { maxSamples?: number; maxRoutes?: number; slowRequestMs?: number } = {}) {
     this.eventLoop.enable();
@@ -203,6 +214,28 @@ export class RuntimeTelemetry {
       p95Ms: round(percentile(metric.samples, .95)),
       p99Ms: round(percentile(metric.samples, .99)), maxMs: round(metric.maxMs),
     })).sort((a, b) => b.count - a.count || a.route.localeCompare(b.route));
+  }
+
+  /**
+   * Cheap, time-bounded overload signals. The API request hook must not sort
+   * every route's latency history or rebuild a complete diagnostic report per
+   * request. The resource governor still samples independently on its cadence.
+   */
+  admissionSnapshot(now = Date.now()): RuntimeSaturationSignals {
+    const cached = this.admissionCache;
+    if (cached && now >= cached.at && now - cached.at < 250) return cached.snapshot;
+    const memory = process.memoryUsage();
+    const heap = getHeapStatistics();
+    const snapshot: RuntimeSaturationSignals = {
+      process: { cpuPercent: round(this.lastCpuPercent, 1) },
+      requests: { total: this.total, p95Ms: round(percentile(this.samples, .95)), p99Ms: round(percentile(this.samples, .99)), longLived: this.longLived },
+      eventLoop: { utilization: round(this.lastEluUtilization, 4), p95Ms: toMs(this.eventLoop.percentile(95)), p99Ms: toMs(this.eventLoop.percentile(99)) },
+      gc: { p99PauseMs: round(percentile(this.gcSamples, .99)) },
+      database: { waitingConnections: this.databasePressure.waitingConnections, utilization: round(this.databasePressure.utilization, 4) },
+      memory: { heapUsedMiB: toMiB(memory.heapUsed), heapLimitMiB: toMiB(heap.heap_size_limit) },
+    };
+    this.admissionCache = { at: now, snapshot };
+    return snapshot;
   }
 
   snapshot(): RuntimeTelemetrySnapshot {
