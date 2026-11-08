@@ -142,3 +142,9 @@
 .cluster-auth-entry-card-v11 .studio-form-field-list-v34f{max-height:min(42dvh,360px);overflow-y:auto}
 .cluster-auth-entry-card-v11 .studio-form-field-list-v34f>.settings-card-v092{min-width:0}
 @media(max-width:480px){.cluster-first-login-progress-v11 li span{display:none}.cluster-first-login-progress-v11 li{padding:7px 0}}
+
+/* Public application forms can be much taller than sign-in. Let only the
+   application side scroll on desktop; keep a natural page on small screens. */
+.cluster-auth-entry-grid-v11>.cluster-auth-application-v11{justify-content:flex-start;overflow-y:auto;max-height:calc(100dvh - 64px)}
+.cluster-auth-entry-grid-v11>.cluster-auth-application-v11 .studio-form-field-list-v34f{max-height:none;overflow:visible}
+@media(max-width:820px){.cluster-auth-entry-grid-v11>.cluster-auth-application-v11{max-height:none;overflow:visible}}
