@@ -104,7 +104,7 @@ export function PeopleProvisioningWizard({
       <label className="field"><span>Account type</span><ClusterNativeSelect value={draft.accountType} onChange={(event) => patch({ accountType: event.target.value })}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
       <label className="field"><span>Workspace role</span><ClusterNativeSelect value={draft.role} disabled={busy || roleLoading || !catalog} onChange={(event) => patch({ role: event.target.value })}>
         {!catalog?.roles.some((role) => role.id === draft.role) && <option value={draft.role} disabled>{draft.role} (unavailable)</option>}
-        {(catalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, catalog.actorRole)}>{role.label}{role.enabled ? "" : " (disabled)"}</option>)}
+        {(catalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, catalog?.actorRole)}>{role.label}{role.enabled ? "" : " (disabled)"}</option>)}
       </ClusterNativeSelect></label>
       <label className="field"><span>Access expires {external ? "(required)" : "(optional)"}</span><ClusterInput type="date" value={draft.accessExpiresAt} onChange={(event) => patch({ accessExpiresAt: event.target.value })} /></label>
       <p className="people-provisioning-note-v11">Role and identity type do not grant Project or Library access by themselves. Scoped grants require separate approval.</p>
