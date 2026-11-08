@@ -96,7 +96,8 @@ registerAccountInvitationRoutes({
     },
   },
   onUserSessionsRevoked:(...args)=>sessionRevocations.push(args),
-  logSecurityEvent:async(event)=>{audits.push(event);},
+  // The real audit writer normalizes request metadata and never persists the FastifyRequest or its body.
+  logSecurityEvent:async({ request: _request, ...record })=>{audits.push(record);},
   hashPassword:async(value)=>"HASH:"+value,
   nextAccountState:()=> "ACTIVE",
   validateNewPassword:(value,user)=>{
