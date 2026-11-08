@@ -84,7 +84,7 @@ check("Pagination and query size remain bounded and invalid cursors rejected", (
 });
 
 check("General People directory no longer uses client-only account filters", () => {
-  assert.ok(people.includes('workforceMode === "accounts" && <PeopleAccountManagementPanel'));
+  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
   assert.ok(!people.includes('accountFilter === "attention"'));
   assert.ok(!people.includes('accountFilter === "restricted"'));
   assert.ok(!people.includes('&includeArchived=true'));
@@ -117,7 +117,7 @@ check("Account fetch is generation guarded and search is debounced", () => {
 check("Admin workspace is responsive without bloating the general People layout", () => {
   assert.ok(css.includes('.people-account-management-v11'));
   assert.ok(css.includes('@media(max-width:670px)'));
-  assert.ok(people.includes('adminMode && currentUser.isAdmin ? "accounts" : "directory"'));
+  assert.ok(people.includes('adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory"'));
   assert.ok(people.includes('enabled: workforceMode === "directory"'));
   assert.ok(people.includes('if (workforceModeRef.current === "accounts") return;'));
   assert.ok(people.includes('previous === "accounts" && workforceMode !== "accounts"'));
