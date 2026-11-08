@@ -70,7 +70,7 @@ export async function runPrismaScalarAnalytics(input: {
       let distinct = scalarDistinctCounts.get(prismaField);
       if (distinct === undefined) {
         const grouped = await input.model.groupBy({ by: [prismaField], where: input.where });
-        distinct = grouped.filter((row: any) => row[prismaField] != null).length;
+        distinct = Number(grouped.filter((row: any) => row[prismaField] != null).length);
         scalarDistinctCounts.set(prismaField, distinct);
       }
       aggregations[aggregation.id] = distinct;
