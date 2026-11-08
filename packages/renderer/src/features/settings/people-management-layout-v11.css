@@ -80,3 +80,8 @@
 .people-provisioning-ack-v11{display:flex;align-items:start;gap:9px;font-size:.79rem;line-height:1.45}
 .people-provisioning-ack-v11 input{flex:none;margin-top:3px}
 @media(max-width:650px){.people-provisioning-review-v11 dl{grid-template-columns:minmax(0,1fr)}.people-provisioning-steps-v11>span{padding:8px 4px;font-size:.7rem}.people-provisioning-actions-v11>button{flex:1 1 auto}}
+
+.people-role-review-v11{display:grid;gap:6px;padding:12px;border:1px solid var(--border,var(--ds-border));border-radius:10px;background:var(--surface,var(--ds-surface-raised));margin-top:8px}
+.people-role-review-v11 strong{font-size:.84rem}
+.people-role-review-v11 small{font-size:.74rem;color:var(--muted);line-height:1.5}
+.people-role-review-v11 p[role=alert]{font-size:.76rem;color:var(--danger,var(--ds-danger));margin:0}
