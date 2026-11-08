@@ -193,7 +193,7 @@ model StudioAccountInvitation {
   revokedBy User? @relation("StudioAccountInvitationRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, userId, createdAt])
-  @@index([userId, consumedAt, revokedAt, expiresAt])
+  @@index([userId, consumedAt, revokedAt, expiresAt], map: "AccountInvite_user_lifecycle_idx")
 }
 
 model PasswordResetRequest {
