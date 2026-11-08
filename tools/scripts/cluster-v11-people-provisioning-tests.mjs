@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { buildPeopleProvisioningPreview, provisioningPreviewInput } from "../../apps/server/src/domains/users/people-provisioning-preview.ts";
+import { buildPeopleProvisioningPreview, provisioningPreviewInput } from "../../apps/server/dist/domains/users/people-provisioning-preview.js";
 
 const source = path => readFileSync(path,"utf8");
 const routes = source("apps/server/src/domains/users/user-directory-routes.ts");
