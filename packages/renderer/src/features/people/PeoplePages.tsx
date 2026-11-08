@@ -909,8 +909,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         className="cluster-page-header"
         title="People"
         actions={<>
-          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => loadProfiles() }]} />
-          {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: workforceMode === "accounts" ? "Refresh accounts" : "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); if (workforceMode !== "accounts") void loadProfiles(); } }]} />
+          {effectiveAdminMode && workforceMode !== "accounts" && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
           <ClusterButton variant="primary" onClick={() => { setWorkforceMode("directory"); openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
