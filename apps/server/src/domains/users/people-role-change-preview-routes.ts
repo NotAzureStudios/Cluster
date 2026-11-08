@@ -74,7 +74,7 @@ export function registerPeopleRoleChangePreviewRoutes(deps: {
 
     const projectionUser = { accountType: target.accountType, studioTeamMemberships: [], toolPermissions: {} };
     const previousTools = authorization.configuredToolPermissionsForRole(previousRole, projectionUser);
-    const proposedTools = nextRole && !blockers.some((x) => x.code === "ROLE_OWNER_REQUIRED" || x.code === "ROLE_NOT_ASSIGNABLE")
+    const proposedTools: Record<string, string> = nextRole && !blockers.some((x) => x.code === "ROLE_OWNER_REQUIRED" || x.code === "ROLE_NOT_ASSIGNABLE")
       ? authorization.configuredToolPermissionsForRole(nextRole.id, projectionUser)
       : {};
     const tools = [...new Set([...Object.keys(previousTools), ...Object.keys(proposedTools)])].sort()
