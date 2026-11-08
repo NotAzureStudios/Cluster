@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { buildPeopleProvisioningPreview, provisioningPreviewInput } from "../../apps/server/dist/domains/users/people-provisioning-preview.js";
 
 const source = path => readFileSync(path,"utf8");
-const routes = source("apps/server/src/domains/users/user-directory-routes.ts");
+const routes = source("apps/server/src/domains/users/people-administration-preflight-routes.ts");
 const people = source("packages/renderer/src/features/people/PeoplePages.tsx");
 const wizard = source("packages/renderer/src/features/people/PeopleProvisioningWizard.tsx");
 const css = source("packages/renderer/src/features/settings/people-management-layout-v11.css");
