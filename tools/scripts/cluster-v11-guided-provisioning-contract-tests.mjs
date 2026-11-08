@@ -108,7 +108,7 @@ check("Role preview does not weaken transactional owner or revision protections"
   assert.ok(registry.includes('PROFILE_REVISION_CONFLICT'));
 });
 check("Existing role editor requires fresh matching review before Apply",()=>{
-  assert.ok(roleEditor.includes('"/api/admin/users/'));
+  assert.ok(roleEditor.includes('`/api/admin/users/${encodeURIComponent(person.id)}/role-change-preview`'));
   assert.ok(roleEditor.includes('role-change-preview'));
   assert.ok(roleEditor.includes('preview?.key === previewKey'));
   assert.ok(roleEditor.includes('!reviewed?.canApply'));
