@@ -10,7 +10,7 @@ let n=0;function check(label,okay){assert.ok(okay,label);n++;console.log("PASS",
 check("A dedicated single-person route does not reuse audience broadcast",
   route.includes('"/api/studio-systems/onboarding/versions/:versionId/assign-person"') &&
   route.includes('"/api/studio-systems/onboarding/versions/:versionId/assign"') &&
-  route.includes('userId: input.data.userId') &&
+  route.includes('id: input.data.userId,') &&
   !route.slice(route.indexOf('"/api/studio-systems/onboarding/versions/:versionId/assign-person"'),route.indexOf('app.patch("/api/studio-systems/onboarding/assignments')).includes('resolveStudioAudienceUserIds('));
 check("Strong admin and workspace guard occurs before target queries",
   route.includes('["owner", "admin"].includes(actorMembership.role)') &&
