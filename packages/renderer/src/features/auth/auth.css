@@ -148,3 +148,6 @@
 .cluster-auth-entry-grid-v11>.cluster-auth-application-v11{justify-content:flex-start;overflow-y:auto;max-height:calc(100dvh - 64px)}
 .cluster-auth-entry-grid-v11>.cluster-auth-application-v11 .studio-form-field-list-v34f{max-height:none;overflow:visible}
 @media(max-width:820px){.cluster-auth-entry-grid-v11>.cluster-auth-application-v11{max-height:none;overflow:visible}}
+
+.cluster-auth-recovery-ack-v11{display:flex;align-items:center;gap:10px;font-size:.79rem;color:var(--text);line-height:1.5}
+.cluster-auth-recovery-ack-v11 input{flex:0 0 auto}
