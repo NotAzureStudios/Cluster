@@ -45,7 +45,11 @@ try {
     const idx=await a.query("SELECT indexname FROM pg_indexes WHERE schemaname=$1 AND tablename='StudioAccountInvitation'",[schema]);
     const names=idx.rows.map(x=>x.indexname).join(";");
     assert.match(names,/tokenHash_key/);
-    assert.match(names,/userId_consumedAt_revokedAt_expiresAt_idx/);
+    assert.match(names,/AccountInvite_user_lifecycle_idx/);
+    const lifecycle=idx.rows.find(x=>x.indexname==="AccountInvite_user_lifecycle_idx");
+    assert.ok(lifecycle,"Expected shortened lifecycle index name");
+    const definition=await a.query("SELECT indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname=$2",[schema,lifecycle.indexname]);
+    for(const column of ["userId","consumedAt","revokedAt","expiresAt"]) assert.ok(definition.rows[0].indexdef.includes(`\"${column}\"`),`Missing ${column} in lifecycle index`);
     const fks=await a.query("SELECT COUNT(*)::int AS n FROM pg_constraint WHERE conrelid=$1::regclass AND contype='f'",[`${schema}."StudioAccountInvitation"`]);
     assert.equal(fks.rows[0].n,4);
   });
