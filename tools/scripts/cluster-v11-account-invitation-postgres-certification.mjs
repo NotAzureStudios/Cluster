@@ -109,7 +109,7 @@ try {
 
   await check("FK constraints reject invitation records for absent users",async()=>{
     await assert.rejects(a.query(
-      'INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","roleAtIssue","expiresAt") VALUES ($1,$2,$3,$4,$5,$6,'member',NOW())',
+      `INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","roleAtIssue","expiresAt") VALUES ($1,$2,$3,$4,$5,$6,'member',NOW())`,
       ["orphan","studio-a","not-existing","owner","other-digest",1]),/foreign key constraint/i);
   });
   console.log(`Disposable PostgreSQL invitation certification: ${passed} checks passed.`);
