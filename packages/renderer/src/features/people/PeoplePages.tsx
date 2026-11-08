@@ -273,6 +273,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (effectiveAdminMode) return;
     setCreateAccountOpen(false);
     setIssuedCredential(null);
+    setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
