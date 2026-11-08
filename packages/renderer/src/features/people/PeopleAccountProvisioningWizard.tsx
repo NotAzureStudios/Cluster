@@ -39,12 +39,13 @@ const STEPS: Array<{ id: Stage; label: string }> = [
 ];
 
 function previewPayload(draft: ProvisioningDraft) {
+  const expiry = draft.accessExpiresAt ? new Date(`${draft.accessExpiresAt}T23:59:59`) : null;
   return {
     username: draft.username.trim(),
     displayName: draft.displayName.trim() || null,
     email: draft.email.trim() || null,
     accountType: draft.accountType,
-    accessExpiresAt: draft.accessExpiresAt ? new Date(`${draft.accessExpiresAt}T23:59:59`).toISOString() : null,
+    accessExpiresAt: expiry && Number.isFinite(expiry.getTime()) ? expiry.toISOString() : draft.accessExpiresAt || null,
     role: draft.role,
   };
 }
