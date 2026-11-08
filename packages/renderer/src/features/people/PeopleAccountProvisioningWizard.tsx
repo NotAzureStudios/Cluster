@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../core/api";
+import { api, queryApi } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
@@ -15,6 +15,7 @@ export type ProvisioningDraft = {
   accountType: string;
   accessExpiresAt: string;
   role: string;
+  onboardingVersionId: string;
 };
 type ProvisioningReview = {
   ok: boolean;
@@ -31,6 +32,10 @@ type ProvisioningReview = {
   limitations: string[];
 };
 type RoleCatalog = { actorRole: string; roles: StudioAssignableRoleChoice[] };
+type OnboardingPlanCatalog = {
+  plans: Array<{ id: string; title: string; status: string;
+    versions?: Array<{ id: string; versionLabel: string; status: string }> }>;
+};
 type Stage = "identity" | "access" | "review";
 const STEPS: Array<{ id: Stage; label: string }> = [
   { id: "identity", label: "Identity" },
@@ -69,15 +74,38 @@ export function PeopleAccountProvisioningWizard({
   const [preview, setPreview] = useState<{ signature: string; result: ProvisioningReview } | null>(null);
   const [checking, setChecking] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [onboardingVersions, setOnboardingVersions] = useState<Array<{ id: string; label: string }>>([]);
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [onboardingError, setOnboardingError] = useState("");
+  const [onboardingRequested, setOnboardingRequested] = useState(false);
+  useEffect(() => {
+    if (stage !== "access" || onboardingRequested) return;
+    let cancelled = false;
+    setOnboardingRequested(true);
+    setOnboardingLoading(true);
+    void queryApi<OnboardingPlanCatalog>("/api/studio-systems/onboarding", {
+      staleMs: 60_000, maxAgeMs: 90_000, tags: ["studio-systems", "onboarding"],
+    }).then((result) => {
+      if (cancelled) return;
+      setOnboardingVersions((result.plans || []).filter((plan) => plan.status === "active")
+        .flatMap((plan) => (plan.versions || []).filter((version) => version.status === "published")
+          .map((version) => ({ id: version.id, label: `${plan.title} · ${version.versionLabel}` }))));
+    }).catch((error) => {
+      if (!cancelled) setOnboardingError(error instanceof Error ? error.message : "Could not load onboarding plans.");
+    }).finally(() => { if (!cancelled) setOnboardingLoading(false); });
+    return () => { cancelled = true; };
+  }, [stage, onboardingRequested]);
   const previewSequenceRef = useRef(0);
   const selectedRole = roleCatalog?.roles.find((role) => role.id === draft.role);
   const roleAssignable = canChooseStudioRole(selectedRole, roleCatalog?.actorRole);
   const validation = validatePeopleAccountCreation(draft, roleAssignable);
   const identityError = validation.username || validation.email || validation.accessExpiresAt || "";
-  const accessError = validation.role || rolesError || (rolesLoading || !roleCatalog ? "Workspace roles are not loaded yet." : "");
+  const onboardingValid = !draft.onboardingVersionId || onboardingVersions.some((version) => version.id === draft.onboardingVersionId);
+  const accessError = validation.role || rolesError || (rolesLoading || !roleCatalog ? "Workspace roles are not loaded yet." : "") ||
+    (onboardingValid ? "" : "The selected onboarding plan is no longer available.");
   // The signature covers the complete POST body; changing any meaningful field
   // invalidates the previously reviewed server response.
-  const signature = JSON.stringify(previewPayload(draft));
+  const signature = JSON.stringify({ ...previewPayload(draft), onboardingVersionId: draft.onboardingVersionId });
   const latestSignatureRef = useRef(signature);
   latestSignatureRef.current = signature;
   const readyReview = preview?.signature === signature ? preview.result : null;
@@ -97,7 +125,7 @@ export function PeopleAccountProvisioningWizard({
     if (accessError) { setStage("access"); return; }
     const requestId = ++previewSequenceRef.current;
     const body = previewPayload(draft);
-    const requestSignature = JSON.stringify(body);
+    const requestSignature = JSON.stringify({ ...body, onboardingVersionId: draft.onboardingVersionId });
     setStage("review");
     setPreview(null);
     setPreviewError("");
@@ -171,6 +199,16 @@ export function PeopleAccountProvisioningWizard({
         <strong>{selectedRole?.privileged ? "Privileged workspace role" : `Starting role: ${roleLabel}`}</strong>
         <p>{selectedRole?.privileged ? "Only a workspace owner may assign this role. A privileged role may manage workspace-wide operations." : "The Server will evaluate this role and the identity type before the account can be created."}</p>
       </div>
+      <label className="field people-account-wizard-onboarding-v11"><span>Onboarding plan (optional)</span>
+        <ClusterNativeSelect value={draft.onboardingVersionId} disabled={onboardingLoading || creating || Boolean(onboardingError)}
+          onChange={(event) => onPatch({ onboardingVersionId: event.target.value })}>
+          <option value="">Do not assign onboarding yet</option>
+          {onboardingVersions.map((version) => <option key={version.id} value={version.id}>{version.label}</option>)}
+        </ClusterNativeSelect>
+        <small>A published plan can be assigned specifically to this person after the account is created. Its audience policy is checked separately.</small>
+        {onboardingLoading && <small role="status">Loading published onboarding plans…</small>}
+        {onboardingError && <small role="alert">Plan options unavailable: {onboardingError}. You can create the account without onboarding.</small>}
+      </label>
       <div className="people-account-wizard-note-v11">
         <strong>Project, Library and team access</strong>
         <p>No individual Project grant or team membership is assigned by this form. Those require their own approved workflows. Resource-specific restrictions still apply.</p>
@@ -182,6 +220,7 @@ export function PeopleAccountProvisioningWizard({
         <div><dt>Identity</dt><dd><strong>{draft.displayName.trim() || draft.username.trim()}</strong><small>@{draft.username.trim()}{draft.email ? ` · ${draft.email.trim()}` : ""}</small></dd></div>
         <div><dt>Account type</dt><dd>{draft.accountType}</dd></div>
         <div><dt>Starting role</dt><dd>{roleLabel}</dd></div>
+        <div><dt>Onboarding</dt><dd>{onboardingVersions.find((version) => version.id === draft.onboardingVersionId)?.label || "Not assigned"}</dd></div>
         <div><dt>Expiration</dt><dd>{draft.accessExpiresAt || "No expiry"}</dd></div>
         <div><dt>First sign-in</dt><dd>One-time password; member sets a permanent password</dd></div>
       </dl>
@@ -203,6 +242,7 @@ export function PeopleAccountProvisioningWizard({
           {other.length > 0 && <small>{other.length} tools use custom permission levels.</small>}
         </details>}
         <p className="people-account-wizard-preview-caption-v11">Preflight does not reserve a username. The Server rechecks permissions and policy when you create the account.</p>
+        {draft.onboardingVersionId && <p className="people-account-wizard-preview-caption-v11">The onboarding assignment is a separate governed operation after account creation. If it fails, the account remains created and assignment can be retried without duplicating the person.</p>}
         <details className="people-account-wizard-limitations-v11"><summary>What this account does not receive automatically</summary>
           <ul>{readyReview.limitations.map((text) => <li key={text}>{text}</li>)}</ul>
         </details>
