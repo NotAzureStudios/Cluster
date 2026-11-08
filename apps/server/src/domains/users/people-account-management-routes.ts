@@ -36,7 +36,10 @@ export function registerPeopleAccountManagementRoutes(deps: {
     if (!membership || !["owner", "admin"].includes(membership.role))
       return reply.code(403).send({ ok: false, code: "ROLE_ADMIN_REQUIRED" });
 
-    const query = managementQuerySchema.parse(request.query || {});
+    const parsedQuery = managementQuerySchema.safeParse(request.query || {});
+    if (!parsedQuery.success)
+      return reply.code(400).send({ ok: false, code: "PEOPLE_ACCOUNT_QUERY_INVALID", error: "Invalid account management filters." });
+    const query = parsedQuery.data;
     const cursor = decodeCursor(query.cursor);
     if (query.cursor && !cursor)
       return reply.code(400).send({ ok: false, code: "PEOPLE_ACCOUNT_CURSOR_INVALID", error: "Invalid account list cursor. Refresh the list." });
