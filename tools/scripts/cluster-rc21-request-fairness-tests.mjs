@@ -12,6 +12,8 @@ check(() => assert.equal(readTrafficLane('/api/library/workspace?parent=root','G
 check(() => assert.equal(readTrafficLane('/api/admin/inventory/assets?limit=30','GET'), 'api-inventory'));
 check(() => assert.equal(readTrafficLane('/api/notifications/summary','GET'), 'api-live'));
 check(() => assert.equal(readTrafficLane('/api/meta/compatibility','GET'), 'api-compatibility'));
+check(() => assert.equal(readTrafficLane('/api/projects/provision/job-123?refresh=1','GET'), 'api-project-progress'));
+check(() => assert.equal(readTrafficLane('/api/projects/provision','POST'), null));
 check(() => assert.equal(readTrafficLane('/api/library/workspace','POST'), null));
 check(() => assert.equal(retryAfterMilliseconds('6', 1000), 6000));
 check(() => assert.equal(retryAfterMilliseconds('150', 1000), 60000));
