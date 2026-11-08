@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterNativeSelect, ClusterTextInput } from "../../components/ClusterNativeControls";
+import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { queryApi } from "../../core/api";
 
 type AccountStateFilter = "all" | "setup" | "restricted" | "expiring" | "expired" | "archived";
