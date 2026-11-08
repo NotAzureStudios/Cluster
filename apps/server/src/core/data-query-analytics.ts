@@ -24,6 +24,9 @@ export async function runPrismaScalarAnalytics(input: {
   }
 
   const aggregations: Record<string, number | null> = {};
+  // Several presentation measures may count distinct values of the same field.
+  // The authorized grouping is identical, so issue one database query per field.
+  const scalarDistinctCounts = new Map<string, number>();
   const aggregateRequest: Record<string, Record<string, boolean>> = {};
   for (const aggregation of input.aggregations) {
     if (aggregation.kind === "count" && !aggregation.fieldId) {
@@ -64,8 +67,13 @@ export async function runPrismaScalarAnalytics(input: {
     const prismaField = aggregation.fieldId ? numericFields.get(aggregation.fieldId) : undefined;
     if (!prismaField) continue;
     if (aggregation.kind === "count_distinct") {
-      const grouped = await input.model.groupBy({ by: [prismaField], where: input.where });
-      aggregations[aggregation.id] = grouped.filter((row: any) => row[prismaField] != null).length;
+      let distinct = scalarDistinctCounts.get(prismaField);
+      if (distinct === undefined) {
+        const grouped = await input.model.groupBy({ by: [prismaField], where: input.where });
+        distinct = grouped.filter((row: any) => row[prismaField] != null).length;
+        scalarDistinctCounts.set(prismaField, distinct);
+      }
+      aggregations[aggregation.id] = distinct;
       continue;
     }
     const key = aggregation.kind === "average" ? "_avg" : `_${aggregation.kind}`;
@@ -94,9 +102,14 @@ export function clusterDataCountProjectionRollups(projection: ClusterDataProject
     const columnBucket = columnBuckets.get(columnKey) || { key: row.keys[1] ?? null, count: 0 }; columnBucket.count += Number(row.count || 0); columnBuckets.set(columnKey, columnBucket);
   }
   const valuesFor = (count: number) => Object.fromEntries(projection.measures.map((measure) => [measure.id, count]));
+  // Match the grouped projection ordering before applying its 200-row total cap.
+  const ordered = (buckets: Map<string, { key: any; count: number }>) =>
+    [...buckets.values()]
+      .map((bucket) => ({ keys: [bucket.key], count: bucket.count, values: valuesFor(bucket.count) }))
+      .sort((a, b) => b.count - a.count || String(a.keys).localeCompare(String(b.keys)));
   return {
-    rowTotals: [...rowBuckets.values()].map((bucket) => ({ keys: [bucket.key], count: bucket.count, values: valuesFor(bucket.count) })),
-    columnTotals: [...columnBuckets.values()].map((bucket) => ({ keys: [bucket.key], count: bucket.count, values: valuesFor(bucket.count) })),
+    rowTotals: ordered(rowBuckets),
+    columnTotals: ordered(columnBuckets),
     grandTotal: { keys: [], count: grandCount, values: valuesFor(grandCount) },
   };
 }
@@ -135,16 +148,21 @@ export async function runPrismaGroupedProjections(input: {
     }
     const grouped = await input.model.groupBy({ by, where: input.where, _count: { _all: true }, ...aggregateRequest });
     const distinctByMeasure = new Map<string, Map<string, number>>();
+    const distinctCountsByField = new Map<string, Map<string, number>>();
     for (const measure of projection.measures) {
       if (measure.kind !== "count_distinct" || !measure.fieldId) continue;
       const prismaField = numericFields.get(measure.fieldId) || input.dimensionFields.get(measure.fieldId);
       if (!prismaField) continue;
-      const distinctRows = await input.model.groupBy({ by: [...new Set([...by, prismaField])], where: input.where });
-      const counts = new Map<string, number>();
-      for (const row of distinctRows) {
-        if (row[prismaField] == null) continue;
-        const key = projectionKey(by.map((field) => row[field]));
-        counts.set(key, (counts.get(key) || 0) + 1);
+      let counts = distinctCountsByField.get(prismaField);
+      if (!counts) {
+        const distinctRows = await input.model.groupBy({ by: [...new Set([...by, prismaField])], where: input.where });
+        counts = new Map<string, number>();
+        for (const row of distinctRows) {
+          if (row[prismaField] == null) continue;
+          const key = projectionKey(by.map((field) => row[field]));
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        distinctCountsByField.set(prismaField, counts);
       }
       distinctByMeasure.set(measure.id, counts);
     }
@@ -176,14 +194,26 @@ export async function runPrismaGroupedProjections(input: {
     let columnTotals: ClusterDataProjectionResult["columnTotals"] = undefined;
     let grandTotal: ClusterDataProjectionResult["grandTotal"] = undefined;
     if (projection.kind === "matrix" && projection.dimensions.length === 2) {
-      const [rowRollup, columnRollup, scalarRollup] = await Promise.all([
-        runPrismaGroupedProjections({ ...input, projections: [{ ...projection, id: `${projection.id}.__row_totals`, kind: "grouped", dimensions: [projection.dimensions[0]], limit: 200 }] }),
-        runPrismaGroupedProjections({ ...input, projections: [{ ...projection, id: `${projection.id}.__column_totals`, kind: "grouped", dimensions: [projection.dimensions[1]], limit: 200 }] }),
-        runPrismaScalarAnalytics({ model: input.model, where: input.where, facets: [], aggregations: projection.measures, facetFields: new Map(), numericFields, derivedFields: input.derivedFields, semanticFields: input.semanticFields }),
-      ]);
-      rowTotals = rowRollup[0]?.rows || [];
-      columnTotals = columnRollup[0]?.rows || [];
-      grandTotal = { keys: [], count: scalarRollup.total, values: scalarRollup.aggregations };
+      // Count-only matrices already read every authorized group before truncating
+      // the visible cells. Derive exact totals locally instead of three more
+      // database round trips (two groupBys + one count).
+      const countRollups = clusterDataCountProjectionRollups(projection, rows);
+      if (countRollups.rowTotals && countRollups.columnTotals && countRollups.grandTotal) {
+        rowTotals = countRollups.rowTotals.slice(0, 200);
+        columnTotals = countRollups.columnTotals.slice(0, 200);
+        grandTotal = countRollups.grandTotal;
+      } else {
+        // Non-additive measures (averages, distinct counts, etc.) must retain
+        // their independently aggregated totals, not sum truncated cells.
+        const [rowRollup, columnRollup, scalarRollup] = await Promise.all([
+          runPrismaGroupedProjections({ ...input, projections: [{ ...projection, id: `${projection.id}.__row_totals`, kind: "grouped", dimensions: [projection.dimensions[0]], limit: 200 }] }),
+          runPrismaGroupedProjections({ ...input, projections: [{ ...projection, id: `${projection.id}.__column_totals`, kind: "grouped", dimensions: [projection.dimensions[1]], limit: 200 }] }),
+          runPrismaScalarAnalytics({ model: input.model, where: input.where, facets: [], aggregations: projection.measures, facetFields: new Map(), numericFields, derivedFields: input.derivedFields, semanticFields: input.semanticFields }),
+        ]);
+        rowTotals = rowRollup[0]?.rows || [];
+        columnTotals = columnRollup[0]?.rows || [];
+        grandTotal = { keys: [], count: scalarRollup.total, values: scalarRollup.aggregations };
+      }
     }
     results.push({
       id: projection.id,
