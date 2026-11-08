@@ -62,7 +62,7 @@ check("Cursor model is deterministic and supports compound updatedAt/id seek", (
 
 check("Admin API rejects ordinary accounts before running private listing query", () => {
   const guard=api.indexOf('["owner", "admin"].includes(membership.role)');
-  const queryIndex=api.indexOf('managementQuerySchema.parse(request.query || {})');
+  const queryIndex=api.indexOf('managementQuerySchema.safeParse(request.query || {})');
   assert.ok(guard>0 && queryIndex>guard);
   assert.ok(api.includes('code: "ROLE_ADMIN_REQUIRED"'));
   assert.ok(api.includes('code: "AUTH_REQUIRED"'));
