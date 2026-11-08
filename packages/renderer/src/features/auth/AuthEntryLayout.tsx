@@ -6,10 +6,12 @@ export function AuthEntryLayout({
   children,
   studioName,
   mode = "signin",
+  cardClassName = "",
 }: {
   children: ReactNode;
   studioName?: string | null;
   mode?: "signin" | "setup" | "recovery";
+  cardClassName?: string;
 }) {
   return <main className="login-shell managed-auth-shell managed-auth-v473 cluster-auth-entry-v11">
     <div className="cluster-auth-entry-grid-v11">
@@ -28,7 +30,7 @@ export function AuthEntryLayout({
           <span>{mode === "setup" ? "Account setup" : mode === "recovery" ? "Account recovery" : "Authorized access"}</span>
         </div>
       </aside>
-      <section className="login-card panel managed-auth-card cluster-auth-entry-card-v11">
+      <section className={`login-card panel managed-auth-card cluster-auth-entry-card-v11 ${cardClassName}`.trim()}>
         {children}
       </section>
     </div>
