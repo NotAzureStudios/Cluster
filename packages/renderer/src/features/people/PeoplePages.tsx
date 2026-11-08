@@ -57,6 +57,7 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
+import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
 import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
@@ -133,7 +134,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [profile, setProfile] = useState<PeopleProfilePayload | null>(null);
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
-  const [workforceMode, setWorkforceMode] = useState<"directory" | "organization" | "teams" | "capacity" | "availability">("directory");
+  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin ? "accounts" : "directory");
+  const workforceModeRef = useRef(workforceMode);
+  workforceModeRef.current = workforceMode;
+  const previousWorkforceModeRef = useRef(workforceMode);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -142,6 +146,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [statusFilter, setStatusFilter] = useState("all");
   type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit";
   const [profileView, setProfileViewState] = useState<ProfileView>("overview");
+  const pendingManagedAccountViewRef = useRef<{ id: string; view: "overview" | "edit" | "access" } | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const { confirmDiscard: confirmEditorDiscard } = useUnsavedChangesGuard({
     dirty: profileView === "edit" && editorDirty,
@@ -179,7 +184,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [loadStatus, setLoadStatus] = useState("Loading people...");
   const [securityActionUserId, setSecurityActionUserId] = useState("");
   const effectiveAdminMode = Boolean(adminMode && currentUser.isAdmin);
-  const [accountFilter, setAccountFilter] = useState<"all" | "attention" | "restricted" | "archived">("all");
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [createAccountBusy, setCreateAccountBusy] = useState(false);
   type CreateRoleCatalog = {
@@ -252,7 +256,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (effectiveAdminMode) return;
     setCreateAccountOpen(false);
     setIssuedCredential(null);
-    setAccountFilter("all");
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
@@ -291,9 +294,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }), [deferredDirectoryQuery, departmentFilter, peopleProjections, peopleServerGroups, peoplePortableDerivedPlan.fields, peopleAnalyticalSelectionSet]);
   const peopleServerQueryKey = useMemo(() => JSON.stringify(peopleServerDataQuery), [peopleServerDataQuery]);
   const peopleDirectory = useClusterCursorData<UserActivitySummary>({
+    enabled: workforceMode === "directory",
     resetKey: `${currentUser.id}:${effectiveAdminMode ? "admin" : "directory"}:${directoryRefresh}:${peopleServerQueryKey}`,
     rowKey: (person) => person.id,
-    loadPage: async (cursor): Promise<ClusterCursorPage<UserActivitySummary>> => queryApi<ClusterCursorPage<UserActivitySummary>>(`/api/users?summary=true&paged=true&limit=80${effectiveAdminMode ? "&includeArchived=true" : ""}&dataQuery=${clusterDataQueryParameter(peopleServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { staleMs: 5_000, maxAgeMs: 2 * 60_000, force: Boolean(cursor), tags: ["users", "people", "directory"] }),
+    loadPage: async (cursor): Promise<ClusterCursorPage<UserActivitySummary>> => queryApi<ClusterCursorPage<UserActivitySummary>>(`/api/users?summary=true&paged=true&limit=80&dataQuery=${clusterDataQueryParameter(peopleServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { staleMs: 5_000, maxAgeMs: 2 * 60_000, force: Boolean(cursor), tags: ["users", "people", "directory"] }),
   });
   const contextPeopleById = useMemo(() => new Map((peopleContext?.people || []).map((person) => [person.id, person])), [peopleContext]);
   const workforcePeopleById = useMemo(() => new Map((workforceContext?.people || []).map((person) => [person.id, {
@@ -359,7 +363,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (profileView === "calendar" && profile?.id) await loadProfileCalendar(profile.id, true);
   }, { kinds: ["calendar", "meeting"], debounceMs: 220 });
 
-  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false) {
+  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false, contextOnly = false) {
     const sequence = ++peopleLoadSequenceRef.current;
     if (activateTarget) {
       const nextId = targetUserId || currentUser.id;
@@ -375,6 +379,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (sequence !== peopleLoadSequenceRef.current) return;
     }
+    // Sensitive account administration needs only the selected profile. Avoid
+    // three heavyweight workforce calls until the user opens a workforce tab.
+    if (workforceModeRef.current === "accounts") return;
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -384,10 +391,22 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setAssignments(assignmentResult);
     setPeopleContext(contextResult);
     setWorkforceContext(workforceResult);
-    if (!activateTarget && activeProfileIdRef.current === targetUserId && targetUserId) {
+    if (!activateTarget && !contextOnly && activeProfileIdRef.current === targetUserId && targetUserId) {
       await loadProfile(targetUserId, force);
     }
   }
+  useEffect(() => {
+    if (!effectiveAdminMode && workforceMode === "accounts") setWorkforceMode("directory");
+  }, [effectiveAdminMode, workforceMode]);
+  useEffect(() => {
+    const previous = previousWorkforceModeRef.current;
+    previousWorkforceModeRef.current = workforceMode;
+    if (previous === "accounts" && workforceMode !== "accounts") {
+      void loadProfiles(activeProfileIdRef.current, false, false, true).catch((error) => {
+        setLoadStatus(error instanceof Error ? error.message : "People context load failed");
+      });
+    }
+  }, [workforceMode]);
   useEffect(() => {
     const initialTarget = readClusterDetailSelection("person") || currentUser.id;
     activeProfileIdRef.current = initialTarget;
@@ -599,7 +618,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
   async function selectProfile(userId: string) {
     if (profileView === "edit" && editorDirty && userId !== activeProfileIdRef.current) {
-      if (!(await confirmEditorDiscard())) return;
+      if (!(await confirmEditorDiscard())) {
+        if (pendingManagedAccountViewRef.current?.id === userId) pendingManagedAccountViewRef.current = null;
+        return;
+      }
       setEditorDirty(false);
     }
     ++peopleLoadSequenceRef.current; // Cancel older directory loads selecting a stale target.
@@ -620,6 +642,11 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(profileResult);
       setLoadStatus("Profile loaded.");
+      const pending = pendingManagedAccountViewRef.current;
+      if (pending?.id === userId) {
+        pendingManagedAccountViewRef.current = null;
+        setProfileViewState(pending.view);
+      }
       void queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`, {
         staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["people", "teams", "profiles"],
       }).then((contextResult) => {
@@ -651,19 +678,13 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const filteredUsers = users.filter((person) => {
     if (departmentFilter !== "all" && person.department !== departmentFilter) return false;
     if (statusFilter !== "all" && (person.status || "available") !== statusFilter && presenceState(person) !== statusFilter) return false;
-    if (effectiveAdminMode) {
-      const state = String(person.accountState || "ACTIVE").toUpperCase();
-      if (accountFilter === "attention" && !["PASSWORD_CHANGE_REQUIRED", "PASSWORD_RESET_REQUIRED", "MFA_ENROLLMENT_REQUIRED"].includes(state)) return false;
-      if (accountFilter === "restricted" && !["SUSPENDED", "DISABLED", "LOCKED"].includes(state)) return false;
-      if (accountFilter === "archived" && !person.archived) return false;
-      if (accountFilter !== "archived" && person.archived) return false;
-    }
+
     return true;
   });
   const peopleProgress = useProgressiveList(filteredUsers, {
     initial: 80,
     step: 80,
-    resetKey: `${query}|${departmentFilter}|${statusFilter}|${accountFilter}|${effectiveAdminMode}`,
+    resetKey: `${query}|${departmentFilter}|${statusFilter}|${effectiveAdminMode}`,
   });
   const activeProfiles = users.filter((person) => ["active", "recent", "focus"].includes(presenceState(person))).length;
   const assignmentByUserId = useMemo(() => new Map(assignments.map((item) => [item.user.id, item])), [assignments]);
@@ -906,21 +927,22 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         className="cluster-page-header"
         title="People"
         actions={<>
-          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => loadProfiles() }]} />
-          {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
-          <ClusterButton variant="primary" onClick={() => { openFullProfile(currentUser.id); }}>My profile</ClusterButton>
+          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: workforceMode === "accounts" ? "Refresh accounts" : "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); if (workforceMode !== "accounts") void loadProfiles(); } }]} />
+          {effectiveAdminMode && workforceMode !== "accounts" && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          <ClusterButton variant="primary" onClick={() => { setWorkforceMode("directory"); openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
 
       <div className="people-workforce-modebar-v504">
-        <ClusterSegmentedControl value={workforceMode} onChange={setWorkforceMode} label="People workspace" options={[
+        <ClusterSegmentedControl value={workforceMode} onChange={(value) => setWorkforceMode(value as typeof workforceMode)} label="People workspace" options={[
           { value: "directory", label: "Directory" },
+          ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
           { value: "organization", label: "Organization" },
           { value: "teams", label: "Teams" },
           { value: "capacity", label: "Capacity" },
           { value: "availability", label: "Availability" },
         ]} />
-        <span>{effectiveAdminMode ? `Admin mode · ${users.length} accounts` : workforceContext ? `${users.length} people` : "Loading…"}</span>
+        <span>{effectiveAdminMode ? "People administration" : workforceContext ? `${users.length} people` : "Loading…"}</span>
       </div>
 
       {effectiveAdminMode && createAccountOpen && <section className="people-admin-create-v536 panel" aria-label="Create Cluster account">
@@ -949,7 +971,19 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
 
-      {workforceMode !== "directory" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
+      {effectiveAdminMode && workforceMode === "accounts" && <PeopleAccountManagementPanel
+        refreshVersion={directoryRefresh}
+        onOpenAccount={(id, view) => {
+          pendingManagedAccountViewRef.current = { id, view };
+          setWorkforceMode("directory");
+          openFullProfile(id);
+          if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
+        }}
+        accountCreationOpen={createAccountOpen}
+        onToggleCreateAccount={() => { void toggleCreateAccount(); }}
+      />}
+
+      {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
             <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
@@ -1040,15 +1074,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                 <option value="offline">Offline</option>
               </ClusterNativeSelect>
             </label>
-            {effectiveAdminMode && <label className="field">
-              <span>Account</span>
-              <ClusterNativeSelect value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as typeof accountFilter)}>
-                <option value="all">Active directory</option>
-                <option value="attention">Setup / recovery</option>
-                <option value="restricted">Suspended / disabled</option>
-                <option value="archived">Archived</option>
-              </ClusterNativeSelect>
-            </label>}
           </>
         }
         actions={<DataExportBuilder fields={peopleExportFields} selectionCount={selectedPeopleIds.size} busy={peopleExporting} onExport={({ format, fieldIds, scope, delivery }) => exportPeople(format, fieldIds, scope, delivery)} />}
