@@ -237,6 +237,87 @@ export function registerStudioOnboardingRoutes(deps: any) {
     return { ok: true, eligible: userIds.length, assigned: result.count };
   });
 
+  // Single-person assignment is intentionally NOT the audience-wide /assign
+  // operation. It verifies person workspace, plan publication and audience
+  // policy before a single idempotent assignment is persisted.
+  app.post("/api/studio-systems/onboarding/versions/:versionId/assign-person", async (request: any, reply: any) => {
+    if (!(await requireAdmin(request, reply))) return;
+    const actor = await getCurrentUser(request);
+    if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+    const actorMembership = await prisma.workspaceMember.findFirst({
+      where: { userId: actor.id },
+      orderBy: { workspaceId: "asc" },
+      select: { workspaceId: true, role: true },
+    });
+    if (!actorMembership || !["owner", "admin"].includes(actorMembership.role))
+      return reply.code(403).send({ ok: false, code: "ROLE_ADMIN_REQUIRED" });
+    const params = z.object({ versionId: z.string().trim().min(1).max(160) }).safeParse(request.params || {});
+    const input = z.object({ userId: z.string().trim().min(1).max(160) }).strict().safeParse(request.body || {});
+    if (!params.success || !input.success)
+      return reply.code(400).send({ ok: false, code: "ONBOARDING_ASSIGNMENT_INPUT_INVALID", error: "Choose a published onboarding version and one person." });
+
+    const assigned = await prisma.$transaction(async (tx: any) => {
+      const version = await tx.studioOnboardingPlanVersion.findUnique({
+        where: { id: params.data.versionId },
+        include: { plan: true },
+      });
+      if (!version || version.status !== "published" || version.plan.status !== "active")
+        return { ok: false, status: 404, code: "ONBOARDING_VERSION_NOT_FOUND", error: "Published onboarding version not found." };
+      const target = await tx.user.findFirst({
+        where: {
+          id: input.data.userId,
+          archived: false,
+          accountState: { notIn: ["DISABLED", "PRIVACY_ERASED"] },
+          memberships: { some: { workspaceId: actorMembership.workspaceId } },
+        },
+      });
+      if (!target)
+        return { ok: false, status: 404, code: "ONBOARDING_TARGET_UNAVAILABLE", error: "Active account not found in this workspace." };
+      if (target.accessExpiresAt && new Date(target.accessExpiresAt) <= new Date())
+        return { ok: false, status: 409, code: "ONBOARDING_TARGET_EXPIRED", error: "Renew this person's access before assigning onboarding." };
+      if (!(await studioAudienceMatchesUser(tx, version.plan.audienceJson, target)))
+        return { ok: false, status: 409, code: "ONBOARDING_AUDIENCE_MISMATCH", error: "This person is not eligible for the selected onboarding plan." };
+
+      const assignedAt = new Date();
+      const created = await tx.studioOnboardingAssignment.createMany({
+        data: [{
+          planVersionId: version.id,
+          userId: target.id,
+          source: "admin_person",
+          status: "active",
+          assignedAt,
+          dueAt: studioOnboardingDueAt(version, assignedAt),
+        }],
+        skipDuplicates: true,
+      });
+      const assignment = await tx.studioOnboardingAssignment.findUniqueOrThrow({
+        where: { planVersionId_userId: { planVersionId: version.id, userId: target.id } },
+        select: { id: true, status: true, dueAt: true },
+      });
+      return {
+        ok: true, created: Number(created?.count || 0) > 0,
+        assignmentId: assignment.id, status: assignment.status,
+        dueAt: assignment.dueAt, planTitle: version.plan.title, userId: target.id,
+      };
+    });
+    if (!assigned.ok)
+      return reply.code(assigned.status).send({ ok: false, code: assigned.code, error: assigned.error });
+    if (assigned.created) {
+      try {
+        await logActivity?.({
+          userId: actor.id, type: "assigned", entityType: "studio_onboarding_assignment",
+          entityId: assigned.assignmentId, title: "Onboarding assigned",
+          message: assigned.planTitle, metadata: { targetUserId: assigned.userId, source: "admin_person" },
+        });
+      } catch { /* Committed assignment must not be misreported as failed or retried blindly. */ }
+    }
+    return {
+      ok: true, created: assigned.created, assignmentId: assigned.assignmentId,
+      status: assigned.status, dueAt: assigned.dueAt,
+      message: assigned.created ? "Onboarding assigned." : "This onboarding version was already assigned.",
+    };
+  });
+
   app.patch("/api/studio-systems/onboarding/assignments/:assignmentId/lifecycle", async (request: any, reply: any) => {
     if (!(await requireAdmin(request, reply))) return;
     const actor = await getCurrentUser(request); const { assignmentId } = z.object({ assignmentId: z.string().min(1) }).parse(request.params); const body = studioOnboardingAssignmentLifecycleSchema.parse(request.body || {});
