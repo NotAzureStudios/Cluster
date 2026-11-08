@@ -134,7 +134,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [profile, setProfile] = useState<PeopleProfilePayload | null>(null);
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
-  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin ? "accounts" : "directory");
+  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory");
   const workforceModeRef = useRef(workforceMode);
   workforceModeRef.current = workforceMode;
   const previousWorkforceModeRef = useRef(workforceMode);
@@ -161,6 +161,20 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } else setProfileViewState(next);
   }
   const [profileExpanded, setProfileExpanded] = useState(false);
+  const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);
+  async function changeWorkforceMode(next: typeof workforceMode) {
+    if (next === workforceMode) return;
+    if (profileView === "edit" && editorDirty) {
+      if (!(await confirmEditorDiscard())) return;
+      setEditorDirty(false);
+      setProfileViewState("overview");
+    }
+    if (next === "accounts") {
+      setProfileExpanded(false);
+      setAccountsReturnAvailable(false);
+    }
+    setWorkforceMode(next);
+  }
   const [profileCalendar, setProfileCalendar] = useState<ProfileCalendarEvent[]>([]);
   const [profileCalendarLoading, setProfileCalendarLoading] = useState(false);
   const [directoryMode, setDirectoryMode] = useState<"list" | "table">("list");
@@ -934,7 +948,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       />
 
       <div className="people-workforce-modebar-v504">
-        <ClusterSegmentedControl value={workforceMode} onChange={(value) => setWorkforceMode(value as typeof workforceMode)} label="People workspace" options={[
+        <ClusterSegmentedControl value={workforceMode} onChange={(value) => { void changeWorkforceMode(value as typeof workforceMode); }} label="People workspace" options={[
           { value: "directory", label: "Directory" },
           ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
           { value: "organization", label: "Organization" },
@@ -971,17 +985,19 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
 
-      {effectiveAdminMode && workforceMode === "accounts" && <PeopleAccountManagementPanel
+      {effectiveAdminMode && <div hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"><PeopleAccountManagementPanel
+        active={workforceMode === "accounts"}
         refreshVersion={directoryRefresh}
         onOpenAccount={(id, view) => {
           pendingManagedAccountViewRef.current = { id, view };
+          setAccountsReturnAvailable(true);
           setWorkforceMode("directory");
           openFullProfile(id);
           if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
         }}
         accountCreationOpen={createAccountOpen}
         onToggleCreateAccount={() => { void toggleCreateAccount(); }}
-      />}
+      /></div>}
 
       {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
@@ -1149,6 +1165,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
                 </div>
                 <div className="button-row compact people-person-actions-v495">
+                  {accountsReturnAvailable && effectiveAdminMode && <ClusterButton size="compact" variant="secondary" onClick={() => { void changeWorkforceMode("accounts"); }}>Back to Accounts</ClusterButton>}
                   {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant="secondary" onClick={() => setProfileView("edit")}>Edit user</ClusterButton>}
                   <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
                   <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
