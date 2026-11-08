@@ -334,7 +334,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     finally { setBusy(false); }
   }
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card managed-auth-mfa-enrollment-v495">
+  return <AuthEntryLayout mode="setup" cardClassName="managed-auth-mfa-enrollment-v495">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Studio security policy</p>
     <h1>Set up multi-factor authentication.</h1>
@@ -350,7 +350,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     {error && <div className="error-box" role="alert">{error}</div>}
     <ClusterButton type="button" className="" disabled={busy} onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
 
 export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: ClusterAuthUser; onComplete: (user: ClusterAuthUser) => void; onLogout: () => void }) {
@@ -378,7 +378,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
     }
   }
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout mode="setup">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Password change required</p>
     <h1>Create your permanent password.</h1>
@@ -390,7 +390,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
       <ClusterButton className="" disabled={busy} type="button" onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     </form>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
 
 export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: ClusterAuthUser; onRefresh: () => void; onLogout: () => void }) {
@@ -420,7 +420,7 @@ export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: Cluster
   const authOrigin = typeof window !== "undefined" && window.clusterDesktop?.serverUrl ? window.clusterDesktop.serverUrl : API_URL;
   const linkUrl = config ? `${authOrigin}${config.discordLinkUrl}` : "";
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout mode="setup">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Required identity link</p>
     <h1>Link Discord to continue.</h1>
@@ -437,5 +437,5 @@ export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: Cluster
       <ClusterButton className="" type="button" onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     </div>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
