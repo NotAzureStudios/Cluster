@@ -10,6 +10,7 @@ on:
       - 'packages/renderer/src/features/people/PeoplePages.tsx'
       - 'packages/renderer/src/features/people/people.css'
       - 'tools/scripts/cluster-v11-people-account-management-tests.mjs'
+      - 'tools/scripts/cluster-v11-people-account-management-route-smoke.mjs'
       - '.github/workflows/v11-people-account-management.yml'
   push:
     branches: [main]
@@ -17,6 +18,7 @@ on:
       - 'apps/server/src/domains/users/people-account-management-*.ts'
       - 'packages/renderer/src/features/people/**'
       - 'tools/scripts/cluster-v11-people-account-management-tests.mjs'
+      - 'tools/scripts/cluster-v11-people-account-management-route-smoke.mjs'
 
 permissions:
   contents: read
@@ -53,3 +55,5 @@ jobs:
         env:
           DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Exercise compiled management endpoint with Fastify injection
+        run: node tools/scripts/cluster-v11-people-account-management-route-smoke.mjs
