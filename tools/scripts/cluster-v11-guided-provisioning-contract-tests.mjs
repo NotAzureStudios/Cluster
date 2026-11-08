@@ -10,6 +10,9 @@ const route=source("apps/server/src/domains/users/people-provisioning-preview-ro
 const registry=source("apps/server/src/domains/users/user-directory-routes.ts");
 const roleGovernance=source("apps/server/src/domains/users/people-role-governance.ts");
 const css=source("packages/renderer/src/features/people/people-account-provisioning-wizard.css");
+const rolePreview=source("apps/server/src/domains/users/people-role-change-preview-routes.ts");
+const roleEditor=source("packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx");
+const roleCss=source("packages/renderer/src/features/people/people-role-impact-preview.css");
 let passed=0;function check(label,fn){fn();passed++;console.log("PASS",label);}
 const base={username:"user_name",email:"",accountType:"employee",accessExpiresAt:"",role:"member"};
 check("Guided creation keeps identity, starting access and review distinct",()=>{
@@ -85,5 +88,34 @@ check("Wizard is responsive and keeps the access review readable",()=>{
   assert.ok(css.includes('.people-account-wizard-progress-v11'));
   assert.ok(wizard.includes('<details>'));
   assert.ok(wizard.includes('Review all starting tool levels'));
+});
+check("Role change preview checks authority and matches workspace-specific membership",()=>{
+  assert.ok(rolePreview.includes('["owner", "admin"].includes(membership.role)'));
+  assert.ok(rolePreview.includes('where: { id: userId, memberships: { some: { workspaceId: membership.workspaceId } } }'));
+  assert.ok(rolePreview.includes('ROLE_SELF_CHANGE_DENIED'));
+  assert.ok(rolePreview.includes('ROLE_OWNER_REQUIRED'));
+  assert.ok(rolePreview.includes('ROLE_LAST_OWNER'));
+  assert.ok(rolePreview.includes('PEOPLE_LIFECYCLE_GOVERNED'));
+  assert.ok(registry.includes('registerPeopleRoleChangePreviewRoutes'));
+});
+check("Role preview does not weaken transactional owner or revision protections",()=>{
+  assert.ok(rolePreview.includes('configuredToolPermissionsForRole(previousRole'));
+  assert.ok(rolePreview.includes('configuredToolPermissionsForRole(nextRole.id'));
+  assert.ok(rolePreview.includes('not a guarantee of effective access'));
+  assert.ok(!rolePreview.includes('prisma.workspaceMember.update('));
+  assert.ok(!rolePreview.includes('prisma.user.update('));
+  assert.ok(registry.includes('assignWorkspaceRole(tx'));
+  assert.ok(registry.includes('PROFILE_REVISION_CONFLICT'));
+});
+check("Existing role editor requires fresh matching review before Apply",()=>{
+  assert.ok(roleEditor.includes('"/api/admin/users/'));
+  assert.ok(roleEditor.includes('role-change-preview'));
+  assert.ok(roleEditor.includes('preview?.key === previewKey'));
+  assert.ok(roleEditor.includes('!reviewed?.canApply'));
+  assert.ok(roleEditor.includes('reviewed.profileRevision !== (person.profileRevision || 1)'));
+  assert.ok(roleEditor.includes('requestId !== previewSequenceRef.current || key !== currentKeyRef.current'));
+  assert.ok(roleEditor.includes('Review role impact'));
+  assert.ok(roleEditor.includes('Apply reviewed role'));
+  assert.ok(roleCss.includes('.people-role-impact-v11'));
 });
 console.log(`Guided provisioning contracts: ${passed} checks passed.`);
