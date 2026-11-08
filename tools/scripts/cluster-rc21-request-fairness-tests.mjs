@@ -56,7 +56,7 @@ check(() => assert.match(client, /noteReadRateLimit\(trafficLane, response\.head
 check(() => assert.match(client, /await readRateLimitCooldown\(trafficLane, init\.signal\)/));
 check(() => assert.match(client, /Math\.min\(60_000, Math\.max\(0, retryAfter \* 1_000\)\)/));
 check(() => assert.match(read('packages/renderer/src/core/api/transport.ts'), /API_TIMEOUT_MS \+ 65_000/));
-check(() => assert.match(client, /requestCooldownGeneration === readRateLimitGeneration\\(\\)/));
+check(() => assert.match(client, /requestCooldownGeneration === readRateLimitGeneration\(\)/));
 const library = read('packages/renderer/src/features/library/LibraryWorkspacePage.tsx');
 check(() => assert.match(library, /showSavedViews \? <div className="library-views-flyout-v22"/));
 check(() => assert.doesNotMatch(library, /showFilters \|\| activeFilterCount > 0 \? <SavedViewsToolbar/));
