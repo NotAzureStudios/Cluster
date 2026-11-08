@@ -112,6 +112,7 @@ check("Account fetch is generation guarded and search is debounced", () => {
   assert.ok(admin.includes('if (current !== generation.current) return;'));
   assert.ok(admin.includes('if (requestGeneration !== generation.current) return;'));
   assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
+  assert.ok(admin.includes('if (!active || roleCatalogLoadedRef.current) return;'));
 });
 
 check("Admin workspace is responsive without bloating the general People layout", () => {
