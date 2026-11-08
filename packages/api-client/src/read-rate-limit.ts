@@ -11,6 +11,8 @@ export function readTrafficLane(path: string, method: string): string | null {
   if (method !== "GET" && method !== "HEAD") return null;
   const pathname = path.split("?")[0];
   if (pathname === "/api/meta/compatibility") return "api-compatibility";
+  // The server admits provisioning progress independently of ordinary reads.
+  if (/^\/api\/projects\/provision\/[^/]+$/.test(pathname)) return "api-project-progress";
   if (["/api/notifications/summary", "/api/time/active", "/api/calendar/upcoming", "/api/library/summary", "/api/me/presence"].includes(pathname) || pathname.startsWith("/api/presence/")) return "api-live";
   if (pathname === "/api/library/workspace" || pathname.startsWith("/api/library/collections")) return "api-library";
   if (pathname.startsWith("/api/admin/inventory/") || pathname.startsWith("/api/inventory/")) return "api-inventory";
