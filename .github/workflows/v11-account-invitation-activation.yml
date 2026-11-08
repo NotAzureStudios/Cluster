@@ -56,3 +56,37 @@ jobs:
         env:
           DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+  disposable-postgres:
+    name: PostgreSQL 18 invitation atomicity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: invitation_cert
+          POSTGRES_USER: cluster_cert
+          POSTGRES_PASSWORD: disposable_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cluster_cert -d invitation_cert"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Exercise actual migration and two-client CAS races in disposable PostgreSQL
+        run: node tools/scripts/cluster-v11-account-invitation-postgres-certification.mjs
+        env:
+          ACCOUNT_INVITATION_CERT_DISPOSABLE: I_UNDERSTAND
+          ACCOUNT_INVITATION_CERT_DATABASE_URL: postgresql://cluster_cert:disposable_test_password@127.0.0.1:5432/invitation_cert
