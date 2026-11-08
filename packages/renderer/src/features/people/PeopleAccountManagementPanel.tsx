@@ -54,11 +54,13 @@ const accountStateLabel = (account: AccountSummary) => {
 
 export function PeopleAccountManagementPanel({
   refreshVersion,
+  active,
   onOpenAccount,
   accountCreationOpen,
   onToggleCreateAccount,
 }: {
   refreshVersion: number;
+  active: boolean;
   onOpenAccount: (id: string, view: AccountView) => void;
   accountCreationOpen: boolean;
   onToggleCreateAccount: () => void;
@@ -107,6 +109,7 @@ export function PeopleAccountManagementPanel({
   }, []);
 
   useEffect(() => {
+    if (!active) { generation.current += 1; paging.current = false; setLoading(false); setLoadingMore(false); return; }
     const current = ++generation.current;
     paging.current = false;
     setAccounts([]);
@@ -128,10 +131,10 @@ export function PeopleAccountManagementPanel({
       if (current === generation.current) setLoading(false);
     });
     return () => { generation.current += 1; };
-  }, [paramsKey, refreshVersion, reloadKey]);
+  }, [paramsKey, refreshVersion, reloadKey, active]);
 
   async function loadMore() {
-    if (!nextCursor || loading || paging.current) return;
+    if (!active || !nextCursor || loading || paging.current) return;
     paging.current = true;
     const requestGeneration = generation.current;
     setLoadingMore(true);
