@@ -45,3 +45,7 @@
 .people-account-wizard-actions-v11 button{min-height:36px}
 @media(max-width:680px){.people-account-wizard-v11{padding:12px}.people-account-wizard-fields-v11,.people-account-wizard-access-v11,.people-account-wizard-summary-v11{grid-template-columns:minmax(0,1fr)}.people-account-wizard-access-v11>.field{grid-column:auto}.people-account-wizard-progress-v11 li{padding:8px 5px;font-size:.67rem;gap:5px}.people-account-wizard-progress-v11 li span{width:19px;height:19px}}
 @media(max-width:400px){.people-account-wizard-progress-v11{gap:4px}.people-account-wizard-permission-counts-v11{grid-template-columns:repeat(2,minmax(0,1fr))}.people-account-wizard-policy-v11 details:not(.people-account-wizard-limitations-v11) ul{grid-template-columns:minmax(0,1fr)}}
+.people-account-wizard-onboarding-v11{grid-column:1/-1}
+.people-onboarding-followup-v11{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 15px;font-size:.76rem;line-height:1.5}
+.people-onboarding-followup-v11 strong{font-weight:700}
+.people-onboarding-followup-v11 span{flex:1;min-width:190px;color:var(--muted)}
