@@ -240,14 +240,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
-  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
   const [createAccountError, setCreateAccountError] = useState("");
   const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
   const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
     canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
   const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
   const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
-    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
+    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.onboardingVersionId || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
   const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
     dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
     title: "Discard account draft?",
@@ -261,7 +261,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (createAccountBusy) return;
     if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
     if (createAccountOpen) {
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
       setCreateAccountError("");
     }
     setCreateAccountOpen((open) => !open);
@@ -485,7 +485,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
       setCreateAccountOpen(false);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
