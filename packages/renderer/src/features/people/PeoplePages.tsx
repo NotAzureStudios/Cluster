@@ -295,6 +295,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setPeopleContext(null);
     setWorkforceContext(null);
     setIssuedCredential(null);
+    setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
   const peopleServerDataQuery = useMemo<ClusterDataQuery>(() => ({
