@@ -14,11 +14,16 @@ export async function runPrismaScalarAnalytics(input: {
   const derived = compileClusterDataDerivedLinearExpressions(input.derivedFields || [], input.semanticFields || []);
   const total = await input.model.count({ where: input.where });
   const facets: ClusterDataFacetResult[] = [];
+  const facetGroupsByField = new Map<string, any[]>();
 
   for (const fieldId of input.facets) {
     const prismaField = input.facetFields.get(fieldId);
     if (!prismaField) continue;
-    const grouped = await input.model.groupBy({ by: [prismaField], where: input.where, _count: { _all: true } });
+    let grouped = facetGroupsByField.get(prismaField);
+    if (!grouped) {
+      grouped = await input.model.groupBy({ by: [prismaField], where: input.where, _count: { _all: true } });
+      facetGroupsByField.set(prismaField, grouped);
+    }
     const buckets = grouped.map((row: any) => ({ value: row[prismaField] ?? null, count: Number(row?._count?._all || 0) })).sort((a: any, b: any) => b.count - a.count || String(a.value ?? "").localeCompare(String(b.value ?? ""))).slice(0, 50);
     facets.push({ fieldId, buckets });
   }
@@ -69,7 +74,8 @@ export async function runPrismaScalarAnalytics(input: {
     if (aggregation.kind === "count_distinct") {
       let distinct = scalarDistinctCounts.get(prismaField);
       if (distinct === undefined) {
-        const grouped = await input.model.groupBy({ by: [prismaField], where: input.where });
+        const grouped = facetGroupsByField.get(prismaField)
+          || await input.model.groupBy({ by: [prismaField], where: input.where });
         distinct = Number(grouped.filter((row: any) => row[prismaField] != null).length);
         scalarDistinctCounts.set(prismaField, distinct);
       }
@@ -155,7 +161,11 @@ export async function runPrismaGroupedProjections(input: {
       if (!prismaField) continue;
       let counts = distinctCountsByField.get(prismaField);
       if (!counts) {
-        const distinctRows = await input.model.groupBy({ by: [...new Set([...by, prismaField])], where: input.where });
+        // If this field is itself a grouping dimension, each non-null group
+        // already represents exactly one distinct value. No second query.
+        const distinctRows = by.includes(prismaField)
+          ? grouped
+          : await input.model.groupBy({ by: [...new Set([...by, prismaField])], where: input.where });
         counts = new Map<string, number>();
         for (const row of distinctRows) {
           if (row[prismaField] == null) continue;
