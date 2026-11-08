@@ -18,6 +18,7 @@
     "performance:settings:check": "node --experimental-strip-types tools/scripts/cluster-performance-settings-tests.mjs",
     "performance:ui:check": "node --experimental-strip-types tools/scripts/cluster-ui-idle-portfolio-tests.mjs",
     "performance:server:check": "node --experimental-strip-types tools/scripts/cluster-server-resource-performance-tests.mjs",
+    "performance:analytics:check": "node tools/scripts/cluster-performance-analytics-query-tests.mjs",
     "performance:desktop:check": "node tools/scripts/cluster-qt-native-bridge-performance-tests.mjs",
     "release:profiles": "node tools/scripts/cluster-platform-release.mjs --list",
     "release:plan:server": "node tools/scripts/cluster-platform-release.mjs --profile server-windows-x64 --channel development",
