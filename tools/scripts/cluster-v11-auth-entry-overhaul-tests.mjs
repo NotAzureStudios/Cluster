@@ -62,6 +62,12 @@ check("Passkeys and password policies still use existing Server authorities",
   screen.includes('"/api/auth/login"') &&
   gate.includes('PasswordMigrationScreen') &&
   gate.includes('MfaEnrollmentScreen'));
+check("One-time MFA recovery codes require an explicit saved-code acknowledgment",
+  screen.includes('const [recoveryCodesSaved, setRecoveryCodesSaved] = useState(false)') &&
+  screen.includes('checked={recoveryCodesSaved}') &&
+  screen.includes('disabled={busy || !recoveryCodesSaved}') &&
+  screen.includes('setRecoveryCodesSaved(false)') &&
+  css.includes('cluster-auth-recovery-ack-v11'));
 check("Recovery keeps generic non-enumerating response and a clear back path",
   screen.includes('Cluster does not reveal whether an account exists') &&
   screen.includes('"/api/auth/password-reset-request"') &&
