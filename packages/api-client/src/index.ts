@@ -1,5 +1,5 @@
 import type { ApiErrorDetail, ApiErrorResponse, ClusterServerCapability as ClusterKnownServerCapability } from "@cluster/shared";
-import { readTrafficLane, readRateLimitCooldown, noteReadRateLimit, resetReadRateLimitCooldowns } from "./read-rate-limit.js";
+import { readTrafficLane, readRateLimitCooldown, noteReadRateLimit, resetReadRateLimitCooldowns, readRateLimitGeneration } from "./read-rate-limit.js";
 
 export const CLUSTER_API_CLIENT_PROTOCOL_VERSION = 2 as const;
 
@@ -301,6 +301,8 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
   const method = String(init.method || "GET").toUpperCase();
   const canRetry = method === "GET" || method === "HEAD";
   const trafficLane = readTrafficLane(pathname, method);
+  // Ignore a late 429 from a request started before an account/server switch.
+  const requestCooldownGeneration = readRateLimitGeneration();
   const maximumAttempts = 1 + (canRetry ? runtime.maxReadRetries : 0);
   const baseHeaders = requestHeaders(init.headers);
   const requestId = baseHeaders.get(CLUSTER_CLIENT_HEADERS.requestId) || createClientRequestId();
@@ -336,7 +338,7 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
       updateServerMetadata(response);
       // Respect the server window across parallel widgets: a 429 must not
       // multiply into several immediate retries from every component.
-      if (response.status === 429 && trafficLane) noteReadRateLimit(trafficLane, response.headers.get("retry-after"));
+      if (response.status === 429 && trafficLane && requestCooldownGeneration === readRateLimitGeneration()) noteReadRateLimit(trafficLane, response.headers.get("retry-after"));
 
       if (csrfRequired && !csrfRetried && response.headers.get("x-cluster-csrf-invalid") === "1") {
         csrfRetried = true;
