@@ -291,6 +291,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }), [deferredDirectoryQuery, departmentFilter, peopleProjections, peopleServerGroups, peoplePortableDerivedPlan.fields, peopleAnalyticalSelectionSet]);
   const peopleServerQueryKey = useMemo(() => JSON.stringify(peopleServerDataQuery), [peopleServerDataQuery]);
   const peopleDirectory = useClusterCursorData<UserActivitySummary>({
+    enabled: workforceMode === "directory",
     resetKey: `${currentUser.id}:${effectiveAdminMode ? "admin" : "directory"}:${directoryRefresh}:${peopleServerQueryKey}`,
     rowKey: (person) => person.id,
     loadPage: async (cursor): Promise<ClusterCursorPage<UserActivitySummary>> => queryApi<ClusterCursorPage<UserActivitySummary>>(`/api/users?summary=true&paged=true&limit=80&dataQuery=${clusterDataQueryParameter(peopleServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { staleMs: 5_000, maxAgeMs: 2 * 60_000, force: Boolean(cursor), tags: ["users", "people", "directory"] }),
