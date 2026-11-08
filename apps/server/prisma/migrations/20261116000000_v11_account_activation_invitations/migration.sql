@@ -16,7 +16,7 @@ CREATE TABLE "StudioAccountInvitation" (
 
 CREATE UNIQUE INDEX "StudioAccountInvitation_tokenHash_key" ON "StudioAccountInvitation"("tokenHash");
 CREATE INDEX "StudioAccountInvitation_workspaceId_userId_createdAt_idx" ON "StudioAccountInvitation"("workspaceId", "userId", "createdAt");
-CREATE INDEX "StudioAccountInvitation_userId_consumedAt_revokedAt_expiresAt_idx" ON "StudioAccountInvitation"("userId", "consumedAt", "revokedAt", "expiresAt");
+CREATE INDEX "AccountInvite_user_lifecycle_idx" ON "StudioAccountInvitation"("userId", "consumedAt", "revokedAt", "expiresAt");
 
 ALTER TABLE "StudioAccountInvitation" ADD CONSTRAINT "StudioAccountInvitation_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "StudioAccountInvitation" ADD CONSTRAINT "StudioAccountInvitation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
