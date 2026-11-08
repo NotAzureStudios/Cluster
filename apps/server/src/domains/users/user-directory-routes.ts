@@ -15,6 +15,7 @@ import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-au
 import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
 import { validPeopleStartDate, validPeopleTimeZone } from "./people-input-validation.js";
 import { registerPeopleAccountManagementRoutes } from "./people-account-management-routes.js";
+import { provisioningPreviewInput, buildPeopleProvisioningPreview } from "./people-provisioning-preview.js";
 
 type UserDirectoryRouteDependencies = {
   app: FastifyInstance;
@@ -60,6 +61,25 @@ app.get("/api/admin/users/assignable-roles", async (request, reply) => {
     actorRole: membership.role,
     roles: definitions.map((role) => ({ ...role, members: countByRole.get(role.id) || 0 })),
   };
+});
+app.post("/api/admin/users/provisioning-preview", async (request, reply) => {
+  const actor = await getCurrentUser(request);
+  if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+  const membership = await prisma.workspaceMember.findFirst({
+    where: { userId: actor.id }, orderBy: { workspaceId: "asc" },
+    select: { workspaceId: true, role: true },
+  });
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return reply.code(403).send({ ok: false, code: "ROLE_ADMIN_REQUIRED" });
+  }
+  const parsed = provisioningPreviewInput.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({
+    ok: false, code: "PROVISIONING_PREVIEW_INVALID",
+    error: "Choose a valid account type, role, and access expiry to review.",
+  });
+  // Preflight is not an authorization token. The create endpoint always
+  // rechecks actor authority, role, expiry, and identity independently.
+  return buildPeopleProvisioningPreview(parsed.data, membership.role, await readSettings());
 });
 app.get("/api/users", async (request, reply) => {
   const viewer = await getCurrentUser(request);
