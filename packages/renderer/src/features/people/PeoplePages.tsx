@@ -58,6 +58,7 @@ import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
 import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
+import { PeopleAccountProvisioningWizard } from "./PeopleAccountProvisioningWizard";
 import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
@@ -485,6 +486,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
       setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountOpen(false);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
       // Creation already committed. A failed follow-up read must never invite a retry
@@ -959,29 +961,17 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         <span>{effectiveAdminMode ? "People administration" : workforceContext ? `${users.length} people` : "Loading…"}</span>
       </div>
 
-      {effectiveAdminMode && createAccountOpen && <section className="people-admin-create-v536 panel" aria-label="Create Cluster account">
-        <header><div><strong>Create account</strong><span>Choose identity, account type, and starting role. A temporary password is issued after creation.</span></div></header>
-        <div className="people-admin-create-grid-v536">
-          <label className="field"><span>Username</span><ClusterTextInput autoFocus maxLength={32} value={createAccountDraft.username} onChange={(event) => patchCreateAccountDraft({ username: event.target.value })} placeholder="username" /></label>
-          <label className="field"><span>Display name</span><ClusterTextInput value={createAccountDraft.displayName} onChange={(event) => patchCreateAccountDraft({ displayName: event.target.value })} placeholder="Display name" /></label>
-          <label className="field"><span>Email</span><ClusterTextInput type="email" value={createAccountDraft.email} onChange={(event) => patchCreateAccountDraft({ email: event.target.value })} placeholder="name@example.com" /></label>
-          <label className="field"><span>Access expires</span><ClusterInput type="date" value={createAccountDraft.accessExpiresAt} onChange={(event) => patchCreateAccountDraft({ accessExpiresAt: event.target.value })} /><small>{["contractor", "client", "guest"].includes(createAccountDraft.accountType) ? "Required for this account type." : "Optional for employees."}</small></label>
-          <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => patchCreateAccountDraft({ accountType: event.target.value })}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
-          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => patchCreateAccountDraft({ role: event.target.value })}>
-            {!createRoleCatalog?.roles.some((role) => role.id === createAccountDraft.role) && <option value={createAccountDraft.role} disabled>{createAccountDraft.role} (unavailable)</option>}
-            {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, createRoleCatalog?.actorRole)}>
-              {role.label}{role.enabled ? "" : " (disabled)"}
-            </option>)}
-          </ClusterNativeSelect>
-          <small>Only roles you can assign appear as enabled options. Owner and administrator roles require an owner.</small>
-          {createRoleLoading && <small role="status">Loading workspace roles…</small>}
-          {createRoleError && <small role="alert">{createRoleError}</small>}
-          </label>
-          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError) || Boolean(createAccountBlocker)} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
-          {!createAccountBusy && !createRoleLoading && createAccountBlocker && <p className="people-create-validation-v11" role="status">{createAccountBlocker}</p>}
-          {createAccountError && <p className="people-create-validation-error-v11" role="alert">{createAccountError}</p>}
-        </div>
-      </section>}
+      {effectiveAdminMode && createAccountOpen && <PeopleAccountProvisioningWizard
+        draft={createAccountDraft}
+        onPatch={patchCreateAccountDraft}
+        roleCatalog={createRoleCatalog}
+        rolesLoading={createRoleLoading}
+        rolesError={createRoleError}
+        creating={createAccountBusy}
+        actionError={createAccountError}
+        onCreate={createPersonAccount}
+        onCancel={() => { void toggleCreateAccount(); }}
+      />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
 
