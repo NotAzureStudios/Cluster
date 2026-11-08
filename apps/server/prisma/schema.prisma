@@ -43,6 +43,9 @@ model User {
   studioFormReviewerGrants StudioFormReviewer[]
   passwordResetRequests PasswordResetRequest[] @relation("PasswordResetRequester")
   passwordResetRequestsResolved PasswordResetRequest[] @relation("PasswordResetResolver")
+  accountInvitations StudioAccountInvitation[] @relation("StudioAccountInvitationSubject")
+  accountInvitationsIssued StudioAccountInvitation[] @relation("StudioAccountInvitationIssuer")
+  accountInvitationsRevoked StudioAccountInvitation[] @relation("StudioAccountInvitationRevoker")
   pinHash        String?
   pinUpdatedAt   DateTime?
   failedPinCount Int      @default(0)
@@ -170,6 +173,28 @@ model User {
   @@index([archived, updatedAt])
 }
 
+
+model StudioAccountInvitation {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  userId         String
+  issuedById     String
+  revokedById    String?
+  tokenHash      String   @unique
+  authGeneration Int
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  consumedAt     DateTime?
+  revokedAt      DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user User @relation("StudioAccountInvitationSubject", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy User @relation("StudioAccountInvitationIssuer", fields: [issuedById], references: [id], onDelete: Cascade)
+  revokedBy User? @relation("StudioAccountInvitationRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, userId, createdAt])
+  @@index([userId, consumedAt, revokedAt, expiresAt])
+}
 
 model PasswordResetRequest {
   id              String   @id @default(cuid())
@@ -498,6 +523,7 @@ model Workspace {
   updatedAt DateTime @updatedAt
 
   members  WorkspaceMember[]
+  accountInvitations StudioAccountInvitation[]
   projects Project[]
   studioTeams StudioTeam[]
   departments Department[]
