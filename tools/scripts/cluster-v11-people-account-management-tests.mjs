@@ -124,4 +124,20 @@ check("Admin workspace is responsive without bloating the general People layout"
   assert.ok(people.includes('!activateTarget && !contextOnly'));
 });
 
+check("Opening an account does not destroy active account filters or result context", () => {
+  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
+  assert.ok(people.includes('active={workforceMode === "accounts"}'));
+  assert.ok(admin.includes('if (!active) { generation.current += 1; paging.current = false;'));
+  assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
+});
+check("Returning from user editing and access preserves Accounts navigation and guards drafts", () => {
+  assert.ok(people.includes('const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);'));
+  assert.ok(people.includes('async function changeWorkforceMode(next: typeof workforceMode)'));
+  assert.ok(people.includes('if (!(await confirmEditorDiscard())) return;'));
+  assert.ok(people.includes('Back to Accounts'));
+  assert.ok(people.includes('setAccountsReturnAvailable(true);'));
+});
+check("Deep-linked users retain their profile rather than getting an empty admin Accounts view", () => {
+  assert.ok(people.includes('!readClusterDetailSelection("person") ? "accounts" : "directory"'));
+});
 console.log(`People account management: ${count} contract and runtime checks passed.`);
