@@ -5,6 +5,7 @@ import { ClusterInput } from "../../components/ClusterNativeControls";
 import { RequestErrorState } from "../../components/RequestState";
 import { StudioFormRunner, type StudioFormDocument } from "../studio-systems/StudioFormRunner";
 import { LoginScreen, type ClusterAuthUser } from "./AuthScreens";
+import { AccountInvitationActivation } from "./AccountInvitationActivation";
 
 type PublicApplication = {
   id: string;
@@ -16,10 +17,26 @@ type PublicApplication = {
 
 type StudioCover = { ok: true; studioName: string; applications: PublicApplication[] };
 
+// URL fragments never reach the Server or referrer headers. Capture once and
+// remove the secret from the visible URL before rendering the invitation form.
+function captureActivationFragment(): string | null {
+  if (typeof window === "undefined") return null;
+  const fragment = window.location.hash;
+  if (fragment.startsWith("#activate=")) {
+    const token = fragment.slice("#activate=".length);
+    const capturedToken = token.length <= 256 ? token : "";
+    const cleanUrl = window.location.pathname + window.location.search;
+    window.history.replaceState(window.history.state, "", cleanUrl);
+    return capturedToken;
+  }
+  return null;
+}
+
 export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null }) {
   const [cover, setCover] = useState<StudioCover | null>(null);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [mode, setMode] = useState<"cover" | "signin" | "apply">("cover");
+  const [activationToken, setActivationToken] = useState<string | null>(() => captureActivationFragment());
   const [applicationKey, setApplicationKey] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [website, setWebsite] = useState("");
@@ -34,6 +51,11 @@ export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (use
   }
 
   useEffect(() => { void load(); }, []);
+  if (activationToken !== null) return <AccountInvitationActivation token={activationToken}
+    onReturnToSignIn={() => {
+      setActivationToken(null);
+      setMode("signin");
+    }} />;
   if (mode === "signin") return <LoginScreen recoveryMessage={recoveryMessage} onLogin={onLogin} onBack={() => setMode("cover")} studioName={cover?.studioName} />;
   if (loadError && !cover) return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><RequestErrorState error={loadError} title="Studio cover could not be loaded" onRetry={() => void load()} /><ClusterButton type="button" variant="secondary" onClick={() => setMode("signin")}>Sign in</ClusterButton></section></main>;
   if (!cover) return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><span>Loading studio…</span></section></main>;

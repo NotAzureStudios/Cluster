@@ -1,0 +1,98 @@
+name: v1.1 One-time account activation invitations
+
+on:
+  pull_request:
+    branches: [main, 'feat/people-onboarding-targeted-assignment-v11']
+    paths:
+      - 'apps/server/src/domains/auth/account-invitation-*.ts'
+      - 'apps/server/src/domains/users/people-role-governance.ts'
+      - 'apps/server/src/domains/auth/auth-routes.ts'
+      - 'apps/server/prisma/schema.prisma'
+      - 'apps/server/prisma/migrations/20261116000000_v11_account_activation_invitations/**'
+      - 'packages/renderer/src/features/auth/AccountInvitationActivation.tsx'
+      - 'packages/renderer/src/features/auth/PublicClusterCover.tsx'
+      - 'packages/renderer/src/features/people/AccountInvitationHandoff.tsx'
+      - 'packages/renderer/src/features/people/PeoplePages.tsx'
+      - 'tools/scripts/cluster-v11-account-invitation-*.mjs'
+      - '.github/workflows/v11-account-invitation-activation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/server/src/domains/auth/account-invitation-*.ts'
+      - 'apps/server/src/domains/users/people-role-governance.ts'
+      - 'packages/renderer/src/features/auth/AccountInvitationActivation.tsx'
+      - 'tools/scripts/cluster-v11-account-invitation-*.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  invitation-activation:
+    name: Invitation security and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Test secure token lifecycle and public activation contracts
+        run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-account-invitation-contract-tests.mjs
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Compile entire Server and Web
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Check compiled Fastify issuance, rotation, activation and revocation
+        run: node tools/scripts/cluster-v11-account-invitation-http-smoke.mjs
+      - name: Check invitation revocation on canonical workspace role changes
+        run: node tools/scripts/cluster-v11-account-invitation-role-revocation.mjs
+  disposable-postgres:
+    name: PostgreSQL 18 invitation atomicity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: invitation_cert
+          POSTGRES_USER: cluster_cert
+          POSTGRES_PASSWORD: disposable_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cluster_cert -d invitation_cert"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Exercise actual migration and two-client CAS races in disposable PostgreSQL
+        run: node tools/scripts/cluster-v11-account-invitation-postgres-certification.mjs
+        env:
+          ACCOUNT_INVITATION_CERT_DISPOSABLE: I_UNDERSTAND
+          ACCOUNT_INVITATION_CERT_DATABASE_URL: postgresql://cluster_cert:disposable_test_password@127.0.0.1:5432/invitation_cert
