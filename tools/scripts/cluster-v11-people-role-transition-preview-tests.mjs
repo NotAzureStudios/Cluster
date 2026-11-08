@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { evaluateRoleTransition } from "../../apps/server/dist/domains/users/people-role-transition-preview.js";
 
 const read = file => readFileSync(file,"utf8");
-const routes=read("apps/server/src/domains/users/user-directory-routes.ts");
+const routes=read("apps/server/src/domains/users/people-administration-preflight-routes.ts");
 const panel=read("packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx");
 const css=read("packages/renderer/src/features/settings/people-management-layout-v11.css");
 const settings={studioRoleDefinitions:[{id:"artist",enabled:true},{id:"qa",enabled:false}]};
