@@ -27,6 +27,9 @@ check(()=>assert.equal(policy('/api/timeline/items','PUT').bucketName,'api-mutat
 check(()=>assert.equal(readTrafficLane('/api/timeline?start=2026-10-01','GET'),'api-timeline'));
 check(()=>assert.equal(readTrafficLane('/api/admin/settings','GET'),'api-admin'));
 check(()=>assert.equal(readTrafficLane('/api/me/presence','GET'),'api-live'));
+check(()=>assert.equal(policy('/api/projects/provision/job-123').bucketName,'api-project-progress'));
+check(()=>assert.equal(readTrafficLane('/api/projects/provision/job-123?refresh=1','GET'),'api-project-progress'));
+check(()=>assert.equal(readTrafficLane('/api/projects/provision/job-123','POST'),null));
 check(()=>assert.equal(readTrafficLane('/api/auth/login','POST'),null));
 check(()=>assert.ok(authTransportRateLimitPolicy({pathname:'/api/auth/login',method:'POST',authRateLimitMax:12})));
 check(()=>assert.ok(policy('/api/projects/provision','POST').limit<=20));
