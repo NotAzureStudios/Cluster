@@ -55,8 +55,8 @@ try {
   });
 
   const insert=async(id,digest,expiry="NOW() + interval '1 hour'")=>
-    a.query(`INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","expiresAt")
-      VALUES ($1,'studio-a','pending','owner',$2,2,${expiry})`,[id,digest]);
+    a.query(`INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","roleAtIssue","expiresAt")
+      VALUES ($1,'studio-a','pending','owner',$2,2,'member',${expiry})`,[id,digest]);
 
   await insert("ticket-1","digest-1");
   await check("Hash-only storage enforces ticket digest uniqueness",async()=>{
@@ -109,7 +109,7 @@ try {
 
   await check("FK constraints reject invitation records for absent users",async()=>{
     await assert.rejects(a.query(
-      'INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","expiresAt") VALUES ($1,$2,$3,$4,$5,$6,NOW())',
+      'INSERT INTO "StudioAccountInvitation" ("id","workspaceId","userId","issuedById","tokenHash","authGeneration","roleAtIssue","expiresAt") VALUES ($1,$2,$3,$4,$5,$6,'member',NOW())',
       ["orphan","studio-a","not-existing","owner","other-digest",1]),/foreign key constraint/i);
   });
   console.log(`Disposable PostgreSQL invitation certification: ${passed} checks passed.`);
