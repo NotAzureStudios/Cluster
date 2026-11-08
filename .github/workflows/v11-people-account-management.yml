@@ -1,0 +1,55 @@
+name: v1.1 People account management
+
+on:
+  pull_request:
+    branches: [main, 'fix/people-management-workflow-polish-1-1-next']
+    paths:
+      - 'apps/server/src/domains/users/people-account-management-*.ts'
+      - 'apps/server/src/domains/users/user-directory-routes.ts'
+      - 'packages/renderer/src/features/people/PeopleAccountManagementPanel.tsx'
+      - 'packages/renderer/src/features/people/PeoplePages.tsx'
+      - 'packages/renderer/src/features/people/people.css'
+      - 'tools/scripts/cluster-v11-people-account-management-tests.mjs'
+      - '.github/workflows/v11-people-account-management.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/server/src/domains/users/people-account-management-*.ts'
+      - 'packages/renderer/src/features/people/**'
+      - 'tools/scripts/cluster-v11-people-account-management-tests.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  accounts-contract-and-build:
+    name: Account list and release build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout reviewed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Test workspace-scoped filtering and account management navigation
+        run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-people-account-management-tests.mjs
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate pinned Prisma client
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Compile Server and Web
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
