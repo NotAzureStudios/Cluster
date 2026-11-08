@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { API_URL, ApiError, api } from "../../core/api";
 import { ClusterOperationalStatus } from "../../components/ClusterOperationalStatus";
 import { operationalInteractionState } from "../../components/operational-status";
 import "./auth.css";
+import { AuthEntryLayout } from "./AuthEntryLayout";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
@@ -110,6 +111,13 @@ function PasswordFields({
 
 export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null; onBack?: () => void; studioName?: string }) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState("");
+  const authActionRef = useRef(false);
+  const identifierFieldId = useId();
+  const passwordFieldId = useId();
+  const mfaFieldId = useId();
+  const recoveryFieldId = useId();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -124,9 +132,19 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
   const [mfaRecoveryAvailable, setMfaRecoveryAvailable] = useState(false);
   const [mfaPasskeyPublicKey, setMfaPasskeyPublicKey] = useState<any>(null);
 
-  useEffect(() => {
-    api<AuthConfig>("/api/auth/config").then(setConfig).catch((reason) => setError(errorMessage(reason, "Authentication configuration could not be loaded.")));
-  }, []);
+  async function loadConfig() {
+    setConfigLoading(true);
+    setConfigError("");
+    try {
+      setConfig(await api<AuthConfig>("/api/auth/config"));
+    } catch (reason) {
+      setConfig(null);
+      setConfigError(errorMessage(reason, "Could not reach the studio authentication service."));
+    } finally {
+      setConfigLoading(false);
+    }
+  }
+  useEffect(() => { void loadConfig(); }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError(""); setRecoveryStatus(""); setBusy(true);
