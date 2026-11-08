@@ -43,6 +43,7 @@ export function registerUserDirectoryRoutes(deps: UserDirectoryRouteDependencies
   const { app, prisma, getCurrentUser, getWorkspaceRole, hasToolPermission, serializeUserLite, serializeUserPrivate, serializeUserPublicProfile, parseObject, normalizeAuthUsername, hashPassword, generateTemporaryPassword, logSecurityEvent, logActivity, canViewPrivateUserProfile, serializeActivityEvent, readSettings, authorization } = deps;
   registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser });
   registerPeopleProvisioningPreviewRoutes({ app, prisma, getCurrentUser, readSettings, normalizeAuthUsername, authorization });
+  registerPeopleRoleChangePreviewRoutes({ app, prisma, getCurrentUser, readSettings, authorization });
 app.get("/api/admin/users/assignable-roles", async (request, reply) => {
   const actor = await getCurrentUser(request);
   if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
