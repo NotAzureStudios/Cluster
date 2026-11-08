@@ -98,6 +98,8 @@ check("Account toolbar and page navigation offer task-first actions", () => {
   assert.ok(people.includes('pendingManagedAccountViewRef.current = { id, view }'));
   assert.ok(people.includes('setProfileViewState(pending.view)'));
   assert.ok(people.includes("accountCreationOpen={createAccountOpen}"));
+  assert.ok(people.includes('workforceMode !== "accounts" && <ClusterButton variant="secondary"'));
+  assert.ok(people.includes('workforceMode === "accounts" ? "Refresh accounts" : "Refresh people"'));
   assert.ok(admin.includes("onToggleCreateAccount"));
   assert.ok(admin.includes('Role filter unavailable: {roleError}'));
 });
