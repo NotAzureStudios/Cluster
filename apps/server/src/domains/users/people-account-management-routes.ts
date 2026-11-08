@@ -59,6 +59,7 @@ export function registerPeopleAccountManagementRoutes(deps: {
           },
           employment: {
             select: {
+              workspaceId: true,
               department: { select: { name: true } },
               jobRole: { select: { name: true } },
               manager: { select: { id: true, username: true, displayName: true } },
@@ -72,7 +73,11 @@ export function registerPeopleAccountManagementRoutes(deps: {
 
     const page = buildCursorPage(rows, query.limit, "updatedAt");
     return {
-      items: page.items.map((user: any) => ({
+      items: page.items.map((user: any) => {
+        // A user can belong to several workspaces, but Employment is a single
+        // record. Never disclose another workspace's workforce details.
+        const employment = user.employment?.workspaceId === membership.workspaceId ? user.employment : null;
+        return {
         id: user.id,
         username: user.username,
         displayName: user.displayName || user.preferredName || user.username,
@@ -80,17 +85,18 @@ export function registerPeopleAccountManagementRoutes(deps: {
         accountType: user.accountType || "employee",
         accountState: user.accountState || "ACTIVE",
         workspaceRole: user.memberships[0]?.role || "member",
-        department: user.employment?.department?.name || null,
-        jobTitle: user.employment?.jobRole?.name || null,
-        manager: user.employment?.manager ? {
-          id: user.employment.manager.id,
-          displayName: user.employment.manager.displayName || user.employment.manager.username,
+        department: employment?.department?.name || null,
+        jobTitle: employment?.jobRole?.name || null,
+        manager: employment?.manager ? {
+          id: employment.manager.id,
+          displayName: employment.manager.displayName || employment.manager.username,
         } : null,
         accessExpiresAt: user.accessExpiresAt?.toISOString() || null,
         lastSeenAt: user.lastSeenAt?.toISOString() || null,
         updatedAt: user.updatedAt.toISOString(),
         archived: Boolean(user.archived),
-      })),
+      };
+      }),
       nextCursor: page.nextCursor,
       hasMore: page.hasMore,
       total,
