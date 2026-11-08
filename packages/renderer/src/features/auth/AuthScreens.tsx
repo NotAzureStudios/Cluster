@@ -147,11 +147,15 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
   useEffect(() => { void loadConfig(); }, []);
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setError(""); setRecoveryStatus(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !config || !config.passwordLoginEnabled) return;
+    authActionRef.current = true;
+    setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const result = await api<AuthResult>("/api/auth/login", { method: "POST", body: JSON.stringify({ username: identifier, password }) });
       if (result.mfaRequired && result.challenge) {
         setMfaChallenge(result.challenge);
+        setPassword(""); // Do not retain the password in renderer state during MFA.
         setMfaRecoveryAvailable(Boolean(result.recoveryAvailable));
         setMfaPasskeyPublicKey(result.passkeyAvailable ? result.passkeyPublicKey : null);
         setMfaCode("");
@@ -166,11 +170,14 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitMfa(event: FormEvent) {
-    event.preventDefault(); setError(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !mfaChallenge) return;
+    authActionRef.current = true;
+    setError(""); setBusy(true);
     try {
       const result = await api<AuthResult>("/api/auth/mfa/challenge", {
         method: "POST",
@@ -180,11 +187,12 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "The authentication code was not accepted.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitPasskey() {
-    if (!mfaChallenge || !mfaPasskeyPublicKey) return;
+    if (!mfaChallenge || !mfaPasskeyPublicKey || authActionRef.current) return;
+    authActionRef.current = true;
     setError(""); setBusy(true);
     try {
       const credential = await getWebAuthnCredential(mfaPasskeyPublicKey);
@@ -193,20 +201,25 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "The passkey could not be verified.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function requestReset(event: FormEvent) {
-    event.preventDefault(); setError(""); setRecoveryStatus(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !identifier.trim()) return;
+    authActionRef.current = true;
+    setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const result = await api<{ ok: boolean; message: string }>("/api/auth/password-reset-request", { method: "POST", body: JSON.stringify({ identifier }) });
       setRecoveryStatus(result.message || "An administrator has been notified if the account can be recovered.");
     } catch (reason) { setError(errorMessage(reason, "The reset request could not be submitted.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitPasswordlessPasskey() {
     if (!webAuthnAvailable()) { setError("Passkeys are not available in this browser or runtime."); return; }
+    if (authActionRef.current || !config) return;
+    authActionRef.current = true;
     setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const start = await api<{ ok: boolean; challenge: string; publicKey: any }>("/api/auth/passkeys/login/start", { method: "POST" });
@@ -216,17 +229,19 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Passkey sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function devLogin() {
+    if (authActionRef.current || !config?.devLoginEnabled) return;
+    authActionRef.current = true;
     setBusy(true); setError("");
     try {
       const result = await api<AuthResult>("/api/auth/dev-login", { method: "POST" });
       if (!result.user) throw new Error("Development sign in did not return a user.");
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null })); onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Development sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
