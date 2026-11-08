@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput } from "../../components/ClusterNativeControls";
-import { AuthEntryLayout } from "./AuthEntryLayout";
+import "./auth.css";
 
 /** Activated by a short-lived URL fragment captured and removed by the entry
  * shell. The token is never rendered, stored in a cookie, or used as a session. */
@@ -41,7 +41,7 @@ export function AccountInvitationActivation({
     } finally { setBusy(false); }
   }
 
-  return <AuthEntryLayout mode="setup">
+  return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
     <p className="eyebrow">Private invitation</p>
     <h1>{completed ? "Password created" : "Activate your account"}</h1>
     <p className="muted">{completed
@@ -69,5 +69,5 @@ export function AccountInvitationActivation({
       disabled={busy} onClick={() => { setConsumedToken(null); setPassword(""); setConfirmation(""); onReturnToSignIn(); }}>
       {completed ? "Go to sign in" : "Back to sign in"}
     </ClusterButton>
-  </AuthEntryLayout>;
+  </section></main>;
 }
