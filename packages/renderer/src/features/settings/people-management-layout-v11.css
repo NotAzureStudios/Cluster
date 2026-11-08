@@ -62,3 +62,21 @@
 .studio-role-entity-field-v11>small{font-size:.68rem;line-height:1.45;color:var(--muted)}
 @media(pointer:coarse){.studio-role-directory-filters-v11>button{min-height:44px}.studio-role-entity-field-v11 .cluster-select-trigger-v227{min-height:44px}}
 @media(max-width:620px){.studio-role-directory-hidden-v11{flex-wrap:wrap}}
+
+/* Guided People provisioning: no sprawling admin form; progressive disclosure. */
+.people-provisioning-wizard-v11{display:grid;gap:14px;min-width:0}
+.people-provisioning-steps-v11{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.people-provisioning-steps-v11>span{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:2px solid var(--border,var(--ds-border));font-size:.76rem;color:var(--muted);white-space:nowrap}
+.people-provisioning-steps-v11>span strong{font-size:.72rem;font-weight:700}
+.people-provisioning-steps-v11>span[aria-current=step]{border-bottom-color:var(--cluster-brand-blue,#57c1ff);color:var(--text);font-weight:700}
+.people-provisioning-actions-v11{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap;grid-column:1/-1;margin-top:3px}
+.people-provisioning-note-v11{margin:0;line-height:1.55;color:var(--muted);font-size:.78rem;grid-column:1/-1}
+.people-provisioning-review-v11{display:grid;gap:12px}
+.people-provisioning-review-v11 h4{margin:0;font-size:.96rem}
+.people-provisioning-review-v11 dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0}
+.people-provisioning-review-v11 dl>div{display:grid;gap:3px;padding:11px 13px;border:1px solid var(--border,var(--ds-border));border-radius:10px;min-width:0}
+.people-provisioning-review-v11 dt{font-size:.69rem;color:var(--muted)}
+.people-provisioning-review-v11 dd{margin:0;font-size:.81rem;font-weight:600;overflow-wrap:anywhere}
+.people-provisioning-ack-v11{display:flex;align-items:start;gap:9px;font-size:.79rem;line-height:1.45}
+.people-provisioning-ack-v11 input{flex:none;margin-top:3px}
+@media(max-width:650px){.people-provisioning-review-v11 dl{grid-template-columns:minmax(0,1fr)}.people-provisioning-steps-v11>span{padding:8px 4px;font-size:.7rem}.people-provisioning-actions-v11>button{flex:1 1 auto}}
