@@ -77,6 +77,7 @@ export function PeopleAccountManagementPanel({
   const [roles, setRoles] = useState<RoleCatalog["roles"]>([]);
   const [roleLoading, setRoleLoading] = useState(true);
   const [roleError, setRoleError] = useState("");
+  const roleCatalogLoadedRef = useRef(false);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -97,16 +98,19 @@ export function PeopleAccountManagementPanel({
   const paramsKey = params.toString();
 
   useEffect(() => {
+    if (!active || roleCatalogLoadedRef.current) return;
     let cancelled = false;
+    setRoleLoading(true);
+    setRoleError("");
     void queryApi<RoleCatalog>("/api/admin/users/assignable-roles", {
       staleMs: 60_000, tags: ["roles", "users", "people"],
     }).then((result) => {
-      if (!cancelled) setRoles(result.roles);
+      if (!cancelled) { setRoles(result.roles); roleCatalogLoadedRef.current = true; }
     }).catch((cause) => {
       if (!cancelled) setRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
     }).finally(() => { if (!cancelled) setRoleLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     if (!active) { generation.current += 1; paging.current = false; setLoading(false); setLoadingMore(false); return; }
