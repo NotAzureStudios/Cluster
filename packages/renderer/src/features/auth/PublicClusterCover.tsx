@@ -19,17 +19,17 @@ type StudioCover = { ok: true; studioName: string; applications: PublicApplicati
 
 // URL fragments never reach the Server or referrer headers. Capture once and
 // remove the secret from the visible URL before rendering the invitation form.
-let pendingActivationToken: string | null = null;
 function captureActivationFragment(): string | null {
   if (typeof window === "undefined") return null;
   const fragment = window.location.hash;
   if (fragment.startsWith("#activate=")) {
     const token = fragment.slice("#activate=".length);
-    pendingActivationToken = token.length <= 256 ? token : "";
+    const capturedToken = token.length <= 256 ? token : "";
     const cleanUrl = window.location.pathname + window.location.search;
     window.history.replaceState(window.history.state, "", cleanUrl);
+    return capturedToken;
   }
-  return pendingActivationToken;
+  return null;
 }
 
 export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null }) {
@@ -53,7 +53,6 @@ export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (use
   useEffect(() => { void load(); }, []);
   if (activationToken !== null) return <AccountInvitationActivation token={activationToken}
     onReturnToSignIn={() => {
-      pendingActivationToken = null;
       setActivationToken(null);
       setMode("signin");
     }} />;
