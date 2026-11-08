@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
@@ -62,7 +62,11 @@ export function PeopleAccountManagementPanel({
   onCreateAccount: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const [settledSearch, setSettledSearch] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSettledSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const [status, setStatus] = useState<AccountStateFilter>("all");
   const [accountType, setAccountType] = useState<AccountTypeFilter>("all");
   const [role, setRole] = useState("");
@@ -79,7 +83,7 @@ export function PeopleAccountManagementPanel({
 
   const params = new URLSearchParams({
     limit: "50",
-    search: deferredSearch.trim(),
+    search: settledSearch,
     status,
     accountType,
     role,
