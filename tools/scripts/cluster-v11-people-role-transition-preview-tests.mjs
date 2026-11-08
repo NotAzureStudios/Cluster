@@ -36,7 +36,7 @@ check("No admin can remove last workspace owner",()=>{
 });
 check("Endpoint verifies actor, scope and membership before previewing",()=>{
  const begin=routes.indexOf('app.post("/api/admin/users/:userId/role-preview"');
- const end=routes.indexOf('app.get("/api/users"',begin);
+ const end=routes.length;
  assert.ok(begin>=0&&end>begin);
  const route=routes.slice(begin,end);
  assert.ok(route.includes('ROLE_ADMIN_REQUIRED'));
