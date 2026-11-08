@@ -53,6 +53,13 @@ check("Schema and migration persist only digests and generation-bound lifecycle"
   assert.ok(!migration.includes("tokenPlaintext"));
   assert.ok(!schema.includes("activationLink String"));
 });
+check("Activation is bound to the role at issuance, and changes invalidate invitations",()=>{
+  assert.ok(schema.includes("roleAtIssue    String"));
+  assert.ok(migration.includes('"roleAtIssue" TEXT NOT NULL'));
+  assert.ok(routes.includes('roleAtIssue: targetMembershipNow.role'));
+  assert.ok(routes.includes('currentMembership.role !== invitation.roleAtIssue'));
+  assert.ok(routes.includes('acquireTransactionAdvisoryLock(tx, `cluster-workspace-role:'));
+});
 check("Admin only issues links after role and identity gates, always invalidating old password",()=>{
   assert.ok(routes.includes('authorization.requireAdmin(request, reply)'));
   assert.ok(routes.includes('["owner", "admin"].includes(membership.role)'));
@@ -84,7 +91,9 @@ check("Invitation fragment is cleared before activation renders",()=>{
   assert.ok(cover.includes('fragment.startsWith("#activate=")'));
   assert.ok(cover.includes('window.history.replaceState(window.history.state, "", cleanUrl)'));
   assert.ok(cover.includes('<AccountInvitationActivation token={activationToken}'));
-  assert.ok(cover.includes('pendingActivationToken = null;'));
+  assert.ok(cover.includes('return capturedToken;'));
+  assert.ok(!cover.includes('let pendingActivationToken'));
+  assert.ok(cover.includes('setActivationToken(null);'));
   assert.ok(activate.includes('"/api/auth/account-invitations/activate"'));
   assert.ok(activate.includes('setConsumedToken(null)'));
   assert.ok(!activate.includes('createSession('));
