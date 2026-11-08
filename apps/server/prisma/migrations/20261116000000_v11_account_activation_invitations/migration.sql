@@ -7,6 +7,7 @@ CREATE TABLE "StudioAccountInvitation" (
     "revokedById" TEXT,
     "tokenHash" TEXT NOT NULL,
     "authGeneration" INTEGER NOT NULL,
+    "roleAtIssue" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "consumedAt" TIMESTAMP(3),
