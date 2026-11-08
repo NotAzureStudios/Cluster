@@ -165,4 +165,30 @@ await check("scalar duplicate distinct measures share a single grouping query", 
   assert.equal(result.aggregations.one, 3);
   assert.equal(result.aggregations.two, 3);
 });
+await check("facet and distinct counts share the authorized grouping query", async () => {
+  const model = createModel();
+  const result = await runPrismaScalarAnalytics({
+    model, where: { restricted: true },
+    facets: ["owner", "owner"],
+    facetFields: new Map([["owner", "owner"]]),
+    numericFields: new Map([["owner", "owner"]]),
+    aggregations: [{ id: "unique", kind: "count_distinct", fieldId: "owner", label: "Owners" }],
+  });
+  assert.equal(model.calls.filter(call => call.operation === "groupBy").length, 1);
+  assert.equal(result.facets.length, 2);
+  assert.equal(result.aggregations.unique, 3);
+  assert.ok(model.calls.every(call => !call.options || call.options.where.restricted === true));
+});
+await check("distinct count of a grouping dimension needs no second query, including null values", async () => {
+  const model = createModel();
+  const [projection] = await runPrismaGroupedProjections({
+    model, where: { restricted: true }, dimensionFields: dimensions,
+    projections: [{ id: "owners", kind: "grouped", dimensions: ["owner"],
+      measures: [{ id: "unique", kind: "count_distinct", fieldId: "owner", label: "Owners" }] }],
+  });
+  assert.equal(model.calls.filter(call => call.operation === "groupBy").length, 1);
+  for (const row of projection.rows) {
+    assert.equal(row.values.unique, row.keys[0] == null ? 0 : 1);
+  }
+});
 console.log(checks + "/" + checks + " analytics query budget regression tests passed");
