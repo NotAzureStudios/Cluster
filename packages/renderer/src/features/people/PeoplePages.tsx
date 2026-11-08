@@ -240,14 +240,16 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
-  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
   const [createAccountError, setCreateAccountError] = useState("");
+  const [onboardingFollowup, setOnboardingFollowup] = useState<{ userId: string; versionId: string; message: string } | null>(null);
+  const [onboardingRetryBusy, setOnboardingRetryBusy] = useState(false);
   const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
   const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
     canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
   const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
   const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
-    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
+    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.onboardingVersionId || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
   const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
     dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
     title: "Discard account draft?",
@@ -261,7 +263,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (createAccountBusy) return;
     if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
     if (createAccountOpen) {
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
       setCreateAccountError("");
     }
     setCreateAccountOpen((open) => !open);
@@ -271,6 +273,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (effectiveAdminMode) return;
     setCreateAccountOpen(false);
     setIssuedCredential(null);
+    setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
@@ -292,6 +295,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setPeopleContext(null);
     setWorkforceContext(null);
     setIssuedCredential(null);
+    setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
   const peopleServerDataQuery = useMemo<ClusterDataQuery>(() => ({
@@ -462,6 +466,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   async function createPersonAccount() {
     if (!effectiveAdminMode || accountCreateGateRef.current) return;
     const username = createAccountDraft.username.trim();
+    const onboardingVersionId = createAccountDraft.onboardingVersionId;
     if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {
       setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.");
       return;
@@ -470,6 +475,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     const scope = currentUser.id;
     setCreateAccountBusy(true);
     setCreateAccountError("");
+    setOnboardingFollowup(null);
     setLoadStatus("Creating account…");
     try {
       const created = await api<PeopleProfilePayload & { temporaryPassword: string }>("/api/users", {
@@ -485,10 +491,24 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
       setCreateAccountOpen(false);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
+      if (onboardingVersionId) {
+        try {
+          await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(onboardingVersionId)}/assign-person`, {
+            method: "POST", body: JSON.stringify({ userId: created.id }),
+          });
+          if (accountScopeRef.current === scope) setLoadStatus("Account created and onboarding assigned. Complete the private credential handoff.");
+        } catch (error) {
+          if (accountScopeRef.current === scope) {
+            const message = error instanceof Error ? error.message : "Onboarding could not be assigned.";
+            setOnboardingFollowup({ userId: created.id, versionId: onboardingVersionId, message });
+            setLoadStatus("Account created. Onboarding assignment needs a separate retry; do not create another account.");
+          }
+        }
+      }
       // Creation already committed. A failed follow-up read must never invite a retry
       // of the POST or falsely claim that the account was not created.
       const refreshWarning = await reconcileAfterCommit(() => loadProfiles(created.id, true, true));
@@ -501,6 +521,26 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       }
     } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
   }
+  async function retryOnboardingFollowup() {
+    if (!effectiveAdminMode || !onboardingFollowup || onboardingRetryBusy) return;
+    const current = onboardingFollowup;
+    setOnboardingRetryBusy(true);
+    try {
+      await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(current.versionId)}/assign-person`, {
+        method: "POST", body: JSON.stringify({ userId: current.userId }),
+      });
+      if (accountScopeRef.current === currentUser.id) {
+        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? null : state);
+        setLoadStatus("Onboarding assigned to the existing account. No duplicate account was created.");
+      }
+    } catch (error) {
+      if (accountScopeRef.current === currentUser.id) {
+        const message = error instanceof Error ? error.message : "Onboarding assignment still unavailable.";
+        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? { ...state, message } : state);
+      }
+    } finally { setOnboardingRetryBusy(false); }
+  }
+
   async function issuePasswordResetForProfile() {
     if (!effectiveAdminMode || !profile || adminActionBusy || profile.id === currentUser.id) return;
     const scope = currentUser.id;
@@ -974,6 +1014,13 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
+      {effectiveAdminMode && onboardingFollowup && <div className="people-onboarding-followup-v11 panel" role="alert">
+        <strong>Account created, onboarding pending</strong>
+        <span>{onboardingFollowup.message}</span>
+        <ClusterButton type="button" variant="secondary" size="compact" disabled={onboardingRetryBusy} onClick={() => void retryOnboardingFollowup()}>
+          {onboardingRetryBusy ? "Retrying…" : "Retry onboarding only"}
+        </ClusterButton>
+      </div>}
 
       {effectiveAdminMode && <div hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"><PeopleAccountManagementPanel
         active={workforceMode === "accounts"}

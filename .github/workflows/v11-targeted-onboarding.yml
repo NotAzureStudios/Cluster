@@ -1,0 +1,62 @@
+name: v1.1 Targeted member onboarding
+
+on:
+  pull_request:
+    branches: [main, 'feat/people-guided-provisioning-preflight-v11']
+    paths:
+      - 'apps/server/src/domains/studio-systems/studio-onboarding-routes.ts'
+      - 'packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx'
+      - 'packages/renderer/src/features/people/PeoplePages.tsx'
+      - 'packages/renderer/src/features/people/people-account-provisioning-wizard.css'
+      - 'tools/scripts/cluster-v11-targeted-onboarding-*.mjs'
+      - '.github/workflows/v11-targeted-onboarding.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/server/src/domains/studio-systems/studio-onboarding-routes.ts'
+      - 'packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx'
+      - 'tools/scripts/cluster-v11-targeted-onboarding-*.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  targeted-onboarding:
+    name: One-person onboarding authorization and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Check targeted onboarding contracts
+        run: node tools/scripts/cluster-v11-targeted-onboarding-contract-tests.mjs
+      - name: Preserve guided creation and permission preview contracts
+        run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-guided-provisioning-contract-tests.mjs
+      - name: Install locked packages
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Compile Server and Web
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Execute compiled onboarding scope and idempotency smoke
+        run: node tools/scripts/cluster-v11-targeted-onboarding-route-smoke.mjs
+      - name: Preserve provisioning and role preflight smoke
+        run: node tools/scripts/cluster-v11-guided-provisioning-route-smoke.mjs
+      - name: Preserve role change preview smoke
+        run: node tools/scripts/cluster-v11-role-change-preview-route-smoke.mjs
