@@ -1,6 +1,11 @@
 /** Shared, bounded Retry-After coordination for safe reads. Never delays writes. */
 const RATE_LIMIT_BACKOFF_MAX_MS = 60_000;
 const windows = new Map<string, number>();
+// Resetting a server/session window must also wake readers parked on its timer.
+const pendingWakeups = new Set<() => void>();
+let rateLimitGeneration = 0;
+
+export function readRateLimitGeneration(): number { return rateLimitGeneration; }
 
 export function readTrafficLane(path: string, method: string): string | null {
   if (method !== "GET" && method !== "HEAD") return null;
@@ -40,12 +45,28 @@ export async function readRateLimitCooldown(lane: string, signal?: AbortSignal |
     const remaining = rateLimitCooldownRemaining(lane);
     if (!remaining) return;
     await new Promise<void>((resolve, reject) => {
-      let timer: ReturnType<typeof setTimeout>;
-      const abort = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); reject(new DOMException("Request aborted", "AbortError")); };
-      timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, remaining);
+      const wake = () => {
+        clearTimeout(timer);
+        pendingWakeups.delete(wake);
+        signal?.removeEventListener("abort", abort);
+        resolve();
+      };
+      const abort = () => {
+        clearTimeout(timer);
+        pendingWakeups.delete(wake);
+        signal?.removeEventListener("abort", abort);
+        reject(new DOMException("Request aborted", "AbortError"));
+      };
+      const timer = setTimeout(wake, remaining);
+      pendingWakeups.add(wake);
       signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
     });
   }
 }
 
-export function resetReadRateLimitCooldowns(): void { windows.clear(); }
+export function resetReadRateLimitCooldowns(): void {
+  rateLimitGeneration += 1;
+  windows.clear();
+  for (const wake of [...pendingWakeups]) wake();
+}
