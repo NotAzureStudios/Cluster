@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AuthRouteDependencies } from "./auth-types.js";
+import { acquireTransactionAdvisoryLock } from "../../core/postgres-advisory-lock.js";
 import {
   accountInvitationDigest, accountInvitationEligible, approvedAccountInvitationOrigin,
   ACCOUNT_INVITATION_TOKEN_PATTERN, ACCOUNT_INVITATION_TTL_MS, createAccountInvitationToken,
@@ -73,14 +74,21 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
     const expiresAt = new Date(now.getTime() + ACCOUNT_INVITATION_TTL_MS);
     const { token, digest } = createAccountInvitationToken();
     const issued = await prisma.$transaction(async (tx: any) => {
+      // Serialize invitation issuance and workspace role changes under the
+      // same advisory lock used by the canonical role assignment transaction.
+      await acquireTransactionAdvisoryLock(tx, `cluster-workspace-role:${actor.membership.workspaceId}`);
       // Recheck actor membership within the same transaction so an account
       // cannot be invited after its issuer lost the required studio authority.
       const actorNow = await tx.workspaceMember.findFirst({
         where: { workspaceId: actor.membership.workspaceId, userId: actor.admin.id },
         select: { role: true },
       });
-      if (!actorNow || !["owner", "admin"].includes(actorNow.role) ||
-          (["owner", "admin"].includes(target.memberships[0]?.role) && actorNow.role !== "owner"))
+      const targetMembershipNow = await tx.workspaceMember.findFirst({
+        where: { workspaceId: actor.membership.workspaceId, userId: target.id },
+        select: { role: true },
+      });
+      if (!actorNow || !["owner", "admin"].includes(actorNow.role) || !targetMembershipNow ||
+          (["owner", "admin"].includes(targetMembershipNow.role) && actorNow.role !== "owner"))
         return null;
       // Compare-and-swap protects concurrent issuance and lifecycle changes.
       const changed = await tx.user.updateMany({
@@ -104,7 +112,8 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
       const invitation = await tx.studioAccountInvitation.create({
         data: {
           workspaceId: actor.membership.workspaceId, userId: target.id, issuedById: actor.admin.id,
-          tokenHash: digest, authGeneration: target.authenticationGeneration + 1, expiresAt,
+          tokenHash: digest, authGeneration: target.authenticationGeneration + 1,
+          roleAtIssue: targetMembershipNow.role, expiresAt,
         },
         select: { id: true, createdAt: true, expiresAt: true },
       });
@@ -218,6 +227,14 @@ export function registerAccountInvitationRoutes(deps: AuthRouteDependencies) {
     }
     const passwordHash = await hashPassword(password);
     const consumed = await prisma.$transaction(async (tx: any) => {
+      // Serialize redemption with workspace role changes and re-issuance.
+      await acquireTransactionAdvisoryLock(tx, `cluster-workspace-role:${invitation.workspaceId}`);
+      const currentMembership = await tx.workspaceMember.findFirst({
+        where: { workspaceId: invitation.workspaceId, userId: invitation.userId },
+        select: { role: true },
+      });
+      if (!currentMembership || currentMembership.role !== invitation.roleAtIssue)
+        throw new Error("ACCOUNT_INVITATION_TARGET_CHANGED");
       // The invite row is locked by its conditional update. A simultaneous
       // acceptance cannot use the same token twice.
       const claimed = await tx.studioAccountInvitation.updateMany({
