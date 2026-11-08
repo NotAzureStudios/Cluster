@@ -81,7 +81,6 @@ export function PeopleAccountProvisioningWizard({
   useEffect(() => {
     if (stage !== "access" || onboardingRequested) return;
     let cancelled = false;
-    setOnboardingRequested(true);
     setOnboardingLoading(true);
     void queryApi<OnboardingPlanCatalog>("/api/studio-systems/onboarding", {
       staleMs: 60_000, maxAgeMs: 90_000, tags: ["studio-systems", "onboarding"],
@@ -92,7 +91,7 @@ export function PeopleAccountProvisioningWizard({
           .map((version) => ({ id: version.id, label: `${plan.title} · ${version.versionLabel}` }))));
     }).catch((error) => {
       if (!cancelled) setOnboardingError(error instanceof Error ? error.message : "Could not load onboarding plans.");
-    }).finally(() => { if (!cancelled) setOnboardingLoading(false); });
+    }).finally(() => { if (!cancelled) { setOnboardingLoading(false); setOnboardingRequested(true); } });
     return () => { cancelled = true; };
   }, [stage, onboardingRequested]);
   const previewSequenceRef = useRef(0);
