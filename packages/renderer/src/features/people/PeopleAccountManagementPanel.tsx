@@ -55,11 +55,13 @@ const accountStateLabel = (account: AccountSummary) => {
 export function PeopleAccountManagementPanel({
   refreshVersion,
   onOpenAccount,
-  onCreateAccount,
+  accountCreationOpen,
+  onToggleCreateAccount,
 }: {
   refreshVersion: number;
   onOpenAccount: (id: string, view: AccountView) => void;
-  onCreateAccount: () => void;
+  accountCreationOpen: boolean;
+  onToggleCreateAccount: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [settledSearch, setSettledSearch] = useState("");
@@ -71,6 +73,8 @@ export function PeopleAccountManagementPanel({
   const [accountType, setAccountType] = useState<AccountTypeFilter>("all");
   const [role, setRole] = useState("");
   const [roles, setRoles] = useState<RoleCatalog["roles"]>([]);
+  const [roleLoading, setRoleLoading] = useState(true);
+  const [roleError, setRoleError] = useState("");
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -96,7 +100,9 @@ export function PeopleAccountManagementPanel({
       staleMs: 60_000, tags: ["roles", "users", "people"],
     }).then((result) => {
       if (!cancelled) setRoles(result.roles);
-    }).catch(() => { /* Account list remains usable without the optional role catalog. */ });
+    }).catch((cause) => {
+      if (!cancelled) setRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
+    }).finally(() => { if (!cancelled) setRoleLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -164,7 +170,7 @@ export function PeopleAccountManagementPanel({
       <div className="people-account-management-head-actions-v11">
         <span role="status">{total == null ? "Loading accounts…" : `${total} matching account${total === 1 ? "" : "s"}`}</span>
         <ClusterButton type="button" variant="secondary" size="compact" onClick={() => setReloadKey((value) => value + 1)}>Refresh</ClusterButton>
-        <ClusterButton type="button" variant="primary" size="compact" onClick={onCreateAccount}>Create account</ClusterButton>
+        <ClusterButton type="button" variant="primary" size="compact" onClick={onToggleCreateAccount}>{accountCreationOpen ? "Close account form" : "Create account"}</ClusterButton>
       </div>
     </header>
     <div className="people-account-management-filters-v11">
@@ -195,10 +201,12 @@ export function PeopleAccountManagementPanel({
       </label>
       <label className="field">
         <span>Workspace role</span>
-        <ClusterNativeSelect value={role} onChange={(event) => setRole(event.target.value)}>
+        <ClusterNativeSelect value={role} disabled={roleLoading || Boolean(roleError)} onChange={(event) => setRole(event.target.value)}>
           <option value="">All roles</option>
           {roles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </ClusterNativeSelect>
+        {roleLoading && <small role="status">Loading roles…</small>}
+        {roleError && <small role="alert">Role filter unavailable: {roleError}</small>}
       </label>
       {filtersActive && <ClusterButton type="button" size="compact" variant="quiet" onClick={clearFilters}>Clear filters</ClusterButton>}
     </div>
