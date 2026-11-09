@@ -36,6 +36,7 @@ const serviceModule = load('apps/server/src/domains/search/search-service.ts',{
  '../../core/bounded-cache.js':{BoundedCache:Cache},
  '../access/disclosure.js':{userDisclosureObligations:()=>({}),applyDisclosureObligations:user=>user},
  './search-index-builder.js':fakeBuilder,
+ './search-postings-executor.js':{searchPostingExecutorDiagnostics:()=>({workerStarts:0,workerBuilds:0,cooperativeBuilds:0,workerFailures:0,workerActive:false,workerBusy:false})},
  './search-query-runtime.js':{
    parseQuery:(q,scope)=>({term:q,operators:{},kinds:scope==='all'?[]:[scope],sort:'relevance'}),
    candidateIndexes:(snap,q)=>snap.items.map((_,i)=>i).filter(i=>snap.items[i].title.toLowerCase().includes(q)),
@@ -75,6 +76,13 @@ await check('cache contains only ranking indices, no permissioned responses',asy
  assert.ok(src.includes('rankingCache.set(cacheKey, rankedCandidates'));
  assert.ok(!src.includes('visibilityCache.getOrLoad'));
  assert.ok(!src.includes('resultCache.set('));
+});
+await check('Search diagnostics expose only bounded worker counters',async()=>{
+ const service=createService(corpus([item('a')]));
+ const status=service.diagnostics().postingWorker;
+ assert.equal(status.workerStarts,0);
+ assert.equal(status.workerFailures,0);
+ assert.equal(Object.hasOwn(status,'tokens'),false);
 });
 await check('partial project refresh retains global and other project access rules',async()=>{
  const original=corpus([],[{id:'global'},{id:'p1old',projectId:'P1'},{id:'p2',projectId:'P2'},{id:'p1target',targetKind:'project',targetId:'P1'}]);
@@ -206,5 +214,5 @@ await check('graph reports truncation when row cap leaves fetched visible siblin
  const result=await graph.neighborhood({subject:{kind:'board',id:'root',projectId:'P1'},maxEdges:1,depth:1});
  assert.equal(result.edges.length,1);assert.equal(result.truncated,true);
 });
-console.log(`${passed}/14 search/privacy assertions passed`);
-if(passed!==14) process.exitCode=1;
+console.log(`${passed}/15 search/privacy assertions passed`);
+if(passed!==15) process.exitCode=1;
