@@ -42,3 +42,18 @@ A benchmark run returns JSON with per-route request counts, **successful HTTP 2x
 The script is a measurement aid. It does not itself prove that the optimization branch is production-ready.
 
 **Report version:** `cluster-live-read-baseline-v2`. The old v1 p95 included failing HTTP response times; do not compare v1 and v2 directly. Capture both before/after measurements with v2 under matched conditions.
+
+## Comparing before/after reports
+
+Capture v2 JSON output from the **same** authenticated GET routes with matched datasets, client count, concurrency, delay, hardware and background workload. At least ten successful responses per route are required for a comparison. Do not treat a login redirect, 401 or failed response as a valid baseline.
+
+```powershell
+$env:CLUSTER_BENCH_REQUESTS = '64'
+$env:CLUSTER_BENCH_CONCURRENCY = '2'
+node tools/scripts/cluster-live-read-baseline.mjs > before.json
+# Upgrade only through the reviewed Windows release path, verify data and services.
+node tools/scripts/cluster-live-read-baseline.mjs > after.json
+node tools/scripts/cluster-compare-read-baselines.mjs before.json after.json
+```
+
+The comparator refuses v1, failed, incomplete, duplicate-route, or mismatched workloads. It flags any route with a p95 increase of at least 15%, exiting 1 for review; invalid data exits 2. It never prints raw report contents or credentials. A single comparison is **not** statistical proof of a speedup, so collect several matched runs and examine PostgreSQL query count, peak RAM, GPU/CPU contention and real user latency separately.

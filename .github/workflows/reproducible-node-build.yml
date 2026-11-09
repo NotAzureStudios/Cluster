@@ -52,7 +52,9 @@ jobs:
       - name: Queue counts and pressure single-flight regression
         run: node tools/scripts/cluster-queue-read-singleflight-tests.mjs
       - name: Live read baseline utility safety regression
-        run: node tools/scripts/cluster-live-read-baseline-tests.mjs
+        run: |
+          node tools/scripts/cluster-live-read-baseline-tests.mjs
+          node tools/scripts/cluster-compare-read-baselines-tests.mjs
       - name: Visible refresh and background poll backoff regression
         run: node tools/scripts/cluster-visible-refresh-backoff-tests.mjs
       - name: Search CPU worker and stale-index regression
