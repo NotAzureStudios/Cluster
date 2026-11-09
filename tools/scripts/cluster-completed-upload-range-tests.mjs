@@ -73,6 +73,12 @@ await check("ETag 304 and HEAD responses never open provider body streams", asyn
   await sendStorageResource(request("GET", { "if-none-match": etag }), conditional, { ...common, storage, locator });
   assert.equal(conditional.status, 304);
   assert.equal(conditional.payload, undefined);
+  const weak = mockReply();
+  await sendStorageResource(request("GET", { "if-none-match": 'W/' + etag }), weak, { ...common, storage, locator });
+  assert.equal(weak.status, 304, "weak validators must be accepted for If-None-Match");
+  const listed = mockReply();
+  await sendStorageResource(request("GET", { "if-none-match": '"unrelated", W/' + etag }), listed, { ...common, storage, locator });
+  assert.equal(listed.status, 304, "If-None-Match may contain weak validators in a list");
   const head = mockReply();
   await sendStorageResource(request("HEAD", { range: "bytes=32-63" }), head, { ...common, storage, locator });
   assert.equal(head.status, 206);
@@ -102,6 +108,37 @@ await check("invalid range 416 avoids body, stale If-Range transfers full conten
   assert.deepEqual(calls, [undefined]);
   assert.deepEqual(await streamBytes(full), sample);
 });
+await check("If-Range dates require exact equality and weak ETags never resume partial downloads", async () => {
+  const opened = [];
+  const storage = {
+    stat: async () => { throw Error("duplicate provider HEAD"); },
+    openRead: async (_locator, range) => {
+      opened.push(range);
+      return Readable.from([range ? sample.subarray(range.start, range.end + 1) : sample]);
+    },
+  };
+  const locator = { provider: "s3", tier: "temporary", key: "uploads/studio/immutable-build" };
+  const range = "bytes=200-499";
+  const future = new Date(modifiedAt.getTime() + 60_000).toUTCString();
+  const stale = new Date(modifiedAt.getTime() - 60_000).toUTCString();
+  const invalidDates = [future, stale];
+  for (const date of invalidDates) {
+    const res = mockReply();
+    await sendStorageResource(request("GET", { range, "if-range": date }), res, { ...common, storage, locator });
+    assert.equal(res.status, 200, "mismatched If-Range date must return full bytes");
+    assert.equal(res.headers["content-range"], undefined);
+    assert.deepEqual(await streamBytes(res), sample);
+  }
+  const exact = mockReply();
+  await sendStorageResource(request("GET", { range, "if-range": modifiedAt.toUTCString() }), exact, { ...common, storage, locator });
+  assert.equal(exact.status, 206);
+  assert.deepEqual(await streamBytes(exact), sample.subarray(200, 500));
+  const weakEtag = mockReply();
+  await sendStorageResource(request("GET", { range, "if-range": "W/" + etag }), weakEtag, { ...common, storage, locator });
+  assert.equal(weakEtag.status, 200);
+  assert.deepEqual(await streamBytes(weakEtag), sample);
+  assert.deepEqual(opened, [undefined, undefined, { start: 200, end: 499 }, undefined]);
+});
 await check("local disk download supports suffix ranges, HEAD and ETag reuse", async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "cluster-download-range-"));
   const filePath = path.join(dir, "build.zip");
@@ -122,6 +159,15 @@ await check("local disk download supports suffix ranges, HEAD and ETag reuse", a
     const conditional = mockReply();
     await sendStoredResource(request("GET", { "if-none-match": etag }), conditional, local);
     assert.equal(conditional.status, 304);
+    const weak = mockReply();
+    await sendStoredResource(request("GET", { "if-none-match": "W/" + etag }), weak, local);
+    assert.equal(weak.status, 304);
+    const future = mockReply();
+    await sendStoredResource(request("GET", {
+      range: "bytes=100-149", "if-range": new Date(actual.mtime.getTime() + 10_000).toUTCString(),
+    }), future, local);
+    assert.equal(future.status, 200, "future If-Range must not reuse partial local bytes");
+    assert.deepEqual(await streamBytes(future), sample);
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });
 await check("download route keeps owner verification before canonical stream", async () => {

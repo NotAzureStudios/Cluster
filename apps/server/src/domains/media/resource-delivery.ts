@@ -14,7 +14,9 @@ export function resourceIfRangeMatches(value: unknown, etag: string, modifiedAt:
   if (text.startsWith("\"") || text.startsWith("W/\"")) return text === etag;
   const date = new Date(text);
   if (!Number.isFinite(date.getTime())) return false;
-  return Math.floor(modifiedAt.getTime() / 1000) <= Math.floor(date.getTime() / 1000);
+  // If-Range uses exact date matching, unlike If-Unmodified-Since.
+  // A future date must never authorize a partial response against newer bytes.
+  return Math.floor(modifiedAt.getTime() / 1000) === Math.floor(date.getTime() / 1000);
 }
 
 export function parseSingleByteRange(range: string, total: number): { start: number; end: number } | null {
@@ -39,7 +41,11 @@ export function parseSingleByteRange(range: string, total: number): { start: num
 
 function notModified(request: FastifyRequest, etag: string, modifiedAt: Date) {
   const ifNoneMatch = String(request.headers["if-none-match"] || "").trim();
-  if (ifNoneMatch && (ifNoneMatch === "*" || ifNoneMatch.split(",").map((item) => item.trim()).includes(etag))) return true;
+  // If-None-Match uses weak comparison. Weak cache validators may satisfy
+  // a GET/HEAD revalidation, but must never satisfy strong If-Range.
+  if (ifNoneMatch && (ifNoneMatch === "*" || ifNoneMatch.split(",").some(
+    item => item.trim().replace(/^W\//, "") === etag,
+  ))) return true;
   if (ifNoneMatch) return false;
   const since = String(request.headers["if-modified-since"] || "").trim();
   if (!since) return false;

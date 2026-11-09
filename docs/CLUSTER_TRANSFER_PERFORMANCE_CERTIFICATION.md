@@ -8,8 +8,8 @@ Applies to performance integration **Pass I** (Cluster 1.1.2 branch). This docum
 
 - HTTP **Range** supports exactly one valid byte range and returns `206 Partial Content` with `Content-Range`, `Content-Length` and `Accept-Ranges: bytes`.
 - Invalid/out-of-bounds or multipart range requests return `416`, without opening an object stream.
-- `If-Range` only resumes against the current validator; mismatches return the full resource rather than mixing versions.
-- `ETag`, `If-None-Match`, `If-Modified-Since`, and **HEAD** avoid unnecessary body transfer.
+- `If-Range` only resumes against the current validator; mismatches return the full resource rather than mixing versions. HTTP-date validators require an **exact Last-Modified second match**, not an older-than comparison; weak ETags are never accepted for resumption.
+- `ETag`, `If-None-Match`, `If-Modified-Since`, and **HEAD** avoid unnecessary body transfer. `If-None-Match` accepts weak matching in single/list validators for safe cache revalidation, without weakening the stronger `If-Range` rules.
 - Local and direct-object downloads use the same response contract. The metadata fetched during upload ownership/size verification is passed to delivery instead of requesting a second remote object-storage `stat`.
 - Streams are still used for the actual body: this path does not load whole 20 GB uploads into RAM.
 - Headers keep the existing private cache policy and the untrusted-content/attachment protections.
