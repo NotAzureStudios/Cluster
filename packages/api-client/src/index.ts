@@ -1,5 +1,5 @@
 import type { ApiErrorDetail, ApiErrorResponse, ClusterServerCapability as ClusterKnownServerCapability } from "@cluster/shared";
-import { readTrafficLane, readRateLimitCooldown, noteReadRateLimit, resetReadRateLimitCooldowns } from "./read-rate-limit.js";
+import { readTrafficLane, readTrafficLanes, readRateLimitCooldown, noteReadRateLimit, resetReadRateLimitCooldowns, readRateLimitGeneration } from "./read-rate-limit.js";
 
 export const CLUSTER_API_CLIENT_PROTOCOL_VERSION = 2 as const;
 
@@ -300,7 +300,10 @@ function retryDelayMilliseconds(attempt: number, response?: Response) {
 export async function clusterApiFetch(pathname: string, init: RequestInit = {}) {
   const method = String(init.method || "GET").toUpperCase();
   const canRetry = method === "GET" || method === "HEAD";
-  const trafficLane = readTrafficLane(pathname, method);
+  const trafficLanes = readTrafficLanes(pathname, method);
+  const trafficLane = trafficLanes[0] || null;
+  // Ignore a late 429 from a request started before an account/server switch.
+  const requestCooldownGeneration = readRateLimitGeneration();
   const maximumAttempts = 1 + (canRetry ? runtime.maxReadRetries : 0);
   const baseHeaders = requestHeaders(init.headers);
   const requestId = baseHeaders.get(CLUSTER_CLIENT_HEADERS.requestId) || createClientRequestId();
@@ -326,7 +329,7 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
 
   for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
     try {
-      if (trafficLane) await readRateLimitCooldown(trafficLane, init.signal);
+      if (trafficLanes.length) await Promise.all(trafficLanes.map((lane) => readRateLimitCooldown(lane, init.signal)));
       const headers = new Headers(baseHeaders);
       const response = await fetch(clusterApiUrl(pathname), {
         ...init,
@@ -336,7 +339,11 @@ export async function clusterApiFetch(pathname: string, init: RequestInit = {}) 
       updateServerMetadata(response);
       // Respect the server window across parallel widgets: a 429 must not
       // multiply into several immediate retries from every component.
-      if (response.status === 429 && trafficLane) noteReadRateLimit(trafficLane, response.headers.get("retry-after"));
+      if (response.status === 429 && trafficLane && requestCooldownGeneration === readRateLimitGeneration()) {
+        const authoritativeLane = response.headers.get("X-Cluster-Rate-Limit-Bucket");
+        const limitedLane = authoritativeLane && trafficLanes.includes(authoritativeLane) ? authoritativeLane : trafficLane;
+        noteReadRateLimit(limitedLane, response.headers.get("retry-after"));
+      }
 
       if (csrfRequired && !csrfRetried && response.headers.get("x-cluster-csrf-invalid") === "1") {
         csrfRetried = true;

@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { BackgroundTaskSnapshot } from "./background-tasks.js";
 import type { ReadinessProbeResult } from "./readiness-probe.js";
-import type { RuntimeTelemetrySnapshot } from "./runtime-telemetry.js";
+import type { RuntimeTelemetrySnapshot, RuntimeSaturationSignals } from "./runtime-telemetry.js";
 import type { ClusterRuntimeAccessMode } from "./runtime-access-state.js";
 
 export type OperationalHealthState = "starting" | "healthy" | "degraded" | "unavailable" | "draining" | "maintenance" | "read-only" | "recovery";
@@ -215,7 +215,7 @@ export type RuntimeSaturationSnapshot = {
  * This deliberately uses several signals so one noisy metric does not eject
  * an otherwise healthy worker from rotation.
  */
-export function assessRuntimeSaturation(runtime: RuntimeTelemetrySnapshot): RuntimeSaturationSnapshot {
+export function assessRuntimeSaturation(runtime: RuntimeSaturationSignals): RuntimeSaturationSnapshot {
   const reasons: string[] = [];
   let score = 0;
   if (runtime.eventLoop.p99Ms >= 1_000) { score += 4; reasons.push("event-loop-critical"); }

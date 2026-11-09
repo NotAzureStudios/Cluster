@@ -34,17 +34,30 @@ export function createRequestSecurityServices(deps: Record<string, any>) {
 
   const sessionCache = new WeakMap<FastifyRequest, any | null>();
   let securityPolicyCache: { value: ReturnType<typeof normalizeStudioSecurityPolicy>; expiresAt: number } | null = null;
+  let securityPolicyPending: Promise<ReturnType<typeof normalizeStudioSecurityPolicy>> | null = null;
 
   async function currentSecurityPolicy() {
     if (securityPolicyCache && securityPolicyCache.expiresAt > Date.now()) return securityPolicyCache.value;
-    const settings = await readSettings();
-    const value = normalizeStudioSecurityPolicy(settings, {
-      sessionDays: SESSION_DAYS,
-      sessionIdleHours: SESSION_IDLE_HOURS,
-      sessionMaxPerUser: SESSION_MAX_PER_USER,
-    });
-    securityPolicyCache = { value, expiresAt: Date.now() + 5_000 };
-    return value;
+    // Cache misses must not stampede the settings store under concurrent GETs.
+    // Only share the pending read: failures aren't cached, so the next request
+    // can recover as soon as settings become available again.
+    if (securityPolicyPending) return securityPolicyPending;
+    const pending = (async () => {
+      const settings = await readSettings();
+      const value = normalizeStudioSecurityPolicy(settings, {
+        sessionDays: SESSION_DAYS,
+        sessionIdleHours: SESSION_IDLE_HOURS,
+        sessionMaxPerUser: SESSION_MAX_PER_USER,
+      });
+      securityPolicyCache = { value, expiresAt: Date.now() + 5_000 };
+      return value;
+    })();
+    securityPolicyPending = pending;
+    try {
+      return await pending;
+    } finally {
+      if (securityPolicyPending === pending) securityPolicyPending = null;
+    }
   }
 
   function hashToken(token: string) {

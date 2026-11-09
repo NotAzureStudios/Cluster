@@ -156,7 +156,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     reply.header("X-Cluster-Api-Contract", API_CONTRACT.version);
     reply.header("X-Cluster-Minimum-Client-Version", API_CONTRACT.minimumClientVersion);
     reply.header("X-Cluster-Transport-Protocol", API_CONTRACT.clients.transportProtocolVersion);
-    if (!pathname.startsWith("/health") && serverUpdateMaintenanceHeld(dataRoot)) {
+    if (!pathname.startsWith("/health") && await serverUpdateMaintenanceHeld(dataRoot)) {
       reply.header("Cache-Control", "no-store");
       reply.header("Retry-After", "5");
       reply.header("X-Cluster-Server-State", "maintenance");
@@ -167,10 +167,10 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const serverState = getServerState();
     reply.header("X-Cluster-Server-State", publicServerRuntimeState(serverState));
     reply.header("X-Cluster-Server-Mode", serverState.mode);
-    const saturation = assessRuntimeSaturation(runtimeTelemetry.snapshot());
-    const governorSnapshot = resourceGovernor.snapshot();
+    const saturation = assessRuntimeSaturation(runtimeTelemetry.admissionSnapshot());
+    const governorMode = resourceGovernor.currentMode();
     reply.header("X-Cluster-Saturation", saturation.state);
-    reply.header("X-Cluster-Governor", governorSnapshot.mode);
+    reply.header("X-Cluster-Governor", governorMode);
 
     const workPolicy = requestWorkPolicy({ pathname, method: request.method, globalBodyLimitBytes: runtimeConfig.bodyLimit, uploadLimitBytes, avatarUploadLimitBytes });
     requestWorkPolicies.set(request, workPolicy);
@@ -180,7 +180,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     if (!admission.allow && context.policy.isApi && !pathname.startsWith("/api/meta/") && !pathname.startsWith("/health")) {
       const retryAfter = String(admission.retryAfterSeconds || 3);
       reply.header("Retry-After", retryAfter);
-      reply.header("X-Cluster-Backpressure", resourceGovernor.snapshot().mode);
+      reply.header("X-Cluster-Backpressure", governorMode);
       reply.code(503).send({
         ok: false,
         code: "SERVER_SATURATED",
@@ -191,7 +191,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
         retryable: true,
         requestId: String(request.id),
         contractVersion: API_CONTRACT.version,
-        details: { mode: resourceGovernor.snapshot().mode, workClass: workPolicy.workClass, reason: admission.reason },
+        details: { mode: governorMode, workClass: workPolicy.workClass, reason: admission.reason },
       });
       return;
     }
@@ -325,7 +325,10 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const startedAt = requestTelemetryStarts.get(request);
     if (startedAt) {
       requestTelemetryStarts.delete(request);
-      runtimeTelemetry.complete(startedAt, request.routeOptions.url || "/unmatched", reply.statusCode);
+      runtimeTelemetry.complete(
+        startedAt, request.routeOptions.url || "/unmatched", reply.statusCode,
+        reply.statusCode === 429 ? reply.getHeader("X-Cluster-Rate-Limit-Bucket") : undefined,
+      );
     }
     const querySample = databaseDiagnostics.completeRequest(String(request.id));
     const readContract = apiReadContractFor(request.method, request.routeOptions.url);
