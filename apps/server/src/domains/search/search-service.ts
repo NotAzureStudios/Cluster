@@ -3,7 +3,7 @@ import type { SearchCorpus } from "./search-repository.js";
 import type { SearchIndexSnapshot } from "./search-index-types.js";
 import { BoundedCache } from "../../core/bounded-cache.js";
 import { applyDisclosureObligations, userDisclosureObligations } from "../access/disclosure.js";
-import { buildIndex, buildPostings, mergeProjectCorpus, normalize } from "./search-index-builder.js";
+import { buildIndexResponsive, buildPostingsResponsive, mergeProjectCorpus, normalize } from "./search-index-builder.js";
 import {
   candidateIndexes,
   operatorMatches,
@@ -70,7 +70,7 @@ export function createSearchService(deps: SearchServiceDependencies) {
       // search data (including stale permissions). The next request may retry.
       for (let attempt = 0; attempt < 4; attempt += 1) {
         const startedAtRevision = mutationRevision;
-        const next = buildIndex(await deps.loadCorpus());
+        const next = await buildIndexResponsive(await deps.loadCorpus());
         if (mutationRevision !== startedAtRevision) continue;
         fullRebuilds += 1;
         snapshot = next;
@@ -105,14 +105,20 @@ export function createSearchService(deps: SearchServiceDependencies) {
         queuedProjectRefreshes.add(projectId);
         return;
       }
-      const partialIndex = buildIndex({ ...partial, users: baselineSnapshot.corpus.users });
+      const partialIndex = await buildIndexResponsive({ ...partial, users: baselineSnapshot.corpus.users });
       const items = [...baselineSnapshot.items.filter((item) => item.projectId !== projectId), ...partialIndex.items.filter((item) => item.kind !== "person")];
+      const postings = await buildPostingsResponsive(items);
+      // The asynchronous CPU stage must not overwrite a newer Project/ACL snapshot.
+      if (snapshot !== baselineSnapshot) {
+        queuedProjectRefreshes.add(projectId);
+        return;
+      }
       snapshot = {
         ...baselineSnapshot,
         loadedAt: Date.now(),
         corpus: mergeProjectCorpus(baselineSnapshot.corpus, partial, projectId),
         items,
-        postings: buildPostings(items),
+        postings,
       };
       incrementalProjectRefreshes += 1;
       indexRevision += 1;
@@ -142,11 +148,16 @@ export function createSearchService(deps: SearchServiceDependencies) {
         queuedUserRefreshes.add(userId);
         return;
       }
-      const partialIndex = buildIndex(partial);
+      const partialIndex = await buildIndexResponsive(partial);
       const items = [
         ...baselineSnapshot.items.filter((item) => !(item.kind === "person" && item.id === userId)),
         ...partialIndex.items.filter((item) => item.kind === "person"),
       ];
+      const postings = await buildPostingsResponsive(items);
+      if (snapshot !== baselineSnapshot) {
+        queuedUserRefreshes.add(userId);
+        return;
+      }
       snapshot = {
         ...baselineSnapshot,
         loadedAt: Date.now(),
@@ -155,7 +166,7 @@ export function createSearchService(deps: SearchServiceDependencies) {
           users: [...baselineSnapshot.corpus.users.filter((row: any) => String(row.id) !== userId), ...partial.users],
         },
         items,
-        postings: buildPostings(items),
+        postings,
       };
       incrementalUserRefreshes += 1;
       indexRevision += 1;
