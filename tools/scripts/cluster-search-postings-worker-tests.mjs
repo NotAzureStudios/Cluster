@@ -74,6 +74,18 @@ try {
     assert.equal(searchPostingExecutorDiagnostics().cooperativeBuilds, before.cooperativeBuilds + 1);
   });
 
+  await check("worker termination during an index build preserves correctness via cooperative fallback", async () => {
+    process.env.CLUSTER_SEARCH_POSTINGS_WORKER = "on";
+    process.env.CLUSTER_SEARCH_POSTINGS_WORKER_THRESHOLD = "256";
+    const items = makeItems(4_500);
+    const before = searchPostingExecutorDiagnostics().cooperativeBuilds;
+    const building = buildSearchPostings(items);
+    await stopSearchPostingWorker();
+    const completed = await building;
+    assert.deepEqual(canonical(completed), canonical(buildPostings(items)));
+    assert.ok(searchPostingExecutorDiagnostics().cooperativeBuilds >= before + 1);
+  });
+
   await check("idle worker is explicitly terminable without leaking process lifetime", async () => {
     await stopSearchPostingWorker();
     const state = searchPostingExecutorDiagnostics();
