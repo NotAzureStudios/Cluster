@@ -28,6 +28,8 @@ const fakeBuilder = {
  normalize,
  buildIndex: corpus => ({ loadedAt:Date.now(),corpus,items:corpus.items||[],postings:new Map() }),
  buildPostings: () => new Map(),
+ buildIndexResponsive: async corpus => fakeBuilder.buildIndex(corpus),
+ buildPostingsResponsive: async items => fakeBuilder.buildPostings(items),
  mergeProjectCorpus:builder.mergeProjectCorpus,
 };
 const serviceModule = load('apps/server/src/domains/search/search-service.ts',{
