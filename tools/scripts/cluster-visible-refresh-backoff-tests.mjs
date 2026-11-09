@@ -22,7 +22,7 @@ function load(sourcePath, imports = {}) {
   }, module, module.exports);
   return module.exports;
 }
-const policy = load("packages/renderer/src/core/refresh-backoff.ts");
+const policy = await import("../../packages/renderer/src/core/refresh-backoff.js");
 const job = load("packages/renderer/src/core/visible-job-polling.ts", { "./refresh-backoff.js": policy });
 
 let checks = 0;
