@@ -1,31 +1,29 @@
 # Install Cluster on Windows
 
-The **[latest GitHub release](https://github.com/NotAzureStudios/Cluster/releases/latest)** is now **Cluster 1.0.4**, including the Windows Server 1.0.4 installer and unchanged Qt Desktop 0.482.0 binaries. The Server and Desktop are separate Windows x64 packages.
+The **[latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest)** contains separate Windows Server and Qt Desktop packages. Check its release notes and attached receipts for the actual component versions and upgrade requirements.
 
-## Get the current installers
+## Get current installers
 
-| Download | Purpose |
+| Download | Package |
 | --- | --- |
-| **[Latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows Server **1.0.4**, API, hosted Web and native Server Manager. |
-| [Latest Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Windows Qt Desktop **0.482.0** (unchanged). |
-| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop **0.482.0** (unchanged). |
-
-The 1.0.4 installer is **unsigned**. It passed build and clean-install tests but not a fully certified real-world 1.0.3 → 1.0.4 database-preservation and rollback exercise. Do not assume that merging into `main` updates an existing Windows installation.
+| **[Latest Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Server, API, Web and Server Manager |
+| [Latest Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Qt Windows Desktop |
+| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Standalone Qt Desktop |
 
 ### Verify a download
 
-These executables may not have a Windows publisher signature. Verify the SHA-256 hash against the **current release notes**, rather than an older version's hash:
+Compare SHA-256 with the `Cluster-server-build-receipt.json` or `Cluster-desktop-build-receipt.json` attached to the **same** [release](https://github.com/NotAzureStudios/Cluster/releases/latest):
 
 ```powershell
 Get-FileHash '.\Cluster-Installer.exe' -Algorithm SHA256
 ```
 
-For the Server **1.0.4** release, compare with the `Cluster-server-build-receipt.json` available under **Assets** of the [latest GitHub release](https://github.com/NotAzureStudios/Cluster/releases/latest). Windows Authenticode signing is not present in this release.
+Checksum comparison checks bytes, **not** Authenticode publisher identity or signed update-feed authorization. An unsigned installer or passing clean-install smoke test is not evidence of safe upgrade/rollback with populated data. See [Windows code signing](development/WINDOWS_CODE_SIGNING.md).
 
 ## 1. Prepare a Windows Server
 
 - Choose an authorized Windows x64 machine with sufficient disk space for the application, managed runtimes, PostgreSQL and Library storage.
-- For **new installs**, put the Server installer in a dedicated writable directory, such as `D:\Cluster-Server\` or `C:\Cluster-Server\`. Avoid drive roots for new installs. **Exception:** upgrading an existing `C:\Cluster\Server` specifically requires the installer at `C:\Cluster-Installer.exe`, with appropriate administrator permissions, because the target is always beside the installer; the optional drive-root shortcut may remain stale.
+- For **new installs**, put the Server installer in a dedicated writable directory, such as `D:\Cluster-Server` or `C:\Cluster-Server`. Avoid drive roots for new installs. **Exception:** upgrading an existing `C:\Cluster\Server` specifically requires the installer at `C:\Cluster-Installer.exe`, with appropriate administrator permissions, because the target is always beside the installer; the optional drive-root shortcut may remain stale.
 - Initial setup may download pinned private Node.js and PostgreSQL runtimes. Global Node/PostgreSQL installations are not required for normal packaged use.
 - If replacing an existing Cluster installation, back up any PostgreSQL, Library, configuration and credentials you need before deleting the old install. Fresh installation does not automatically restore existing data.
 - Keep Owner enrollment restricted to the local/trusted studio network.
@@ -35,28 +33,32 @@ For the Server **1.0.4** release, compare with the `Cluster-server-build-receipt
 1. Download `Cluster-Installer.exe` from [GitHub Releases → Latest](https://github.com/NotAzureStudios/Cluster/releases/latest).
 2. Verify its SHA-256 against the Server receipt attached to the same release and put the installer in the correct **installation parent** folder.
 3. Run the installer with an authorized Windows account, approving elevation only when necessary.
-4. The managed program is placed in a `Cluster\` subfolder beside the installer. If the EXE was at `D:\Cluster-Server\Cluster-Installer.exe`, the managed Server root is `D:\Cluster-Server\Cluster\Server\` and the installer log is `D:\Cluster-Server\Cluster\installer.log`.
-5. Use the native **Cluster Server Manager** in the managed Server's `bin\` folder to inspect startup and API/database status.
+4. The managed program is placed in a `Cluster` subfolder beside the installer. If the EXE was at `D:\Cluster-Server\Cluster-Installer.exe`, the managed Server root is `D:\Cluster-Server\Cluster\Server` and the installer log is `D:\Cluster-Server\Cluster\installer.log`.
+5. Use the native **Cluster Server Manager** in the managed Server's `bin` folder to inspect startup and API/database status.
 6. Finish the initial Owner setup locally and open the configured Web URL.
 
 Do not assume a hard-coded public port or Web address; use the actual Server settings.
 
 **PostgreSQL setup:** For a normal managed Server installation, Cluster downloads and initializes a private PostgreSQL runtime, creates its database and credentials, and generates `DATABASE_URL`/`DIRECT_DATABASE_URL` during Server Manager startup. You do **not** need to supply a database URL manually. If a direct Prisma or developer command reports a missing URL, start Cluster through the installed Server Manager instead. If the managed Server Manager itself reports this error, retain its redacted bootstrap log: it indicates a separate startup/configuration failure, not a request to guess credentials.
 
-## Upgrade an existing 1.0.3 Server in place
+## Upgrade an existing Server in place
 
-**The installer does not ask for a target folder. It always creates or updates the `Cluster` folder beside `Cluster-Installer.exe`.** Running the EXE in Downloads, inside `Cluster\Server`, or beside an unrelated `Cluster` directory can create a second installation. Use the current 1.0.4 installer, not an older cached executable or Windows shortcut.
+**The installer does not discover the old Server folder.** It creates or updates `Cluster\Server` beside the installer. Never run the executable from Downloads, inside `Cluster\Server`, or next to an unrelated installation and assume it found your original data.
 
-For the **`C:\Cluster\Server`** installation shown by the native Server Manager:
+1. Read the latest release's upgrade limitations. Make a **verified** consistent backup of PostgreSQL, Library, configuration, account secrets and other live data.
+2. Confirm the actual workspace from the installed native Server Manager. Stop Cluster and confirm its managed PostgreSQL, Node, Host and any Windows Service processes have stopped.
+3. Place the current `Cluster-Installer.exe` at the **installation parent**. For existing `C:\Cluster\Server`, use `C:\Cluster-Installer.exe` with appropriate permissions. For existing `D:\Cluster-Server\Cluster\Server`, use `D:\Cluster-Server\Cluster-Installer.exe`.
+4. Run the installer and inspect `Cluster\installer.log` for errors or an unexpected target.
+5. Start the managed `Cluster\Server\bin\Cluster Server.exe` directly, or its verified Windows Service. A drive-root installer may not refresh an optional old root-level launcher/shortcut.
+6. Compare `CLUSTER_RELEASE.json` and the Manager's displayed version with the actual release downloaded. Verify PostgreSQL startup, login, existing projects/Library and configured Web/API addresses. If the version differs, **do not delete or move data**; inspect the installer log and executable path.
 
-1. Back up the managed PostgreSQL database with a proper offline/consistent database backup, plus the Library, configuration and account keys. Verify the backup separately. Keep existing directories intact.
-2. Stop Cluster from Server Manager and confirm its managed PostgreSQL, Node, and Host processes have stopped. If a Windows Service owns it, stop that service too.
-3. Download **1.0.4** directly from [GitHub Releases → Latest](https://github.com/NotAzureStudios/Cluster/releases/latest). Save `Cluster-Installer.exe` as **`C:\Cluster-Installer.exe`** so the installer's managed target is **`C:\Cluster\Server`**. The C: drive root may require administrative rights. Do not move the existing `C:\Cluster` data folder or run the EXE from another directory.
-4. Run `C:\Cluster-Installer.exe` with the required Windows permissions and let it finish. Review `C:\Cluster\installer.log` if it refuses the upgrade or detects active processes.
-5. Start the installed **`C:\Cluster\Server\bin\Cluster Server.exe`** directly (or the verified Windows Service). Do **not** trust an older root-level `C:\Cluster Server.exe` or pinned Windows shortcut: the installer intentionally skips publishing that optional launcher when the install parent is a drive root.
-6. Confirm `C:\Cluster\Server\CLUSTER_RELEASE.json` says `"releaseCandidate": "1.0.4"`, the native Manager identifies as **1.0.4**, PostgreSQL starts, the same projects/Library remain present, and login and Web/API ports work. If either version differs, stop and inspect the log rather than deleting directories or rerunning random EXEs.
+### Historical Server 1.1.1 → 1.1.2 key transition
 
-If your existing workspace is `D:\Cluster-Server\Cluster\Server` instead, place the installer at `D:\Cluster-Server\Cluster-Installer.exe`. The critical rule is always **installation parent → Cluster → Server**.
+Server 1.1.2 embeds a replacement Ed25519 public key for future signed Server update manifests. A running 1.1.1 Server cannot authenticate that key through its old update feed. **One manual installer upgrade** is required after backups and before later signed-update delivery can use the new key.
+
+The published 1.1.2 Windows installer was **unsigned** and did not arrive through the signed `server-main` channel. Do not disable signature verification, change update URLs to bypass the trust requirement, or mistake a SHA-256 receipt for an update signature. A clean-install CI pass also does **not** certify populated-database upgrade and rollback. Check current release notes for later changes.
+
+
 
 ## 3. Install Desktop (optional)
 

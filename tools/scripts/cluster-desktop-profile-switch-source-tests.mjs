@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const text = fs.readFileSync(path.join(root, "apps/desktop-qt/src/ServerProfileStore.cpp"), "utf8");
+const start = text.indexOf("bool ServerProfileStore::activateProfileIndex(");
+const end = text.indexOf("bool ServerProfileStore::restartIntoProfile(", start);
+assert.ok(start >= 0 && end > start);
+const fn = text.slice(start, end);
+assert.match(fn, /const QString previousId = m_activeProfileId/);
+assert.match(fn, /const QString previousUsedAt = m_profiles\[index\]\.lastUsedAt/);
+assert.match(fn, /if \(!save\(\)\)/, "Persistence failure must be handled, not ignored");
+assert.match(fn, /if \(restart && !restartIntoProfile\(nextId\)\)/, "A failed process launch must be detected");
+const rollback = fn.slice(fn.indexOf("if (restart && !restartIntoProfile(nextId))"));
+assert.match(rollback, /m_activeProfileId = previousId/);
+assert.match(rollback, /m_profiles\[index\]\.lastUsedAt = previousUsedAt/);
+assert.match(rollback, /const bool restored = save\(\)/, "Failed restart must restore the persisted active profile");
+assert.match(rollback, /setLastOperationError/, "Failed restart must show a recovery error");
+assert.ok(fn.indexOf("emit activeProfileChanged();") > fn.indexOf("if (restart && !restartIntoProfile(nextId))"),
+  "Do not announce a successful profile activation before restart admission");
+console.log("Native Qt Server profile switch persistence and restart rollback contracts verified.");

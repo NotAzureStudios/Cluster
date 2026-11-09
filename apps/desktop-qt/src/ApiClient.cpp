@@ -1,5 +1,7 @@
 #include "ApiClient.h"
 #include "PersistentCookieJar.h"
+#include "DesktopDirectDownloadPolicy.h"
+#include "DesktopTransferRequestPolicy.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -11,6 +13,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSaveFile>
+#include <QSharedPointer>
 #include <QStandardPaths>
 #include <QUuid>
 
@@ -296,11 +299,111 @@ void ApiClient::downloadFile(const QString &operation, const QString &path, cons
         });
         return;
     }
+    // Only an authenticated API path on the currently selected Server may use
+    // the native cookie-bearing network client. Never resolve //host URLs.
+    if (!cluster::desktop::request::sameServerApiPath(path.toStdString())) {
+        emit failed(operation, {
+            {QStringLiteral("status"), 0},
+            {QStringLiteral("code"), QStringLiteral("DOWNLOAD_PATH_INVALID")},
+            {QStringLiteral("message"), QStringLiteral("Download must use a valid Cluster Server API path.")},
+            {QStringLiteral("retryable"), false},
+        });
+        return;
+    }
+
+    const QString targetPath = availableDownloadPath(suggestedName);
+    const auto sink = QSharedPointer<QSaveFile>::create(targetPath);
+    if (!sink->open(QIODevice::WriteOnly)) {
+        emit failed(operation, {
+            {QStringLiteral("status"), 0},
+            {QStringLiteral("code"), QStringLiteral("DOWNLOAD_WRITE_FAILED")},
+            {QStringLiteral("message"), QStringLiteral("Cluster could not create the download in %1.").arg(targetPath)},
+            {QStringLiteral("retryable"), false},
+        });
+        return;
+    }
+
     QNetworkRequest request = requestFor(path);
     request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setRawHeader(QByteArrayLiteral("Accept"), QByteArrayLiteral("*/*"));
+    // Content-Length must describe the bytes we save, not a compressed wire body.
+    request.setRawHeader(QByteArrayLiteral("Accept-Encoding"), QByteArrayLiteral("identity"));
     QNetworkReply *reply = m_network.get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, operation, suggestedName, reply] {
-        finishDownload(operation, suggestedName, reply);
+    const auto received = QSharedPointer<qint64>::create(0);
+    const auto writeFailed = QSharedPointer<bool>::create(false);
+    // Error JSON is useful, but never retain arbitrary download bytes in RAM.
+    const auto errorPreview = QSharedPointer<QByteArray>::create();
+    const auto drain = [reply, sink, received, writeFailed, errorPreview] {
+        while (reply->bytesAvailable() > 0 && !*writeFailed) {
+            const QByteArray chunk = reply->read(64 * 1024);
+            if (chunk.isEmpty()) break;
+            if (errorPreview->size() < 8192)
+                errorPreview->append(chunk.left(8192 - errorPreview->size()));
+            if (sink->write(chunk) != chunk.size()) {
+                *writeFailed = true;
+                reply->abort();
+                break;
+            }
+            *received += chunk.size();
+        }
+    };
+    connect(reply, &QNetworkReply::readyRead, this, drain);
+    connect(reply, &QNetworkReply::finished, this,
+            [this, operation, reply, targetPath, sink, received, writeFailed, errorPreview, drain] {
+        drain();
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const bool transportFailure = reply->error() != QNetworkReply::NoError;
+        const QByteArray lengthHeader = reply->rawHeader(QByteArrayLiteral("Content-Length")).trimmed();
+        qint64 declaredBytes = -1;
+        bool validLength = true;
+        if (!lengthHeader.isEmpty()) {
+            declaredBytes = QString::fromLatin1(lengthHeader).toLongLong(&validLength);
+            validLength = validLength && declaredBytes >= 0;
+        }
+        const auto decision = cluster::desktop::directdownload::admit(
+            status, transportFailure, *writeFailed, *received, validLength ? declaredBytes : -2);
+        updateMetadata(reply);
+        setOnline(!(transportFailure && status == 0));
+
+        if (decision != cluster::desktop::directdownload::Decision::accept) {
+            sink->cancelWriting(); // Remove the temporary file; never publish partial bytes.
+            QVariantMap failure;
+            if (decision == cluster::desktop::directdownload::Decision::rejectedStatus && status != 206 && (status < 300 || status >= 400)) {
+                failure = errorFromReply(reply, *errorPreview, QJsonDocument::fromJson(*errorPreview));
+            } else {
+                QString code = QStringLiteral("DOWNLOAD_INCOMPLETE");
+                QString message = QStringLiteral("The file response was incomplete and was not saved.");
+                bool retryable = true;
+                if (decision == cluster::desktop::directdownload::Decision::writeError) {
+                    code = QStringLiteral("DOWNLOAD_WRITE_FAILED");
+                    message = QStringLiteral("Cluster could not write the download to %1.").arg(targetPath);
+                    retryable = false;
+                } else if (decision == cluster::desktop::directdownload::Decision::rejectedStatus) {
+                    code = QStringLiteral("DOWNLOAD_RESPONSE_REJECTED");
+                    message = QStringLiteral("The Server returned an unexpected redirect or partial download.");
+                    retryable = false;
+                }
+                failure = {
+                    {QStringLiteral("status"), status},
+                    {QStringLiteral("code"), code},
+                    {QStringLiteral("message"), message},
+                    {QStringLiteral("retryable"), retryable},
+                };
+            }
+            emit failed(operation, failure);
+        } else if (QFileInfo::exists(targetPath) || !sink->commit()) {
+            sink->cancelWriting();
+            emit failed(operation, {
+                {QStringLiteral("status"), status},
+                {QStringLiteral("code"), QStringLiteral("DOWNLOAD_WRITE_FAILED")},
+                {QStringLiteral("message"), QStringLiteral("A destination file appeared or the download could not be saved to %1.").arg(targetPath)},
+                {QStringLiteral("retryable"), false},
+            });
+        } else {
+            emit downloaded(operation, targetPath);
+        }
+        reply->deleteLater();
     });
 }
 
@@ -325,7 +428,7 @@ QNetworkRequest ApiClient::requestFor(const QString &path) const
     request.setRawHeader(QByteArray(ClientHostHeader), QByteArrayLiteral("desktop-qt"));
     request.setRawHeader(QByteArray(ClientProtocolHeader), QByteArray::number(CLUSTER_TRANSPORT_PROTOCOL));
     request.setRawHeader(QByteArray(ClientRequestIdHeader), QUuid::createUuid().toString(QUuid::WithoutBraces).toUtf8());
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::SameOriginRedirectPolicy);
     request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferNetwork);
     return request;
 }
@@ -347,35 +450,6 @@ void ApiClient::finish(const QString &operation, QNetworkReply *reply)
             emit succeeded(operation, QJsonObject{{QStringLiteral("ok"), true}});
         else
             emit succeeded(operation, document.isArray() ? QJsonValue(document.array()) : QJsonValue(document.object()));
-    }
-    reply->deleteLater();
-}
-
-void ApiClient::finishDownload(const QString &operation, const QString &suggestedName, QNetworkReply *reply)
-{
-    const QByteArray body = reply->readAll();
-    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    const bool networkFailure = reply->error() != QNetworkReply::NoError && status == 0;
-    const bool httpFailure = status < 200 || status >= 300;
-    setOnline(!networkFailure);
-    updateMetadata(reply);
-    if (networkFailure || httpFailure) {
-        emit failed(operation, errorFromReply(reply, body, QJsonDocument::fromJson(body)));
-        reply->deleteLater();
-        return;
-    }
-
-    const QString targetPath = availableDownloadPath(suggestedName);
-    QSaveFile target(targetPath);
-    if (!target.open(QIODevice::WriteOnly) || target.write(body) != body.size() || !target.commit()) {
-        emit failed(operation, {
-            {QStringLiteral("status"), status},
-            {QStringLiteral("code"), QStringLiteral("DOWNLOAD_WRITE_FAILED")},
-            {QStringLiteral("message"), QStringLiteral("Cluster could not save the downloaded file to %1.").arg(targetPath)},
-            {QStringLiteral("retryable"), false},
-        });
-    } else {
-        emit downloaded(operation, targetPath);
     }
     reply->deleteLater();
 }

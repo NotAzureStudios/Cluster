@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=p=>readFileSync(path.join(root,p),'utf8');
-const readme=read('README.md'), install=read('docs/INSTALLATION.md');
+const readme=read('README.md'), install=read('docs/INSTALLATION.md'), desktop=read('apps/desktop-qt/README.md');
 const repo='https://github.com/NotAzureStudios/Cluster';
 for(const [name,contents] of [['README.md',readme],['docs/INSTALLATION.md',install]]){
  assert.ok(contents.includes(repo+'/releases/latest'),name+' must link to latest release');
@@ -15,6 +15,13 @@ for(const [name,contents] of [['README.md',readme],['docs/INSTALLATION.md',insta
  assert.doesNotMatch(contents,/releases\/(?:download|tag)\/v\d+\.\d+\.\d+/i,name+' contains a pinned, stale release link');
  assert.doesNotMatch(contents,/releases\/latest\/download\/Cluster-Desktop-Installer-\d/i,name+' assumes fixed Desktop component version');
 }
+for (const [name, contents] of [['README.md', readme], ['docs/INSTALLATION.md', install], ['apps/desktop-qt/README.md', desktop]]) {
+ assert.doesNotMatch(contents, /(?:latest|current|now) (?:Cluster |Server )?\d+\.\d+\.\d+\b/i, name + ' must not hardcode latest version');
+}
+assert.ok(desktop.includes(repo+'/releases/latest/download/Cluster-Desktop-Installer.exe'), 'Desktop README must use evergreen installer');
+assert.ok(desktop.includes(repo+'/releases/latest/download/Cluster-Desktop-Portable.zip'), 'Desktop README must use evergreen portable');
+assert.doesNotMatch(desktop, /releases\/(?:download|tag)\/v\d+\.\d+\.\d+/i, 'Desktop README must not pin an old suite');
+assert.ok(readme.includes('1.1.1 → 1.1.2') && install.includes('1.1.1 → 1.1.2'), 'Preserve manual signing-key transition');
 assert.ok(readme.includes('docs/development/WINDOWS_CODE_SIGNING.md'),'README must link signing guide');
 assert.ok(readme.includes('docs/development/RELEASE_ASSET_NAMING.md'),'README must explain permanent asset naming');
 console.log('Evergreen README and installation download links verified.');

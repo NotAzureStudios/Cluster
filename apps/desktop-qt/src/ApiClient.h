@@ -63,7 +63,6 @@ signals:
 private:
     QNetworkRequest requestFor(const QString &path) const;
     void finish(const QString &operation, QNetworkReply *reply);
-    void finishDownload(const QString &operation, const QString &suggestedName, QNetworkReply *reply);
     QVariantMap errorFromReply(QNetworkReply *reply, const QByteArray &body, const QJsonDocument &document) const;
     void updateMetadata(QNetworkReply *reply);
     void setOnline(bool online);

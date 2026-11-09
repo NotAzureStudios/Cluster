@@ -1048,18 +1048,44 @@ bool ServerProfileStore::activateProfileIndex(int index, bool restart)
 {
     if (index < 0 || index >= m_profiles.size()) return false;
     const QString nextId = m_profiles[index].id;
+    const QString previousId = m_activeProfileId;
+    const QString previousUsedAt = m_profiles[index].lastUsedAt;
     m_profiles[index].lastUsedAt = isoNow();
-    if (m_activeProfileId == nextId) {
-        save();
+    if (previousId == nextId) {
+        if (!save()) {
+            m_profiles[index].lastUsedAt = previousUsedAt;
+            setLastOperationError(QStringLiteral("Cluster could not save the active Server profile."));
+            return false;
+        }
         emit profilesChanged();
         return true;
     }
+
+    // Keep the on-disk registry and in-memory selection together. If the
+    // registry cannot be committed, the current WebView/session must continue
+    // to own the original Server profile.
     m_activeProfileId = nextId;
-    if (!save()) return false;
+    if (!save()) {
+        m_activeProfileId = previousId;
+        m_profiles[index].lastUsedAt = previousUsedAt;
+        setLastOperationError(QStringLiteral("Cluster could not save the Server profile switch."));
+        return false;
+    }
+    if (restart && !restartIntoProfile(nextId)) {
+        // The new process was not started. Roll back both views of the
+        // selection rather than leaving the old WebView running under a
+        // newly selected persistent profile.
+        m_activeProfileId = previousId;
+        m_profiles[index].lastUsedAt = previousUsedAt;
+        const bool restored = save();
+        setLastOperationError(restored
+            ? QStringLiteral("Cluster could not restart into the selected Server. The previous profile remains active.")
+            : QStringLiteral("Cluster could not restart or restore the Server profile registry. Repair the saved profile selection before relaunching."));
+        return false;
+    }
     emit profilesChanged();
     emit activeProfileChanged();
     refreshRecoveryState();
-    if (restart) return restartIntoProfile(nextId);
     return true;
 }
 
