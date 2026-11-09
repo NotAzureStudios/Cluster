@@ -5,7 +5,7 @@ const native=readFileSync("apps/server-launcher-go/server_update_web_actions_win
 const api=readFileSync("apps/server/src/app/server-routes-configuration-integrations.ts","utf8");
 const web=readFileSync("packages/renderer/src/features/settings/ServerUpdateControls.tsx","utf8");
 assert.match(main,/web-server-update/);
-assert.match(main,/webServerUpdateAction/);
+assert.match(main,/webUpdateAction/);
 assert.match(native,/action!="check" && action!="stage" && action!="status"/);
 assert.match(native,/checkUpdateManifest\(root\)/);
 assert.match(native,/stageServerUpdate\(root,feed,"main"\)/);
