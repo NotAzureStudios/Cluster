@@ -30,7 +30,8 @@ export { discardUploadSession } from "./upload-session-transport";
 
 /** Upload backpressure is retryable; the staged session and local Blob remain authoritative. */
 function isUploadBackpressure(error: unknown) {
-  return error instanceof ApiError && (error.status === 429 || (error.status === 503 && error.code === "SERVER_SATURATED"));
+  return error instanceof ApiError && (error.status === 429 || (error.status === 503 &&
+    ["SERVER_SATURATED", "UPLOAD_CHUNK_ADMISSION_BUSY"].includes(error.code)));
 }
 function uploadRetryDelay(error: unknown, attempts: number) {
   const hint = error instanceof ApiError && Number.isFinite(error.retryAfterSeconds)
