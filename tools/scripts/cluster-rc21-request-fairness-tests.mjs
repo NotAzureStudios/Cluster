@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readTrafficLane, noteReadRateLimit, rateLimitCooldownRemaining, retryAfterMilliseconds, readRateLimitCooldown, resetReadRateLimitCooldowns } from '../../packages/api-client/src/read-rate-limit.ts';
+import { readTrafficLane, noteReadRateLimit, rateLimitCooldownRemaining, retryAfterMilliseconds, readRateLimitCooldown, resetReadRateLimitCooldowns, readRateLimitGeneration } from '../../packages/api-client/src/read-rate-limit.ts';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
 let checks = 0;
@@ -12,6 +12,8 @@ check(() => assert.equal(readTrafficLane('/api/library/workspace?parent=root','G
 check(() => assert.equal(readTrafficLane('/api/admin/inventory/assets?limit=30','GET'), 'api-inventory'));
 check(() => assert.equal(readTrafficLane('/api/notifications/summary','GET'), 'api-live'));
 check(() => assert.equal(readTrafficLane('/api/meta/compatibility','GET'), 'api-compatibility'));
+check(() => assert.equal(readTrafficLane('/api/projects/provision/job-123?refresh=1','GET'), 'api-project-progress'));
+check(() => assert.equal(readTrafficLane('/api/projects/provision','POST'), null));
 check(() => assert.equal(readTrafficLane('/api/library/workspace','POST'), null));
 check(() => assert.equal(retryAfterMilliseconds('6', 1000), 6000));
 check(() => assert.equal(retryAfterMilliseconds('150', 1000), 60000));
@@ -23,11 +25,29 @@ check(() => assert.equal(rateLimitCooldownRemaining('api-library',11_000),6000))
 check(() => assert.equal(rateLimitCooldownRemaining('api-inventory',11_000),0));
 check(() => assert.equal(rateLimitCooldownRemaining('api-library',18_000),0));
 resetReadRateLimitCooldowns();
+// Exercise a genuinely pending wait, not an already-expired lane.
+noteReadRateLimit('api-live', '30');
 const abort = new AbortController();
-const promise = readRateLimitCooldown('api-live',abort.signal);
+const promise = readRateLimitCooldown('api-live', abort.signal);
 abort.abort();
-await promise.catch(() => {});
-check(() => assert.equal(rateLimitCooldownRemaining('api-live'),0));
+await assert.rejects(promise, { name: 'AbortError' });
+resetReadRateLimitCooldowns();
+check(() => assert.equal(rateLimitCooldownRemaining('api-live'), 0));
+
+// Reset must wake both waiting requests before their original 30-second timer.
+const generation = readRateLimitGeneration();
+noteReadRateLimit('api-library', '30');
+const parked = [readRateLimitCooldown('api-library'), readRateLimitCooldown('api-library')];
+resetReadRateLimitCooldowns();
+let watchdog;
+try {
+  await Promise.race([
+    Promise.all(parked),
+    new Promise((_, reject) => { watchdog = setTimeout(() => reject(new Error('Reset left old reads waiting')), 500); }),
+  ]);
+} finally { clearTimeout(watchdog); }
+check(() => assert.equal(readRateLimitGeneration(), generation + 1));
+check(() => assert.equal(rateLimitCooldownRemaining('api-library'), 0));
 const server = read('apps/server/src/core/request-workload.ts');
 check(() => assert.match(server, /bucketName: "api-library"/));
 check(() => assert.match(server, /bucketName: "api-inventory"/));
@@ -38,6 +58,7 @@ check(() => assert.match(client, /noteReadRateLimit\(trafficLane, response\.head
 check(() => assert.match(client, /await readRateLimitCooldown\(trafficLane, init\.signal\)/));
 check(() => assert.match(client, /Math\.min\(60_000, Math\.max\(0, retryAfter \* 1_000\)\)/));
 check(() => assert.match(read('packages/renderer/src/core/api/transport.ts'), /API_TIMEOUT_MS \+ 65_000/));
+check(() => assert.match(client, /requestCooldownGeneration === readRateLimitGeneration\(\)/));
 const library = read('packages/renderer/src/features/library/LibraryWorkspacePage.tsx');
 check(() => assert.match(library, /showSavedViews \? <div className="library-views-flyout-v22"/));
 check(() => assert.doesNotMatch(library, /showFilters \|\| activeFilterCount > 0 \? <SavedViewsToolbar/));

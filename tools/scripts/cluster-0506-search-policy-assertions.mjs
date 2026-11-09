@@ -28,12 +28,15 @@ const fakeBuilder = {
  normalize,
  buildIndex: corpus => ({ loadedAt:Date.now(),corpus,items:corpus.items||[],postings:new Map() }),
  buildPostings: () => new Map(),
+ buildIndexResponsive: async corpus => fakeBuilder.buildIndex(corpus),
+ buildPostingsResponsive: async items => fakeBuilder.buildPostings(items),
  mergeProjectCorpus:builder.mergeProjectCorpus,
 };
 const serviceModule = load('apps/server/src/domains/search/search-service.ts',{
  '../../core/bounded-cache.js':{BoundedCache:Cache},
  '../access/disclosure.js':{userDisclosureObligations:()=>({}),applyDisclosureObligations:user=>user},
  './search-index-builder.js':fakeBuilder,
+ './search-postings-executor.js':{searchPostingExecutorDiagnostics:()=>({workerStarts:0,workerBuilds:0,cooperativeBuilds:0,workerFailures:0,workerActive:false,workerBusy:false})},
  './search-query-runtime.js':{
    parseQuery:(q,scope)=>({term:q,operators:{},kinds:scope==='all'?[]:[scope],sort:'relevance'}),
    candidateIndexes:(snap,q)=>snap.items.map((_,i)=>i).filter(i=>snap.items[i].title.toLowerCase().includes(q)),
@@ -43,7 +46,7 @@ const serviceModule = load('apps/server/src/domains/search/search-service.ts',{
  },
 });
 function item(id,projectId=null,kind='file',title='alpha') {return {id,title,kind,projectId,memberIds:[],authorIds:[],labels:[],categories:[],flags:[],raw:{}};}
-function corpus(items,rules=[]) {return {items,projects:[{id:'P1'},{id:'P2'}],users:[],cards:[],timelineItems:[],calendarEvents:[],cardComments:[],activityEvents:[],projectFiles:[],videoAssets:[],deliveryRecords:[],projectRelationships:[],packetDefinitions:[],studioPolicies:[],accessRules:rules};}
+function corpus(items,rules=[]) {return {items,projects:[{id:'P1'},{id:'P2'}],users:[],cards:[],timelineItems:[],calendarEvents:[],cardComments:[],activityEvents:[],projectFiles:[],videoAssets:[],deliveryRecords:[],sourceReviews:[],sourceCommits:[],projectRelationships:[],packetDefinitions:[],studioPolicies:[],studioForms:[],formSubmissions:[],approvalRequests:[],accessRules:rules};}
 function createService(initial,more={}) {return serviceModule.createSearchService({loadCorpus:async()=>initial,serializeUserLite:x=>x,serializeProjectSummary:x=>x,...more});}
 async function query(service,canViewItem,q='alpha',limit=2) {return service.search({q,scope:'all',limit,userId:'u1',canViewItem});}
 let passed=0;
@@ -74,6 +77,13 @@ await check('cache contains only ranking indices, no permissioned responses',asy
  assert.ok(!src.includes('visibilityCache.getOrLoad'));
  assert.ok(!src.includes('resultCache.set('));
 });
+await check('Search diagnostics expose only bounded worker counters',async()=>{
+ const service=createService(corpus([item('a')]));
+ const status=service.diagnostics().postingWorker;
+ assert.equal(status.workerStarts,0);
+ assert.equal(status.workerFailures,0);
+ assert.equal(Object.hasOwn(status,'tokens'),false);
+});
 await check('partial project refresh retains global and other project access rules',async()=>{
  const original=corpus([],[{id:'global'},{id:'p1old',projectId:'P1'},{id:'p2',projectId:'P2'},{id:'p1target',targetKind:'project',targetId:'P1'}]);
  const incoming=corpus([],[{id:'p1new',projectId:'P1'}]);
@@ -99,6 +109,49 @@ await check('project content refresh is awaited rather than serving removed item
  const searching=query(service,()=>true);
  resolveRefresh();const result=await searching;
  assert.deepEqual(Array.from(result.results,x=>x.id),['stable']);
+});
+await check('in-flight CPU posting build never overwrites a newer ACL snapshot',async()=>{
+ const base=corpus([item('old','P1'),item('stable','P2')],[{id:'acl-old'}]);
+ const changed=corpus([item('replacement','P1')],[{id:'acl-project',projectId:'P1'}]);
+ let resolveEntered;const entered=new Promise(resolve=>{resolveEntered=resolve;});
+ let releasePostings;const pendingPostings=new Promise(resolve=>{releasePostings=resolve;});
+ const previousBuild=fakeBuilder.buildPostingsResponsive;
+ let stallNext=true;
+ let refreshCount=0;
+ fakeBuilder.buildPostingsResponsive=async items=>{
+   if(stallNext && items.some(row=>row.id==='replacement')) {
+     stallNext=false;
+     resolveEntered();
+     await pendingPostings;
+   }
+   return new Map();
+ };
+ try {
+   const service=createService(base,{
+     loadProjectCorpus:async()=>{refreshCount++;return changed;},
+     loadAccessRules:async()=>[{id:'acl-latest'}],
+   });
+   await query(service,()=>true);
+   service.invalidateProject('P1');
+   await Promise.race([entered,new Promise((_,reject)=>setTimeout(()=>reject(Error('posting build did not start')),2000))]);
+   service.invalidateChange({resource:{kind:'access_rule',id:'policy'}});
+   // The ACL update is allowed to publish while the CPU posting build is in
+   // progress. Its newer snapshot must win; the Project refresh then replays.
+   for(let i=0;i<6;i++) await Promise.resolve();
+   releasePostings();
+   const observed=[];
+   const result=await query(service,(_item,_project,rules)=>{
+     observed.push(rules.map(rule=>rule.id));
+     return true;
+   },'alpha',6);
+   assert.ok(refreshCount>=2,'a stale Project posting build must be replayed');
+   assert.deepEqual(Array.from(result.results,row=>row.id).sort(),['replacement','stable']);
+   assert.ok(observed.length>0);
+   assert.ok(observed.every(ids=>ids.includes('acl-latest')&&!ids.includes('acl-old')));
+ } finally {
+   releasePostings();
+   fakeBuilder.buildPostingsResponsive=previousBuild;
+ }
 });
 await check('user incremental search corpus keeps workforce authority joins',async()=>{
  const code=fs.readFileSync('apps/server/src/domains/search/search-repository.ts','utf8');
@@ -161,5 +214,5 @@ await check('graph reports truncation when row cap leaves fetched visible siblin
  const result=await graph.neighborhood({subject:{kind:'board',id:'root',projectId:'P1'},maxEdges:1,depth:1});
  assert.equal(result.edges.length,1);assert.equal(result.truncated,true);
 });
-console.log(`${passed}/13 search/privacy assertions passed`);
-if(passed!==13) process.exitCode=1;
+console.log(`${passed}/15 search/privacy assertions passed`);
+if(passed!==15) process.exitCode=1;

@@ -45,6 +45,30 @@ jobs:
         env:
           DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Database analytics query budget regression
+        run: node tools/scripts/cluster-performance-analytics-query-tests.mjs
+      - name: Request I/O coalescing and update hold safety
+        run: node tools/scripts/cluster-request-io-coalescing-tests.mjs
+      - name: Queue counts and pressure single-flight regression
+        run: node tools/scripts/cluster-queue-read-singleflight-tests.mjs
+      - name: Live read baseline utility safety regression
+        run: |
+          node tools/scripts/cluster-live-read-baseline-tests.mjs
+          node tools/scripts/cluster-compare-read-baselines-tests.mjs
+      - name: Visible refresh and background poll backoff regression
+        run: node tools/scripts/cluster-visible-refresh-backoff-tests.mjs
+      - name: Search CPU worker and stale-index regression
+        run: |
+          node tools/scripts/cluster-search-postings-worker-tests.mjs
+          node tools/scripts/cluster-0506-search-policy-assertions.mjs
+      - name: Completed upload range and conditional-stream certification
+        run: node tools/scripts/cluster-completed-upload-range-tests.mjs
+      - name: Buffered upload admission and transfer memory budget regression
+        run: node tools/scripts/cluster-upload-chunk-admission-tests.mjs
+      - name: Browser upload backpressure and durable recovery regression
+        run: node tools/scripts/cluster-upload-client-backpressure-tests.mjs
+      - name: Bounded storage preview prefix regression
+        run: node tools/scripts/cluster-upload-prefix-memory-tests.mjs
       - name: Assert compiled outputs exist
         shell: pwsh
         run: |

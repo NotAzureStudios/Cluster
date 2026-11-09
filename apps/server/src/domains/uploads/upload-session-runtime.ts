@@ -53,6 +53,9 @@ export type CompletedUpload = {
   };
   filePath: string | null;
   storage: StorageLocator | null;
+  /** Verified during upload authorization; reuse for streaming headers so
+   * an object-store download does not issue a second remote HEAD. */
+  resourceStat?: { size: number; modifiedAt: Date };
 };
 
 function configuredUploadLimit(name: string, fallback: number, minimum: number) {
@@ -434,10 +437,13 @@ export async function createUploadSession(deps: UploadRuntimeDependencies, input
   }
 }
 
-export async function getUploadSession(deps: UploadRuntimeDependencies, uploadId: string, ownerId: string, isAdmin = false) {
+export async function getUploadSession(deps: UploadRuntimeDependencies, uploadId: string, ownerId: string, isAdmin = false, includeParts = true) {
   const session = await deps.prisma.uploadSession.findUnique({
     where: { id: uploadId },
-    include: { parts: { orderBy: { partNumber: "asc" } } },
+    // Local buffered chunks never inspect multipart parts. Avoid loading a
+    // child relation for every 4–8 MiB chunk while preserving the existing
+    // fully populated session contract for status/direct multipart routes.
+    ...(includeParts ? { include: { parts: { orderBy: { partNumber: "asc" } } } } : {}),
   });
   if (!session || (session.ownerId !== ownerId && !isAdmin)) return null;
   return session;
@@ -701,7 +707,7 @@ export async function resolveCompletedUpload(deps: UploadRuntimeDependencies, up
     if (!storage) return null;
     const info = await deps.storageRuntime.stat(storage).catch(() => null);
     if (!info || info.size !== metadata.totalBytes) return null;
-    return { metadata, filePath: null, storage };
+    return { metadata, filePath: null, storage, resourceStat: { size: info.size, modifiedAt: info.modifiedAt } };
   }
 
   const filePath = localCompletePath(deps.dataLayout, session.id, session.fileName);
@@ -709,11 +715,18 @@ export async function resolveCompletedUpload(deps: UploadRuntimeDependencies, up
   catch { return null; }
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile() || info.size !== metadata.totalBytes) return null;
-  return { metadata, filePath, storage: null };
+  return { metadata, filePath, storage: null, resourceStat: { size: info.size, modifiedAt: info.mtime } };
 }
 
 export async function readCompletedUploadPrefix(deps: UploadRuntimeDependencies, upload: CompletedUpload, maximum = 64 * 1024) {
-  const length = Math.max(1, Math.min(maximum, upload.metadata.totalBytes || maximum));
+  // Only retain the requested prefix, regardless of how much a provider emits
+  // per chunk. Empty resources must not open a meaningless byte-range stream.
+  const declaredBytes = Number(upload.metadata.totalBytes);
+  const requestedBytes = Number(maximum);
+  const length = Number.isFinite(declaredBytes) && declaredBytes >= 0 && Number.isFinite(requestedBytes) && requestedBytes > 0
+    ? Math.min(Math.floor(declaredBytes), Math.floor(requestedBytes))
+    : 0;
+  if (length === 0) return Buffer.alloc(0);
   if (upload.filePath) {
     const handle = await open(upload.filePath, "r");
     try {
@@ -725,16 +738,20 @@ export async function readCompletedUploadPrefix(deps: UploadRuntimeDependencies,
     }
   }
   if (!upload.storage) return Buffer.alloc(0);
-  const chunks: Buffer[] = [];
-  let total = 0;
+  const prefix = Buffer.alloc(length);
+  let received = 0;
   const stream = await deps.storageRuntime.openRead(upload.storage, { start: 0, end: length - 1 });
-  for await (const chunk of stream as any) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    chunks.push(buffer);
-    total += buffer.length;
-    if (total >= length) break;
+  // Breaking an async iterator destroys a Node readable. That matters when a
+  // storage adapter ignores its requested range and keeps sending data.
+  for await (const chunk of stream as AsyncIterable<Uint8Array>) {
+    const bytes = Buffer.isBuffer(chunk)
+      ? chunk
+      : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    const copied = bytes.copy(prefix, received, 0, length - received);
+    received += copied;
+    if (received >= length) break;
   }
-  return Buffer.concat(chunks).subarray(0, length);
+  return prefix.subarray(0, received);
 }
 
 export async function copyCompletedUploadToFile(deps: UploadRuntimeDependencies, upload: CompletedUpload, destination: string) {

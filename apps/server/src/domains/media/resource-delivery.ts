@@ -14,7 +14,9 @@ export function resourceIfRangeMatches(value: unknown, etag: string, modifiedAt:
   if (text.startsWith("\"") || text.startsWith("W/\"")) return text === etag;
   const date = new Date(text);
   if (!Number.isFinite(date.getTime())) return false;
-  return Math.floor(modifiedAt.getTime() / 1000) <= Math.floor(date.getTime() / 1000);
+  // If-Range uses exact date matching, unlike If-Unmodified-Since.
+  // A future date must never authorize a partial response against newer bytes.
+  return Math.floor(modifiedAt.getTime() / 1000) === Math.floor(date.getTime() / 1000);
 }
 
 export function parseSingleByteRange(range: string, total: number): { start: number; end: number } | null {
@@ -39,7 +41,11 @@ export function parseSingleByteRange(range: string, total: number): { start: num
 
 function notModified(request: FastifyRequest, etag: string, modifiedAt: Date) {
   const ifNoneMatch = String(request.headers["if-none-match"] || "").trim();
-  if (ifNoneMatch && (ifNoneMatch === "*" || ifNoneMatch.split(",").map((item) => item.trim()).includes(etag))) return true;
+  // If-None-Match uses weak comparison. Weak cache validators may satisfy
+  // a GET/HEAD revalidation, but must never satisfy strong If-Range.
+  if (ifNoneMatch && (ifNoneMatch === "*" || ifNoneMatch.split(",").some(
+    item => item.trim().replace(/^W\//, "") === etag,
+  ))) return true;
   if (ifNoneMatch) return false;
   const since = String(request.headers["if-modified-since"] || "").trim();
   if (!since) return false;
@@ -54,14 +60,17 @@ export async function sendStoredResource(request: FastifyRequest, reply: Fastify
   requestedInline?: boolean;
   checksumSha256?: string | null;
   cacheControl?: string;
+  /** Only callers that have already verified the file's identity and size
+   * may provide this snapshot to avoid duplicate local metadata I/O. */
+  knownStat?: { size: number; modifiedAt: Date };
 }) {
-  const stat = await fs.stat(input.filePath);
-  if (!stat.isFile()) return reply.code(404).send({ code: "RESOURCE_FILE_MISSING", message: "Stored resource is not a file." });
-  const total = stat.size;
-  const modifiedAt = stat.mtime;
+  const fileStat = input.knownStat ? null : await fs.stat(input.filePath);
+  if (fileStat && !fileStat.isFile()) return reply.code(404).send({ code: "RESOURCE_FILE_MISSING", message: "Stored resource is not a file." });
+  const total = input.knownStat?.size ?? fileStat!.size;
+  const modifiedAt = input.knownStat?.modifiedAt ?? fileStat!.mtime;
   const etag = input.checksumSha256 && /^[a-f0-9]{64}$/i.test(input.checksumSha256)
     ? `"sha256-${input.checksumSha256.toLowerCase()}"`
-    : opaqueEtag(`${total}:${Math.floor(stat.mtimeMs)}:${input.filePath}`);
+    : opaqueEtag(`${total}:${Math.floor(modifiedAt.getTime())}:${input.filePath}`);
   const contentType = normalizeMimeType(input.mimeType);
   const disposition = uploadContentDisposition(contentType, input.originalName, Boolean(input.requestedInline));
 
@@ -107,8 +116,11 @@ export async function sendStorageResource(request: FastifyRequest, reply: Fastif
   requestedInline?: boolean;
   checksumSha256?: string | null;
   cacheControl?: string;
+  /** The owning domain may pass a metadata snapshot verified in this request;
+   * prevents a redundant remote provider HEAD before streaming. */
+  knownStat?: { size: number; modifiedAt: Date };
 }) {
-  const object = await input.storage.stat(input.locator);
+  const object = input.knownStat || await input.storage.stat(input.locator);
   const total = object.size;
   const modifiedAt = object.modifiedAt;
   const etag = input.checksumSha256 && /^[a-f0-9]{64}$/i.test(input.checksumSha256)

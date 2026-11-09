@@ -10,6 +10,7 @@ export type RuntimeTelemetrySnapshot = {
   requests: {
     total: number;
     errors: number;
+    rateLimited: number;
     errorRate: number;
     inFlight: number;
     ratePerSecond: number;
@@ -53,10 +54,16 @@ export type RuntimeTelemetrySnapshot = {
     heapLimitMiB: number;
     externalMiB: number;
   };
+  rateLimits: {
+    total: number;
+    byBucket: Array<{ bucket: string; count: number }>;
+    byRoute: Array<{ route: string; count: number }>;
+  };
   routes: Array<{
     route: string;
     count: number;
     errors: number;
+    rateLimited: number;
     averageMs: number;
     p50Ms: number;
     p95Ms: number;
@@ -65,7 +72,32 @@ export type RuntimeTelemetrySnapshot = {
   }>;
 };
 
-type RouteMetric = { count: number; errors: number; totalMs: number; maxMs: number; samples: number[] };
+/** Minimal inputs for per-request overload admission; full diagnostics stay on demand. */
+export type RuntimeSaturationSignals = {
+  process: Pick<RuntimeTelemetrySnapshot["process"], "cpuPercent">;
+  requests: Pick<RuntimeTelemetrySnapshot["requests"], "total" | "p95Ms" | "p99Ms" | "longLived">;
+  eventLoop: Pick<RuntimeTelemetrySnapshot["eventLoop"], "utilization" | "p95Ms" | "p99Ms">;
+  gc: Pick<RuntimeTelemetrySnapshot["gc"], "p99PauseMs">;
+  database: Pick<RuntimeTelemetrySnapshot["database"], "waitingConnections" | "utilization">;
+  memory: Pick<RuntimeTelemetrySnapshot["memory"], "heapUsedMiB" | "heapLimitMiB">;
+};
+
+type RouteMetric = { count: number; errors: number; rateLimited: number; totalMs: number; maxMs: number; samples: number[] };
+
+// Only server-defined bucket names are retained. Unknown header values become
+// unattributed, preventing accidental identifier leakage or unbounded metrics.
+const SAFE_RATE_BUCKETS = new Set([
+  "api", "api-admin", "api-library", "api-inventory", "api-timeline",
+  "api-live", "api-mutation", "api-compatibility",
+  "api-project-preview", "api-project-create", "api-project-progress",
+  "auth-transport", "security-transport", "search-user",
+  "comment-user", "upload-user", "export-user", "security",
+  "external", "setup", "unattributed",
+]);
+function rateBucketKey(bucket: unknown) {
+  const candidate = String(bucket || "unattributed").toLowerCase();
+  return SAFE_RATE_BUCKETS.has(candidate) ? candidate : "unattributed";
+}
 type RequestRateSample = { at: number; total: number };
 
 const round = (value: number, precision = 1) => Number.isFinite(value) ? Number(value.toFixed(precision)) : 0;
@@ -90,6 +122,8 @@ export function normalizeTelemetryRoute(route: string) {
 export class RuntimeTelemetry {
   private total = 0;
   private errors = 0;
+  private rateLimited = 0;
+  private readonly limitedBuckets = new Map<string, number>();
   private inFlight = 0;
   private longLived = 0;
   private totalMs = 0;
@@ -111,6 +145,7 @@ export class RuntimeTelemetry {
   private readonly requestRateSamples: RequestRateSample[] = [];
   private readonly gcObserver: PerformanceObserver;
   private databasePressure = { poolMax: 0, totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingConnections: 0, utilization: 0, sampledAt: null as string | null };
+  private admissionCache: { at: number; snapshot: RuntimeSaturationSignals } | null = null;
 
   constructor(private readonly options: { maxSamples?: number; maxRoutes?: number; slowRequestMs?: number } = {}) {
     this.eventLoop.enable();
@@ -176,7 +211,7 @@ export class RuntimeTelemetry {
     };
   }
 
-  complete(startedAt: bigint, route: string, statusCode: number) {
+  complete(startedAt: bigint, route: string, statusCode: number, rateLimitBucket?: unknown) {
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
     this.inFlight = Math.max(0, this.inFlight - 1);
     this.total += 1; this.totalMs += durationMs; this.maxMs = Math.max(this.maxMs, durationMs);
@@ -185,9 +220,15 @@ export class RuntimeTelemetry {
     this.pushSample(this.samples, durationMs);
     let key = normalizeTelemetryRoute(route);
     if (!this.routes.has(key) && this.routes.size >= (this.options.maxRoutes ?? 96)) key = "other";
-    const metric = this.routes.get(key) || { count: 0, errors: 0, totalMs: 0, maxMs: 0, samples: [] };
+    const metric = this.routes.get(key) || { count: 0, errors: 0, rateLimited: 0, totalMs: 0, maxMs: 0, samples: [] };
     metric.count += 1; metric.totalMs += durationMs; metric.maxMs = Math.max(metric.maxMs, durationMs);
     if (statusCode >= 500) metric.errors += 1;
+    if (statusCode === 429) {
+      this.rateLimited += 1;
+      metric.rateLimited += 1;
+      const bucket = rateBucketKey(rateLimitBucket);
+      this.limitedBuckets.set(bucket, (this.limitedBuckets.get(bucket) || 0) + 1);
+    }
     this.pushSample(metric.samples, durationMs); this.routes.set(key, metric);
     return durationMs;
   }
@@ -197,7 +238,7 @@ export class RuntimeTelemetry {
   /** API Tool Manager needs every bounded route, not only the 20 slowest. */
   routeMetricsSnapshot(): RuntimeTelemetrySnapshot["routes"] {
     return [...this.routes.entries()].map(([route, metric]) => ({
-      route, count: metric.count, errors: metric.errors,
+      route, count: metric.count, errors: metric.errors, rateLimited: metric.rateLimited,
       averageMs: round(metric.totalMs / Math.max(1, metric.count)),
       p50Ms: round(percentile(metric.samples, .5)),
       p95Ms: round(percentile(metric.samples, .95)),
@@ -205,18 +246,40 @@ export class RuntimeTelemetry {
     })).sort((a, b) => b.count - a.count || a.route.localeCompare(b.route));
   }
 
+  /**
+   * Cheap, time-bounded overload signals. The API request hook must not sort
+   * every route's latency history or rebuild a complete diagnostic report per
+   * request. The resource governor still samples independently on its cadence.
+   */
+  admissionSnapshot(now = Date.now()): RuntimeSaturationSignals {
+    const cached = this.admissionCache;
+    if (cached && now >= cached.at && now - cached.at < 250) return cached.snapshot;
+    const memory = process.memoryUsage();
+    const heap = getHeapStatistics();
+    const snapshot: RuntimeSaturationSignals = {
+      process: { cpuPercent: round(this.lastCpuPercent, 1) },
+      requests: { total: this.total, p95Ms: round(percentile(this.samples, .95)), p99Ms: round(percentile(this.samples, .99)), longLived: this.longLived },
+      eventLoop: { utilization: round(this.lastEluUtilization, 4), p95Ms: toMs(this.eventLoop.percentile(95)), p99Ms: toMs(this.eventLoop.percentile(99)) },
+      gc: { p99PauseMs: round(percentile(this.gcSamples, .99)) },
+      database: { waitingConnections: this.databasePressure.waitingConnections, utilization: round(this.databasePressure.utilization, 4) },
+      memory: { heapUsedMiB: toMiB(memory.heapUsed), heapLimitMiB: toMiB(heap.heap_size_limit) },
+    };
+    this.admissionCache = { at: now, snapshot };
+    return snapshot;
+  }
+
   snapshot(): RuntimeTelemetrySnapshot {
     const memory = process.memoryUsage();
     const heapStatistics = getHeapStatistics();
     const routes = [...this.routes.entries()].map(([route, metric]) => ({
-      route, count: metric.count, errors: metric.errors,
+      route, count: metric.count, errors: metric.errors, rateLimited: metric.rateLimited,
       averageMs: round(metric.totalMs / Math.max(1, metric.count)), p50Ms: round(percentile(metric.samples, .5)),
       p95Ms: round(percentile(metric.samples, .95)), p99Ms: round(percentile(metric.samples, .99)), maxMs: round(metric.maxMs),
     })).sort((a,b) => b.p95Ms - a.p95Ms || b.count - a.count).slice(0,20);
 
     return {
       process: { pid: process.pid, uptimeSeconds: round(process.uptime(), 0), cpuPercent: round(this.lastCpuPercent, 1) },
-      requests: { total: this.total, errors: this.errors, errorRate: round(this.errors / Math.max(1,this.total),4), inFlight: this.inFlight,
+      requests: { total: this.total, errors: this.errors, rateLimited: this.rateLimited, errorRate: round(this.errors / Math.max(1,this.total),4), inFlight: this.inFlight,
         ratePerSecond: round(this.lastRequestRatePerSecond,2), averageMs: round(this.totalMs / Math.max(1,this.total)), p50Ms: round(percentile(this.samples,.5)),
         p95Ms: round(percentile(this.samples,.95)), p99Ms: round(percentile(this.samples,.99)), maxMs: round(this.maxMs), slow: this.slow, longLived: this.longLived },
       eventLoop: { utilization: round(this.lastEluUtilization,4), meanMs: toMs(this.eventLoop.mean), p50Ms: toMs(this.eventLoop.percentile(50)),
@@ -224,7 +287,15 @@ export class RuntimeTelemetry {
       gc: { count: this.gcCount, totalPauseMs: round(this.gcTotalPauseMs), averagePauseMs: round(this.gcTotalPauseMs / Math.max(1,this.gcCount)),
         p95PauseMs: round(percentile(this.gcSamples,.95)), p99PauseMs: round(percentile(this.gcSamples,.99)), maxPauseMs: round(this.gcMaxPauseMs) },
       database: { ...this.databasePressure, utilization: round(this.databasePressure.utilization, 4) },
-      memory: { rssMiB: toMiB(memory.rss), heapUsedMiB: toMiB(memory.heapUsed), heapTotalMiB: toMiB(memory.heapTotal), heapLimitMiB: toMiB(heapStatistics.heap_size_limit), externalMiB: toMiB(memory.external) }, routes,
+      memory: { rssMiB: toMiB(memory.rss), heapUsedMiB: toMiB(memory.heapUsed), heapTotalMiB: toMiB(memory.heapTotal), heapLimitMiB: toMiB(heapStatistics.heap_size_limit), externalMiB: toMiB(memory.external) },
+      rateLimits: {
+        total: this.rateLimited,
+        byBucket: [...this.limitedBuckets.entries()].map(([bucket, count]) => ({ bucket, count }))
+          .sort((a, b) => b.count - a.count || a.bucket.localeCompare(b.bucket)),
+        byRoute: [...this.routes.entries()].filter(([, metric]) => metric.rateLimited > 0)
+          .map(([route, metric]) => ({ route, count: metric.rateLimited }))
+          .sort((a, b) => b.count - a.count || a.route.localeCompare(b.route)).slice(0, 20),
+      }, routes,
     };
   }
 

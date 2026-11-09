@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { refreshRetryDelayMs } from "./refresh-backoff.js";
 
 export type VisibleRefreshOptions = {
   enabled?: boolean;
@@ -39,21 +40,32 @@ export function useVisibleRefresh(refresh: () => Promise<unknown> | unknown, opt
     // otherwise wake every mounted workspace poller on each transition.
     const recoveryGapMs = Math.max(12_000, minimumGapMs);
     let rerunRequested = false;
+    let consecutiveFailures = 0;
+    let retryNotBefore = 0;
 
     const run = async () => {
       if (cancelled || document.visibilityState !== "visible") return;
       if (requireOnline && typeof navigator !== "undefined" && !navigator.onLine) return;
       if (inFlightRef.current) { rerunRequested = true; return; }
+      // Focus, reconnect and regular polling share the same Retry-After budget.
+      if (Date.now() < retryNotBefore) return;
       const elapsed = Date.now() - lastStartedAt;
       if (elapsed < minimumGapMs) return;
       lastStartedAt = Date.now();
       inFlightRef.current = true;
-      try { await refreshRef.current(); } catch { /* callers keep their current state and retry on the next recovery signal */ }
-      finally {
+      try {
+        await refreshRef.current();
+        consecutiveFailures = 0;
+        retryNotBefore = 0;
+      } catch (error) {
+        consecutiveFailures += 1;
+        retryNotBefore = Date.now() + refreshRetryDelayMs(intervalMs, consecutiveFailures, error);
+        // Keep the current view; the bounded fallback resumes after backoff.
+      } finally {
         inFlightRef.current = false;
         if (rerunRequested && !cancelled) {
           rerunRequested = false;
-          const remainingGap = Math.max(0, minimumGapMs - (Date.now() - lastStartedAt));
+          const remainingGap = Math.max(0, minimumGapMs - (Date.now() - lastStartedAt), retryNotBefore - Date.now());
           if (remainingGap === 0) void run();
           else {
             if (recoveryTimer) window.clearTimeout(recoveryTimer);
@@ -73,7 +85,7 @@ export function useVisibleRefresh(refresh: () => Promise<unknown> | unknown, opt
         timer = 0;
         await run();
         schedule();
-      }, intervalMs);
+      }, Math.max(intervalMs, retryNotBefore - Date.now()));
     };
     const request = () => { void run(); };
     const requestRecovery = () => {

@@ -170,10 +170,23 @@ export function serializeBackgroundJob(job: BackgroundJobRecord, options: { incl
   };
 }
 
+type QueuePressureSnapshot = {
+  oldestQueuedAt: string | null;
+  oldestQueuedAgeMs: number | null;
+  stalledLeases: number;
+  byQueue: Array<{ queue: string; queued: number; running: number; failed: number; deadLetter: number; total: number }>;
+};
+
 export class BackgroundJobQueue {
   private cachedCounts: { at: number; value: BackgroundJobQueueCounts } | null = null;
-  // An in-flight counts() read must not repopulate a cache after a committed
-  // queue mutation invalidated it. Track the read generation across await.
+  // Counts and pressure are often fetched by several admin/workspace widgets
+  // concurrently. Share only the pending authorized database read, not a new
+  // layer of polling or a persistent server-side cache.
+  private pendingCounts: { generation: number; promise: Promise<BackgroundJobQueueCounts> } | null = null;
+  private pendingPressure: { generation: number; promise: Promise<QueuePressureSnapshot> } | null = null;
+  private countsReadSequence = 0;
+  // An in-flight read must not repopulate the cache after a committed mutation
+  // or supersede a newer forced refresh.
   private countsGeneration = 0;
 
   constructor(
@@ -857,7 +870,20 @@ export class BackgroundJobQueue {
     return { facets, aggregations };
   }
 
-  async pressure() {
+  pressure(): Promise<QueuePressureSnapshot> {
+    const generation = this.countsGeneration;
+    if (this.pendingPressure?.generation === generation) return this.pendingPressure.promise;
+    const promise = this.readPressure();
+    this.pendingPressure = { generation, promise };
+    // Observe the rejection while cleaning up: a rejected metrics query
+    // must not leave an unhandled rejection or poison future reads.
+    void promise.finally(() => {
+      if (this.pendingPressure?.promise === promise) this.pendingPressure = null;
+    }).catch(() => undefined);
+    return promise;
+  }
+
+  private async readPressure(): Promise<QueuePressureSnapshot> {
     const [ageRows, stalledRows, queueRows] = await Promise.all([
       this.prisma.$queryRawUnsafe<Array<{ oldestQueuedAt: Date | null; oldestQueuedAgeMs: bigint | number | string | null }>>(
         `SELECT MIN("createdAt") AS "oldestQueuedAt",
@@ -892,9 +918,22 @@ export class BackgroundJobQueue {
     };
   }
 
-  async counts(force = false): Promise<BackgroundJobQueueCounts> {
-    if (!force && this.cachedCounts && Date.now() - this.cachedCounts.at < 2_000) return this.cachedCounts.value;
+  counts(force = false): Promise<BackgroundJobQueueCounts> {
+    if (!force && this.cachedCounts && Date.now() - this.cachedCounts.at < 2_000) return Promise.resolve(this.cachedCounts.value);
     const readGeneration = this.countsGeneration;
+    if (!force && this.pendingCounts?.generation === readGeneration) return this.pendingCounts.promise;
+    const readSequence = ++this.countsReadSequence;
+    const promise = this.readCounts(readGeneration, readSequence);
+    if (!force) {
+      this.pendingCounts = { generation: readGeneration, promise };
+      void promise.finally(() => {
+        if (this.pendingCounts?.promise === promise) this.pendingCounts = null;
+      }).catch(() => undefined);
+    }
+    return promise;
+  }
+
+  private async readCounts(readGeneration: number, readSequence: number): Promise<BackgroundJobQueueCounts> {
     const rows = await this.prisma.$queryRawUnsafe<Array<{ status: string; count: bigint | number | string }>>(
       `SELECT "status", COUNT(*)::bigint AS count FROM "BackgroundJob" GROUP BY "status"`,
     );
@@ -908,7 +947,7 @@ export class BackgroundJobQueue {
       cancelled: map.get("CANCELLED") || 0,
       total: rows.reduce((sum, row) => sum + Number(row.count), 0),
     };
-    if (this.countsGeneration === readGeneration) {
+    if (this.countsGeneration === readGeneration && this.countsReadSequence === readSequence) {
       this.cachedCounts = { at: Date.now(), value };
     }
     return value;

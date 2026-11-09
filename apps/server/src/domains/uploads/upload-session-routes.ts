@@ -1,7 +1,8 @@
-import { createReadStream } from "node:fs";
+import { sendStoredResource, sendStorageResource } from "../media/resource-delivery.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { safeFileName, untrustedFileResponseHeaders } from "../../core/uploads.js";
+import { createBufferedUploadAdmission, preflightBufferedChunkHeaders, type BufferedUploadRange } from "./upload-chunk-admission.js";
+
 import {
   MAX_UPLOAD_CHUNK_BYTES,
   acknowledgeDirectPart,
@@ -55,13 +56,13 @@ function sendUploadError(reply: FastifyReply, error: unknown, fallback = "Upload
   return reply.code(statusFor(error)).send(body);
 }
 
-async function requireOwner(request: FastifyRequest, reply: FastifyReply, deps: UploadSessionDependencies, id: string) {
+async function requireOwner(request: FastifyRequest, reply: FastifyReply, deps: UploadSessionDependencies, id: string, includeParts = true) {
   const user = await deps.getCurrentUser(request);
   if (!user) {
     reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
     return null;
   }
-  const session = await getUploadSession(deps, id, user.id, Boolean(user.isAdmin));
+  const session = await getUploadSession(deps, id, user.id, Boolean(user.isAdmin), includeParts);
   if (!session) {
     reply.code(404).send({ code: "UPLOAD_NOT_FOUND", message: "Upload session was not found." });
     return null;
@@ -133,28 +134,98 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
     return serializeUploadSession(resolved.session);
   });
 
+  // Keep the existing eight-MiB content parser, but admit requests before it
+  // buffers a chunk. This bounds in-process chunk memory under upload bursts
+  // and rejects unauthenticated, oversized and byte-quota-denied traffic early.
+  const chunkAdmission = createBufferedUploadAdmission();
+  const admittedChunks = new WeakMap<FastifyRequest, {
+    session: any;
+    range: BufferedUploadRange;
+    release: () => void;
+  }>();
+  const releaseChunk = (request: FastifyRequest) => {
+    const entry = admittedChunks.get(request);
+    if (!entry) return;
+    admittedChunks.delete(request);
+    entry.release();
+  };
+
   // Local/shared-filesystem fallback. Direct-object sessions never send bytes
   // through this route.
-  app.put("/api/uploads/:uploadId/chunks", async (request, reply) => {
-    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
-    const resolved = await requireOwner(request, reply, deps, params.uploadId);
-    if (!resolved) return;
-    if (resolved.session.mode === "direct") {
-      return reply.code(409).send({
-        code: "UPLOAD_DIRECT_REQUIRED",
-        message: "This upload session uses direct object-storage parts.",
-      });
-    }
-    const contentRange = String(request.headers["content-range"] || "");
-    const match = /^bytes\s+(\d+)-(\d+)\/(\d+)$/.exec(contentRange);
-    if (!match) return reply.code(400).send({ code: "UPLOAD_RANGE_REQUIRED", message: "Content-Range is required." });
-    const start = Number(match[1]);
-    const end = Number(match[2]);
-    const total = Number(match[3]);
+  app.put("/api/uploads/:uploadId/chunks", {
+    onRequest: async (request, reply) => {
+      const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+      const resolved = await requireOwner(request, reply, deps, params.uploadId, false);
+      if (!resolved) return reply;
+      if (resolved.session.mode === "direct") {
+        return reply.code(409).send({
+          code: "UPLOAD_DIRECT_REQUIRED",
+          message: "This upload session uses direct object-storage parts.",
+        });
+      }
+      if (resolved.session.mode !== "cluster" || resolved.session.status !== "OPEN") {
+        return reply.code(409).send({
+          code: "UPLOAD_STATE_INVALID",
+          message: "Upload session is not accepting Cluster-proxied chunks.",
+        });
+      }
+      const preflight = preflightBufferedChunkHeaders(request.headers, MAX_UPLOAD_CHUNK_BYTES);
+      if (!preflight.ok) return reply.code(preflight.status).send({ code: preflight.code, message: preflight.message });
+      // The durable writer repeats these checks under its local mutation lock
+      // against fresh DB state. Early admission rejects provably stale offsets
+      // and wrong totals before they consume a body buffer or workspace quota.
+      if (preflight.range.total !== Number(resolved.session.totalBytes)) {
+        return reply.code(400).send({ code: "UPLOAD_RANGE_INVALID", message: "Upload chunk range is invalid." });
+      }
+      const receivedBytes = Number(resolved.session.receivedBytes || 0);
+      if (preflight.range.start !== receivedBytes) {
+        return reply.code(409).send({
+          code: "UPLOAD_OFFSET_CONFLICT",
+          message: "Upload offset conflict.",
+          receivedBytes,
+        });
+      }
+      const release = chunkAdmission.acquire(resolved.session.id);
+      if (!release) {
+        reply.header("Retry-After", "1");
+        return reply.code(503).send({
+          code: "UPLOAD_CHUNK_ADMISSION_BUSY",
+          message: "Buffered upload capacity is temporarily occupied. Retry this chunk.",
+        });
+      }
+      const cleanup = () => releaseChunk(request);
+      admittedChunks.set(request, { session: resolved.session, range: preflight.range, release });
+      request.raw.once("aborted", cleanup);
+      reply.raw.once("close", cleanup);
+      try {
+        if (!(await consumeWorkspaceByteBudget(deps, resolved.session, preflight.range.bytes, reply))) {
+          cleanup();
+          return reply;
+        }
+      } catch (error) {
+        cleanup();
+        throw error;
+      }
+      if (request.raw.destroyed && !request.raw.complete) {
+        cleanup();
+        return reply;
+      }
+    },
+    onResponse: async (request) => { releaseChunk(request); },
+  }, async (request, reply) => {
+    const admitted = admittedChunks.get(request);
+    if (!admitted) return reply.code(503).send({ code: "UPLOAD_CHUNK_ADMISSION_LOST", message: "Upload admission was interrupted." });
     const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
-    if (!(await consumeWorkspaceByteBudget(deps, resolved.session, body.length, reply))) return;
+    const { start, end, total, bytes } = admitted.range;
+    if (body.length !== bytes) {
+      // For chunked requests without Content-Length, do not let a dishonest
+      // Content-Range undercharge the workspace byte budget. This extra quota
+      // read runs only on malformed requests, not legitimate upload traffic.
+      if (body.length > bytes && !(await consumeWorkspaceByteBudget(deps, admitted.session, body.length - bytes, reply))) return;
+      return reply.code(400).send({ code: "UPLOAD_RANGE_INVALID", message: "Upload chunk range is invalid." });
+    }
     try {
-      return await appendClusterChunk(deps, resolved.session, { start, end, total, body });
+      return await appendClusterChunk(deps, admitted.session, { start, end, total, body });
     } catch (error) {
       return sendUploadError(reply, error, "Unable to append upload chunk.");
     }
@@ -254,12 +325,23 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
     if (!user) return reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
     const upload = await resolveCompletedUpload(deps, params.uploadId, user.id, Boolean(user.isAdmin));
     if (!upload) return reply.code(404).send({ code: "UPLOAD_FILE_MISSING", message: "Completed upload is unavailable." });
-    reply.header("Content-Type", "application/octet-stream");
-    reply.header("Content-Length", String(upload.metadata.totalBytes));
-    reply.header("Content-Disposition", `attachment; filename="${safeFileName(upload.metadata.fileName)}"`);
-    for (const [header, value] of Object.entries(untrustedFileResponseHeaders("application/octet-stream", upload.metadata.fileName))) reply.header(header, value);
-    if (upload.filePath) return reply.send(createReadStream(upload.filePath));
-    if (upload.storage) return reply.send(await deps.storageRuntime.openRead(upload.storage));
+    const common = {
+      mimeType: "application/octet-stream",
+      originalName: upload.metadata.fileName,
+      checksumSha256: upload.metadata.checksumSha256 || null,
+      requestedInline: false,
+      cacheControl: "private, max-age=0, must-revalidate",
+      knownStat: upload.resourceStat,
+    };
+    // Range/If-Range/ETag/HEAD handling is centralized with Library resource
+    // delivery. The uploader owns permission checks and verified storage
+    // identity; HTTP streaming stays zero-copy at the application layer.
+    if (upload.filePath) return sendStoredResource(request, reply, { ...common, filePath: upload.filePath });
+    if (upload.storage) return sendStorageResource(request, reply, {
+      ...common,
+      storage: deps.storageRuntime,
+      locator: upload.storage,
+    });
     return reply.code(503).send({ code: "UPLOAD_STORAGE_UNAVAILABLE", message: "Completed upload storage is unavailable." });
   });
 }
