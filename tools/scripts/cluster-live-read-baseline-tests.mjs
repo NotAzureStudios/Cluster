@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { runClusterReadBaseline } from "./cluster-live-read-baseline.mjs";
+import { readFile } from "node:fs/promises";
 
 let checks = 0;
 async function check(name, fn) {
@@ -147,6 +148,27 @@ await check("different query workloads cannot silently share a redacted report l
     requests: 2,
     fetchImpl: async () => { throw Error("never called"); },
   }), /unique pathnames/);
+});
+
+await check("benchmark rate-limit categories stay aligned with the authoritative server allowlist", async () => {
+  // The server owns the vocabulary. The read-only benchmark must attribute
+  // every permitted bucket instead of silently collapsing new ones to unknown.
+  const serverSource = await readFile(
+    new URL("../../apps/server/src/core/runtime-telemetry.ts", import.meta.url), "utf8");
+  const section = serverSource.match(/const SAFE_RATE_BUCKETS = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(section, "server rate-limit policy list must be present");
+  const knownBuckets = [...section[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
+  assert.ok(knownBuckets.length >= 15, "server buckets should not silently disappear");
+  for (const bucket of knownBuckets) {
+    const result = await runClusterReadBaseline({
+      baseUrl: "http://127.0.0.1:9876", paths: ["/api/me"],
+      requests: 1, concurrency: 1, delayMs: 100,
+      fetchImpl: async () => new Response(null, {
+        status: 429, headers: { "x-cluster-rate-limit-bucket": bucket },
+      }),
+    });
+    assert.equal(result.routes[0].rateLimitBuckets[bucket], 1, "missing attribution for " + bucket);
+  }
 });
 
 console.log(checks + "/" + checks + " live read baseline utility tests passed");

@@ -19,6 +19,7 @@ const SAFE_BUCKETS = new Set([
   "api-live", "api-mutation", "api-compatibility", "api-project-preview",
   "api-project-create", "api-project-progress", "search-user",
   "export-user", "external", "auth-transport", "security-transport",
+  "comment-user", "upload-user", "security", "setup",
   "unattributed",
 ]);
 const num = (value, fallback, min, max) => {
