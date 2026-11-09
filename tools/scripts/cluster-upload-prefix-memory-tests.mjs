@@ -27,7 +27,18 @@ await check("oversized remote provider chunks never expand retained preview pref
   huge[0] = 0x42;
   const stream = Readable.from([huge, Buffer.alloc(2 * 1024 * 1024, 0x99)]);
   const { deps, calls } = harness(() => stream);
-  const prefix = await readCompletedUploadPrefix(deps, upload(20 * 1024 * 1024), 64 * 1024);
+  // The old implementation also returned 64 KiB, but first concatenated all
+  // huge provider chunks. Detect that intermediate allocation explicitly.
+  const originalConcat = Buffer.concat;
+  let concatCalls = 0;
+  let prefix;
+  Buffer.concat = (...args) => { concatCalls++; return originalConcat(...args); };
+  try {
+    prefix = await readCompletedUploadPrefix(deps, upload(20 * 1024 * 1024), 64 * 1024);
+  } finally {
+    Buffer.concat = originalConcat;
+  }
+  assert.equal(concatCalls, 0, "preview reader must never concatenate remote chunks");
   assert.equal(prefix.length, 64 * 1024);
   assert.equal(prefix[0], 0x42);
   assert.equal(prefix[prefix.length - 1], 0x64);
@@ -36,7 +47,7 @@ await check("oversized remote provider chunks never expand retained preview pref
 });
 await check("multiple short provider chunks fill exact prefix, preserving byte order", async () => {
   const stream = Readable.from([
-    Buffer.from("AB"), new Uint8Array(Buffer.from("CDE")), Buffer.from("FGHIJ"),
+    Buffer.from("AB"), new Uint8Array(Uint8Array.from([120, 67, 68, 69, 121]).buffer, 1, 3), Buffer.from("FGHIJ"),
   ]);
   const { deps } = harness(() => stream);
   assert.equal((await readCompletedUploadPrefix(deps, upload(300), 7)).toString(), "ABCDEFG");
