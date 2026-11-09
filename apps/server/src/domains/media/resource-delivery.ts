@@ -58,13 +58,13 @@ export async function sendStoredResource(request: FastifyRequest, reply: Fastify
    * may provide this snapshot to avoid duplicate local metadata I/O. */
   knownStat?: { size: number; modifiedAt: Date };
 }) {
-  const stat = input.knownStat || await fs.stat(input.filePath);
-  if (!input.knownStat && !(stat as Awaited<ReturnType<typeof fs.stat>>).isFile()) return reply.code(404).send({ code: "RESOURCE_FILE_MISSING", message: "Stored resource is not a file." });
-  const total = stat.size;
-  const modifiedAt = input.knownStat ? input.knownStat.modifiedAt : (stat as Awaited<ReturnType<typeof fs.stat>>).mtime;
+  const fileStat = input.knownStat ? null : await fs.stat(input.filePath);
+  if (fileStat && !fileStat.isFile()) return reply.code(404).send({ code: "RESOURCE_FILE_MISSING", message: "Stored resource is not a file." });
+  const total = input.knownStat?.size ?? fileStat!.size;
+  const modifiedAt = input.knownStat?.modifiedAt ?? fileStat!.mtime;
   const etag = input.checksumSha256 && /^[a-f0-9]{64}$/i.test(input.checksumSha256)
     ? `"sha256-${input.checksumSha256.toLowerCase()}"`
-    : opaqueEtag(`${total}:${Math.floor(stat.mtimeMs)}:${input.filePath}`);
+    : opaqueEtag(`${total}:${Math.floor(modifiedAt.getTime())}:${input.filePath}`);
   const contentType = normalizeMimeType(input.mimeType);
   const disposition = uploadContentDisposition(contentType, input.originalName, Boolean(input.requestedInline));
 
