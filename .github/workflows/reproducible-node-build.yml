@@ -59,6 +59,8 @@ jobs:
         run: |
           node tools/scripts/cluster-search-postings-worker-tests.mjs
           node tools/scripts/cluster-0506-search-policy-assertions.mjs
+      - name: Completed upload range and conditional-stream certification
+        run: node tools/scripts/cluster-completed-upload-range-tests.mjs
       - name: Assert compiled outputs exist
         shell: pwsh
         run: |
