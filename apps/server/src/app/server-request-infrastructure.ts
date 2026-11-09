@@ -156,7 +156,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     reply.header("X-Cluster-Api-Contract", API_CONTRACT.version);
     reply.header("X-Cluster-Minimum-Client-Version", API_CONTRACT.minimumClientVersion);
     reply.header("X-Cluster-Transport-Protocol", API_CONTRACT.clients.transportProtocolVersion);
-    if (!pathname.startsWith("/health") && serverUpdateMaintenanceHeld(dataRoot)) {
+    if (!pathname.startsWith("/health") && await serverUpdateMaintenanceHeld(dataRoot)) {
       reply.header("Cache-Control", "no-store");
       reply.header("Retry-After", "5");
       reply.header("X-Cluster-Server-State", "maintenance");
