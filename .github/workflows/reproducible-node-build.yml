@@ -65,6 +65,8 @@ jobs:
         run: node tools/scripts/cluster-upload-chunk-admission-tests.mjs
       - name: Browser upload backpressure and durable recovery regression
         run: node tools/scripts/cluster-upload-client-backpressure-tests.mjs
+      - name: Bounded storage preview prefix regression
+        run: node tools/scripts/cluster-upload-prefix-memory-tests.mjs
       - name: Assert compiled outputs exist
         shell: pwsh
         run: |
