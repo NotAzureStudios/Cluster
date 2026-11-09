@@ -20,6 +20,8 @@ type nativeGpuSampler struct {
 	last    time.Time
 	pending bool
 	summary string
+	utilization int
+	available bool
 }
 
 func (sampler *nativeGpuSampler) poll() {
@@ -37,6 +39,7 @@ func (sampler *nativeGpuSampler) poll() {
 		cmd := exec.CommandContext(ctx, "nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu", "--format=csv,noheader,nounits")
 		output, err := cmd.Output()
 		label := "GPU metrics unavailable"
+		usage, available := 0, false
 		if err == nil && len(output) <= 16*1024 {
 			reader := csv.NewReader(strings.NewReader(string(output)))
 			rows, parseErr := reader.ReadAll()
@@ -53,6 +56,7 @@ func (sampler *nativeGpuSampler) poll() {
 				if name != "" {
 					label = name
 					if loadErr == nil && load >= 0 && load <= 100 {
+						usage, available = load, true
 						label += fmt.Sprintf(" | GPU %d%%", load)
 					} else {
 						label += " | Load --"
@@ -73,6 +77,8 @@ func (sampler *nativeGpuSampler) poll() {
 		}
 		sampler.mu.Lock()
 		sampler.summary = label
+		sampler.utilization = usage
+		sampler.available = available
 		sampler.pending = false
 		sampler.mu.Unlock()
 	}()
@@ -84,4 +90,11 @@ func (sampler *nativeGpuSampler) snapshot() string {
 		return "GPU detecting..."
 	}
 	return sampler.summary
+}
+
+// The progress bar shares the cached 30-second GPU observation.
+func (sampler *nativeGpuSampler) usageSnapshot() (int, bool) {
+	sampler.mu.Lock()
+	defer sampler.mu.Unlock()
+	return sampler.utilization, sampler.available
 }

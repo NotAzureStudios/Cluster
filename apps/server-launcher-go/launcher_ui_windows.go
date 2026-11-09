@@ -382,6 +382,7 @@ type windowsControlPanel struct {
 	perfCPUBar            uintptr
 	perfRAMBar            uintptr
 	perfDiskBar           uintptr
+	perfGPUBar            uintptr
 	perfService           uintptr
 	perfPorts             uintptr
 	start                 uintptr
@@ -700,7 +701,8 @@ func (ui *windowsControlPanel) createControls(instance uintptr) error {
 	if ui.perfCPUBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
 	if ui.perfRAMBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
 	if ui.perfDiskBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
-	for _, bar := range []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar} {
+	if ui.perfGPUBar, err = createControl("msctls_progress32", "", wsChild, 0, 0, 0, 0, ui.hwnd, 0, instance); err != nil { return err }
+	for _, bar := range []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar, ui.perfGPUBar} {
 		procSendMessageW.Call(bar, pbmSetRange32, 0, 100)
 		procSendMessageW.Call(bar, pbmSetBarColor, 0, uintptr(rgbColor(87, 193, 255)))
 	}
@@ -817,7 +819,7 @@ func (ui *windowsControlPanel) layout(width, height int32) {
 
 	performanceOffset := int32(0)
 	performanceLabels := []uintptr{ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.performance}
-	performanceBars := []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar}
+	performanceBars := []uintptr{ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar, ui.perfGPUBar}
 	if ui.performanceVisible {
 		for _, handle := range performanceLabels { procShowWindow.Call(handle, swShow) }
 		for _, handle := range performanceBars { procShowWindow.Call(handle, swShow) }
@@ -831,7 +833,8 @@ func (ui *windowsControlPanel) layout(width, height int32) {
 		moveWindow(ui.perfService, margin, 163, content, 20)
 		moveWindow(ui.perfPorts, margin, 184, content, 20)
 		moveWindow(ui.performance, margin, 205, content, 20)
-		performanceOffset = 130
+		moveWindow(ui.perfGPUBar, margin, 229, content, 12)
+		performanceOffset = 156
 	} else {
 		for _, handle := range performanceLabels { procShowWindow.Call(handle, swHide) }
 		for _, handle := range performanceBars { procShowWindow.Call(handle, swHide) }
@@ -1933,6 +1936,11 @@ func (ui *windowsControlPanel) updateMetrics() {
 	setWindowText(ui.perfService, "Cluster process memory  "+serverRAM)
 	setWindowText(ui.perfPorts, ui.lastPortsSummary)
 	setWindowText(ui.performance, ui.gpuSampler.snapshot())
+	if value, available := ui.gpuSampler.usageSnapshot(); available {
+		procSendMessageW.Call(ui.perfGPUBar, pbmSetPos, uintptr(value), 0)
+	} else {
+		procSendMessageW.Call(ui.perfGPUBar, pbmSetPos, 0, 0)
+	}
 	procSendMessageW.Call(ui.perfCPUBar, pbmSetPos, uintptr(cpu), 0)
 	procSendMessageW.Call(ui.perfRAMBar, pbmSetPos, uintptr(ram), 0)
 	procSendMessageW.Call(ui.perfDiskBar, pbmSetPos, uintptr(diskPercent), 0)
@@ -3072,7 +3080,7 @@ func (ui *windowsControlPanel) applyTheme(enabled bool) {
 	}
 	ui.updateLogControlLabels()
 	ui.renderLogHistory()
-	for _, h := range []uintptr{ui.title, ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.logEdit, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.runCommand} {
+	for _, h := range []uintptr{ui.title, ui.subtitle, ui.statusDot, ui.status, ui.activity, ui.metrics, ui.performance, ui.performanceTitle, ui.perfCPU, ui.perfRAM, ui.perfDisk, ui.perfService, ui.perfPorts, ui.perfCPUBar, ui.perfRAMBar, ui.perfDiskBar, ui.perfGPUBar, ui.logLabel, ui.commandLabel, ui.commandEdit, ui.logEdit, ui.start, ui.stop, ui.restart, ui.openWeb, ui.openLogs, ui.openFolder, ui.settings, ui.checkUpdates, ui.dbDoctor, ui.repair, ui.themeToggle, ui.performanceToggle, ui.clearLogs, ui.copyLogs, ui.autoScrollButton, ui.filterInfo, ui.filterWarning, ui.filterError, ui.filterSuccess, ui.runCommand} {
 		if h != 0 {
 			procInvalidateRect.Call(h, 0, 1)
 		}
