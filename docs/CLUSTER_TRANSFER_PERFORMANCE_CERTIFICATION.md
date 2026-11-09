@@ -16,6 +16,17 @@ Applies to performance integration **Pass I** (Cluster 1.1.2 branch). This docum
 
 **Security boundary:** Reuse of verified metadata is limited to the current authorized request. It is not a global cache of storage authorization, object locations, or content.
 
+## Bounded completed-upload preview prefixes
+
+The small prefix reader used by post-upload content inspection no longer collects arbitrary provider chunks and concatenates them. It allocates exactly the requested preview length (normally 64 KiB), copies only the bytes needed, and ends the remote stream as soon as the prefix is complete. It also skips provider reads for zero-length objects and handles short reads without inventing data.
+
+- The provider may return a chunk larger than the requested range; Cluster must **not** retain that whole chunk in a separate list or copy extra bytes into the preview buffer.
+- Node readable streams are closed on early async-iterator completion, freeing provider network and socket resources rather than consuming an entire object.
+- Provider I/O failures still reject content inspection; incomplete reads are not silently treated as verified full-file content.
+- The preview implementation is distinct from the full-file download streaming pipeline and must never be used to assemble a large resource in RAM.
+
+The cross-platform regression `tools/scripts/cluster-upload-prefix-memory-tests.mjs` covers oversized provider chunks, exact/short range copies, empty resources, invalid lengths, early stream termination and storage failures.
+
 ## Buffered Cluster upload admission
 
 `PUT /api/uploads/:uploadId/chunks` is the local/shared-filesystem fallback. Direct-object uploads continue through their own provider-specific multipart contract, without proxying bytes.
