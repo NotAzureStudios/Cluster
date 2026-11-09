@@ -1,6 +1,7 @@
 import { sendStoredResource, sendStorageResource } from "../media/resource-delivery.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { createBufferedUploadAdmission, preflightBufferedChunkHeaders, type BufferedUploadRange } from "./upload-chunk-admission.js";
 
 import {
   MAX_UPLOAD_CHUNK_BYTES,
@@ -133,28 +134,71 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
     return serializeUploadSession(resolved.session);
   });
 
+  // Keep the existing eight-MiB content parser, but admit requests before it
+  // buffers a chunk. This bounds in-process chunk memory under upload bursts
+  // and rejects unauthenticated, oversized and byte-quota-denied traffic early.
+  const chunkAdmission = createBufferedUploadAdmission();
+  const admittedChunks = new WeakMap<FastifyRequest, {
+    session: any;
+    range: BufferedUploadRange;
+    release: () => void;
+  }>();
+  const releaseChunk = (request: FastifyRequest) => {
+    const entry = admittedChunks.get(request);
+    if (!entry) return;
+    admittedChunks.delete(request);
+    entry.release();
+  };
+
   // Local/shared-filesystem fallback. Direct-object sessions never send bytes
   // through this route.
-  app.put("/api/uploads/:uploadId/chunks", async (request, reply) => {
-    const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
-    const resolved = await requireOwner(request, reply, deps, params.uploadId);
-    if (!resolved) return;
-    if (resolved.session.mode === "direct") {
-      return reply.code(409).send({
-        code: "UPLOAD_DIRECT_REQUIRED",
-        message: "This upload session uses direct object-storage parts.",
-      });
-    }
-    const contentRange = String(request.headers["content-range"] || "");
-    const match = /^bytes\s+(\d+)-(\d+)\/(\d+)$/.exec(contentRange);
-    if (!match) return reply.code(400).send({ code: "UPLOAD_RANGE_REQUIRED", message: "Content-Range is required." });
-    const start = Number(match[1]);
-    const end = Number(match[2]);
-    const total = Number(match[3]);
+  app.put("/api/uploads/:uploadId/chunks", {
+    onRequest: async (request, reply) => {
+      const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
+      const resolved = await requireOwner(request, reply, deps, params.uploadId);
+      if (!resolved) return reply;
+      if (resolved.session.mode === "direct") {
+        return reply.code(409).send({
+          code: "UPLOAD_DIRECT_REQUIRED",
+          message: "This upload session uses direct object-storage parts.",
+        });
+      }
+      const preflight = preflightBufferedChunkHeaders(request.headers, MAX_UPLOAD_CHUNK_BYTES);
+      if (!preflight.ok) return reply.code(preflight.status).send({ code: preflight.code, message: preflight.message });
+      const release = chunkAdmission.acquire();
+      if (!release) {
+        reply.header("Retry-After", "1");
+        return reply.code(503).send({
+          code: "UPLOAD_CHUNK_ADMISSION_BUSY",
+          message: "Buffered upload capacity is temporarily occupied. Retry this chunk.",
+        });
+      }
+      const cleanup = () => releaseChunk(request);
+      admittedChunks.set(request, { session: resolved.session, range: preflight.range, release });
+      request.raw.once("aborted", cleanup);
+      reply.raw.once("close", cleanup);
+      try {
+        if (!(await consumeWorkspaceByteBudget(deps, resolved.session, preflight.range.bytes, reply))) {
+          cleanup();
+          return reply;
+        }
+      } catch (error) {
+        cleanup();
+        throw error;
+      }
+      if (request.raw.destroyed && !request.raw.complete) {
+        cleanup();
+        return reply;
+      }
+    },
+    onResponse: async (request) => { releaseChunk(request); },
+  }, async (request, reply) => {
+    const admitted = admittedChunks.get(request);
+    if (!admitted) return reply.code(503).send({ code: "UPLOAD_CHUNK_ADMISSION_LOST", message: "Upload admission was interrupted." });
     const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
-    if (!(await consumeWorkspaceByteBudget(deps, resolved.session, body.length, reply))) return;
+    const { start, end, total } = admitted.range;
     try {
-      return await appendClusterChunk(deps, resolved.session, { start, end, total, body });
+      return await appendClusterChunk(deps, admitted.session, { start, end, total, body });
     } catch (error) {
       return sendUploadError(reply, error, "Unable to append upload chunk.");
     }
