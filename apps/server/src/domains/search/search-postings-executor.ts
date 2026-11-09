@@ -1,4 +1,5 @@
 import { Worker } from "node:worker_threads";
+import { availableParallelism } from "node:os";
 import { performance } from "node:perf_hooks";
 import { appendSearchPostings, buildPostings } from "./search-index-builder.js";
 import type { SearchIndexItem } from "./search-index-types.js";
@@ -140,7 +141,10 @@ export async function buildSearchPostings(items: SearchIndexItem[]): Promise<Pos
     ? Math.max(256, Math.min(20_000, Math.round(thresholdSetting)))
     : workerSetting === "on" ? 256 : 4_096;
   if (items.length < 256) return buildPostings(items);
-  if (workerSetting !== "off" && items.length >= threshold && !pending && Date.now() >= workerDisabledUntil) {
+  // On small CPU allocations, automatic thread creation competes with the
+  // interactive API; explicit opt-in remains available for hardware testing.
+  const enoughCores = workerSetting === "on" || availableParallelism() >= 4;
+  if (workerSetting !== "off" && enoughCores && items.length >= threshold && !pending && Date.now() >= workerDisabledUntil) {
     const rows = eligibleTokenRows(items);
     if (rows) {
       try { return await runWorker(rows); }
