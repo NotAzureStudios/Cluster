@@ -33,6 +33,12 @@ jobs:
         run: node tools/scripts/cluster-repo-hygiene-check.mjs
       - name: Check maintained documentation links
         run: node tools/scripts/cluster-repository-docs-check.mjs
+      - name: Native Desktop direct download admission policy
+        run: |
+          c++ -std=c++20 -Wall -Wextra -Werror -pedantic apps/desktop-qt/tests/direct_download_policy_test.cpp -o "${RUNNER_TEMP}/cluster-direct-download-policy-test"
+          "${RUNNER_TEMP}/cluster-direct-download-policy-test"
+      - name: Enforce bounded, origin-bound Qt download implementation
+        run: node tools/scripts/cluster-desktop-direct-download-source-tests.mjs
       - name: Ensure README always downloads latest release
         run: node tools/scripts/cluster-evergreen-release-links-tests.mjs
       - name: RC73 PDF and 3D viewer hardening regression

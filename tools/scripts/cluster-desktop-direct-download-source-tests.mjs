@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const cpp = readFileSync(path.join(root, "apps/desktop-qt/src/ApiClient.cpp"), "utf8");
+const header = readFileSync(path.join(root, "apps/desktop-qt/src/ApiClient.h"), "utf8");
+const start = cpp.indexOf("void ApiClient::downloadFile(");
+const end = cpp.indexOf("QNetworkRequest ApiClient::createRequest(", start);
+assert.ok(start >= 0 && end > start, "Native direct download implementation must exist");
+const fn = cpp.slice(start, end);
+assert.match(fn, /sameServerApiPath/, "Reject cross-origin and encoded path traversal");
+assert.match(fn, /ManualRedirectPolicy/, "Cookie-bearing file downloads must not follow redirects");
+assert.match(fn, /readyRead/, "Download must stream before finished");
+assert.match(fn, /reply->read\(64 \* 1024\)/, "Bound individual body reads to 64 KiB");
+assert.match(fn, /QSaveFile/, "Download bytes must be written to an atomic temporary file");
+assert.match(fn, /cancelWriting/, "Failures must discard the temporary file");
+assert.match(fn, /directdownload::admit/, "Response must pass final admission before publish");
+assert.match(fn, /Content-Length/, "Declared length must be checked before publish");
+assert.doesNotMatch(fn, /reply->readAll/, "Do not buffer the full file in RAM");
+assert.ok(!header.includes("finishDownload("), "Delete the obsolete whole-body finishDownload method");
+assert.ok(!cpp.includes("NoLessSafeRedirectPolicy"), "Native API redirects must not cross server origins");
+console.log("Native Qt direct download bounded-memory and security contracts verified.");
