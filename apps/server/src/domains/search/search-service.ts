@@ -4,6 +4,7 @@ import type { SearchIndexSnapshot } from "./search-index-types.js";
 import { BoundedCache } from "../../core/bounded-cache.js";
 import { applyDisclosureObligations, userDisclosureObligations } from "../access/disclosure.js";
 import { buildIndexResponsive, buildPostingsResponsive, mergeProjectCorpus, normalize } from "./search-index-builder.js";
+import { searchPostingExecutorDiagnostics } from "./search-postings-executor.js";
 import {
   candidateIndexes,
   operatorMatches,
@@ -398,6 +399,7 @@ export function createSearchService(deps: SearchServiceDependencies) {
       cacheMisses,
       lastSearchElapsedMs,
       slowestSearchElapsedMs,
+      postingWorker: searchPostingExecutorDiagnostics(),
       corpus: corpus ? {
         projects: corpus.projects.length, users: corpus.users.length, cards: corpus.cards.length, timelineItems: corpus.timelineItems.length,
         calendarEvents: corpus.calendarEvents.length, comments: corpus.cardComments.length, activityEvents: corpus.activityEvents.length,
