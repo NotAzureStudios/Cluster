@@ -1,7 +1,7 @@
 import { sendStoredResource, sendStorageResource } from "../media/resource-delivery.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { safeFileName, untrustedFileResponseHeaders } from "../../core/uploads.js";
+
 import {
   MAX_UPLOAD_CHUNK_BYTES,
   acknowledgeDirectPart,
