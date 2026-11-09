@@ -102,6 +102,49 @@ await check('project content refresh is awaited rather than serving removed item
  resolveRefresh();const result=await searching;
  assert.deepEqual(Array.from(result.results,x=>x.id),['stable']);
 });
+await check('in-flight CPU posting build never overwrites a newer ACL snapshot',async()=>{
+ const base=corpus([item('old','P1'),item('stable','P2')],[{id:'acl-old'}]);
+ const changed=corpus([item('replacement','P1')],[{id:'acl-project',projectId:'P1'}]);
+ let resolveEntered;const entered=new Promise(resolve=>{resolveEntered=resolve;});
+ let releasePostings;const pendingPostings=new Promise(resolve=>{releasePostings=resolve;});
+ const previousBuild=fakeBuilder.buildPostingsResponsive;
+ let stallNext=true;
+ let refreshCount=0;
+ fakeBuilder.buildPostingsResponsive=async items=>{
+   if(stallNext && items.some(row=>row.id==='replacement')) {
+     stallNext=false;
+     resolveEntered();
+     await pendingPostings;
+   }
+   return new Map();
+ };
+ try {
+   const service=createService(base,{
+     loadProjectCorpus:async()=>{refreshCount++;return changed;},
+     loadAccessRules:async()=>[{id:'acl-latest'}],
+   });
+   await query(service,()=>true);
+   service.invalidateProject('P1');
+   await Promise.race([entered,new Promise((_,reject)=>setTimeout(()=>reject(Error('posting build did not start')),2000))]);
+   service.invalidateChange({resource:{kind:'access_rule',id:'policy'}});
+   // The ACL update is allowed to publish while the CPU posting build is in
+   // progress. Its newer snapshot must win; the Project refresh then replays.
+   for(let i=0;i<6;i++) await Promise.resolve();
+   releasePostings();
+   const observed=[];
+   const result=await query(service,(_item,_project,rules)=>{
+     observed.push(rules.map(rule=>rule.id));
+     return true;
+   },'alpha',6);
+   assert.ok(refreshCount>=2,'a stale Project posting build must be replayed');
+   assert.deepEqual(Array.from(result.results,row=>row.id).sort(),['replacement','stable']);
+   assert.ok(observed.length>0);
+   assert.ok(observed.every(ids=>ids.includes('acl-latest')&&!ids.includes('acl-old')));
+ } finally {
+   releasePostings();
+   fakeBuilder.buildPostingsResponsive=previousBuild;
+ }
+});
 await check('user incremental search corpus keeps workforce authority joins',async()=>{
  const code=fs.readFileSync('apps/server/src/domains/search/search-repository.ts','utf8');
  const segment=code.split('async function loadUserCorpus(')[1].split('async function loadAccessRules')[0];
@@ -163,5 +206,5 @@ await check('graph reports truncation when row cap leaves fetched visible siblin
  const result=await graph.neighborhood({subject:{kind:'board',id:'root',projectId:'P1'},maxEdges:1,depth:1});
  assert.equal(result.edges.length,1);assert.equal(result.truncated,true);
 });
-console.log(`${passed}/13 search/privacy assertions passed`);
-if(passed!==13) process.exitCode=1;
+console.log(`${passed}/14 search/privacy assertions passed`);
+if(passed!==14) process.exitCode=1;
