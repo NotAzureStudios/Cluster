@@ -45,5 +45,7 @@ jobs:
         run: node --check tools/scripts/cluster-sign-server-release.mjs
       - name: Verify signed main feed, release publisher and native Check Updates flow
         run: node tools/scripts/cluster-server-update-delivery-contract-tests.mjs
+      - name: Web update check and staging authority boundaries
+        run: node tools/scripts/cluster-web-server-update-source-tests.mjs
 # This is a source/build contract; no installation, service upgrade or backup
 # restoration is considered certified by a successful result here.
