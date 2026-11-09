@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import Fastify from "fastify";
+import { Readable } from "node:stream";
 import { createBufferedUploadAdmission, bufferedUploadAdmissionLimit, preflightBufferedChunkHeaders } from "../../apps/server/dist/domains/uploads/upload-chunk-admission.js";
 import { registerUploadSessionRoutes } from "../../apps/server/dist/domains/uploads/upload-session-routes.js";
 
@@ -106,5 +107,22 @@ await check("Fastify bounds simultaneous buffered uploads before reading body; r
     if(previous===undefined)delete process.env.CLUSTER_UPLOAD_BUFFERED_CHUNKS_MAX;
     else process.env.CLUSTER_UPLOAD_BUFFERED_CHUNKS_MAX=previous;
   }
+});
+await check("chunked body larger than its claimed range is rejected and fully rate-budgeted", async () => {
+  const charged = [];
+  const ctx = admissionApp({ byteLimit: async (_key,_max,_window,bytes) => {
+    charged.push(bytes);
+    return {allowed:true,retryAfterSeconds:0};
+  } });
+  try {
+    const result = await ctx.app.inject({
+      method:"PUT", url:chunkUrl,
+      headers:{...headers,"transfer-encoding":"chunked"},
+      payload: Readable.from([Buffer.from("xx")]),
+    });
+    assert.equal(result.statusCode,400);
+    assert.equal(JSON.parse(result.body).code,"UPLOAD_RANGE_INVALID");
+    assert.deepEqual(charged,[1,1],"overflow bytes cannot evade workspace rate accounting");
+  } finally { await ctx.app.close(); }
 });
 console.log(checks + "/" + checks + " buffered chunk upload admission tests passed");
