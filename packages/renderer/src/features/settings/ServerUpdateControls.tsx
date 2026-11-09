@@ -41,9 +41,12 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
   // Idle maintenance settings never poll the update feed.
   useEffect(() => {
     if (status?.state !== "staging") return;
-    const timeout = window.setTimeout(() => void refreshStatus(true), 4_000);
-    return () => window.clearTimeout(timeout);
-  }, [status?.state, status?.updatedAt]);
+    // Repeating timer intentionally survives unchanged native status timestamps.
+    // A single timeout would poll only once if the staged update takes longer
+    // than one interval to finish.
+    const timer = window.setInterval(() => void refreshStatus(true), 4_000);
+    return () => window.clearInterval(timer);
+  }, [status?.state]);
 
   async function checkForUpdates() {
     setBusy("check");

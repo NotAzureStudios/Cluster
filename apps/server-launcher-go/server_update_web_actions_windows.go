@@ -108,7 +108,10 @@ func runWebServerUpdateAction(root,action string)error{
    return err
   }
   candidate,err:=inspectStagedServerUpdate(root,"main")
-  if err!=nil{return err}
+  if err!=nil{
+   _=publishWebUpdateStatus(root,webServerUpdateStatus{OK:false,State:"failed",Message:"Downloaded installer failed independent verification; no installation was performed."})
+   return err
+  }
   return publishWebUpdateStatus(root,webServerUpdateStatus{OK:true,State:"verified",Available:true,Release:candidate.Release,Sequence:candidate.Sequence,SHA256:candidate.SHA256,Message:"Signed Server installer verified and staged. No installation or restart was performed."})
  }
  return errors.New("invalid Web update action")

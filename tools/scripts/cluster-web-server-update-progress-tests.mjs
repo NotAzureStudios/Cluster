@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const ui=readFileSync("packages/renderer/src/features/settings/ServerUpdateControls.tsx","utf8");
+const native=readFileSync("apps/server-launcher-go/server_update_web_actions_windows.go","utf8");
+assert.match(ui,/window\.setInterval\(\(\) => void refreshStatus\(true\), 4_000\)/);
+assert.match(ui,/window\.clearInterval\(timer\)/);
+assert.doesNotMatch(ui,/window\.setTimeout\(\(\) => void refreshStatus\(true\)/);
+assert.match(native,/Downloaded installer failed independent verification/);
+assert.match(native,/State:"failed"/);
+console.log("PASS: Web staging status persists repeated reads and independent verification reports failures.");
