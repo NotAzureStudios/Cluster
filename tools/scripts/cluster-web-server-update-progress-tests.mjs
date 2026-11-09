@@ -7,4 +7,7 @@ assert.match(ui,/window\.clearInterval\(timer\)/);
 assert.doesNotMatch(ui,/window\.setTimeout\(\(\) => void refreshStatus\(true\)/);
 assert.match(native,/Downloaded installer failed independent verification/);
 assert.match(native,/State:"failed"/);
+assert.match(native,/state.State="unavailable"/);
+assert.match(native,/state.Available=false/);
+assert.match(native,/cluster-web-update-stage.lock/);
 console.log("PASS: Web staging status persists repeated reads and independent verification reports failures.");

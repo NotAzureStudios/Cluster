@@ -81,6 +81,22 @@ func runWebServerUpdateAction(root,action string)error{
    state.Sequence=candidate.Sequence
    state.SHA256=candidate.SHA256
    state.Message="Signed Server installer staged and independently verified. Remote installation requires a separately provisioned privileged updater broker."
+  }else if state.State=="verified"{
+   // The durable record is advisory; the signed installer is authoritative.
+   // Never advertise a deleted or tampered staging artifact as ready.
+   state.State="unavailable"
+   state.Available=false
+   state.Release=""
+   state.Sequence=0
+   state.SHA256=""
+   state.Message="The previously verified installer is no longer staged or has failed independent verification. Check and download the signed update again."
+  }else if state.State=="staging"{
+   if _,lockErr:=os.Lstat(webUpdateRuntimeFile(root,"cluster-web-update-stage.lock"));errors.Is(lockErr,os.ErrNotExist){
+    state.State="failed"
+    state.OK=false
+    state.Available=false
+    state.Message="Staging stopped without an independently verified installer. Review native Server logs before retrying."
+   }
   }
   // Display must never label the existing LocalService supervisor privileged.
   state.InstallSupported=false
