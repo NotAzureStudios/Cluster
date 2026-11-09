@@ -6,7 +6,7 @@ This is a **live-machine acceptance plan**, not a claim that the Desktop has bee
 
 - Documentation and link regressions keep the Server and Desktop release downloads evergreen.
 - Native direct-download admission is Qt-independent and rejects redirects, HTTP 206, partial/truncated bodies, failed transport and failed disk writes.
-- Native direct-download implementation must read at most 64 KiB per chunk, write through \`QSaveFile\`, preserve at most a small error preview and avoid final publication after failure.
+- Native direct-download implementation must read at most 64 KiB per chunk, write through `QSaveFile`, preserve at most a small error preview and avoid final publication after failure.
 - Profile switching must preserve the old active selection when registry persistence or detached restart fails.
 - The separate Desktop updater must reject Server update manifests and respect independent signed Desktop channels.
 - A passing Linux policy test or shared Web build does **not** establish that the Qt Windows application compiled.
