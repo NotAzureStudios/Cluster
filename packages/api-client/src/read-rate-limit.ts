@@ -1,17 +1,40 @@
 /** Shared, bounded Retry-After coordination for safe reads. Never delays writes. */
 const RATE_LIMIT_BACKOFF_MAX_MS = 60_000;
 const windows = new Map<string, number>();
+// Resetting a server/session window must also wake readers parked on its timer.
+const pendingWakeups = new Set<() => void>();
+let rateLimitGeneration = 0;
+
+export function readRateLimitGeneration(): number { return rateLimitGeneration; }
 
 export function readTrafficLane(path: string, method: string): string | null {
   if (method !== "GET" && method !== "HEAD") return null;
   const pathname = path.split("?")[0];
-  if (pathname === "/api/meta/compatibility") return "api-compatibility";
-  if (["/api/notifications/summary", "/api/time/active", "/api/calendar/upcoming", "/api/library/summary", "/api/me/presence"].includes(pathname) || pathname.startsWith("/api/presence/")) return "api-live";
+  if (method === "GET" && pathname === "/api/meta/compatibility") return "api-compatibility";
+  // The server admits provisioning progress independently of ordinary reads.
+  if (method === "GET" && /^\/api\/projects\/provision\/[^/]+$/.test(pathname)) return "api-project-progress";
+  if (method === "GET" && (["/api/notifications/summary", "/api/time/active", "/api/calendar/upcoming", "/api/library/summary", "/api/me/presence"].includes(pathname) || pathname.startsWith("/api/presence/"))) return "api-live";
   if (pathname === "/api/library/workspace" || pathname.startsWith("/api/library/collections")) return "api-library";
   if (pathname.startsWith("/api/admin/inventory/") || pathname.startsWith("/api/inventory/")) return "api-inventory";
   if (pathname.startsWith("/api/timeline")) return "api-timeline";
   if (pathname.startsWith("/api/admin/")) return "api-admin";
   return "api";
+}
+
+/** Reads may hit both their transport budget and independent user-scoped or
+ * integration budgets. Delay only the quota that actually rejected a read. */
+export function readTrafficLanes(path: string, method: string): string[] {
+  const primary = readTrafficLane(path, method);
+  if (!primary) return [];
+  const pathname = path.split("?")[0];
+  const lanes = [primary];
+  if (method === "GET" && pathname === "/api/command/search") lanes.push("search-user");
+  if (method === "GET" && /(?:\/export$|\/status-reports\/generate$)/.test(pathname)) lanes.push("export-user");
+  if (pathname.startsWith("/api/admin/discord")
+    || /^\/api\/projects\/[^/]+\/discord(?:\/|$)/.test(pathname)
+    || pathname.startsWith("/api/integrations/discord")
+    || pathname.includes("/source-control")) lanes.push("external");
+  return lanes;
 }
 
 export function retryAfterMilliseconds(value: string | null, now = Date.now()): number {
@@ -40,12 +63,28 @@ export async function readRateLimitCooldown(lane: string, signal?: AbortSignal |
     const remaining = rateLimitCooldownRemaining(lane);
     if (!remaining) return;
     await new Promise<void>((resolve, reject) => {
-      let timer: ReturnType<typeof setTimeout>;
-      const abort = () => { clearTimeout(timer); signal?.removeEventListener("abort", abort); reject(new DOMException("Request aborted", "AbortError")); };
-      timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, remaining);
+      const wake = () => {
+        clearTimeout(timer);
+        pendingWakeups.delete(wake);
+        signal?.removeEventListener("abort", abort);
+        resolve();
+      };
+      const abort = () => {
+        clearTimeout(timer);
+        pendingWakeups.delete(wake);
+        signal?.removeEventListener("abort", abort);
+        reject(new DOMException("Request aborted", "AbortError"));
+      };
+      const timer = setTimeout(wake, remaining);
+      pendingWakeups.add(wake);
       signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
     });
   }
 }
 
-export function resetReadRateLimitCooldowns(): void { windows.clear(); }
+export function resetReadRateLimitCooldowns(): void {
+  rateLimitGeneration += 1;
+  windows.clear();
+  for (const wake of [...pendingWakeups]) wake();
+}
