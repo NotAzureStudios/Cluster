@@ -29,6 +29,8 @@ jobs:
           node-version: '24.20.0'
       - name: Transfer and request regression tests
         run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-transfer-request-noise-tests.mjs
+      - name: API read-lane authority regression
+        run: node --disable-warning=ExperimentalWarning --experimental-transform-types tools/scripts/cluster-read-lane-authority-tests.mjs
       - name: Existing disk streaming and memory tests
         run: |
           node tools/scripts/cluster-download-disk-stream-tests.mjs
