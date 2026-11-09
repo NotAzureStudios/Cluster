@@ -325,7 +325,10 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const startedAt = requestTelemetryStarts.get(request);
     if (startedAt) {
       requestTelemetryStarts.delete(request);
-      runtimeTelemetry.complete(startedAt, request.routeOptions.url || "/unmatched", reply.statusCode);
+      runtimeTelemetry.complete(
+        startedAt, request.routeOptions.url || "/unmatched", reply.statusCode,
+        reply.statusCode === 429 ? reply.getHeader("X-Cluster-Rate-Limit-Bucket") : undefined,
+      );
     }
     const querySample = databaseDiagnostics.completeRequest(String(request.id));
     const readContract = apiReadContractFor(request.method, request.routeOptions.url);
