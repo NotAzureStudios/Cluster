@@ -163,9 +163,29 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
           message: "This upload session uses direct object-storage parts.",
         });
       }
+      if (resolved.session.mode !== "cluster" || resolved.session.status !== "OPEN") {
+        return reply.code(409).send({
+          code: "UPLOAD_STATE_INVALID",
+          message: "Upload session is not accepting Cluster-proxied chunks.",
+        });
+      }
       const preflight = preflightBufferedChunkHeaders(request.headers, MAX_UPLOAD_CHUNK_BYTES);
       if (!preflight.ok) return reply.code(preflight.status).send({ code: preflight.code, message: preflight.message });
-      const release = chunkAdmission.acquire();
+      // The durable writer repeats these checks under its local mutation lock
+      // against fresh DB state. Early admission rejects provably stale offsets
+      // and wrong totals before they consume a body buffer or workspace quota.
+      if (preflight.range.total !== Number(resolved.session.totalBytes)) {
+        return reply.code(400).send({ code: "UPLOAD_RANGE_INVALID", message: "Upload chunk range is invalid." });
+      }
+      const receivedBytes = Number(resolved.session.receivedBytes || 0);
+      if (preflight.range.start !== receivedBytes) {
+        return reply.code(409).send({
+          code: "UPLOAD_OFFSET_CONFLICT",
+          message: "Upload offset conflict.",
+          receivedBytes,
+        });
+      }
+      const release = chunkAdmission.acquire(resolved.session.id);
       if (!release) {
         reply.header("Retry-After", "1");
         return reply.code(503).send({

@@ -48,15 +48,23 @@ export function createBufferedUploadAdmission(maxConcurrent = bufferedUploadAdmi
   if (!Number.isSafeInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 16) throw new Error("Invalid buffered upload concurrency limit.");
   let active = 0;
   let denied = 0;
+  // The durable local writer has exactly one committed offset per upload.
+  // Do not buffer parallel competing requests for that same upload session.
+  const activeSessions = new Set<string>();
   return {
-    acquire(): (() => void) | null {
-      if (active >= maxConcurrent) { denied++; return null; }
+    acquire(sessionId?: string): (() => void) | null {
+      if (active >= maxConcurrent || (sessionId !== undefined && activeSessions.has(sessionId))) {
+        denied++;
+        return null;
+      }
       active++;
+      if (sessionId !== undefined) activeSessions.add(sessionId);
       let held = true;
       return () => {
         if (!held) return;
         held = false;
         active--;
+        if (sessionId !== undefined) activeSessions.delete(sessionId);
       };
     },
     snapshot() { return { active, limit: maxConcurrent, rejected: denied }; },
