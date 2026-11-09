@@ -49,6 +49,8 @@ jobs:
         run: node tools/scripts/cluster-performance-analytics-query-tests.mjs
       - name: Request I/O coalescing and update hold safety
         run: node tools/scripts/cluster-request-io-coalescing-tests.mjs
+      - name: Queue counts and pressure single-flight regression
+        run: node tools/scripts/cluster-queue-read-singleflight-tests.mjs
       - name: Visible refresh and background poll backoff regression
         run: node tools/scripts/cluster-visible-refresh-backoff-tests.mjs
       - name: Assert compiled outputs exist
