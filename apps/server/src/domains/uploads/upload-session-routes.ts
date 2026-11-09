@@ -1,4 +1,4 @@
-import { createReadStream } from "node:fs";
+import { sendStoredResource, sendStorageResource } from "../media/resource-delivery.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { safeFileName, untrustedFileResponseHeaders } from "../../core/uploads.js";
@@ -254,12 +254,23 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
     if (!user) return reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
     const upload = await resolveCompletedUpload(deps, params.uploadId, user.id, Boolean(user.isAdmin));
     if (!upload) return reply.code(404).send({ code: "UPLOAD_FILE_MISSING", message: "Completed upload is unavailable." });
-    reply.header("Content-Type", "application/octet-stream");
-    reply.header("Content-Length", String(upload.metadata.totalBytes));
-    reply.header("Content-Disposition", `attachment; filename="${safeFileName(upload.metadata.fileName)}"`);
-    for (const [header, value] of Object.entries(untrustedFileResponseHeaders("application/octet-stream", upload.metadata.fileName))) reply.header(header, value);
-    if (upload.filePath) return reply.send(createReadStream(upload.filePath));
-    if (upload.storage) return reply.send(await deps.storageRuntime.openRead(upload.storage));
+    const common = {
+      mimeType: "application/octet-stream",
+      originalName: upload.metadata.fileName,
+      checksumSha256: upload.metadata.checksumSha256 || null,
+      requestedInline: false,
+      cacheControl: "private, max-age=0, must-revalidate",
+      knownStat: upload.resourceStat,
+    };
+    // Range/If-Range/ETag/HEAD handling is centralized with Library resource
+    // delivery. The uploader owns permission checks and verified storage
+    // identity; HTTP streaming stays zero-copy at the application layer.
+    if (upload.filePath) return sendStoredResource(request, reply, { ...common, filePath: upload.filePath });
+    if (upload.storage) return sendStorageResource(request, reply, {
+      ...common,
+      storage: deps.storageRuntime,
+      locator: upload.storage,
+    });
     return reply.code(503).send({ code: "UPLOAD_STORAGE_UNAVAILABLE", message: "Completed upload storage is unavailable." });
   });
 }
