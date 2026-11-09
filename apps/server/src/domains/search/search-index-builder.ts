@@ -119,7 +119,7 @@ export function userSearchName(user: any) {
   return String(user?.displayName || user?.preferredName || user?.username || "Person");
 }
 
-export function buildIndex(corpus: SearchCorpus): SearchIndexSnapshot {
+export function buildIndex(corpus: SearchCorpus, options: { deferPostings?: boolean } = {}): SearchIndexSnapshot {
   const rows: SearchIndexItem[] = [];
   const usersById = new Map(corpus.users.map((user) => [String(user.id), user]));
   const namesForIds = (ids: string[]) => ids.map((id) => userSearchName(usersById.get(id))).filter((name) => name !== "Person");
@@ -601,24 +601,42 @@ export function buildIndex(corpus: SearchCorpus): SearchIndexSnapshot {
     item.tokens = [...new Set(tokenize(item.normalizedText, 140))];
   }
 
-  return { loadedAt: Date.now(), corpus, items: rows, postings: buildPostings(rows) };
+  return { loadedAt: Date.now(), corpus, items: rows, postings: options.deferPostings ? new Map<string, Set<number>>() : buildPostings(rows) };
+}
+
+/** Shared full/prefix/bigram insertion primitive. The async fallback uses
+ * precisely this algorithm so worker failures cannot change search matches.
+ */
+export function appendSearchPostings(postings: Map<string, Set<number>>, tokens: readonly string[], index: number) {
+  for (const token of tokens) {
+    const keys = new Set([token]);
+    for (let length = 2; length <= Math.min(8, token.length); length += 1) keys.add(token.slice(0, length));
+    if (token.length >= 4) for (let at = 0; at < token.length - 1; at += 1) keys.add(`~${token.slice(at, at + 2)}`);
+    for (const key of keys) {
+      const posting = postings.get(key) || new Set<number>();
+      posting.add(index);
+      postings.set(key, posting);
+    }
+  }
 }
 
 export function buildPostings(items: SearchIndexItem[]) {
   const postings = new Map<string, Set<number>>();
-  items.forEach((item, index) => {
-    for (const token of item.tokens) {
-      const keys = new Set([token]);
-      for (let length = 2; length <= Math.min(8, token.length); length += 1) keys.add(token.slice(0, length));
-      if (token.length >= 4) for (let index = 0; index < token.length - 1; index += 1) keys.add(`~${token.slice(index, index + 2)}`);
-      for (const key of keys) {
-        const posting = postings.get(key) || new Set<number>();
-        posting.add(index);
-        postings.set(key, posting);
-      }
-    }
-  });
+  items.forEach((item, index) => appendSearchPostings(postings, item.tokens, index));
   return postings;
+}
+
+/** Never make a partial Search posting index visible to callers. */
+export async function buildIndexResponsive(corpus: SearchCorpus): Promise<SearchIndexSnapshot> {
+  const next = buildIndex(corpus, { deferPostings: true });
+  next.postings = await buildPostingsResponsive(next.items);
+  return next;
+}
+
+export async function buildPostingsResponsive(items: SearchIndexItem[]): Promise<Map<string, Set<number>>> {
+  if (items.length < 256) return buildPostings(items);
+  const { buildSearchPostings } = await import("./search-postings-executor.js");
+  return buildSearchPostings(items);
 }
 
 export function mergeProjectCorpus(current: SearchCorpus, incoming: SearchCorpus, projectId: string): SearchCorpus {
