@@ -63,6 +63,8 @@ jobs:
         run: node tools/scripts/cluster-completed-upload-range-tests.mjs
       - name: Buffered upload admission and transfer memory budget regression
         run: node tools/scripts/cluster-upload-chunk-admission-tests.mjs
+      - name: Browser upload backpressure and durable recovery regression
+        run: node tools/scripts/cluster-upload-client-backpressure-tests.mjs
       - name: Assert compiled outputs exist
         shell: pwsh
         run: |
