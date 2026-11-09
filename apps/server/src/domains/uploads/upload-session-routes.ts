@@ -196,7 +196,14 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
     const admitted = admittedChunks.get(request);
     if (!admitted) return reply.code(503).send({ code: "UPLOAD_CHUNK_ADMISSION_LOST", message: "Upload admission was interrupted." });
     const body = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
-    const { start, end, total } = admitted.range;
+    const { start, end, total, bytes } = admitted.range;
+    if (body.length !== bytes) {
+      // For chunked requests without Content-Length, do not let a dishonest
+      // Content-Range undercharge the workspace byte budget. This extra quota
+      // read runs only on malformed requests, not legitimate upload traffic.
+      if (body.length > bytes && !(await consumeWorkspaceByteBudget(deps, admitted.session, body.length - bytes, reply))) return;
+      return reply.code(400).send({ code: "UPLOAD_RANGE_INVALID", message: "Upload chunk range is invalid." });
+    }
     try {
       return await appendClusterChunk(deps, admitted.session, { start, end, total, body });
     } catch (error) {
