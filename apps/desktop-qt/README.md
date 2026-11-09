@@ -2,13 +2,13 @@
 
 Cluster Desktop is the independent native Qt 6.11.2/C++ host for the shared Cluster React interface. It runs the normal workspaces through the shared renderer and adds OS integrations, isolated server profiles, tray controls, native notifications, file operations, resumable transfers, and workstation/Git helpers.
 
-**Published suite:** [Cluster 1.0.0](https://github.com/NotAzureStudios/Cluster/releases/tag/v1.0.0). **Native Desktop binary version:** `0.482.0`. This component identity is intentionally distinct from the Server source version `0.546.0`; both packages were built separately. Published installers are **unsigned** and their runtime behavior has not been installation-certified.
+**Published Desktop:** [Latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest) and its Desktop build receipt determine the currently distributed version. The **1.1.2 suite release carried forward native Desktop 0.482.0 unchanged** from 1.1.1. This is a historical release fact, not a permanent Desktop version. The Desktop and Server are independently versioned and their updaters are isolated.
 
 ## Install
 
-Download the [Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-Installer-0.482.0-windows-x64.exe) or [portable ZIP](https://github.com/NotAzureStudios/Cluster/releases/download/v1.0.0/Cluster-Desktop-0.482.0-windows-x64.zip). Follow the [Windows installation guide](../../docs/INSTALLATION.md).
+Download the [latest native Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) or [portable ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip). Check the same release's \`Cluster-desktop-build-receipt.json\` against the downloaded bytes and follow the [Windows installation guide](../../docs/INSTALLATION.md).
 
-Desktop requires a running Cluster Server; it does **not** ship a database, API daemon, Windows Server Manager, or Server update feed.
+Desktop requires a running Cluster Server; it does **not** ship a database, API daemon, Server Manager or Server update feed. A successful build or published installer does not certify installed-runtime health, recovery, upgrade or rollback.
 
 ## Server profiles
 

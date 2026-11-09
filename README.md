@@ -2,32 +2,34 @@
 
 **Cluster** is Azure Studios' private, self-hosted studio workspace for project management, collaboration and production. It brings Projects, Boards, Tickets, Whiteboards, Timeline, Calendar and time tracking, Library storage and media viewers, Packets documentation, QA/builds, people management and studio administration into one system.
 
-**[Latest Cluster release (1.0.4)](https://github.com/NotAzureStudios/Cluster/releases/latest)** · [Download Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe) · [Install / upgrade](docs/INSTALLATION.md) · [Documentation](docs/README.md)
+**[Latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest)** · [Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe) · [Install and upgrade](docs/INSTALLATION.md) · [Documentation](docs/README.md)
 
 ## Download
 
-The **[latest GitHub release](https://github.com/NotAzureStudios/Cluster/releases/latest)** is now **Cluster 1.0.4**. Download the Windows Server installer directly from its Assets section. This release carries forward the unchanged Qt Desktop 0.482.0 binaries.
+Server and native Qt Desktop are **independently versioned**. The [latest stable release](https://github.com/NotAzureStudios/Cluster/releases/latest) and its build receipts are the authority for currently published component versions.
 
-| Download | Use |
+| Download | Purpose |
 | --- | --- |
-| **[Download latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows x64 Server, API, hosted Web and native Server Manager (**1.0.4**). |
-| [Latest Cluster Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Native Qt Desktop **0.482.0** (unchanged). |
-| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop **0.482.0** (unchanged). |
-| [Release notes and SHA-256 receipt](https://github.com/NotAzureStudios/Cluster/releases/latest) | See `Cluster-server-build-receipt.json` and all release assets. |
+| **[Latest Cluster Server installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Installer.exe)** | Windows Server, hosted Web, API and native Server Manager |
+| [Latest native Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) | Independently versioned Windows Qt Desktop |
+| [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop |
+| [Release notes and build receipts](https://github.com/NotAzureStudios/Cluster/releases/latest) | Published versions, SHA-256 hashes, signing and upgrade limitations |
 
-**Release status:** The Server 1.0.4 installer is **unsigned** and passed a real Windows clean-install smoke test. A populated 1.0.3 database upgrade/rollback is **not yet fully certified**. Back up PostgreSQL, Library, settings and credentials before upgrading. Publishing this direct installer does not create the separate signed `server-main` automatic update feed.
+**Verify downloads and data safety:** Match SHA-256 against the *same release's* \`Cluster-server-build-receipt.json\` or \`Cluster-desktop-build-receipt.json\`. Unsigned installers and successful clean-install builds do not prove upgrade/rollback safety with populated studio data. Back up PostgreSQL, Library, settings and account credentials before any existing-Server upgrade.
 
-The release format and security guarantees are documented under [Windows code signing](docs/development/WINDOWS_CODE_SIGNING.md) and [permanent release asset naming](docs/development/RELEASE_ASSET_NAMING.md).
+**Historical Server 1.1.1 → 1.1.2 transition:** Server 1.1.2 embedded a new Ed25519 update-verification key, which Server 1.1.1 cannot authenticate through its old signed-update feed. This requires a **manual installer upgrade** from 1.1.1, after verified backups. The 1.1.2 installer was **unsigned**, not a signed \`server-main\` automatic update. Do not bypass signature verification. Newer releases may have different instructions: consult the latest release notes.
+
+See [Windows code signing](docs/development/WINDOWS_CODE_SIGNING.md) and [permanent release asset naming](docs/development/RELEASE_ASSET_NAMING.md).
 
 ## Install or upgrade
 
-For a **new** installation, put `Cluster-Installer.exe` in a dedicated writable folder (for example `D:\Cluster-Server\`) and run it. It creates `Cluster\Server` beside itself.
+For a **new** Server, place \`Cluster-Installer.exe\` in a dedicated writable installation-parent directory such as \`D:\Cluster-Server\`. It creates \`Cluster\Server\` beside itself.
 
-For an **existing** installation, first back up PostgreSQL, Library and configuration, then stop the managed Server and PostgreSQL. **The installer does not discover an existing location**: its location determines its target. If the running Server says `Workspace: C:\Cluster\Server`, the matching installer location is `C:\Cluster-Installer.exe` (the drive root). Run with appropriate Windows permissions. Launch the updated Server from **`C:\Cluster\Server\bin\Cluster Server.exe`**, not an old desktop shortcut or root-level launcher. Drive-root installs intentionally skip refreshing the optional root-level shortcut. Do not run the installer inside `C:\Cluster\Server` or from Downloads, which would target a different folder.
+For an **existing** Server, first check its real workspace in the running Server Manager. To upgrade \`D:\Cluster-Server\Cluster\Server\`, run \`D:\Cluster-Server\Cluster-Installer.exe\`. To upgrade \`C:\Cluster\Server\`, run \`C:\Cluster-Installer.exe\` with appropriate permissions. The installer does **not** discover existing folders. Running it from Downloads or inside \`Cluster\Server\` can create the wrong installation.
 
-After upgrading, inspect `C:\Cluster\Server\CLUSTER_RELEASE.json` for `releaseCandidate: "1.0.4"` and confirm the Server Manager actually displays 1.0.4. If it still shows 1.0.3, **do not delete any data**: check `C:\Cluster\installer.log`, the EXE location you ran, and which launcher shortcut is opening.
+After a verified backup, stop the Server and managed PostgreSQL/Node/Host processes, install from the correct parent, and start the managed \`Cluster\Server\bin\Cluster Server.exe\`. Compare its reported version and \`CLUSTER_RELEASE.json\` with the release you downloaded, then verify login, projects and Library. A drive-root installation can retain a stale shortcut; inspect \`Cluster\installer.log\` rather than deleting any data.
 
-Use the [Windows installation and in-place upgrade guide](docs/INSTALLATION.md) for complete data-preservation and troubleshooting steps. Windows executable Authenticode signing is separate from Cluster's signed update manifest; this 1.0.4 release is not publisher-signed.
+Use the [complete Windows installation and in-place upgrade guide](docs/INSTALLATION.md).
 
 ## Components
 
@@ -38,7 +40,7 @@ Use the [Windows installation and in-place upgrade guide](docs/INSTALLATION.md) 
 | **Cluster Desktop** | Native C++/Qt client with isolated Server profiles, tray and desktop integration, native notifications and workstation/file capabilities |
 | **Integrations** | Studio integrations including Discord, configured independently |
 
-**Versioning:** Cluster Server **1.0.4** is now the latest published GitHub release. Qt Desktop **0.482.0** remains independent. The Server 1.0.4 binary comes from [the verified Windows build](https://github.com/NotAzureStudios/Cluster/actions/runs/41727710185); check [release assets](https://github.com/NotAzureStudios/Cluster/releases/latest) for the installer and SHA-256 receipt.
+**Versioning:** Server and Qt Desktop have independent component versions. Consult the [latest release](https://github.com/NotAzureStudios/Cluster/releases/latest) and its matching build receipts for their actual published identities and hashes.
 
 ## Develop from source
 
