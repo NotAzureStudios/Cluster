@@ -56,13 +56,13 @@ function sendUploadError(reply: FastifyReply, error: unknown, fallback = "Upload
   return reply.code(statusFor(error)).send(body);
 }
 
-async function requireOwner(request: FastifyRequest, reply: FastifyReply, deps: UploadSessionDependencies, id: string) {
+async function requireOwner(request: FastifyRequest, reply: FastifyReply, deps: UploadSessionDependencies, id: string, includeParts = true) {
   const user = await deps.getCurrentUser(request);
   if (!user) {
     reply.code(401).send({ code: "AUTH_REQUIRED", message: "Authentication required." });
     return null;
   }
-  const session = await getUploadSession(deps, id, user.id, Boolean(user.isAdmin));
+  const session = await getUploadSession(deps, id, user.id, Boolean(user.isAdmin), includeParts);
   if (!session) {
     reply.code(404).send({ code: "UPLOAD_NOT_FOUND", message: "Upload session was not found." });
     return null;
@@ -155,7 +155,7 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
   app.put("/api/uploads/:uploadId/chunks", {
     onRequest: async (request, reply) => {
       const params = z.object({ uploadId: z.string().uuid() }).parse(request.params);
-      const resolved = await requireOwner(request, reply, deps, params.uploadId);
+      const resolved = await requireOwner(request, reply, deps, params.uploadId, false);
       if (!resolved) return reply;
       if (resolved.session.mode === "direct") {
         return reply.code(409).send({

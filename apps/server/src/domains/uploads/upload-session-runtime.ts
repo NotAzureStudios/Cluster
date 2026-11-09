@@ -437,10 +437,13 @@ export async function createUploadSession(deps: UploadRuntimeDependencies, input
   }
 }
 
-export async function getUploadSession(deps: UploadRuntimeDependencies, uploadId: string, ownerId: string, isAdmin = false) {
+export async function getUploadSession(deps: UploadRuntimeDependencies, uploadId: string, ownerId: string, isAdmin = false, includeParts = true) {
   const session = await deps.prisma.uploadSession.findUnique({
     where: { id: uploadId },
-    include: { parts: { orderBy: { partNumber: "asc" } } },
+    // Local buffered chunks never inspect multipart parts. Avoid loading a
+    // child relation for every 4–8 MiB chunk while preserving the existing
+    // fully populated session contract for status/direct multipart routes.
+    ...(includeParts ? { include: { parts: { orderBy: { partNumber: "asc" } } } } : {}),
   });
   if (!session || (session.ownerId !== ownerId && !isAdmin)) return null;
   return session;

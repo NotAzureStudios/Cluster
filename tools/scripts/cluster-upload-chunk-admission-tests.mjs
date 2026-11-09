@@ -61,9 +61,12 @@ await check("per-session admission serializes offsets while allowing independent
 function admissionApp({ user = true, mode = "cluster", status = "OPEN", receivedBytes = 0n, totalBytes = 1n, byteLimit } = {}) {
   const app = Fastify({ logger: false });
   let sessionReads = 0, byteReads = 0;
+  const sessionQueries = [];
   const session = {
     id: "00000000-0000-4000-8000-000000000001", ownerId: "owner", workspaceId: "studio",
     totalBytes, receivedBytes, status, mode,
+    fileName: "test.bin", createdAt: new Date("2026-11-01T00:00:00Z"),
+    updatedAt: new Date("2026-11-01T00:00:00Z"), parts: [],
   };
   registerUploadSessionRoutes({
     app,
@@ -72,11 +75,12 @@ function admissionApp({ user = true, mode = "cluster", status = "OPEN", received
     byteRateLimiter: {
       consumeCost: async (...args) => { byteReads++; return byteLimit ? byteLimit(...args) : { allowed: true, retryAfterSeconds: 0 }; },
     },
-    prisma: { uploadSession: { findUnique: async () => { sessionReads++; return session; } } },
+    prisma: { uploadSession: { findUnique: async (query) => { sessionReads++; sessionQueries.push(query); return session; } } },
     dataLayout: { root: "/nonexistent/cluster", runtimeRoot: "/nonexistent/cluster" },
     storageRuntime: { directUploadTarget: () => null },
   });
-  return { app, get sessionReads() { return sessionReads; }, get byteReads() { return byteReads; }, session };
+  return { app, get sessionReads() { return sessionReads; }, get byteReads() { return byteReads; },
+    sessionQueries, session };
 }
 const chunkUrl = "/api/uploads/00000000-0000-4000-8000-000000000001/chunks";
 const headers = {
@@ -215,5 +219,26 @@ await check("same-session overlap is rejected before body/quota even when global
     if (old === undefined) delete process.env.CLUSTER_UPLOAD_BUFFERED_CHUNKS_MAX;
     else process.env.CLUSTER_UPLOAD_BUFFERED_CHUNKS_MAX = old;
   }
+});
+await check("chunk ownership reads avoid multipart relation; status reads still include sorted parts", async () => {
+  const ctx = admissionApp();
+  try {
+    const chunk = await ctx.app.inject({
+      method: "PUT", url: chunkUrl,
+      headers: { ...headers, "content-range": "invalid" }, payload: Buffer.from("x"),
+    });
+    assert.equal(chunk.statusCode, 400);
+    assert.equal(ctx.sessionQueries.length, 1);
+    assert.deepEqual(ctx.sessionQueries[0], {
+      where: { id: ctx.session.id },
+    }, "chunk preflight should not load multipart parts");
+    const status = await ctx.app.inject({ method: "GET",
+      url: "/api/uploads/" + ctx.session.id });
+    assert.equal(status.statusCode, 200);
+    assert.deepEqual(ctx.sessionQueries[1], {
+      where: { id: ctx.session.id },
+      include: { parts: { orderBy: { partNumber: "asc" } } },
+    }, "normal session status must keep direct multipart progress");
+  } finally { await ctx.app.close(); }
 });
 console.log(checks + "/" + checks + " buffered chunk upload admission tests passed");
