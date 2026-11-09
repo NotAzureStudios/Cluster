@@ -53,6 +53,9 @@ export type CompletedUpload = {
   };
   filePath: string | null;
   storage: StorageLocator | null;
+  /** Verified during upload authorization; reuse for streaming headers so
+   * an object-store download does not issue a second remote HEAD. */
+  resourceStat?: { size: number; modifiedAt: Date };
 };
 
 function configuredUploadLimit(name: string, fallback: number, minimum: number) {
@@ -701,7 +704,7 @@ export async function resolveCompletedUpload(deps: UploadRuntimeDependencies, up
     if (!storage) return null;
     const info = await deps.storageRuntime.stat(storage).catch(() => null);
     if (!info || info.size !== metadata.totalBytes) return null;
-    return { metadata, filePath: null, storage };
+    return { metadata, filePath: null, storage, resourceStat: { size: info.size, modifiedAt: info.modifiedAt } };
   }
 
   const filePath = localCompletePath(deps.dataLayout, session.id, session.fileName);
@@ -709,7 +712,7 @@ export async function resolveCompletedUpload(deps: UploadRuntimeDependencies, up
   catch { return null; }
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile() || info.size !== metadata.totalBytes) return null;
-  return { metadata, filePath, storage: null };
+  return { metadata, filePath, storage: null, resourceStat: { size: info.size, modifiedAt: info.mtime } };
 }
 
 export async function readCompletedUploadPrefix(deps: UploadRuntimeDependencies, upload: CompletedUpload, maximum = 64 * 1024) {
