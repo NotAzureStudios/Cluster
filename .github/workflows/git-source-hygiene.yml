@@ -39,6 +39,8 @@ jobs:
           "${RUNNER_TEMP}/cluster-direct-download-policy-test"
       - name: Enforce bounded, origin-bound Qt download implementation
         run: node tools/scripts/cluster-desktop-direct-download-source-tests.mjs
+      - name: Guard native Desktop profile switch rollback
+        run: node tools/scripts/cluster-desktop-profile-switch-source-tests.mjs
       - name: Ensure README always downloads latest release
         run: node tools/scripts/cluster-evergreen-release-links-tests.mjs
       - name: RC73 PDF and 3D viewer hardening regression

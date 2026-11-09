@@ -34,3 +34,8 @@ npm run desktop:reconstruction:package
 - Diagnostic records must not expose stored tokens, passwords, Library contents or unrelated Server profiles.
 
 See [distribution profiles](../../docs/development/DISTRIBUTION_PROFILES.md), [release record](../../docs/releases/CLUSTER_1_0_0.md) and [Server/Client install instructions](../../docs/INSTALLATION.md).
+
+
+## Windows closeout and certification
+
+The [native Desktop Windows acceptance checklist](../../docs/development/DESKTOP_WINDOWS_CLOSEOUT.md) covers install and portable startup, profile switch failure rollback, credential isolation, downloads and resumable transfers, and signed-update/rollback behavior. Passing the source tests does not replace the native Qt build or a real Windows run.
