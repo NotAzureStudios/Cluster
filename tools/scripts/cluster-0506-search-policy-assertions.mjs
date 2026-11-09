@@ -45,7 +45,7 @@ const serviceModule = load('apps/server/src/domains/search/search-service.ts',{
  },
 });
 function item(id,projectId=null,kind='file',title='alpha') {return {id,title,kind,projectId,memberIds:[],authorIds:[],labels:[],categories:[],flags:[],raw:{}};}
-function corpus(items,rules=[]) {return {items,projects:[{id:'P1'},{id:'P2'}],users:[],cards:[],timelineItems:[],calendarEvents:[],cardComments:[],activityEvents:[],projectFiles:[],videoAssets:[],deliveryRecords:[],projectRelationships:[],packetDefinitions:[],studioPolicies:[],accessRules:rules};}
+function corpus(items,rules=[]) {return {items,projects:[{id:'P1'},{id:'P2'}],users:[],cards:[],timelineItems:[],calendarEvents:[],cardComments:[],activityEvents:[],projectFiles:[],videoAssets:[],deliveryRecords:[],sourceReviews:[],sourceCommits:[],projectRelationships:[],packetDefinitions:[],studioPolicies:[],studioForms:[],formSubmissions:[],approvalRequests:[],accessRules:rules};}
 function createService(initial,more={}) {return serviceModule.createSearchService({loadCorpus:async()=>initial,serializeUserLite:x=>x,serializeProjectSummary:x=>x,...more});}
 async function query(service,canViewItem,q='alpha',limit=2) {return service.search({q,scope:'all',limit,userId:'u1',canViewItem});}
 let passed=0;
