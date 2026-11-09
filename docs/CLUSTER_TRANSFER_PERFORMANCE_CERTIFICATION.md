@@ -26,6 +26,7 @@ The endpoint still uses Fastify's existing **8 MiB** maximum octet-stream parser
 - Optional server environment override: `CLUSTER_UPLOAD_BUFFERED_CHUNKS_MAX` (clamped to 1–16).
 - Approximate admission envelope: `limit × 8 MiB` of raw chunk bodies, excluding HTTP, runtime, and other application overhead. Each worker/process has its own cap. This is not an exact RSS guarantee.
 - At capacity: `503 UPLOAD_CHUNK_ADMISSION_BUSY` with `Retry-After: 1`. The client should retry the **same chunk/offset**, not start a new upload session.
+- The browser upload client treats this exact 503 code as transient backpressure and preserves the original Blob, idempotency key and existing upload session in the durable retry queue. Its retry schedule respects the `Retry-After` header. Native Qt treats 503 as a retryable upload failure and retains the transfer journal.
 - Missing, unsafe or oversized ranges are rejected before the buffer is allocated. Clients sending chunked encoding without Content-Length remain supported.
 - The workspace byte rate limit is assessed using the claimed chunk size before parser admission. A body exceeding its claimed range consumes a second quota charge for the excess before returning `UPLOAD_RANGE_INVALID`.
 - The durable writer retains its local advisory lock, verified staging path, crash-tail reconciliation, full offset/range checks, fsync and conditional DB commit. Failed commits cannot advance `receivedBytes`.
@@ -35,7 +36,7 @@ The endpoint still uses Fastify's existing **8 MiB** maximum octet-stream parser
 
 ## Required acceptance checks
 
-1. Confirm `npm run build` and the transfer regression workflows pass on Windows and Linux. The dedicated scripts are `cluster-completed-upload-range-tests.mjs` and `cluster-upload-chunk-admission-tests.mjs`.
+1. Confirm `npm run build` and the transfer regression workflows pass on Windows and Linux. The dedicated scripts are `cluster-completed-upload-range-tests.mjs`, `cluster-upload-chunk-admission-tests.mjs`, and `cluster-upload-client-backpressure-tests.mjs`.
 2. On the Dell Windows Cluster server, compare idle RSS, 1/2/4-user concurrent 4 MiB and 8 MiB upload chunks, and 1/2/4 parallel large-file downloads. Record p50/p95 response headers, peak RSS, CPU, I/O queue, DB waits and request counts under matched conditions.
 3. Verify that interrupted local and direct-object downloads can resume from a byte range, and that stale `If-Range` validators force a complete transfer.
 4. Check that authorization failures, inactive sessions, wrong Content-Range, byte rate limits, aborted clients and full admission queues never advance durable received offsets.
