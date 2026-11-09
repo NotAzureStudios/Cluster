@@ -15,19 +15,19 @@ Server and native Qt Desktop are **independently versioned**. The [latest stable
 | [Latest portable Desktop ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip) | Portable Qt Desktop |
 | [Release notes and build receipts](https://github.com/NotAzureStudios/Cluster/releases/latest) | Published versions, SHA-256 hashes, signing and upgrade limitations |
 
-**Verify downloads and data safety:** Match SHA-256 against the *same release's* \`Cluster-server-build-receipt.json\` or \`Cluster-desktop-build-receipt.json\`. Unsigned installers and successful clean-install builds do not prove upgrade/rollback safety with populated studio data. Back up PostgreSQL, Library, settings and account credentials before any existing-Server upgrade.
+**Verify downloads and data safety:** Match SHA-256 against the *same release's* `Cluster-server-build-receipt.json` or `Cluster-desktop-build-receipt.json`. Unsigned installers and successful clean-install builds do not prove upgrade/rollback safety with populated studio data. Back up PostgreSQL, Library, settings and account credentials before any existing-Server upgrade.
 
-**Historical Server 1.1.1 → 1.1.2 transition:** Server 1.1.2 embedded a new Ed25519 update-verification key, which Server 1.1.1 cannot authenticate through its old signed-update feed. This requires a **manual installer upgrade** from 1.1.1, after verified backups. The 1.1.2 installer was **unsigned**, not a signed \`server-main\` automatic update. Do not bypass signature verification. Newer releases may have different instructions: consult the latest release notes.
+**Historical Server 1.1.1 → 1.1.2 transition:** Server 1.1.2 embedded a new Ed25519 update-verification key, which Server 1.1.1 cannot authenticate through its old signed-update feed. This requires a **manual installer upgrade** from 1.1.1, after verified backups. The 1.1.2 installer was **unsigned**, not a signed `server-main` automatic update. Do not bypass signature verification. Newer releases may have different instructions: consult the latest release notes.
 
 See [Windows code signing](docs/development/WINDOWS_CODE_SIGNING.md) and [permanent release asset naming](docs/development/RELEASE_ASSET_NAMING.md).
 
 ## Install or upgrade
 
-For a **new** Server, place \`Cluster-Installer.exe\` in a dedicated writable installation-parent directory such as \`D:\Cluster-Server\`. It creates \`Cluster\Server\` beside itself.
+For a **new** Server, place `Cluster-Installer.exe` in a dedicated writable installation-parent directory such as `D:\Cluster-Server`. It creates `Cluster\Server` beside itself.
 
-For an **existing** Server, first check its real workspace in the running Server Manager. To upgrade \`D:\Cluster-Server\Cluster\Server\`, run \`D:\Cluster-Server\Cluster-Installer.exe\`. To upgrade \`C:\Cluster\Server\`, run \`C:\Cluster-Installer.exe\` with appropriate permissions. The installer does **not** discover existing folders. Running it from Downloads or inside \`Cluster\Server\` can create the wrong installation.
+For an **existing** Server, first check its real workspace in the running Server Manager. To upgrade `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`. To upgrade `C:\Cluster\Server`, run `C:\Cluster-Installer.exe` with appropriate permissions. The installer does **not** discover existing folders. Running it from Downloads or inside `Cluster\Server` can create the wrong installation.
 
-After a verified backup, stop the Server and managed PostgreSQL/Node/Host processes, install from the correct parent, and start the managed \`Cluster\Server\bin\Cluster Server.exe\`. Compare its reported version and \`CLUSTER_RELEASE.json\` with the release you downloaded, then verify login, projects and Library. A drive-root installation can retain a stale shortcut; inspect \`Cluster\installer.log\` rather than deleting any data.
+After a verified backup, stop the Server and managed PostgreSQL/Node/Host processes, install from the correct parent, and start the managed `Cluster\Server\bin\Cluster Server.exe`. Compare its reported version and `CLUSTER_RELEASE.json` with the release you downloaded, then verify login, projects and Library. A drive-root installation can retain a stale shortcut; inspect `Cluster\installer.log` rather than deleting any data.
 
 Use the [complete Windows installation and in-place upgrade guide](docs/INSTALLATION.md).
 

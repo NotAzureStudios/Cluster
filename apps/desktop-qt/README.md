@@ -6,7 +6,7 @@ Cluster Desktop is the independent native Qt 6.11.2/C++ host for the shared Clus
 
 ## Install
 
-Download the [latest native Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) or [portable ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip). Check the same release's \`Cluster-desktop-build-receipt.json\` against the downloaded bytes and follow the [Windows installation guide](../../docs/INSTALLATION.md).
+Download the [latest native Desktop installer](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Installer.exe) or [portable ZIP](https://github.com/NotAzureStudios/Cluster/releases/latest/download/Cluster-Desktop-Portable.zip). Check the same release's `Cluster-desktop-build-receipt.json` against the downloaded bytes and follow the [Windows installation guide](../../docs/INSTALLATION.md).
 
 Desktop requires a running Cluster Server; it does **not** ship a database, API daemon, Server Manager or Server update feed. A successful build or published installer does not certify installed-runtime health, recovery, upgrade or rollback.
 
