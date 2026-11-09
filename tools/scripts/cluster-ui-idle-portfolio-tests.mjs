@@ -93,10 +93,13 @@ const stopRetry = startVisibleJobPolling(async () => {
 await settle();
 assert.equal(attempts, 1);
 assert.equal(retry.timers.size, 1, "a transient failure should not kill a job tracker");
-assert.equal(retry.tick(), 4_000);
-await settle();
-assert.equal(attempts, 2);
+const delayedRetry = [...retry.timers.values()][0].delay;
+assert.ok(delayedRetry >= 8_000 && delayedRetry <= 8_800,
+  "a transient failure must back off with positive jitter instead of retrying at the original 4-second interval");
+// The dedicated visible-refresh backoff suite advances a virtual clock to
+// certify execution timing, 429 headers, focus recovery and subsequent success.
 stopRetry();
+assert.equal(retry.timers.size, 0);
 
 const projects = Array.from({ length: 125 }, (_, index) => ({ id: "project-" + index, updatedAt: "rev1" }));
 const revisions = new Map(projects.slice(0, 80).map((project) => [project.id, project.updatedAt]));
