@@ -32,6 +32,9 @@ await check("read-only route totals, 429 attribution and authentication status a
   assert.equal(calls, 6);
   assert.equal(secretSeen, true);
   assert.equal(sample.requests, 6);
+  assert.equal(sample.kind, "cluster-live-read-baseline-v2");
+  assert.equal(sample.passed, false);
+  assert.equal(sample.routes.reduce((sum, item) => sum + item.successfulLatencySamples, 0), 3);
   assert.equal(sample.routes.reduce((sum, item) => sum + item.requests, 0), 6);
   assert.equal(sample.routes.reduce((sum, item) => sum + item.rateLimited, 0), 1);
   assert.equal(sample.routes.reduce((sum, item) => sum + item.errors5xx, 0), 1);
@@ -101,6 +104,49 @@ await check("response bodies are not downloaded into the benchmark", async () =>
   });
   assert.equal(cancelled, 1);
   assert.equal(result.routes[0].successes, 1);
+  assert.equal(result.passed, true);
+});
+
+await check("3xx, authentication and other 4xx failures cannot masquerade as good latency", async () => {
+  const statuses = [302, 304, 401, 403, 404, 200, 206];
+  let cursor = 0;
+  const result = await runClusterReadBaseline({
+    baseUrl: "http://127.0.0.1:3000", paths: ["/api/projects"],
+    requests: statuses.length, concurrency: 1, delayMs: 100, sleep: async () => undefined,
+    fetchImpl: async () => new Response(null, { status: statuses[cursor++] }),
+  });
+  const route = result.routes[0];
+  assert.equal(result.passed, false);
+  assert.equal(route.requests, 7);
+  assert.equal(route.successes, 2);
+  assert.equal(route.successfulLatencySamples, 2);
+  assert.equal(route.unexpected3xx, 2);
+  assert.equal(route.authDenied, 2);
+  assert.equal(route.otherHttpErrors, 1);
+  assert.equal(typeof route.headerP95Ms, "number");
+});
+
+await check("every non-2xx response fails the measurement gate with no latency samples", async () => {
+  for (const status of [301, 302, 304, 400, 401, 403, 404, 408, 429, 500, 503]) {
+    const report = await runClusterReadBaseline({
+      baseUrl: "http://127.0.0.1:3000", paths: ["/api/me"],
+      requests: 1, concurrency: 1, delayMs: 100,
+      fetchImpl: async () => new Response(null, { status }),
+    });
+    assert.equal(report.passed, false, "HTTP " + status);
+    assert.equal(report.routes[0].successes, 0);
+    assert.equal(report.routes[0].successfulLatencySamples, 0);
+    assert.equal(report.routes[0].headerP95Ms, null);
+  }
+});
+
+await check("different query workloads cannot silently share a redacted report label", async () => {
+  await assert.rejects(runClusterReadBaseline({
+    baseUrl: "https://cluster.example",
+    paths: ["/api/projects?scope=first", "/api/projects?scope=second"],
+    requests: 2,
+    fetchImpl: async () => { throw Error("never called"); },
+  }), /unique pathnames/);
 });
 
 console.log(checks + "/" + checks + " live read baseline utility tests passed");

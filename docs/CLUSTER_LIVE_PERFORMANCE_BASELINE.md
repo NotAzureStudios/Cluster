@@ -26,7 +26,7 @@ Optional controls:
 | `CLUSTER_BENCH_TIMEOUT_MS` | 10000 | 1000–60000 |
 | `CLUSTER_BENCH_PATHS` | `/health/live,/health/ready` | 1–8 GET routes |
 
-A benchmark run returns JSON with per-route request counts, response-header p50/p95 latency, 429s by server-defined rate-limit bucket, 5xx, authorization denials, and network failures. Paths are reported **without query strings**, credentials are never printed, response bodies are cancelled immediately, redirects are not followed, and concurrency is bounded. Exits nonzero on 429, 5xx or network errors.
+A benchmark run returns JSON with per-route request counts, **successful HTTP 2xx-only** response-header p50/p95 latency, unexpected 3xx responses, 429s by server-defined rate-limit bucket, 5xx, authorization denials, and network failures. Failed and redirected responses are excluded from the p50/p95 sample pool; each route exposes `successfulLatencySamples`. Paths are reported **without query strings**, credentials are never printed, response bodies are cancelled immediately, redirects are not followed, and concurrency is bounded. Exits nonzero on **any non-2xx response or network error** (including login redirects and 401/403/404). `passed` is true only if every request returned 2xx. Distinct query strings on the same pathname are rejected, because sanitized labels would otherwise merge incompatible workloads.
 
 **Important:** The numbers are response-header latency, not full-page load, full file transfer time or SQL execution time. For database work, pair with Cluster Operations' existing PostgreSQL / `pg_stat_statements` and per-request SQL fingerprint diagnostics. For UI responsiveness, use the client performance panel. Test both **idle** and during concurrent permitted media/Git/upload workloads.
 
@@ -40,3 +40,5 @@ A benchmark run returns JSON with per-route request counts, response-header p50/
 6. Investigate regressions before merging additional thread/process changes.
 
 The script is a measurement aid. It does not itself prove that the optimization branch is production-ready.
+
+**Report version:** `cluster-live-read-baseline-v2`. The old v1 p95 included failing HTTP response times; do not compare v1 and v2 directly. Capture both before/after measurements with v2 under matched conditions.

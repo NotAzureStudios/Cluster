@@ -65,6 +65,9 @@ export async function runClusterReadBaseline(options) {
   const base = safeBase(options.baseUrl);
   const paths = (options.paths || ["/health/live", "/health/ready"]).map(p => safeRoute(p, base));
   if (!paths.length || paths.length > 8) throw Error("Provide between 1 and 8 read-only benchmark paths.");
+  // Query strings are deliberately redacted in results. Never merge different
+  // workloads under one indistinguishable report label.
+  if (new Set(paths.map(p => p.label)).size !== paths.length) throw Error("Benchmark paths must have unique pathnames.");
   const cookie = safeCookie(base, options.cookie);
   const requests = num(options.requests, 24, 1, 128);
   const concurrency = num(options.concurrency, 2, 1, 4);
@@ -73,7 +76,7 @@ export async function runClusterReadBaseline(options) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
   const byPath = new Map(paths.map(p => [p.label, {
-    path: p.label, requests: 0, successes: 0, rateLimited: 0,
+    path: p.label, requests: 0, successes: 0, unexpected3xx: 0, rateLimited: 0,
     errors5xx: 0, authDenied: 0, otherHttpErrors: 0, networkErrors: 0,
     timings: [], buckets: {},
   }]));
@@ -98,11 +101,15 @@ export async function runClusterReadBaseline(options) {
           headers, signal: AbortSignal.timeout(timeoutMs),
         });
         const elapsed = performance.now() - begin;
-        stat.timings.push(elapsed);
         // Measure only response-header latency; cancel the body. This never
         // accidentally streams entire Library files into a benchmark process.
         if (response.body && typeof response.body.cancel === "function") await response.body.cancel();
-        if (response.status >= 200 && response.status < 400) stat.successes++;
+        // Redirects, cache validators and fast authorization denials must not
+        // improve a performance report for the actual requested endpoint.
+        if (response.status >= 200 && response.status < 300) {
+          stat.successes++;
+          stat.timings.push(elapsed);
+        } else if (response.status >= 300 && response.status < 400) stat.unexpected3xx++;
         else if (response.status === 429) {
           stat.rateLimited++;
           const claimed = String(response.headers.get("x-cluster-rate-limit-bucket") || "unattributed").toLowerCase();
@@ -125,6 +132,8 @@ export async function runClusterReadBaseline(options) {
     path: row.path,
     requests: row.requests,
     successes: row.successes,
+    unexpected3xx: row.unexpected3xx,
+    successfulLatencySamples: row.timings.length,
     rateLimited: row.rateLimited,
     errors5xx: row.errors5xx,
     authDenied: row.authDenied,
@@ -135,8 +144,9 @@ export async function runClusterReadBaseline(options) {
     rateLimitBuckets: row.buckets,
   }));
   return {
-    kind: "cluster-live-read-baseline-v1",
-    note: "HTTP response-header latency only, not full response transfer or database SQL time.",
+    kind: "cluster-live-read-baseline-v2",
+    note: "Successful 2xx response-header latency only; failed/redirected requests cannot improve p50/p95. Not full response transfer or SQL time.",
+    passed: routes.every(row => row.successes === row.requests),
     requests,
     concurrency,
     peakConcurrency,
@@ -162,7 +172,8 @@ async function main() {
     timeoutMs: process.env.CLUSTER_BENCH_TIMEOUT_MS,
   });
   console.log(JSON.stringify(report, null, 2));
-  if (report.routes.some(r => r.rateLimited || r.errors5xx || r.networkErrors)) process.exitCode = 1;
+  // Fail closed on every non-2xx response, not just 429s and server failures.
+  if (!report.passed) process.exitCode = 1;
 }
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
   main().catch(error => {
