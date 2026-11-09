@@ -17,6 +17,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
 import { ServerConnectionGuide } from "./ServerConnectionGuide";
+import { ServerUpdateControls } from "./ServerUpdateControls";
 import { ServerNetworkTopology } from "./ServerNetworkTopology";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { RequestErrorState } from "../../components/RequestState";
@@ -1753,6 +1754,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       {section === "domains" && <ServerDomainsPanel />}
       {section === "maintenance" && (
         <>
+          <ServerUpdateControls owner={currentUser.workspaceRole === "owner"} pinConfigured={currentUser.pinConfigured === true} />
           <div className="hint-box"><strong>Scheduled health checks</strong><span>These intervals tune existing server jobs without creating additional polling workers. No automatic update, restart, data deletion, or recovery action is authorized by changing these values. Live cadence changes rearm idle tasks. Active scans remain bounded by the background scheduler.</span></div>
           {renderSectionFields("maintenance")}
           <section className="panel server-config-operations-v238" aria-label="Saved maintenance window preview">
