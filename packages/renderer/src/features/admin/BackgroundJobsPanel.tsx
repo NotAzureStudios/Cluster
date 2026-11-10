@@ -126,6 +126,7 @@ export function OperationsCenterPanel() {
   const [actionJobId, setActionJobId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [showScheduledTasks, setShowScheduledTasks] = useState(false);
+  const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
   const [filterQueue, setFilterQueue] = useState("");
   const [filterType, setFilterType] = useState("");
   const [search, setSearch] = useState("");
@@ -155,8 +156,10 @@ export function OperationsCenterPanel() {
       if (search.trim()) query.set("q", search.trim());
       if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
       if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
-      query.set("facets", "status,queue,type");
-      query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
+      if (showAdvancedAnalytics) {
+        query.set("facets", "status,queue,type");
+        query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
+      }
       const result = await api<BackgroundJobListResponse>(`/api/admin/operations/jobs?${query.toString()}`);
       if (cursor) {
         setPayload((current) => {
@@ -180,7 +183,7 @@ export function OperationsCenterPanel() {
 
   useEffect(() => {
     void loadJobs();
-  }, [filterQueue, filterStatus, filterType, search, sorts, groups]);
+  }, [filterQueue, filterStatus, filterType, search, sorts, groups, showAdvancedAnalytics]);
 
   useVisibleRefresh(() => loadJobs(true), { intervalMs: 20_000 });
 
@@ -371,6 +374,7 @@ export function OperationsCenterPanel() {
         <div className="button-row">
           <span className={`soft-pill ${unhealthy || (payload?.pressure?.stalledLeases || 0) ? "warning" : "good"}`}>{unhealthy ? `${unhealthy} needs review` : (payload?.pressure?.stalledLeases || 0) ? `${payload?.pressure?.stalledLeases} expired lease` : "Queue clear"}</span>
           {unhealthy ? <ClusterButton type="button" className="" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Retry failed</ClusterButton> : null}
+          <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showAdvancedAnalytics} onClick={() => setShowAdvancedAnalytics((value) => !value)}>{showAdvancedAnalytics ? "Hide analytics" : "Advanced analytics"}</ClusterButton>
           <ClusterButton type="button" className="" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Refresh</ClusterButton>
         </div>
       </header>
@@ -385,6 +389,7 @@ export function OperationsCenterPanel() {
       </div>
       {showScheduledTasks ? <ScheduledTaskDiagnosticsPanel /> : null}
 
+      {showAdvancedAnalytics ? <>
       <div className="cluster-visual-summary-grid" aria-label="Operation queue overview">
         <ClusterVisualComposition label="Retained job states" total={counts.total} parts={[
           { label: "Succeeded", value: counts.succeeded, tone: "good" },
@@ -403,6 +408,7 @@ export function OperationsCenterPanel() {
         items={summaryItems.map(([label, count]) => ({ label, value: count, detail: label === "Queued" ? ageLabel(payload?.pressure?.oldestQueuedAgeMs) : label === "Running" ? `${worker?.running || 0}/${worker?.concurrency || 0} worker slots` : "retained jobs", tone: label === "Dead letter" && count ? "danger" : label === "Succeeded" && count ? "good" : "neutral" }))}
       />
       </div></details>
+      </> : null}
 
       <ClusterTableToolbar
         query={search}
@@ -417,18 +423,18 @@ export function OperationsCenterPanel() {
         actions={<div className="button-row"><span>{payload?.pressure?.stalledLeases || 0} expired leases</span><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}
       />
 
-      <ClusterDataView
+      {showAdvancedAnalytics ? <ClusterDataView
         scope="admin.operations-center"
         label="Jobs"
         resourceKind="background_job"
         current={currentDataView}
         onApply={applySavedDataView}
         summary="Save queue filters, job states, sort order, and selected columns as a reusable view."
-      />
+      /> : null}
 
       <DataExportOperationFeedback jobId={exportJobId} onDismiss={() => setExportJobId("")} />
 
-      {payload?.dataView?.facets?.length ? <DataViewFacetBar
+      {showAdvancedAnalytics && payload?.dataView?.facets?.length ? <DataViewFacetBar
         facets={payload.dataView.facets}
         fields={payload.dataView.fields}
         selectedValues={{ status: filterStatus ? [filterStatus] : [], queue: filterQueue ? [filterQueue] : [], type: filterType ? [filterType] : [] }}
@@ -442,7 +448,7 @@ export function OperationsCenterPanel() {
         label="Operation facets"
       /> : null}
 
-      {payload?.dataView?.aggregations && payload.dataView.query.aggregations?.length ? <DataViewAggregationStrip
+      {showAdvancedAnalytics && payload?.dataView?.aggregations && payload.dataView.query.aggregations?.length ? <DataViewAggregationStrip
         className="background-jobs-filtered-summary-v504"
         label="Current Data View summary"
         aggregations={payload.dataView.query.aggregations.map((aggregation) => ({ ...aggregation, label: aggregation.id === "matching" ? "Matching" : aggregation.id === "avgProgress" ? "Average progress" : aggregation.id === "avgAttempts" ? "Average attempts" : aggregation.label }))}
