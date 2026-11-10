@@ -21,6 +21,15 @@ assert.match(jobs, /showScheduledTasks \? <ScheduledTaskDiagnosticsPanel \/> : n
 assert.match(jobs, /showAdvancedAnalytics \? <ClusterDataView/);
 assert.match(jobs, /if \(showAdvancedAnalytics\) \{/);
 assert.match(jobs, /role="progressbar"/);
+assert.match(jobs, /JOB_FILTERS\.map/);
+assert.match(jobs, /jobStateTone\(job\.status\)/);
+assert.match(jobs, /<SettingsStateChip tone=\{jobStateTone\(job\.status\)\}/);
+assert.doesNotMatch(jobs, /<label>Status<ClusterNativeSelect/);
+assert.match(jobs, /Status unavailable/);
+assert.match(jobs, /jobs-name-cell-v12/);
+assert.match(studio, /<ClusterIcon name=\{STUDIO_SETTINGS_NAV_ICONS\[key\]\}/);
+assert.match(server, /<ClusterIcon name=\{item\.icon\}/);
+assert.match(server, /settings-section-context-v12/);
 assert.match(jobs, /aria-valuenow=/);
 assert.match(jobs, /id: "startedAt"/);
 assert.match(jobs, /id: "finishedAt"/);

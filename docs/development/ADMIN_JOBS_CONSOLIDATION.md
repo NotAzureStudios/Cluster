@@ -19,3 +19,11 @@ No DB migration, arbitrary job management authority, hidden automatic restart or
 CI source tests and shared/renderer compilation validate the new navigation. Test manually on Windows and tablet widths: open each tab, verify original protected-save flows and maintenance/backup gates, test job filtering/detail/cancel/retry with actual queued jobs, and confirm no duplicate requests from collapsed panels.
 
 The separately supplied Cluster sign-in screenshot shows an API failure message, not a specific cause. Authentication cannot be diagnosed from the visual alone; use the associated API response code/request ID and Server logs. This UI pass does not change sign-in/authentication behavior.
+
+## Visual and copy pass
+
+Jobs uses the existing Cluster status chip and offline curated icons. Running is accent/info, succeeded is success, failed/dead-letter is danger, and queued/cancelled remain neutral. Counts are shown as labelled, keyboard-operable filters; progress bars preserve the actual source percentage rather than fabricating completion. The duplicate state selector and repeated lease count were removed. Loading and API-error states must not display a false 'queue clear' indicator.
+
+Studio and Server category tabs have small offline icons and understated selected-state borders. Studio search shares the tab row at desktop widths. A clean Studio draft no longer displays both 'Saved' and 'No pending edits'; unsafe/draft changes retain their warnings and review paths. Server technical configuration source/path is visible under All settings rather than every section. Network restart and authentication safety copy stays visible.
+
+The Systems-to-Jobs link is one compact interactive row, not another explanatory card. Event history and analytics remain opt-in.
