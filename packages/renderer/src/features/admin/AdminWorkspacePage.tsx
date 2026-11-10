@@ -1013,7 +1013,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       className={`admin-workspace-v298 admin-page admin-page-v064 ${scope === "users" ? "user-admin-page-v241" : "operations-admin-page-v241"}`}
       title={scope === "users" ? "People Management" : "Operations"}
       icon={scope === "users" ? "users" : "operations"}
-      description={scope === "users" ? "Accounts, access, and lifecycle." : "Server health, incidents, approvals, and maintenance."}
+      description={scope === "users" ? "Accounts & access" : "Health · jobs · incidents · approvals"}
       metrics={scope === "users" ? [
         { label: "People", value: users.length },
         { label: "Pending approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good" },
@@ -1064,9 +1064,9 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
           <div className="button-row">
             <ClusterButton type="button" variant="secondary" aria-expanded={jobsEvidenceOpen}
               onClick={() => setJobsEvidenceOpen((current) => !current)}>
-              {jobsEvidenceOpen ? "Hide event history" : "Inspect operational event history"}
+              <ClusterIcon name="activity" aria-hidden="true" /> {jobsEvidenceOpen ? "Hide events" : "Event history"}
             </ClusterButton>
-            <span className="muted">Sanitized logs, request traces, and security-linked activity. Loaded on request.</span>
+            <span className="muted">Logs & traces · on demand</span>
           </div>
           {jobsEvidenceOpen ? <OperationsEvidencePanel /> : null}
         </section>
@@ -1087,11 +1087,11 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
             ]}
           />
           {adminSection === "systems" ? <><OperationsSystemsPanel />
-          <section className="panel admin-jobs-entry-v11" aria-label="Background job diagnostics">
-            <strong>Background jobs and worker history</strong>
-            <p>Queue status, retries, scheduled task activity, and detailed job evidence now live in Jobs. This keeps System health focused on runtime diagnostics.</p>
-            <ClusterButton type="button" variant="secondary" onClick={() => setAdminSection("jobs")}>Open Jobs</ClusterButton>
-          </section></> : null}
+          <ClusterButton type="button" variant="quiet" className="admin-jobs-shortcut-v12" onClick={() => setAdminSection("jobs")}>
+            <span className="admin-jobs-shortcut-icon-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
+            <span><strong>Jobs</strong><small>Queues · retries · history</small></span>
+            <ClusterIcon name="chevron-right" aria-hidden="true" />
+          </ClusterButton></> : null}
           {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
           {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
           {adminSection === "stabilization" ? <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}

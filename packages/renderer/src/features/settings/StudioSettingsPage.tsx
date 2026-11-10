@@ -1017,9 +1017,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       actions={
         <>
           {heldStudioDraft && <SettingsStateChip tone="warning" icon="note">Stored draft requires review</SettingsStateChip>}
-          <SettingsStateChip tone={dirty ? "warning" : "neutral"} icon={dirty ? "note" : "check"}>{dirty ? "Unsaved studio changes" : "No pending edits"}</SettingsStateChip>
+          {dirty ? <SettingsStateChip tone="warning" icon="note">Unsaved studio changes</SettingsStateChip> : null}
           <ClusterButton type="button" variant={dirty ? "primary" : "secondary"} onClick={() => void save()} disabled={!dirty || saving} busy={saving} busyLabel="Saving…">
-            <ClusterIcon name={dirty ? "check" : "settings"} aria-hidden="true" /> {dirty ? "Save changes" : "Saved"}
+            <ClusterIcon name="check" aria-hidden="true" /> Save changes
           </ClusterButton>
         </>
       }
@@ -1034,18 +1034,21 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
         icon: STUDIO_SETTINGS_NAV_ICONS[group.anchor],
       }))}
     >
-      <nav className="settings-subsection-tabs-v11" aria-label={`${studioSettingsGroupForSection(section).label} settings`}>
-        {studioSettingsGroupForSection(section).sections
-          .filter((key) => currentUser.isAdmin || !["domains", "privacy", "kiosk", "studioSystems"].includes(key))
-          .map((key) => (
-            <ClusterButton key={key} type="button" size="compact"
-              variant={section === key ? "secondary" : "quiet"} aria-pressed={section === key}
-              onClick={() => setSection(key)}>
-              {studioSettingsSectionLabel(key)}
-            </ClusterButton>
-          ))}
-      </nav>
-      <ClusterSettingsSearch label="Find studio settings" entries={buildStudioSettingsSearchEntries(studioSections)} onNavigate={(entry) => setSection(entry.section)} />
+      <div className="settings-admin-navrow-v12">
+        <nav className="settings-subsection-tabs-v11" aria-label={`${studioSettingsGroupForSection(section).label} settings`}>
+          {studioSettingsGroupForSection(section).sections
+            .filter((key) => currentUser.isAdmin || !["domains", "privacy", "kiosk", "studioSystems"].includes(key))
+            .map((key) => (
+              <ClusterButton key={key} type="button" size="compact"
+                variant="quiet" aria-pressed={section === key} title={studioSettingsSectionLabel(key)}
+                onClick={() => setSection(key)}>
+                <ClusterIcon name={STUDIO_SETTINGS_NAV_ICONS[key]} aria-hidden="true" />
+                <span>{studioSettingsSectionLabel(key)}</span>
+              </ClusterButton>
+            ))}
+        </nav>
+        <ClusterSettingsSearch className="settings-compact-search-v12" label="Find studio settings" entries={buildStudioSettingsSearchEntries(studioSections)} onNavigate={(entry) => setSection(entry.section)} />
+      </div>
       {heldStudioDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated Studio settings draft">
         <strong>Stored Studio draft needs review</strong>
         <p className="muted">This draft was saved before the current server Settings snapshot or has no trusted baseline. It was not applied automatically. Loading it may overwrite newer administrator changes if you save it.</p>

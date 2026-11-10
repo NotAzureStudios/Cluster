@@ -1344,11 +1344,11 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "integrations", label: "API & webhooks", group: "Extensions", icon: "code", count: configuredExtensionCount },
   ];
   const serverConfigGroups = [
-    { id: "overview" as const, label: "Runtime", description: "Server status, resource scheduling, maintenance and advanced runtime configuration." },
-    { id: "network" as const, label: "Network & domains", description: "Host listeners, secure access, domains and gateway configuration." },
-    { id: "security" as const, label: "Security & Access", description: "Security policy, sessions, credentials, and trusted devices." },
-    { id: "storage" as const, label: "Data & Recovery", description: "Storage, backups, verification, and recovery readiness." },
-    { id: "integrations" as const, label: "Extensions", description: "Private API, webhooks, and server-side extension surfaces." },
+    { id: "overview" as const, label: "Runtime" },
+    { id: "network" as const, label: "Network & domains" },
+    { id: "security" as const, label: "Security & Access" },
+    { id: "storage" as const, label: "Data & Recovery" },
+    { id: "integrations" as const, label: "Extensions" },
   ];
   const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
   const activeServerGroupId = serverGroupForSection(section);
@@ -1358,7 +1358,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
       title="Server Configuration"
       icon="cloud"
-      description={`${settings.settingsSource || "config file"} · ${settings.configPath || "cluster.config.json"}`}
+      description={section === "advanced" ? `${settings.settingsSource || "config file"} · ${settings.configPath || "cluster.config.json"}` : undefined}
       actions={
         <>
           {changedFields.length > 0 && <SettingsStateChip tone="warning" icon="note">{changedFields.length} unsaved{restartDirtyCount ? ` · ${restartDirtyCount} require restart` : ""}</SettingsStateChip>}
@@ -1370,7 +1370,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           {restartDirtyCount > 0 && <ClusterButton type="button" variant="secondary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save(undefined, undefined, true)} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>
             Save &amp; restart
           </ClusterButton>}
-          <ClusterButton type="button" variant="primary" busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || networkDeploymentPending || !changedFields.length}>Save configuration</ClusterButton>
+          <ClusterButton type="button" variant={changedFields.length ? "primary" : "secondary"} busy={savingConfig} busyLabel="Saving…" onClick={() => void save()} disabled={savingConfig || networkDeploymentPending || !changedFields.length}><ClusterIcon name="check" aria-hidden="true" /> Save</ClusterButton>
         </>
       }
       status={status}
@@ -1388,9 +1388,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       <nav className="settings-subsection-tabs-v11" aria-label={`${activeServerGroup.label} settings`}>
         {sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId).map((item) => (
           <ClusterButton key={item.id} type="button" size="compact"
-            variant={section === item.id ? "secondary" : "quiet"} aria-pressed={section === item.id}
+            variant="quiet" aria-pressed={section === item.id}
             onClick={() => selectSection(item.id)}>
-            {item.label}
+            <ClusterIcon name={item.icon} aria-hidden="true" />
+            <span>{item.label}</span>
           </ClusterButton>
         ))}
       </nav>
@@ -1420,7 +1421,12 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         }))}
       />}
       <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
-        <div className="studio-settings-context-head-v15"><div><p className="eyebrow">{activeServerGroup.label}</p><h2 className="server-config-section-title-v103"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" />{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2><p className="muted tight">{activeServerGroup.description}</p></div></div>
+        <div className="studio-settings-context-head-v15 settings-section-context-v12">
+          <h2 className="server-config-section-title-v103"><span className="settings-context-icon-v12"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" /></span>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2>
+          {section === "security" && securityPosture ? <SettingsStateChip tone={securityPosture.healthy ? "success" : "warning"}>{securityPosture.healthy ? "Healthy" : "Needs review"}</SettingsStateChip> : null}
+          {section === "sessions" ? <SettingsStateChip tone="neutral" icon="users">{serverSessions.length} sessions</SettingsStateChip> : null}
+          {section === "backups" ? <SettingsStateChip tone="neutral" icon="archive">{serverBackups.length} backups</SettingsStateChip> : null}
+        </div>
       </section>
 
       {section === "overview" && (
