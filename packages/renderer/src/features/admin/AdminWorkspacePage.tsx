@@ -1040,7 +1040,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       navClassName="admin-subnav-v204"
       activeId={scope === "users" ? adminSection : canonicalAdminOperationsSection(adminSection)}
       onChange={setAdminSection}
-      primaryIds={(scope === "users" ? ["users", "exports"] : ["overview", "incidents", "approvals", "systems", "reports"]) as AdminSection[]}
+      primaryIds={(scope === "users" ? ["users", "exports"] : ["overview", "incidents", "jobs", "approvals", "systems", "reports"]) as AdminSection[]}
       items={buildAdminWorkspaceNav(scope, { userCount: users.length, pendingApprovals: adminPendingApprovals })}
     >
       {scope === "operations" && (["approvals", "systems", "reports"] as const).includes(canonicalAdminOperationsSection(adminSection) as "approvals" | "systems" | "reports") && (
@@ -1053,7 +1053,12 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {adminSection === "approvals" && <AdminApprovalCenter projects={projects} />}
 
-      {adminSection === "operations-center" && <><OperationsCenterPanel /><OperationsEvidencePanel /></>}
+      {canonicalAdminOperationsSection(adminSection) === "jobs" && <>
+        <OperationsCenterPanel />
+        <ClusterDisclosureGroup title="Operational event history" summary="Sanitized logs, request traces, and security-linked activity. Open only when investigating a job.">
+          <OperationsEvidencePanel />
+        </ClusterDisclosureGroup>
+      </>}
 
       {adminSection === "incidents" && <OperationsIncidentsPanel />}
 
@@ -1070,10 +1075,11 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
             ]}
           />
           <OperationsSystemsPanel />
-          <ClusterDisclosureGroup defaultOpen className="admin-consolidated-details-v15" title="Runtime & background work" summary="Queues, workers, scheduler state, recovery evidence, and recent background execution.">
-            <OperationsCenterPanel />
-            <OperationsEvidencePanel />
-          </ClusterDisclosureGroup>
+          <section className="panel admin-jobs-entry-v11" aria-label="Background job diagnostics">
+            <strong>Background jobs and worker history</strong>
+            <p>Queue status, retries, scheduled task activity, and detailed job evidence now live in Jobs. This keeps System health focused on runtime diagnostics.</p>
+            <ClusterButton type="button" variant="secondary" onClick={() => setAdminSection("jobs")}>Open Jobs</ClusterButton>
+          </section>
           <ClusterDisclosureGroup key={`maintenance-${adminSection}`} defaultOpen={adminSection === "maintenance"} className="admin-consolidated-details-v15" title="Maintenance tools" summary="Integrity, cleanup, repair, and one-off administrative jobs.">
             <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("systems")} />
           </ClusterDisclosureGroup>

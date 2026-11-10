@@ -17,6 +17,8 @@ export const BACKGROUND_JOB_DATA_FIELDS = [
   { id: "progress", label: "Progress", type: "number", sortable: true, filterable: true, aggregatable: true, exportable: true, display: { format: "percent", precision: 0 } },
   { id: "createdAt", label: "Created", type: "datetime", sortable: true, filterable: true, groupable: true, exportable: true },
   { id: "updatedAt", label: "Updated", type: "datetime", sortable: true, filterable: true, groupable: true, exportable: true },
+  { id: "startedAt", label: "Started", type: "datetime", sortable: true, exportable: true },
+  { id: "finishedAt", label: "Finished", type: "datetime", sortable: true, exportable: true },
   { id: "lastError", label: "Last error", type: "text", filterable: true, exportable: false, sensitivity: "internal" },
 ] as const satisfies readonly ClusterSemanticField[];
 

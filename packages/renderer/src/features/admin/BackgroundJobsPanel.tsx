@@ -32,6 +32,8 @@ type BackgroundJobSummary = {
   maxAttempts: number;
   progress: number;
   progressMessage?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
   lastError?: string | null;
   cancelRequestedAt?: string | null;
   createdAt: string;
@@ -123,6 +125,7 @@ export function OperationsCenterPanel() {
   const [status, setStatus] = useState("Loading operations...");
   const [actionJobId, setActionJobId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [showScheduledTasks, setShowScheduledTasks] = useState(false);
   const [filterQueue, setFilterQueue] = useState("");
   const [filterType, setFilterType] = useState("");
   const [search, setSearch] = useState("");
@@ -283,11 +286,16 @@ export function OperationsCenterPanel() {
     { id: "type", header: fieldLabels.get("type") || "Type", cell: (job) => <span><strong>{job.type}</strong><small className="muted">{job.id}</small></span>, sortValue: (job) => job.type, groupValue: (job) => job.type, hideable: false, pinnable: true, defaultWidth: 260 },
     { id: "queue", header: fieldLabels.get("queue") || "Queue", cell: (job) => job.queue, sortValue: (job) => job.queue, groupValue: (job) => job.queue, defaultWidth: 150 },
     { id: "correlationId", header: fieldLabels.get("correlationId") || "Trace", cell: (job) => <span><strong title={job.correlationId || job.id}>{job.correlationId || job.id}</strong>{job.causationId ? <small title={job.causationId}>caused by {job.causationId}</small> : null}</span>, hiddenByDefault: true, defaultWidth: 280 },
-    { id: "status", header: fieldLabels.get("status") || "Status", cell: (job) => <span className={`soft-pill ${job.status === "DEAD_LETTER" || job.status === "FAILED" ? "warning" : job.status === "SUCCEEDED" ? "good" : ""}`}>{statusLabel(job.status)}</span>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 130 },
-    { id: "progress", header: fieldLabels.get("progress") || "Progress", cell: (job) => `${Math.max(0, Math.min(100, job.progress || 0))}%`, sortValue: (job) => job.progress, defaultWidth: 105 },
+    { id: "status", header: fieldLabels.get("status") || "State", cell: (job) => <span className={`soft-pill ${job.status === "DEAD_LETTER" || job.status === "FAILED" ? "warning" : job.status === "SUCCEEDED" ? "good" : ""}`}>{statusLabel(job.status)}</span>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 125 },
+    { id: "progress", header: fieldLabels.get("progress") || "Progress", cell: (job) => <div className="jobs-progress-cell-v11">
+      <span>{Math.max(0, Math.min(100, job.progress || 0))}%{job.progressMessage ? <small title={job.progressMessage}>{job.progressMessage}</small> : null}</span>
+      <div className="background-job-progress-v384" role="progressbar" aria-label={`${job.type} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, job.progress || 0))}><span style={{ width: `${Math.max(0, Math.min(100, job.progress || 0))}%` }} /></div>
+    </div>, sortValue: (job) => job.progress, defaultWidth: 165 },
     { id: "attempts", header: fieldLabels.get("attempts") || "Attempts", cell: (job) => `${job.attempts}/${job.maxAttempts}`, sortValue: (job) => job.attempts, defaultWidth: 105 },
     { id: "priority", header: fieldLabels.get("priority") || "Priority", cell: (job) => job.priority, sortValue: (job) => job.priority, hiddenByDefault: true, defaultWidth: 95 },
-    { id: "updatedAt", header: fieldLabels.get("updatedAt") || "Updated", cell: (job) => timeLabel(job.updatedAt), sortValue: (job) => new Date(job.updatedAt), defaultWidth: 190 },
+    { id: "startedAt", header: "Started", cell: (job) => job.startedAt ? timeLabel(job.startedAt) : "—", sortValue: (job) => job.startedAt ? new Date(job.startedAt) : null, defaultWidth: 170 },
+    { id: "finishedAt", header: "Finished", cell: (job) => job.finishedAt ? timeLabel(job.finishedAt) : "—", sortValue: (job) => job.finishedAt ? new Date(job.finishedAt) : null, defaultWidth: 170 },
+    { id: "updatedAt", header: fieldLabels.get("updatedAt") || "Updated", cell: (job) => timeLabel(job.updatedAt), sortValue: (job) => new Date(job.updatedAt), hiddenByDefault: true, defaultWidth: 190 },
     { id: "lastError", header: fieldLabels.get("lastError") || "Last error", cell: (job) => job.lastError || job.progressMessage || "—", hiddenByDefault: true, defaultWidth: 320, maxWidth: 520 },
     { id: "actions", header: "Actions", cell: (job) => {
       const canRetry = ["FAILED", "DEAD_LETTER", "CANCELLED"].includes(job.status);
@@ -357,7 +365,7 @@ export function OperationsCenterPanel() {
     <section className="panel background-jobs-v384" aria-labelledby="operations-center-title-v384">
       <header>
         <div>
-          <strong id="operations-center-title-v384">Operations Center</strong>
+          <strong id="operations-center-title-v384">Jobs</strong>
           <span>{worker ? `${worker.running}/${worker.concurrency} worker slots active · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</span>
         </div>
         <div className="button-row">
@@ -367,7 +375,15 @@ export function OperationsCenterPanel() {
         </div>
       </header>
 
-      <ScheduledTaskDiagnosticsPanel />
+      <div className="jobs-status-filters-v11" aria-label="Filter jobs by state">
+        {([["", "All", counts.total], ["QUEUED", "Queued", counts.queued], ["RUNNING", "Running", counts.running], ["SUCCEEDED", "Succeeded", counts.succeeded], ["FAILED", "Failed", counts.failed], ["DEAD_LETTER", "Dead letter", counts.deadLetter], ["CANCELLED", "Cancelled", counts.cancelled]] as const).map(([value, label, count]) => (
+          <ClusterButton key={label} type="button" size="compact" variant={filterStatus === value ? "secondary" : "quiet"} aria-pressed={filterStatus === value} onClick={() => setFilterStatus(value)}>{label} · {count}</ClusterButton>
+        ))}
+        <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showScheduledTasks} onClick={() => setShowScheduledTasks((current) => !current)}>
+          {showScheduledTasks ? "Hide scheduler" : "Scheduled tasks"}
+        </ClusterButton>
+      </div>
+      {showScheduledTasks ? <ScheduledTaskDiagnosticsPanel /> : null}
 
       <div className="cluster-visual-summary-grid" aria-label="Operation queue overview">
         <ClusterVisualComposition label="Retained job states" total={counts.total} parts={[
@@ -392,7 +408,7 @@ export function OperationsCenterPanel() {
         query={search}
         onQueryChange={setSearch}
         placeholder="Search operations, queues, types, IDs, or trace context"
-        countLabel={`${payload?.jobs.length || 0} visible`}
+        countLabel={`${payload?.jobs.length || 0} loaded`}
         filters={<>
           <label>Status<ClusterNativeSelect value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>{JOB_STATUSES.map((value) => <option key={value || "all"} value={value}>{value ? statusLabel(value) : "All statuses"}</option>)}</ClusterNativeSelect></label>
           <label>Queue<ClusterNativeSelect value={filterQueue} onChange={(event) => setFilterQueue(event.target.value)}><option value="">All queues</option>{queues.map((queue) => <option key={queue} value={queue}>{queue}</option>)}</ClusterNativeSelect></label>
@@ -403,11 +419,11 @@ export function OperationsCenterPanel() {
 
       <ClusterDataView
         scope="admin.operations-center"
-        label="Operations Center"
+        label="Jobs"
         resourceKind="background_job"
         current={currentDataView}
         onApply={applySavedDataView}
-        summary="Save filters, multi-sort, and the exact Operations Center layout as one reusable view."
+        summary="Save queue filters, job states, sort order, and selected columns as a reusable view."
       />
 
       <DataExportOperationFeedback jobId={exportJobId} onDismiss={() => setExportJobId("")} />
@@ -440,7 +456,7 @@ export function OperationsCenterPanel() {
         columns={jobColumns}
         rowKey={(job) => job.id}
         rowLabel={(job) => `${job.type} ${job.id}`}
-        label="Long-running operations"
+        label="Server jobs"
         selectedKeys={selectedJobIds}
         onSelectionChange={setSelectedJobIds}
         sorts={sorts}
@@ -451,7 +467,7 @@ export function OperationsCenterPanel() {
         virtualization={{ rowHeight: 52, maxHeight: 720, minimumRows: 120, overscan: 12 }}
         onRowActivate={(job) => void openDetails(job.id)}
         configurableColumns
-        persistKey="admin-background-jobs"
+        persistKey="admin-background-jobs-v11"
         controlledLayout={tableLayout || undefined}
         onLayoutChange={setTableLayout}
         empty={payload ? <ClusterEmptyState compact kind="filtered" title="No operations match these filters" description="Change or clear the current filters to widen the retained operation history." /> : <RequestStatusLine>{status}</RequestStatusLine>}

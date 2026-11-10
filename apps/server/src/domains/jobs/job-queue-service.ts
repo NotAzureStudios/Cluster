@@ -108,7 +108,7 @@ function backgroundJobListQuery(input: { status?: string; queue?: string; type?:
     const idParameter = `$${values.length}`;
     clauses.push(`(${column} ${operator} ${atParameter} OR (${column} = ${atParameter} AND "id" ${operator} ${idParameter}))`);
   }
-  const sortableColumns: Record<string, string> = { id: '"id"', status: '"status"', queue: '"queue"', type: '"type"', priority: '"priority"', attempts: '"attempts"', maxAttempts: '"maxAttempts"', progress: '"progress"', createdAt: '"createdAt"', updatedAt: '"updatedAt"' };
+  const sortableColumns: Record<string, string> = { id: '"id"', status: '"status"', queue: '"queue"', type: '"type"', priority: '"priority"', attempts: '"attempts"', maxAttempts: '"maxAttempts"', progress: '"progress"', createdAt: '"createdAt"', updatedAt: '"updatedAt"', startedAt: '"startedAt"', finishedAt: '"finishedAt"' };
   const orderParts = (input.sorts || []).flatMap((sort) => sortableColumns[sort.fieldId] ? [`${sortableColumns[sort.fieldId]} ${sort.direction === "asc" ? "ASC" : "DESC"}`] : []);
   const stableTemporalSort = input.sorts?.length === 1 && (input.sorts[0]?.fieldId === "createdAt" || input.sorts[0]?.fieldId === "updatedAt") ? input.sorts[0] : null;
   if (stableTemporalSort && !orderParts.some((part) => part.startsWith('"id" '))) orderParts.push(`"id" ${stableTemporalSort.direction === "asc" ? "ASC" : "DESC"}`);

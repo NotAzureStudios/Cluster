@@ -53,4 +53,4 @@ export type OperationsReportRequest = {
 
 export type AdminPageScope = "operations" | "users";
 
-export type AdminSection = "overview" | "operations-center" | "incidents" | "systems" | "security-center" | "approvals" | "reports" | "projects" | "boards" | "whiteboards" | "users" | "permissions" | "activity" | "templates" | "exports" | "imports" | "system" | "data-model" | "persistence" | "maintenance" | "changelog" | "stabilization";
+export type AdminSection = "overview" | "jobs" | "operations-center" | "incidents" | "systems" | "security-center" | "approvals" | "reports" | "projects" | "boards" | "whiteboards" | "users" | "permissions" | "activity" | "templates" | "exports" | "imports" | "system" | "data-model" | "persistence" | "maintenance" | "changelog" | "stabilization";

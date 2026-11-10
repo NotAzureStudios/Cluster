@@ -10,6 +10,7 @@ export const ADMIN_WORKSPACE_SECTIONS = [
   { id: "exports", scope: "users", label: "Exports", group: "People", nav: true, order: 20 },
   { id: "overview", scope: "operations", label: "Command Center", group: "Monitor", nav: true, order: 10 },
   { id: "incidents", scope: "operations", label: "Incidents", group: "Monitor", nav: true, order: 20 },
+  { id: "jobs", scope: "operations", label: "Jobs", group: "Monitor", nav: true, order: 25 },
   { id: "approvals", scope: "operations", label: "Governance", group: "Govern", nav: true, order: 30 },
   { id: "systems", scope: "operations", label: "Systems", group: "Operate", nav: true, order: 40 },
   { id: "reports", scope: "operations", label: "Data & Audit", group: "Operate", nav: true, order: 50 },
@@ -36,7 +37,6 @@ export const ADMIN_OPERATIONS_CONTEXT = {
   ],
   systems: [
     { id: "systems", label: "System health" },
-    { id: "operations-center", label: "Background operations" },
     { id: "maintenance", label: "Maintenance" },
     { id: "persistence", label: "Data persistence" },
     { id: "stabilization", label: "Stabilization" },
@@ -52,16 +52,18 @@ export const ADMIN_OPERATIONS_CONTEXT = {
 
 export function canonicalAdminOperationsSection(section: AdminSection): AdminSection {
   if (section === "permissions" || section === "security-center") return "approvals";
-  if (section === "operations-center" || section === "maintenance" || section === "persistence" || section === "stabilization" || section === "system") return "systems";
+  if (section === "operations-center" || section === "jobs") return "jobs";
+  if (section === "maintenance" || section === "persistence" || section === "stabilization" || section === "system") return "systems";
   if (section === "imports" || section === "data-model" || section === "templates" || section === "changelog" || section === "activity") return "reports";
   return section;
 }
 
 export function coerceAdminWorkspaceSection(scope: AdminPageScope, requested?: AdminSection | null): AdminSection {
   if (scope === "users") return requested === "exports" ? "exports" : "users";
-  if (requested === "incidents" || requested === "security-center" || requested === "systems" || requested === "reports" || requested === "overview") return requested;
-  if (requested === "approvals" || requested === "permissions") return "security-center";
-  if (["operations-center", "maintenance", "system", "persistence", "stabilization"].includes(String(requested || ""))) return "systems";
+  if (requested === "incidents" || requested === "jobs" || requested === "security-center" || requested === "systems" || requested === "reports" || requested === "overview" || requested === "approvals") return requested;
+  if (requested === "permissions") return "security-center";
+  if (requested === "operations-center") return "jobs";
+  if (["maintenance", "system", "persistence", "stabilization"].includes(String(requested || ""))) return "systems";
   if (["activity", "imports", "changelog", "data-model", "templates"].includes(String(requested || ""))) return "reports";
   return "overview";
 }
