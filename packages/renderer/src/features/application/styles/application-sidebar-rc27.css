@@ -1,1 +1,5 @@
 .cluster-sidebar__admin-group-label { display: block; padding: 12px 14px 4px; color: var(--muted-text, #999); font-size: .66rem; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
+
+/* Specialist Studio settings links stay available without filling the Admin sidebar by default. */
+.cluster-sidebar__studio-shortcuts-toggle{width:calc(100% - 16px);margin:4px 8px 2px;display:flex;align-items:center;justify-content:flex-start;gap:7px;color:var(--muted);font-size:.72rem;min-height:34px}
+.cluster-sidebar__studio-shortcuts{display:grid;gap:1px}

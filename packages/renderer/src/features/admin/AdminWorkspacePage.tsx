@@ -1024,17 +1024,21 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
         { label: "Pending approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good" },
       ]}
       actions={
-        <ClusterButton
-          variant="secondary"
-          onClick={() => {
-            void onReloadProjects();
-            void onReloadWhiteboards();
-            void loadAdminUsers(true);
-            if (scope === "operations") void loadOperationsDiagnostics(true);
-          }}
-        >
-          <ClusterIcon name="refresh" /> Refresh
-        </ClusterButton>
+        <div className="button-row compact">
+          {scope === "operations" && onOpenStudioSettings ? <ClusterButton variant="quiet" onClick={onOpenStudioSettings}><ClusterIcon name="settings" /> Studio settings</ClusterButton> : null}
+          {scope === "operations" && onOpenServerConfig ? <ClusterButton variant="quiet" onClick={onOpenServerConfig}><ClusterIcon name="cloud" /> Server configuration</ClusterButton> : null}
+          <ClusterButton
+            variant="secondary"
+            onClick={() => {
+              void onReloadProjects();
+              void onReloadWhiteboards();
+              void loadAdminUsers(true);
+              if (scope === "operations") void loadOperationsDiagnostics(true);
+            }}
+          >
+            <ClusterIcon name="refresh" /> Refresh
+          </ClusterButton>
+        </div>
       }
       status={status}
       navLabel={scope === "users" ? "People management sections" : "Operations sections"}
