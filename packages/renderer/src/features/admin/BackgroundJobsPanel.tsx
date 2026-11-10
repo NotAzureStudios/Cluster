@@ -1,6 +1,8 @@
 import { createClusterDataViewLayout, type ClusterDataExportDelivery, type ClusterDataExportFormat, type ClusterDataFacetResult, type ClusterDataGroup, type ClusterDataPageResult, type ClusterDataQuery, type ClusterDataSort, type ClusterDataViewLayout, type ClusterSavedDataView, type ClusterSemanticField, type ClusterOperation } from "@cluster/shared";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
@@ -106,7 +108,25 @@ type OperationTraceEvidence = {
 };
 
 const EMPTY_COUNTS: BackgroundJobCounts = { queued: 0, running: 0, succeeded: 0, failed: 0, deadLetter: 0, cancelled: 0, total: 0 };
-const JOB_STATUSES = ["", "QUEUED", "RUNNING", "FAILED", "DEAD_LETTER", "CANCELLED", "SUCCEEDED"];
+type JobFilterState = "" | "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "DEAD_LETTER" | "CANCELLED";
+const JOB_FILTERS: readonly { status: JobFilterState; label: string; icon: ClusterIconName; tone: string; countKey: keyof BackgroundJobCounts }[] = [
+  { status: "", label: "All", icon: "grid", tone: "neutral", countKey: "total" },
+  { status: "QUEUED", label: "Queued", icon: "clock", tone: "neutral", countKey: "queued" },
+  { status: "RUNNING", label: "Running", icon: "sync", tone: "info", countKey: "running" },
+  { status: "SUCCEEDED", label: "Succeeded", icon: "check", tone: "success", countKey: "succeeded" },
+  { status: "FAILED", label: "Failed", icon: "warning", tone: "danger", countKey: "failed" },
+  { status: "DEAD_LETTER", label: "Dead letter", icon: "archive", tone: "danger", countKey: "deadLetter" },
+  { status: "CANCELLED", label: "Cancelled", icon: "close", tone: "neutral", countKey: "cancelled" },
+];
+function jobStateTone(status: string): SettingsStateTone {
+  if (status === "FAILED" || status === "DEAD_LETTER") return "danger";
+  if (status === "SUCCEEDED") return "success";
+  if (status === "RUNNING") return "info";
+  return "neutral";
+}
+function jobStateIcon(status: string): ClusterIconName {
+  return JOB_FILTERS.find((item) => item.status === status)?.icon || "clock";
+}
 
 function statusLabel(status: string) { return status.toLowerCase().replace(/_/g, " ").replace(/^./, (value: string) => value.toUpperCase()); }
 function timeLabel(value?: string | null) {
@@ -286,13 +306,16 @@ export function OperationsCenterPanel() {
   ] as const, [counts]);
   const fieldLabels = useMemo(() => new Map((payload?.dataView?.fields || []).map((field) => [field.id, field.label] as const)), [payload?.dataView?.fields]);
   const jobColumns = useMemo<ClusterDataTableColumn<BackgroundJobSummary>[]>(() => [
-    { id: "type", header: fieldLabels.get("type") || "Type", cell: (job) => <span><strong>{job.type}</strong><small className="muted">{job.id}</small></span>, sortValue: (job) => job.type, groupValue: (job) => job.type, hideable: false, pinnable: true, defaultWidth: 260 },
+    { id: "type", header: fieldLabels.get("type") || "Job", cell: (job) => <span className="jobs-name-cell-v12">
+      <span className="jobs-name-mark-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
+      <span><strong title={job.type}>{job.type}</strong><small title={job.id}>{job.id}</small></span>
+    </span>, sortValue: (job) => job.type, groupValue: (job) => job.type, hideable: false, pinnable: true, defaultWidth: 260 },
     { id: "queue", header: fieldLabels.get("queue") || "Queue", cell: (job) => job.queue, sortValue: (job) => job.queue, groupValue: (job) => job.queue, defaultWidth: 150 },
     { id: "correlationId", header: fieldLabels.get("correlationId") || "Trace", cell: (job) => <span><strong title={job.correlationId || job.id}>{job.correlationId || job.id}</strong>{job.causationId ? <small title={job.causationId}>caused by {job.causationId}</small> : null}</span>, hiddenByDefault: true, defaultWidth: 280 },
-    { id: "status", header: fieldLabels.get("status") || "State", cell: (job) => <span className={`soft-pill ${job.status === "DEAD_LETTER" || job.status === "FAILED" ? "warning" : job.status === "SUCCEEDED" ? "good" : ""}`}>{statusLabel(job.status)}</span>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 125 },
+    { id: "status", header: fieldLabels.get("status") || "State", cell: (job) => <SettingsStateChip tone={jobStateTone(job.status)} icon={jobStateIcon(job.status)}>{statusLabel(job.status)}</SettingsStateChip>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 132 },
     { id: "progress", header: fieldLabels.get("progress") || "Progress", cell: (job) => <div className="jobs-progress-cell-v11">
       <span>{Math.max(0, Math.min(100, job.progress || 0))}%{job.progressMessage ? <small title={job.progressMessage}>{job.progressMessage}</small> : null}</span>
-      <div className="background-job-progress-v384" role="progressbar" aria-label={`${job.type} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, job.progress || 0))}><span style={{ width: `${Math.max(0, Math.min(100, job.progress || 0))}%` }} /></div>
+      <div className={`background-job-progress-v384 jobs-progress-tone-${jobStateTone(job.status)}`} role="progressbar" aria-label={`${job.type} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, job.progress || 0))}><span style={{ width: `${Math.max(0, Math.min(100, job.progress || 0))}%` }} /></div>
     </div>, sortValue: (job) => job.progress, defaultWidth: 165 },
     { id: "attempts", header: fieldLabels.get("attempts") || "Attempts", cell: (job) => `${job.attempts}/${job.maxAttempts}`, sortValue: (job) => job.attempts, defaultWidth: 105 },
     { id: "priority", header: fieldLabels.get("priority") || "Priority", cell: (job) => job.priority, sortValue: (job) => job.priority, hiddenByDefault: true, defaultWidth: 95 },
@@ -367,25 +390,38 @@ export function OperationsCenterPanel() {
   return (
     <section className="panel background-jobs-v384" aria-labelledby="operations-center-title-v384">
       <header>
-        <div>
-          <strong id="operations-center-title-v384">Jobs</strong>
-          <span>{worker ? `${worker.running}/${worker.concurrency} worker slots active · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</span>
+        <div className="jobs-header-title-v12">
+          <span className="jobs-header-icon-v12"><ClusterIcon name="work" treatment="duotone" aria-hidden="true" /></span>
+          <span><strong id="operations-center-title-v384">Jobs</strong>
+            <small>{worker ? `${worker.running}/${worker.concurrency} workers · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</small>
+          </span>
         </div>
         <div className="button-row">
-          <span className={`soft-pill ${unhealthy || (payload?.pressure?.stalledLeases || 0) ? "warning" : "good"}`}>{unhealthy ? `${unhealthy} needs review` : (payload?.pressure?.stalledLeases || 0) ? `${payload?.pressure?.stalledLeases} expired lease` : "Queue clear"}</span>
-          {unhealthy ? <ClusterButton type="button" className="" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Retry failed</ClusterButton> : null}
-          <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showAdvancedAnalytics} onClick={() => setShowAdvancedAnalytics((value) => !value)}>{showAdvancedAnalytics ? "Hide analytics" : "Advanced analytics"}</ClusterButton>
-          <ClusterButton type="button" className="" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Refresh</ClusterButton>
+          <SettingsStateChip tone={!payload ? "neutral" : unhealthy ? "danger" : (payload.pressure?.stalledLeases || 0) ? "warning" : "success"}>
+            {!payload ? "Status unavailable" : unhealthy ? `${unhealthy} need review` : (payload.pressure?.stalledLeases || 0) ? `${payload.pressure?.stalledLeases} expired leases` : "Queue healthy"}
+          </SettingsStateChip>
+          {unhealthy ? <ClusterButton type="button" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Retry failed</ClusterButton> : null}
+          <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showAdvancedAnalytics} onClick={() => setShowAdvancedAnalytics((value) => !value)}><ClusterIcon name="grid" aria-hidden="true" /> {showAdvancedAnalytics ? "Hide insights" : "Insights"}</ClusterButton>
+          <ClusterButton type="button" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Refresh</ClusterButton>
         </div>
       </header>
 
-      <div className="jobs-status-filters-v11" aria-label="Filter jobs by state">
-        {([["", "All", counts.total], ["QUEUED", "Queued", counts.queued], ["RUNNING", "Running", counts.running], ["SUCCEEDED", "Succeeded", counts.succeeded], ["FAILED", "Failed", counts.failed], ["DEAD_LETTER", "Dead letter", counts.deadLetter], ["CANCELLED", "Cancelled", counts.cancelled]] as const).map(([value, label, count]) => (
-          <ClusterButton key={label} type="button" size="compact" variant={filterStatus === value ? "secondary" : "quiet"} aria-pressed={filterStatus === value} onClick={() => setFilterStatus(value)}>{label} · {count}</ClusterButton>
+      <div className="jobs-status-filters-v11" role="group" aria-label="Filter jobs by state">
+        {JOB_FILTERS.map(({ status: value, label, icon, tone, countKey }) => (
+          <ClusterButton key={label} type="button" size="compact" variant="quiet"
+            className="jobs-status-filter-v12" data-tone={tone} aria-pressed={filterStatus === value}
+            onClick={() => setFilterStatus(value)} title={`Show ${label.toLowerCase()} jobs`}>
+            <ClusterIcon name={icon} aria-hidden="true" />
+            <span>{label}</span>
+            <b>{payload ? counts[countKey] : "—"}</b>
+          </ClusterButton>
         ))}
+      </div>
+      <div className="jobs-detail-toggle-v12">
         <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showScheduledTasks} onClick={() => setShowScheduledTasks((current) => !current)}>
-          {showScheduledTasks ? "Hide scheduler" : "Scheduled tasks"}
+          <ClusterIcon name="clock" aria-hidden="true" /> {showScheduledTasks ? "Hide scheduler" : "Scheduled tasks"}
         </ClusterButton>
+        {payload?.pressure?.stalledLeases ? <SettingsStateChip tone="warning">{payload.pressure.stalledLeases} expired leases</SettingsStateChip> : null}
       </div>
       {showScheduledTasks ? <ScheduledTaskDiagnosticsPanel /> : null}
 
@@ -413,14 +449,13 @@ export function OperationsCenterPanel() {
       <ClusterTableToolbar
         query={search}
         onQueryChange={setSearch}
-        placeholder="Search operations, queues, types, IDs, or trace context"
+        placeholder="Search jobs, queues or IDs"
         countLabel={`${payload?.jobs.length || 0} loaded`}
         filters={<>
-          <label>Status<ClusterNativeSelect value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>{JOB_STATUSES.map((value) => <option key={value || "all"} value={value}>{value ? statusLabel(value) : "All statuses"}</option>)}</ClusterNativeSelect></label>
           <label>Queue<ClusterNativeSelect value={filterQueue} onChange={(event) => setFilterQueue(event.target.value)}><option value="">All queues</option>{queues.map((queue) => <option key={queue} value={queue}>{queue}</option>)}</ClusterNativeSelect></label>
-          <DataViewGroupControl fields={payload?.dataView?.fields || []} groups={groups} onChange={setGroups} />
+          {showAdvancedAnalytics ? <DataViewGroupControl fields={payload?.dataView?.fields || []} groups={groups} onChange={setGroups} /> : null}
         </>}
-        actions={<div className="button-row"><span>{payload?.pressure?.stalledLeases || 0} expired leases</span><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}
+        actions={<div className="button-row"><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}
       />
 
       {showAdvancedAnalytics ? <ClusterDataView
