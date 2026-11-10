@@ -172,17 +172,17 @@ export function OperationsCenterPanel() {
 
   async function loadJobs(silent = false, cursor: string | null = null) {
     const query = new URLSearchParams({ limit: "80" });
-      if (cursor) query.set("cursor", cursor);
-      if (filterStatus) query.set("status", filterStatus);
-      if (filterQueue) query.set("queue", filterQueue);
-      if (filterType) query.set("type", filterType);
-      if (debouncedSearch) query.set("q", debouncedSearch);
-      if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
-      if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
-      if (showAdvancedAnalytics) {
-        query.set("facets", "status,queue,type");
-        query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
-      }
+    if (cursor) query.set("cursor", cursor);
+    if (filterStatus) query.set("status", filterStatus);
+    if (filterQueue) query.set("queue", filterQueue);
+    if (filterType) query.set("type", filterType);
+    if (debouncedSearch) query.set("q", debouncedSearch);
+    if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
+    if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
+    if (showAdvancedAnalytics) {
+      query.set("facets", "status,queue,type");
+      query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
+    }
     const key = query.toString();
     // Single-flight identical reads; a new filter may supersede an older
     // in-flight request without displaying its now-stale response.
@@ -200,10 +200,10 @@ export function OperationsCenterPanel() {
           const existing = new Set(current.jobs.map((job) => job.id));
           return { ...result, jobs: [...current.jobs, ...result.jobs.filter((job) => !existing.has(job.id))] };
         });
-        setStatus(result.jobs.length ? `${result.jobs.length} more retained job${result.jobs.length === 1 ? "" : "s"} loaded.` : "No additional jobs remain in this view.");
+        setStatus(result.jobs.length ? "More jobs loaded." : "End of job history.");
       } else {
         setPayload(result);
-        setStatus(result.jobs.length ? `${result.jobs.length} retained job${result.jobs.length === 1 ? "" : "s"} shown.` : "No jobs match the current filters.");
+        if (!silent) setStatus("");
         if (selectedJobId && !result.jobs.some((job) => job.id === selectedJobId)) { setSelectedJobId(""); setDetail(null); }
       }
     } catch (error) {
@@ -557,7 +557,7 @@ export function OperationsCenterPanel() {
       </section> : null}
 
       <footer className="background-jobs-footer-v384">
-        <span>{status}</span>
+        {status ? <span role="status">{status}</span> : null}
         {worker && <span>{worker.registeredTypes.length} registered job types · last completion {timeLabel(worker.lastFinishedAt)}</span>}
       </footer>
     </section>
