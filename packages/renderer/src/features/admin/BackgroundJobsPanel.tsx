@@ -150,6 +150,7 @@ export function OperationsCenterPanel() {
   const [filterQueue, setFilterQueue] = useState("");
   const [filterType, setFilterType] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sorts, setSorts] = useState<ClusterDataSort[]>([{ fieldId: "updatedAt", direction: "desc" }]);
   const [groups, setGroups] = useState<ClusterDataGroup[]>([]);
   const [tableLayout, setTableLayout] = useState<ClusterDataViewLayout | null>(null);
@@ -162,25 +163,37 @@ export function OperationsCenterPanel() {
   const [traceEvidence, setTraceEvidence] = useState<OperationTraceEvidence | null>(null);
   const [traceLoading, setTraceLoading] = useState(false);
   const refreshingRef = useRef(false);
+  const activeReadRef = useRef<{ key: string; sequence: number } | null>(null);
+  const latestReadSequenceRef = useRef(0);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   async function loadJobs(silent = false, cursor: string | null = null) {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
-    if (!silent) setStatus("Loading operations...");
-    try {
-      const query = new URLSearchParams({ limit: "80" });
+    const query = new URLSearchParams({ limit: "80" });
       if (cursor) query.set("cursor", cursor);
       if (filterStatus) query.set("status", filterStatus);
       if (filterQueue) query.set("queue", filterQueue);
       if (filterType) query.set("type", filterType);
-      if (search.trim()) query.set("q", search.trim());
+      if (debouncedSearch) query.set("q", debouncedSearch);
       if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
       if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
       if (showAdvancedAnalytics) {
         query.set("facets", "status,queue,type");
         query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
       }
-      const result = await api<BackgroundJobListResponse>(`/api/admin/operations/jobs?${query.toString()}`);
+    const key = query.toString();
+    // Single-flight identical reads; a new filter may supersede an older
+    // in-flight request without displaying its now-stale response.
+    if (activeReadRef.current?.key === key) return;
+    const sequence = ++latestReadSequenceRef.current;
+    activeReadRef.current = { key, sequence };
+    refreshingRef.current = true;
+    if (!silent) setStatus("Loading jobs...");
+    try {
+      const result = await api<BackgroundJobListResponse>(`/api/admin/operations/jobs?${key}`);
+      if (sequence !== latestReadSequenceRef.current) return;
       if (cursor) {
         setPayload((current) => {
           if (!current) return result;
@@ -194,16 +207,20 @@ export function OperationsCenterPanel() {
         if (selectedJobId && !result.jobs.some((job) => job.id === selectedJobId)) { setSelectedJobId(""); setDetail(null); }
       }
     } catch (error) {
+      if (sequence !== latestReadSequenceRef.current) return;
       setPayload(null);
-      setStatus(error instanceof Error ? error.message : "Operations could not be loaded.");
+      setStatus(error instanceof Error ? error.message : "Jobs could not be loaded.");
     } finally {
-      refreshingRef.current = false;
+      if (activeReadRef.current?.sequence === sequence) {
+        activeReadRef.current = null;
+        refreshingRef.current = false;
+      }
     }
   }
 
   useEffect(() => {
     void loadJobs();
-  }, [filterQueue, filterStatus, filterType, search, sorts, groups, showAdvancedAnalytics]);
+  }, [filterQueue, filterStatus, filterType, debouncedSearch, sorts, groups, showAdvancedAnalytics]);
 
   useVisibleRefresh(() => loadJobs(true), { intervalMs: 20_000 });
 
