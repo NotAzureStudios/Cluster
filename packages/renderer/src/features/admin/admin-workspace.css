@@ -1100,3 +1100,10 @@
   border: 1px solid var(--cluster-border, var(--border));
   border-radius: 10px;
 }
+
+/* Operational cross-links use concise visual navigation, not description cards. */
+.admin-jobs-shortcut-v12{width:100%;min-height:58px;display:flex;align-items:center;gap:11px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;text-align:left;justify-content:flex-start}
+.admin-jobs-shortcut-v12>span:nth-child(2){display:grid;gap:2px;min-width:0;flex:1}
+.admin-jobs-shortcut-v12 small{font-size:.71rem;color:var(--muted)}
+.admin-jobs-shortcut-icon-v12{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+.admin-jobs-shortcut-v12:hover{border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}

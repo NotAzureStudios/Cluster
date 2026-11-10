@@ -67,7 +67,9 @@ test("Studio setting search includes only sections supplied by authorized naviga
   assert.deepEqual(Array.from(scoped, entry => entry.section), ["identity"]);
   assert.deepEqual(Array.from(builder([identity, qa]), entry => entry.section), ["identity", "qa"]);
   const studio = read("packages/renderer/src/features/settings/StudioSettingsPage.tsx");
-  assert.match(studio, /<ClusterSettingsSearch label="Find studio settings"/);
+  assert.match(studio, /<ClusterSettingsSearch[^>]*label="Find studio settings"/);
+  assert.match(studio, /settings-admin-navrow-v12/);
+  assert.match(studio, /className="settings-compact-search-v12"/);
   assert.match(studio, /buildStudioSettingsSearchEntries\(studioSections\)/);
   assert.match(studio, /onNavigate=\{\(entry\) => setSection\(entry.section\)\}/);
 });

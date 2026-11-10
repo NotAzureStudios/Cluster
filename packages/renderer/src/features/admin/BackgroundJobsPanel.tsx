@@ -1,6 +1,8 @@
 import { createClusterDataViewLayout, type ClusterDataExportDelivery, type ClusterDataExportFormat, type ClusterDataFacetResult, type ClusterDataGroup, type ClusterDataPageResult, type ClusterDataQuery, type ClusterDataSort, type ClusterDataViewLayout, type ClusterSavedDataView, type ClusterSemanticField, type ClusterOperation } from "@cluster/shared";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
@@ -32,6 +34,8 @@ type BackgroundJobSummary = {
   maxAttempts: number;
   progress: number;
   progressMessage?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
   lastError?: string | null;
   cancelRequestedAt?: string | null;
   createdAt: string;
@@ -104,7 +108,25 @@ type OperationTraceEvidence = {
 };
 
 const EMPTY_COUNTS: BackgroundJobCounts = { queued: 0, running: 0, succeeded: 0, failed: 0, deadLetter: 0, cancelled: 0, total: 0 };
-const JOB_STATUSES = ["", "QUEUED", "RUNNING", "FAILED", "DEAD_LETTER", "CANCELLED", "SUCCEEDED"];
+type JobFilterState = "" | "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "DEAD_LETTER" | "CANCELLED";
+const JOB_FILTERS: readonly { status: JobFilterState; label: string; icon: ClusterIconName; tone: string; countKey: keyof BackgroundJobCounts }[] = [
+  { status: "", label: "All", icon: "grid", tone: "neutral", countKey: "total" },
+  { status: "QUEUED", label: "Queued", icon: "clock", tone: "neutral", countKey: "queued" },
+  { status: "RUNNING", label: "Running", icon: "sync", tone: "info", countKey: "running" },
+  { status: "SUCCEEDED", label: "Succeeded", icon: "check", tone: "success", countKey: "succeeded" },
+  { status: "FAILED", label: "Failed", icon: "warning", tone: "danger", countKey: "failed" },
+  { status: "DEAD_LETTER", label: "Dead letter", icon: "archive", tone: "danger", countKey: "deadLetter" },
+  { status: "CANCELLED", label: "Cancelled", icon: "close", tone: "neutral", countKey: "cancelled" },
+];
+function jobStateTone(status: string): SettingsStateTone {
+  if (status === "FAILED" || status === "DEAD_LETTER") return "danger";
+  if (status === "SUCCEEDED") return "success";
+  if (status === "RUNNING") return "info";
+  return "neutral";
+}
+function jobStateIcon(status: string): ClusterIconName {
+  return JOB_FILTERS.find((item) => item.status === status)?.icon || "clock";
+}
 
 function statusLabel(status: string) { return status.toLowerCase().replace(/_/g, " ").replace(/^./, (value: string) => value.toUpperCase()); }
 function timeLabel(value?: string | null) {
@@ -123,9 +145,12 @@ export function OperationsCenterPanel() {
   const [status, setStatus] = useState("Loading operations...");
   const [actionJobId, setActionJobId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [showScheduledTasks, setShowScheduledTasks] = useState(false);
+  const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
   const [filterQueue, setFilterQueue] = useState("");
   const [filterType, setFilterType] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sorts, setSorts] = useState<ClusterDataSort[]>([{ fieldId: "updatedAt", direction: "desc" }]);
   const [groups, setGroups] = useState<ClusterDataGroup[]>([]);
   const [tableLayout, setTableLayout] = useState<ClusterDataViewLayout | null>(null);
@@ -138,46 +163,64 @@ export function OperationsCenterPanel() {
   const [traceEvidence, setTraceEvidence] = useState<OperationTraceEvidence | null>(null);
   const [traceLoading, setTraceLoading] = useState(false);
   const refreshingRef = useRef(false);
+  const activeReadRef = useRef<{ key: string; sequence: number } | null>(null);
+  const latestReadSequenceRef = useRef(0);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   async function loadJobs(silent = false, cursor: string | null = null) {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
-    if (!silent) setStatus("Loading operations...");
-    try {
-      const query = new URLSearchParams({ limit: "80" });
-      if (cursor) query.set("cursor", cursor);
-      if (filterStatus) query.set("status", filterStatus);
-      if (filterQueue) query.set("queue", filterQueue);
-      if (filterType) query.set("type", filterType);
-      if (search.trim()) query.set("q", search.trim());
-      if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
-      if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
+    const query = new URLSearchParams({ limit: "80" });
+    if (cursor) query.set("cursor", cursor);
+    if (filterStatus) query.set("status", filterStatus);
+    if (filterQueue) query.set("queue", filterQueue);
+    if (filterType) query.set("type", filterType);
+    if (debouncedSearch) query.set("q", debouncedSearch);
+    if (sorts.length) query.set("sort", sorts.map((sort) => `${sort.fieldId}:${sort.direction}`).join(","));
+    if (groups.length) query.set("group", groups.map((group) => `${group.fieldId}:${group.direction || "asc"}`).join(","));
+    if (showAdvancedAnalytics) {
       query.set("facets", "status,queue,type");
       query.set("aggregate", "matching:count,avgProgress:average:progress,avgAttempts:average:attempts");
-      const result = await api<BackgroundJobListResponse>(`/api/admin/operations/jobs?${query.toString()}`);
+    }
+    const key = query.toString();
+    // Single-flight identical reads; a new filter may supersede an older
+    // in-flight request without displaying its now-stale response.
+    if (activeReadRef.current?.key === key) return;
+    const sequence = ++latestReadSequenceRef.current;
+    activeReadRef.current = { key, sequence };
+    refreshingRef.current = true;
+    if (!silent) setStatus("Loading jobs...");
+    try {
+      const result = await api<BackgroundJobListResponse>(`/api/admin/operations/jobs?${key}`);
+      if (sequence !== latestReadSequenceRef.current) return;
       if (cursor) {
         setPayload((current) => {
           if (!current) return result;
           const existing = new Set(current.jobs.map((job) => job.id));
           return { ...result, jobs: [...current.jobs, ...result.jobs.filter((job) => !existing.has(job.id))] };
         });
-        setStatus(result.jobs.length ? `${result.jobs.length} more retained job${result.jobs.length === 1 ? "" : "s"} loaded.` : "No additional jobs remain in this view.");
+        setStatus(result.jobs.length ? "More jobs loaded." : "End of job history.");
       } else {
         setPayload(result);
-        setStatus(result.jobs.length ? `${result.jobs.length} retained job${result.jobs.length === 1 ? "" : "s"} shown.` : "No jobs match the current filters.");
+        if (!silent) setStatus("");
         if (selectedJobId && !result.jobs.some((job) => job.id === selectedJobId)) { setSelectedJobId(""); setDetail(null); }
       }
     } catch (error) {
+      if (sequence !== latestReadSequenceRef.current) return;
       setPayload(null);
-      setStatus(error instanceof Error ? error.message : "Operations could not be loaded.");
+      setStatus(error instanceof Error ? error.message : "Jobs could not be loaded.");
     } finally {
-      refreshingRef.current = false;
+      if (activeReadRef.current?.sequence === sequence) {
+        activeReadRef.current = null;
+        refreshingRef.current = false;
+      }
     }
   }
 
   useEffect(() => {
     void loadJobs();
-  }, [filterQueue, filterStatus, filterType, search, sorts, groups]);
+  }, [filterQueue, filterStatus, filterType, debouncedSearch, sorts, groups, showAdvancedAnalytics]);
 
   useVisibleRefresh(() => loadJobs(true), { intervalMs: 20_000 });
 
@@ -280,14 +323,22 @@ export function OperationsCenterPanel() {
   ] as const, [counts]);
   const fieldLabels = useMemo(() => new Map((payload?.dataView?.fields || []).map((field) => [field.id, field.label] as const)), [payload?.dataView?.fields]);
   const jobColumns = useMemo<ClusterDataTableColumn<BackgroundJobSummary>[]>(() => [
-    { id: "type", header: fieldLabels.get("type") || "Type", cell: (job) => <span><strong>{job.type}</strong><small className="muted">{job.id}</small></span>, sortValue: (job) => job.type, groupValue: (job) => job.type, hideable: false, pinnable: true, defaultWidth: 260 },
+    { id: "type", header: fieldLabels.get("type") || "Job", cell: (job) => <span className="jobs-name-cell-v12">
+      <span className="jobs-name-mark-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
+      <span><strong title={job.type}>{job.type}</strong><small title={job.id}>{job.id}</small></span>
+    </span>, sortValue: (job) => job.type, groupValue: (job) => job.type, hideable: false, pinnable: true, defaultWidth: 260 },
     { id: "queue", header: fieldLabels.get("queue") || "Queue", cell: (job) => job.queue, sortValue: (job) => job.queue, groupValue: (job) => job.queue, defaultWidth: 150 },
     { id: "correlationId", header: fieldLabels.get("correlationId") || "Trace", cell: (job) => <span><strong title={job.correlationId || job.id}>{job.correlationId || job.id}</strong>{job.causationId ? <small title={job.causationId}>caused by {job.causationId}</small> : null}</span>, hiddenByDefault: true, defaultWidth: 280 },
-    { id: "status", header: fieldLabels.get("status") || "Status", cell: (job) => <span className={`soft-pill ${job.status === "DEAD_LETTER" || job.status === "FAILED" ? "warning" : job.status === "SUCCEEDED" ? "good" : ""}`}>{statusLabel(job.status)}</span>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 130 },
-    { id: "progress", header: fieldLabels.get("progress") || "Progress", cell: (job) => `${Math.max(0, Math.min(100, job.progress || 0))}%`, sortValue: (job) => job.progress, defaultWidth: 105 },
+    { id: "status", header: fieldLabels.get("status") || "State", cell: (job) => <SettingsStateChip tone={jobStateTone(job.status)} icon={jobStateIcon(job.status)}>{statusLabel(job.status)}</SettingsStateChip>, sortValue: (job) => job.status, groupValue: (job) => job.status, defaultWidth: 132 },
+    { id: "progress", header: fieldLabels.get("progress") || "Progress", cell: (job) => <div className="jobs-progress-cell-v11">
+      <span>{Math.max(0, Math.min(100, job.progress || 0))}%{job.progressMessage ? <small title={job.progressMessage}>{job.progressMessage}</small> : null}</span>
+      <div className={`background-job-progress-v384 jobs-progress-tone-${jobStateTone(job.status)}`} role="progressbar" aria-label={`${job.type} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0, Math.min(100, job.progress || 0))}><span style={{ width: `${Math.max(0, Math.min(100, job.progress || 0))}%` }} /></div>
+    </div>, sortValue: (job) => job.progress, defaultWidth: 165 },
     { id: "attempts", header: fieldLabels.get("attempts") || "Attempts", cell: (job) => `${job.attempts}/${job.maxAttempts}`, sortValue: (job) => job.attempts, defaultWidth: 105 },
     { id: "priority", header: fieldLabels.get("priority") || "Priority", cell: (job) => job.priority, sortValue: (job) => job.priority, hiddenByDefault: true, defaultWidth: 95 },
-    { id: "updatedAt", header: fieldLabels.get("updatedAt") || "Updated", cell: (job) => timeLabel(job.updatedAt), sortValue: (job) => new Date(job.updatedAt), defaultWidth: 190 },
+    { id: "startedAt", header: "Started", cell: (job) => job.startedAt ? timeLabel(job.startedAt) : "—", sortValue: (job) => job.startedAt ? new Date(job.startedAt) : null, defaultWidth: 170 },
+    { id: "finishedAt", header: "Finished", cell: (job) => job.finishedAt ? timeLabel(job.finishedAt) : "—", sortValue: (job) => job.finishedAt ? new Date(job.finishedAt) : null, defaultWidth: 170 },
+    { id: "updatedAt", header: fieldLabels.get("updatedAt") || "Updated", cell: (job) => timeLabel(job.updatedAt), sortValue: (job) => new Date(job.updatedAt), hiddenByDefault: true, defaultWidth: 190 },
     { id: "lastError", header: fieldLabels.get("lastError") || "Last error", cell: (job) => job.lastError || job.progressMessage || "—", hiddenByDefault: true, defaultWidth: 320, maxWidth: 520 },
     { id: "actions", header: "Actions", cell: (job) => {
       const canRetry = ["FAILED", "DEAD_LETTER", "CANCELLED"].includes(job.status);
@@ -356,19 +407,42 @@ export function OperationsCenterPanel() {
   return (
     <section className="panel background-jobs-v384" aria-labelledby="operations-center-title-v384">
       <header>
-        <div>
-          <strong id="operations-center-title-v384">Operations Center</strong>
-          <span>{worker ? `${worker.running}/${worker.concurrency} worker slots active · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</span>
+        <div className="jobs-header-title-v12">
+          <span className="jobs-header-icon-v12"><ClusterIcon name="work" treatment="duotone" aria-hidden="true" /></span>
+          <span><strong id="operations-center-title-v384">Jobs</strong>
+            <small>{worker ? `${worker.running}/${worker.concurrency} workers · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</small>
+          </span>
         </div>
         <div className="button-row">
-          <span className={`soft-pill ${unhealthy || (payload?.pressure?.stalledLeases || 0) ? "warning" : "good"}`}>{unhealthy ? `${unhealthy} needs review` : (payload?.pressure?.stalledLeases || 0) ? `${payload?.pressure?.stalledLeases} expired lease` : "Queue clear"}</span>
-          {unhealthy ? <ClusterButton type="button" className="" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Retry failed</ClusterButton> : null}
-          <ClusterButton type="button" className="" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact">Refresh</ClusterButton>
+          <SettingsStateChip tone={!payload ? "neutral" : unhealthy ? "danger" : (payload.pressure?.stalledLeases || 0) ? "warning" : "success"}>
+            {!payload ? "Status unavailable" : unhealthy ? `${unhealthy} need review` : (payload.pressure?.stalledLeases || 0) ? `${payload.pressure?.stalledLeases} expired leases` : "Queue healthy"}
+          </SettingsStateChip>
+          {unhealthy ? <ClusterButton type="button" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Retry failed</ClusterButton> : null}
+          <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showAdvancedAnalytics} onClick={() => setShowAdvancedAnalytics((value) => !value)}><ClusterIcon name="grid" aria-hidden="true" /> {showAdvancedAnalytics ? "Hide insights" : "Insights"}</ClusterButton>
+          <ClusterButton type="button" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Refresh</ClusterButton>
         </div>
       </header>
 
-      <ScheduledTaskDiagnosticsPanel />
+      <div className="jobs-status-filters-v11" role="group" aria-label="Filter jobs by state">
+        {JOB_FILTERS.map(({ status: value, label, icon, tone, countKey }) => (
+          <ClusterButton key={label} type="button" size="compact" variant="quiet"
+            className="jobs-status-filter-v12" data-tone={tone} aria-pressed={filterStatus === value}
+            onClick={() => setFilterStatus(value)} title={`Show ${label.toLowerCase()} jobs`}>
+            <ClusterIcon name={icon} aria-hidden="true" />
+            <span>{label}</span>
+            <b>{payload ? counts[countKey] : "—"}</b>
+          </ClusterButton>
+        ))}
+      </div>
+      <div className="jobs-detail-toggle-v12">
+        <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showScheduledTasks} onClick={() => setShowScheduledTasks((current) => !current)}>
+          <ClusterIcon name="clock" aria-hidden="true" /> {showScheduledTasks ? "Hide scheduler" : "Scheduled tasks"}
+        </ClusterButton>
+        {payload?.pressure?.stalledLeases ? <SettingsStateChip tone="warning">{payload.pressure.stalledLeases} expired leases</SettingsStateChip> : null}
+      </div>
+      {showScheduledTasks ? <ScheduledTaskDiagnosticsPanel /> : null}
 
+      {showAdvancedAnalytics ? <>
       <div className="cluster-visual-summary-grid" aria-label="Operation queue overview">
         <ClusterVisualComposition label="Retained job states" total={counts.total} parts={[
           { label: "Succeeded", value: counts.succeeded, tone: "good" },
@@ -387,32 +461,32 @@ export function OperationsCenterPanel() {
         items={summaryItems.map(([label, count]) => ({ label, value: count, detail: label === "Queued" ? ageLabel(payload?.pressure?.oldestQueuedAgeMs) : label === "Running" ? `${worker?.running || 0}/${worker?.concurrency || 0} worker slots` : "retained jobs", tone: label === "Dead letter" && count ? "danger" : label === "Succeeded" && count ? "good" : "neutral" }))}
       />
       </div></details>
+      </> : null}
 
       <ClusterTableToolbar
         query={search}
         onQueryChange={setSearch}
-        placeholder="Search operations, queues, types, IDs, or trace context"
-        countLabel={`${payload?.jobs.length || 0} visible`}
+        placeholder="Search jobs, queues or IDs"
+        countLabel={`${payload?.jobs.length || 0} loaded`}
         filters={<>
-          <label>Status<ClusterNativeSelect value={filterStatus} onChange={(event) => setFilterStatus(event.target.value)}>{JOB_STATUSES.map((value) => <option key={value || "all"} value={value}>{value ? statusLabel(value) : "All statuses"}</option>)}</ClusterNativeSelect></label>
           <label>Queue<ClusterNativeSelect value={filterQueue} onChange={(event) => setFilterQueue(event.target.value)}><option value="">All queues</option>{queues.map((queue) => <option key={queue} value={queue}>{queue}</option>)}</ClusterNativeSelect></label>
-          <DataViewGroupControl fields={payload?.dataView?.fields || []} groups={groups} onChange={setGroups} />
+          {showAdvancedAnalytics ? <DataViewGroupControl fields={payload?.dataView?.fields || []} groups={groups} onChange={setGroups} /> : null}
         </>}
-        actions={<div className="button-row"><span>{payload?.pressure?.stalledLeases || 0} expired leases</span><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}
+        actions={<div className="button-row"><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}
       />
 
-      <ClusterDataView
+      {showAdvancedAnalytics ? <ClusterDataView
         scope="admin.operations-center"
-        label="Operations Center"
+        label="Jobs"
         resourceKind="background_job"
         current={currentDataView}
         onApply={applySavedDataView}
-        summary="Save filters, multi-sort, and the exact Operations Center layout as one reusable view."
-      />
+        summary="Save queue filters, job states, sort order, and selected columns as a reusable view."
+      /> : null}
 
       <DataExportOperationFeedback jobId={exportJobId} onDismiss={() => setExportJobId("")} />
 
-      {payload?.dataView?.facets?.length ? <DataViewFacetBar
+      {showAdvancedAnalytics && payload?.dataView?.facets?.length ? <DataViewFacetBar
         facets={payload.dataView.facets}
         fields={payload.dataView.fields}
         selectedValues={{ status: filterStatus ? [filterStatus] : [], queue: filterQueue ? [filterQueue] : [], type: filterType ? [filterType] : [] }}
@@ -426,7 +500,7 @@ export function OperationsCenterPanel() {
         label="Operation facets"
       /> : null}
 
-      {payload?.dataView?.aggregations && payload.dataView.query.aggregations?.length ? <DataViewAggregationStrip
+      {showAdvancedAnalytics && payload?.dataView?.aggregations && payload.dataView.query.aggregations?.length ? <DataViewAggregationStrip
         className="background-jobs-filtered-summary-v504"
         label="Current Data View summary"
         aggregations={payload.dataView.query.aggregations.map((aggregation) => ({ ...aggregation, label: aggregation.id === "matching" ? "Matching" : aggregation.id === "avgProgress" ? "Average progress" : aggregation.id === "avgAttempts" ? "Average attempts" : aggregation.label }))}
@@ -440,7 +514,7 @@ export function OperationsCenterPanel() {
         columns={jobColumns}
         rowKey={(job) => job.id}
         rowLabel={(job) => `${job.type} ${job.id}`}
-        label="Long-running operations"
+        label="Server jobs"
         selectedKeys={selectedJobIds}
         onSelectionChange={setSelectedJobIds}
         sorts={sorts}
@@ -451,7 +525,7 @@ export function OperationsCenterPanel() {
         virtualization={{ rowHeight: 52, maxHeight: 720, minimumRows: 120, overscan: 12 }}
         onRowActivate={(job) => void openDetails(job.id)}
         configurableColumns
-        persistKey="admin-background-jobs"
+        persistKey="admin-background-jobs-v11"
         controlledLayout={tableLayout || undefined}
         onLayoutChange={setTableLayout}
         empty={payload ? <ClusterEmptyState compact kind="filtered" title="No operations match these filters" description="Change or clear the current filters to widen the retained operation history." /> : <RequestStatusLine>{status}</RequestStatusLine>}
@@ -483,7 +557,7 @@ export function OperationsCenterPanel() {
       </section> : null}
 
       <footer className="background-jobs-footer-v384">
-        <span>{status}</span>
+        {status ? <span role="status">{status}</span> : null}
         {worker && <span>{worker.registeredTypes.length} registered job types · last completion {timeLabel(worker.lastFinishedAt)}</span>}
       </footer>
     </section>

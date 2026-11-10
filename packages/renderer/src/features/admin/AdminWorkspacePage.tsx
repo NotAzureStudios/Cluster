@@ -103,6 +103,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
   const [whiteboardProjectId, setWhiteboardProjectId] = useState("");
   const [whiteboardEdits, setWhiteboardEdits] = useState<Record<string, { name: string; description: string; projectId: string }>>({});
   const [status, setStatus] = useState("");
+  const [jobsEvidenceOpen, setJobsEvidenceOpen] = useState(false);
   const [adminSection, setAdminSection] = useState<AdminSection>(() => {
     const stored = scope === "users" ? (window.sessionStorage.getItem("cluster-user-admin-section") as AdminSection | null) : null;
     if (scope === "users") window.sessionStorage.removeItem("cluster-user-admin-section");
@@ -1012,7 +1013,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       className={`admin-workspace-v298 admin-page admin-page-v064 ${scope === "users" ? "user-admin-page-v241" : "operations-admin-page-v241"}`}
       title={scope === "users" ? "People Management" : "Operations"}
       icon={scope === "users" ? "users" : "operations"}
-      description={scope === "users" ? "Accounts, access, and lifecycle." : "Server health, incidents, approvals, and maintenance."}
+      description={scope === "users" ? "Accounts & access" : "Health · jobs · incidents · approvals"}
       metrics={scope === "users" ? [
         { label: "People", value: users.length },
         { label: "Pending approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good" },
@@ -1023,24 +1024,28 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
         { label: "Pending approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good" },
       ]}
       actions={
-        <ClusterButton
-          variant="secondary"
-          onClick={() => {
-            void onReloadProjects();
-            void onReloadWhiteboards();
-            void loadAdminUsers(true);
-            if (scope === "operations") void loadOperationsDiagnostics(true);
-          }}
-        >
-          <ClusterIcon name="refresh" /> Refresh
-        </ClusterButton>
+        <div className="button-row compact">
+          {scope === "operations" && onOpenStudioSettings ? <ClusterButton variant="quiet" onClick={onOpenStudioSettings}><ClusterIcon name="settings" /> Studio settings</ClusterButton> : null}
+          {scope === "operations" && onOpenServerConfig ? <ClusterButton variant="quiet" onClick={onOpenServerConfig}><ClusterIcon name="cloud" /> Server configuration</ClusterButton> : null}
+          <ClusterButton
+            variant="secondary"
+            onClick={() => {
+              void onReloadProjects();
+              void onReloadWhiteboards();
+              void loadAdminUsers(true);
+              if (scope === "operations") void loadOperationsDiagnostics(true);
+            }}
+          >
+            <ClusterIcon name="refresh" /> Refresh
+          </ClusterButton>
+        </div>
       }
       status={status}
       navLabel={scope === "users" ? "People management sections" : "Operations sections"}
       navClassName="admin-subnav-v204"
       activeId={scope === "users" ? adminSection : canonicalAdminOperationsSection(adminSection)}
       onChange={setAdminSection}
-      primaryIds={(scope === "users" ? ["users", "exports"] : ["overview", "incidents", "approvals", "systems", "reports"]) as AdminSection[]}
+      primaryIds={(scope === "users" ? ["users", "exports"] : ["overview", "incidents", "jobs", "approvals", "systems", "reports"]) as AdminSection[]}
       items={buildAdminWorkspaceNav(scope, { userCount: users.length, pendingApprovals: adminPendingApprovals })}
     >
       {scope === "operations" && (["approvals", "systems", "reports"] as const).includes(canonicalAdminOperationsSection(adminSection) as "approvals" | "systems" | "reports") && (
@@ -1053,7 +1058,19 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {adminSection === "approvals" && <AdminApprovalCenter projects={projects} />}
 
-      {adminSection === "operations-center" && <><OperationsCenterPanel /><OperationsEvidencePanel /></>}
+      {canonicalAdminOperationsSection(adminSection) === "jobs" && <>
+        <OperationsCenterPanel />
+        <section className="panel admin-jobs-evidence-v11">
+          <div className="button-row">
+            <ClusterButton type="button" variant="secondary" aria-expanded={jobsEvidenceOpen}
+              onClick={() => setJobsEvidenceOpen((current) => !current)}>
+              <ClusterIcon name="activity" aria-hidden="true" /> {jobsEvidenceOpen ? "Hide events" : "Event history"}
+            </ClusterButton>
+            <span className="muted">Logs & traces · on demand</span>
+          </div>
+          {jobsEvidenceOpen ? <OperationsEvidencePanel /> : null}
+        </section>
+      </>}
 
       {adminSection === "incidents" && <OperationsIncidentsPanel />}
 
@@ -1069,18 +1086,15 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
               { id: "records", label: "Records", value: Number(operationsDatabaseTotal || 0), detail: "database", tone: "info" },
             ]}
           />
-          <OperationsSystemsPanel />
-          <ClusterDisclosureGroup defaultOpen className="admin-consolidated-details-v15" title="Runtime & background work" summary="Queues, workers, scheduler state, recovery evidence, and recent background execution.">
-            <OperationsCenterPanel />
-            <OperationsEvidencePanel />
-          </ClusterDisclosureGroup>
-          <ClusterDisclosureGroup key={`maintenance-${adminSection}`} defaultOpen={adminSection === "maintenance"} className="admin-consolidated-details-v15" title="Maintenance tools" summary="Integrity, cleanup, repair, and one-off administrative jobs.">
-            <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("systems")} />
-          </ClusterDisclosureGroup>
-          <ClusterDisclosureGroup key={`persistence-${adminSection}`} defaultOpen={adminSection === "persistence" || adminSection === "stabilization"} className="admin-consolidated-details-v15" title="Persistence & recovery" summary="Storage persistence, recovery readiness, stabilization, and repair evidence.">
-            <PersistenceBridgePanel />
-            <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} />
-          </ClusterDisclosureGroup>
+          {adminSection === "systems" ? <><OperationsSystemsPanel />
+          <ClusterButton type="button" variant="quiet" className="admin-jobs-shortcut-v12" onClick={() => setAdminSection("jobs")}>
+            <span className="admin-jobs-shortcut-icon-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
+            <span><strong>Jobs</strong><small>Queues · retries · history</small></span>
+            <ClusterIcon name="chevron-right" aria-hidden="true" />
+          </ClusterButton></> : null}
+          {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
+          {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
+          {adminSection === "stabilization" ? <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
         </div>
       )}
 
@@ -1096,31 +1110,26 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
               { id: "expired", label: "Expired access", value: adminExpiredAccessCount, detail: "accounts", tone: adminExpiredAccessCount ? "danger" : "success" },
             ]}
           />
-          <AdminApprovalCenter projects={projects} />
           <SecurityCenterPanel onOpenServerConfig={onOpenServerConfig} />
         </div>
       )}
 
       {(adminSection === "reports" || canonicalAdminOperationsSection(adminSection) === "reports") && (
         <div className="admin-reports-stack-v470">
+          {adminSection === "reports" ? <>
           <AdminReportsPanel projects={projects} users={users} onOpenProject={onOpenProject} />
           <StudioKnowledgeOperationsPanel />
           <AdminAuditStreamPanel projects={projects} users={users} />
-              <ClusterDisclosureGroup key={`imports-${adminSection}`} defaultOpen={adminSection === "imports"} className="admin-consolidated-details-v15" title="Import & migration tools" summary="Import structured data and inspect migration readiness.">
-                <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`data-model-${adminSection}`} defaultOpen={adminSection === "data-model"} className="admin-consolidated-details-v15" title="Data model & relationships" summary="Review resource relationships and data quality.">
-                <DataModelStandardsPanel projects={projects} users={users} whiteboards={whiteboards} />
-                <WorkLinkManager projects={projects} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`templates-${adminSection}`} defaultOpen={adminSection === "templates"} className="admin-consolidated-details-v15" title="Templates" summary="Manage reusable studio structures.">
-                <TemplateStudioPanel projects={projects} users={users} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`changelog-${adminSection}`} defaultOpen={adminSection === "changelog"} className="admin-consolidated-details-v15" title="Changelog" summary="Review shipped changes and rollout history.">
-                <ChangelogPage />
-              </ClusterDisclosureGroup>
+          </> : null}
+          {adminSection === "imports" ? <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
+          {adminSection === "data-model" ? <>
+            <DataModelStandardsPanel projects={projects} users={users} whiteboards={whiteboards} />
+            <WorkLinkManager projects={projects} />
+          </> : null}
+          {adminSection === "templates" ? <TemplateStudioPanel projects={projects} users={users} /> : null}
+          {adminSection === "changelog" ? <ChangelogPage /> : null}
 
-          <section className="management-panel admin-resource-panel admin-activity-report-v470">
+          {adminSection === "reports" ? <section className="management-panel admin-resource-panel admin-activity-report-v470">
             <header className="admin-report-drilldown-head-v470">
               <div>
                 <h2>Activity & audit</h2>
@@ -1143,7 +1152,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                 initialView="audit"
               />
             ) : null}
-          </section>
+          </section> : null}
         </div>
       )}
 

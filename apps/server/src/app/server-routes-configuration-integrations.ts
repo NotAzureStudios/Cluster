@@ -1,5 +1,7 @@
 
 import fs from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { promisify } from "node:util";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { type FastifyInstance } from "fastify";
@@ -30,6 +32,29 @@ function validIanaTimeZone(value: string) {
   } catch {
     return false;
   }
+}
+
+const nativeUpdateExecFile = promisify(execFile);
+
+// The native Windows binary owns publisher-signature verification, staging
+// bounds and canonical update-channel configuration. API callers may not
+// supply executables, URLs, installer paths or shell arguments.
+function nativeUpdateBinary(dataRoot: string) {
+  if (process.platform !== "win32" || path.basename(dataRoot).toLowerCase() !== "data") return null;
+  const root = path.dirname(dataRoot);
+  return { root, binary: path.join(root, "bin", "Cluster Server.exe") };
+}
+async function readNativeWebUpdate(dataRoot: string, action: "check" | "status") {
+  const native = nativeUpdateBinary(dataRoot);
+  if (!native) return null;
+  const { stdout } = await nativeUpdateExecFile(native.binary,
+    ["--root", native.root, "--web-server-update", action],
+    { windowsHide: true, timeout: action === "check" ? 16_000 : 8_000, maxBuffer: 8 * 1024 });
+  return JSON.parse(stdout) as {
+    ok: boolean; state: string; available?: boolean; message: string;
+    release?: string; sequence?: number; sha256?: string;
+    manualReleaseUrl?: string; installSupported: false; updatedAt?: string;
+  };
 }
 
 const backupTimezoneSchema = z.string().trim().min(1).max(100).refine(validIanaTimeZone, "Backup timezone must be a valid IANA timezone, such as America/New_York.");
@@ -320,6 +345,61 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         message: "More than 25 domains are bound to this server; review the remaining profiles individually before deploying." });
     }
     return { ...review, boundDomainProfiles, checkedAt: new Date().toISOString() };
+  });
+
+  // Remote Server update inspection and staging are exclusively native,
+  // signed-release operations. Neither route runs an installer or grants UAC.
+  app.get("/api/admin/server-updates/check", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    reply.header("Cache-Control", "private, no-store");
+    try {
+      const result = await readNativeWebUpdate(DATA_ROOT, "check");
+      if (!result) return reply.code(409).send({ ok: false, code: "WINDOWS_UPDATE_SUPERVISOR_REQUIRED", error: "Signed update checking requires the installed Windows Server Manager." });
+      return result;
+    } catch {
+      return reply.code(503).send({ ok: false, code: "NATIVE_UPDATE_CHECK_UNAVAILABLE", error: "The native Windows update checker is unavailable. Inspect the Server Manager installation and signed feed." });
+    }
+  });
+  app.get("/api/admin/server-updates/status", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    reply.header("Cache-Control", "private, no-store");
+    try {
+      const result = await readNativeWebUpdate(DATA_ROOT, "status");
+      if (!result) return reply.code(409).send({ ok: false, code: "WINDOWS_UPDATE_SUPERVISOR_REQUIRED", error: "Installed native Windows Server required." });
+      return result;
+    } catch {
+      return reply.code(503).send({ ok: false, code: "NATIVE_UPDATE_STATUS_UNAVAILABLE", error: "Native Server update status is unavailable." });
+    }
+  });
+  app.post("/api/admin/server-updates/stage", async (request, reply) => {
+    const user = await getCurrentUser(request);
+    const decorated = user ? await decorateUserForClient(user) : null;
+    if (!user || decorated?.workspaceRole !== "owner") {
+      return reply.code(403).send({ ok: false, code: "SERVER_UPDATE_OWNER_REQUIRED", error: "Only an authenticated Cluster Owner may stage Server updates." });
+    }
+    const parsed = z.object({ securityPin: z.string().min(1).max(32), confirmation: z.literal("DOWNLOAD SIGNED SERVER UPDATE") }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ ok: false, code: "SERVER_UPDATE_CONFIRMATION_REQUIRED", error: "An explicit confirmation and Security PIN are required." });
+    await verifyUserPin(user, parsed.data.securityPin, "apply_server_configuration", request);
+    const native = nativeUpdateBinary(DATA_ROOT);
+    if (!native) return reply.code(409).send({ ok: false, code: "WINDOWS_UPDATE_SUPERVISOR_REQUIRED", error: "Server update staging requires the installed native Windows Server." });
+    try {
+      // One bounded, fixed-purpose native child. The child locks its staging
+      // transaction, checks the pinned Ed25519 publisher key, and records
+      // its result. A browser request never controls its executable or feed.
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn(native.binary, ["--root", native.root, "--web-server-update", "stage"],
+          { windowsHide: true, detached: true, stdio: "ignore" });
+        child.once("error", reject);
+        child.once("spawn", () => { child.unref(); resolve(); });
+      });
+      await deps.logSecurityEvent?.({ event: "server.update.stage_requested", actorUserId: user.id, result: "SUCCESS", reasonCode: "SIGNED_SERVER_STAGE_REQUESTED", request, metadata: { channel: "main" } });
+      reply.header("Cache-Control", "private, no-store");
+      return reply.code(202).send({ ok: true, state: "staging", message: "Signed installer staging was started. Check status for native verification; no Server update has been installed." });
+    } catch {
+      return reply.code(503).send({ ok: false, code: "SIGNED_SERVER_STAGE_UNAVAILABLE", error: "Could not launch the signed Server staging helper." });
+    }
   });
 
   // A restart is a separate, PIN-authorized action. The API commits no

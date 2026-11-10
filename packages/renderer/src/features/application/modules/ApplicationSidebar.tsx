@@ -29,6 +29,7 @@ const ADMIN_STUDIO_DESTINATIONS: readonly { label: string; icon: ClusterIconName
 export function Sidebar({ screen, currentRoute, setScreen, user, settings, projects, currentProjectId, onOpenProject, onOpenChangelog, open = false, onClose }: { screen: AppScreen; currentRoute?: string; setScreen: (screen: AppScreen, options?: { section?: string | null; subsection?: string | null }) => void; user: User; settings: Settings; projects: Project[]; currentProjectId?: string | null; onOpenProject: (projectId: string) => void; onOpenChangelog: () => void; open?: boolean; onClose?: () => void }) {
   const sidebarRef = useRef<HTMLElement | null>(null);
   const [adminToolsOpen, setAdminToolsOpen] = useState(() => routeDefinition(screen).parent === "admin");
+  const [adminStudioShortcutsOpen, setAdminStudioShortcutsOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<SidebarPresentationMode>(() => {
     try {
       const stored = readPreferenceStorage("cluster.sidebar.mode");
@@ -153,12 +154,20 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
                 {tools.filter(({ screen: route }) => route !== "studioSettings").map(({ screen: route }) => renderRouteLink(route, true))}
                 <span className="cluster-sidebar__admin-group-label">Configure</span>
                 {screen === "studioSettings" && selectedSection && ADMIN_STUDIO_DESTINATIONS.some((item) => item.section === selectedSection) ? <SidebarNavItem nested icon="settings" label="Studio settings" onClick={() => navigate("studioSettings")} /> : renderRouteLink("studioSettings", true)}
-                {ADMIN_STUDIO_DESTINATIONS.map((item) =>
-                  <SidebarNavItem key={`${item.section}:${item.subsection || ""}`} nested icon={item.icon} label={item.label}
-                    active={screen === "studioSettings" && selectedSection === item.section && (!item.subsection || selectedSubsection === item.subsection)}
-                    onPointerEnter={() => prefetch("studioSettings")} onFocus={() => prefetch("studioSettings")}
-                    onClick={() => { setScreen("studioSettings", { section: item.section, subsection: item.subsection }); onClose?.(); }} />
-                )}
+                <ClusterButton type="button" variant="quiet" size="compact" className="cluster-sidebar__studio-shortcuts-toggle"
+                  aria-expanded={adminStudioShortcutsOpen} aria-controls="cluster-sidebar-studio-shortcuts"
+                  onClick={() => setAdminStudioShortcutsOpen((value) => !value)}>
+                  <ClusterIcon name={adminStudioShortcutsOpen ? "chevron-down" : "chevron-right"} />
+                  Studio shortcuts
+                </ClusterButton>
+                {adminStudioShortcutsOpen ? <div id="cluster-sidebar-studio-shortcuts" className="cluster-sidebar__studio-shortcuts">
+                  {ADMIN_STUDIO_DESTINATIONS.map((item) =>
+                    <SidebarNavItem key={`${item.section}:${item.subsection || ""}`} nested icon={item.icon} label={item.label}
+                      active={screen === "studioSettings" && selectedSection === item.section && (!item.subsection || selectedSubsection === item.subsection)}
+                      onPointerEnter={() => prefetch("studioSettings")} onFocus={() => prefetch("studioSettings")}
+                      onClick={() => { setScreen("studioSettings", { section: item.section, subsection: item.subsection }); onClose?.(); }} />
+                  )}
+                </div> : null}
               </div> : null}
             </SidebarSection>;
           }

@@ -15,9 +15,9 @@ const studio = read("packages/renderer/src/features/settings/StudioSettingsPage.
 let passed = 0;
 function check(condition, label) { assert.ok(condition, label); passed += 1; }
 check(!page.includes("PipelineRail"), "no sequence/flow rail on Server Configuration");
-check(page.includes('activeId={section}'), "side navigation addresses active subsection, not only group");
-check(page.includes('primaryIds={sectionLabels.map((item) => item.id)}'), "all settings destinations appear in persistent sidebar");
-check(page.includes("showGroupHeadings"), "server subsection headings requested");
+check(page.includes('activeId={activeServerGroupId}'), "primary navigation selects the canonical server settings category");
+check(page.includes('sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId)'), "all concrete Server subsections remain reachable in category tabs");
+check(page.includes('aria-pressed={section === item.id}') && page.includes('onClick={() => selectSection(item.id)}'), "subsection tabs accurately reflect the active concrete section");
 check(nav.includes("compact-section-group-heading-v103") && shell.includes("showGroupHeadings"), "grouped nav supported by reusable components");
 check(page.includes('networkDeploymentPending') && page.includes('NETWORK_DEPLOYMENT_PENDING'), "409 staged rollout receives specific UI");
 check(page.includes("authorizePendingRestart") && page.includes('method: "POST"'), "restart is explicitly operator-authorized");
@@ -29,7 +29,7 @@ check(domain.includes("cluster-domain-workflow-card-v103"), "hostname and gatewa
 check(layout.includes(".cluster-domains-rc46 {") && layout.includes("background: var(--domain-surface)"), "domain surface covers patterned workspace background");
 check(layout.includes("@media (max-width: 700px)"), "mobile presentation exists");
 check(native.includes("verifyNativeNetworkDeployment(c.options.root)"), "interactive supervisor settles staged network rollout on readiness");
-check(page.includes('icon: item.icon'), "Server Configuration sidebar uses curated semantic icons");
+check(page.includes('sectionLabels.find((item) => item.id === group.id)?.icon'), "Server Configuration categories reuse curated semantic icons");
 check(page.includes('SettingsStateChip tone="warning"') && page.includes('Network restart pending'), "restart-required state uses visible text and warning tone");
 check(page.includes('Local startup verified'), "network verification is explicitly local rather than public/TLS proof");
 check(page.includes('server-config-stat-head-v103'), "overview metrics use icon-led cards");

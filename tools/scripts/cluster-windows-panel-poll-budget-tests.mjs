@@ -7,7 +7,7 @@ assert.match(nativeTimer, /5\*time\.Second/);
 assert.match(nativeTimer, /ui\.controller\.refreshServiceState\(\)/);
 assert.match(nativeTimer, /ui\.controller\.pollServiceReadiness\(\)/);
 assert.match(nativeTimer, /ui\.updateMetrics\(\)/);
-const metrics = source.match(/func \(ui \*windowsControlPanel\) updateMetrics\(\) \{([\s\S]*?)\n\}\n\nfunc \(c \*windowsServerController\) CheckForUpdates/)?.[1] || "";
+const metrics = source.match(/func \(ui \*windowsControlPanel\) updateMetrics\(\) \{([\s\S]*?)\n\}\n\nfunc \(c \*windowsServerController\) reportServerUpdateResult/)?.[1] || "";
 assert.match(metrics, /lastPortsPID != pid/);
 assert.match(metrics, /time\.Since\(ui\.lastPortsAt\) >= 5\*time\.Second/);
 assert.match(metrics, /ui\.lastPortsSummary = "Ports: unavailable"/);

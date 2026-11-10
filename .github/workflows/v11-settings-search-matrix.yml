@@ -35,6 +35,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Settings search and matrix regression
         run: node tools/scripts/cluster-v11-settings-search-matrix-tests.mjs
+      - name: Admin Jobs and settings consolidation regression
+        run: node tools/scripts/cluster-v11-admin-jobs-consolidation-tests.mjs
       - name: Build shared declaration contracts
         run: npm run build --workspace=@cluster/shared
       - name: Build and typecheck renderer

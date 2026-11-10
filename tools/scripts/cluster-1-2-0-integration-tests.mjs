@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const read=(p)=>fs.readFileSync(p,"utf8");
+const meta=JSON.parse(read("config/release-candidate.json"));
+const manualPublisher=read(".github/workflows/publish-cluster-1-2-0-manual.yml");
+assert.match(manualPublisher,/version !?= 1\.2\.0|version\x22 != 1\.2\.0|1\.2\.0/);
+assert.match(manualPublisher,/sequence.*200000/);
+assert.match(manualPublisher,/Release CI timed out; refusing to publish/);
+assert.match(manualPublisher,/gh release download v1\.1\.2/);
+assert.match(manualPublisher,/gh release create v1\.2\.0/);
+assert.match(manualPublisher,/digest==entries\[0\]\['sha256'\]/);
+assert.match(manualPublisher,/Remote Install remains disabled/);
+const server=read("apps/server/src/app/server-routes-configuration-integrations.ts");
+const native=read("apps/server-launcher-go/launcher_ui_windows.go");
+const api=read("packages/renderer/src/features/settings/ServerConfigPage.tsx");
+const update=read("packages/renderer/src/features/settings/ServerUpdateControls.tsx");
+const admin=read("packages/renderer/src/features/admin/AdminWorkspacePage.tsx");
+const jobs=read("packages/renderer/src/features/admin/BackgroundJobsPanel.tsx");
+const studio=read("packages/renderer/src/features/settings/StudioSettingsPage.tsx");
+if(meta.release==="1.2.0"){
+ assert.equal(meta.sequence,200000);
+ assert.equal(meta.sourceVersion,"1.2.0");
+}
+assert.match(native,/ui\.gpuSampler\.usageSnapshot\(\)/);
+assert.match(native,/perfGPUBar/);
+assert.match(server,/\/api\/admin\/server-updates\/check/);
+assert.match(server,/\/api\/admin\/server-updates\/status/);
+assert.match(server,/\/api\/admin\/server-updates\/stage/);
+assert.match(api,/import \{ ServerUpdateControls \}/);
+assert.match(api,/<ServerUpdateControls owner=\{currentUser\.workspaceRole === "owner"\}/);
+assert.match(update,/disabled title="A separately provisioned, privileged native update broker is required\."/);
+assert.doesNotMatch(update,/\/server-updates\/install/);
+assert.match(admin,/canonicalAdminOperationsSection\(adminSection\) === "jobs"/);
+assert.match(jobs,/JOB_FILTERS\.map/);
+assert.match(jobs,/window\.setTimeout\(\(\) => setDebouncedSearch\(search\.trim\(\)\), 300\)/);
+assert.match(studio,/settings-admin-navrow-v12/);
+console.log("PASS: 1.2 integrated GPU, native signed update discovery, safe staging, Jobs and admin Settings are included.");

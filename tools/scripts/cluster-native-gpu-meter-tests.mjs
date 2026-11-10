@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const ui=readFileSync("apps/server-launcher-go/launcher_ui_windows.go","utf8");
+const gpu=readFileSync("apps/server-launcher-go/gpu_metrics_windows.go","utf8");
+assert.match(ui,/perfGPUBar\s+uintptr/);
+assert.match(ui,/moveWindow\(ui\.perfGPUBar, margin, 229, content, 12\)/);
+assert.match(ui,/ui\.gpuSampler\.usageSnapshot\(\)/);
+assert.match(ui,/procSendMessageW\.Call\(ui\.perfGPUBar, pbmSetPos/);
+assert.match(gpu,/func \(sampler \*nativeGpuSampler\) usageSnapshot\(\) \(int, bool\)/);
+assert.match(gpu,/time\.Since\(sampler\.last\) < 30\*time\.Second/);
+assert.match(gpu,/context\.WithTimeout\(context\.Background\(\), 2500\*time\.Millisecond\)/);
+console.log("PASS: GPU progress bar shares cached asynchronous 30-second telemetry.");
