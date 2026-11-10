@@ -103,6 +103,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
   const [whiteboardProjectId, setWhiteboardProjectId] = useState("");
   const [whiteboardEdits, setWhiteboardEdits] = useState<Record<string, { name: string; description: string; projectId: string }>>({});
   const [status, setStatus] = useState("");
+  const [jobsEvidenceOpen, setJobsEvidenceOpen] = useState(false);
   const [adminSection, setAdminSection] = useState<AdminSection>(() => {
     const stored = scope === "users" ? (window.sessionStorage.getItem("cluster-user-admin-section") as AdminSection | null) : null;
     if (scope === "users") window.sessionStorage.removeItem("cluster-user-admin-section");
@@ -1055,9 +1056,16 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {canonicalAdminOperationsSection(adminSection) === "jobs" && <>
         <OperationsCenterPanel />
-        <ClusterDisclosureGroup title="Operational event history" summary="Sanitized logs, request traces, and security-linked activity. Open only when investigating a job.">
-          <OperationsEvidencePanel />
-        </ClusterDisclosureGroup>
+        <section className="panel admin-jobs-evidence-v11">
+          <div className="button-row">
+            <ClusterButton type="button" variant="secondary" aria-expanded={jobsEvidenceOpen}
+              onClick={() => setJobsEvidenceOpen((current) => !current)}>
+              {jobsEvidenceOpen ? "Hide event history" : "Inspect operational event history"}
+            </ClusterButton>
+            <span className="muted">Sanitized logs, request traces, and security-linked activity. Loaded on request.</span>
+          </div>
+          {jobsEvidenceOpen ? <OperationsEvidencePanel /> : null}
+        </section>
       </>}
 
       {adminSection === "incidents" && <OperationsIncidentsPanel />}
