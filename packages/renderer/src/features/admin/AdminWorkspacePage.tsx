@@ -1086,19 +1086,15 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
               { id: "records", label: "Records", value: Number(operationsDatabaseTotal || 0), detail: "database", tone: "info" },
             ]}
           />
-          <OperationsSystemsPanel />
+          {adminSection === "systems" ? <><OperationsSystemsPanel />
           <section className="panel admin-jobs-entry-v11" aria-label="Background job diagnostics">
             <strong>Background jobs and worker history</strong>
             <p>Queue status, retries, scheduled task activity, and detailed job evidence now live in Jobs. This keeps System health focused on runtime diagnostics.</p>
             <ClusterButton type="button" variant="secondary" onClick={() => setAdminSection("jobs")}>Open Jobs</ClusterButton>
-          </section>
-          <ClusterDisclosureGroup key={`maintenance-${adminSection}`} defaultOpen={adminSection === "maintenance"} className="admin-consolidated-details-v15" title="Maintenance tools" summary="Integrity, cleanup, repair, and one-off administrative jobs.">
-            <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("systems")} />
-          </ClusterDisclosureGroup>
-          <ClusterDisclosureGroup key={`persistence-${adminSection}`} defaultOpen={adminSection === "persistence" || adminSection === "stabilization"} className="admin-consolidated-details-v15" title="Persistence & recovery" summary="Storage persistence, recovery readiness, stabilization, and repair evidence.">
-            <PersistenceBridgePanel />
-            <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} />
-          </ClusterDisclosureGroup>
+          </section></> : null}
+          {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
+          {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
+          {adminSection === "stabilization" ? <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
         </div>
       )}
 
@@ -1114,31 +1110,26 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
               { id: "expired", label: "Expired access", value: adminExpiredAccessCount, detail: "accounts", tone: adminExpiredAccessCount ? "danger" : "success" },
             ]}
           />
-          <AdminApprovalCenter projects={projects} />
           <SecurityCenterPanel onOpenServerConfig={onOpenServerConfig} />
         </div>
       )}
 
       {(adminSection === "reports" || canonicalAdminOperationsSection(adminSection) === "reports") && (
         <div className="admin-reports-stack-v470">
+          {adminSection === "reports" ? <>
           <AdminReportsPanel projects={projects} users={users} onOpenProject={onOpenProject} />
           <StudioKnowledgeOperationsPanel />
           <AdminAuditStreamPanel projects={projects} users={users} />
-              <ClusterDisclosureGroup key={`imports-${adminSection}`} defaultOpen={adminSection === "imports"} className="admin-consolidated-details-v15" title="Import & migration tools" summary="Import structured data and inspect migration readiness.">
-                <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`data-model-${adminSection}`} defaultOpen={adminSection === "data-model"} className="admin-consolidated-details-v15" title="Data model & relationships" summary="Review resource relationships and data quality.">
-                <DataModelStandardsPanel projects={projects} users={users} whiteboards={whiteboards} />
-                <WorkLinkManager projects={projects} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`templates-${adminSection}`} defaultOpen={adminSection === "templates"} className="admin-consolidated-details-v15" title="Templates" summary="Manage reusable studio structures.">
-                <TemplateStudioPanel projects={projects} users={users} />
-              </ClusterDisclosureGroup>
-              <ClusterDisclosureGroup key={`changelog-${adminSection}`} defaultOpen={adminSection === "changelog"} className="admin-consolidated-details-v15" title="Changelog" summary="Review shipped changes and rollout history.">
-                <ChangelogPage />
-              </ClusterDisclosureGroup>
+          </> : null}
+          {adminSection === "imports" ? <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
+          {adminSection === "data-model" ? <>
+            <DataModelStandardsPanel projects={projects} users={users} whiteboards={whiteboards} />
+            <WorkLinkManager projects={projects} />
+          </> : null}
+          {adminSection === "templates" ? <TemplateStudioPanel projects={projects} users={users} /> : null}
+          {adminSection === "changelog" ? <ChangelogPage /> : null}
 
-          <section className="management-panel admin-resource-panel admin-activity-report-v470">
+          {adminSection === "reports" ? <section className="management-panel admin-resource-panel admin-activity-report-v470">
             <header className="admin-report-drilldown-head-v470">
               <div>
                 <h2>Activity & audit</h2>
@@ -1161,7 +1152,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                 initialView="audit"
               />
             ) : null}
-          </section>
+          </section> : null}
         </div>
       )}
 
