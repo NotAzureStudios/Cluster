@@ -23,7 +23,7 @@ const response = await fetch(route, {
   headers: {
     authorization: `Bot ${botToken}`,
     "content-type": "application/json",
-    "user-agent": "ClusterDiscordBot/1.1.2",
+    "user-agent": "ClusterDiscordBot/1.2.0",
   },
   body: JSON.stringify(CLUSTER_DISCORD_COMMANDS),
 });
