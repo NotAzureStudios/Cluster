@@ -37,6 +37,8 @@ jobs:
         run: node tools/scripts/cluster-native-server-fundamentals-tests.mjs
       - name: Assert poll budgets
         run: node tools/scripts/cluster-windows-panel-poll-budget-tests.mjs
+      - name: GPU progress bar uses cached sensor
+        run: node tools/scripts/cluster-native-gpu-meter-tests.mjs
       - name: Native dashboard and installer first-run contracts
         run: node tools/scripts/cluster-native-server-install-experience-tests.mjs
       - name: Windows installer contract checks

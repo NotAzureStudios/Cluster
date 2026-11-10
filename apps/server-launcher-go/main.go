@@ -61,6 +61,7 @@ func main() {
 	updateReadiness := flag.Bool("update-readiness", false, "read-only: signed staging and installation blocker report (JSON)")
  nativeUpdateApply := flag.Bool("native-update-apply", false, "internal: execute approved signed Server update from independent native worker")
 	updateChannel := flag.String("update-channel", "main", "signed Server update channel to inspect (main or development)")
+	webUpdateAction := flag.String("web-server-update", "", "internal: authenticated Web update check/stage/status; never install")
 	flag.Parse()
 
 	root, err := resolveRoot(*rootFlag)
@@ -68,6 +69,16 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *webUpdateAction != "" {
+		if *nativeUpdateApply || *updateReadiness || *inspectStagedUpdate || *diagnose || *repairManaged || *repair ||
+			*service || *installService || *removeService || *startup || *browser || *interfaceMode ||
+			*commandLine || *headless || *noAutostart || *updateChannel != "main" {
+			fmt.Fprintln(os.Stderr, "Web Server update actions are exclusive, main-channel operations")
+			os.Exit(2)
+		}
+		if err := runWebServerUpdateAction(root, *webUpdateAction); err != nil { fatal(err) }
+		return
+	}
  if *nativeUpdateApply {
   if *updateReadiness || *inspectStagedUpdate || *diagnose || *repairManaged || *repair || *service ||
    *installService || *removeService || *startup || *browser || *interfaceMode ||
