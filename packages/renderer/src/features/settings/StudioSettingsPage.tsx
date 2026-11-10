@@ -47,7 +47,7 @@ import { StudioKioskSettingsSection } from "./StudioKioskSettingsSection";
 import { StudioSystemsSettingsSection } from "./StudioSystemsSettingsSection";
 import { DASHBOARD_WIDGETS, HOME_WIDGET_PERMISSIONS, homeWidgetExtensionPolicyFromSettings, parseHomeWidgetKeyCsv, type HomeWidgetPermission } from "../home-widgets/home-widget-model";
 import { useHomeWidgetLibrary } from "../home-widgets/home-widget-library";
-import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, STUDIO_ACTION_RULES } from "./studio-settings-state";
+import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, studioSettingsGroupForSection, studioSettingsSectionLabel, STUDIO_ACTION_RULES } from "./studio-settings-state";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { StudioDomainsPanel } from "../domains/DomainManagementPanel";
@@ -1024,11 +1024,27 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
         </>
       }
       status={status}
-      navLabel="Studio settings sections"
-      activeId={section}
-      onChange={setSection}
-      items={studioSections.map((item) => ({ id: item.key, label: item.label, group: item.group, icon: STUDIO_SETTINGS_NAV_ICONS[item.key] }))}
+      navLabel="Studio settings categories"
+      activeId={studioSettingsGroupForSection(section).anchor}
+      onChange={(value) => setSection(value as StudioSettingsSection)}
+      primaryIds={STUDIO_SETTINGS_GROUPS.map((group) => group.anchor)}
+      items={STUDIO_SETTINGS_GROUPS.map((group) => ({
+        id: group.anchor,
+        label: group.label,
+        icon: STUDIO_SETTINGS_NAV_ICONS[group.anchor],
+      }))}
     >
+      <nav className="settings-subsection-tabs-v11" aria-label={`${studioSettingsGroupForSection(section).label} settings`}>
+        {studioSettingsGroupForSection(section).sections
+          .filter((key) => currentUser.isAdmin || !["domains", "privacy", "kiosk", "studioSystems"].includes(key))
+          .map((key) => (
+            <ClusterButton key={key} type="button" size="compact"
+              variant={section === key ? "secondary" : "quiet"} aria-pressed={section === key}
+              onClick={() => setSection(key)}>
+              {studioSettingsSectionLabel(key)}
+            </ClusterButton>
+          ))}
+      </nav>
       <ClusterSettingsSearch label="Find studio settings" entries={buildStudioSettingsSearchEntries(studioSections)} onNavigate={(entry) => setSection(entry.section)} />
       {heldStudioDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated Studio settings draft">
         <strong>Stored Studio draft needs review</strong>

@@ -1344,12 +1344,13 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "integrations", label: "API & webhooks", group: "Extensions", icon: "code", count: configuredExtensionCount },
   ];
   const serverConfigGroups = [
-    { id: "overview" as const, label: "Runtime", description: "Server identity, network posture, and lower-level configuration." },
+    { id: "overview" as const, label: "Runtime", description: "Server status, resource scheduling, maintenance and advanced runtime configuration." },
+    { id: "network" as const, label: "Network & domains", description: "Host listeners, secure access, domains and gateway configuration." },
     { id: "security" as const, label: "Security & Access", description: "Security policy, sessions, credentials, and trusted devices." },
     { id: "storage" as const, label: "Data & Recovery", description: "Storage, backups, verification, and recovery readiness." },
     { id: "integrations" as const, label: "Extensions", description: "Private API, webhooks, and server-side extension surfaces." },
   ];
-  const serverGroupForSection = (target: ServerConfigSection) => target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
+  const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
   const activeServerGroupId = serverGroupForSection(section);
   const activeServerGroup = serverConfigGroups.find((group) => group.id === activeServerGroupId) || serverConfigGroups[0];
   return (
@@ -1373,17 +1374,26 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         </>
       }
       status={status}
-      navLabel="Server configuration sections"
-      activeId={section}
-      onChange={selectSection}
-      primaryIds={sectionLabels.map((item) => item.id)}
-      showGroupHeadings
-      items={sectionLabels.map((item) => ({
-        id: item.id, label: item.label, group: item.group, icon: item.icon,
-        detail: item.id === "network" && networkDeploymentPending ? "Restart" : undefined,
-        detailTone: item.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
+      navLabel="Server configuration categories"
+      activeId={activeServerGroupId}
+      onChange={(value) => selectSection(value as ServerConfigSection)}
+      primaryIds={serverConfigGroups.map((group) => group.id)}
+      items={serverConfigGroups.map((group) => ({
+        id: group.id, label: group.label,
+        icon: sectionLabels.find((item) => item.id === group.id)?.icon || "settings",
+        detail: group.id === "network" && networkDeploymentPending ? "Restart" : undefined,
+        detailTone: group.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
       }))}
     >
+      <nav className="settings-subsection-tabs-v11" aria-label={`${activeServerGroup.label} settings`}>
+        {sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId).map((item) => (
+          <ClusterButton key={item.id} type="button" size="compact"
+            variant={section === item.id ? "secondary" : "quiet"} aria-pressed={section === item.id}
+            onClick={() => selectSection(item.id)}>
+            {item.label}
+          </ClusterButton>
+        ))}
+      </nav>
 
       {networkDeploymentPending && (
         <section className="panel server-config-rollout-guard-v103" aria-label="Network deployment awaiting managed restart" role="status">
