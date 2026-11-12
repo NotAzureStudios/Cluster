@@ -17,6 +17,21 @@ check('private verified toolchains',ps.includes('6cac9ffbca8f6a47091e4b5c772e060
 check('download progress is suppressed',ps.includes("$ProgressPreference = 'SilentlyContinue'"));
 check('temporary and cache paths inside portable root',ps.includes('$env:TEMP = $tempPath')&&ps.includes('$env:GOCACHE =')&&ps.includes('$env:npm_config_cache ='));
 check('validated before execute',ps.indexOf('  TestManifest $source')<ps.lastIndexOf('  ProvisionPortableTools'));
+check('large prebuilt extraction emits bounded durable progress rather than indefinite silent synchronous ZIP unpack',
+  ps.includes('function ExpandRevisionWithProgress(') &&
+  ps.includes('ExpandRevisionWithProgress $Archive $stage') &&
+  ps.includes('Extraction {0:N0}/{1:N0} files') &&
+  ps.includes('$files % 500 -eq 0') &&
+  !ps.includes('[IO.Compression.ZipFile]::ExtractToDirectory($Archive, $stage)'));
+check('extraction fails early on unavailable disk space and preserves isolated path protection',
+  ps.includes('$drive.AvailableFreeSpace -lt $minimumSpace') &&
+  ps.includes('EnsureUnder $destination $stageRoot') &&
+  ps.includes('[IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $false)') &&
+  ps.indexOf('  ExpandRevisionWithProgress $Archive $stage') < ps.indexOf('  TestManifest $source'));
+check('28k-file cryptographic manifest verification reports progress before replacement',
+  ps.includes('Integrity verification: {0:N0} source files hashed') &&
+  ps.indexOf('  TestManifest $source') < ps.indexOf('  ApplyRevision $source $hash'));
+
 check('build before replacement',ps.indexOf("Run 'npm.cmd' @('run','build')")<ps.indexOf('ApplyRevision $source $hash'));
 check('project preserved',ps.includes("$preserved = @('data', 'runtime', $ownerMarker)")&&ps.includes('apps/server/.env'));
 check('refuses unmanaged destination',ps.includes('Refusing to overwrite an unmanaged folder'));
