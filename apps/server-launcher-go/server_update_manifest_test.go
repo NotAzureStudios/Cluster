@@ -157,7 +157,7 @@ func TestInstalledStableServerSequence(t *testing.T) {
 }
 
 func TestOfficialServerMainFeedAndRedirectBoundaries(t *testing.T) {
-	const expected = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
+	const expected = "https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json"
 	if defaultOfficialMainServerUpdateFeedURL != expected {
 		t.Fatalf("official Server feed differs from published channel contract: %q", defaultOfficialMainServerUpdateFeedURL)
 	}
