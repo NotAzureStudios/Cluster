@@ -9,9 +9,10 @@ const cmake=read('apps/desktop-qt/CMakeLists.txt');
 const desktop=profiles.profiles['desktop-windows-x64'];
 const workflow=read('.github/workflows/desktop-qt-candidate.yml');
 const nativeVersion=toolchains.desktop?.parityVersionHold;
-assert.equal(identity.release,'1.2.2');
-assert.equal(identity.sequence,200002);
-assert.equal(nativeVersion,identity.release,'Desktop version must match integrated release');
+assert.equal(identity.release,'1.2.3');
+assert.equal(identity.sequence,200003);
+assert.equal(nativeVersion,'1.2.2','Installer maintenance must preserve the independently released Qt Desktop version');
+assert.notEqual(nativeVersion,identity.release,'Server installer patch should not relabel/repackage the Desktop build');
 assert.equal(desktop.desktopNativeVersion,nativeVersion,'Profile cannot reuse old binaries');
 assert.ok(cmake.includes('project(ClusterDesktop VERSION 1.2.2 LANGUAGES CXX)'),'Qt must compile new version');
 assert.ok(cmake.includes('string(JSON CLUSTER_SUITE_RUNTIME_VERSION GET') &&
