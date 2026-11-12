@@ -10,6 +10,10 @@ if ($begin -lt 0 -or $end -lt $begin) { throw 'Native update-owner process guard
 Invoke-Expression $source.Substring($begin, $end - $begin)
 
 $root = Join-Path $env:TEMP 'Cluster Test Root\Cluster\Server'
+# The real installer accepts only an existing managed Server root; construct
+# one so Windows can resolve short (8.3) profile aliases to their long form.
+[void][IO.Directory]::CreateDirectory($root)
+$root = (Get-Item -LiteralPath $root).FullName
 $workRoot = Split-Path -Parent $root
 $brokerExe = Join-Path $workRoot 'UpdateBroker\ClusterUpdateBroker.exe'
 $workerUUID = 'ae198100-1bd0-49f5-8ad3-f46261c51c5e'
