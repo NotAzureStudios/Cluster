@@ -29,6 +29,10 @@ jobs:
           cache: false
       - name: Verify server update signatures, channel boundaries and installed sequence
         run: go -C apps/server-launcher-go test ./...
+      - name: Verify native broker cannot bypass stopped-process safety guard
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/installer/Server-Update-Process-Guard-Tests.ps1
       - name: Verify staged-install and maintenance-hold source contracts
         run: node tools/scripts/cluster-1-0-3-update-safety-contract-tests.mjs
       - name: Compile Windows Server launcher
