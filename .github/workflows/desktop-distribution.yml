@@ -33,5 +33,7 @@ jobs:
         run: node --check tools/scripts/package-qt-desktop.mjs
       - name: Verify independent Qt portable/NSIS contents contract
         run: node tools/scripts/cluster-desktop-packaging-contract-tests.mjs
+      - name: Require native Desktop version, current workstation helper, and real Windows build gate
+        run: node tools/scripts/cluster-desktop-full-release-contract-tests.mjs
 # Actual Qt 6.11.2 Windows builds, NSIS setup and installer launch/rollback
 # remain separate release gates and are NOT certified by this source test.
