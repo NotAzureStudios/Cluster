@@ -108,7 +108,24 @@ func queryBrokerService() (managedServiceInfo, string, error) {
 	}
 	config := (*serviceConfig)(unsafe.Pointer(&buffer[0]))
 	if config.BinaryPathName == nil { return managedServiceInfo{}, "", errors.New("broker SCM image is missing") }
-	image := syscall.UTF16PtrToString(config.BinaryPathName)
+	readConfigString := func(ptr *uint16) (string,error) {
+		if ptr == nil { return "",errors.New("broker SCM configuration is incomplete") }
+		start := uintptr(unsafe.Pointer(&buffer[0]))
+		address := uintptr(unsafe.Pointer(ptr))
+		end := start+uintptr(len(buffer))
+		if address < start || address >= end || (address-start)%2 != 0 {
+			return "",errors.New("broker SCM configuration points outside returned buffer")
+		}
+		chars := unsafe.Slice(ptr, int((end-address)/2))
+		return syscall.UTF16ToString(chars),nil
+	}
+	image, err := readConfigString(config.BinaryPathName)
+	if err != nil { return managedServiceInfo{}, "",err }
+	account, err := readConfigString(config.ServiceStartName)
+	if err != nil { return managedServiceInfo{}, "",err }
+	if !strings.EqualFold(account, "LocalSystem") && !strings.EqualFold(account, "NT AUTHORITY\\SYSTEM") {
+		return managedServiceInfo{}, "", errors.New("broker SCM identity is not LocalSystem")
+	}
 	return managedServiceInfo{Installed:true, State:status.currentState, PID:status.processID}, image, nil
 }
 func requireOwnedUpdateBroker(root string) error {
@@ -426,12 +443,23 @@ func copyBrokerWorkerExecutable(sourcePath, dest string) error {
 	if err != nil { return err }
 	ok := false
 	defer func(){ if !ok { _ = os.Remove(dest) } }()
-	n, err := io.Copy(out, io.LimitReader(source, info.Size()+1))
+	digest := sha256.New()
+	n, err := io.Copy(io.MultiWriter(out, digest), io.LimitReader(source, info.Size()+1))
 	if err==nil { err=out.Sync() }
 	closeErr:=out.Close()
 	if err!=nil { return err }
 	if closeErr!=nil { return closeErr }
 	if n!=info.Size(){return errors.New("broker worker copy truncated")}
+	verify,err:=os.Open(dest)
+	if err!=nil {return err}
+	final:=sha256.New()
+	actual,err:=io.Copy(final,io.LimitReader(verify,info.Size()+1))
+	closeErr=verify.Close()
+	if err!=nil{return err}
+	if closeErr!=nil{return closeErr}
+	if actual!=n || !strings.EqualFold(hex.EncodeToString(digest.Sum(nil)),hex.EncodeToString(final.Sum(nil))) {
+		return errors.New("broker worker independent copy digest mismatch")
+	}
 	ok=true
 	return nil
 }
