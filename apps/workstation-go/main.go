@@ -33,7 +33,7 @@ const (
 	defaultListen   = "127.0.0.1:0"
 )
 
-var buildVersion = "1.2.1-dev"
+var buildVersion = "1.2.2-dev"
 
 type config struct {
 	listen        string
