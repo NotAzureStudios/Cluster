@@ -9,7 +9,7 @@ assert.match(main,/webUpdateAction/);
 assert.match(native,/action!="check" && action!="stage" && action!="status"/);
 assert.match(native,/checkUpdateManifest\(root\)/);
 assert.match(native,/stageServerUpdate\(root,feed,"main"\)/);
-assert.match(native,/inspectStagedServerUpdate\(root,"main"\)/);
+assert.match(native,/inspectStagedServerUpdate\(root,\s*"main"\)/);
 assert.match(native,/os\.O_EXCL/);
 assert.match(native,/InstallSupported=false/);
 assert.doesNotMatch(native,/launchNativeServerUpdate\(/);
