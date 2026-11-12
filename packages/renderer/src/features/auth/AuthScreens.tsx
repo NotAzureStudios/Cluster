@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { API_URL, ApiError, api } from "../../core/api";
 import { ClusterOperationalStatus } from "../../components/ClusterOperationalStatus";
 import { operationalInteractionState } from "../../components/operational-status";
 import "./auth.css";
+import { AuthEntryLayout } from "./AuthEntryLayout";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
@@ -110,6 +111,13 @@ function PasswordFields({
 
 export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null; onBack?: () => void; studioName?: string }) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState("");
+  const authActionRef = useRef(false);
+  const identifierFieldId = useId();
+  const passwordFieldId = useId();
+  const mfaFieldId = useId();
+  const recoveryFieldId = useId();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -124,16 +132,30 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
   const [mfaRecoveryAvailable, setMfaRecoveryAvailable] = useState(false);
   const [mfaPasskeyPublicKey, setMfaPasskeyPublicKey] = useState<any>(null);
 
-  useEffect(() => {
-    api<AuthConfig>("/api/auth/config").then(setConfig).catch((reason) => setError(errorMessage(reason, "Authentication configuration could not be loaded.")));
-  }, []);
+  async function loadConfig() {
+    setConfigLoading(true);
+    setConfigError("");
+    try {
+      setConfig(await api<AuthConfig>("/api/auth/config"));
+    } catch (reason) {
+      setConfig(null);
+      setConfigError(errorMessage(reason, "Could not reach the studio authentication service."));
+    } finally {
+      setConfigLoading(false);
+    }
+  }
+  useEffect(() => { void loadConfig(); }, []);
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setError(""); setRecoveryStatus(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !config || !config.passwordLoginEnabled) return;
+    authActionRef.current = true;
+    setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const result = await api<AuthResult>("/api/auth/login", { method: "POST", body: JSON.stringify({ username: identifier, password }) });
       if (result.mfaRequired && result.challenge) {
         setMfaChallenge(result.challenge);
+        setPassword(""); // Do not retain the password in renderer state during MFA.
         setMfaRecoveryAvailable(Boolean(result.recoveryAvailable));
         setMfaPasskeyPublicKey(result.passkeyAvailable ? result.passkeyPublicKey : null);
         setMfaCode("");
@@ -148,11 +170,14 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitMfa(event: FormEvent) {
-    event.preventDefault(); setError(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !mfaChallenge) return;
+    authActionRef.current = true;
+    setError(""); setBusy(true);
     try {
       const result = await api<AuthResult>("/api/auth/mfa/challenge", {
         method: "POST",
@@ -162,11 +187,12 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "The authentication code was not accepted.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitPasskey() {
-    if (!mfaChallenge || !mfaPasskeyPublicKey) return;
+    if (!mfaChallenge || !mfaPasskeyPublicKey || authActionRef.current) return;
+    authActionRef.current = true;
     setError(""); setBusy(true);
     try {
       const credential = await getWebAuthnCredential(mfaPasskeyPublicKey);
@@ -175,20 +201,25 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "The passkey could not be verified.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function requestReset(event: FormEvent) {
-    event.preventDefault(); setError(""); setRecoveryStatus(""); setBusy(true);
+    event.preventDefault();
+    if (authActionRef.current || !identifier.trim()) return;
+    authActionRef.current = true;
+    setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const result = await api<{ ok: boolean; message: string }>("/api/auth/password-reset-request", { method: "POST", body: JSON.stringify({ identifier }) });
       setRecoveryStatus(result.message || "An administrator has been notified if the account can be recovered.");
     } catch (reason) { setError(errorMessage(reason, "The reset request could not be submitted.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function submitPasswordlessPasskey() {
     if (!webAuthnAvailable()) { setError("Passkeys are not available in this browser or runtime."); return; }
+    if (authActionRef.current || !config) return;
+    authActionRef.current = true;
     setError(""); setRecoveryStatus(""); setBusy(true);
     try {
       const start = await api<{ ok: boolean; challenge: string; publicKey: any }>("/api/auth/passkeys/login/start", { method: "POST" });
@@ -198,43 +229,57 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null }));
       onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Passkey sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
   async function devLogin() {
+    if (authActionRef.current || !config?.devLoginEnabled) return;
+    authActionRef.current = true;
     setBusy(true); setError("");
     try {
       const result = await api<AuthResult>("/api/auth/dev-login", { method: "POST" });
       if (!result.user) throw new Error("Development sign in did not return a user.");
       const me = await api<{ user: ClusterAuthUser | null }>("/api/me").catch(() => ({ user: result.user || null })); onLogin(me.user || result.user);
     } catch (reason) { setError(errorMessage(reason, "Development sign in failed.")); }
-    finally { setBusy(false); }
+    finally { authActionRef.current = false; setBusy(false); }
   }
 
-  return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout studioName={studioName} mode={recoveryMode === "request" ? "recovery" : "signin"}>
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />{typeof window !== "undefined" && window.clusterDesktop?.showConnection && <ClusterButton unstyled type="button" className="managed-auth-server-switch" onClick={() => { void window.clusterDesktop?.showConnection?.(); }}><span>Connected server</span><strong>{window.clusterDesktop.serverUrl || API_URL}</strong><em>Switch</em></ClusterButton>}</div>
-    <p className="eyebrow">{studioName || "Cluster Studio"}</p><h1>Sign in</h1><p className="muted">Use your Cluster password or a discoverable passkey. Discord linking, when required by the studio, happens only after your Cluster identity is verified.</p>{onBack && <ClusterButton type="button" variant="quiet" size="compact" onClick={onBack}>Back to studio</ClusterButton>}
+    <p className="eyebrow">{studioName || "Private studio"}</p>
+    <h1>{mfaChallenge ? "Verify your sign-in" : recoveryMode === "request" ? "Recover account access" : "Welcome back"}</h1>
+    <p className="muted">{mfaChallenge ? "Enter your second factor to finish signing in." : recoveryMode === "request" ? "Request a secure password reset from your administrator." : "Sign in with your Cluster account."}</p>
+    {onBack && <ClusterButton className="cluster-auth-back-v11" type="button" variant="quiet" size="compact" disabled={busy} onClick={onBack}>Back to studio</ClusterButton>}
+    {configLoading && <p className="cluster-auth-inline-status-v11" role="status">Connecting to authentication service…</p>}
+    {configError && <div className="error-box" role="alert">{configError} <ClusterButton type="button" variant="secondary" size="compact" disabled={configLoading} onClick={() => void loadConfig()}>Retry connection</ClusterButton></div>}
+    {config && !config.passwordLoginEnabled && recoveryMode === "none" && !mfaChallenge && <p className="cluster-auth-inline-status-v11" role="status">Password sign-in is disabled by studio policy. Use an available passkey or contact an administrator.</p>}
     {recoveryMessage && <ClusterOperationalStatus model={{ state: "auth_expired", interactionState: operationalInteractionState("auth_expired"), label: "Authentication expired", detail: recoveryMessage }} className="managed-auth-recovery-v433" />}
     {config?.ownerSetupRequired && <div className="managed-auth-launcher-warning" role="status"><strong>No password-ready owner account was found.</strong><span>On the Cluster server, run <code>{config.setupLauncherName || "ClusterServer.exe"}</code> to repair owner access.</span></div>}
     {mfaChallenge ? <form className="managed-auth-form managed-auth-mfa-v495" onSubmit={submitMfa}>
-      <div><strong>Verify it’s you</strong><p className="muted">Your password was accepted. Enter the six-digit code from your authenticator before Cluster creates a session.</p></div>
-      {!mfaUseRecovery ? <div className="field"><label>Authenticator code</label><ClusterTextInput inputMode="numeric" enterKeyHint="done" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} autoFocus required /></div> : <div className="field"><label>Recovery code</label><ClusterTextInput enterKeyHint="done" autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={64} value={mfaRecoveryCode} onChange={(event) => setMfaRecoveryCode(event.target.value)} autoFocus required /></div>}
+      <p className="cluster-auth-step-v11">Second step · Authenticator or recovery code</p>
+      {!mfaUseRecovery ? <div className="field"><label htmlFor={mfaFieldId}>Six-digit code</label><ClusterTextInput id={mfaFieldId} inputMode="numeric" enterKeyHint="done" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} autoFocus required /></div> : <div className="field"><label htmlFor={mfaFieldId}>Recovery code</label><ClusterTextInput id={mfaFieldId} enterKeyHint="done" autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={64} value={mfaRecoveryCode} onChange={(event) => setMfaRecoveryCode(event.target.value)} autoFocus required /></div>}
       {error && <div className="error-box" role="alert">{error}</div>}
-      <ClusterButton className="managed-auth-submit" disabled={busy} type="submit" variant="primary">{busy ? "Verifying…" : "Verify and sign in"}</ClusterButton>
+      <ClusterButton className="managed-auth-submit" disabled={busy || (mfaUseRecovery ? !mfaRecoveryCode.trim() : mfaCode.length !== 6)} type="submit" variant="primary">{busy ? "Verifying…" : "Verify and sign in"}</ClusterButton>
       {mfaPasskeyPublicKey && webAuthnAvailable() && <ClusterButton type="button" variant="secondary" disabled={busy} onClick={() => void submitPasskey()}>Use passkey or security key</ClusterButton>}
-      <div className="managed-auth-help-v473">{mfaRecoveryAvailable && <ClusterButton unstyled type="button" onClick={() => { setMfaUseRecovery((value) => !value); setError(""); }}>{mfaUseRecovery ? "Use authenticator code" : "Use recovery code"}</ClusterButton>}<ClusterButton unstyled type="button" onClick={() => { setMfaChallenge(""); setMfaCode(""); setMfaRecoveryCode(""); setMfaUseRecovery(false); setMfaPasskeyPublicKey(null); setPassword(""); setError(""); }}>Back to sign in</ClusterButton></div>
+      <div className="managed-auth-help-v473">{mfaRecoveryAvailable && <ClusterButton unstyled type="button" disabled={busy} onClick={() => { setMfaUseRecovery((value) => !value); setError(""); }}>{mfaUseRecovery ? "Use authenticator code" : "Use recovery code"}</ClusterButton>}<ClusterButton unstyled type="button" disabled={busy} onClick={() => { setMfaChallenge(""); setMfaCode(""); setMfaRecoveryCode(""); setMfaUseRecovery(false); setMfaPasskeyPublicKey(null); setPassword(""); setError(""); }}>Back to sign in</ClusterButton></div>
     </form> : recoveryMode === "none" ? <form className="managed-auth-form" onSubmit={submit}>
-      <div className="field"><label>Username</label><ClusterTextInput autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required /></div>
-      <div className="field managed-auth-password-v473"><label>Password</label><div><ClusterInput type={showPassword ? "text" : "password"} autoComplete="current-password" enterKeyHint="go" value={password} onChange={(event) => setPassword(event.target.value)} required /><ClusterButton unstyled type="button" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></div>
+      <div className="field"><label htmlFor={identifierFieldId}>Username</label><ClusterTextInput id={identifierFieldId} autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required /></div>
+      <div className="field managed-auth-password-v473"><label htmlFor={passwordFieldId}>Password</label><div><ClusterInput id={passwordFieldId} type={showPassword ? "text" : "password"} autoComplete="current-password" enterKeyHint="go" value={password} onChange={(event) => setPassword(event.target.value)} required /><ClusterButton unstyled type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></div>
       {error && <div className="error-box" role="alert">{error}</div>}
-      <ClusterButton className="managed-auth-submit" disabled={busy || config?.passwordLoginEnabled === false} type="submit" variant="primary">{busy ? "Working…" : "Sign in"}</ClusterButton>
-      {webAuthnAvailable() && <ClusterButton type="button" variant="secondary" disabled={busy} onClick={() => void submitPasswordlessPasskey()}>{busy ? "Waiting for authenticator…" : "Sign in with passkey"}</ClusterButton>}
+      <ClusterButton className="managed-auth-submit" disabled={busy || configLoading || !config || !config.passwordLoginEnabled} type="submit" variant="primary">{busy ? "Signing in…" : "Sign in"}</ClusterButton>
+      {webAuthnAvailable() && <ClusterButton className="cluster-auth-passkey-v11" type="button" variant="secondary" disabled={busy || configLoading || !config} onClick={() => void submitPasswordlessPasskey()}>{busy ? "Waiting for authenticator…" : "Use a passkey"}</ClusterButton>}
       <details className="managed-auth-first-use-v11"><summary>First time signing in?</summary><p>Use the one-time temporary password provided privately by your studio administrator. Cluster will ask you to choose your permanent password before entering the workspace. If you never received that credential, contact the administrator for a replacement.</p></details>
-      <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" onClick={() => { setRecoveryMode("request"); setError(""); }}>Forgot password?</ClusterButton></div>
-    </form> : <form className="managed-auth-form managed-auth-recovery-form-v473" onSubmit={requestReset}><div><strong>Request an admin reset</strong><p>Enter the username, email, or phone number for the account. Cluster does not reveal whether an account exists.</p></div><div className="field"><label>Account identifier</label><ClusterTextInput autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="send" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required autoFocus /></div>{error && <div className="error-box" role="alert">{error}</div>}{recoveryStatus && <div className="hint-box" role="status">{recoveryStatus}</div>}<div className="login-actions"><ClusterButton className="" disabled={busy} type="submit" variant="primary">{busy ? "Sending…" : "Request reset"}</ClusterButton><ClusterButton className="" type="button" onClick={() => { setRecoveryMode("none"); setRecoveryStatus(""); setError(""); }} variant="secondary">Back</ClusterButton></div></form>}
-    {config?.devLoginEnabled && recoveryMode === "none" && <div className="managed-auth-development"><span>Local development instance</span><ClusterButton type="button" className="" disabled={busy} onClick={devLogin} variant="secondary">Continue locally</ClusterButton></div>}
+      <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" disabled={busy} onClick={() => { setRecoveryMode("request"); setPassword(""); setError(""); }}>Forgot password?</ClusterButton></div>
+    </form> : <form className="managed-auth-form managed-auth-recovery-form-v473" onSubmit={requestReset}>
+      <p className="cluster-auth-step-v11">A studio administrator reviews recovery requests. Cluster does not reveal whether an account exists.</p>
+      <div className="field"><label htmlFor={recoveryFieldId}>Username, email or phone</label><ClusterTextInput id={recoveryFieldId} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="send" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required autoFocus /></div>
+      {error && <div className="error-box" role="alert">{error}</div>}
+      {recoveryStatus && <div className="hint-box" role="status">{recoveryStatus}</div>}
+      <div className="login-actions"><ClusterButton disabled={busy || !identifier.trim()} type="submit" variant="primary">{busy ? "Sending…" : "Request reset"}</ClusterButton><ClusterButton disabled={busy} type="button" onClick={() => { setRecoveryMode("none"); setRecoveryStatus(""); setError(""); }} variant="secondary">Back to sign in</ClusterButton></div>
+    </form>}
+    {config?.devLoginEnabled && !mfaChallenge && recoveryMode === "none" && <div className="managed-auth-development"><span>Local development instance</span><ClusterButton type="button" className="" disabled={busy} onClick={devLogin} variant="secondary">Continue locally</ClusterButton></div>}
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
 
 export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: ClusterAuthUser; onComplete: (user: ClusterAuthUser) => void; onLogout: () => void }) {
@@ -242,11 +287,12 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
   const [provisioningUri, setProvisioningUri] = useState("");
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryCodesSaved, setRecoveryCodesSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function startEnrollment() {
-    setBusy(true); setError(""); setRecoveryCodes([]);
+    setBusy(true); setError(""); setRecoveryCodes([]); setRecoveryCodesSaved(false);
     try {
       const result = await api<{ ok: boolean; secret: string; provisioningUri: string }>("/api/auth/mfa/enroll/start", { method: "POST" });
       setSecret(result.secret); setProvisioningUri(result.provisioningUri); setCode("");
@@ -258,7 +304,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     event.preventDefault(); setBusy(true); setError("");
     try {
       const result = await api<{ ok: boolean; recoveryCodes: string[] }>("/api/auth/mfa/enroll/verify", { method: "POST", body: JSON.stringify({ code }) });
-      setRecoveryCodes(result.recoveryCodes || []); setSecret(""); setProvisioningUri("");
+      setRecoveryCodes(result.recoveryCodes || []); setRecoveryCodesSaved(false); setSecret(""); setProvisioningUri("");
     } catch (reason) { setError(errorMessage(reason, "The authenticator code was not accepted.")); }
     finally { setBusy(false); }
   }
@@ -272,6 +318,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
       const credential = await createWebAuthnCredential(start.publicKey);
       const enrolled = await api<{ recoveryCodes: string[] }>("/api/auth/mfa/passkeys/enroll/verify", { method: "POST", body: JSON.stringify({ credential }) });
       setSecret(""); setProvisioningUri("");
+      setRecoveryCodesSaved(false);
       setRecoveryCodes(enrolled.recoveryCodes || []);
       if (!enrolled.recoveryCodes?.length) await continueToWorkspace();
     } catch (reason) { setError(errorMessage(reason, "Passkey enrollment failed.")); }
@@ -289,7 +336,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     finally { setBusy(false); }
   }
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card managed-auth-mfa-enrollment-v495">
+  return <AuthEntryLayout mode="setup" cardClassName="managed-auth-mfa-enrollment-v495">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Studio security policy</p>
     <h1>Set up multi-factor authentication.</h1>
@@ -301,11 +348,11 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
       <ClusterButton type="submit" className="" disabled={busy || code.length !== 6} variant="primary">{busy ? "Verifying…" : "Verify authenticator"}</ClusterButton>
       <ClusterButton type="button" className="" disabled={busy} onClick={startEnrollment} variant="secondary">Generate a new setup secret</ClusterButton>
     </form>}
-    {recoveryCodes.length > 0 && <div className="managed-auth-form"><div className="hint-box security-recovery-codes-v495"><strong>Save these recovery codes now</strong><p>Each code works once. Cluster stores only hashes and cannot show these values again.</p><div>{recoveryCodes.map((value) => <code key={value}>{value}</code>)}</div></div><ClusterCopyButton text={recoveryCodes.join("\n")} copiedLabel="Recovery codes copied">Copy recovery codes</ClusterCopyButton><ClusterButton type="button" className="" disabled={busy} onClick={continueToWorkspace} variant="primary">{busy ? "Finishing…" : "I saved the codes · Continue"}</ClusterButton></div>}
+    {recoveryCodes.length > 0 && <div className="managed-auth-form"><div className="hint-box security-recovery-codes-v495"><strong>Save these recovery codes now</strong><p>Each code works once. Cluster stores only hashes and cannot show these values again.</p><div>{recoveryCodes.map((value) => <code key={value}>{value}</code>)}</div></div><ClusterCopyButton text={recoveryCodes.join("\n")} copiedLabel="Recovery codes copied">Copy recovery codes</ClusterCopyButton><label className="cluster-auth-recovery-ack-v11"><ClusterInput type="checkbox" checked={recoveryCodesSaved} onChange={(event) => setRecoveryCodesSaved(event.target.checked)} /><span>I securely saved these one-time codes.</span></label><ClusterButton type="button" className="" disabled={busy || !recoveryCodesSaved} onClick={continueToWorkspace} variant="primary">{busy ? "Finishing…" : "Continue"}</ClusterButton></div>}
     {error && <div className="error-box" role="alert">{error}</div>}
     <ClusterButton type="button" className="" disabled={busy} onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
 
 export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: ClusterAuthUser; onComplete: (user: ClusterAuthUser) => void; onLogout: () => void }) {
@@ -333,7 +380,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
     }
   }
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout mode="setup">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Password change required</p>
     <h1>Create your permanent password.</h1>
@@ -345,7 +392,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
       <ClusterButton className="" disabled={busy} type="button" onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     </form>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }
 
 export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: ClusterAuthUser; onRefresh: () => void; onLogout: () => void }) {
@@ -375,7 +422,7 @@ export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: Cluster
   const authOrigin = typeof window !== "undefined" && window.clusterDesktop?.serverUrl ? window.clusterDesktop.serverUrl : API_URL;
   const linkUrl = config ? `${authOrigin}${config.discordLinkUrl}` : "";
 
-  return <main className="login-shell managed-auth-shell"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout mode="setup">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Required identity link</p>
     <h1>Link Discord to continue.</h1>
@@ -392,5 +439,5 @@ export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: Cluster
       <ClusterButton className="" type="button" onClick={onLogout} variant="secondary">Sign out</ClusterButton>
     </div>
     <AuthLegalLinks />
-  </section></main>;
+  </AuthEntryLayout>;
 }

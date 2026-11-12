@@ -1,0 +1,50 @@
+name: v1.1 Authentication entry experience
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/auth/**'
+      - 'tools/scripts/cluster-v11-auth-entry-overhaul-tests.mjs'
+      - '.github/workflows/v11-auth-entry-overhaul.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/auth/**'
+      - 'tools/scripts/cluster-v11-auth-entry-overhaul-tests.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  auth-entry-regressions:
+    name: Auth entry and build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout reviewed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use Node 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Validate authentication entry UI contracts
+        run: node tools/scripts/cluster-v11-auth-entry-overhaul-tests.mjs
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+      - name: Compile Server and Web
+        run: npm run build
+        env:
+          DIRECT_DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
+          DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
