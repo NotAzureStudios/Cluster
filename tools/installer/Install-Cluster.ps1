@@ -307,9 +307,9 @@ function TestExternalClusterUpdateOwner([object]$process, [string]$serverRoot) {
   if ($exe.StartsWith($serverRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
     return $false
   }
-  $portableRoot = Split-Path -Parent $serverRoot
-  $brokerDir = Join-Path $portableRoot 'UpdateBroker'
-  $brokerExe = Join-Path $brokerDir 'ClusterUpdateBroker.exe'
+  $portableRoot = [IO.Path]::GetFullPath((Split-Path -Parent $serverRoot))
+  $brokerDir = [IO.Path]::GetFullPath((Join-Path $portableRoot 'UpdateBroker'))
+  $brokerExe = [IO.Path]::GetFullPath((Join-Path $brokerDir 'ClusterUpdateBroker.exe'))
   $isBroker = $exe.Equals($brokerExe, [StringComparison]::OrdinalIgnoreCase)
   $base = [IO.Path]::GetFileName($exe)
   $workerPattern = '^Cluster-Update-Worker-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.exe$'
@@ -318,12 +318,25 @@ function TestExternalClusterUpdateOwner([object]$process, [string]$serverRoot) {
     $directory.Equals($brokerDir, [StringComparison]::OrdinalIgnoreCase) -or
     $directory.Equals($portableRoot, [StringComparison]::OrdinalIgnoreCase))
   if (-not $isBroker -and -not $isWorker) { return $false }
-  $exeArgument = '(?:"' + [regex]::Escape($exe) + '"|' + [regex]::Escape($exe) + ')'
+  # SCM may store an 8.3 DOS path (RUNNER~1) for argv[0] while CIM returns
+  # the long ExecutablePath. Normalize both actual and claimed EXE identities;
+  # never trust the prefix text alone or waive the strict update-only flags.
+  $arg0 = $null
+  $tail = $null
+  if ($command -match '^"([^"]+\.exe)"\s+(.+)$') {
+    $arg0 = $matches[1]
+    $tail = $matches[2]
+  } elseif ($command -match '^(\S+\.exe)\s+(.+)$') {
+    $arg0 = $matches[1]
+    $tail = $matches[2]
+  } else { return $false }
+  try { $canonicalArg0 = [IO.Path]::GetFullPath($arg0) } catch { return $false }
+  if (-not $canonicalArg0.Equals($exe, [StringComparison]::OrdinalIgnoreCase)) { return $false }
   $rootArgument = '(?:"' + [regex]::Escape($serverRoot) + '"|' + [regex]::Escape($serverRoot) + ')'
   if ($isBroker) {
-    return $command -match ('^' + $exeArgument + '\s+--update-broker-service\s+--root\s+' + $rootArgument + '\s*$')
+    return $tail -match ('^--update-broker-service\s+--root\s+' + $rootArgument + '\s*$')
   }
-  return $command -match ('^' + $exeArgument + '\s+--native-update-apply\s+(?:--broker-authorized\s+)?--root\s+' + $rootArgument + '\s+--update-channel\s+(?:main|development)\s*$')
+  return $tail -match ('^--native-update-apply\s+(?:--broker-authorized\s+)?--root\s+' + $rootArgument + '\s+--update-channel\s+(?:main|development)\s*$')
 }
 function AssertServerStopped([string]$root) {
   if (-not (Test-Path -LiteralPath $root -PathType Container)) { return }
