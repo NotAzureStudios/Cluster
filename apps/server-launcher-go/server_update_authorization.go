@@ -55,8 +55,7 @@ func claimAuthorizedServerUpdateAtPath(root,source string,now time.Time,inspect 
  for _,other:=range []string{nativeServerUpdateRequestPath(root),nativeBrokerServerUpdateRequestPath(root)}{
   if other==source {continue}
   for _,path:=range []string{other,other+".claimed"}{
-   if _,err:=os.Lstat(path);err==nil{return result,errors.New("a different native updater owns a pending authorization")}
-   else if !errors.Is(err,os.ErrNotExist){return result,err}
+   if _,err:=os.Lstat(path);err==nil{return result,errors.New("a different native updater owns a pending authorization")} else if !errors.Is(err,os.ErrNotExist){return result,err}
   }
  }
  info,err:=os.Lstat(source)
