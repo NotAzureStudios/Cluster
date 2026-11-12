@@ -166,7 +166,7 @@ func copyUpdateBrokerBinary(root string) error {
 	// Remove inherited write permissions: LocalService and ordinary users may
 	// submit an authorized request, but must never replace the privileged code.
 	acl := exec.Command("icacls.exe", dir, "/inheritance:r", "/grant:r",
-		"*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F")
+		"*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F", "*S-1-5-19:(OI)(CI)RX")
 	if output, err := acl.CombinedOutput(); err != nil {
 		return fmt.Errorf("cannot secure broker directory: %w (%s)", err, strings.TrimSpace(string(output)))
 	}
