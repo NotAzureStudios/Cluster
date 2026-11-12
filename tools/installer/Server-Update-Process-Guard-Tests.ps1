@@ -36,6 +36,15 @@ foreach ($case in $testCases) {
     CommandLine = $case.cmd
   }) $root)
   if ($actual -ne $case.expected) {
+    $resolvedExe = [IO.Path]::GetFullPath($case.exe)
+    $expectedBroker = Join-Path $workRoot 'UpdateBroker\ClusterUpdateBroker.exe'
+    $brokerMatch = $resolvedExe.Equals($expectedBroker, [StringComparison]::OrdinalIgnoreCase)
+    $escapedExe = '(?:"' + [regex]::Escape($resolvedExe) + '"|' + [regex]::Escape($resolvedExe) + ')'
+    $escapedRoot = '(?:"' + [regex]::Escape($root) + '"|' + [regex]::Escape($root) + ')'
+    $expectedRegex = '^' + $escapedExe + '\s+--update-broker-service\s+--root\s+' + $escapedRoot + '\s*$'
+    Write-Output ('DEBUG broker path match: ' + $brokerMatch + '; regex match: ' + ($case.cmd -match $expectedRegex))
+    Write-Output ('DEBUG actual: ' + $case.cmd)
+    Write-Output ('DEBUG regex: ' + $expectedRegex)
     throw ('Installer update-owner guard regression for ' + $case.name + ': got ' + $actual + ', expected ' + $case.expected)
   }
 }
