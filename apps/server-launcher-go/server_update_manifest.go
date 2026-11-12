@@ -160,9 +160,10 @@ func sameServerUpdateOrigin(a,b *url.URL) bool {
 func serverUpdateRedirectAllowed(feed, destination *url.URL) bool {
  if sameServerUpdateOrigin(feed,destination) { return true }
  if feed==nil || feed.String()!=defaultOfficialMainServerUpdateFeedURL || destination==nil { return false }
- if destination.Scheme!="https" || destination.User!=nil || destination.Fragment!="" || destination.RawQuery!="" ||
+ if destination.Scheme!="https" || destination.User!=nil || destination.Fragment!="" ||
   (destination.Port()!="" && destination.Port()!="443") { return false }
  if destination.Hostname()=="raw.githubusercontent.com" {
+  if destination.RawQuery!="" {return false}
   path:=destination.EscapedPath()
   return path=="/NotAzureStudios/Cluster/refs/heads/server-update-feed/cluster-server-main.json" ||
    path=="/NotAzureStudios/Cluster/server-update-feed/cluster-server-main.json"
