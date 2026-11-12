@@ -37,10 +37,27 @@ type claimedServerUpdateRequest struct {
 func nativeServerUpdateRequestPath(root string)string{
  return filepath.Join(root,"data","system","runtime","cluster-update-request.json")
 }
+// The broker and interactive UAC process must never compete for the same
+// request. Both carry the same strict authorization schema and exact signed
+// artifact checks, but have distinct fixed-purpose one-shot claim locations.
+func nativeBrokerServerUpdateRequestPath(root string)string{
+ return filepath.Join(root,"data","system","runtime","cluster-update-broker-request.json")
+}
 func claimAuthorizedServerUpdate(root string,now time.Time,inspect func(string,string)(inspectedStagedServerUpdate,error))(claimedServerUpdateRequest,error){
+ return claimAuthorizedServerUpdateAtPath(root,nativeServerUpdateRequestPath(root),now,inspect)
+}
+func claimAuthorizedServerUpdateAtPath(root,source string,now time.Time,inspect func(string,string)(inspectedStagedServerUpdate,error))(claimedServerUpdateRequest,error){
  var result claimedServerUpdateRequest
  if err:=validateManagedRepairRoot(root);err!=nil{return result,err}
- source:=nativeServerUpdateRequestPath(root)
+ if source!=nativeServerUpdateRequestPath(root) && source!=nativeBrokerServerUpdateRequestPath(root) {
+  return result,errors.New("unauthorized native Server update request source")
+ }
+ for _,other:=range []string{nativeServerUpdateRequestPath(root),nativeBrokerServerUpdateRequestPath(root)}{
+  if other==source {continue}
+  for _,path:=range []string{other,other+".claimed"}{
+   if _,err:=os.Lstat(path);err==nil{return result,errors.New("a different native updater owns a pending authorization")} else if !errors.Is(err,os.ErrNotExist){return result,err}
+  }
+ }
  info,err:=os.Lstat(source)
  if err!=nil{return result,err}
  if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink!=0 || info.Size()<1 || info.Size()>4096{

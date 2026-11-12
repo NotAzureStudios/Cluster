@@ -20,7 +20,7 @@ type ServerUpdateStatus = {
 export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean; pinConfigured: boolean }) {
   const [status, setStatus] = useState<ServerUpdateStatus | null>(null);
   const [check, setCheck] = useState<ServerUpdateStatus | null>(null);
-  const [busy, setBusy] = useState<"check" | "stage" | "status" | null>(null);
+  const [busy, setBusy] = useState<"check" | "stage" | "status" | "install" | null>(null);
   const [error, setError] = useState("");
 
   async function refreshStatus(quiet = false) {
@@ -40,7 +40,7 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
   // Poll only while the user-requested native staging process is running.
   // Idle maintenance settings never poll the update feed.
   useEffect(() => {
-    if (status?.state !== "staging") return;
+    if (!status || !["staging", "queued", "installing"].includes(status.state)) return;
     // Repeating timer intentionally survives unchanged native status timestamps.
     // A single timeout would poll only once if the staged update takes longer
     // than one interval to finish.
@@ -89,6 +89,36 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
     } finally { setBusy(null); }
   }
 
+  async function installVerifiedUpdate() {
+    if (!owner || busy || !status?.installSupported || status.state !== "verified") return;
+    if (!window.confirm(`Install signed Cluster Server ${status.release || ""}? The Windows Service will stop, back up PostgreSQL, install and restart. Browser access will temporarily disconnect.`)) return;
+    const pin = pinConfigured
+      ? await requestSecurityPin({
+          title: "Install signed Cluster Server update",
+          description: "Authorize exactly one publisher-signed Server update and its native backup/recovery transaction.",
+          purpose: "apply_server_configuration",
+          confirmLabel: "Authorize installation",
+        })
+      : await requestSecurityPinSetup({
+          title: "Create security PIN",
+          description: "A Security PIN is required before signed Server installation.",
+          purpose: "setup_for_apply_server_configuration",
+        });
+    if (!pin) return;
+    setBusy("install");
+    setError("");
+    try {
+      const result = await api<ServerUpdateStatus>("/api/admin/server-updates/install", {
+        method: "POST",
+        body: JSON.stringify({ securityPin: pin, confirmation: "INSTALL SIGNED SERVER UPDATE" }),
+      });
+      setStatus(result);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Installation admission could not be confirmed. Inspect native status before retrying.");
+      void refreshStatus(true);
+    } finally { setBusy(null); }
+  }
+
   return (
     <section className="panel server-config-operations-v238" aria-label="Signed Cluster Server updates">
       <div className="server-config-group-head-v238">
@@ -96,8 +126,8 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
           <h2>Server updates</h2>
           <p className="muted tight">Check the publisher-signed Server main release feed from this browser. The native Windows Server Manager verifies signatures before staging an installer.</p>
         </div>
-        <SettingsStateChip tone={status?.state === "verified" ? "success" : status?.state === "failed" ? "warning" : "neutral"}>
-          {status?.state === "verified" ? "Signed download verified" : status?.state === "staging" ? "Downloading" : "Install requires native broker"}
+        <SettingsStateChip tone={["verified", "installed"].includes(status?.state || "") ? "success" : ["failed", "blocked", "recovered"].includes(status?.state || "") ? "warning" : "neutral"}>
+          {status?.state === "installed" ? "Installed" : status?.state === "installing" ? "Installing" : status?.state === "queued" ? "Queued" : status?.state === "verified" ? "Signed download verified" : status?.state === "staging" ? "Downloading" : status?.state === "blocked" ? "Recovery needs review" : "Signed updates"}
         </SettingsStateChip>
       </div>
       <div className="button-row">
@@ -110,8 +140,9 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
         <ClusterButton type="button" variant="secondary" disabled={busy !== null} onClick={() => void refreshStatus()}>
           Refresh status
         </ClusterButton>
-        <ClusterButton type="button" variant="primary" disabled title="A separately provisioned, privileged native update broker is required.">
-          Install update
+        <ClusterButton type="button" variant="primary" busy={busy === "install"} disabled={!owner || !status?.installSupported || status.state !== "verified" || busy !== null}
+          title={status?.installSupported ? "Authorize one verified native Server installation" : "Requires a locally provisioned and running privileged Windows Update Broker"}>
+          Install verified update
         </ClusterButton>
       </div>
       {check && <p role="status">{check.message}</p>}
@@ -121,7 +152,7 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
         {status.sha256 && <p className="muted tight">Verified installer SHA-256: <code>{status.sha256}</code></p>}
       </div>}
       {error && <p role="alert">{error}</p>}
-      <p className="muted tight">Downloading is not installation. The current LocalService Server cannot elevate itself from a browser request. Remote unattended install remains disabled until an independently provisioned privileged Windows updater can securely claim the one-time authorization, cold-back up PostgreSQL, install, and roll back if verification fails.</p>
+      <p className="muted tight">Installing requires a separately provisioned Windows Update Broker and Owner Security PIN. The broker independently verifies the publisher signature, creates a cold database snapshot, applies the release and attempts rollback if startup fails. Unverified or interrupted recovery remains blocked for local review.</p>
     </section>
   );
 }

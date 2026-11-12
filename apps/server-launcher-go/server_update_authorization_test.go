@@ -88,3 +88,37 @@ func TestNativeSignedUpdateAuthorizationFailsClosed(t *testing.T){
   })
  }
 }
+
+func TestBrokerAndInteractiveSignedUpdateIntentsAreDisjoint(t *testing.T){
+ fixture,req:=signedAuthorizedServerUpdateFixture(t)
+ broker:=nativeBrokerServerUpdateRequestPath(fixture.root)
+ native:=nativeServerUpdateRequestPath(fixture.root)
+ if strings.EqualFold(broker,native){t.Fatal("browser and native owners share an update request namespace")}
+ content,err:=json.Marshal(req)
+ if err!=nil{t.Fatal(err)}
+ if err:=os.MkdirAll(filepath.Dir(broker),0700);err!=nil{t.Fatal(err)}
+ if err:=os.WriteFile(broker,content,0600);err!=nil{t.Fatal(err)}
+ if _,err:=claimAuthorizedServerUpdate(fixture.root,time.Now().UTC(),signerFromFixture(fixture));err==nil{
+  t.Fatal("native interactive worker attempted to claim a broker-only request")
+ }
+ claim,err:=claimAuthorizedServerUpdateAtPath(fixture.root,broker,time.Now().UTC(),signerFromFixture(fixture))
+ if err!=nil{t.Fatalf("valid broker request rejected: %v",err)}
+ if claim.ClaimPath!=broker+".claimed"{t.Fatalf("broker claim used unexpected path %s",claim.ClaimPath)}
+ if _,err:=claimAuthorizedServerUpdateAtPath(fixture.root,broker,time.Now().UTC(),signerFromFixture(fixture));err==nil{
+  t.Fatal("broker claim replay succeeded")
+ }
+ if err:=os.WriteFile(native,content,0600);err!=nil{t.Fatal(err)}
+ if _,err:=claimAuthorizedServerUpdate(fixture.root,time.Now().UTC(),signerFromFixture(fixture));err==nil{
+  t.Fatal("native interactive updater raced the broker's claimed intent")
+ }
+}
+func TestBrokerCannotClaimNativeInteractiveRequest(t *testing.T){
+ fixture,req:=signedAuthorizedServerUpdateFixture(t)
+ saveAuthorizationFixture(t,fixture.root,req)
+ if _,err:=claimAuthorizedServerUpdateAtPath(fixture.root,nativeBrokerServerUpdateRequestPath(fixture.root),time.Now().UTC(),signerFromFixture(fixture));err==nil{
+  t.Fatal("privileged broker accepted an interactive-only update request")
+ }
+ if _,err:=os.Stat(nativeServerUpdateRequestPath(fixture.root));err!=nil{
+  t.Fatalf("broker changed another owner's pending request: %v",err)
+ }
+}
