@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "product": "Cluster",
-  "release": "1.2.2",
-  "sequence": 200002,
+  "release": "1.2.3",
+  "sequence": 200003,
   "channel": "stable",
-  "sourceVersion": "1.2.2",
+  "sourceVersion": "1.2.3",
   "distribution": "portable-windows-x64",
   "certification": "install-test-pending"
 }
