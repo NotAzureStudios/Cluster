@@ -13,3 +13,7 @@ func installUpdateBroker(root string) error {
 func removeUpdateBroker(root string) error {
 	return errors.New("Cluster Update Broker removal requires Windows SCM")
 }
+
+func ensureWindowsAdministrator() (bool,error) {
+	return false,errors.New("Windows administrator elevation is unavailable on this platform")
+}
