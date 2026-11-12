@@ -108,7 +108,8 @@ jobs:
         shell: pwsh
         run: |
           $receipt = Get-Content -Raw 'artifacts/release-profiles/desktop-windows-x64/build-receipt.json' | ConvertFrom-Json
-          if ($receipt.profile -ne 'desktop-windows-x64' -or $receipt.product -ne 'cluster-desktop' -or $receipt.sourceVersion -ne '1.2.2' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect Desktop release receipt identity' }
+          $suite = Get-Content -Raw 'config/release-candidate.json' | ConvertFrom-Json
+          if ($receipt.profile -ne 'desktop-windows-x64' -or $receipt.product -ne 'cluster-desktop' -or $receipt.sourceVersion -ne $suite.sourceVersion -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect Desktop release receipt identity' }
           if ($receipt.commit -ne (git rev-parse HEAD).Trim()) { throw 'Desktop receipt references different source' }
           foreach ($entry in $receipt.artifacts) {
             if (!(Test-Path -LiteralPath $entry.path -PathType Leaf)) { throw "Missing Desktop artifact: $($entry.path)" }
