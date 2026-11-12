@@ -1,8 +1,20 @@
 cmake_minimum_required(VERSION 3.31.0...4.4)
 
-project(ClusterDesktop VERSION 0.482.0 LANGUAGES CXX)
+project(ClusterDesktop VERSION 1.2.2 LANGUAGES CXX)
 
-set(CLUSTER_RUNTIME_VERSION "0.546.0" CACHE STRING "Cluster runtime version paired with native helpers")
+# Rebuild the companion workstation service from the same checked-out suite.
+# A stale compatibility default silently prevented the post-0.482.0 Desktop
+# from accepting its native helper even when the Qt EXE compiled.
+set(CLUSTER_SUITE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../../config/toolchain-versions.json")
+if(NOT EXISTS "${CLUSTER_SUITE_TOOLCHAIN_FILE}")
+    message(FATAL_ERROR "Desktop distribution requires the checked-out Cluster toolchain version contract.")
+endif()
+file(READ "${CLUSTER_SUITE_TOOLCHAIN_FILE}" CLUSTER_SUITE_TOOLCHAINS_JSON)
+string(JSON CLUSTER_SUITE_RUNTIME_VERSION GET "${CLUSTER_SUITE_TOOLCHAINS_JSON}" cluster)
+set(CLUSTER_RUNTIME_VERSION "${CLUSTER_SUITE_RUNTIME_VERSION}" CACHE STRING "Cluster runtime version paired with native helpers")
+if(NOT CLUSTER_RUNTIME_VERSION STREQUAL CLUSTER_SUITE_RUNTIME_VERSION)
+    message(FATAL_ERROR "Qt Desktop companion runtime differs from the release toolchain identity.")
+endif()
 set(CLUSTER_WORKSTATION_PROTOCOL 1 CACHE STRING "Cluster Workstation source-control protocol")
 option(CLUSTER_REQUIRE_PRIVATE_GIT_RUNTIME "Require the private Git/Git LFS runtime for packaged Desktop builds" OFF)
 

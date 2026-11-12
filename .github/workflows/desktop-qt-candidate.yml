@@ -1,8 +1,20 @@
-name: Windows 1.0 Desktop Qt candidate binaries
+name: Build Cluster Qt Desktop Windows installer
 
 on:
   push:
-    branches: [client/desktop-qt]
+    branches: [main, client/desktop-qt]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/desktop-qt/**'
+      - 'apps/workstation-go/**'
+      - 'apps/update-helper-go/**'
+      - 'tools/scripts/**'
+      - 'tools/native/package-stager-go/**'
+      - 'config/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/desktop-qt-candidate.yml'
   workflow_dispatch:
 
 permissions:
@@ -64,42 +76,66 @@ jobs:
           Copy-Item -LiteralPath $lfs.FullName -Destination 'bin/runtime/git-lfs/git-lfs.exe'
           node tools/scripts/verify-desktop-git-runtime.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Private Git runtime version check failed' }
-      - name: Verify release source inputs
+      - name: Verify release source and native Desktop version contracts
         shell: pwsh
         run: |
-          if ((git branch --show-current).Trim() -ne 'client/desktop-qt') { throw 'Unexpected source branch for Desktop beta' }
+          $ErrorActionPreference = 'Stop'
+          # PR checkout is detached. Create an ephemeral candidate branch for
+          # the existing strict release profile's source-ref admission check.
+          if ($env:GITHUB_EVENT_NAME -eq 'pull_request') {
+            git checkout -B client/desktop-qt
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot identify PR Desktop candidate revision' }
+          }
+          $branch = (git branch --show-current).Trim()
+          if ($branch -notin @('main','client/desktop-qt')) { throw 'Unreviewed Desktop source branch' }
+          node tools/scripts/cluster-suite-version-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Suite Desktop release versions are inconsistent' }
+          node tools/scripts/cluster-desktop-full-release-contract-tests.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native Qt Desktop release identity contract failed' }
           node tools/scripts/cluster-release-lockfile-check.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Dependency lockfile verification failed' }
-      - name: Build signed-feed-compatible but UNSIGNED Qt distribution
+      - name: Build complete Qt Desktop installer and portable ZIP from exact source
         shell: pwsh
         env:
           QT_ROOT: C:\Qt\6.11.2\msvc2022_64
           CMAKE_GENERATOR: Visual Studio 18 2026
           GOTOOLCHAIN: local
         run: |
-          node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64 --channel beta --build
-          if ($LASTEXITCODE -ne 0) { throw 'Qt Desktop release candidate build failed' }
+          $channel = if ((git branch --show-current).Trim() -eq 'main') { 'stable' } else { 'beta' }
+          node tools/scripts/cluster-platform-release.mjs --profile desktop-windows-x64 --channel $channel --build
+          if ($LASTEXITCODE -ne 0) { throw 'Qt Desktop clean native installer/portable compilation failed' }
       - name: Check Desktop independent artifact identity
         shell: pwsh
         run: |
           $receipt = Get-Content -Raw 'artifacts/release-profiles/desktop-windows-x64/build-receipt.json' | ConvertFrom-Json
-          if ($receipt.profile -ne 'desktop-windows-x64' -or $receipt.product -ne 'cluster-desktop' -or $receipt.channel -ne 'beta' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect Desktop release receipt identity' }
+          if ($receipt.profile -ne 'desktop-windows-x64' -or $receipt.product -ne 'cluster-desktop' -or $receipt.sourceVersion -ne '1.2.2' -or !$receipt.built -or $receipt.signed -or $receipt.certified) { throw 'Incorrect Desktop release receipt identity' }
           if ($receipt.commit -ne (git rev-parse HEAD).Trim()) { throw 'Desktop receipt references different source' }
           foreach ($entry in $receipt.artifacts) {
             if (!(Test-Path -LiteralPath $entry.path -PathType Leaf)) { throw "Missing Desktop artifact: $($entry.path)" }
             if ((Get-FileHash -Algorithm SHA256 $entry.path).Hash.ToLowerInvariant() -ne $entry.sha256) { throw "Bad Desktop artifact hash: $($entry.path)" }
           }
           $receipt | ConvertTo-Json -Depth 12 | Write-Output
-      - name: Upload independent unsigned Qt RC artifacts
+      - name: Boot test the actual installed native Qt Desktop application
+        shell: pwsh
+        env:
+          QT_ROOT: C:\Qt\6.11.2\msvc2022_64
+          QT_QPA_PLATFORM: windows
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $executable = 'apps/desktop-qt/release/windows-x64/bin/Cluster.exe'
+          if (!(Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Packaged Qt application executable missing' }
+          $proc = Start-Process -FilePath (Resolve-Path $executable) -ArgumentList '--smoke-test' -PassThru -Wait -NoNewWindow
+          if ($proc.ExitCode -ne 0) { throw "Installed Qt Desktop application failed launch/QML smoke: $($proc.ExitCode)" }
+      - name: Upload independent versioned Qt Desktop build and verified receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: cluster-desktop-qt-0-482-0-beta-windows-x64-${{ github.sha }}
+          name: cluster-desktop-qt-1-2-2-windows-x64-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
           path: |
-            apps/desktop-qt/release/Cluster-Desktop-Installer-0.482.0-windows-x64.exe
-            apps/desktop-qt/release/Cluster-Desktop-0.482.0-windows-x64.zip
+            apps/desktop-qt/release/Cluster-Desktop-Installer-1.2.2-windows-x64.exe
+            apps/desktop-qt/release/Cluster-Desktop-1.2.2-windows-x64.zip
             artifacts/release-profiles/desktop-windows-x64/build-receipt.json
 
 # Never promote to stable without Qt runtime parity, install/restart, update

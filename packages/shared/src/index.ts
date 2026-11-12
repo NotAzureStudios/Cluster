@@ -20,7 +20,7 @@ export * from "./notification-contracts.js";
 export * from "./notification-quiet-hours.js";
 export * from "./delivery-contracts.js";
 export * from "./external-portal-contracts.js";
-export const CLUSTER_SHARED_VERSION = "1.2.1";
+export const CLUSTER_SHARED_VERSION = "1.2.2";
 
 export type ClusterEntityKind = ClusterResourceKind | "milestone" | "comment" | "notification" | "approval" | "time";
 export type ClusterLifecycleStatus =
