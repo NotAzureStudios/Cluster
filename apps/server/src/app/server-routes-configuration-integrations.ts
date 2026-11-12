@@ -44,16 +44,16 @@ function nativeUpdateBinary(dataRoot: string) {
   const root = path.dirname(dataRoot);
   return { root, binary: path.join(root, "bin", "Cluster Server.exe") };
 }
-async function readNativeWebUpdate(dataRoot: string, action: "check" | "status") {
+async function readNativeWebUpdate(dataRoot: string, action: "check" | "status" | "install") {
   const native = nativeUpdateBinary(dataRoot);
   if (!native) return null;
   const { stdout } = await nativeUpdateExecFile(native.binary,
     ["--root", native.root, "--web-server-update", action],
-    { windowsHide: true, timeout: action === "check" ? 16_000 : 8_000, maxBuffer: 8 * 1024 });
+    { windowsHide: true, timeout: action === "check" ? 16_000 : action === "install" ? 20_000 : 8_000, maxBuffer: 8 * 1024 });
   return JSON.parse(stdout) as {
     ok: boolean; state: string; available?: boolean; message: string;
     release?: string; sequence?: number; sha256?: string;
-    manualReleaseUrl?: string; installSupported: false; updatedAt?: string;
+    manualReleaseUrl?: string; installSupported: boolean; updatedAt?: string;
   };
 }
 
@@ -347,8 +347,8 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     return { ...review, boundDomainProfiles, checkedAt: new Date().toISOString() };
   });
 
-  // Remote Server update inspection and staging are exclusively native,
-  // signed-release operations. Neither route runs an installer or grants UAC.
+  // The native broker owns installation and recovery. The Web API only
+  // authorizes an exact one-shot signed release; it never executes an installer.
   app.get("/api/admin/server-updates/check", async (request, reply) => {
     const admin = await requireAdminUserForRequest(request, reply);
     if (!admin) return;
@@ -399,6 +399,37 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       return reply.code(202).send({ ok: true, state: "staging", message: "Signed installer staging was started. Check status for native verification; no Server update has been installed." });
     } catch {
       return reply.code(503).send({ ok: false, code: "SIGNED_SERVER_STAGE_UNAVAILABLE", error: "Could not launch the signed Server staging helper." });
+    }
+  });
+
+  app.post("/api/admin/server-updates/install", async (request, reply) => {
+    const user = await getCurrentUser(request);
+    const decorated = user ? await decorateUserForClient(user) : null;
+    if (!user || decorated?.workspaceRole !== "owner") {
+      return reply.code(403).send({ ok: false, code: "SERVER_UPDATE_OWNER_REQUIRED", error: "Only a Cluster Owner can authorize signed Server installation." });
+    }
+    const parsed = z.object({
+      securityPin: z.string().min(1).max(32),
+      confirmation: z.literal("INSTALL SIGNED SERVER UPDATE"),
+    }).strict().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ ok: false, code: "SERVER_UPDATE_CONFIRMATION_REQUIRED", error: "An explicit installation confirmation and Security PIN are required." });
+    await verifyUserPin(user, parsed.data.securityPin, "apply_server_configuration", request);
+    reply.header("Cache-Control", "private, no-store");
+    try {
+      // This fixed native action only records an expiring, exclusive request
+      // for the already-staged publisher-signed release. The independent
+      // privileged Windows service alone performs stop/backup/install/restore.
+      const result = await readNativeWebUpdate(DATA_ROOT, "install");
+      if (!result) return reply.code(409).send({ ok: false, code: "WINDOWS_UPDATE_BROKER_REQUIRED", error: "Protected Windows Update Broker is not installed." });
+      await deps.logSecurityEvent?.({ event: "server.update.install_requested", actorUserId: user.id,
+        result: "SUCCESS", reasonCode: "SIGNED_SERVER_INSTALL_REQUESTED", request,
+        metadata: { release: result.release, sequence: result.sequence, channel: "main" } });
+      return reply.code(202).send(result);
+    } catch {
+      // The native request may already be durable even if the HTTP response
+      // fails. Reconnecting operators must inspect status, never auto-retry.
+      return reply.code(409).send({ ok: false, code: "SIGNED_SERVER_INSTALL_REQUEST_UNCERTAIN",
+        error: "The native broker could not confirm installation admission. Check Server update status and the native journal before retrying." });
     }
   });
 
