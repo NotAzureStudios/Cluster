@@ -1,0 +1,276 @@
+name: Publish Cluster 1.2.2 complete Windows Server and Qt Desktop
+
+# One-time unsigned direct-download release of the already reviewed main
+# Windows build. This does not publish or relax the separately signed
+# server-main automatic-update channel.
+on:
+  workflow_run:
+    workflows: [Build Cluster Qt Desktop Windows installer]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: cluster-1-2-2-manual-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'NotAzureStudios/Cluster' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DESKTOP_RUN: ${{ github.event.workflow_run.id }}
+      SERVER_SHA: ${{ github.event.workflow_run.head_sha }}
+      SERVER_ARTIFACT: cluster-server-unsigned-windows-x64-${{ github.event.workflow_run.head_sha }}
+      DESKTOP_ARTIFACT: cluster-desktop-qt-1-2-2-windows-x64-${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Checkout reviewed release source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Admit only unpublished Cluster 1.2.2
+        id: eligibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("config/release-candidate.json"))["release"])')"
+          if test "$version" != 1.2.2 || gh release view v1.2.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "One-time 1.2.2 publication is not needed; skipping."
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version, ancestry, and immutable Windows build
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SERVER_SHA"
+          python3 - <<'PY'
+          import json
+          metadata=json.load(open('config/release-candidate.json',encoding='utf-8'))
+          package=json.load(open('package.json',encoding='utf-8'))
+          assert metadata['release']=='1.2.2'
+          assert metadata['sourceVersion']=='1.2.2'
+          assert metadata['channel']=='stable'
+          assert metadata['sequence']==200002
+          assert package['version']=='1.2.2'
+          PY
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.head_sha')" = "$SERVER_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.head_branch')" = main
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.conclusion')" = success
+          if gh release view v1.2.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Immutable v1.2.2 is already published. Refusing to overwrite it.' >&2
+            exit 1
+          fi
+
+      - name: Match the reviewed Server build to this exact Desktop source commit
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DESKTOP_RUN" --jq '.head_sha')" = "$SERVER_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DESKTOP_RUN" --jq '.head_branch')" = main
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DESKTOP_RUN" --jq '.conclusion')" = success
+          gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SERVER_SHA&per_page=100" > "$RUNNER_TEMP/matched-build-runs.json"
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json,os,pathlib
+          runs=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'matched-build-runs.json').read_text())['workflow_runs']
+          builds=[r for r in runs if r.get('name')=='Build Cluster Windows Server installer'
+                  and r.get('head_sha')==os.environ['SERVER_SHA']
+                  and r.get('head_branch')=='main' and r.get('event')=='push'
+                  and r.get('conclusion')=='success']
+          assert len(builds)==1, f'Expected one successful immutable Server build at the Qt Desktop source SHA, found {len(builds)}'
+          print('SERVER_RUN='+str(builds[0]['id']))
+          PY
+
+      - name: Require all reviewed 1.2.2 release CI on the exact Server commit
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SERVER_SHA&per_page=100" > "$RUNNER_TEMP/cluster-1-2-2-ci-runs.json"
+            result="$(python3 - <<'PY'
+          import json,os,pathlib
+          runs=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'cluster-1-2-2-ci-runs.json').read_text())['workflow_runs']
+          required=(
+            'Managed network access regressions',
+            'Reproducible Node and workspace release build',
+            'Release, recovery and session security',
+            'Windows prebuilt installer contracts',
+            'Signed Windows Server update verification',
+            'Platform release profile contracts',
+          )
+          bad={'failure','cancelled','timed_out','action_required'}
+          missing=[]
+          for label in required:
+            states=[r.get('conclusion') for r in runs if r.get('name')==label]
+            if any(state in bad for state in states):
+              print('FAIL:'+label);break
+            if 'success' not in states:missing.append(label)
+          else:
+            print('OK' if not missing else 'WAIT:'+','.join(missing))
+          PY
+            )"
+            if [ "$result" = "OK" ]; then echo 'All required exact-commit release CI passed'; exit 0; fi
+            if [[ "$result" == FAIL:* ]]; then echo "$result" >&2; exit 1; fi
+            echo "$result"
+            sleep 20
+          done
+          echo 'Release CI timed out; refusing to publish' >&2
+          exit 1
+
+      - name: Download exactly the reviewed Windows Server build
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cluster-server-build" "$RUNNER_TEMP/cluster-release"
+          gh run download "$SERVER_RUN" --repo "$GITHUB_REPOSITORY" --name "$SERVER_ARTIFACT" --dir "$RUNNER_TEMP/cluster-server-build"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          src=root/'cluster-server-build'
+          candidates=[
+            (src/'bin/Cluster-Installer.exe',
+             src/'bin/Cluster Server.exe',
+             src/'artifacts/release-profiles/server-windows-x64/build-receipt.json'),
+            (src/'Cluster-Installer.exe',
+             src/'Cluster Server.exe',
+             src/'build-receipt.json'),
+          ]
+          matches=[layout for layout in candidates if all(p.is_file() for p in layout)]
+          assert len(matches)==1, f'Expected exactly one verified artifact extraction layout; found {len(matches)}'
+          installer,launcher,receipt_path=matches[0]
+          receipt=json.loads(receipt_path.read_text(encoding='utf-8'))
+          assert receipt['product']=='cluster-server'
+          assert receipt['profile']=='server-windows-x64'
+          assert receipt['release']==receipt['sourceVersion']=='1.2.2'
+          assert receipt['channel']=='main'
+          assert receipt['commit']==os.environ['SERVER_SHA']
+          assert receipt['built'] is True
+          assert receipt['signed'] is False
+          assert receipt['certified'] is False
+          target=root/'cluster-release'
+          for path,declared,out_name in (
+              (installer,'bin/Cluster-Installer.exe','Cluster-Installer.exe'),
+              (launcher,'bin/Cluster Server.exe','Cluster-Server.exe'),
+          ):
+              entries=[a for a in receipt['artifacts'] if a['path']==declared]
+              assert len(entries)==1, f'Missing or duplicate signed-off receipt entry: {declared}'
+              with path.open('rb') as f:
+                  assert f.read(2)==b'MZ', f'Invalid Windows executable: {declared}'
+              with path.open('rb') as f:
+                  digest=hashlib.file_digest(f,'sha256').hexdigest()
+              assert digest==entries[0]['sha256'], f'SHA-256 mismatch: {declared}'
+              assert path.stat().st_size==entries[0]['bytes'], f'Size mismatch: {declared}'
+              shutil.copyfile(path,target/out_name)
+          shutil.copyfile(receipt_path,target/'Cluster-server-build-receipt.json')
+          print('Verified both Windows binaries against reviewed 1.2.2 main build receipt')
+          PY
+
+      - name: Download and independently verify the NEW Qt Desktop NSIS and portable build
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cluster-desktop-build"
+          gh run download "$DESKTOP_RUN" --repo "$GITHUB_REPOSITORY" --name "$DESKTOP_ARTIFACT" --dir "$RUNNER_TEMP/cluster-desktop-build"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,shutil
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          src=root/'cluster-desktop-build'
+          version='1.2.2'
+          names=[
+            f'Cluster-Desktop-Installer-{version}-windows-x64.exe',
+            f'Cluster-Desktop-{version}-windows-x64.zip',
+          ]
+          layouts=[
+            ([src/'apps/desktop-qt/release'/name for name in names],
+             src/'artifacts/release-profiles/desktop-windows-x64/build-receipt.json'),
+            ([src/name for name in names],src/'build-receipt.json'),
+          ]
+          found=[(files,receipt) for files,receipt in layouts if all(x.is_file() for x in files+[receipt])]
+          assert len(found)==1,f'Expected exactly one unambiguous Qt Desktop build extraction layout, got {len(found)}'
+          files,receiptPath=found[0]
+          receipt=json.loads(receiptPath.read_text(encoding='utf-8'))
+          assert receipt['product']=='cluster-desktop'
+          assert receipt['profile']=='desktop-windows-x64'
+          assert receipt['channel']=='stable'
+          assert receipt['sourceVersion']==receipt['release']==version
+          assert receipt['commit']==os.environ['SERVER_SHA']
+          assert receipt['built'] is True and receipt['signed'] is False and receipt['certified'] is False
+          target=root/'cluster-release'
+          for inputFile,name,magic,alias in zip(
+              files,names,[b'MZ',b'PK'],
+              ['Cluster-Desktop-Installer.exe','Cluster-Desktop-Portable.zip']):
+              declared='apps/desktop-qt/release/'+name
+              entries=[a for a in receipt['artifacts'] if a['path']==declared]
+              assert len(entries)==1,f'Missing or duplicate Desktop receipt entry: {declared}'
+              with inputFile.open('rb') as f:
+                  assert f.read(2)==magic,f'Unexpected native Desktop binary/archive header: {name}'
+              with inputFile.open('rb') as f:
+                  digest=hashlib.file_digest(f,'sha256').hexdigest()
+              assert digest==entries[0]['sha256'],f'Desktop artifact SHA mismatch: {name}'
+              assert inputFile.stat().st_size==entries[0]['bytes'],f'Desktop artifact size mismatch: {name}'
+              shutil.copyfile(inputFile,target/name)
+              shutil.copyfile(inputFile,target/alias)
+          shutil.copyfile(receiptPath,target/'Cluster-desktop-build-receipt.json')
+          print('Verified NEW Qt 1.2.2 Desktop installer and portable ZIP against exact-commit build receipt')
+          PY
+
+      - name: Publish verified 1.2.2 direct-download release
+        if: steps.eligibility.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/cluster-1-2-2-notes.md" <<'NOTES'
+          ## Cluster Server 1.2.2 (Windows x64)
+
+          **Manual installation release.** The Windows Server installer was compiled and clean-install-smoke-tested by a successful Windows build from the exact reviewed main commit recorded in `Cluster-server-build-receipt.json`.
+
+          Download **Cluster-Installer.exe** and verify its SHA-256 against **Cluster-server-build-receipt.json**.
+
+          **Signed update policy.** This manual installer uses the pinned Ed25519 update public key. The independently signed `server-main` channel now publishes its manifest from the `server-update-feed` source branch to avoid GitHub's immutable release-asset restriction. A protected publisher key is required; only the signed, hash/sequence-verified artifact can be staged and used by the native broker. This manual asset is not an unsigned bypass of the auto-update channel.
+
+          **Unsigned manual installer.** This release is not delivered by the signed `server-main` update channel. The separate signed publisher requires the matching private key in protected GitHub environment `server-release`. It cannot be enabled by changing an updater URL or skipping signature verification. Authenticode signing is independent.
+
+          **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed `Cluster` folder: for `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`; for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`. Do not run the installer from Downloads or inside `Cluster\Server`, because its location determines the target. Verify the installed release, login, data, and Library after the upgrade. A populated database upgrade and rollback have not been certified by this release pipeline.
+
+          **What's new:** Includes the merged v1.2.0 Server, web settings and Operations improvements, plus the independently provisioned `ClusterStudioUpdateBroker` native Windows Service and PIN-authorized, publisher-signed update request path. The installer includes the 1.2.2 native broker source and Windows executable. Automatic installation is **not live-certified**: a local Windows administrator must provision the protected broker, and a backed-up nonempty Windows PostgreSQL upgrade/rollback and ACL test remain mandatory before enabling it on production. This manual binary is not itself the separately signed automatic-update artifact. The previously reported sign-in issue is not claimed fixed.
+
+          **Qt Desktop:** The independent Desktop 0.482.0 binaries are carried forward unchanged, byte-for-byte, from v1.1.2. Native Desktop source fixes already merged into main require a separate tested Desktop build to ship.
+          NOTES
+          gh release create v1.2.2 --repo "$GITHUB_REPOSITORY" \
+            --target "$SERVER_SHA" \
+            --title 'Cluster 1.2.2 | Azure Studios' \
+            --notes-file "$RUNNER_TEMP/cluster-1-2-2-notes.md" \
+            --draft
+          for asset in Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
+            Cluster-Desktop-0.482.0-windows-x64.zip Cluster-desktop-build-receipt.json \
+            Cluster-Desktop-Installer-0.482.0-windows-x64.exe \
+            Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
+            test -s "$RUNNER_TEMP/cluster-release/$asset"
+            gh release upload v1.2.2 "$RUNNER_TEMP/cluster-release/$asset" --repo "$GITHUB_REPOSITORY"
+          done
+          gh release view v1.2.2 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/cluster-released-names.txt"
+          test "$(wc -l < "$RUNNER_TEMP/cluster-released-names.txt")" -eq 8
+          for asset in Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
+            Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
+            grep -Fx "$asset" "$RUNNER_TEMP/cluster-released-names.txt"
+          done
+          gh release edit v1.2.2 --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = v1.2.2
+          echo 'Published verified, unsigned Cluster Server 1.2.2 as the latest manual GitHub release.'
