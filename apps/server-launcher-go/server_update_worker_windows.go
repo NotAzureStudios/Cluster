@@ -100,7 +100,7 @@ func nativeUpdateWorkerExecutableID(root string)(string,error){
  if !serverUpdateIDPattern.MatchString(id){return "",errors.New("invalid native update worker transaction ID")}
  return id,nil
 }
-func runNativeServerUpdateInstall(root,channel string)error{
+func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)error{
  elevated,err:=windowsProcessElevated()
  if err!=nil{return err}
  if !elevated{return errors.New("native Server installation requires Windows UAC administrator approval")}
@@ -113,11 +113,16 @@ func runNativeServerUpdateInstall(root,channel string)error{
  if claimed.Request.TransactionID!=id || claimed.Request.Channel!=channel{
   return errors.New("native update worker identity does not match one-time signed authorization")
  }
+ if brokerAuthorized {
+  if claimed.Request.Channel!="main" {return errors.New("broker accepts only signed main channel")}
+  if err:=requireBrokerDispatch(root,id,claimed.ClaimPath);err!=nil{return err}
+ } else {
  if messageBox(0,"Cluster Server: Confirm Installation",
   fmt.Sprintf("Install publisher-signed Cluster Server %s?\n\nThe managed Windows Service will stop. A verified cold PostgreSQL snapshot will be created before any installer runs. Cluster will then restart and verify the candidate. On failure it will attempt recovery.\n\nKeep this machine powered on.",claimed.Candidate.Release),
   mbYesNo|mbIconQuestion)!=idYes{
   if err:=os.Remove(claimed.ClaimPath);err!=nil{return fmt.Errorf("cancelled but request claim cannot be removed: %w",err)}
   return errors.New("update cancelled by Windows administrator; no Server files were changed")
+ }
  }
  journal,err:=openNativeServerUpdateJournal(root,id)
  if err!=nil{return err}
@@ -263,10 +268,10 @@ func runNativeServerUpdateInstall(root,channel string)error{
  }
  transaction:=runServerUpdateTransaction(context.Background(),hooks)
  if transaction.Err!=nil{
-  if transaction.Recovered{
+  if transaction.Recovered && !brokerAuthorized{
    messageBox(0,"Cluster Server Update Recovered",
     "The new Server could not be installed or verified. The previous Server was restarted and verified. Review the UpdateProgress journal before retrying.",mbIconError)
-  }else{
+  }else if !brokerAuthorized{
    messageBox(0,"Cluster Server Update Blocked",
     "The update failed and safe recovery could not be completed automatically. Cluster has retained the write hold, snapshots and journal. Do not remove them or restart the Server until recovery is reviewed.",mbIconError)
   }
@@ -274,8 +279,8 @@ func runNativeServerUpdateInstall(root,channel string)error{
  }
  if journalError!=nil{return journalError}
  if transaction.Phase!=updatePhaseCommitted{return errors.New("native update transaction did not commit")}
- messageBox(0,"Cluster Server Updated",
-  fmt.Sprintf("Cluster Server %s installed, Windows Service restarted and healthy, and the update write hold released. Rollback evidence remains preserved.",claimed.Candidate.Release),0)
+ if !brokerAuthorized { messageBox(0,"Cluster Server Updated",
+  fmt.Sprintf("Cluster Server %s installed, Windows Service restarted and healthy, and the update write hold released. Rollback evidence remains preserved.",claimed.Candidate.Release),0) }
  return nil
 }
 func limitedNativeUpdateOutput(data []byte)string{
