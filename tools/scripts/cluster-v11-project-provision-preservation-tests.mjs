@@ -105,8 +105,12 @@ test("active manual publisher matches current monotonic stable release identity"
   const [major, minor, patch] = version.split(".").map(Number);
   assert.equal(major, 1);
   assert.equal(release.sequence, minor * 100000 + patch);
-  const workflowPath = ".github/workflows/publish-cluster-" + version.replaceAll(".", "-") + "-manual.yml";
-  const workflow = read(workflowPath);
+  const prefix = ".github/workflows/publish-cluster-" + version.replaceAll(".", "-");
+  const candidates = [prefix + "-manual.yml", prefix + "-full.yml"];
+  const present = candidates.filter((file) => fs.existsSync(path.join(root, file)));
+  assert.equal(present.length, 1, "Exactly one current stable release publisher must exist");
+  const workflow = read(present[0]);
+  assert.ok(workflow.includes("head_branch == 'main'"), "Publisher must only accept main build events");
   assert.ok(workflow.includes("assert metadata['sequence']==" + release.sequence));
   assert.ok(workflow.includes('test "$(git rev-parse HEAD)" = "$SERVER_SHA"'));
   assert.ok(workflow.includes("gh release create v" + version));
