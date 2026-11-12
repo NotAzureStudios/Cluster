@@ -280,6 +280,12 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
  }
  if journalError!=nil{return journalError}
  if transaction.Phase!=updatePhaseCommitted{return errors.New("native update transaction did not commit")}
+ // Only after the candidate has been committed and access reopened may
+ // this installer leave active staging. Preserve all independent rollback
+ // and journal evidence. Failure is maintenance debt, NOT a failed update.
+ if err:=retireAppliedServerUpdate(root,claimed.Candidate);err!=nil{
+  fmt.Fprintln(os.Stderr,"Signed Server update installed, but old staging files need local review:",err)
+ }
  if !brokerAuthorized { messageBox(0,"Cluster Server Updated",
   fmt.Sprintf("Cluster Server %s installed, Windows Service restarted and healthy, and the update write hold released. Rollback evidence remains preserved.",claimed.Candidate.Release),0) }
  return nil
