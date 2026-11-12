@@ -35,8 +35,7 @@ func stageNativeServerUpdateIntent(root,channel string)(string,string,error){
  if err:=validateManagedRepairRoot(root);err!=nil{return "","",err}
  if err:=requireOwnedClusterUpdateService(root);err!=nil{return "","",err}
  for _,path:=range []string{nativeBrokerServerUpdateRequestPath(root),nativeBrokerServerUpdateRequestPath(root)+".claimed",updateBrokerDispatchPath(root)}{
-  if _,err:=os.Lstat(path);err==nil{return "","",errors.New("a privileged Server update is pending; native interactive installation cannot race the broker")}
-  else if !errors.Is(err,os.ErrNotExist){return "","",err}
+  if _,err:=os.Lstat(path);err==nil{return "","",errors.New("a privileged Server update is pending; native interactive installation cannot race the broker")} else if !errors.Is(err,os.ErrNotExist){return "","",err}
  }
  candidate,err:=inspectStagedServerUpdate(root,channel)
  if err!=nil{return "","",err}
