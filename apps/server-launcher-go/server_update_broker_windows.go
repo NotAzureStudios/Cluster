@@ -7,7 +7,6 @@ package main
 // Server/. It consumes only one-shot signed-update intents, never commands,
 // URLs, target paths, or executable names supplied by a web client.
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -278,14 +277,15 @@ var brokerMainCallback = syscall.NewCallback(func(argc, argv uintptr) uintptr {
 	root, stop := brokerServiceState.root, brokerServiceState.stop
 	brokerServiceState.Unlock()
 	reportBrokerServiceState(serviceRunning)
-	done := make(chan struct{})
+	heartbeatDone := make(chan struct{})
+	finished := make(chan struct{})
 	go func(){
-		defer close(done)
+		defer close(finished)
 		ticker := time.NewTicker(10*time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-stop: return
+			case <-heartbeatDone: return
 			case <-ticker.C:
 				brokerServiceState.Lock()
 				st := brokerServiceState.status.currentState
@@ -295,7 +295,8 @@ var brokerMainCallback = syscall.NewCallback(func(argc, argv uintptr) uintptr {
 		}
 	}()
 	err := runBrokerQueue(root, stop)
-	<-done
+	close(heartbeatDone)
+	<-finished
 	if err != nil {
 		brokerServiceState.Lock()
 		brokerServiceState.status.win32ExitCode = 1
@@ -401,8 +402,15 @@ func consumeBrokerIntent(root string) error {
 	_ = publishWebUpdateStatus(root,webServerUpdateStatus{
 		OK:true,State:"installed",Release:candidate.Release,Sequence:candidate.Sequence,
 		Message:"Verified signed update installed; Windows Service restarted and readiness checked."})
-	// Leave the dispatch receipt, journal, and claimed intent as replay evidence.
-	// The next authorized update requires an explicit, reviewed cleanup cycle.
+	// A successful worker committed the release and re-opened access only after
+	// readiness. Remove one-shot admission artifacts to allow future newer
+	// signed updates. The independent durable journal remains untouched.
+	if installedServerReleaseSequence(root) != candidate.Sequence {
+		return errors.New("broker worker exited successfully but installed release differs")
+	}
+	if err := os.Remove(nativeServerUpdateRequestPath(root)+".claimed"); err != nil { return err }
+	if err := os.Remove(updateBrokerDispatchPath(root)); err != nil { return err }
+	_ = os.Remove(worker)
 	return nil
 }
 func copyBrokerWorkerExecutable(sourcePath, dest string) error {
