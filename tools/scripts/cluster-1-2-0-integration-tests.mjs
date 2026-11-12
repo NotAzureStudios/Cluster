@@ -38,7 +38,7 @@ const broker = read("apps/server-launcher-go/server_update_broker_windows.go");
 const webNative = read("apps/server-launcher-go/server_update_web_actions_windows.go");
 assert.match(broker,/ClusterStudioUpdateBroker/);
 assert.match(broker,/requireOwnedClusterUpdateService\(root\)/);
-assert.match(broker,/inspectStagedServerUpdate\(root,"main"\)/);
+assert.match(broker,/inspectStagedServerUpdate\(root,\s*"main"\)/);
 assert.match(broker,/updateBrokerDispatchPath/);
 assert.match(webNative,/queueBrokerSignedServerUpdate/);
 assert.match(webNative,/os\.O_CREATE\|os\.O_EXCL/);
