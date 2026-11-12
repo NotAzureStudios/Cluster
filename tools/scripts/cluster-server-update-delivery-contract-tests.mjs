@@ -19,14 +19,14 @@ let checks = 0;
 function ok(test, why){assert.ok(test,why);checks++;}
 
 // One main channel pointer, never GitHub's product-agnostic latest release.
-ok(manifest.includes("/releases/download/server-main/cluster-server-main.json"),"product-specific rolling signed feed");
+ok(manifest.includes("/raw/refs/heads/server-update-feed/cluster-server-main.json"),"dedicated signed Server feed branch; immutable GitHub release assets are not mutable pointers");
 ok(!manifest.includes("/releases/latest/download/cluster-server-main.json"),"cannot depend on GitHub latest release shared with Desktop");
 ok(settings.includes("return defaultOfficialMainServerUpdateFeedURL"),"no manual feed URL required for installed updated Server");
 ok(settings.includes("CLUSTER_SERVER_MAIN_MANIFEST_URL"),"manual server-specific override preserved");
 ok(settings.includes("CLUSTER_SERVER_DEVELOPMENT_MANIFEST_URL"),"development does not silently use main feed");
 
 // Redirect allowlist must not become a generic cross-origin exception.
-ok(manifest.includes('destination.Hostname()!="release-assets.githubusercontent.com"'),"specific GitHub asset CDN host");
+ok(manifest.includes('destination.Hostname()=="release-assets.githubusercontent.com"'),"specific GitHub asset CDN host");
 ok(manifest.includes("officialServerGitHubReleaseAssetPrefix"),"repo-specific GitHub release asset path");
 ok(manifest.includes("feed.String()!=defaultOfficialMainServerUpdateFeedURL"),"custom feed cannot use GitHub CDN exception");
 ok(stage.includes("serverUpdateRedirectAllowed(feed, req.URL)"),"signed downloads and manifests apply redirect policy");
@@ -81,13 +81,13 @@ ok(publish.includes("Get-FileHash -LiteralPath $source.installer -Algorithm SHA2
 ok(publish.indexOf("Get-FileHash -LiteralPath $source.installer") < publish.indexOf("Copy-Item -LiteralPath $source.installer"), "release input checked before copying into signing paths");
 ok(networkCI.replaceAll("\r\n","\n").includes("  push:\n    branches: [main]"), "required network release gate runs on the main commit as well as PRs");
 ok(publish.includes("'Managed network access regressions'"), "publisher retains network security gate rather than bypassing it");
-ok(publish.indexOf('gh release create "$tag"') < publish.indexOf("gh release upload server-main"),"immutable release exists before mutable manifest pointer updates");
-ok(publish.includes("server-main") && publish.includes("server-v"),"server channel isolated from desktop latest releases");
+ok(publish.indexOf('gh release create "$tag"') < publish.indexOf("gh api -X PUT"),"immutable release exists before signed branch pointer updates");
+ok(publish.includes("server-update-feed") && publish.includes("server-v"),"signed Server branch isolated from Desktop latest releases");
 ok(!publish.includes("release upload \"$tag\" --clobber"),"immutable versioned installer cannot be overwritten");
 ok(build.includes("branches: [main]") && !build.includes("  push:\n    branches: [main]\n    paths:"),"every main commit receives a build candidate");
 
-// The control panel must NOT claim unattended installation yet. Signed
-// staging is deliberately separate from the still-unimplemented native worker.
+// The native control panel staging action stays non-installing. The independent
+// PIN-authorized web broker performs the privileged install separately.
 ok(ui.includes("Download and verify the publisher-signed Server installer now?"),"an update can be staged from Check Updates");
 ok(ui.includes("ui.controller.StageServerUpdate()"),"download confirmation leads to the signed staging path");
 ok(ui.includes("This will NOT install, stop or restart Cluster."),"UI must not falsely promise installation");

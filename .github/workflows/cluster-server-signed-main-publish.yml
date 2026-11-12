@@ -131,16 +131,16 @@ jobs:
           $metadata = Get-Content -LiteralPath 'config/release-candidate.json' -Raw | ConvertFrom-Json
           if ($metadata.channel -ne 'stable' -or $metadata.release -notmatch '^1[.](0|[1-9][0-9]*)[.](0|[1-9][0-9]*)$') { throw 'Invalid stable Server release identity' }
           $tag = "server-v$($metadata.release)"
-          gh release view "$tag" --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-            throw "Immutable $tag already exists. Bump the Server version before publishing another main build."
-          }
+          # Allow a failed pointer publication to be retried for the exact
+          # *same immutable* versioned artifact, but never alter the release.
+          $existingRelease = gh api -X GET "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>$null | ConvertFrom-Json
+          $tagAlreadyPublished = $LASTEXITCODE -eq 0 -and $null -ne $existingRelease
           $keyFile = Join-Path $env:RUNNER_TEMP 'cluster-server-publisher-ed25519.pem'
           $manifestFile = Join-Path $env:RUNNER_TEMP 'cluster-server-main.json'
           $env:CLUSTER_SERVER_SIGNING_KEY_FILE = $keyFile
           try {
             [IO.File]::WriteAllText($keyFile, $env:CLUSTER_SERVER_SIGNING_KEY_PEM, [Text.UTF8Encoding]::new($false))
-            node tools/scripts/cluster-sign-server-release.mjs --channel main --artifact bin/Cluster-Installer.exe --feed-url 'https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json' --artifact-url "https://github.com/NotAzureStudios/Cluster/releases/download/$tag/Cluster-Installer.exe" --output "$manifestFile"
+            node tools/scripts/cluster-sign-server-release.mjs --channel main --artifact bin/Cluster-Installer.exe --feed-url 'https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json' --artifact-url "https://github.com/NotAzureStudios/Cluster/releases/download/$tag/Cluster-Installer.exe" --output "$manifestFile"
             if ($LASTEXITCODE -ne 0) { throw 'Signed manifest verification or build receipt admission failed' }
           } finally {
             $env:CLUSTER_SERVER_SIGNING_KEY_FILE = ''
@@ -150,13 +150,62 @@ jobs:
           if ($manifest.release -ne $metadata.release -or $manifest.commit -ne $env:BUILT_SHA -or !$manifest.signature) { throw 'Signed manifest has incorrect source identity' }
           # Publish the immutable EXE before updating the mutable main channel
           # pointer. A failure never makes an unverified version discoverable.
-          gh release create "$tag" 'bin/Cluster-Installer.exe#Cluster-Installer.exe' --repo "$env:GITHUB_REPOSITORY" --target "$env:BUILT_SHA" --title "Cluster Server $($metadata.release)" --notes "Signed Windows Server update; source commit $env:BUILT_SHA. Back up the managed database before upgrading." --latest=false
-          if ($LASTEXITCODE -ne 0) { throw "Could not publish immutable Server release $tag" }
-          gh release view server-main --repo "$env:GITHUB_REPOSITORY" --json tagName 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload server-main "$manifestFile#cluster-server-main.json" --clobber --repo "$env:GITHUB_REPOSITORY"
+          if ($tagAlreadyPublished) {
+            if ([string]$existingRelease.target_commitish -ne $env:BUILT_SHA -or
+                @($existingRelease.assets | Where-Object { $_.name -eq 'Cluster-Installer.exe' }).Count -ne 1) {
+              throw 'Published signed Server tag has unexpected source or assets; refuse replacement'
+            }
+            $existingInstaller = Join-Path $env:RUNNER_TEMP 'verify-published-server-installer'
+            New-Item -ItemType Directory -Path $existingInstaller -Force | Out-Null
+            gh release download "$tag" --repo "$env:GITHUB_REPOSITORY" --pattern 'Cluster-Installer.exe' --dir "$existingInstaller"
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot verify existing immutable Server installer for publisher recovery' }
+            $existingExe = Join-Path $existingInstaller 'Cluster-Installer.exe'
+            if ((Get-FileHash -LiteralPath $existingExe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.artifact.sha256 -or
+                (Get-Item -LiteralPath $existingExe).Length -ne [long]$manifest.artifact.size) {
+              throw 'Existing immutable installer is not identical to the exact signed build; refuse replay'
+            }
+            Write-Host "Recovered identical immutable signed Server release $tag. Advancing only the signed pointer."
           } else {
-            gh release create server-main "$manifestFile#cluster-server-main.json" --repo "$env:GITHUB_REPOSITORY" --target "$env:BUILT_SHA" --title 'Cluster Server main signed update channel' --notes 'Signed, rolling Server-only manifest. Executable assets live under immutable server-vX.Y.Z tags.' --prerelease --latest=false
+            gh release create "$tag" 'bin/Cluster-Installer.exe#Cluster-Installer.exe' --repo "$env:GITHUB_REPOSITORY" --target "$env:BUILT_SHA" --title "Cluster Server $($metadata.release)" --notes "Signed Windows Server update; source commit $env:BUILT_SHA. Back up the managed database before upgrading." --latest=false
+            if ($LASTEXITCODE -ne 0) { throw "Could not publish immutable Server release $tag" }
           }
-          if ($LASTEXITCODE -ne 0) { throw 'Server version was published, but main update pointer was NOT advanced' }
-          Write-Host "Published signed Server $($metadata.release) on the server-main channel."
+          # GitHub protects published releases as immutable. Never try
+          # gh release upload --clobber to server-main: that failed for 1.2.0.
+          # Publish a publisher-SIGNED JSON pointer to a separate mutable ref;
+          # the installed Server pins the Ed25519 key, not this branch's trust.
+          $feedBranch = 'server-update-feed'
+          $feedFile = 'cluster-server-main.json'
+          gh api -X GET "repos/$env:GITHUB_REPOSITORY/git/ref/heads/$feedBranch" 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            gh api -X POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f "ref=refs/heads/$feedBranch" -f "sha=$env:BUILT_SHA" | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the isolated signed update feed branch' }
+          }
+          $previousSha = ''
+          $prior = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" 2>$null | ConvertFrom-Json
+          if ($LASTEXITCODE -eq 0 -and $null -ne $prior) {
+            $previousSha = [string]$prior.sha
+            $priorBytes = [Convert]::FromBase64String(([string]$prior.content -replace '\s',''))
+            $previous = [Text.Encoding]::UTF8.GetString($priorBytes) | ConvertFrom-Json
+            if ($previous.product -ne 'cluster-server' -or $previous.channel -ne 'main' -or
+                [int]$previous.sequence -ge [int]$metadata.sequence) {
+              throw 'Existing signed update pointer is invalid, newer, or already at this sequence; refusing rollback/replay'
+            }
+          }
+          $feedBytes = [IO.File]::ReadAllBytes($manifestFile)
+          $feedDigest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($feedBytes)).ToLowerInvariant()
+          $payload = @{
+            message = "publish: move signed main Server pointer to $($metadata.release) ($env:BUILT_SHA)"
+            branch = $feedBranch
+            content = [Convert]::ToBase64String($feedBytes)
+          }
+          if ($previousSha) { $payload.sha = $previousSha }
+          $jsonPath = Join-Path $env:RUNNER_TEMP 'cluster-server-pointer-commit.json'
+          [IO.File]::WriteAllText($jsonPath,($payload | ConvertTo-Json -Depth 3),[Text.UTF8Encoding]::new($false))
+          gh api -X PUT "repos/$env:GITHUB_REPOSITORY/contents/$feedFile" --input "$jsonPath" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Versioned Server release was published, but signed main pointer was not advanced; recover manually, never overwrite the immutable release' }
+          $published = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Could not independently read the signed update pointer' }
+          $publishedBytes = [Convert]::FromBase64String(([string]$published.content -replace '\s',''))
+          $publishedDigest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($publishedBytes)).ToLowerInvariant()
+          if ($publishedDigest -ne $feedDigest) { throw 'Published signed update pointer differs from signed release manifest' }
+          Write-Host "Published immutable signed Server $($metadata.release) and verified updated signed main pointer."

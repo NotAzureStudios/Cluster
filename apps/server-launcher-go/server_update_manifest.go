@@ -32,7 +32,7 @@ var serverStableReleasePattern = regexp.MustCompile(`^1\.(0|[1-9][0-9]*)\.(0|[1-
  
 // Server-only rolling signed release pointer. It does NOT depend on GitHub's
 // product-agnostic "latest" release (which Desktop can also publish).
-const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudios/Cluster/releases/download/server-main/cluster-server-main.json"
+const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json"
 const officialServerGitHubReleaseAssetPrefix = "/github-production-release-asset/1431753697/"
 
 // 1.0.x retains its existing sequence (50 + patch). Starting with 1.1.0,
@@ -154,16 +154,22 @@ func sameServerUpdateOrigin(a,b *url.URL) bool {
 	return strings.EqualFold(a.Scheme,b.Scheme)&&strings.EqualFold(a.Hostname(),b.Hostname())&&port(a)==port(b)
 }
 
-// GitHub's release CDN redirects away from github.com. Only the exact
-// product-specific official signed feed may use the GitHub release asset CDN;
-// custom operator feeds must remain same-origin.
+// GitHub's immutable release assets and raw file delivery use dedicated
+// CDN origins. Allow only the exact official signed-feed raw path and the
+// repository's existing asset CDN prefix; custom feeds stay same-origin.
 func serverUpdateRedirectAllowed(feed, destination *url.URL) bool {
  if sameServerUpdateOrigin(feed,destination) { return true }
  if feed==nil || feed.String()!=defaultOfficialMainServerUpdateFeedURL || destination==nil { return false }
  if destination.Scheme!="https" || destination.User!=nil || destination.Fragment!="" ||
-  destination.Hostname()!="release-assets.githubusercontent.com" ||
   (destination.Port()!="" && destination.Port()!="443") { return false }
- return strings.HasPrefix(destination.EscapedPath(),officialServerGitHubReleaseAssetPrefix)
+ if destination.Hostname()=="raw.githubusercontent.com" {
+  if destination.RawQuery!="" {return false}
+  path:=destination.EscapedPath()
+  return path=="/NotAzureStudios/Cluster/refs/heads/server-update-feed/cluster-server-main.json" ||
+   path=="/NotAzureStudios/Cluster/server-update-feed/cluster-server-main.json"
+ }
+ return destination.Hostname()=="release-assets.githubusercontent.com" &&
+  strings.HasPrefix(destination.EscapedPath(),officialServerGitHubReleaseAssetPrefix)
 }
 
 func verifyServerUpdateManifest(data []byte, feed *url.URL, expectedChannel string) (serverUpdateManifest,error) {

@@ -47,6 +47,8 @@ jobs:
           node-version: '24.20.0'
       - name: Check release signer syntax
         run: node --check tools/scripts/cluster-sign-server-release.mjs
+      - name: Verify immutable Server 1.2.1 publishing and signed feed pointer contract
+        run: node tools/scripts/cluster-1-2-1-signed-release-contract-tests.mjs
       - name: Verify signed main feed, release publisher and native Check Updates flow
         run: node tools/scripts/cluster-server-update-delivery-contract-tests.mjs
       - name: Web update check and staging authority boundaries
