@@ -1,5 +1,5 @@
 {
-  "cluster": "1.2.1",
+  "cluster": "1.2.2",
   "node": {
     "channel": "lts",
     "version": "24.20.0"
@@ -29,8 +29,8 @@
     "version": "0.185.1"
   },
   "desktop": {
-    "parityVersionHold": "0.482.0",
-    "versionHoldReason": "Recovered Qt Desktop source remains on its historical version until WIP57 native parity and runtime certification are complete."
+    "parityVersionHold": "1.2.2",
+    "versionHoldReason": "Desktop Qt 6.11.2 native release candidate must complete Windows compiled-build, installation and runtime acceptance before publication."
   },
   "updatePolicy": {
     "security": "immediate-reviewed",
