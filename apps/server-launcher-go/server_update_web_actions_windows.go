@@ -165,7 +165,7 @@ func runWebServerUpdateAction(root,action string)error{
       }
     }
   }
-  if pending && state.State!="installing" {state.State="queued";state.Message="Signed update awaits native broker claim or is being applied."}
+  if pending && state.State!="installing" && state.State!="blocked" && state.State!="recovered" {state.State="queued";state.Message="Signed update awaits native broker claim or is being applied."}
   state.InstallSupported=false
   if !pending && state.State=="verified" {
     if err:=requireOwnedUpdateBroker(root);err==nil {
