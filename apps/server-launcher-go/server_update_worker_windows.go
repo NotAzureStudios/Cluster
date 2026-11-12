@@ -109,7 +109,9 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
  id,err:=nativeUpdateWorkerExecutableID(root)
  if err!=nil{return err}
  if err:=requireOwnedClusterUpdateService(root);err!=nil{return err}
- claimed,err:=claimAuthorizedServerUpdate(root,time.Now().UTC(),inspectStagedServerUpdate)
+ claimPath:=nativeServerUpdateRequestPath(root)
+ if brokerAuthorized {claimPath=nativeBrokerServerUpdateRequestPath(root)}
+ claimed,err:=claimAuthorizedServerUpdateAtPath(root,claimPath,time.Now().UTC(),inspectStagedServerUpdate)
  if err!=nil{return fmt.Errorf("native signed update authorization rejected: %w",err)}
  if claimed.Request.TransactionID!=id || claimed.Request.Channel!=channel{
   return errors.New("native update worker identity does not match one-time signed authorization")
