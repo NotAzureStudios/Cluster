@@ -88,8 +88,9 @@ func nativeUpdateWorkerExecutableID(root string)(string,error){
  if err!=nil{return "",err}
  parent,err:=filepath.Abs(filepath.Dir(root))
  if err!=nil{return "",err}
- if !strings.EqualFold(filepath.Dir(executable),parent){
-  return "",errors.New("native update worker must run outside the replaceable Server/ tree, directly in the portable parent")
+ if !strings.EqualFold(filepath.Dir(executable),parent) &&
+   !strings.EqualFold(filepath.Dir(executable),updateBrokerDirectory(root)){
+  return "",errors.New("native updater must run from the portable parent or protected broker directory")
  }
  base:=filepath.Base(executable)
  const prefix="Cluster-Update-Worker-"
