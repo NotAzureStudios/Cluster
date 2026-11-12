@@ -38,7 +38,7 @@ func updateBrokerCommand(root string) string {
 		" --update-broker-service --root " + syscall.EscapeArg(root)
 }
 func updateBrokerDispatchPath(root string) string {
-	return nativeServerUpdateRequestPath(root) + ".dispatch"
+	return filepath.Join(updateBrokerDirectory(root), "cluster-update-dispatch.json")
 }
 
 type brokerDispatch struct {
@@ -386,7 +386,8 @@ func consumeBrokerIntent(root string) error {
 	}
 	if err := ensureNativeServerUpdateDiskSpace(root, candidate.Size); err != nil { return err }
 	// The worker will re-open, atomically claim and independently verify the
-	// same authorization after launch. A dispatch marker prevents any replay
+	// same authorization after launch. A protected SYSTEM-owned dispatch
+	// marker prevents a LocalService process from forging worker approval.
 	// if the broker dies between the two operations.
 	digest := sha256.Sum256(raw)
 	dispatch := brokerDispatch{Schema:1,TransactionID:request.TransactionID,RequestSHA256:hex.EncodeToString(digest[:])}
