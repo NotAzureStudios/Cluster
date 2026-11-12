@@ -400,7 +400,7 @@ func consumeBrokerIntent(root string) error {
 	if closeErr != nil { return closeErr }
 	// The privileged worker comes from the protected broker binary, not a
 	// LocalService-writable Server data directory or staged artifact.
-	worker := filepath.Join(filepath.Dir(root), "Cluster-Update-Worker-"+request.TransactionID+".exe")
+	worker := filepath.Join(updateBrokerDirectory(root), "Cluster-Update-Worker-"+request.TransactionID+".exe")
 	if err := copyBrokerWorkerExecutable(updateBrokerExecutable(root), worker); err != nil { return err }
 	_ = publishWebUpdateStatus(root,webServerUpdateStatus{
 		OK:true,State:"installing",Release:candidate.Release,Sequence:candidate.Sequence,
