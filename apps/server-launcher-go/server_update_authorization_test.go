@@ -96,6 +96,7 @@ func TestBrokerAndInteractiveSignedUpdateIntentsAreDisjoint(t *testing.T){
  if strings.EqualFold(broker,native){t.Fatal("browser and native owners share an update request namespace")}
  content,err:=json.Marshal(req)
  if err!=nil{t.Fatal(err)}
+ if err:=os.MkdirAll(filepath.Dir(broker),0700);err!=nil{t.Fatal(err)}
  if err:=os.WriteFile(broker,content,0600);err!=nil{t.Fatal(err)}
  if _,err:=claimAuthorizedServerUpdate(fixture.root,time.Now().UTC(),signerFromFixture(fixture));err==nil{
   t.Fatal("native interactive worker attempted to claim a broker-only request")
