@@ -60,6 +60,10 @@ func main() {
 	inspectStagedUpdate := flag.Bool("inspect-staged-update", false, "read-only: independently verify a signed staged Server update (JSON)")
 	updateReadiness := flag.Bool("update-readiness", false, "read-only: signed staging and installation blocker report (JSON)")
  nativeUpdateApply := flag.Bool("native-update-apply", false, "internal: execute approved signed Server update from independent native worker")
+ brokerAuthorized := flag.Bool("broker-authorized", false, "internal: headless one-shot request verified by protected Windows broker")
+ brokerInstall := flag.Bool("update-broker-install", false, "install protected Windows Update Broker with local administrator approval")
+ brokerRemove := flag.Bool("update-broker-remove", false, "remove stopped protected Windows Update Broker")
+ brokerService := flag.Bool("update-broker-service", false, "internal: run privileged broker under Windows SCM")
 	updateChannel := flag.String("update-channel", "main", "signed Server update channel to inspect (main or development)")
 	webUpdateAction := flag.String("web-server-update", "", "internal: authenticated Web update check/stage/status; never install")
 	flag.Parse()
@@ -69,6 +73,28 @@ func main() {
 		fatal(err)
 	}
 	launcherRoot = root
+	if *brokerInstall || *brokerRemove || *brokerService {
+		count := 0
+		for _, active := range []bool{*brokerInstall, *brokerRemove, *brokerService} { if active { count++ } }
+		if count != 1 || *nativeUpdateApply || *brokerAuthorized || *webUpdateAction!="" || *service ||
+			*installService || *removeService || *updateReadiness || *inspectStagedUpdate ||
+			*diagnose || *repairManaged || *repair || *startup || *browser ||
+			*interfaceMode || *commandLine || *headless || *noAutostart || *updateChannel!="main" {
+			fatal(fmt.Errorf("update broker operations require one exclusive trusted Windows mode"))
+		}
+		if *brokerService {
+			if err := runUpdateBrokerService(root); err != nil { fatal(err) }
+			return
+		}
+		relaunched, err := ensureWindowsAdministrator()
+		if err != nil { fatal(err) }
+		if relaunched { return }
+		if *brokerInstall {
+			if err := installUpdateBroker(root); err != nil { fatal(err) }
+		} else if err := removeUpdateBroker(root); err != nil { fatal(err) }
+		return
+	}
+	if *brokerAuthorized && !*nativeUpdateApply { fatal(fmt.Errorf("broker authorization is valid only for the one-shot update worker")) }
 	if *webUpdateAction != "" {
 		if *nativeUpdateApply || *updateReadiness || *inspectStagedUpdate || *diagnose || *repairManaged || *repair ||
 			*service || *installService || *removeService || *startup || *browser || *interfaceMode ||
@@ -86,7 +112,7 @@ func main() {
    fmt.Fprintln(os.Stderr,"native Server update worker cannot be combined with any launcher or maintenance mode")
    os.Exit(2)
   }
-  if err:=runNativeServerUpdateInstall(root,*updateChannel);err!=nil{fatal(err)}
+  if err:=runNativeServerUpdateInstall(root,*updateChannel,*brokerAuthorized);err!=nil{fatal(err)}
   return
  }
 	if *updateReadiness {
