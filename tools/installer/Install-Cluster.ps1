@@ -185,6 +185,59 @@ function TestZip([string]$file) {
     if ($files -lt 200) { Fail "Suspiciously small source revision ($files files)." }
   } finally { $archiveObject.Dispose() }
 }
+# Extract the validated payload with bounded, durable progress. The previous
+# ZipFile.ExtractToDirectory call can spend minutes unpacking ~240 MiB of
+# compressed Node/Prisma files without printing anything, appearing frozen.
+# Keep the exact same isolated candidate and manifest checks; never touch Server.
+function ExpandRevisionWithProgress([string]$archivePath, [string]$stageRoot) {
+  $zip = [IO.Compression.ZipFile]::OpenRead($archivePath)
+  $timer = [Diagnostics.Stopwatch]::StartNew()
+  try {
+    [long]$totalBytes = 0
+    [int]$totalFiles = 0
+    foreach ($entry in $zip.Entries) {
+      if (-not $entry.FullName.EndsWith('/')) {
+        $totalFiles++
+        $totalBytes += $entry.Length
+      }
+    }
+    if ($totalFiles -lt 200 -or $totalFiles -gt 100000 -or $totalBytes -gt 2147483648) {
+      Fail 'ZIP source extraction would exceed its prevalidated safety budget.'
+    }
+    $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($stageRoot))
+    $minimumSpace = $totalBytes + 268435456L
+    if ($drive.IsReady -and $drive.AvailableFreeSpace -lt $minimumSpace) {
+      Fail ("Insufficient free disk space for isolated extraction: need {0:N0} MiB, have {1:N0} MiB on {2}." -f [math]::Ceiling($minimumSpace / 1MB), [math]::Floor($drive.AvailableFreeSpace / 1MB), $drive.Name)
+    }
+    Say ("Unpacking {0:N0} verified entries ({1:N0} MiB uncompressed) into isolated Build staging; existing Server is untouched." -f $totalFiles, [math]::Ceiling($totalBytes / 1MB))
+    [int]$files = 0
+    [long]$bytes = 0
+    [int]$lastReportedSeconds = 0
+    foreach ($entry in $zip.Entries) {
+      $relative = $entry.FullName.Replace('\', '/')
+      if (IsBadEntry $relative) { Fail "Unsafe source ZIP entry during extraction: $relative" }
+      if ($relative.EndsWith('/')) { continue }
+      $destination = Join-Path $stageRoot ($relative.Replace('/', [IO.Path]::DirectorySeparatorChar))
+      EnsureUnder $destination $stageRoot
+      [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+      # Fail instead of overwriting or following filesystem reparse points.
+      [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $false)
+      $files++
+      $bytes += $entry.Length
+      $elapsedSeconds = [int]$timer.Elapsed.TotalSeconds
+      if (($files % 500 -eq 0) -or ($elapsedSeconds -ge ($lastReportedSeconds + 5)) -or ($files -eq $totalFiles)) {
+        Say ("Extraction {0:N0}/{1:N0} files; {2:N0}/{3:N0} MiB; {4:N0}s elapsed." -f $files, $totalFiles, [math]::Floor($bytes / 1MB), [math]::Ceiling($totalBytes / 1MB), $elapsedSeconds)
+        $lastReportedSeconds = $elapsedSeconds
+      }
+    }
+    if ($files -ne $totalFiles -or $bytes -ne $totalBytes) { Fail 'Incomplete source extraction; refusing installation.' }
+    Say ("Source extraction complete in {0:N1}s. Verifying hashes before continuing." -f $timer.Elapsed.TotalSeconds)
+  } finally {
+    $timer.Stop()
+    $zip.Dispose()
+  }
+}
+
 function TestManifest([string]$source) {
   $manifest = Join-Path $source 'SOURCE_FILE_MANIFEST.sha256'
   if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
@@ -193,6 +246,7 @@ function TestManifest([string]$source) {
     return
   }
   $checked = 0
+  $manifestTimer = [Diagnostics.Stopwatch]::StartNew()
   $listed = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
   foreach ($line in [IO.File]::ReadLines($manifest)) {
     if ($line -notmatch '^([0-9a-fA-F]{64})  (.+)$') { Fail 'Invalid source SHA-256 manifest line.' }
@@ -206,6 +260,7 @@ function TestManifest([string]$source) {
     $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $candidate).Hash.ToLowerInvariant()
     if ($actual -ne $expected) { Fail "Source integrity failure: $relative" }
     $checked++
+    if ($checked % 500 -eq 0) { Say ("Integrity verification: {0:N0} source files hashed in {1:N0}s." -f $checked, [int]$manifestTimer.Elapsed.TotalSeconds) }
   }
   if ($checked -lt 200) { Fail 'Source manifest contained too few files.' }
   # Manifest is a complete allowlist. An attacker must not append an unlisted
@@ -216,7 +271,8 @@ function TestManifest([string]$source) {
       Fail "Unlisted source file in archive: $($candidate.FullName)"
     }
   }
-  Say "Verified $checked source-file hashes and complete manifest allowlist."
+  Say ("Verified {0:N0} source-file hashes and complete manifest allowlist in {1:N1}s." -f $checked, $manifestTimer.Elapsed.TotalSeconds)
+  $manifestTimer.Stop()
 }
 function TestPrebuiltRuntime([string]$source) {
   $metadataFile = Join-Path $source 'config/prebuilt-runtime.json'
@@ -644,7 +700,7 @@ try {
   New-Item -ItemType Directory -Path $stage -Force | Out-Null
   Say '[1/6] Verifying the source archive in isolated staging.'
   Say 'Extracting validated source into isolated build directory.'
-  [IO.Compression.ZipFile]::ExtractToDirectory($Archive, $stage)
+  ExpandRevisionWithProgress $Archive $stage
   $source = Join-Path $stage 'source'
   TestManifest $source
   $releaseFile = Join-Path $source 'config/release-candidate.json'
