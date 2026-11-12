@@ -10,7 +10,7 @@ const toolchain=JSON.parse(read('config/toolchain-versions.json'));
 const installer=read('apps/server-launcher-go/server_update_manifest.go');
 const signer=read('tools/scripts/cluster-sign-server-release.mjs');
 const publisher=read('.github/workflows/cluster-server-signed-main-publish.yml');
-const manual=read('.github/workflows/publish-cluster-1-2-1-manual.yml');
+const manual=read('.github/workflows/publish-cluster-1-2-2-full.yml');
 const goTests=read('apps/server-launcher-go/server_update_manifest_test.go');
 const feed='https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json';
 assert.equal(metadata.release,'1.2.2');
@@ -30,5 +30,7 @@ assert.ok(goTests.includes('TestOfficialImmutableGitHubReleaseUsesExactMutableSi
 assert.ok(manual.includes('gh release create v1.2.2') && manual.includes('--target "$SERVER_SHA"'),'manual release must reference exact verified build');
 assert.ok(manual.includes("assert metadata['sequence']==200002"),'manual release must pin canonical signed version order');
 assert.ok(manual.includes('Cluster-server-build-receipt.json'),'manual release must include artifact provenance');
-assert.ok(manual.includes('Cluster-Desktop-0.482.0-windows-x64.zip'),'Desktop assets stay independently pinned');
-console.log('PASS: Cluster 1.2.2 signed channel immutability, publisher order, mono-sequence, manual installer and Desktop parity contracts');
+assert.ok(manual.includes('Cluster-Desktop-1.2.2-windows-x64.zip') && manual.includes('Cluster-Desktop-Installer-1.2.2-windows-x64.exe'),'Desktop release must contain genuinely rebuilt 1.2.2 binaries');
+assert.ok(!manual.includes('Cluster-Desktop-0.482.0-windows-x64.zip'),'Full release must never recycle legacy Qt Desktop binaries');
+assert.ok(manual.includes('Match the reviewed Server build to this exact Desktop source commit'),'joined publisher must require matching Server and Qt builds');
+console.log('PASS: Cluster 1.2.2 signed channel immutability, publisher order, mono-sequence, full joint Server and Qt Desktop installer contracts');
