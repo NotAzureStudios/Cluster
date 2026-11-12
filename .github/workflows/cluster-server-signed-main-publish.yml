@@ -164,7 +164,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Could not create the isolated signed update feed branch' }
           }
           $previousSha = ''
-          $prior = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/$feedFile?ref=$feedBranch" 2>$null | ConvertFrom-Json
+          $prior = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" 2>$null | ConvertFrom-Json
           if ($LASTEXITCODE -eq 0 -and $null -ne $prior) {
             $previousSha = [string]$prior.sha
             $priorBytes = [Convert]::FromBase64String(([string]$prior.content -replace '\s',''))
@@ -186,7 +186,7 @@ jobs:
           [IO.File]::WriteAllText($jsonPath,($payload | ConvertTo-Json -Depth 3),[Text.UTF8Encoding]::new($false))
           gh api -X PUT "repos/$env:GITHUB_REPOSITORY/contents/$feedFile" --input "$jsonPath" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Versioned Server release was published, but signed main pointer was not advanced; recover manually, never overwrite the immutable release' }
-          $published = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/$feedFile?ref=$feedBranch" | ConvertFrom-Json
+          $published = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw 'Could not independently read the signed update pointer' }
           $publishedBytes = [Convert]::FromBase64String(([string]$published.content -replace '\s',''))
           $publishedDigest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($publishedBytes)).ToLowerInvariant()
