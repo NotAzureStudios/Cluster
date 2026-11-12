@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceVersion": "1.2.1",
+  "sourceVersion": "1.2.2",
   "profiles": {
     "server-windows-x64": {
       "product": "cluster-server",
@@ -53,7 +53,7 @@
       ],
       "requiresDatabase": false,
       "includesServerRuntime": false,
-      "desktopNativeVersion": "0.482.0"
+      "desktopNativeVersion": "1.2.2"
     },
     "web-responsive": {
       "product": "cluster-web",
