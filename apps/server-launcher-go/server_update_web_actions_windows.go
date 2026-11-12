@@ -75,7 +75,9 @@ func queueBrokerSignedServerUpdate(root string) (webServerUpdateStatus,error) {
 	}
 	if err:=ensureNativeServerUpdateDiskSpace(root,candidate.Size);err!=nil{return result,err}
 	for _,candidatePath:=range []string{
+		nativeServerUpdateRequestPath(root),
 		nativeServerUpdateRequestPath(root)+".claimed",
+		nativeBrokerServerUpdateRequestPath(root)+".claimed",
 		updateBrokerDispatchPath(root),
 		nativeServerUpdateHoldPath(root),
 		webUpdateRuntimeFile(root,"cluster-restart-request.json"),
@@ -97,7 +99,7 @@ func queueBrokerSignedServerUpdate(root string) (webServerUpdateStatus,error) {
 	}
 	raw,err:=json.Marshal(request)
 	if err!=nil{return result,err}
-	path:=nativeServerUpdateRequestPath(root)
+	path:=nativeBrokerServerUpdateRequestPath(root)
 	file,err:=os.OpenFile(path,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
 	if err!=nil{return result,fmt.Errorf("another Server update request already exists: %w",err)}
 	if _,err=file.Write(raw);err==nil{err=file.Sync()}
@@ -133,8 +135,8 @@ func runWebServerUpdateAction(root,action string)error{
  case "status":
   state:=readWebUpdateStatus(root)
   pending:=false
-  for _,candidatePath:=range []string{nativeServerUpdateRequestPath(root),
-    nativeServerUpdateRequestPath(root)+".claimed"}{
+  for _,candidatePath:=range []string{nativeBrokerServerUpdateRequestPath(root),
+    nativeBrokerServerUpdateRequestPath(root)+".claimed"}{
     if _,err:=os.Lstat(candidatePath);err==nil{pending=true;break}
   }
   // Do not repaint a queued, installed, failed-recovery or active
