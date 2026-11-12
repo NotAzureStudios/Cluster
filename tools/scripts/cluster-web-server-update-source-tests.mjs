@@ -28,7 +28,7 @@ assert.match(web,/Install verified update/);
 assert.match(web,/\/api\/admin\/server-updates\/install/);
 const broker = readFileSync("apps/server-launcher-go/server_update_broker_windows.go","utf8");
 assert.match(broker,/ClusterStudioUpdateBroker/);
-assert.match(broker,/inspectStagedServerUpdate\(root,"main"\)/);
+assert.match(broker,/inspectStagedServerUpdate\(root,\s*"main"\)/);
 assert.match(broker,/copyBrokerWorkerExecutable/);
 assert.match(broker,/updateBrokerDispatchPath/);
 assert.match(native,/queueBrokerSignedServerUpdate/);
