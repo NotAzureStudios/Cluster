@@ -25,7 +25,10 @@ func runPlatformServiceAction(root string, service, install, remove bool) error 
 		return nil
 	}
 	if install {
-		return installClusterService(root)
+		if err := installClusterService(root); err != nil { return err }
+		// Explicit local UAC service installation is the trusted moment to
+		// provision the independent, protected LocalSystem update broker.
+		return installUpdateBroker(root)
 	}
 	return removeClusterService()
 }
