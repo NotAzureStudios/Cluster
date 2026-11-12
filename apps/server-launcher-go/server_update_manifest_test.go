@@ -289,3 +289,34 @@ func TestSignedStableServerOneOneManifestRequiresNewSequence(t *testing.T) {
 		t.Fatalf("installed Server 1.1.0 sequence: %d", got)
 	}
 }
+
+
+func TestOfficialImmutableGitHubReleaseUsesExactMutableSignedFeedRedirect(t *testing.T){
+ feed,err:=url.Parse(defaultOfficialMainServerUpdateFeedURL)
+ if err!=nil{t.Fatal(err)}
+ if feed.Hostname()!="github.com" || !strings.Contains(feed.Path,"/raw/refs/heads/server-update-feed/"){
+  t.Fatalf("expected same-origin signed manifest feed on a separate mutable GitHub branch: %s",feed)
+ }
+ cases:=[]struct{name,url string;allow bool}{
+  {"canonical Github raw", "https://raw.githubusercontent.com/NotAzureStudios/Cluster/refs/heads/server-update-feed/cluster-server-main.json",true},
+  {"legacy Github raw route", "https://raw.githubusercontent.com/NotAzureStudios/Cluster/server-update-feed/cluster-server-main.json",true},
+  {"other branch", "https://raw.githubusercontent.com/NotAzureStudios/Cluster/main/cluster-server-main.json",false},
+  {"other owner", "https://raw.githubusercontent.com/Attacker/Cluster/server-update-feed/cluster-server-main.json",false},
+  {"raw query", "https://raw.githubusercontent.com/NotAzureStudios/Cluster/server-update-feed/cluster-server-main.json?token=1",false},
+  {"raw fragment", "https://raw.githubusercontent.com/NotAzureStudios/Cluster/server-update-feed/cluster-server-main.json#x",false},
+  {"unsigned release", "https://github.example.test/NotAzureStudios/Cluster/raw/server-update-feed/cluster-server-main.json",false},
+  {"arbitrary redirect", "https://evil.example.test/cluster-server-main.json",false},
+ }
+ for _,tc:=range cases{
+  t.Run(tc.name,func(t *testing.T){
+   dest,err:=url.Parse(tc.url)
+   if err!=nil{t.Fatal(err)}
+   if got:=serverUpdateRedirectAllowed(feed,dest);got!=tc.allow{
+    t.Fatalf("redirect allowed=%t expected %t: %s",got,tc.allow,tc.url)
+   }
+  })
+ }
+ custom,_:=url.Parse("https://updates.example.test/official.json")
+ raw,_:=url.Parse(cases[0].url)
+ if serverUpdateRedirectAllowed(custom,raw){t.Fatal("custom feed gained official GitHub raw redirect privilege")}
+}
