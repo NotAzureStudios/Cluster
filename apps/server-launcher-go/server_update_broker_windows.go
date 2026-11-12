@@ -362,7 +362,7 @@ func runBrokerQueue(root string, stop <-chan struct{}) error {
 	}
 }
 func consumeBrokerIntent(root string) error {
-	path := nativeServerUpdateRequestPath(root)
+	path := nativeBrokerServerUpdateRequestPath(root)
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) { return nil }
 	if err != nil { return err }
@@ -426,7 +426,7 @@ func consumeBrokerIntent(root string) error {
 	if installedServerReleaseSequence(root) != candidate.Sequence {
 		return errors.New("broker worker exited successfully but installed release differs")
 	}
-	if err := os.Remove(nativeServerUpdateRequestPath(root)+".claimed"); err != nil { return err }
+	if err := os.Remove(nativeBrokerServerUpdateRequestPath(root)+".claimed"); err != nil { return err }
 	if err := os.Remove(updateBrokerDispatchPath(root)); err != nil { return err }
 	_ = os.Remove(worker)
 	return nil
