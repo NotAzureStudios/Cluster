@@ -7,6 +7,7 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { PrivacyConsentManager } from "./features/legal/PrivacyConsentManager";
 import { BehavioralAnalyticsManager } from "./components/BehavioralAnalyticsManager";
 import { installGlobalClientIncidentHandlers } from "./core/client-incidents";
+import { installStaleChunkRecovery } from "./core/stale-chunk-recovery";
 import "./styles.css";
 
 export type ClusterRendererHost = "web" | "desktop";
@@ -23,6 +24,7 @@ function initializeRendererRuntime(host: ClusterRendererHost) {
   initializeRendererCapabilities(host);
   initializePerformanceMonitoring();
   installGlobalClientIncidentHandlers();
+  installStaleChunkRecovery();
   if (host === "desktop") {
     void import("./core/desktop").then((desktop) => {
       desktop.installNativeCapabilityTransport();

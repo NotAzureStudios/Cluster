@@ -1,6 +1,7 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { ApiError } from "../core/api";
 import { reportClientIncident } from "../core/client-incidents";
+import { isStaleChunkError } from "../core/stale-chunk-recovery";
 import { LoadingState } from "./LoadingState";
 import { RequestErrorState } from "./RequestState";
 
@@ -22,6 +23,31 @@ class FeatureErrorBoundary extends Component<BoundaryProps, BoundaryState> {
   retry = () => this.setState((current) => ({ error: null, retryKey: current.retryKey + 1, occurredAt: null }));
 
   render() {
+    if (this.state.error && isStaleChunkError(this.state.error)) {
+      // Retrying cannot help: React.lazy keeps the failed import. Only the new build can.
+      const updateError = new ApiError(
+        "Cluster was updated while this window was open. Reload to load the new version; nothing you saved is lost.",
+        0,
+        undefined,
+        null,
+        "CLIENT_STALE_BUILD",
+        { operation: `LOAD ${this.props.label}`.slice(0, 200), occurredAt: this.state.occurredAt },
+      );
+      return (
+        <section className="panel feature-error-v205" role="alert">
+          <div>
+            <p className="eyebrow">Update available</p>
+            <RequestErrorState
+              error={updateError}
+              title={`${this.props.label} needs a reload`}
+              onReload={() => window.location.reload()}
+              reloadLabel="Reload Cluster"
+              showDiagnostics={false}
+            />
+          </div>
+        </section>
+      );
+    }
     if (this.state.error) {
       const recoveryError = new ApiError(
         "This workspace module could not render, but the rest of Cluster remains available.",
