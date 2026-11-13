@@ -83,11 +83,17 @@ await check("real filesystem holds admit before and deny during update", async (
     await fs.rm(folder, { force: true, recursive: true });
   }
 });
+// Load the real session read coalescer so these checks exercise it too.
+const sessionReadCache = loadTypescript("session-read-cache.ts", {
+  source: await read("apps/server/src/core/session-read-cache.ts"),
+  modules: {},
+});
 const securitySource = await read("apps/server/src/app/server-request-security-services.ts");
 const { createRequestSecurityServices } = loadTypescript("server-request-security-services.ts", {
   source: securitySource,
   modules: {
     "../core/outbound-http.js": { secureOutboundFetch: () => {} },
+    "../core/session-read-cache.js": sessionReadCache,
     "../core/security.js": { mutationOriginDecisionForRequest: () => ({ allowed: true }) },
     "../core/studio-security-policy.js": { normalizeStudioSecurityPolicy: (v, defaults) => ({
       sessionDays: v?.sessionDays ?? defaults.sessionDays,
@@ -122,7 +128,7 @@ function securityHarness(readSettings) {
   const services = createRequestSecurityServices(deps);
   return { services, get sessionReads() { return sessionReads; } };
 }
-const req = () => ({ cookies: { cluster_session: "test-token" }, headers: {} });
+const req = (method = "GET") => ({ method, cookies: { cluster_session: "test-token" }, headers: {} });
 await check("simultaneous authenticated reads share one security policy fetch", async () => {
   const gate = deferred();
   let settingsReads = 0;
@@ -133,9 +139,26 @@ await check("simultaneous authenticated reads share one security policy fetch", 
   gate.resolve({ sessionDays: 7, sessionIdleHours: 12 });
   const sessions = await Promise.all(promises);
   assert.equal(sessions.filter(Boolean).length, 30);
-  assert.equal(h.sessionReads, 30, "session identity still verified independently");
+  // Concurrent reads share one in-flight session query; each request still
+  // applies every validity check to its own copy of the row.
+  assert.equal(h.sessionReads, 1, "simultaneous reads share one in-flight session query");
   assert.ok(await h.services.getCurrentSession(req()));
+  assert.equal(h.sessionReads, 2, "nothing is cached once the shared read settles");
   assert.equal(settingsReads, 1, "fresh policy cache reused without refetch");
+});
+await check("mutations always read their session independently", async () => {
+  const h = securityHarness(async () => ({ sessionDays: 7, sessionIdleHours: 12 }));
+  const sessions = await Promise.all(["POST", "PUT", "PATCH", "DELETE", "POST"].map((method) => h.services.getCurrentSession(req(method))));
+  assert.equal(sessions.filter(Boolean).length, 5);
+  assert.equal(h.sessionReads, 5, "no mutation joins a shared session read");
+});
+await check("shared session rows are copied per request", async () => {
+  const h = securityHarness(async () => ({ sessionDays: 7, sessionIdleHours: 12 }));
+  const [first, second] = await Promise.all([h.services.getCurrentSession(req()), h.services.getCurrentSession(req())]);
+  assert.equal(h.sessionReads, 1);
+  assert.notEqual(first, second, "each request owns its row object");
+  first.deviceId = "changed";
+  assert.notEqual(second.deviceId, "changed");
 });
 await check("failed security policy loads are not cached and next request can recover", async () => {
   let calls = 0;
