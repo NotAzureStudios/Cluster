@@ -1054,6 +1054,19 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       .filter((membership: any) => !membership.user?.archived && hasTargetAccess(membership.user, membership.role, "project", project.id, project, projectRules, "view"))
       .map((membership: any) => String(membership.userId));
     const removed = await prisma.$transaction(async (transaction: any) => {
+      // The project's Library folder outlives the project (its projectId is set
+      // to null) so files are never lost, but it must not stay pinned: each
+      // deleted project left another pinned "<name> Library" folder behind.
+      // Unpin before the delete, while the folder can still be found by project.
+      const projectFolderIds = [project.libraryFolderId].filter(Boolean);
+      await transaction.libraryItem.updateMany({
+        where: {
+          type: "folder",
+          pinned: true,
+          OR: [{ projectId: project.id, source: "project-folder" }, ...(projectFolderIds.length ? [{ id: { in: projectFolderIds } }] : [])],
+        },
+        data: { pinned: false, revision: { increment: 1 } },
+      });
       const deleted = await transaction.project.deleteMany({ where: { id: params.projectId, revision: project.revision } });
       if (!deleted.count) return false;
       await transaction.syncTombstone.create({
