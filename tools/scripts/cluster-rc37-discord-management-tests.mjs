@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = (() => { try { return require('typescript'); } catch { return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript'); } })();
+const ts = (() => { try { return require('typescript'); } catch { return require('typescript'); } })();
 const root = path.resolve(new URL('../..', import.meta.url).pathname);
 let checks = 0;
 function check(desc, callback) { const value = callback(); checks++; console.log(`PASS ${checks}: ${desc}`); return value; }

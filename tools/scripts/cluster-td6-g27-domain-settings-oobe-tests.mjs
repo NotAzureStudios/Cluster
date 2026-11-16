@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 const require = createRequire(import.meta.url);
 let ts;
-try {ts = require('typescript');} catch {ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');}
+try {ts = require('typescript');} catch {ts = require('typescript');}
 const root = new URL('../../',import.meta.url);
 function source(name) { return fs.readFileSync(new URL(name,root),'utf8'); }
 function load(name, mocks) {

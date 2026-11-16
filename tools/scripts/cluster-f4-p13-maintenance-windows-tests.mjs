@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url);
-const ts=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts=require('typescript');
 const root=path.resolve(import.meta.dirname,'../..');
 const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
 const source=read('apps/server/src/core/operations-maintenance-window.ts');

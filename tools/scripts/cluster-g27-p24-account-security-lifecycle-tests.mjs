@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import ts from '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js';
+import ts from 'typescript';
 
 const read = name => readFileSync(new URL('../../'+name, import.meta.url), 'utf8');
 const authorityCode = read('packages/renderer/src/features/settings/account-request-authority.ts');

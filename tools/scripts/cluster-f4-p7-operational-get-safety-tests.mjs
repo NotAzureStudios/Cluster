@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const ts=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts=require('typescript');
 const root=path.resolve(import.meta.dirname,'../..');
 let count=0;const yes=(v,m)=>{assert.ok(v,m);count++};const eq=(a,b,m)=>{assert.deepEqual(a,b,m);count++};
 const source=fs.readFileSync(path.join(root,'apps/server/src/app/server-routes-health-operations.ts'),'utf8');

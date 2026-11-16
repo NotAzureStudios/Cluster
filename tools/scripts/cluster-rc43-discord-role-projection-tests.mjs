@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url);
-const ts=(()=>{try{return require('typescript')}catch{return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript')}})();
+const ts=(()=>{try{return require('typescript')}catch{return require('typescript')}})();
 const root=path.resolve(new URL('../..',import.meta.url).pathname);
 function moduleFrom(file,mocks={}) {
  const code=ts.transpileModule(fs.readFileSync(path.join(root,file),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;

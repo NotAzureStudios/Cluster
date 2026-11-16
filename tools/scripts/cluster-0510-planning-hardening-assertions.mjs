@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url);
 let ts;
-try { ts=require('typescript'); } catch { ts=require(process.env.CLUSTER_TYPESCRIPT_PATH || '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js'); }
+try { ts=require('typescript'); } catch { ts=require(process.env.CLUSTER_TYPESCRIPT_PATH || 'typescript'); }
 import { nextCloseoutStatus, closeoutShareLinkProjection, closeoutShareLinkActive, updateCloseoutAtRevision, CloseoutConcurrentWrite } from '../../apps/server/src/domains/projects/project-closeout-policy.ts';
 import { calendarRangeWhere, isCalendarInstant, isCalendarTimezone, isCalendarWindowValid } from '../../apps/server/src/domains/planning/calendar-intervals.ts';
 import { prepareLibraryDestruction } from '../../apps/server/src/domains/library/library-destruction.ts';

@@ -1,5 +1,5 @@
-const ts=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript');
-const postcss=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/postcss');
+const ts=require('typescript');
+const postcss=require('postcss');
 const fs=require('fs'),path=require('path');
 const root=path.resolve(__dirname,'../..');
 const read=p=>fs.readFileSync(p,'utf8');

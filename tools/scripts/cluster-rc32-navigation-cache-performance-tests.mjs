@@ -4,7 +4,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = (() => { try {return require('typescript');} catch {return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript');} })();
+const ts = (() => { try {return require('typescript');} catch {return require('typescript');} })();
 const root = path.resolve(import.meta.dirname, '../..');
 const read = file => fs.readFileSync(path.join(root,file),'utf8');
 let passed = 0;

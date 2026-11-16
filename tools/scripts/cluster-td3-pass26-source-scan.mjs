@@ -1,7 +1,7 @@
 /** Source-development smoke check; not full dependency-backed compile or certification. */
 import fs from 'node:fs';import path from 'node:path';import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const ts=require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts=require('typescript');
 const root=path.resolve(import.meta.dirname,'../..');const exts=['.ts','.tsx'];
 const walk=(dir,fn)=>{for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(e.name==='node_modules'||e.name.startsWith('.'))continue;const p=path.join(dir,e.name);if(e.isDirectory())walk(p,fn);else if(e.isFile())fn(p);}};
 const result={typescriptFiles:0,syntaxErrors:[],rendererImports:0,missingImports:[],cssFiles:0,cssBraceErrors:[]};

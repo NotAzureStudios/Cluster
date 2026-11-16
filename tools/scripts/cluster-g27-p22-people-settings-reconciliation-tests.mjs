@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import vm from 'node:vm';
 const require = createRequire(import.meta.url);
-const ts = (() => { try { return require('typescript'); } catch { return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js'); } })();
+const ts = (() => { try { return require('typescript'); } catch { return require('typescript'); } })();
 const read = (name) => readFileSync(new URL('../../' + name, import.meta.url), 'utf8');
 const module = { exports: {} };
 vm.runInNewContext(ts.transpileModule(read('packages/renderer/src/core/post-commit-reconciliation.ts'), {

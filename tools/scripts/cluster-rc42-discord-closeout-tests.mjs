@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { EventEmitter } from 'node:events';
 const require = createRequire(import.meta.url);
-const ts = (() => { try { return require('typescript'); } catch { return require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript'); } })();
+const ts = (() => { try { return require('typescript'); } catch { return require('typescript'); } })();
 const root = path.resolve(new URL('../..', import.meta.url).pathname);
 const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 function moduleFrom(rel, mocks = {}) {
