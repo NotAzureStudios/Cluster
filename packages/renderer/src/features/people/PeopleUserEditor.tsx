@@ -41,27 +41,28 @@ export function PeopleUserEditor({
   person: User;
   departmentNames: string[];
   managerOptions: Array<{ id: string; label: string }>;
-  onSave: (changes: Record<string, unknown>) => Promise<void>;
+  onSave: (changes: Record<string, unknown>) => Promise<User>;
   onRoleChange: (role: string, expectedProfileRevision: number) => Promise<void>;
   actorId: string;
   onCancel: () => void;
   onOpenAccess: () => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
-  const initial = useMemo(() => fromProfile(person), [person.id]);
+  const [initial, setInitial] = useState<PeopleEditorDraft>(() => fromProfile(person));
   // The opened revision is the edit precondition. Do not adopt a newer
   // background-refreshed profileRevision while retaining an old draft.
   const openedRevision = useRef(person.profileRevision || 1);
-  const [draft, setDraft] = useState<PeopleEditorDraft>(initial);
+  const [draft, setDraft] = useState<PeopleEditorDraft>(() => fromProfile(person));
   const [saving, setSaving] = useState(false);
   const [roleDirty, setRoleDirty] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const departmentOptions = useMemo(() => [...new Set([person.department || "", ...departmentNames].filter(Boolean))].sort((a, b) => a.localeCompare(b)), [person.department, departmentNames]);
   const changed = changedPeopleEditorFields(draft, initial);
   const profileDirty = changed.length > 0;
   const dirty = profileDirty || roleDirty;
   useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
-  function update(key: keyof PeopleEditorDraft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); }
+  function update(key: keyof PeopleEditorDraft, value: string) { setDraft((old) => ({ ...old, [key]: value })); setError(""); setSuccess(""); }
   async function cancel() {
     if (saving) return;
     if (dirty && !(await confirmCluster({
@@ -84,7 +85,15 @@ export function PeopleUserEditor({
     setSaving(true);
     setError("");
     try {
-      await onSave(changes);
+      const refreshed = await onSave(changes);
+      if (refreshed.id !== person.id || !Number.isInteger(refreshed.profileRevision) || (refreshed.profileRevision || 0) < 1) {
+        throw new Error("Details were saved, but the latest revision could not be confirmed. Reopen the editor before making another change.");
+      }
+      const latest = fromProfile(refreshed);
+      openedRevision.current = refreshed.profileRevision!;
+      setInitial(latest);
+      setDraft(latest);
+      setSuccess(roleDirty ? "Details saved. You can apply the selected role now." : "User details saved.");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not save this user.";
       setError(/PROFILE_REVISION_CONFLICT|409|changed since it was opened/i.test(message)
@@ -109,7 +118,7 @@ export function PeopleUserEditor({
       <div>
         <p className="eyebrow">Account administration</p>
         <h3>Edit user</h3>
-        <p>Change identity and work details in one save. Access and recovery have separate controls.</p>
+        
       </div>
       <ClusterButton size="compact" variant="quiet" type="button" onClick={() => void cancel()} disabled={saving}>Close</ClusterButton>
     </header>
@@ -142,7 +151,7 @@ export function PeopleUserEditor({
             <option value="">No department</option>
             {departmentOptions.map((name) => <option key={name} value={name}>{name}</option>)}
           </ClusterNativeSelect>
-          <small>Managed departments only. Create new ones in People → Organization.</small>
+          
         </label>
         <label className="people-user-editor-field-v106">
           <span>Reports to</span>
@@ -151,7 +160,7 @@ export function PeopleUserEditor({
             {draft.managerUserId && !managerOptions.some((entry) => entry.id === draft.managerUserId) && <option value={draft.managerUserId} disabled>Unavailable or outside your workspace</option>}
             {managerOptions.filter((entry) => entry.id !== person.id).map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
           </ClusterNativeSelect>
-          <small>Only active members of this workspace. Reporting cycles are rejected by the server.</small>
+          
         </label>
         {field("workLocation", "Work location")}
         {field("employmentType", "Employment type")}
@@ -168,19 +177,20 @@ export function PeopleUserEditor({
       <label className="people-user-editor-field-v106">
         <span>Administrative notes</span>
         <ClusterTextarea value={draft.notes} disabled={saving} maxLength={4000} rows={3} placeholder="Private management notes" onChange={(event) => update("notes", event.target.value)} />
-        <small>Administrative information. Do not put passwords or access tokens here.</small>
+        <small>Do not store passwords or access tokens.</small>
       </label>
     </div>
     <PeopleRoleAssignmentPanel person={person} actorId={actorId} profileDirty={profileDirty || saving} onChange={onRoleChange} onDirtyChange={setRoleDirty} />
     <div className="people-user-editor-section-v106 people-user-editor-access-v106">
-      <div><h4>Access & security</h4><p>Workspace role: <strong>{person.workspaceRole || "member"}</strong>. Account state: <strong>{String(person.accountState || "ACTIVE").replaceAll("_", " ")}</strong>. Role grants, access expiry, suspension and credential recovery are handled separately.</p></div>
+      <div><h4>Access & security</h4><p>Role: <strong>{person.workspaceRole || "member"}</strong> · State: <strong>{String(person.accountState || "ACTIVE").replaceAll("_", " ")}</strong></p></div>
       <ClusterButton type="button" size="compact" variant="secondary" disabled={saving} onClick={onOpenAccess}>Open access settings</ClusterButton>
     </div>
     {error && <p className="people-user-editor-error-v106" role="alert">{error}</p>}
+    {success && <p className="people-user-editor-status-v11" role="status">{success}</p>}
     <footer className="people-user-editor-actions-v106">
-      <span role="status">{profileDirty ? `${changed.length} unsaved field${changed.length === 1 ? "" : "s"}` : roleDirty ? "Unsaved role selection" : "No unsaved changes"}</span>
+      <span role="status">{profileDirty ? `${changed.length} unsaved field${changed.length === 1 ? "" : "s"}${roleDirty ? " · role selected separately" : ""}` : roleDirty ? "Role change pending" : "No unsaved changes"}</span>
       <ClusterButton type="button" variant="quiet" disabled={saving} onClick={cancel}>Cancel</ClusterButton>
-      <ClusterButton type="button" variant="primary" disabled={!profileDirty || saving || roleDirty} onClick={() => void save()}>{saving ? "Saving…" : "Save user"}</ClusterButton>
+      <ClusterButton type="button" variant="primary" disabled={!profileDirty || saving} onClick={() => void save()}>{saving ? "Saving…" : "Save user"}</ClusterButton>
     </footer>
   </section>;
 }

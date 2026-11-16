@@ -394,3 +394,35 @@
 .people-role-assignment-actions-v11 select{max-width:100%}
 .people-user-editor-status-v11{margin:0;font-size:.71rem;color:var(--text)}
 @media(max-width:640px){.people-role-assignment-actions-v11{grid-template-columns:minmax(0,1fr)}.people-role-assignment-actions-v11>button{justify-self:start}}
+
+/* Dedicated admin Accounts workspace. General People remains focused on
+   presence, teams, collaboration and non-sensitive workforce discovery. */
+.people-account-management-v11{display:grid;gap:12px;min-width:0;padding:16px;color:var(--text)}
+.people-account-management-head-v11{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.people-account-management-head-v11 h2{font-size:1.1rem;line-height:1.3;margin:0 0 4px}
+.people-account-management-head-v11 span{color:var(--muted);font-size:.76rem}
+.people-account-management-head-actions-v11{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.people-account-management-filters-v11{display:grid;grid-template-columns:minmax(180px,1.5fr) repeat(3,minmax(130px,1fr)) auto;align-items:end;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.people-account-management-filters-v11 .field{min-width:0;margin:0;display:grid;gap:5px}
+.people-account-management-filters-v11 .field>span{font-size:.72rem;color:var(--muted)}
+.people-account-management-table-wrap-v11{min-width:0;overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+.people-account-management-table-v11{width:100%;min-width:860px;border-collapse:collapse;text-align:left;table-layout:auto}
+.people-account-management-table-v11 thead{background:color-mix(in srgb,var(--surface) 85%,transparent)}
+.people-account-management-table-v11 th{padding:10px 12px;font-size:.7rem;color:var(--muted);font-weight:600;text-transform:none;white-space:nowrap;border-bottom:1px solid var(--border)}
+.people-account-management-table-v11 td{padding:12px;border-bottom:1px solid var(--border);font-size:.78rem;vertical-align:middle}
+.people-account-management-table-v11 tbody tr:last-child td{border-bottom:0}
+.people-account-management-table-v11 tbody tr:hover{background:color-mix(in srgb,var(--accent,#57c1ff) 4%,transparent)}
+.people-account-management-table-v11 td strong{display:block;font-weight:600;line-height:1.4}
+.people-account-management-table-v11 td small{display:block;color:var(--muted);font-size:.69rem;line-height:1.4;margin-top:2px;overflow-wrap:anywhere}
+.people-account-state-v11{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.people-account-state-v11:before{content:"";width:6px;height:6px;flex:none;border-radius:50%;background:var(--accent,#57c1ff)}
+.people-account-state-v11.restricted:before{background:var(--muted)}
+.people-account-row-actions-v11{display:flex;gap:4px;flex-wrap:nowrap;justify-content:flex-end}
+.people-account-row-actions-v11>button{white-space:nowrap}
+.people-account-management-table-v11 .people-account-empty-v11{text-align:center;padding:26px 12px;color:var(--muted)}
+.people-account-loading-v11{padding:20px;text-align:center;font-size:.78rem;color:var(--muted)}
+.people-account-management-error-v11{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--danger,var(--text));font-size:.79rem;padding:10px}
+.people-account-management-footer-v11{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:.74rem;flex-wrap:wrap}
+@media(max-width:1180px){.people-account-management-filters-v11{grid-template-columns:repeat(3,minmax(130px,1fr))}.people-account-search-v11{grid-column:1/-1}}
+@media(max-width:670px){.people-account-management-v11{padding:10px}.people-account-management-filters-v11{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.people-account-management-filters-v11 .people-account-search-v11{grid-column:1/-1}.people-account-management-head-actions-v11{width:100%}}
+@media(max-width:400px){.people-account-management-filters-v11{grid-template-columns:minmax(0,1fr)}.people-account-management-filters-v11 .people-account-search-v11{grid-column:auto}}
