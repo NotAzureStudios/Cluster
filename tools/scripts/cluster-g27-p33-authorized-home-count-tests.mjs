@@ -12,7 +12,7 @@ const builtIn = readFileSync(path.join(root, 'packages/renderer/src/features/hom
 const routes = readFileSync(path.join(root, 'apps/server/src/domains/data-metrics/data-metric-routes.ts'), 'utf8');
 const runtime = readFileSync(path.join(root, 'apps/server/src/app/server-data-platform-runtime.ts'), 'utf8');
 const require = createRequire(import.meta.url);
-const ts = require(path.resolve(process.execPath, '../../lib/node_modules/typescript/lib/typescript.js'));
+const ts = require('typescript');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 let effect = null, state = null, apiRead = null, count = 0;
 const check = (description, fn) => { fn(); count++; console.log(`PASS ${description}`); };
