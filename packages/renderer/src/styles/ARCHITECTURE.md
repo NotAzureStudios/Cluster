@@ -121,7 +121,7 @@ Canonical shared component owners:
 - `styles/components/filter-menu.css`
 - `styles/components/number-stepper.css`
 
-Canonical application/feature owners added or expanded in this block include `project-delivery.css`, `tool-infrastructure.css`, `team-workspace.css`, `template-management.css`, Operations, Admin, Create, Changelog, Shell, Timeline, Library, and Boards.
+Canonical application/feature owners added or expanded in this block include `project-delivery.css`, `tool-infrastructure.css`, `template-management.css`, Operations, Admin, Create, Changelog, Shell, Timeline, Library, and Boards.
 
 Block 13 bounded `application-tools.css`, `application-workspaces.css`, and `consistency.css` so they could no longer grow as fallback registries. Block 14 completes that migration by retiring both application registry files; `consistency.css` remains the bounded shared-policy layer. Feature-rooted rules belong beside the feature that emits them. Cross-feature invariants may remain shared only when the selector itself expresses a genuinely cross-feature contract.
 

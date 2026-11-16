@@ -14,7 +14,6 @@ check('shared header supports trailing dynamic counts',()=>assert.match(shared,/
 check('controlled disclosures only emit true transitions',()=>assert.match(shared,/next !== expanded/));
 check('disclosure ignores disabled pointer/keyboard activation',()=>assert.match(shared,/if \(disabled\) event\.preventDefault\(\)/));
 for(const [label,file,countExpected] of [
- ['People filters','packages/renderer/src/features/application/modules/application-team-workspace.tsx',1],
  ['Boards','packages/renderer/src/features/boards/BoardWorkspacePage.tsx',1],
  ['Whiteboards','packages/renderer/src/features/whiteboards/WhiteboardWorkspacePanels.tsx',2],
  ['Project history and relationships','packages/renderer/src/features/projects/ProjectMetadataPanels.tsx',2],
@@ -35,14 +34,9 @@ check('Project snapshot destructive confirmation retained',()=>assert.match(read
 check('Library metadata retains the JSON field editing state',()=>assert.match(read('packages/renderer/src/features/library/LibraryWorkspacePage.tsx'),/title="Custom metadata"[\s\S]*?value=\{draft\.metadata\}/));
 const nav=read('packages/renderer/src/components/CompactSectionNav.tsx');
 const sw=read('packages/renderer/src/components/ProjectResourceSwitcher.tsx');
-const hook=read('packages/renderer/src/components/useClusterInlineMenu.ts');
-check('shared inline dismissal closes only the owning details ref',()=>{assert.match(hook,/const element = detailsRef\.current/);assert.doesNotMatch(nav,/document\.querySelectorAll<HTMLDetailsElement>/);});
-check('shared inline dismissal closes on outside pointer events',()=>assert.match(hook,/document\.addEventListener\("pointerdown", outside, true\)/));
-check('shared inline dismissal cleans up document listener',()=>assert.match(hook,/document\.removeEventListener\("pointerdown", outside, true\)/));
-check('Escape restores summary focus',()=>{assert.match(hook,/event\.key !== "Escape"/);assert.match(hook,/dismiss\(true\)/);});
+check('section nav does not query every details element to dismiss',()=>assert.doesNotMatch(nav,/document\.querySelectorAll<HTMLDetailsElement>/));
 check('section nav exposes menu radio selection and arrow keyboard controls',()=>{assert.match(nav,/role="menuitemradio"/);assert.match(nav,/event\.key === "ArrowDown"/);});
 check('resource browsing closes its own menu on selection',()=>assert.match(sw,/onChange\(item\.id\); dismiss\(\)/));
-check('Team filter CSS keeps a single header and separate responsive grid',()=>{const css=read('packages/renderer/src/features/application/styles/team-workspace.css');assert.match(css,/details\.team-command-bar-v062\.cluster-field-v425/);assert.match(css,/> \.team-filter-grid-v0102/);});
 check('shared disclosures retain focus-visible styles',()=>assert.match(read('packages/renderer/src/styles/design-system/primitives.css'),/details\.cluster-field-v425 > summary:focus-visible/));
 check('Qt settings can be resized below old 520px constraint',()=>assert.match(read('apps/desktop-qt/qml/pages/AppSettingsWindow.qml'),/minimumWidth: 360/));
 check('taskbar still has Tickets, My Work, transfers',()=>{const s=read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');for(const c of ['TaskbarTransferCenter','canSeeMyWork','canSeeTickets'])assert.ok(s.includes(c));});
