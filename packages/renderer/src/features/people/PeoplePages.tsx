@@ -959,7 +959,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
       <ClusterMasterDetail className="people-layout-v244" label="People directory and profile inspector" masterLabel="People directory" detailLabel="Person profile" detailOpen={Boolean(profile)} onCloseDetail={() => { setProfileExpanded(false); personDetailHistory.closeDetail(); }} detailSize="wide" persistKey="people" resizable={!profileExpanded} master={<aside className="panel people-directory-v244" aria-label="People directory">
           <div className="people-directory-head-v244">
-            <div><strong>Directory</strong><span>{filteredUsers.length}</span></div>
+            <div><strong>Directory</strong>{" "}<span>{filteredUsers.length}</span></div>
             <ClusterSegmentedControl value={directoryMode} onChange={setDirectoryMode} label="People directory layout" options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} />
           </div>
           {directoryMode === "table" ? (

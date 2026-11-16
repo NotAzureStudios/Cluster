@@ -354,7 +354,7 @@ export function OperationsIncidentsPanel() {
         <section className="panel">
           <header className="section-heading"><div><h3>Open incident</h3></div></header>
           <div className="form-grid">
-            <label><span>Title</span><ClusterInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Search indexing unavailable" /></label>
+            <label><span>Title</span><ClusterInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Short summary of what is wrong" /></label>
             <label><span>Severity</span><ClusterNativeSelect value={severity} onChange={(event) => setSeverity(event.target.value as IncidentSeverity)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></ClusterNativeSelect></label>
             <label className="wide"><span>Summary</span><ClusterTextarea rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Observed impact and current evidence." /></label>
             <label className="wide"><span>Correlation / trace ID</span><ClusterInput value={correlationId} onChange={(event) => setCorrelationId(event.target.value)} placeholder="Optional operation, request, or event correlation ID" /></label>
