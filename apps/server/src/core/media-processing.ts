@@ -400,7 +400,7 @@ async function openPdfForProcessing(filePath: string) {
   const task = pdfjs.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: true, verbosity: 0 });
   const document = await task.promise;
   if (document.numPages > budgets.maxPdfPages) {
-    await document.destroy().catch(() => undefined);
+    await task.destroy().catch(() => undefined);
     throw new Error("MEDIA_PDF_PAGE_BUDGET_EXCEEDED: PDF contains more pages than the configured parser budget.");
   }
   return document;
@@ -743,7 +743,7 @@ export async function executeMediaJob(input: {
         await updateControl(prisma, payload.controlRecordId, { status: "complete", progress: 100, completedAt: new Date(), payload: { artifactId: artifact.id, truncated: index.truncated, completedAt: new Date().toISOString() } });
         await updateAssetProcessingState(prisma, asset.id);
         return { kind, assetId: asset.id, artifactId: artifact.id, sizeBytes: artifact.sizeBytes, indexedPages: index.indexedPages, truncated: index.truncated };
-      } finally { await document.destroy().catch(() => undefined); }
+      } finally { await document.loadingTask.destroy().catch(() => undefined); }
     }
 
     if (medium === "3d") {

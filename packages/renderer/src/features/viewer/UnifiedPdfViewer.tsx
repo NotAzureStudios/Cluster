@@ -349,7 +349,7 @@ function PdfComparisonSurface({ session, pageNumber, scale, rotation }: { sessio
     let active = true;
     const task = getDocument({ url: source.url, withCredentials: true, enableXfa: false, stopAtErrors: false });
     const unregister = scope.registerCleanup(() => { void task.destroy(); });
-    void task.promise.then(async (pdf) => { if (!active) { await pdf.destroy(); return; } if (pdf.numPages > DEFAULT_RESOURCE_BUDGETS.maxPdfPages) { await pdf.destroy(); throw new Error("Comparison PDF exceeds the page budget."); } setDocument(pdf); setMessage(""); }).catch((error) => { if (active) { setDocument(null); setMessage(error instanceof Error ? error.message : "Comparison PDF could not open."); } });
+    void task.promise.then(async (pdf) => { if (!active) { await task.destroy(); return; } if (pdf.numPages > DEFAULT_RESOURCE_BUDGETS.maxPdfPages) { await task.destroy(); throw new Error("Comparison PDF exceeds the page budget."); } setDocument(pdf); setMessage(""); }).catch((error) => { if (active) { setDocument(null); setMessage(error instanceof Error ? error.message : "Comparison PDF could not open."); } });
     return () => { active = false; void task.destroy(); unregister(); };
   }, [scope, source.url, source.sizeBytes]);
   useEffect(() => {
@@ -436,9 +436,9 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
       }
     };
     void task.promise.then(async (document) => {
-      if (!active) { await document.destroy(); return; }
+      if (!active) { await task.destroy(); return; }
       if (document.numPages > DEFAULT_RESOURCE_BUDGETS.maxPdfPages) {
-        await document.destroy();
+        await task.destroy();
         throw new Error(`PDF has ${document.numPages} pages and exceeds the ${DEFAULT_RESOURCE_BUDGETS.maxPdfPages.toLocaleString()} page viewer budget.`);
       }
       setPdf(document);
