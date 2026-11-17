@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { buildCursorPage, cursorWhere, decodeCursor } from "../../core/cursor-pagination.js";
 import { buildPeopleAccountWhere } from "./people-account-management-query.js";
 
@@ -21,12 +21,18 @@ export function registerPeopleAccountManagementRoutes(deps: {
   app: FastifyInstance;
   prisma: any;
   getCurrentUser: (request: FastifyRequest) => Promise<any | null>;
+  authorization: { requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<unknown | null>; };
 }) {
-  const { app, prisma, getCurrentUser } = deps;
+  const { app, prisma, getCurrentUser, authorization } = deps;
 
   app.get("/api/admin/users/management", async (request, reply) => {
     const actor = await getCurrentUser(request);
     if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+    // Admin authority is decided by the central access engine (explicit deny
+    // rules, expired access, account-type policy), like every other admin
+    // route. The membership lookup below only supplies the workspace scope
+    // and the owner/admin distinction.
+    if (!(await authorization.requireAdmin(request, reply))) return;
 
     const membership = await prisma.workspaceMember.findFirst({
       where: { userId: actor.id },

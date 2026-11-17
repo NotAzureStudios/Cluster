@@ -4,6 +4,12 @@ import { registerPeopleRoleChangePreviewRoutes } from "../../apps/server/dist/do
 
 const calls={ read:0, writes:0, owners:0 };
 const app=Fastify();
+// Stand-in for authorization.requireAdmin, the central admin guard.
+let centralAdminDenied = false;
+const requireAdmin = async (_request, reply) => {
+  if (centralAdminDenied) { reply.code(403).send({ ok: false, code: "ACCESS_DENIED" }); return null; }
+  return { isAdmin: true };
+};
 registerPeopleRoleChangePreviewRoutes({
   app,
   getCurrentUser: async(request)=>request.headers["x-actor"]?{id:request.headers["x-actor"]}:null,
@@ -27,7 +33,7 @@ registerPeopleRoleChangePreviewRoutes({
     },
   },
   readSettings:async()=>({studioRoleDefinitions:[{id:"retired",label:"Retired",enabled:false}]}),
-  authorization:{configuredToolPermissionsForRole(role){return {projects:role==="viewer"?"view":role==="admin"?"manage":"edit",people:role==="admin"?"manage":"view"};}},
+  authorization:{requireAdmin,configuredToolPermissionsForRole(role){return {projects:role==="viewer"?"view":role==="admin"?"manage":"edit",people:role==="admin"?"manage":"view"};}},
 });
 const run=(actor,target="target",role="viewer")=>app.inject({
   method:"POST",
@@ -41,6 +47,11 @@ try {
     assert.equal((await run(null)).statusCode,401);
     assert.equal((await run("member")).statusCode,403);
     assert.equal(calls.read,0);
+  });
+  await check("A central access denial blocks an administrator before the target is read",async()=>{
+    centralAdminDenied = true;
+    try { assert.equal((await run("admin")).statusCode,403); assert.equal(calls.read,0); }
+    finally { centralAdminDenied = false; }
   });
   await check("A preview cannot inspect a person in another workspace",async()=>{
     const result=await run("owner","other_workspace");

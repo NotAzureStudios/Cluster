@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { PeopleGovernanceError } from "./people-governance.js";
 import { requireAssignableStudioRole } from "./people-role-governance.js";
 import { StudioReturnError, validateReturnAccessWindow } from "../studio-systems/studio-return-eligibility.js";
@@ -22,6 +22,7 @@ export function registerPeopleProvisioningPreviewRoutes(deps: {
   readSettings: () => Promise<Record<string, unknown>>;
   normalizeAuthUsername: (username: string) => string;
   authorization: {
+    requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<unknown | null>;
     configuredToolPermissionsForRole: (role: string, user?: unknown) => Record<string, string>;
   };
 }) {
@@ -29,6 +30,11 @@ export function registerPeopleProvisioningPreviewRoutes(deps: {
   app.post("/api/admin/users/provisioning-preview", async (request, reply) => {
     const actor = await getCurrentUser(request);
     if (!actor) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED" });
+    // Admin authority is decided by the central access engine (explicit deny
+    // rules, expired access, account-type policy), like every other admin
+    // route. The membership lookup below only supplies the workspace scope
+    // and the owner/admin distinction.
+    if (!(await authorization.requireAdmin(request, reply))) return;
 
     const membership = await prisma.workspaceMember.findFirst({
       where: { userId: actor.id }, orderBy: { workspaceId: "asc" },

@@ -33,8 +33,15 @@ const prisma = {
   },
 };
 const app = Fastify();
+// Stand-in for authorization.requireAdmin, the central admin guard.
+let centralAdminDenied = false;
+const requireAdmin = async (_request, reply) => {
+  if (centralAdminDenied) { reply.code(403).send({ ok: false, code: "ACCESS_DENIED" }); return null; }
+  return { isAdmin: true };
+};
 registerPeopleAccountManagementRoutes({
   app, prisma,
+  authorization: { requireAdmin },
   getCurrentUser: async (request) => {
     const id = request.headers["x-test-actor"];
     return id ? { id } : null;
@@ -55,6 +62,11 @@ try {
   await check("Ordinary workspace members get 403 without a private query",async()=>{
     const res = await request("member");
     assert.equal(res.statusCode,403);assert.equal(calls.rows.length,0);
+  });
+  await check("A central access denial blocks an administrator without a private query",async()=>{
+    centralAdminDenied = true;
+    try { const res = await request("admin"); assert.equal(res.statusCode,403); assert.equal(calls.rows.length,0); }
+    finally { centralAdminDenied = false; }
   });
   await check("Invalid account filters or cursors get 400",async()=>{
     assert.equal((await request("admin","/api/admin/users/management?status=illegal")).statusCode,400);

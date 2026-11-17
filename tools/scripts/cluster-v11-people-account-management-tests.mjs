@@ -88,7 +88,7 @@ check("General People directory no longer uses client-only account filters", () 
   assert.ok(!people.includes('accountFilter === "attention"'));
   assert.ok(!people.includes('accountFilter === "restricted"'));
   assert.ok(!people.includes('&includeArchived=true'));
-  assert.ok(directory.includes('registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser });'));
+  assert.ok(directory.includes('registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser, authorization });'));
 });
 
 check("Account toolbar and page navigation offer task-first actions", () => {

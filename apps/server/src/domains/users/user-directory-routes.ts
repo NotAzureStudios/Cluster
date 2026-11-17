@@ -41,7 +41,7 @@ type UserDirectoryRouteDependencies = {
 
 export function registerUserDirectoryRoutes(deps: UserDirectoryRouteDependencies) {
   const { app, prisma, getCurrentUser, getWorkspaceRole, hasToolPermission, serializeUserLite, serializeUserPrivate, serializeUserPublicProfile, parseObject, normalizeAuthUsername, hashPassword, generateTemporaryPassword, logSecurityEvent, logActivity, canViewPrivateUserProfile, serializeActivityEvent, readSettings, authorization } = deps;
-  registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser });
+  registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser, authorization });
   registerPeopleProvisioningPreviewRoutes({ app, prisma, getCurrentUser, readSettings, normalizeAuthUsername, authorization });
   registerPeopleRoleChangePreviewRoutes({ app, prisma, getCurrentUser, readSettings, authorization });
 app.get("/api/admin/users/assignable-roles", async (request, reply) => {

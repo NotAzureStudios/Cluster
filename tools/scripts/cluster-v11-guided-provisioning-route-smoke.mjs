@@ -9,6 +9,12 @@ const settings = { studioRoleDefinitions: [
   { id: "retired", label: "Retired", enabled: false },
 ] };
 const app = Fastify();
+// Stand-in for authorization.requireAdmin, the central admin guard.
+let centralAdminDenied = false;
+const requireAdmin = async (_request, reply) => {
+  if (centralAdminDenied) { reply.code(403).send({ ok: false, code: "ACCESS_DENIED" }); return null; }
+  return { isAdmin: true };
+};
 registerPeopleProvisioningPreviewRoutes({
   app,
   getCurrentUser: async (request) => request.headers["x-actor"] ? { id: request.headers["x-actor"] } : null,
@@ -33,6 +39,7 @@ registerPeopleProvisioningPreviewRoutes({
     return candidate;
   },
   authorization: {
+    requireAdmin,
     configuredToolPermissionsForRole(role, subject) {
       return { projects: role === "owner" ? "manage" : subject.accountType === "guest" ? "none" : "view", people: role === "owner" ? "manage" : "none" };
     },
@@ -60,6 +67,11 @@ try {
   });
   await check("Ordinary workspace members cannot inspect provisioning policy",async () => {
     const r = await run("member"); assert.equal(r.statusCode,403); assert.equal(inspected.length,0);
+  });
+  await check("A central access denial blocks an administrator before any policy is inspected",async () => {
+    centralAdminDenied = true;
+    try { const r = await run("admin"); assert.equal(r.statusCode,403); assert.equal(inspected.length,0); }
+    finally { centralAdminDenied = false; }
   });
   await check("Invalid input is rejected without computing permissions or mutating",async () => {
     const r = await run("admin",body({accountType:"service",email:"invalid"}));
