@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, queryApi } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
+import { confirmCluster } from "../../components/cluster-dialog-service";
+import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 
 type DeadlineStatus = { version: number | null; dueAt: string | null; beforeDue: number; overdue: number; pending: number };
 
@@ -41,6 +43,8 @@ export function StudioFormSubmissionsPanel({ formId, targetSubmissionId = null, 
   const [detailRefresh, setDetailRefresh] = useState(0);
   const mutationLock = useRef(false);
   const followupLock = useRef(false);
+  const navigationConfirmRef = useRef(false);
+  const reviewBaselineRef = useRef<{ id: string; revision: string; note: string } | null>(null);
   const followupRequestSequence = useRef(0);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [projectCursor, setProjectCursor] = useState<string | null>(null);
@@ -98,7 +102,44 @@ export function StudioFormSubmissionsPanel({ formId, targetSubmissionId = null, 
     return () => { active = false; detailRequestId.current++; };
   }, [formId, selectedId, detailRefresh]);
   const selected = selectedDetail?.id === selectedId ? selectedDetail : null;
-  useEffect(() => { setNote(selected?.reviewNote || ""); setDecision("approved"); }, [selectedId, selected?.updatedAt]);
+  // A background refresh must not overwrite a reviewer note already being typed.
+  useEffect(() => {
+    if (!selected) return;
+    const baseline = reviewBaselineRef.current;
+    const savedNote = selected.reviewNote || "";
+    if (baseline?.id !== selected.id) {
+      setNote(savedNote);
+      setDecision("approved");
+    } else if (baseline.revision !== selected.updatedAt && note === baseline.note) {
+      setNote(savedNote);
+    }
+    reviewBaselineRef.current = { id: selected.id, revision: selected.updatedAt, note: savedNote };
+  }, [selected?.id, selected?.updatedAt]);
+  const reviewDraftDirty = Boolean(selected && (note !== (selected.reviewNote || "") || decision !== "approved"));
+  const followupDraftDirty = Boolean(selected && !delegatedReview && (followupProjectId || followupTitle !== "Review follow-up" || followupPriority !== "medium"));
+  useUnsavedChangesGuard({ dirty: reviewDraftDirty || followupDraftDirty,
+    title: "Discard response changes?", message: "You have an unsaved review note, decision, or Project follow-up draft.",
+  });
+  async function confirmResponseTransition() {
+    if (navigationConfirmRef.current || busy || followupBusy || mutationLock.current || followupLock.current) return false;
+    if (!reviewDraftDirty && !followupDraftDirty) return true;
+    navigationConfirmRef.current = true;
+    try {
+      return await confirmCluster({
+        title: "Discard response changes?",
+        message: "Switching responses will discard the unsaved review and Project follow-up draft.",
+        confirmLabel: "Discard and switch", tone: "danger",
+      });
+    } finally { navigationConfirmRef.current = false; }
+  }
+  async function chooseResponse(id: string) {
+    if (id === selectedId || !(await confirmResponseTransition())) return;
+    setSelectedId(id);
+  }
+  async function changeReviewFilter(value: string) {
+    if (value === filter || !(await confirmResponseTransition())) return;
+    setFilter(value);
+  }
   useEffect(() => {
     const request = ++followupRequestSequence.current;
     setFollowups([]); setProjects([]); setFollowupProjectId(""); setProjectCursor(null);
@@ -151,6 +192,8 @@ export function StudioFormSubmissionsPanel({ formId, targetSubmissionId = null, 
       if (request !== followupRequestSequence.current) return;
       setFollowups((current) => current.some((item) => item.id === created.id) ? current : [created, ...current]);
       setFollowupProjectId("");
+      setFollowupTitle("Review follow-up");
+      setFollowupPriority("medium");
     } catch (cause) { if (request === followupRequestSequence.current) setFollowupError(cause instanceof Error ? cause.message : "Could not create Project follow-up. Refresh before retrying."); }
     finally { followupLock.current = false; setFollowupBusy(false); }
   }
@@ -175,6 +218,7 @@ export function StudioFormSubmissionsPanel({ formId, targetSubmissionId = null, 
     // A successful server review must never be described as a failed review
     // just because the read-after-write projection is unavailable.
     setSelectedId((current) => current === reviewedId ? "" : current);
+    reviewBaselineRef.current = null;
     setItems((current) => current.map((item) => item.id === reviewedId ? { ...item, status: recordedDecision } : item));
     try {
       const refreshed = await fetchPage(1);
@@ -183,15 +227,15 @@ export function StudioFormSubmissionsPanel({ formId, targetSubmissionId = null, 
   }
 
   return <div className="settings-card-v092">
-    <div className="settings-card-head-v092"><div><h3>Responses & reviews</h3><p className="muted tight">Applications have a separate review queue. This queue covers ordinary studio forms.</p></div><ClusterButton type="button" size="compact" onClick={() => void fetchPage(1)} disabled={busy}>Refresh</ClusterButton></div>
+    <div className="settings-card-head-v092"><div><h3>Responses & reviews</h3><p className="muted tight">Applications have a separate review queue. This queue covers ordinary studio forms.</p></div><ClusterButton type="button" size="compact" onClick={() => void fetchPage(1)} disabled={busy || followupBusy}>Refresh</ClusterButton></div>
     {deadlineStatus?.dueAt && <div className="studio-explanation-v272"><strong>Published v{deadlineStatus.version} deadline · {new Date(deadlineStatus.dueAt).toLocaleString()}</strong><span>Reminder activity recorded: {deadlineStatus.beforeDue} due-soon · {deadlineStatus.overdue} overdue{deadlineStatus.pending ? ` · ${deadlineStatus.pending} pending retry` : ""}. Only current published version counts are shown. Delivery is via Inbox; these counts do not imply a message was read.</span></div>}
-    <div className="field"><label>Status</label><ClusterNativeSelect value={filter} onChange={(event) => setFilter(event.target.value)} disabled={busy}><option value="all">All</option><option value="submitted">Submitted</option><option value="under_review">Under review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></ClusterNativeSelect></div>
+    <div className="field"><label>Status</label><ClusterNativeSelect value={filter} onChange={(event) => void changeReviewFilter(event.target.value)} disabled={busy || followupBusy}><option value="all">All</option><option value="submitted">Submitted</option><option value="under_review">Under review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></ClusterNativeSelect></div>
     {error && <div className="error-box" role="alert">{error}</div>}
     {reviewNotice && <p className="status-box" role="status">{reviewNotice}</p>}
     <div className="studio-form-review-workbench">
-    <div className="studio-form-review-list"><div className="studio-entity-list-v272">{items.map((item) => <ClusterButton key={item.id} type="button" className={selectedId === item.id ? "active" : ""} onClick={() => setSelectedId(item.id)}><span className="studio-entity-list-copy-v272"><strong>{item.respondentName || item.respondentEmail || "Studio member"}</strong><small>{item.status.replaceAll("_", " ")} · v{item.version} · {new Date(item.submittedAt).toLocaleString()}</small></span></ClusterButton>)}</div>
+    <div className="studio-form-review-list"><div className="studio-entity-list-v272">{items.map((item) => <ClusterButton key={item.id} type="button" className={selectedId === item.id ? "active" : ""} disabled={busy || followupBusy} onClick={() => void chooseResponse(item.id)}><span className="studio-entity-list-copy-v272"><strong>{item.respondentName || item.respondentEmail || "Studio member"}</strong><small>{item.status.replaceAll("_", " ")} · v{item.version} · {new Date(item.submittedAt).toLocaleString()}</small></span></ClusterButton>)}</div>
     {!items.length && !error && <p className="muted tight">No submissions match this filter.</p>}
-    {hasMore && <ClusterButton type="button" variant="quiet" onClick={() => void fetchPage(page + 1, true)}>Load more</ClusterButton>}
+    {hasMore && <ClusterButton type="button" variant="quiet" disabled={busy || followupBusy} onClick={() => void fetchPage(page + 1, true)}>Load more</ClusterButton>}
     </div>
     <div className="studio-form-review-detail">
     {detailLoading && <p role="status" className="muted tight">Loading this response securely…</p>}
