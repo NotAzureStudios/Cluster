@@ -97,6 +97,9 @@ export function isPublicRequest(pathname: string, method = "GET") {
   if (path === "/api/auth/config") return normalizedMethod === "GET";
   if (path === "/api/auth/csrf") return normalizedMethod === "GET";
   if (["/api/auth/login", "/api/auth/passkeys/login/start", "/api/auth/passkeys/login/verify", "/api/auth/mfa/challenge", "/api/auth/mfa/passkeys/challenge", "/api/auth/dev-login", "/api/auth/logout", "/api/auth/password-reset-request", "/api/auth/owner-recovery", "/api/auth/desktop-session-redeem"].includes(path)) return normalizedMethod === "POST";
+  // An invited person has no session yet: the one-time token in the request
+  // body is the credential, and the route rate-limits and validates it.
+  if (path === "/api/auth/account-invitations/activate") return normalizedMethod === "POST";
   if (path === "/api/setup/status") return normalizedMethod === "GET";
   if (path === "/api/setup/complete") return normalizedMethod === "POST";
   if (path === "/api/auth/discord/callback" || path === "/api/auth/discord/link") return normalizedMethod === "GET";

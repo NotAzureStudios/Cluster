@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import Fastify from "fastify";
 import { registerAccountInvitationRoutes } from "../../apps/server/dist/domains/auth/account-invitation-routes.js";
 import { accountInvitationDigest } from "../../apps/server/dist/domains/auth/account-invitation-policy.js";
+import { describeClusterRequest } from "../../apps/server/dist/domains/access/request-policy.js";
 
 const records=new Map(), users=new Map(), audits=[], sessionRevocations=[], writes=[];
 let seq=0;
@@ -119,6 +120,17 @@ const issue=(actor,userId)=>req("POST",`/api/admin/users/${userId}/account-invit
 const activate=(token,password="A strong unique member password 123!")=>req("POST","/api/auth/account-invitations/activate",null,{token,password});
 let count=0;
 async function check(name,fn){await fn();count++;console.log("PASS",name);}
+// This suite registers the routes on a bare Fastify instance, so it never
+// passes through the global session gate. Check that gate separately: the
+// invited person has no session, and the gate answers 401 "Login required"
+// for any API path that is not classed as public.
+await check("Activation is reachable without a session; issuing and revoking stay admin-only",()=>{
+  assert.equal(describeClusterRequest("/api/auth/account-invitations/activate","POST").access.kind,"public");
+  assert.notEqual(describeClusterRequest("/api/auth/account-invitations/activate","GET").access.kind,"public");
+  assert.equal(describeClusterRequest("/api/admin/users/u1/account-invitations","POST").access.kind,"admin");
+  assert.equal(describeClusterRequest("/api/admin/users/u1/account-invitations","GET").access.kind,"admin");
+  assert.equal(describeClusterRequest("/api/admin/account-invitations/i1/revoke","POST").access.kind,"admin");
+});
 function rawToken(response) {
   const d=response.json();
   assert.match(d.activationLink,/^https:\/\/cluster\.example\.test\/#activate=[A-Za-z0-9_-]{43}$/);
