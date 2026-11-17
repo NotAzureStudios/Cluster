@@ -6,6 +6,7 @@ import { RequestErrorState } from "../../components/RequestState";
 import { api, queryApi } from "../../core/api";
 import { ADAPTIVE_MEDIA } from "../../core/adaptive-layout";
 import type { ServerConfigSection, SettingsSection, SetupStatus, User } from "./application-models";
+import { takePrimedClusterStartup } from "../../core/startup-prime";
 
 const ACCOUNT_SETTINGS_SECTIONS = new Set<SettingsSection>(["profile", "appearance", "performance", "home", "navigation", "privacy", "pin", "shortcuts", "accessibility", "notifications", "desktop", "forms", "licenses"]);
 const SERVER_CONFIG_SECTIONS = new Set<ServerConfigSection>(["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"]);
@@ -51,16 +52,25 @@ export function useSettingsSectionNavigation(initialRoute: string, initialSectio
 }
 
 export async function loadClusterStartup() {
+  // The first attempt uses the requests the entry script already started
+  // (core/startup-prime). A retry, or a host that did not prime, asks afresh.
+  const primed = takePrimedClusterStartup();
   try {
-    const setupStatus = await queryApi<SetupStatus>("/api/setup/status", { staleMs: 0, force: true });
-    if (!setupStatus.setupComplete) return { setupStatus, user: null, error: null };
+    const setupStatus = primed
+      ? await primed.setupStatus as SetupStatus
+      : await queryApi<SetupStatus>("/api/setup/status", { staleMs: 0, force: true });
+    if (!setupStatus.setupComplete) {
+      primed?.me.catch(() => undefined); // Not used before first-run setup.
+      return { setupStatus, user: null, error: null };
+    }
     try {
-      const me = await api<{ user: User | null }>("/api/me");
+      const me = primed ? await primed.me as { user: User | null } : await api<{ user: User | null }>("/api/me");
       return { setupStatus, user: me.user, error: null };
     } catch (error) {
       return { setupStatus, user: null, error };
     }
   } catch (error) {
+    primed?.me.catch(() => undefined);
     return { setupStatus: null, user: null, error: error || new Error("Cluster could not determine first-run setup state.") };
   }
 }

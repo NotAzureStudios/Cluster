@@ -8,6 +8,7 @@ import { PrivacyConsentManager } from "./features/legal/PrivacyConsentManager";
 import { BehavioralAnalyticsManager } from "./components/BehavioralAnalyticsManager";
 import { installGlobalClientIncidentHandlers } from "./core/client-incidents";
 import { installStaleChunkRecovery } from "./core/stale-chunk-recovery";
+import { primeClusterStartup } from "./core/startup-prime";
 import "./styles.css";
 
 export type ClusterRendererHost = "web" | "desktop";
@@ -43,6 +44,9 @@ function rendererHostFromEnvironment(): ClusterRendererHost {
 export function mountClusterRenderer(element: HTMLElement, options: ClusterRendererMountOptions = {}) {
   const host = options.host || rendererHostFromEnvironment();
   initializeRendererRuntime(host);
+  // Desktop installs its native transport asynchronously; only the web host
+  // can safely send requests this early.
+  if (host === "web") primeClusterStartup();
   const root = ReactDOM.createRoot(element);
   root.render(
     <React.StrictMode>
