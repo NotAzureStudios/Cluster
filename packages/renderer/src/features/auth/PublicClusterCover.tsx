@@ -5,6 +5,7 @@ import { ClusterInput } from "../../components/ClusterNativeControls";
 import { RequestErrorState } from "../../components/RequestState";
 import { StudioFormRunner, type StudioFormDocument } from "../studio-systems/StudioFormRunner";
 import { LoginScreen, type ClusterAuthUser } from "./AuthScreens";
+import { AuthEntryLayout } from "./AuthEntryLayout";
 
 type PublicApplication = {
   id: string;
@@ -35,14 +36,14 @@ export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (use
 
   useEffect(() => { void load(); }, []);
   if (mode === "signin") return <LoginScreen recoveryMessage={recoveryMessage} onLogin={onLogin} onBack={() => setMode("cover")} studioName={cover?.studioName} />;
-  if (loadError && !cover) return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><RequestErrorState error={loadError} title="Studio cover could not be loaded" onRetry={() => void load()} /><ClusterButton type="button" variant="secondary" onClick={() => setMode("signin")}>Sign in</ClusterButton></section></main>;
-  if (!cover) return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><span>Loading studio…</span></section></main>;
+  if (loadError && !cover) return <AuthEntryLayout><RequestErrorState error={loadError} title="Studio cover could not be loaded" onRetry={() => void load()} /><ClusterButton type="button" variant="secondary" onClick={() => setMode("signin")}>Sign in</ClusterButton></AuthEntryLayout>;
+  if (!cover) return <AuthEntryLayout><span className="cluster-auth-inline-status-v11" role="status">Loading studio…</span></AuthEntryLayout>;
 
   const selected = cover.applications.find((item) => item.key === applicationKey) || null;
   const version = selected?.versions?.[0] || null;
   const document: StudioFormDocument | null = selected && version ? { form: { id: selected.id, key: selected.key, title: selected.title, description: selected.description }, version } : null;
 
-  if (mode === "apply" && document) return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
+  if (mode === "apply" && document) return <AuthEntryLayout studioName={cover.studioName} mode="setup" cardClassName="cluster-auth-application-v11">
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
     <p className="eyebrow">{cover.studioName}</p><h1>Apply</h1>
     {cover.applications.length > 1 && <div className="button-row">{cover.applications.map((application) => <ClusterButton type="button" variant={application.key === applicationKey ? "primary" : "secondary"} key={application.key} onClick={() => { setApplicationKey(application.key); setPrivacyAccepted(false); }}>{application.title}</ClusterButton>)}</div>}
@@ -53,12 +54,12 @@ export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (use
     <label className="field"><span><ClusterInput type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} /> I consent to the studio using this application information to review my application.</span><small>Application answers do not grant Cluster access, roles, permissions, or membership.</small></label>
     <label aria-hidden="true" className="sr-only-v204">Website<ClusterInput tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></label>
     <div className="button-row"><ClusterButton type="button" variant="quiet" onClick={() => setMode("cover")}>Back</ClusterButton><ClusterLinkButton href="/legal/privacy" variant="quiet">Privacy</ClusterLinkButton></div>
-  </section></main>;
+  </AuthEntryLayout>;
 
-  return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout studioName={cover.studioName}>
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
-    <p className="eyebrow">Cluster Studio</p><h1>{cover.studioName}</h1><p className="muted">Private studio workspace. Sign in if you already have access{cover.applications.length ? ", or apply if the studio is accepting applications" : ""}.</p>
+    <p className="eyebrow">Studio entry</p><h1>{cover.studioName}</h1><p className="muted">Already part of the studio? Sign in. {cover.applications.length ? "Applications are available below." : "Access is managed by a studio administrator."}</p>
     <div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => setMode("signin")}>Sign in</ClusterButton>{cover.applications.length > 0 && <ClusterButton type="button" variant="secondary" onClick={() => setMode("apply")}>Apply</ClusterButton>}</div>
     <div className="managed-auth-help-v473"><ClusterLinkButton href="/legal/privacy" variant="quiet" size="compact">Privacy</ClusterLinkButton><ClusterLinkButton href="/legal/terms" variant="quiet" size="compact">Terms</ClusterLinkButton></div>
-  </section></main>;
+  </AuthEntryLayout>;
 }
