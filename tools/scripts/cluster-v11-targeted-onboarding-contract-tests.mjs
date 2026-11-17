@@ -50,7 +50,7 @@ check("Retry is scoped to existing user only, never re-posts an account",
   people.includes('No duplicate account was created.') &&
   people.includes('setOnboardingFollowup(null);'));
 check("Session changes clear private handoff and pending remediation state",
-  people.includes('setIssuedCredential(null);\n    setOnboardingFollowup(null);\n  }, [currentUser.id]);'));
+  people.includes('setIssuedCredential(null);\n    setIssuedActivationLink(null);\n    setOnboardingFollowup(null);\n  }, [currentUser.id]);'));
 check("Responsive followup avoids onboarding burying the one-time credential handoff",
   css.includes('.people-onboarding-followup-v11') &&
   people.includes('<AccountCredentialHandoff') &&

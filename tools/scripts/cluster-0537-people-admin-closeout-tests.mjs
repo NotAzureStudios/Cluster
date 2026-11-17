@@ -69,7 +69,9 @@ check('Application page keeps last known list after a failed refresh', () => {
 check('Generated credentials remain out of persistent status messages', () => {
   assert.doesNotMatch(ui,/setStatus\([^\n]*temporaryPassword/);
   assert.match(ui,/setCredential\(\{ id: result\.user\.id, username: result\.user\.username, password: result\.temporaryPassword/);
-  assert.match(ui,/onClick=\{\(\) => setCredential\(null\)\}>Dismiss credentials/);
+  // Dismissing a one-time password now asks for confirmation first.
+  assert.match(ui,/onClick=\{\(\) => void dismissCredentials\(\)\}>Dismiss credentials/);
+  assert.match(ui,/if \(accepted\) setCredential\(null\);/);
   assert.match(ui, /<ClusterCopyButton text=\{credential\.password\}/);
 });
 check('Conversion is explicitly confirmed and cannot be repeated for converted applications', () => {

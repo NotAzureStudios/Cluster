@@ -42,7 +42,8 @@ function store({ actorRole="owner",targetRole="member",member=true,otherOwners=1
     async count(){return otherOwners;},
     async update({where,data}){assert.equal(where.workspaceId_userId.workspaceId,"studio-1");state.role=data.role;state.updates.push(data.role);},
   };
-  return { state, tx:{workspaceMember, async __lock(key){state.locks.push(key);}} };
+  const studioAccountInvitation={ async updateMany(args){ (state.invitationRevocations ||= []).push(args); return {count:0}; } };
+  return { state, tx:{workspaceMember, studioAccountInvitation, async __lock(key){state.locks.push(key);}} };
 }
 const {assignableStudioRoles,requireAssignableStudioRole,assignWorkspaceRole}=helper;
 await check("Built-in roles and configured roles share the canonical catalog",()=>{
