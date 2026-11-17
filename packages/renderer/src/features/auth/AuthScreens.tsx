@@ -152,7 +152,7 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
     authActionRef.current = true;
     setError(""); setRecoveryStatus(""); setBusy(true);
     try {
-      const result = await api<AuthResult>("/api/auth/login", { method: "POST", body: JSON.stringify({ username: identifier, password }) });
+      const result = await api<AuthResult>("/api/auth/login", { method: "POST", body: JSON.stringify({ identifier, password }) });
       if (result.mfaRequired && result.challenge) {
         setMfaChallenge(result.challenge);
         setPassword(""); // Do not retain the password in renderer state during MFA.
@@ -263,7 +263,7 @@ export function LoginScreen({ onLogin, recoveryMessage, onBack, studioName }: { 
       {mfaPasskeyPublicKey && webAuthnAvailable() && <ClusterButton type="button" variant="secondary" disabled={busy} onClick={() => void submitPasskey()}>Use passkey or security key</ClusterButton>}
       <div className="managed-auth-help-v473">{mfaRecoveryAvailable && <ClusterButton unstyled type="button" disabled={busy} onClick={() => { setMfaUseRecovery((value) => !value); setError(""); }}>{mfaUseRecovery ? "Use authenticator code" : "Use recovery code"}</ClusterButton>}<ClusterButton unstyled type="button" disabled={busy} onClick={() => { setMfaChallenge(""); setMfaCode(""); setMfaRecoveryCode(""); setMfaUseRecovery(false); setMfaPasskeyPublicKey(null); setPassword(""); setError(""); }}>Back to sign in</ClusterButton></div>
     </form> : recoveryMode === "none" ? <form className="managed-auth-form" onSubmit={submit}>
-      <div className="field"><label htmlFor={identifierFieldId}>Username</label><ClusterTextInput id={identifierFieldId} autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required /></div>
+      <div className="field"><label htmlFor={identifierFieldId}>Username, email or phone</label><ClusterTextInput id={identifierFieldId} autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required /></div>
       <div className="field managed-auth-password-v473"><label htmlFor={passwordFieldId}>Password</label><div><ClusterInput id={passwordFieldId} type={showPassword ? "text" : "password"} autoComplete="current-password" enterKeyHint="go" value={password} onChange={(event) => setPassword(event.target.value)} required /><ClusterButton unstyled type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></div>
       {error && <div className="error-box" role="alert">{error}</div>}
       <ClusterButton className="managed-auth-submit" disabled={busy || configLoading || !config || !config.passwordLoginEnabled} type="submit" variant="primary">{busy ? "Signing in…" : "Sign in"}</ClusterButton>

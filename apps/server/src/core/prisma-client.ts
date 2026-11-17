@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../generated/prisma/client.js";
 import { databaseResourceBudget } from "./database-resource-budget.js";
+import { userIdentityNormalizationExtension } from "./user-identity-normalization.js";
 
 export { PrismaClient };
 
@@ -35,5 +36,8 @@ function postgresPoolConfiguration() {
 export function createPrismaClient(options: ClientOptions = {}) {
   const adapter = new PrismaPg(postgresPoolConfiguration());
   const clientOptions: DirectClientOptions = { ...options, adapter };
-  return new PrismaClient(clientOptions);
+  // The extension only rewrites User identity columns on write, so the
+  // extended client is cast back to PrismaClient and every existing call
+  // site keeps its type.
+  return new PrismaClient(clientOptions).$extends(userIdentityNormalizationExtension) as unknown as PrismaClient;
 }

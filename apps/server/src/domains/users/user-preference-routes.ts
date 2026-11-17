@@ -1,3 +1,4 @@
+import { normalizeLoginEmail, normalizePhoneLookup } from "@cluster/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -303,7 +304,7 @@ export function registerUserPreferenceRoutes(deps: RouteDependencies) {
       profileShowStatus: z.boolean().optional(),
     }).parse(request.body || {});
     const profileDefinitions = profileFieldDefinitionsSchema.parse((await readSettings()).studioPeopleProfileFields || []);
-    const normalizePhone = (value: unknown) => String(value || "").replace(/\D/g, "");
+
     try {
       const result = await prisma.$transaction(async (tx: any) => {
         await lockPeopleProfile(tx, user.id);
@@ -312,14 +313,17 @@ export function registerUserPreferenceRoutes(deps: RouteDependencies) {
         if (body.expectedProfileRevision && Number(fresh.profileRevision || 1) !== body.expectedProfileRevision) throw new PeopleGovernanceError("PROFILE_REVISION_CONFLICT", "Your profile changed on another client.", 409, { currentRevision: Number(fresh.profileRevision || 1) });
         const email = body.email === undefined ? fresh.email : String(body.email || "").trim() || null;
         if (email) {
-          const matches = await tx.user.findMany({ where: { email: { equals: email, mode: "insensitive" }, id: { not: user.id } }, select: { id: true }, take: 1 });
-          if (matches.length) throw new PeopleGovernanceError("PROFILE_EMAIL_CONFLICT", "That email address is already assigned to another Cluster account.", 409);
+          // Email is stored lower-cased, so this is one indexed lookup.
+          const match = await tx.user.findUnique({ where: { email: normalizeLoginEmail(email) || email }, select: { id: true } });
+          if (match && match.id !== user.id) throw new PeopleGovernanceError("PROFILE_EMAIL_CONFLICT", "That email address is already assigned to another Cluster account.", 409);
         }
         const phoneNumber = body.phoneNumber === undefined ? fresh.phoneNumber : String(body.phoneNumber || "").trim() || null;
-        const phoneKey = normalizePhone(phoneNumber);
+        const phoneKey = normalizePhoneLookup(phoneNumber);
         if (phoneKey) {
-          const candidates = await tx.user.findMany({ where: { id: { not: user.id }, OR: [{ phoneNumber: { not: null } }, { alternatePhoneNumber: { not: null } }] }, select: { id: true, phoneNumber: true, alternatePhoneNumber: true }, take: 5000 });
-          if (candidates.some((candidate: any) => [candidate.phoneNumber, candidate.alternatePhoneNumber].some((value) => normalizePhone(value) === phoneKey))) throw new PeopleGovernanceError("PROFILE_PHONE_CONFLICT", "That phone number is already assigned to another Cluster account.", 409);
+          // One indexed lookup on the derived key. This used to read every
+          // user holding any phone number and compare them in memory.
+          const holder = await tx.user.findUnique({ where: { phoneLookup: phoneKey }, select: { id: true } });
+          if (holder && holder.id !== user.id) throw new PeopleGovernanceError("PROFILE_PHONE_CONFLICT", "That phone number is already assigned to another Cluster account.", 409);
         }
         const currentPreferences = parseJsonRecord(fresh.preferences);
         const effectiveProfileDiscordUsername = body.profileDiscordUsername === undefined ? String(currentPreferences.profileDiscordUsername || fresh.discordUsername || "").trim() : String(body.profileDiscordUsername || fresh.discordUsername || "").trim();

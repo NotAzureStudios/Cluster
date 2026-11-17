@@ -188,6 +188,7 @@ export * from "./error-codes.js";
 export * from "./workflow-contracts.js";
 
 export * from "./people-contracts.js";
+export * from "./login-identity.js";
 
 export * from "./kiosk-contracts.js";
 

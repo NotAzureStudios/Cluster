@@ -27,7 +27,8 @@ model User {
   firstLoginCompletedAt DateTime?
   employeeNumber String?  @unique
   displayName    String?
-  email          String?
+  email          String?  @unique
+  emailVerifiedAt DateTime?
   avatarUrl      String?
   personalAccentColor String?
   preferences    String   @default("{}")
@@ -54,6 +55,7 @@ model User {
   preferredName  String?
   pronouns       String?
   phoneNumber    String?
+  phoneLookup    String?  @unique
   alternatePhoneNumber String?
   alternateEmails String @default("[]")
   addressLine1   String?
