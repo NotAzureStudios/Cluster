@@ -77,3 +77,6 @@ Thumbs.db
 
 # Reports written to the repository root by tools/scripts source scans.
 /TD[0-9]*_SCAN.json
+
+# Prisma client generated into the server source tree by `npm run db:generate`.
+/apps/server/src/generated/
