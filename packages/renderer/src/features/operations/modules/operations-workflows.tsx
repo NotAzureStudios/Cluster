@@ -177,7 +177,7 @@ export function PersistenceBridgePanel() {
         <div>
           <p className="eyebrow">Persistence registry</p>
           <h2>Server-backed workflow records</h2>
-          <p className="muted tight">Inspect, validate, lock, repair, and export authoritative server records. Browser-store import controls were retired after automatic migrations replaced them.</p>
+          <p className="muted tight">Inspect, validate, lock, repair, and export server records. Browser-store import controls were retired after automatic migrations replaced them.</p>
         </div>
         <div className="button-row">
           <ClusterButton type="button" className="" onClick={loadPersistence} disabled={loading} variant="secondary">Refresh</ClusterButton>
@@ -203,7 +203,7 @@ export function PersistenceBridgePanel() {
       )}
       <div className="persistence-records-v137">
         <div className="management-header-row">
-          <div><h3>Persisted records</h3><p className="muted tight">Authoritative records that survive refreshes and device changes.</p></div>
+          <div><h3>Persisted records</h3><p className="muted tight">Server records that survive refreshes and device changes.</p></div>
           <ClusterNativeSelect value={selectedKind} onChange={(event) => setSelectedKind(event.target.value as PersistenceKind | "all")}><option value="all">All kinds</option>{kinds.map((kind) => <option key={kind} value={kind}>{levelLabel(kind)}</option>)}</ClusterNativeSelect>
         </div>
         <div className="persistence-record-list-v137">
@@ -681,7 +681,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Work links</p>
-          <h2>Canonical relationship map</h2>
+          <h2>Relationship map</h2>
           <p className="muted tight">Project relationships now write to Cluster's shared Resource Graph. Loose text-only links are retired; every new edge points at a real resource ID.</p>
         </div>
         <span className="soft-pill">{projectLinks.length} linked</span>
@@ -728,7 +728,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
             <small>{compactDateTime(link.updatedAt || link.createdAt)}</small>
             <ClusterButton type="button" className="" onClick={() => setLinks(links.filter((item) => item.id !== link.id))} variant="quiet" size="compact">Remove</ClusterButton>
           </article>
-        )) : <div className="empty-state compact-empty">No canonical work links yet.</div>}
+        )) : <div className="empty-state compact-empty">No work links yet.</div>}
       </div>
     </section>
   );

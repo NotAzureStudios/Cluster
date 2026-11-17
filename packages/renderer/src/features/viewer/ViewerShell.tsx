@@ -253,7 +253,7 @@ export function ViewerShell({
     {
       id: "viewer.system.export-custom",
       label: "Export · Custom metadata",
-      description: "Choose which canonical metadata categories may accompany a sanitized derivative.",
+      description: "Choose which metadata categories may accompany a sanitized derivative.",
       icon: "settings",
       priority: 77,
       group: "system",
@@ -264,7 +264,7 @@ export function ViewerShell({
         if (!session) return;
         const raw = await promptCluster({
           title: "Custom metadata export",
-          message: "Enter canonical metadata categories to retain, separated by commas. Normal categories are identity, production, review, and derived. Sensitive categories use sensitive.<category> and still require sensitive-metadata permission. Embedded private metadata is never re-injected into sanitized bytes.",
+          message: "Enter metadata categories to retain, separated by commas. Normal categories are identity, production, review, and derived. Sensitive categories use sensitive.<category> and still require sensitive-metadata permission. Embedded private metadata is never re-injected into sanitized bytes.",
           label: "Categories",
           initialValue: "production",
           placeholder: "production, identity",

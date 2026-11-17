@@ -108,7 +108,7 @@ export function CompanyGraphPanel({ departments, teams, people, workspaceId, can
         {!matches.length && <p className="muted">No matching resources.</p>}
       </nav>
       <div className="people-company-graph-detail-v507">
-        {!selected ? <div className="people-company-graph-empty-v507"><strong>Explore the company structure</strong><p>Select a department, team or person to see its authoritative relationships. This view does not create a second organization directory.</p></div> : <>
+        {!selected ? <div className="people-company-graph-empty-v507"><strong>Explore the company structure</strong><p>Select a department, team or person to see its relationships. This view reads the existing organization directory.</p></div> : <>
           <header><div><small>{selected.kind}</small>{selected.kind === "department" && departmentsById.get(selected.sourceId) ? <h3><DepartmentIdentityMark department={departmentsById.get(selected.sourceId)!} size={32} label /></h3> : <h3>{selected.label}</h3>}<p>{selected.detail}</p></div>{selected.kind === "person" && <ClusterButton variant="secondary" onClick={() => onOpenPerson(selected.sourceId)}>Open profile</ClusterButton>}</header>
           {canEdit && workspaceId && selected.kind === "department" && <DepartmentEditor key={`${selected.sourceId}:${(departments.find((row) => row.id === selected.sourceId) as (CompanyGraphDepartment & { revision?: number }) | undefined)?.revision || 1}`} department={departments.find((row) => row.id === selected.sourceId)} departments={departments} people={people} workspaceId={workspaceId} onChanged={onChanged} />}
           <section><h4>Relationships</h4>{!related.length && <p className="muted">No linked resources.</p>}

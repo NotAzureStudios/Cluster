@@ -31,7 +31,7 @@ export function AdminUtilitySections({
       </div>
       <section className="panel server-backup-pointer-v318">
         <div className="section-heading">
-          <div><p className="eyebrow">Authoritative backups</p><h3>Server backup and restore</h3><p className="muted tight">Backup scheduling, verification, retention, downloads, and restores are managed by the server.</p></div>
+          <div><p className="eyebrow">Server backups</p><h3>Server backup and restore</h3><p className="muted tight">Backup scheduling, verification, retention, downloads, and restores are managed by the server.</p></div>
           <ClusterButton type="button" variant="primary" onClick={() => { window.sessionStorage.setItem("cluster-server-config-section", "backups"); onOpenServerConfig?.(); }}>Open server backups</ClusterButton>
         </div>
       </section>

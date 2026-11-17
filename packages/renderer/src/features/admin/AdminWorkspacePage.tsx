@@ -1194,7 +1194,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
           </section>
 
               <section className="panel admin-workspace-hub-v15" aria-label="Administration workspaces">
-                <header><div><strong>Administration</strong><small>Quick access to canonical administrative workspaces.</small></div></header>
+                <header><div><strong>Administration</strong><small>Quick access to administration workspaces.</small></div></header>
                 <div className="admin-workspace-hub-grid-v15">
                   <ClusterButton type="button" onClick={() => onOpenStudioSettings?.()}><ClusterIcon name="settings" /><span><strong>Studio settings</strong><small>People, project defaults, policy</small></span></ClusterButton>
                   <ClusterButton type="button" onClick={() => onOpenToolInfrastructure?.()}><ClusterIcon name="tools" /><span><strong>Tools</strong><small>Tool health, availability, specialist controls</small></span></ClusterButton>

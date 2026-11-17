@@ -257,7 +257,7 @@ export function OperationsSystemsPanel() {
           ]} />}
           <details className="cluster-visual-advanced"><summary>API traffic counts</summary><div className="cluster-visual-advanced__body">
           <ClusterMetricStrip label="API tool traffic" items={[
-            { label: "Registered tools", value: apiTools?.tools.length ?? "—", detail: "Canonical server domains", tone: "good" },
+            { label: "Registered tools", value: apiTools?.tools.length ?? "—", detail: "Server domains", tone: "good" },
             { label: "Normal metrics", value: apiTools?.counts["observed-healthy"] ?? "—", detail: "Measured traffic only", tone: "good" },
             { label: "Warning", value: apiTools?.counts.warning ?? "—", detail: "Observed elevated latency/errors", tone: apiTools?.counts.warning ? "warning" : "good" },
             { label: "Degraded", value: apiTools?.counts.degraded ?? "—", detail: "Observed elevated 5xx / p95", tone: apiTools?.counts.degraded ? "danger" : "good" },

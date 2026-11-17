@@ -113,7 +113,7 @@ export function DataRetentionAdminPanel() {
       <div>
         <p className="eyebrow">Data lifecycle</p>
         <h2>Inventory & retention</h2>
-        <p className="muted">Configure age-based cleanup only for operational data that Cluster can safely prune. Authoritative work, legal evidence, security audit events, and project files remain outside unattended deletion.</p>
+        <p className="muted">Configure age-based cleanup only for operational data that Cluster can safely prune. Work records, legal evidence, security audit events, and project files remain outside unattended deletion.</p>
       </div>
       <div className="button-row compact">
         <ClusterButton type="button" className="" onClick={() => void load()} disabled={busy} variant="secondary">Refresh dry run</ClusterButton>
