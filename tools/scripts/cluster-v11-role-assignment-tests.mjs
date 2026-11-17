@@ -126,9 +126,10 @@ await check("API uses only authorized, guarded workspace role writes",()=>{
   assert.ok(routes.includes('event: "account.role_changed"'));
 });
 await check("Editor keeps role changes separate and explicitly confirmed",()=>{
-  assert.ok(ui.includes("profileDirty || ownerRequired"));
+  assert.ok(ui.includes("|| self || profileDirty || checking"));
+  assert.ok(ui.includes("const ownerRequired = privilegedChange && catalog?.actorRole !== \"owner\";"));
   assert.ok(ui.includes("await confirmCluster({"));
-  assert.ok(ui.includes("await onChange(next.id, person.profileRevision || 1)"));
+  assert.ok(ui.includes("await onChange(next.id, reviewed.profileRevision)"));
   assert.ok(people.includes("onRoleChange={async (role, expectedProfileRevision) => {"));
 });
 

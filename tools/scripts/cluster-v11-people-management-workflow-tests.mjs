@@ -54,9 +54,10 @@ check("real activation route uses password-state policy", () => {
 });
 check("account form shows why provision is disabled", () => {
   assert.ok(people.includes('validatePeopleAccountCreation(createAccountDraft,'));
-  assert.ok(people.includes('Boolean(createAccountBlocker)} onClick={() => void createPersonAccount()'));
-  assert.ok(people.includes('role="status">{createAccountBlocker}'));
-  assert.ok(people.includes('role="alert">{createAccountError}'));
+  assert.ok(people.includes('onCreate={createPersonAccount}'));
+  assert.ok(people.includes('if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {'));
+  assert.ok(people.includes('setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.")'));
+  assert.ok(people.includes('actionError={createAccountError}'));
 });
 check("account drafts require confirmation before deliberate close", () => {
   assert.ok(people.includes('async function toggleCreateAccount()'));

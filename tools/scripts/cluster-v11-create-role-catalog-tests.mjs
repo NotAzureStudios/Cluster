@@ -22,16 +22,21 @@ check("Missing/stale role catalogs never authorize creation",()=>{
   assert.equal(canChooseStudioRole(privileged,null),false);
 });
 const page=readFileSync("packages/renderer/src/features/people/PeoplePages.tsx","utf8");
+const wizard=readFileSync("packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx","utf8");
 const server=readFileSync("apps/server/src/domains/users/user-directory-routes.ts","utf8");
 check("Create form uses authorized fresh catalog, not fixed Member/Viewer options",()=>{
   assert.ok(page.includes('queryApi<CreateRoleCatalog>("/api/admin/users/assignable-roles"'));
   assert.ok(page.includes('force: true, staleMs: 0, persist: false'));
-  assert.ok(page.includes("(createRoleCatalog?.roles || []).map("));
+  // The role options are rendered by the provisioning wizard, fed from the page's catalog.
+  assert.ok(page.includes("roleCatalog={createRoleCatalog}"));
+  assert.ok(wizard.includes("(roleCatalog?.roles || []).map("));
   assert.ok(!page.includes('<option value="member">Member</option><option value="viewer">Viewer</option>'));
 });
 check("The create button is gated until role catalog is loaded",()=>{
-  assert.ok(page.includes('disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError)}'));
-  assert.ok(page.includes('if (!canChooseStudioRole(assignable, createRoleCatalog?.actorRole))'));
+  assert.ok(wizard.includes('disabled={rolesLoading || !roleCatalog || creating}'));
+  // A role the actor may not assign is blocked by the page's validation and disabled in the list.
+  assert.ok(page.includes("canChooseStudioRole(creationRole, createRoleCatalog?.actorRole)"));
+  assert.ok(wizard.includes("disabled={!canChooseStudioRole(role, roleCatalog?.actorRole)}"));
 });
 check("Server enforces role eligibility and privileged owner authorization",()=>{
   assert.ok(server.includes('requireAssignableStudioRole(await readSettings(), body.role)'));
