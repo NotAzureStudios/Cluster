@@ -1,0 +1,14 @@
+/* Compact role comparison. The live effective access inspector remains the
+   authoritative tool/resource decision path for an existing person. */
+.people-role-impact-v11{display:grid;gap:10px;margin-top:11px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft,var(--panel-2));font-size:.75rem}
+.people-role-impact-heading-v11{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.people-role-impact-heading-v11 strong{font-size:.82rem}
+.people-role-impact-heading-v11 small{font-size:.7rem;color:var(--muted)}
+.people-role-impact-v11 details{min-width:0;font-size:.74rem}
+.people-role-impact-v11 summary{cursor:pointer;font-weight:650;padding:4px 0}
+.people-role-impact-v11 ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));list-style:none;gap:5px;margin:8px 0;padding:0}
+.people-role-impact-v11 li{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:6px;min-width:0}
+.people-role-impact-v11 li small{color:var(--muted);text-transform:capitalize}
+.people-role-impact-note-v11{color:var(--muted);font-size:.72rem;line-height:1.45;margin:0}
+.people-role-impact-v11>small{color:var(--muted);font-size:.7rem;line-height:1.45}
+@media(max-width:680px){.people-role-impact-v11 ul{grid-template-columns:minmax(0,1fr)}}

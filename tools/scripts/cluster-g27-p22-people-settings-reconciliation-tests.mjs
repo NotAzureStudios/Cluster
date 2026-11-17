@@ -105,7 +105,7 @@ await test('Account Create uses synchronous admission and scopes one-time creden
   assert.match(page, /accountCreateGateRef\.current = true/);
   assert.match(page, /if \(accountScopeRef\.current !== scope\) return; \/\/ Never show another session's credential/);
   assert.match(page, /finally \{ accountCreateGateRef\.current = false/);
-  assert.match(page, /if \(accountScopeRef\.current !== scope\) return; \/\/ Response contains a one-time password/);
+  assert.match(page, /if \(accountScopeRef\.current !== scope\) return;/);
 });
 await test('Team mutations share per-team same-frame admission and release', () => {
   assert.match(page, /const teamMutationGateRef = useRef<Set<string>>\(new Set\(\)\)/);

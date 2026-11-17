@@ -1,0 +1,56 @@
+name: People profile and Studio Settings interaction regressions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/people/PeopleUserEditor.tsx'
+      - 'packages/renderer/src/features/people/PeopleRoleAssignmentPanel.tsx'
+      - 'packages/renderer/src/features/people/PeoplePages.tsx'
+      - 'packages/renderer/src/features/people/people.css'
+      - 'packages/renderer/src/features/settings/StudioSettingsPage.tsx'
+      - 'packages/renderer/src/features/settings/settings-workspace.css'
+      - 'tools/scripts/cluster-people-admin-editor-tests.mjs'
+      - 'tools/scripts/cluster-v11-user-editor-details-tests.mjs'
+      - 'tools/scripts/cluster-v11-role-assignment-tests.mjs'
+      - 'tools/scripts/cluster-1-0-3-settings-visual-contract-tests.mjs'
+      - '.github/workflows/people-settings-editor-regressions.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/renderer/src/features/people/**'
+      - 'packages/renderer/src/features/settings/**'
+      - '.github/workflows/people-settings-editor-regressions.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  editor-security-and-density:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Use pinned Node.js 24.20.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.20.0'
+      - name: Verify People editor, separate role governance and Studio Settings density
+        shell: pwsh
+        run: |
+          foreach ($script in @(
+            'cluster-people-admin-editor-tests.mjs',
+            'cluster-v11-user-editor-details-tests.mjs',
+            'cluster-v11-role-assignment-tests.mjs',
+            'cluster-1-0-3-settings-visual-contract-tests.mjs'
+          )) {
+            node --disable-warning=ExperimentalWarning --experimental-strip-types (Join-Path tools/scripts $script)
+            if ($LASTEXITCODE -ne 0) { throw "Focused People/Settings regression failed: $script" }
+          }

@@ -50,14 +50,18 @@ import {
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { copyClusterText } from "../../core/clipboard";
-import { promptCluster } from "../../components/cluster-dialog-service";
+import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { PersonnelRecordsPanel } from "./PersonnelRecordsPanel";
 import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } from "./WorkforceAvailabilityExceptions";
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
+import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
+import { PeopleAccountProvisioningWizard } from "./PeopleAccountProvisioningWizard";
+import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
+import { AccountInvitationHandoff } from "./AccountInvitationHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
@@ -132,7 +136,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [profile, setProfile] = useState<PeopleProfilePayload | null>(null);
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
-  const [workforceMode, setWorkforceMode] = useState<"directory" | "organization" | "teams" | "capacity" | "availability">("directory");
+  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory");
+  const workforceModeRef = useRef(workforceMode);
+  workforceModeRef.current = workforceMode;
+  const previousWorkforceModeRef = useRef(workforceMode);
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -141,6 +148,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [statusFilter, setStatusFilter] = useState("all");
   type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit";
   const [profileView, setProfileViewState] = useState<ProfileView>("overview");
+  const pendingManagedAccountViewRef = useRef<{ id: string; view: "overview" | "edit" | "access" } | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const { confirmDiscard: confirmEditorDiscard } = useUnsavedChangesGuard({
     dirty: profileView === "edit" && editorDirty,
@@ -155,6 +163,20 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } else setProfileViewState(next);
   }
   const [profileExpanded, setProfileExpanded] = useState(false);
+  const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);
+  async function changeWorkforceMode(next: typeof workforceMode) {
+    if (next === workforceMode) return;
+    if (profileView === "edit" && editorDirty) {
+      if (!(await confirmEditorDiscard())) return;
+      setEditorDirty(false);
+      setProfileViewState("overview");
+    }
+    if (next === "accounts") {
+      setProfileExpanded(false);
+      setAccountsReturnAvailable(false);
+    }
+    setWorkforceMode(next);
+  }
   const [profileCalendar, setProfileCalendar] = useState<ProfileCalendarEvent[]>([]);
   const [profileCalendarLoading, setProfileCalendarLoading] = useState(false);
   const [directoryMode, setDirectoryMode] = useState<"list" | "table">("list");
@@ -178,7 +200,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [loadStatus, setLoadStatus] = useState("Loading people...");
   const [securityActionUserId, setSecurityActionUserId] = useState("");
   const effectiveAdminMode = Boolean(adminMode && currentUser.isAdmin);
-  const [accountFilter, setAccountFilter] = useState<"all" | "attention" | "restricted" | "archived">("all");
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [createAccountBusy, setCreateAccountBusy] = useState(false);
   type CreateRoleCatalog = {
@@ -216,15 +237,46 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
   const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
+  const [adminActionFeedback, setAdminActionFeedback] = useState<{ message: string; error: boolean } | null>(null);
+  const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
-  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+  const [issuedActivationLink, setIssuedActivationLink] = useState<{ username: string; activationLink: string; expiresAt: string } | null>(null);
+  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
+  const [createAccountError, setCreateAccountError] = useState("");
+  const [onboardingFollowup, setOnboardingFollowup] = useState<{ userId: string; versionId: string; message: string } | null>(null);
+  const [onboardingRetryBusy, setOnboardingRetryBusy] = useState(false);
+  const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
+  const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
+    canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
+  const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
+  const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
+    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.onboardingVersionId || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
+  const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
+    dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
+    title: "Discard account draft?",
+    message: "The new account has not been created. Closing will discard the entered information.",
+  });
+  function patchCreateAccountDraft(changes: Partial<typeof createAccountDraft>) {
+    setCreateAccountDraft((draft) => ({ ...draft, ...changes }));
+    setCreateAccountError("");
+  }
+  async function toggleCreateAccount() {
+    if (createAccountBusy) return;
+    if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
+    if (createAccountOpen) {
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
+      setCreateAccountError("");
+    }
+    setCreateAccountOpen((open) => !open);
+  }
   const [directoryRefresh, setDirectoryRefresh] = useState(0);
   useEffect(() => {
     if (effectiveAdminMode) return;
     setCreateAccountOpen(false);
     setIssuedCredential(null);
-    setAccountFilter("all");
+    setIssuedActivationLink(null);
+    setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
@@ -246,6 +298,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setPeopleContext(null);
     setWorkforceContext(null);
     setIssuedCredential(null);
+    setIssuedActivationLink(null);
+    setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
   const peopleServerDataQuery = useMemo<ClusterDataQuery>(() => ({
@@ -263,9 +317,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   }), [deferredDirectoryQuery, departmentFilter, peopleProjections, peopleServerGroups, peoplePortableDerivedPlan.fields, peopleAnalyticalSelectionSet]);
   const peopleServerQueryKey = useMemo(() => JSON.stringify(peopleServerDataQuery), [peopleServerDataQuery]);
   const peopleDirectory = useClusterCursorData<UserActivitySummary>({
+    enabled: workforceMode === "directory",
     resetKey: `${currentUser.id}:${effectiveAdminMode ? "admin" : "directory"}:${directoryRefresh}:${peopleServerQueryKey}`,
     rowKey: (person) => person.id,
-    loadPage: async (cursor): Promise<ClusterCursorPage<UserActivitySummary>> => queryApi<ClusterCursorPage<UserActivitySummary>>(`/api/users?summary=true&paged=true&limit=80${effectiveAdminMode ? "&includeArchived=true" : ""}&dataQuery=${clusterDataQueryParameter(peopleServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { staleMs: 5_000, maxAgeMs: 2 * 60_000, force: Boolean(cursor), tags: ["users", "people", "directory"] }),
+    loadPage: async (cursor): Promise<ClusterCursorPage<UserActivitySummary>> => queryApi<ClusterCursorPage<UserActivitySummary>>(`/api/users?summary=true&paged=true&limit=80&dataQuery=${clusterDataQueryParameter(peopleServerDataQuery)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { staleMs: 5_000, maxAgeMs: 2 * 60_000, force: Boolean(cursor), tags: ["users", "people", "directory"] }),
   });
   const contextPeopleById = useMemo(() => new Map((peopleContext?.people || []).map((person) => [person.id, person])), [peopleContext]);
   const workforcePeopleById = useMemo(() => new Map((workforceContext?.people || []).map((person) => [person.id, {
@@ -331,7 +386,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (profileView === "calendar" && profile?.id) await loadProfileCalendar(profile.id, true);
   }, { kinds: ["calendar", "meeting"], debounceMs: 220 });
 
-  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false) {
+  async function loadProfiles(targetUserId = activeProfileIdRef.current, force = false, activateTarget = false, contextOnly = false) {
     const sequence = ++peopleLoadSequenceRef.current;
     if (activateTarget) {
       const nextId = targetUserId || currentUser.id;
@@ -347,6 +402,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (sequence !== peopleLoadSequenceRef.current) return;
     }
+    // Sensitive account administration needs only the selected profile. Avoid
+    // three heavyweight workforce calls until the user opens a workforce tab.
+    if (workforceModeRef.current === "accounts") return;
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -356,10 +414,22 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setAssignments(assignmentResult);
     setPeopleContext(contextResult);
     setWorkforceContext(workforceResult);
-    if (!activateTarget && activeProfileIdRef.current === targetUserId && targetUserId) {
+    if (!activateTarget && !contextOnly && activeProfileIdRef.current === targetUserId && targetUserId) {
       await loadProfile(targetUserId, force);
     }
   }
+  useEffect(() => {
+    if (!effectiveAdminMode && workforceMode === "accounts") setWorkforceMode("directory");
+  }, [effectiveAdminMode, workforceMode]);
+  useEffect(() => {
+    const previous = previousWorkforceModeRef.current;
+    previousWorkforceModeRef.current = workforceMode;
+    if (previous === "accounts" && workforceMode !== "accounts") {
+      void loadProfiles(activeProfileIdRef.current, false, false, true).catch((error) => {
+        setLoadStatus(error instanceof Error ? error.message : "People context load failed");
+      });
+    }
+  }, [workforceMode]);
   useEffect(() => {
     const initialTarget = readClusterDetailSelection("person") || currentUser.id;
     activeProfileIdRef.current = initialTarget;
@@ -400,15 +470,16 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   async function createPersonAccount() {
     if (!effectiveAdminMode || accountCreateGateRef.current) return;
     const username = createAccountDraft.username.trim();
-    if (username.length < 3) { setLoadStatus("Username must contain at least 3 characters."); return; }
-    const assignable = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
-    if (!canChooseStudioRole(assignable, createRoleCatalog?.actorRole)) {
-      setLoadStatus("Choose an enabled workspace role you are authorized to assign before creating this account.");
+    const onboardingVersionId = createAccountDraft.onboardingVersionId;
+    if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {
+      setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.");
       return;
     }
     accountCreateGateRef.current = true;
     const scope = currentUser.id;
     setCreateAccountBusy(true);
+    setCreateAccountError("");
+    setOnboardingFollowup(null);
     setLoadStatus("Creating account…");
     try {
       const created = await api<PeopleProfilePayload & { temporaryPassword: string }>("/api/users", {
@@ -424,54 +495,183 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member" });
+      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
+      setCreateAccountOpen(false);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
+      if (onboardingVersionId) {
+        try {
+          await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(onboardingVersionId)}/assign-person`, {
+            method: "POST", body: JSON.stringify({ userId: created.id }),
+          });
+          if (accountScopeRef.current === scope) setLoadStatus("Account created and onboarding assigned. Complete the private credential handoff.");
+        } catch (error) {
+          if (accountScopeRef.current === scope) {
+            const message = error instanceof Error ? error.message : "Onboarding could not be assigned.";
+            setOnboardingFollowup({ userId: created.id, versionId: onboardingVersionId, message });
+            setLoadStatus("Account created. Onboarding assignment needs a separate retry; do not create another account.");
+          }
+        }
+      }
       // Creation already committed. A failed follow-up read must never invite a retry
       // of the POST or falsely claim that the account was not created.
       const refreshWarning = await reconcileAfterCommit(() => loadProfiles(created.id, true, true));
       if (refreshWarning) setLoadStatus(`Account created for ${displayUserName(created)}, but the directory refresh failed. The temporary password above remains valid; refresh People manually. ${refreshWarning}`);
     } catch (error) {
-      if (accountScopeRef.current === scope) setLoadStatus(error instanceof Error ? error.message : "Account creation failed.");
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Account creation failed.";
+        setCreateAccountError(message);
+        setLoadStatus(message);
+      }
     } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
   }
-  async function issuePasswordResetForProfile() {
-    if (!effectiveAdminMode || !profile || adminActionBusy) return;
+  async function retryOnboardingFollowup() {
+    if (!effectiveAdminMode || !onboardingFollowup || onboardingRetryBusy) return;
+    const current = onboardingFollowup;
+    setOnboardingRetryBusy(true);
+    try {
+      await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(current.versionId)}/assign-person`, {
+        method: "POST", body: JSON.stringify({ userId: current.userId }),
+      });
+      if (accountScopeRef.current === currentUser.id) {
+        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? null : state);
+        setLoadStatus("Onboarding assigned to the existing account. No duplicate account was created.");
+      }
+    } catch (error) {
+      if (accountScopeRef.current === currentUser.id) {
+        const message = error instanceof Error ? error.message : "Onboarding assignment still unavailable.";
+        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? { ...state, message } : state);
+      }
+    } finally { setOnboardingRetryBusy(false); }
+  }
+
+  async function issueActivationInvitationForProfile() {
+    if (!effectiveAdminMode || !profile || adminActionBusy ||
+      profile.id === currentUser.id || profile.archived ||
+      profile.accountState !== "PASSWORD_CHANGE_REQUIRED") return;
+    const targetId = profile.id;
     const scope = currentUser.id;
+    const name = displayUserName(profile);
+    setAdminActionBusy("activation-invitation");
+    try {
+      const confirmed = await confirmCluster({
+        title: "Replace temporary password with an invitation?",
+        message: `Create a one-time activation link for ${name}? Their existing temporary password will stop working immediately. The link must be shared privately and expires after 24 hours. No sign-in session will be issued from the link.`,
+        confirmLabel: "Issue activation link",
+        tone: "danger",
+      });
+      if (!confirmed || accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      const result = await api<{ ok: boolean; username: string; activationLink: string; expiresAt: string }>(
+        `/api/admin/users/${encodeURIComponent(targetId)}/account-invitations`, { method: "POST" });
+      if (accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      setIssuedCredential(null);
+      setIssuedActivationLink({ username: result.username, activationLink: result.activationLink, expiresAt: result.expiresAt });
+      setAdminActionFeedback({ error: false, message: "Activation link issued. The old temporary password is revoked. Complete the one-time private handoff." });
+      setLoadStatus("Activation link issued. Copy and share it securely before leaving this view.");
+    } catch (error) {
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Could not issue an activation link.";
+        setAdminActionFeedback({ message, error: true });
+        setLoadStatus(message);
+      }
+    } finally {
+      if (accountScopeRef.current === scope) setAdminActionBusy("");
+    }
+  }
+
+  async function issuePasswordResetForProfile() {
+    if (!effectiveAdminMode || !profile || adminActionBusy || profile.id === currentUser.id) return;
+    const scope = currentUser.id;
+    const targetId = profile.id;
+    const name = displayUserName(profile);
     setAdminActionBusy("password-reset");
     try {
-      const result = await api<{ ok: boolean; username: string; temporaryPassword: string }>(`/api/admin/users/${profile.id}/password-reset`, { method: "POST" });
-      if (accountScopeRef.current !== scope) return; // Response contains a one-time password.
+      const confirmed = await confirmCluster({
+        title: "Issue temporary password?",
+        message: `Reset ${name}'s password and revoke existing sessions? A new one-time password will be shown once; it must be shared privately.`,
+        confirmLabel: "Reset password",
+        tone: "danger",
+      });
+      if (!confirmed || accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      const result = await api<{ ok: boolean; username: string; temporaryPassword: string }>(`/api/admin/users/${encodeURIComponent(targetId)}/password-reset`, { method: "POST" });
+      if (accountScopeRef.current !== scope) return; // Never show another session's credential.
       setIssuedCredential({ username: result.username, temporaryPassword: result.temporaryPassword });
-      setLoadStatus(`Password reset issued for ${displayUserName(profile)}. Existing sessions were revoked. Copy the temporary password above.`);
-      const refreshWarning = await reconcileAfterCommit(async () => { await loadProfile(profile.id, true); setDirectoryRefresh((current) => current + 1); });
-      if (refreshWarning) setLoadStatus(`Password reset succeeded, but profile refresh failed. The temporary password above remains valid. ${refreshWarning}`);
-    } catch (error) { if (accountScopeRef.current === scope) setLoadStatus(error instanceof Error ? error.message : "Password reset failed."); }
-    finally { if (accountScopeRef.current === scope) setAdminActionBusy(""); }
+      setLoadStatus(`Password reset issued for ${name}. Existing sessions were revoked. Copy the temporary password from the handoff dialog.`);
+      setAdminActionFeedback({ message: "Temporary password issued; sessions revoked. Complete the private credential handoff.", error: false });
+      const refreshWarning = await reconcileAfterCommit(async () => { await loadProfile(targetId, true); setDirectoryRefresh((current) => current + 1); });
+      if (refreshWarning) setLoadStatus(`Password reset succeeded, but profile refresh failed. The temporary password remains valid. ${refreshWarning}`);
+    } catch (error) {
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Password reset failed.";
+        setLoadStatus(message);
+        setAdminActionFeedback({ message, error: true });
+      }
+    } finally { if (accountScopeRef.current === scope) setAdminActionBusy(""); }
   }
   async function setProfileAccountState(state: "ACTIVE" | "SUSPENDED" | "DISABLED") {
-    if (!effectiveAdminMode || !profile || adminActionBusy) return;
+    if (!effectiveAdminMode || !profile || adminActionBusy || accountStateActionGateRef.current) return;
+    const userId = profile.id;
+    const name = displayUserName(profile);
+    const currentState = String(profile.accountState || "ACTIVE").toUpperCase();
+    if (state === currentState || (state !== "ACTIVE" && userId === currentUser.id)) return;
+    if (state === "ACTIVE" && !["SUSPENDED", "DISABLED"].includes(currentState)) {
+      setLoadStatus("Activate is for suspended or disabled accounts. Finish password setup or recovery through the account's existing workflow.");
+      return;
+    }
+    accountStateActionGateRef.current = true;
     setAdminActionBusy(`state:${state}`);
     try {
-      await api(`/api/admin/users/${profile.id}/account-state`, { method: "PATCH", body: JSON.stringify({ state }) });
-      await loadProfile(profile.id, true);
+      const confirmed = await confirmCluster({
+        title: state === "ACTIVE" ? "Reactivate account?" : state === "SUSPENDED" ? "Suspend account?" : "Disable account?",
+        message: state === "ACTIVE"
+          ? `Restore sign-in eligibility for ${name}? Expired and archived accounts still require governed recovery. Temporary-password setup is not skipped.`
+          : `Change ${name} to ${state.toLowerCase()}? Active sessions will be revoked${state === "DISABLED" ? ", and registered devices and authenticators will be revoked" : ""}.`,
+        confirmLabel: state === "ACTIVE" ? "Reactivate" : state === "SUSPENDED" ? "Suspend account" : "Disable account",
+        tone: state === "ACTIVE" ? "default" : "danger",
+      });
+      if (!confirmed || activeProfileIdRef.current !== userId) return;
+      await api(`/api/admin/users/${encodeURIComponent(userId)}/account-state`, { method: "PATCH", body: JSON.stringify({ state }) });
+      await loadProfile(userId, true);
       setDirectoryRefresh((current) => current + 1);
-      setLoadStatus(`${displayUserName(profile)} account set to ${state.toLowerCase()}.`);
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Account state update failed."); }
-    finally { setAdminActionBusy(""); }
+      setLoadStatus(`${name} account state updated. Sign-in requirements and policy checks remain enforced by the server.`);
+      setAdminActionFeedback({ message: `Account ${state.toLowerCase()}. Sign-in policies remain enforced.`, error: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Account state update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
+    } finally {
+      accountStateActionGateRef.current = false;
+      setAdminActionBusy("");
+    }
   }
   async function setProfileToolPermission(toolKey: string, level: string) {
     if (!effectiveAdminMode || !profile || adminActionBusy) return;
+    const targetId = profile.id;
+    const previousOverrides = (profile.toolPermissions || {}) as Record<string, string>;
+    const previousLevel = String(previousOverrides[toolKey] || "inherit");
+    if (level === previousLevel) return;
+    const toolLabel = TOOL_PERMISSION_OPTIONS.find((tool) => tool.key === toolKey)?.label || toolKey;
     setAdminActionBusy(`tool:${toolKey}`);
     try {
+      const confirmed = await confirmCluster({
+        title: "Change tool access?",
+        message: `Change ${displayUserName(profile)}'s ${toolLabel} override from ${previousLevel} to ${level}? This affects effective access and will be enforced by the server.`,
+        confirmLabel: "Apply access change",
+        tone: "danger",
+      });
+      if (!confirmed || activeProfileIdRef.current !== targetId) return;
       const next = { ...(profile.toolPermissions || {}) } as Record<string, string>;
       if (level === "inherit") delete next[toolKey]; else next[toolKey] = level;
-      await api(`/api/users/${profile.id}`, { method: "PATCH", body: JSON.stringify({ toolPermissions: next }) });
-      await loadProfile(profile.id, true);
+      await api(`/api/users/${encodeURIComponent(targetId)}`, { method: "PATCH", body: JSON.stringify({ toolPermissions: next }) });
+      await loadProfile(targetId, true);
       setDirectoryRefresh((current) => current + 1);
-      setLoadStatus("Tool access updated.");
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Tool access update failed."); }
-    finally { setAdminActionBusy(""); }
+      setLoadStatus(`${toolLabel} access updated.`);
+      setAdminActionFeedback({ message: `${toolLabel} access updated to ${level}.`, error: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Tool access update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
+    } finally { setAdminActionBusy(""); }
   }
 
   async function patchProfileAdministration(patch: Record<string, unknown>, status: string) {
@@ -482,8 +682,29 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       await loadProfile(profile.id, true);
       setDirectoryRefresh((current) => current + 1);
       setLoadStatus(status);
-    } catch (error) { setLoadStatus(error instanceof Error ? error.message : "Account administration update failed."); }
+      setAdminActionFeedback({ message: status, error: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Account administration update failed.";
+      setLoadStatus(message);
+      setAdminActionFeedback({ message, error: true });
+    }
     finally { setAdminActionBusy(""); }
+  }
+  async function changeProfileAccountType(nextType: string) {
+    if (!effectiveAdminMode || !profile || adminActionBusy || nextType === (profile.accountType || "employee")) return;
+    if (["contractor", "client", "guest"].includes(nextType) &&
+      (!profile.accessExpiresAt || new Date(profile.accessExpiresAt) <= new Date())) {
+      setAdminActionFeedback({ error: true, message: "External account types require a future access expiry. The current renewal flow cannot assign an initial expiry to a permanent account." });
+      return;
+    }
+    const personId = profile.id;
+    const accepted = await confirmCluster({
+      title: "Change account type?",
+      message: `Change ${displayUserName(profile)} to ${nextType}? Account identity type and role permissions are separate. Existing access grants are not automatically changed.`,
+      confirmLabel: "Change account type",
+    });
+    if (!accepted || activeProfileIdRef.current !== personId) return;
+    await patchProfileAdministration({ accountType: nextType }, "Account type updated.");
   }
 
   async function copyProfileLink(person: User) { const url = new URL(window.location.href); url.hash = "#people"; url.searchParams.set("inspect", `person:${person.id}`); const copied = await copyClusterText(url.toString()); setLoadStatus(copied ? "Profile link copied." : "Profile link could not be copied on this device."); }
@@ -491,7 +712,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
   async function selectProfile(userId: string) {
     if (profileView === "edit" && editorDirty && userId !== activeProfileIdRef.current) {
-      if (!(await confirmEditorDiscard())) return;
+      if (!(await confirmEditorDiscard())) {
+        if (pendingManagedAccountViewRef.current?.id === userId) pendingManagedAccountViewRef.current = null;
+        return;
+      }
       setEditorDirty(false);
     }
     ++peopleLoadSequenceRef.current; // Cancel older directory loads selecting a stale target.
@@ -502,6 +726,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setProfileCalendarLoading(false);
     setProfile(null);
     setSelectedUserId(userId);
+    setAdminActionFeedback(null);
     setProfileViewState("overview");
     setLoadStatus("Loading profile...");
     try {
@@ -511,6 +736,11 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(profileResult);
       setLoadStatus("Profile loaded.");
+      const pending = pendingManagedAccountViewRef.current;
+      if (pending?.id === userId) {
+        pendingManagedAccountViewRef.current = null;
+        setProfileViewState(pending.view);
+      }
       void queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`, {
         staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["people", "teams", "profiles"],
       }).then((contextResult) => {
@@ -542,19 +772,13 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const filteredUsers = users.filter((person) => {
     if (departmentFilter !== "all" && person.department !== departmentFilter) return false;
     if (statusFilter !== "all" && (person.status || "available") !== statusFilter && presenceState(person) !== statusFilter) return false;
-    if (effectiveAdminMode) {
-      const state = String(person.accountState || "ACTIVE").toUpperCase();
-      if (accountFilter === "attention" && !["PASSWORD_CHANGE_REQUIRED", "PASSWORD_RESET_REQUIRED", "MFA_ENROLLMENT_REQUIRED"].includes(state)) return false;
-      if (accountFilter === "restricted" && !["SUSPENDED", "DISABLED", "LOCKED"].includes(state)) return false;
-      if (accountFilter === "archived" && !person.archived) return false;
-      if (accountFilter !== "archived" && person.archived) return false;
-    }
+
     return true;
   });
   const peopleProgress = useProgressiveList(filteredUsers, {
     initial: 80,
     step: 80,
-    resetKey: `${query}|${departmentFilter}|${statusFilter}|${accountFilter}|${effectiveAdminMode}`,
+    resetKey: `${query}|${departmentFilter}|${statusFilter}|${effectiveAdminMode}`,
   });
   const activeProfiles = users.filter((person) => ["active", "recent", "focus"].includes(presenceState(person))).length;
   const assignmentByUserId = useMemo(() => new Map(assignments.map((item) => [item.user.id, item])), [assignments]);
@@ -797,48 +1021,61 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         className="cluster-page-header"
         title="People"
         actions={<>
-          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => loadProfiles() }]} />
-          {effectiveAdminMode && <ClusterButton variant="secondary" onClick={() => setCreateAccountOpen((open) => !open)}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
-          <ClusterButton variant="primary" onClick={() => { openFullProfile(currentUser.id); }}>My profile</ClusterButton>
+          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: workforceMode === "accounts" ? "Refresh accounts" : "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); if (workforceMode !== "accounts") void loadProfiles(); } }]} />
+          {effectiveAdminMode && workforceMode !== "accounts" && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          <ClusterButton variant="primary" onClick={() => { setWorkforceMode("directory"); openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
 
       <div className="people-workforce-modebar-v504">
-        <ClusterSegmentedControl value={workforceMode} onChange={setWorkforceMode} label="People workspace" options={[
+        <ClusterSegmentedControl value={workforceMode} onChange={(value) => { void changeWorkforceMode(value as typeof workforceMode); }} label="People workspace" options={[
           { value: "directory", label: "Directory" },
+          ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
           { value: "organization", label: "Organization" },
           { value: "teams", label: "Teams" },
           { value: "capacity", label: "Capacity" },
           { value: "availability", label: "Availability" },
         ]} />
-        <span>{effectiveAdminMode ? `Admin mode · ${users.length} accounts` : workforceContext ? `${users.length} people` : "Loading…"}</span>
+        <span>{effectiveAdminMode ? "People administration" : workforceContext ? `${users.length} people` : "Loading…"}</span>
       </div>
 
-      {effectiveAdminMode && createAccountOpen && <section className="people-admin-create-v536 panel" aria-label="Create Cluster account">
-        <header><div><strong>Create account</strong><span>Provision identity and workspace access. Cluster issues a one-time temporary password; the new member signs in and chooses their own permanent password.</span></div></header>
-        <div className="people-admin-create-grid-v536">
-          <label className="field"><span>Username</span><ClusterTextInput autoFocus value={createAccountDraft.username} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, username: event.target.value }))} placeholder="username" /></label>
-          <label className="field"><span>Display name</span><ClusterTextInput value={createAccountDraft.displayName} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, displayName: event.target.value }))} placeholder="Display name" /></label>
-          <label className="field"><span>Email</span><ClusterTextInput value={createAccountDraft.email} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="name@example.com" /></label>
-          <label className="field"><span>Access expires</span><ClusterInput type="date" value={createAccountDraft.accessExpiresAt} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accessExpiresAt: event.target.value }))} /><small>Required for contractor, client and guest accounts.</small></label>
-          <label className="field"><span>Account type</span><ClusterNativeSelect value={createAccountDraft.accountType} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, accountType: event.target.value }))}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
-          <label className="field"><span>Workspace role</span><ClusterNativeSelect value={createAccountDraft.role} disabled={createRoleLoading || !createRoleCatalog || createAccountBusy} onChange={(event) => setCreateAccountDraft((draft) => ({ ...draft, role: event.target.value }))}>
-            {!createRoleCatalog?.roles.some((role) => role.id === createAccountDraft.role) && <option value={createAccountDraft.role} disabled>{createAccountDraft.role} (unavailable)</option>}
-            {(createRoleCatalog?.roles || []).map((role) => <option key={role.id} value={role.id} disabled={!canChooseStudioRole(role, createRoleCatalog?.actorRole)}>
-              {role.label}{role.enabled ? "" : " (disabled)"} · {role.members} members
-            </option>)}
-          </ClusterNativeSelect>
-          <small>Only roles you can assign appear as enabled options. Owner and administrator roles require an owner.</small>
-          {createRoleLoading && <small role="status">Loading workspace roles…</small>}
-          {createRoleError && <small role="alert">{createRoleError}</small>}
-          </label>
-          <div className="button-row compact"><ClusterButton variant="primary" disabled={createAccountBusy || createRoleLoading || !createRoleCatalog || Boolean(createRoleError)} onClick={() => void createPersonAccount()}>{createAccountBusy ? "Creating…" : "Create account"}</ClusterButton></div>
-        </div>
-      </section>}
+      {effectiveAdminMode && createAccountOpen && <PeopleAccountProvisioningWizard
+        draft={createAccountDraft}
+        onPatch={patchCreateAccountDraft}
+        roleCatalog={createRoleCatalog}
+        rolesLoading={createRoleLoading}
+        rolesError={createRoleError}
+        creating={createAccountBusy}
+        actionError={createAccountError}
+        onCreate={createPersonAccount}
+        onCancel={() => { void toggleCreateAccount(); }}
+      />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
+      {effectiveAdminMode && issuedActivationLink && <AccountInvitationHandoff username={issuedActivationLink.username} activationLink={issuedActivationLink.activationLink} expiresAt={issuedActivationLink.expiresAt} onDismiss={() => setIssuedActivationLink(null)} />}
+      {effectiveAdminMode && onboardingFollowup && <div className="people-onboarding-followup-v11 panel" role="alert">
+        <strong>Account created, onboarding pending</strong>
+        <span>{onboardingFollowup.message}</span>
+        <ClusterButton type="button" variant="secondary" size="compact" disabled={onboardingRetryBusy} onClick={() => void retryOnboardingFollowup()}>
+          {onboardingRetryBusy ? "Retrying…" : "Retry onboarding only"}
+        </ClusterButton>
+      </div>}
 
-      {workforceMode !== "directory" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
+      {effectiveAdminMode && <div hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"><PeopleAccountManagementPanel
+        active={workforceMode === "accounts"}
+        refreshVersion={directoryRefresh}
+        onOpenAccount={(id, view) => {
+          pendingManagedAccountViewRef.current = { id, view };
+          setAccountsReturnAvailable(true);
+          setWorkforceMode("directory");
+          openFullProfile(id);
+          if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
+        }}
+        accountCreationOpen={createAccountOpen}
+        onToggleCreateAccount={() => { void toggleCreateAccount(); }}
+      /></div>}
+
+      {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
             <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
@@ -929,15 +1166,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                 <option value="offline">Offline</option>
               </ClusterNativeSelect>
             </label>
-            {effectiveAdminMode && <label className="field">
-              <span>Account</span>
-              <ClusterNativeSelect value={accountFilter} onChange={(event) => setAccountFilter(event.target.value as typeof accountFilter)}>
-                <option value="all">Active directory</option>
-                <option value="attention">Setup / recovery</option>
-                <option value="restricted">Suspended / disabled</option>
-                <option value="archived">Archived</option>
-              </ClusterNativeSelect>
-            </label>}
           </>
         }
         actions={<DataExportBuilder fields={peopleExportFields} selectionCount={selectedPeopleIds.size} busy={peopleExporting} onExport={({ format, fieldIds, scope, delivery }) => exportPeople(format, fieldIds, scope, delivery)} />}
@@ -1013,6 +1241,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
                 </div>
                 <div className="button-row compact people-person-actions-v495">
+                  {accountsReturnAvailable && effectiveAdminMode && <ClusterButton size="compact" variant="secondary" onClick={() => { void changeWorkforceMode("accounts"); }}>Back to Accounts</ClusterButton>}
                   {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant="secondary" onClick={() => setProfileView("edit")}>Edit user</ClusterButton>}
                   <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
                   <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
@@ -1275,13 +1504,18 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     {effectiveAdminMode && <section className="people-section-v244 people-account-admin-v536">
                       <header className="people-section-heading-v417"><div><h3>Account administration</h3><span>Lifecycle and recovery actions for this person</span></div><strong>{profile.archived ? "Archived" : String(profile.accountState || "ACTIVE").replaceAll("_", " ")}</strong></header>
                       <div className="people-admin-account-fields-v536">
-                        <label><span>Account type</span><ClusterNativeSelect value={profile.accountType || "employee"} disabled={Boolean(adminActionBusy)} onChange={(event) => void patchProfileAdministration({ accountType: event.target.value }, "Account type updated.")}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect></label>
+                        <label><span>Account type</span><ClusterNativeSelect value={profile.accountType || "employee"} disabled={Boolean(adminActionBusy)} onChange={(event) => void changeProfileAccountType(event.target.value)}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect><small>External account types require a future access expiry.</small></label>
                         <div><span>Access expires</span><strong>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "No expiry"}</strong><small>Extensions require another admin’s approval in Studio Settings → Studio Systems → Access renewals.</small></div>
                       </div>
                       <div className="people-admin-action-groups-v536">
-                        <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy)} onClick={() => void setProfileAccountState("ACTIVE")}>Activate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
-                        <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
+                        <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || !["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase())} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "DISABLED"} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
+                        <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="secondary" size="compact"
+  disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || profile.archived || profile.accountState !== "PASSWORD_CHANGE_REQUIRED"}
+  onClick={() => void issueActivationInvitationForProfile()}>{adminActionBusy === "activation-invitation" ? "Issuing…" : "Issue activation link"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
                       </div>
+                      {adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"} className={adminActionFeedback.error ? "people-user-editor-error-v106" : "people-user-editor-status-v11"}>{adminActionFeedback.message}</p>}
+                      {profile.id === currentUser.id && <small className="muted">You cannot suspend or disable your own account.</small>}
+                      {!["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase()) && <small className="muted">Reactivation is only for suspended or disabled accounts. Setup and recovery are separate.</small>}
                     </section>}
                     {effectiveAdminMode && <section className="people-section-v244 people-tool-access-editor-v536">
                       <header className="people-section-heading-v417"><div><h3>Tool access</h3><span>Explicit overrides. Inherit follows the workspace role and account type defaults.</span></div></header>
@@ -1319,10 +1553,12 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   onSave={async (changes) => {
                     await api(`/api/users/${encodeURIComponent(profile.id)}`, { method: "PATCH", body: JSON.stringify(changes) });
                     setDirectoryRefresh((current) => current + 1);
-                    await loadProfile(profile.id, true);
-                    setEditorDirty(false);
-                    setProfileViewState("overview");
-                    setLoadStatus(`User details saved for ${displayUserName(profile)}.`);
+                    const refreshed = await loadProfile(profile.id, true);
+                    if (!refreshed) throw new Error("User details were saved, but the profile could not be refreshed. Reopen this person before continuing.");
+                    setLoadStatus(`User details saved for ${displayUserName(refreshed)}.`);
+                    // Keep the editor open so a pending role choice can be applied
+                    // after the new authoritative profile revision is received.
+                    return refreshed;
                   }}
                 />}
 
