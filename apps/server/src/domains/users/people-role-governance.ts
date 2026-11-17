@@ -113,5 +113,12 @@ export async function assignWorkspaceRole(tx: any, input: {
     where: { workspaceId_userId: { workspaceId: actorMembership.workspaceId, userId: input.targetUserId } },
     data: { role: nextRole.id },
   });
+  // Under the same workspace lock as invitation issuance and redemption:
+  // invalidate all outstanding first-login links, including when an account
+  // changes roles and is later changed back to its original role.
+  await tx.studioAccountInvitation.updateMany({
+    where: { workspaceId: actorMembership.workspaceId, userId: input.targetUserId, consumedAt: null, revokedAt: null },
+    data: { revokedAt: new Date(), revokedById: input.actorId },
+  });
   return { changed: true, from: previousRole, to: nextRole.id, workspaceId: actorMembership.workspaceId };
 }

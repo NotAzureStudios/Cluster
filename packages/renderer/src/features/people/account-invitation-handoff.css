@@ -1,0 +1,13 @@
+.people-invitation-handoff-v11{width:min(500px,calc(100vw - 28px));max-height:min(85dvh,760px);overflow-y:auto;border:1px solid var(--border);border-radius:15px;background:var(--panel);color:var(--text);box-shadow:0 20px 65px rgb(0 0 0 / 26%);padding:clamp(17px,3vw,26px)}
+.people-invitation-handoff-v11::backdrop{background:rgb(0 0 0 / 58%);backdrop-filter:blur(3px)}
+.people-invitation-handoff-v11 h2{font-size:1.15rem;margin:5px 0 7px}
+.people-invitation-handoff-v11 p{font-size:.78rem;line-height:1.55}
+.people-invitation-handoff-v11 .eyebrow{font-size:.69rem;color:var(--accent)}
+.people-invitation-handoff-details-v11{display:grid;gap:5px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-soft,var(--panel-2));font-size:.77rem}
+.people-invitation-handoff-details-v11>span,.people-invitation-handoff-details-v11>small{color:var(--muted)}
+.people-invitation-handoff-details-v11 code{color:var(--text);white-space:normal;overflow-wrap:anywhere;font-size:.75rem}
+.people-invitation-handoff-note-v11{color:var(--muted)}
+.people-invitation-handoff-ack-v11{display:flex;align-items:center;gap:9px;font-size:.78rem;line-height:1.5;margin:12px 0}
+.people-invitation-handoff-ack-v11 input{flex:0 0 auto}
+.people-invitation-handoff-actions-v11{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+@media(max-width:500px){.people-invitation-handoff-actions-v11>*{flex:1}}

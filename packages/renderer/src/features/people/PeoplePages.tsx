@@ -61,6 +61,7 @@ import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
 import { PeopleAccountProvisioningWizard } from "./PeopleAccountProvisioningWizard";
 import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
+import { AccountInvitationHandoff } from "./AccountInvitationHandoff";
 import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
@@ -240,6 +241,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
+  const [issuedActivationLink, setIssuedActivationLink] = useState<{ username: string; activationLink: string; expiresAt: string } | null>(null);
   const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
   const [createAccountError, setCreateAccountError] = useState("");
   const [onboardingFollowup, setOnboardingFollowup] = useState<{ userId: string; versionId: string; message: string } | null>(null);
@@ -273,6 +275,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     if (effectiveAdminMode) return;
     setCreateAccountOpen(false);
     setIssuedCredential(null);
+    setIssuedActivationLink(null);
     setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
@@ -295,6 +298,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setPeopleContext(null);
     setWorkforceContext(null);
     setIssuedCredential(null);
+    setIssuedActivationLink(null);
     setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
@@ -539,6 +543,40 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? { ...state, message } : state);
       }
     } finally { setOnboardingRetryBusy(false); }
+  }
+
+  async function issueActivationInvitationForProfile() {
+    if (!effectiveAdminMode || !profile || adminActionBusy ||
+      profile.id === currentUser.id || profile.archived ||
+      profile.accountState !== "PASSWORD_CHANGE_REQUIRED") return;
+    const targetId = profile.id;
+    const scope = currentUser.id;
+    const name = displayUserName(profile);
+    setAdminActionBusy("activation-invitation");
+    try {
+      const confirmed = await confirmCluster({
+        title: "Replace temporary password with an invitation?",
+        message: `Create a one-time activation link for ${name}? Their existing temporary password will stop working immediately. The link must be shared privately and expires after 24 hours. No sign-in session will be issued from the link.`,
+        confirmLabel: "Issue activation link",
+        tone: "danger",
+      });
+      if (!confirmed || accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      const result = await api<{ ok: boolean; username: string; activationLink: string; expiresAt: string }>(
+        `/api/admin/users/${encodeURIComponent(targetId)}/account-invitations`, { method: "POST" });
+      if (accountScopeRef.current !== scope || activeProfileIdRef.current !== targetId) return;
+      setIssuedCredential(null);
+      setIssuedActivationLink({ username: result.username, activationLink: result.activationLink, expiresAt: result.expiresAt });
+      setAdminActionFeedback({ error: false, message: "Activation link issued. The old temporary password is revoked. Complete the one-time private handoff." });
+      setLoadStatus("Activation link issued. Copy and share it securely before leaving this view.");
+    } catch (error) {
+      if (accountScopeRef.current === scope) {
+        const message = error instanceof Error ? error.message : "Could not issue an activation link.";
+        setAdminActionFeedback({ message, error: true });
+        setLoadStatus(message);
+      }
+    } finally {
+      if (accountScopeRef.current === scope) setAdminActionBusy("");
+    }
   }
 
   async function issuePasswordResetForProfile() {
@@ -1014,6 +1052,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
+      {effectiveAdminMode && issuedActivationLink && <AccountInvitationHandoff username={issuedActivationLink.username} activationLink={issuedActivationLink.activationLink} expiresAt={issuedActivationLink.expiresAt} onDismiss={() => setIssuedActivationLink(null)} />}
       {effectiveAdminMode && onboardingFollowup && <div className="people-onboarding-followup-v11 panel" role="alert">
         <strong>Account created, onboarding pending</strong>
         <span>{onboardingFollowup.message}</span>
@@ -1470,7 +1509,9 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                       </div>
                       <div className="people-admin-action-groups-v536">
                         <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || !["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase())} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "DISABLED"} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
-                        <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
+                        <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="secondary" size="compact"
+  disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || profile.archived || profile.accountState !== "PASSWORD_CHANGE_REQUIRED"}
+  onClick={() => void issueActivationInvitationForProfile()}>{adminActionBusy === "activation-invitation" ? "Issuing…" : "Issue activation link"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
                       </div>
                       {adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"} className={adminActionFeedback.error ? "people-user-editor-error-v106" : "people-user-editor-status-v11"}>{adminActionFeedback.message}</p>}
                       {profile.id === currentUser.id && <small className="muted">You cannot suspend or disable your own account.</small>}
