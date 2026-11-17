@@ -4,6 +4,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { RequestErrorState } from "../../components/RequestState";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
+import { AuthEntryLayout } from "./AuthEntryLayout";
 
 export type FirstLoginUser = {
   id: string;
@@ -37,7 +38,7 @@ function validStoredStep(value: unknown): FirstLoginStep {
 
 function StepHeader({ step }: { step: FirstLoginStep }) {
   const index = STEPS.indexOf(step);
-  return <><div className="button-row" aria-label="First login progress">{STEPS.map((item, itemIndex) => <span key={item} aria-current={item === step ? "step" : undefined}><strong>{itemIndex + 1}</strong> {STEP_LABELS[item]}</span>)}</div></>;
+  return <nav className="cluster-first-login-progress-v11" aria-label="First-login progress"><ol>{STEPS.map((item, itemIndex) => <li key={item} aria-current={item === step ? "step" : undefined}><strong>{itemIndex + 1}</strong><span>{STEP_LABELS[item]}</span></li>)}</ol><small>Step {index + 1} of {STEPS.length} · {STEP_LABELS[step]}</small></nav>;
 }
 
 export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: FirstLoginUser; onUserUpdated: (user: FirstLoginUser) => void; onLogout: () => void | Promise<void> }) {
@@ -108,10 +109,10 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
   }
 
   if (step === "policies") {
-    return <StudioPolicyGate onLogout={onLogout}><main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card"><StepHeader step={step} /><h1>Policies</h1><p className="muted">Required policies accepted.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></section></main></StudioPolicyGate>;
+    return <StudioPolicyGate onLogout={onLogout}><AuthEntryLayout mode="setup"><StepHeader step={step} /><h1>Policies</h1><p className="muted">Required policies accepted.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></AuthEntryLayout></StudioPolicyGate>;
   }
 
-  return <main className="login-shell managed-auth-shell managed-auth-v473"><section className="login-card panel managed-auth-card">
+  return <AuthEntryLayout mode="setup">
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
     <StepHeader step={step} />
     {Boolean(loadError) && <RequestErrorState error={loadError} title="Account context could not be loaded" onRetry={() => void loadContext()} />}
@@ -147,5 +148,5 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
     </>}
 
     <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" onClick={() => void onLogout()}>Sign out</ClusterButton></div>
-  </section></main>;
+  </AuthEntryLayout>;
 }
