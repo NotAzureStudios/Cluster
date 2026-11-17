@@ -136,13 +136,13 @@ function CalendarTimelineOverlayPanel({ items }: { items: CalendarDisplayItem[] 
     <section className="panel calendar-sync-panel-v121">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Canonical planning</p>
+          <p className="eyebrow">Planning</p>
           <h2>Timeline overlays</h2>
           <p className="muted tight">Milestones, releases, deadlines, and Card due dates appear here as read-only views of their owning resources. Edit them at the source.</p>
         </div>
         <span className="soft-pill">{overlays.length} visible</span>
       </div>
-      <p className="muted tight">Calendar does not copy Timeline work into shadow events. Selecting an overlay opens its canonical Timeline item or Card.</p>
+      <p className="muted tight">Calendar shows Timeline work without copying it. Selecting an overlay opens its Timeline item or Card.</p>
     </section>
   );
 }
@@ -896,7 +896,7 @@ function EventEditor({ event, date, occurrenceStartsAt, projects, users, current
           <div className="field"><label>Library attachment IDs</label><ClusterTextInput value={attachmentIdsText} onChange={(e) => setAttachmentIdsText(e.target.value)} placeholder="id1, id2" /></div>
           <div className="field"><label>Decision IDs</label><ClusterTextInput value={decisionIdsText} onChange={(e) => setDecisionIdsText(e.target.value)} placeholder="id1, id2" /></div>
         </div>
-        <div className="field"><label>Action item IDs</label><ClusterTextInput value={actionItemIdsText} onChange={(e) => setActionItemIdsText(e.target.value)} placeholder="Canonical My Work / work-item IDs" /></div>
+        <div className="field"><label>Action item IDs</label><ClusterTextInput value={actionItemIdsText} onChange={(e) => setActionItemIdsText(e.target.value)} placeholder="My Work or work-item IDs" /></div>
       </div>
 
       <ClusterButton unstyled type="button" className="settings-disclosure-v190" onClick={() => setShowAdvanced((value) => !value)}>{showAdvanced ? "Hide recurrence and links" : "Recurrence and links"}</ClusterButton>

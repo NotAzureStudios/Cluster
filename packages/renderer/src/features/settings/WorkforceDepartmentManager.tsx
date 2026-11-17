@@ -174,7 +174,7 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
     } finally { setSaving(false); }
   }
 
-  return <section className="studio-workforce-department-manager-v11" aria-label="Canonical workforce departments">
+  return <section className="studio-workforce-department-manager-v11" aria-label="Workforce departments">
     <div className="studio-workforce-department-heading-v11">
       <div><h3>Department directory</h3><p>Icons, colors and hierarchy are stored on the actual department and reused across Cluster.</p>{!canEdit && <p>Editing department identity requires administrator access.</p>}</div>
       <ClusterButton size="compact" variant="primary" disabled={!canEdit || loading || saving} onClick={() => void beginCreate()}>New department</ClusterButton>

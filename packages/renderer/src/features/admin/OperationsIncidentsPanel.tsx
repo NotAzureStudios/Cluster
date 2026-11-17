@@ -346,7 +346,7 @@ export function OperationsIncidentsPanel() {
             <div><strong>{stateLabel(item.code)}</strong><span>{stateLabel(item.outcome)} · {stateLabel(item.category)} · occurred {timeLabel(item.occurredAt)}</span><small>Native event {item.id} · imported {timeLabel(item.processedAt)}</small></div>
             <em>{item.incidentId ? "Linked incident" : "Evidence only"}</em>
           </article>)}
-          {!nativeHistory.length ? <ClusterEmptyState compact kind="empty" title="No reconciled native events" description="No native emergency records have been imported into the canonical database yet." /> : null}
+          {!nativeHistory.length ? <ClusterEmptyState compact kind="empty" title="No reconciled native events" description="No emergency records have been imported yet." /> : null}
         </div> : null}
       </section>
 
@@ -363,7 +363,7 @@ export function OperationsIncidentsPanel() {
         </section>
 
         <section className="panel">
-          <header className="section-heading"><div><h3>Registered health checks</h3><p className="muted tight">Current evidence from the canonical operational health runtime.</p></div></header>
+          <header className="section-heading"><div><h3>Registered health checks</h3><p className="muted tight">Current results from the server's health checks.</p></div></header>
           <div className="control-domain-list-v136">
             {checks.map((check) => { const healthy = ["pass", "healthy", "ok", "ready"].includes(String(check.status || "").toLowerCase()); return <article className={`control-domain-card-v136 ${healthy ? "good" : "warning"}`} key={check.key}><div><strong>{check.label || stateLabel(check.key)}</strong><span>{check.message || `Status: ${stateLabel(check.status)}`}</span></div><em>{stateLabel(check.status)}</em></article>; })}
             {!checks.length ? <ClusterEmptyState compact kind="empty" title="No health-check evidence" description="Registered server checks will appear after the operational health runtime reports a sample." /> : null}

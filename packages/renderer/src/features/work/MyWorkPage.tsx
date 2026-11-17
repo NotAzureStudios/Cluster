@@ -507,7 +507,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
 
       {view === "attention" && (
         <section className="mywork-panel-v253 mywork-browser-v253 mywork-attention-v9f">
-          <header><div><h2>Attention</h2><span>Reviews and required actions from canonical systems</span></div></header>
+          <header><div><h2>Attention</h2><span>Reviews and required actions from across Cluster</span></div></header>
           {attentionLoadIssues.length ? <div className="mywork-attention-warning-v536" role="alert">
             <span>Some work could not be refreshed: {attentionLoadIssues.join(", ")}. Previously loaded items are retained, but this queue may be incomplete.</span>
             <ClusterButton size="compact" variant="secondary" disabled={refreshing} onClick={() => void loadMyWork(true)}>Retry</ClusterButton>

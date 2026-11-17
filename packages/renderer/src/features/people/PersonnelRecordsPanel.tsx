@@ -238,7 +238,7 @@ export function PersonnelRecordsPanel({ subjectUserId, canManage = false, compac
 
   async function attachLibraryItem() {
     if (!selected || working) return;
-    const libraryItemId = (await promptCluster({ title: "Attach Library evidence", message: "Enter the Library item ID. Once attached, normal Library access is blocked and Personnel Records policy becomes authoritative.", label: "Library item ID", confirmLabel: "Attach" }))?.trim();
+    const libraryItemId = (await promptCluster({ title: "Attach Library evidence", message: "Enter the Library item ID. Once attached, normal Library access is blocked and Personnel Records policy applies instead.", label: "Library item ID", confirmLabel: "Attach" }))?.trim();
     if (!libraryItemId) return;
     const role = (await promptCluster({ title: "Attachment role", message: "Describe what this item represents in the record.", label: "Role", initialValue: "evidence", confirmLabel: "Attach" }))?.trim() || "evidence";
     setWorking(true);

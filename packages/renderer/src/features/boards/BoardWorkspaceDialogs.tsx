@@ -1264,7 +1264,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
 
             <section className="span-2">
               <div className="panel-title-row">
-                <div><h3>Planning relationships</h3><p className="muted tight">Dependencies and release association use Cluster's canonical work graph.</p></div>
+                <div><h3>Planning relationships</h3><p className="muted tight">Dependencies and release links are shared across Cluster.</p></div>
                 <div className="button-row">
                   <ClusterButton size="compact" variant="secondary" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "depends_on", targetKind: "card" })}>Add dependency</ClusterButton>
                   <ClusterButton size="compact" variant="quiet" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "ships_in", targetKind: "release" })}>Associate release</ClusterButton>
