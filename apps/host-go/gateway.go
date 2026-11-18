@@ -136,8 +136,23 @@ func serveWeb(response http.ResponseWriter, request *http.Request, root string, 
 		http.Error(response, "Invalid path.", http.StatusBadRequest)
 		return
 	}
-	if info, err := os.Stat(candidate); err != nil || info.IsDir() {
-		candidate = filepath.Join(root, "index.html")
+	info, err := os.Stat(candidate)
+	if err != nil || info.IsDir() {
+		// Only extensionless app routes fall back to the SPA shell. A missing
+		// file (usually a code chunk from a build that an update replaced) must
+		// 404: answering with index.html makes the browser parse HTML as
+		// JavaScript, the screen fails to open, and the service worker could
+		// cache that HTML under the script's URL.
+		if extension := strings.ToLower(filepath.Ext(cleaned)); extension != "" && extension != ".html" {
+			response.Header().Set("Cache-Control", "no-store")
+			http.Error(response, "Not found.", http.StatusNotFound)
+			return
+		}
+		candidate = indexPath
+		if info, err = os.Stat(candidate); err != nil {
+			http.Error(response, "Not found.", http.StatusNotFound)
+			return
+		}
 	}
 	baseName := filepath.Base(candidate)
 	if strings.HasSuffix(candidate, "index.html") {
@@ -152,7 +167,7 @@ func serveWeb(response http.ResponseWriter, request *http.Request, root string, 
 	if value := mime.TypeByExtension(filepath.Ext(candidate)); value != "" {
 		response.Header().Set("Content-Type", value)
 	}
-	http.ServeFile(response, request, candidate)
+	serveWebFile(response, request, candidate, info)
 }
 
 func applyWebSecurityHeaders(response http.ResponseWriter, secure bool) {

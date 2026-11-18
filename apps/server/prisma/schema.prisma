@@ -486,6 +486,7 @@ model SecurityAuditEvent {
   @@index([workspaceId, occurredAt])
   @@index([integrityVersion, sequence])
   @@index([requestId])
+  @@index([actorUserId])
 }
 
 model Workspace {
@@ -523,6 +524,7 @@ model WorkspaceMember {
 
   @@unique([workspaceId, userId])
   @@index([userId, workspaceId])
+  @@index([userId])
 }
 
 
@@ -1368,6 +1370,7 @@ model VersionPolicy {
 
   @@unique([workspaceId, projectId, name], map: "VersionPolicy_unique_scope_name")
   @@index([workspaceId, projectId, archived, isDefault])
+  @@index([projectId])
 }
 
 model ProjectVersion {
@@ -1682,6 +1685,7 @@ model ReviewAsset {
   @@index([uploadedById, uploadedAt])
   @@index([reviewerId, status])
   @@index([approvedById, approvedAt])
+  @@index([ownerId])
 }
 
 // Immutable per-version decision evidence. Do not infer approval from comments.
@@ -1825,6 +1829,7 @@ model ReviewComment {
   @@index([parentCommentId, createdAt])
   @@index([reviewAssetId, workEntityType, workEntityId])
   @@index([carriedFromAssetId, carriedFromCommentId])
+  @@index([userId])
 }
 
 model EfficiencyMetric {
@@ -2057,6 +2062,7 @@ model ChecklistItem {
   updatedAt DateTime @updatedAt
 
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  @@index([cardId])
 }
 
 model CardComment {
@@ -2168,6 +2174,7 @@ model CardActivity {
   createdAt DateTime @default(now())
 
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  @@index([cardId])
 }
 
 model Whiteboard {
@@ -2387,6 +2394,8 @@ model ActivityEvent {
   @@index([entityType, createdAt])
   @@index([entityType])
   @@index([type])
+  @@index([boardId])
+  @@index([whiteboardId])
 }
 
 
@@ -3101,6 +3110,7 @@ model StudioFormResponseDraft {
 
   @@unique([formId, userId])
   @@index([userId, updatedAt])
+  @@index([formVersionId])
 }
 
 model StudioFormSubmission {
@@ -3135,6 +3145,7 @@ model StudioFormSubmission {
   @@index([userId, submittedAt])
   @@index([respondentEmail, submittedAt])
   @@index([convertedUserId, convertedAt])
+  @@index([formVersionId])
 }
 
 // Form submissions remain private to Studio Forms reviewers. A Project can see only
@@ -3497,6 +3508,8 @@ model ScheduleBlock {
   @@index([status, startsAt])
   @@index([windowKind, startsAt])
   @@index([recurrenceGroupId, recurrenceIndex])
+  @@index([cardId])
+  @@index([boardId])
 }
 
 model ScheduleResource {
@@ -4947,6 +4960,7 @@ model ManagedPackageRollout {
   package ManagedPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
   release ManagedPackageRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
   @@unique([packageId, channel])
+  @@index([releaseId])
 }
 
 model ManagedPackagePin {
@@ -4962,6 +4976,7 @@ model ManagedPackagePin {
   package ManagedPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
   release ManagedPackageRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
   @@unique([packageId, deviceId])
+  @@index([releaseId])
 }
 
 // F11: Distribution eligibility is a person-level entitlement, separate from

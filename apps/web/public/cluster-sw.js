@@ -40,16 +40,42 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok && response.type === "basic")
-            void caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
-          return response;
-        })
-        .catch(() => cached || Response.error());
-      return cached || network;
-    }),
-  );
+  event.respondWith(serveAsset(event, request, url));
 });
+
+// Content-hashed build output never changes, so a cached copy is final.
+const IMMUTABLE_ASSET = /^\/assets\//;
+
+// Older gateways answered missing chunks with the index.html app shell, and
+// this cache could keep it under a script URL. Never store or serve that.
+function shellUnderAssetUrl(request, response) {
+  const type = (response.headers.get("content-type") || "").toLowerCase();
+  return request.destination !== "document" && type.includes("text/html");
+}
+
+function cacheable(request, response) {
+  return Boolean(response && response.ok && response.type === "basic" && !shellUnderAssetUrl(request, response));
+}
+
+function store(request, response) {
+  if (!cacheable(request, response)) return;
+  // Clone now, before the page reads the body; cloning later throws.
+  const copy = response.clone();
+  void caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy)).catch(() => undefined);
+}
+
+async function serveAsset(event, request, url) {
+  let cached = await caches.match(request);
+  if (cached && shellUnderAssetUrl(request, cached)) cached = undefined;
+  if (cached && IMMUTABLE_ASSET.test(url.pathname)) return cached;
+  const network = fetch(request).then((response) => {
+    store(request, response);
+    return response;
+  });
+  if (cached) {
+    // Serve instantly and refresh in the background for non-hashed files.
+    event.waitUntil(network.catch(() => undefined));
+    return cached;
+  }
+  return network.catch(() => Response.error());
+}

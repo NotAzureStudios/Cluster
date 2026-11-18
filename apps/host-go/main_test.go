@@ -1,8 +1,10 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -539,4 +541,85 @@ func TestManagedHostExplicitLANHTTPAuthGateOnlyWithHostOptIn(t *testing.T){
    }
   })
  }
+}
+
+func TestServeWebMissingAssetIs404NotIndex(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("cluster renderer"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/assets/ClusterApplication-OLDHASH.js", "/assets/old.css", "/favicon-gone.png"} {
+		recorder := httptest.NewRecorder()
+		serveWeb(recorder, httptest.NewRequest(http.MethodGet, "http://cluster.local"+path, nil), root, false)
+		if recorder.Code != http.StatusNotFound || strings.Contains(recorder.Body.String(), "cluster renderer") {
+			t.Fatalf("%s returned %d %q, want 404 without the app shell", path, recorder.Code, recorder.Body.String())
+		}
+		if recorder.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("%s 404 must not be cached", path)
+		}
+	}
+	// App routes without an extension still get the SPA shell.
+	recorder := httptest.NewRecorder()
+	serveWeb(recorder, httptest.NewRequest(http.MethodGet, "http://cluster.local/library", nil), root, false)
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "cluster renderer") {
+		t.Fatalf("SPA route fallback broke: %d", recorder.Code)
+	}
+}
+
+func TestServeWebGzipsTextAssets(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "assets"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	script := strings.Repeat("export const cluster = 'renderer';\n", 400)
+	for name, content := range map[string]string{"index.html": "<!doctype html>" + strings.Repeat("<div></div>", 200), filepath.Join("assets", "app-abc.js"): script, filepath.Join("assets", "logo.png"): strings.Repeat("x", 4096)} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	request := httptest.NewRequest(http.MethodGet, "http://cluster.local/assets/app-abc.js", nil)
+	request.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	recorder := httptest.NewRecorder()
+	serveWeb(recorder, request, root, false)
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("expected gzip, got %d %q", recorder.Code, recorder.Header().Get("Content-Encoding"))
+	}
+	if !strings.Contains(recorder.Header().Get("Vary"), "Accept-Encoding") || recorder.Header().Get("Cache-Control") != "public, max-age=31536000, immutable" {
+		t.Fatalf("missing Vary or cache policy: %v", recorder.Header())
+	}
+	reader, err := gzip.NewReader(recorder.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := io.ReadAll(reader)
+	if err != nil || string(decoded) != script {
+		t.Fatalf("gzip body did not round-trip (%v)", err)
+	}
+
+	// Clients that refuse gzip get the plain file.
+	plain := httptest.NewRequest(http.MethodGet, "http://cluster.local/assets/app-abc.js", nil)
+	plain.Header.Set("Accept-Encoding", "gzip;q=0, identity")
+	recorder = httptest.NewRecorder()
+	serveWeb(recorder, plain, root, false)
+	if recorder.Header().Get("Content-Encoding") != "" || recorder.Body.String() != script {
+		t.Fatal("q=0 must disable gzip")
+	}
+
+	// Binary assets are not recompressed.
+	image := httptest.NewRequest(http.MethodGet, "http://cluster.local/assets/logo.png", nil)
+	image.Header.Set("Accept-Encoding", "gzip")
+	recorder = httptest.NewRecorder()
+	serveWeb(recorder, image, root, false)
+	if recorder.Header().Get("Content-Encoding") != "" {
+		t.Fatal("png must not be gzipped")
+	}
+
+	// The SPA shell is compressed too and stays uncacheable.
+	shell := httptest.NewRequest(http.MethodGet, "http://cluster.local/", nil)
+	shell.Header.Set("Accept-Encoding", "gzip")
+	recorder = httptest.NewRecorder()
+	serveWeb(recorder, shell, root, false)
+	if recorder.Code != http.StatusOK || recorder.Header().Get("Content-Encoding") != "gzip" || recorder.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("index: %d %v", recorder.Code, recorder.Header())
+	}
 }

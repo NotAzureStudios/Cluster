@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts = require('typescript');
 const root = path.resolve(import.meta.dirname, '../..');
 const helperPath = path.join(root, 'apps/server/src/domains/collaboration/whiteboard-saved-history.ts');
 const routePath = path.join(root, 'apps/server/src/domains/collaboration/whiteboard-operation-routes.ts');

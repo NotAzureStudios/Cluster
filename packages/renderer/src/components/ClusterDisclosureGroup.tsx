@@ -58,7 +58,7 @@ export function ClusterDisclosureGroup({
       <summary aria-controls={contentId} aria-disabled={disabled || undefined} onClick={(event) => { if (disabled) event.preventDefault(); }} onKeyDown={(event) => {
         if (disabled && (event.key === "Enter" || event.key === " ")) event.preventDefault();
       }}>
-        <span><strong>{title}</strong>{summary ? <small className="muted">{summary}</small> : null}</span>
+        <span><strong>{title}</strong>{summary ? <>{" "}<small className="muted">{summary}</small></> : null}</span>
         {badge ? <ClusterStatus compact>{badge}</ClusterStatus> : null}
         {headerTrailing !== undefined && headerTrailing !== null ? <span className="cluster-disclosure-trailing-v546">{headerTrailing}</span> : null}
         <ClusterIcon name="chevron-right" className="cluster-disclosure-chevron-v546" />

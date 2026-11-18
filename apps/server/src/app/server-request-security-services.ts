@@ -1,3 +1,4 @@
+import { readSessionRow } from "../core/session-read-cache.js";
 import crypto from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
@@ -280,7 +281,11 @@ export function createRequestSecurityServices(deps: Record<string, any>) {
       sessionCache.set(request, null);
       return null;
     }
-    const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(String(token)) }, include: { user: { include: WORKFORCE_USER_AUTHORITY_INCLUDE } } });
+    const tokenHash = hashToken(String(token));
+    // Concurrent reads for the same token share one in-flight query; mutations
+    // always read fresh. All validity checks below still run on every request.
+    const fresh = !["GET", "HEAD"].includes(String(request.method || "").toUpperCase());
+    const session: any = await readSessionRow(tokenHash, { fresh }, () => prisma.session.findUnique({ where: { tokenHash }, include: { user: { include: WORKFORCE_USER_AUTHORITY_INCLUDE } } }) as Promise<any>);
     if (!session || session.revokedAt || session.expiresAt.getTime() < Date.now()) {
       sessionCache.set(request, null);
       return null;

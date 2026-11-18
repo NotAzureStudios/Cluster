@@ -188,6 +188,15 @@ function handleShutdown(signal: string) {
 }
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+// When supervised by the API server, shutdown arrives over IPC (Windows cannot
+// deliver SIGTERM), and losing the channel means the server is gone: drain
+// instead of running on as an orphan that holds GPU leases and DB connections.
+if (typeof process.send === "function") {
+  process.on("message", (message: unknown) => {
+    if ((message as { type?: unknown } | null)?.type === "cluster:media-worker:shutdown") handleShutdown("supervisor");
+  });
+  process.on("disconnect", () => handleShutdown("supervisor-disconnect"));
+}
 
 console.log(`Cluster Media Worker starting · queues=${workerQueues.join(",") || "none"} · concurrency=${concurrency} · acceleration=${selectedAcceleration}`);
 console.log(tools.ready ? `Processing capabilities · ${tools.capabilities.join(", ") || "none"}` : "Media toolchain unavailable; worker will remain degraded until a supported processing capability is installed.");

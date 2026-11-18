@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const require = createRequire(import.meta.url);
-const ts = require(path.resolve(process.execPath, '../../lib/node_modules/typescript/lib/typescript.js'));
+const ts = require('typescript');
 const read = (filename) => fs.readFileSync(path.join(root, filename), 'utf8');
 const module = { exports: {} };
 vm.runInNewContext(ts.transpileModule(read('packages/renderer/src/features/home-widgets/home-ticket-policy.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { module, exports: module.exports });

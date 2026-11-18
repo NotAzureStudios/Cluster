@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const require=createRequire(import.meta.url);
-const ts=require(require.resolve('typescript',{paths:[root,'/opt/nvm/versions/node/v22.16.0/lib/node_modules','/usr/local/lib/node_modules']}));
+const ts=require(require.resolve('typescript',{paths:[root]}));
 const source=(p)=>fs.readFileSync(path.join(root,p),'utf8');
 const audit=await import(pathToFileURL(path.join(root,'apps/server/src/domains/library/library-orphan-audit.ts')).href);
 const reviewModule={};

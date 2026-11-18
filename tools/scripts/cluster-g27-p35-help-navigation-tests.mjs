@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const require = createRequire(import.meta.url);
-const ts = require(path.resolve(process.execPath, '../../lib/node_modules/typescript/lib/typescript.js'));
+const ts = require('typescript');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 const mod = { exports: {} };
 vm.runInNewContext(ts.transpileModule(read('packages/renderer/src/features/help/contextual-help.ts'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { module: mod, exports: mod.exports });

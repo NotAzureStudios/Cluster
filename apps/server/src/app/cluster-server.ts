@@ -162,6 +162,7 @@ import { StorageLifecycleRuntime } from "../core/storage/storage-lifecycle-runti
 import { ClusterAccelerationRuntime, type ClusterAccelerationMode } from "../core/acceleration/cluster-acceleration-runtime.js";
 import { runtimeAccessModeFromEnvironment } from "../core/runtime-access-state.js";
 import { mayRunBackgroundMutation } from "../core/operations-background-mode.js";
+import { createMediaWorkerSupervisor } from "./media-worker-supervisor.js";
 const RUNTIME_CONFIG = loadRuntimeConfig();
 const { clusterVersion: CLUSTER_VERSION, runtimeProfile: RUNTIME_PROFILE, bootWorkspaceRoot: BOOT_WORKSPACE_ROOT, bootConfigFilePath: BOOT_CONFIG_FILE_PATH, bootSettings: BOOT_SETTINGS, webOrigin: WEB_ORIGIN, configuredCorsOrigins: CONFIGURED_CORS_ORIGINS, sessionCookie: SESSION_COOKIE, sessionDays: SESSION_DAYS, sessionSecure: SESSION_SECURE, rateLimitEnabled: RATE_LIMIT_ENABLED, authRequired: AUTH_REQUIRED, devLoginEnabled: DEV_LOGIN_ENABLED, requestTimeoutMs: REQUEST_TIMEOUT_MS, apiRateLimitMax: API_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, authRateLimitMax: AUTH_RATE_LIMIT_MAX, sessionIdleHours: SESSION_IDLE_HOURS, sessionMaxPerUser: SESSION_MAX_PER_USER, securityHeadersEnabled: SECURITY_HEADERS_ENABLED, requireMutationOrigin: REQUIRE_MUTATION_ORIGIN, requireDiscordLink: REQUIRE_DISCORD_LINK, uploadLimitBytes: UPLOAD_LIMIT_BYTES, avatarUploadLimitBytes: AVATAR_UPLOAD_LIMIT_BYTES, allowExecutableUploads: ALLOW_EXECUTABLE_UPLOADS, backupVerifyAfterCreate: BACKUP_VERIFY_AFTER_CREATE, sessionSecret: SESSION_SECRET, authSecret: AUTH_SECRET } = RUNTIME_CONFIG;
 const DATABASE_URL = process.env.DATABASE_URL || BOOT_SETTINGS.databaseUrlOverride || "postgresql://cluster@127.0.0.1:5432/cluster";
@@ -736,6 +737,13 @@ registerServerArchitectureRoutes({
   notificationSummaryCache: notificationService,
   requireAdminUserForRequest,
 });
+// Media jobs are only claimed by the standalone media worker; run it as a
+// supervised child so packaged installs actually process uploads.
+const mediaWorkerSupervisor = createMediaWorkerSupervisor({
+  log: { info: (payload, message) => app.log.info(payload, message), warn: (payload, message) => app.log.warn(payload, message) },
+});
+app.addHook("onReady", async () => { mediaWorkerSupervisor.start(); });
+app.addHook("onClose", async () => { await mediaWorkerSupervisor.close(); });
 const productionIntegrations = createServerProductionIntegrationRuntime({ app, prisma, queue: jobQueue, worker: jobWorker, backgroundTasks, readSettings, discordRequest, fetchWithTimeout, notificationService, authorization, getCurrentUser, enforceTargetAccess, localDiscordUrl: `http://${["0.0.0.0", "::", ""].includes(RUNTIME_CONFIG.listenHost) ? "127.0.0.1" : RUNTIME_CONFIG.listenHost === "::1" ? "[::1]" : RUNTIME_CONFIG.listenHost}:${RUNTIME_CONFIG.listenPort}`, repositoriesRoot: DATA_LAYOUT.repositoriesRoot, sourceWorkspacesRoot: DATA_LAYOUT.sourceWorkspacesRoot, dataLayout: DATA_LAYOUT, logActivity });
 registerIntegrationRoutes({ app, prisma, registry: integrationRegistry, readSettings, saveSettings, settingsForClient, authorization, sourceProvider: productionIntegrations.sourceProvider, discordRequest, logActivity });
 registerUserPreferenceRoutes({ app, prisma, getCurrentUser, decorateUserForClient, normalizePersonalAccent, verifyPassword, hashPassword, verifyUserPin, logSecurityEvent, readSettings });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = require('/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts = require('typescript');
 const read = relative => readFileSync(new URL(relative, import.meta.url), 'utf8');
 const routes = read('../../apps/server/src/domains/library/library-9e2-routes.ts');
 const ui = read('../../packages/renderer/src/features/library/LibraryWorkspacePage.tsx');

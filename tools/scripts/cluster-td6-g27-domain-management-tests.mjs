@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 const nodeRequire = createRequire(import.meta.url);
-const ts = nodeRequire((() => { try { return nodeRequire.resolve('typescript'); } catch { return '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js'; } })());
+const ts = nodeRequire((() => { try { return nodeRequire.resolve('typescript'); } catch { return 'typescript'; } })());
 const file = fs.readFileSync(new URL('../../apps/server/src/domains/domains/domain-management-routes.ts', import.meta.url), 'utf8');
 const cjs = ts.transpileModule(file, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const chain = new Proxy(function(){}, { get: (_target, field) => field === 'strict' || field === 'trim' || field === 'min' || field === 'max' || field === 'int' || field === 'positive' || field === 'optional' ? () => chain : field === 'extend' ? () => chain : field === 'safeParse' ? () => ({success:true}) : chain, apply: () => chain });

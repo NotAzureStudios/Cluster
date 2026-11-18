@@ -74,3 +74,13 @@ Thumbs.db
 
 # This shipped verification certificate is a PUBLIC key, not a private credential.
 !apps/desktop-qt/assets/update-public-key.pem
+
+# Reports written to the repository root by tools/scripts source scans.
+/TD[0-9]*_SCAN.json
+
+# Prisma client generated into the server source tree by `npm run db:generate`.
+/apps/server/src/generated/
+
+# Python bytecode cache
+__pycache__/
+*.pyc

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const ts = require(process.env.CLUSTER_TYPESCRIPT_PATH || '/opt/nvm/versions/node/v22.16.0/lib/node_modules/typescript/lib/typescript.js');
+const ts = require(process.env.CLUSTER_TYPESCRIPT_PATH || 'typescript');
 let count=0;
 async function test(name,fn){await fn();count+=1;console.log(`PASS ${name}`);}
 function loadTs(file,mocks={}){
