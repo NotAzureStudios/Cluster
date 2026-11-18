@@ -463,7 +463,9 @@
     "cluster:rc:readiness": "node tools/scripts/cluster-rc-readiness.mjs",
     "cluster:rc:smoke": "node tools/scripts/cluster-rc-smoke.mjs",
     "cluster:server-entry:build": "node tools/scripts/build-cluster-server-entry.mjs",
-    "icons:generate": "node tools/scripts/generate-cluster-icons.mjs"
+    "icons:generate": "node tools/scripts/generate-cluster-icons.mjs",
+    "mail:check": "node tools/scripts/cluster-mail-transport-tests.mjs && node tools/scripts/cluster-mail-delivery-tests.mjs",
+    "auth:identity:check": "node tools/scripts/cluster-login-identity-tests.mjs"
   },
   "devDependencies": {
     "concurrently": "9.2.1",

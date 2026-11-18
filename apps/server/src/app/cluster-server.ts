@@ -116,6 +116,7 @@ import { configureBackgroundJobExecutionAuthorization } from "../domains/jobs/jo
 import { registerServerArchitectureRoutes } from "../domains/admin/server-architecture-routes.js";
 import { createBuiltInIntegrationRegistry } from "../domains/integrations/integration-provider-registry.js";
 import { registerIntegrationRoutes } from "../domains/integrations/integration-routes.js";
+import { registerMailRoutes } from "../domains/integrations/mail-routes.js";
 import { createServerAutomationJobRuntime } from "./server-automation-job-runtime.js";
 import { createServerResourceGovernorRuntime } from "./server-resource-governor-runtime.js";
 import { createServerIntegrationsRuntime } from "./server-integrations-runtime.js";
@@ -746,6 +747,7 @@ app.addHook("onReady", async () => { mediaWorkerSupervisor.start(); });
 app.addHook("onClose", async () => { await mediaWorkerSupervisor.close(); });
 const productionIntegrations = createServerProductionIntegrationRuntime({ app, prisma, queue: jobQueue, worker: jobWorker, backgroundTasks, readSettings, discordRequest, fetchWithTimeout, notificationService, authorization, getCurrentUser, enforceTargetAccess, localDiscordUrl: `http://${["0.0.0.0", "::", ""].includes(RUNTIME_CONFIG.listenHost) ? "127.0.0.1" : RUNTIME_CONFIG.listenHost === "::1" ? "[::1]" : RUNTIME_CONFIG.listenHost}:${RUNTIME_CONFIG.listenPort}`, repositoriesRoot: DATA_LAYOUT.repositoriesRoot, sourceWorkspacesRoot: DATA_LAYOUT.sourceWorkspacesRoot, dataLayout: DATA_LAYOUT, logActivity });
 registerIntegrationRoutes({ app, prisma, registry: integrationRegistry, readSettings, saveSettings, settingsForClient, authorization, sourceProvider: productionIntegrations.sourceProvider, discordRequest, logActivity });
+registerMailRoutes({ app, authorization, readSettings, logActivity });
 registerUserPreferenceRoutes({ app, prisma, getCurrentUser, decorateUserForClient, normalizePersonalAccent, verifyPassword, hashPassword, verifyUserPin, logSecurityEvent, readSettings });
 registerKioskRoutes({ app, prisma, readSettings, getCurrentSession, decorateUserForClient, verifyPassword, verifyUserPin, dummyPasswordHash, normalizeAuthUsername, rateLimitKey, clearRateLimitKey, authRateLimitMax: AUTH_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, logSecurityEvent, kioskRuntime });
 registerAuthRoutes({

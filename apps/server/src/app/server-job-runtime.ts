@@ -6,6 +6,7 @@ import { DurableJobWorker } from "../domains/jobs/job-worker.js";
 import { BackgroundJobDeferredError } from "../domains/jobs/job-types.js";
 import { automationJobRequiredToolOwners, disabledStudioToolJobTypes, studioToolForDurableJobType } from "../domains/jobs/job-tool-ownership.js";
 import { TOOL_AVAILABILITY } from "../domains/access/configurable-tool-availability.js";
+import { sendStudioMail } from "../core/mail-transport.js";
 import { createStudioAnnouncementDelivery } from "../domains/studio-systems/studio-announcement-delivery.js";
 import { runStudioAccessExpiryTick } from "../domains/users/studio-access-expiry-lifecycle.js";
 import { runInventoryCredentialExpiryTick } from "../domains/inventory/inventory-credential-expiry-lifecycle.js";
@@ -185,6 +186,34 @@ export function createServerJobRuntime(input: {
   const unsubscribeQueueWake = subscribeBackgroundJobQueueWake(wakeWorker);
 
   worker
+    .register("mail.send", async ({ payload, updateProgress }) => {
+      // Mail goes through the queue so a mail server that is briefly away does
+      // not lose a verification link, and so a send never blocks the request
+      // that caused it. MailSendError carries terminalJobFailure for the
+      // failures that cannot improve by waiting — a rejected password is
+      // dead-lettered on the first attempt rather than presented five times,
+      // which is what gets a Google account locked.
+      const message = (payload || {}) as { to?: unknown; subject?: unknown; text?: unknown; html?: unknown; replyTo?: unknown; reason?: unknown };
+      const to = String(message.to || "").trim();
+      const subject = String(message.subject || "").trim();
+      const body = String(message.text || "");
+      if (!to || !subject || !body) {
+        throw Object.assign(new Error("A mail job needs a recipient, a subject and a plain-text body."), { terminalJobFailure: true });
+      }
+      await updateProgress(10, `Sending mail to ${to}`);
+      // Forced read: if an administrator has just corrected the password, the
+      // retry has to see it rather than a cached copy of the broken one.
+      const result = await sendStudioMail(await input.readSettings(true), {
+        to,
+        subject,
+        text: body,
+        ...(typeof message.html === "string" && message.html ? { html: message.html } : {}),
+        ...(typeof message.replyTo === "string" && message.replyTo ? { replyTo: message.replyTo } : {}),
+      });
+      await updateProgress(95, "Mail accepted by the mail server");
+      // The reason is carried for the job history; the body never is.
+      return { sent: true, messageId: result.messageId, accepted: result.accepted.length, reason: typeof message.reason === "string" ? message.reason : null };
+    })
     .register("automation.project-overdue", async ({ updateProgress }) => {
       await updateProgress(10, "Evaluating scheduled, overdue, and retryable project automation rules");
       const result = input.projectAutomation.evaluateScheduled ? await input.projectAutomation.evaluateScheduled() : await input.projectAutomation.evaluateOverdue?.();

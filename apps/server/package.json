@@ -27,29 +27,30 @@
     "storage:move": "tsx src/scripts/move-data-root.ts"
   },
   "dependencies": {
+    "@cluster/shared": "*",
+    "@fastify/compress": "8.1.0",
     "@fastify/cookie": "11.0.1",
     "@fastify/cors": "10.0.2",
+    "@napi-rs/canvas": "0.1.96",
+    "@node-rs/argon2": "2.0.2",
+    "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
+    "@redis/client": "6.3.0",
+    "assimpjs": "0.0.10",
     "dotenv": "16.4.7",
     "fastify": "5.2.1",
-    "zod": "3.24.1",
-    "@fastify/compress": "8.1.0",
-    "@node-rs/argon2": "2.0.2",
-    "assimpjs": "0.0.10",
-    "@cluster/shared": "*",
-    "@prisma/adapter-pg": "7.9.1",
+    "nodemailer": "10.3.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "5.7.284",
     "pg": "8.22.0",
     "prisma": "7.9.1",
-    "pdfjs-dist": "5.7.284",
-    "pdf-lib": "1.17.1",
-    "@redis/client": "6.3.0",
     "sharp": "0.35.5",
-    "@napi-rs/canvas": "0.1.96"
+    "zod": "3.24.1"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "@types/pg": "8.20.0",
     "tsx": "4.20.5",
-    "typescript": "5.9.3",
-    "@types/pg": "8.20.0"
+    "typescript": "5.9.3"
   }
 }

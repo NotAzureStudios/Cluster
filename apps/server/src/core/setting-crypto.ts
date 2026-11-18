@@ -11,7 +11,7 @@ import {
   verifyClusterPayload,
 } from "./crypto-service.js";
 
-export const SENSITIVE_SETTING_KEYS = new Set(["discordWebhookUrl", "discordBotToken"]);
+export const SENSITIVE_SETTING_KEYS = new Set(["discordWebhookUrl", "discordBotToken", "mailPassword"]);
 export const BOOT_SECRET_SETTING_KEYS = new Set(["databaseUrlOverride", "redisUrlOverride"]);
 export const ALL_SECRET_SETTING_KEYS = new Set([...SENSITIVE_SETTING_KEYS, ...BOOT_SECRET_SETTING_KEYS]);
 
