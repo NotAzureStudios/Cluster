@@ -87,4 +87,16 @@ await check("the login resolver uses indexed lookups, never a table scan", () =>
   assert.equal((body.match(/findUnique/g) || []).length, 3, "username, email and phone are each one indexed lookup");
 });
 
-console.log(`${passed}/6 login identity checks passed`);
+await check("sign-in is the entry point and does not wait on the studio cover", () => {
+  const source = readFileSync(path.join(root, "packages/renderer/src/features/auth/PublicClusterCover.tsx"), "utf8");
+  // Members reach the password field without a cover round trip or a click.
+  assert.match(source, /useState<"signin" \| "apply">\("signin"\)/, "the entry point must open on sign-in");
+  const render = source.slice(source.indexOf("if (activationToken"));
+  assert.ok(!/if \(!cover\)\s*return/.test(render), "rendering must not be gated on the studio cover having loaded");
+  assert.ok(!/loadError/.test(source), "a cover that fails to load must not block sign-in");
+  // Applications are the reason the cover is fetched at all; keep them wired.
+  assert.match(source, /\/api\/public\/v1\/applications\//, "application submission must stay reachable");
+  assert.match(source, /onApply=\{applicationsOpen \?/, "Apply is offered only when the studio has open applications");
+});
+
+console.log(`${passed}/7 login identity checks passed`);

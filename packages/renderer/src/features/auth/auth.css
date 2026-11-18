@@ -100,7 +100,6 @@
 .cluster-auth-entry-card-v11 .managed-auth-brand-row:has(.managed-auth-server-switch){justify-content:flex-end}
 .cluster-auth-entry-card-v11 .managed-auth-server-switch{width:min(280px,100%);margin-left:auto}
 .cluster-auth-entry-card-v11 .managed-auth-server-switch strong{max-width:195px}
-.cluster-auth-entry-card-v11 .cluster-auth-back-v11{align-self:flex-start}
 .cluster-auth-entry-card-v11 .cluster-auth-step-v11{color:var(--muted);font-size:.76rem;margin:0}
 .cluster-auth-entry-card-v11 .cluster-auth-passkey-v11{width:100%;min-height:42px}
 .cluster-auth-entry-card-v11 .cluster-auth-inline-error-v11{margin:0;font-size:.78rem}
