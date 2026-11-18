@@ -28,7 +28,6 @@ import { DesignSystemPreview } from "../../components/DesignSystemPreview";
 import { AppearanceShellPreview } from "./AppearanceShellPreview";
 import { SyncSettingsPanel } from "../../components/SyncStatusIndicator";
 import { ErrorCodeReferencePanel } from "./ErrorCodeReferencePanel";
-import { PrivacyDataControlCenter } from "../legal/PrivacyDataControlCenter";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 
@@ -1899,7 +1898,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 <h2>Privacy & data</h2>
               </div>
               <div className="settings-card-grid-v092">
-                <PrivacyDataControlCenter currentUser={currentUser} />
                 <div className="settings-card-v092 span-2 account-presence-card-v547">
                   <div className="settings-card-head-v092">
                     <div><h3>Presence & visibility</h3><small className="muted">Live state. Changes apply immediately and are not part of Settings save.</small></div>

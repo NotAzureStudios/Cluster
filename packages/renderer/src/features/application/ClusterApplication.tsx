@@ -1,6 +1,6 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
 
-import { writePreferenceStorage } from "../../core/privacy-consent";
+import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWindowEvent } from "../../core/window-events";
@@ -61,7 +61,7 @@ import { authenticatedEntryScreen } from "../auth/AuthenticatedEntryGate";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
 import { type ToolKey } from "../admin/AdminToolControls";
 import { isStandaloneToolRoute, StandaloneToolRoute } from "./modules/application-standalone-tool-registry";
-import { CalendarPage, ChangelogPage, OperatorAgreementPage, CopyrightCounterNoticePage, CopyrightPolicyPage, CopyrightReportPage, PrivacyPolicyPage, PublicSharePage, SecurityDisclosurePolicyPage, TermsPolicyPage, ThirdPartyDisclosurePage } from "./application-entrypoints";
+import { CalendarPage, ChangelogPage, PublicSharePage } from "./application-entrypoints";
 import type { User, Project, WhiteboardSummary, Board, AppTheme, SetupStatus, Settings, SettingsSection, ServerConfigSection, RecentNavigation } from "./application-models";
 import { boardOptions, projectTypeBadge, writeProjectTypePresetsCache } from "./modules/project-shell-helpers";
 import { ClusterBootError, NavigationOperationalStatus, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
@@ -1262,22 +1262,6 @@ export default function App() {
     setSessionRecoveryMessage(null);
     clearAuthenticatedUiState();
   }
-  const privacyPolicyPath = typeof window !== "undefined" && /^\/legal\/privacy\/?$/.test(window.location.pathname);
-  const termsPolicyPath = typeof window !== "undefined" && /^\/legal\/terms\/?$/.test(window.location.pathname);
-  const operatorAgreementPath = typeof window !== "undefined" && /^\/legal\/operator-agreement\/?$/.test(window.location.pathname);
-  const copyrightPolicyPath = typeof window !== "undefined" && /^\/legal\/copyright\/?$/.test(window.location.pathname);
-  const securityDisclosurePolicyPath = typeof window !== "undefined" && /^\/legal\/security\/?$/.test(window.location.pathname);
-  const thirdPartyDisclosurePath = typeof window !== "undefined" && /^\/legal\/third-parties\/?$/.test(window.location.pathname);
-  const copyrightReportPath = typeof window !== "undefined" && /^\/legal\/copyright\/report\/?$/.test(window.location.pathname);
-  const copyrightCounterPath = typeof window !== "undefined" && /^\/legal\/copyright\/counter\/?$/.test(window.location.pathname);
-  if (privacyPolicyPath) return <PrivacyPolicyPage />;
-  if (termsPolicyPath) return <TermsPolicyPage />;
-  if (operatorAgreementPath) return <OperatorAgreementPage />;
-  if (copyrightReportPath) return <CopyrightReportPage />;
-  if (copyrightCounterPath) return <CopyrightCounterNoticePage />;
-  if (copyrightPolicyPath) return <CopyrightPolicyPage />;
-  if (securityDisclosurePolicyPath) return <SecurityDisclosurePolicyPage />;
-  if (thirdPartyDisclosurePath) return <ThirdPartyDisclosurePage />;
   if (loading) return <WorkspaceLoadingState />;
   if (shareToken) return <PublicSharePage token={shareToken} />;
   if (bootError) return <ClusterBootError error={bootError} onRetry={() => { setLoading(true); setBootError(null); setBootAttempt((current) => current + 1); }} />;

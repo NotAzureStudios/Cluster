@@ -1,5 +1,5 @@
 import type { ReviewComparisonMode, ReviewComparisonPreferences, ReviewComparisonSide, ReviewMedium } from "@cluster/shared";
-import { readPreferenceStorage, writePreferenceStorage } from "../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 
 export type ReviewComparisonSnapshot = ReviewComparisonPreferences & {
   enabled: boolean;

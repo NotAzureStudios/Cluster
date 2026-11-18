@@ -7,7 +7,7 @@ import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativ
 import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterSlider } from "../../components/ClusterSlider";
-import { readPreferenceStorage, writePreferenceStorage } from "../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 import { runtimeStyle } from "../../core/runtime-style";
 import { TimedMediaController, type TimedMediaSnapshot } from "./timed-media-controller";
 import { useTimedMediaController } from "./use-timed-media-controller";

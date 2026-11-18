@@ -1,4 +1,4 @@
-import { readPreferenceStorage } from "../../../core/privacy-consent";
+import { readPreferenceStorage } from "../../../core/preference-storage";
 import { applySemanticPalette, applyVisualContext, resolveVisualContext } from "../../../core/visual-system";
 import type { AppTheme, Settings, User } from "../application-models";
 

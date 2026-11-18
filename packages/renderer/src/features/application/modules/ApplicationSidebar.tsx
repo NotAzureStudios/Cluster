@@ -1,5 +1,5 @@
 import "../styles/application-sidebar-rc27.css";
-import { readPreferenceStorage, writePreferenceStorage } from "../../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../../core/preference-storage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useClusterDialogInteraction } from "../../../components/useClusterDialogInteraction";
 import { APP_SIDEBAR_SECTIONS, canOpenScreen, routeDefinition, screenLabel, sidebarRouteDefinitions, type AppScreen } from "../../../core/navigation";

@@ -37,18 +37,7 @@ import { registerSyncRoutes } from "../domains/sync/sync-routes.js";
 import { registerCalendarRoutes } from "../domains/planning/calendar-routes.js";
 import { registerTimelineRoutes } from "../domains/planning/timeline-routes.js";
 import { registerMetaDiagnosticsRoutes } from "../domains/admin/meta-diagnostics-routes.js";
-import { registerPrivacyPolicyRoutes } from "../domains/legal/privacy-policy-routes.js";
-import { registerTermsPolicyRoutes } from "../domains/legal/terms-policy-routes.js";
-import { registerOperatorAgreementRoutes } from "../domains/legal/operator-agreement-routes.js";
-import { registerCopyrightPolicyRoutes } from "../domains/legal/copyright-policy-routes.js";
-import { registerSecurityDisclosurePolicyRoutes } from "../domains/legal/security-disclosure-policy-routes.js";
-import { registerLegalComplianceRoutes } from "../domains/legal/legal-compliance-routes.js";
-import { registerThirdPartyDisclosureRoutes } from "../domains/legal/third-party-disclosure-routes.js";
 import { registerPolicyAcceptanceRoutes } from "../domains/legal/policy-acceptance-routes.js";
-import { registerCopyrightWorkflowRoutes } from "../domains/legal/copyright-workflow-routes.js";
-import { registerPrivacyConsentRoutes } from "../domains/legal/privacy-consent-routes.js";
-import { registerBehavioralAnalyticsRoutes } from "../domains/legal/behavioral-analytics-routes.js";
-import { registerPrivacyDataRoutes } from "../domains/legal/privacy-data-routes.js";
 import { registerDataRetentionRoutes } from "../domains/legal/data-retention-routes.js";
 import { registerStudioSystemsRoutes } from "../domains/studio-systems/studio-systems-routes.js";
 import { registerStudioOnboardingRoutes, runStudioOnboardingLifecycleTick } from "../domains/studio-systems/studio-onboarding-routes.js";
@@ -651,18 +640,7 @@ registerMetaDiagnosticsRoutes({
     configuredOriginCount: CONFIGURED_CORS_ORIGINS.size,
   },
 });
-registerPrivacyPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerTermsPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerOperatorAgreementRoutes({ app, prisma, getCurrentUser, readSettings });
-registerCopyrightPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerSecurityDisclosurePolicyRoutes({ app, prisma, getCurrentUser, readSettings, webOrigin: WEB_ORIGIN });
-registerLegalComplianceRoutes({ app, prisma, readSettings, authorization, logSecurityEvent });
-registerThirdPartyDisclosureRoutes({ app, prisma, getCurrentUser, readSettings });
 registerPolicyAcceptanceRoutes({ app, prisma, getCurrentSession, decorateUserForClient, logSecurityEvent });
-registerCopyrightWorkflowRoutes({ app, prisma, dataLayout: DATA_LAYOUT, getCurrentUser, authorization, logActivity, logSecurityEvent });
-registerPrivacyConsentRoutes({ app, prisma, getCurrentUser });
-registerBehavioralAnalyticsRoutes({ app, prisma, getCurrentUser });
-registerPrivacyDataRoutes({ app, prisma, getCurrentUser, getCurrentSession, requireConfirmation, logSecurityEvent, clearSessionCookies, onUserSessionsRevoked, requireDiscordLink: REQUIRE_DISCORD_LINK, authorization });
 registerDataRetentionRoutes({ app, prisma, authorization, readSettings, requireConfirmation, logSecurityEvent });
 registerStudioSystemsRoutes({ app, prisma, authorization, getCurrentUser, logActivity });
 registerStudioOnboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, jobQueue });

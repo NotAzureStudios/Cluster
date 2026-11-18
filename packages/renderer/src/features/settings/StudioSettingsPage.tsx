@@ -26,7 +26,7 @@ import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
-import { LegalComplianceCenter } from "../legal/LegalComplianceCenter";
+import { DataRetentionAdminPanel } from "../legal/DataRetentionAdminPanel";
 import { BUILD_PLATFORM_PROFILES } from "../projects/ProjectBuildsPanel";
 import { PROJECT_STATUS_OPTIONS } from "../projects/projects-utils";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
@@ -1141,7 +1141,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
             </div>
           )}
 
-          {section === "privacy" && currentUser.isAdmin && <LegalComplianceCenter />}
+          {/* The compliance centre hosted six panels built for public users;
+              data retention is the one a self-hosted studio actually runs. */}
+          {section === "privacy" && currentUser.isAdmin && <DataRetentionAdminPanel />}
 
           {section === "kiosk" && currentUser.isAdmin && <StudioKioskSettingsSection settings={settings} patch={patch} />}
 

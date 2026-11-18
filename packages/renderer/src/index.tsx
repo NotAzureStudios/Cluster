@@ -4,8 +4,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
-import { PrivacyConsentManager } from "./features/legal/PrivacyConsentManager";
-import { BehavioralAnalyticsManager } from "./components/BehavioralAnalyticsManager";
 import { installGlobalClientIncidentHandlers } from "./core/client-incidents";
 import { installStaleChunkRecovery } from "./core/stale-chunk-recovery";
 import "./styles.css";
@@ -49,8 +47,6 @@ export function mountClusterRenderer(element: HTMLElement, options: ClusterRende
       <AppErrorBoundary>
         <React.Profiler id="ClusterApp" onRender={recordReactRender}>
           <App />
-          <PrivacyConsentManager />
-          <BehavioralAnalyticsManager />
         </React.Profiler>
       </AppErrorBoundary>
     </React.StrictMode>,
