@@ -141,4 +141,23 @@ await check("the mail password is encrypted at rest and never echoed back", asyn
   assert.match(manifest, /secretSettingKeys: \["mailPassword"\]/, "the password must be declared a secret setting");
 });
 
-console.log(`${passed}/9 mail transport checks passed`);
+await check("mail is reachable from the interface, not just from the API", async () => {
+  // This project's recurring failure is a finished server feature with no
+  // screen. Mail must not join that list, so the settings fields and the three
+  // endpoints are asserted to exist in the renderer.
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../../packages/renderer/src/features/settings/ServerConfigPage.tsx", import.meta.url), "utf8");
+
+  for (const key of ["mailEnabled", "mailHost", "mailPort", "mailUsername", "mailPassword", "mailFromAddress", "mailFromName"]) {
+    assert.match(page, new RegExp(`key: "${key}"`), `${key} must be editable in Server Configuration`);
+  }
+  // The password field must never be a plain text input.
+  const passwordField = page.slice(page.indexOf('key: "mailPassword"'));
+  assert.match(passwordField.slice(0, 300), /type: "password"/, "the mail password must use the password field type");
+
+  for (const route of ["/api/admin/mail/status", "/api/admin/mail/verify", "/api/admin/mail/test"]) {
+    assert.ok(page.includes(route), `${route} must have a caller in the renderer`);
+  }
+});
+
+console.log(`${passed}/10 mail transport checks passed`);

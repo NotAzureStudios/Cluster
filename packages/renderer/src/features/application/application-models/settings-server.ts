@@ -245,6 +245,15 @@ export type Settings = {
   discordApplicationPublicKey?: string;
   discordBotTokenConfigured?: boolean;
   discordWebhookUrlConfigured?: boolean;
+  mailEnabled?: boolean;
+  mailHost?: string;
+  mailPort?: number;
+  mailUsername?: string;
+  /** Write-only: the server returns mailPasswordConfigured, never the value. */
+  mailPassword?: string;
+  mailPasswordConfigured?: boolean;
+  mailFromAddress?: string;
+  mailFromName?: string;
   notifyCardCreated?: boolean;
   notifyCardMoved?: boolean;
   notifyCardCompleted?: boolean;
