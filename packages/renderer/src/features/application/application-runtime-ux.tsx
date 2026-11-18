@@ -3,9 +3,10 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterOperationalStatus } from "../../components/ClusterOperationalStatus";
 import type { ClusterOperationalStatusModel } from "../../components/operational-status";
 import { RequestErrorState } from "../../components/RequestState";
-import { api, queryApi } from "../../core/api";
+import { api, setApiQueryData } from "../../core/api";
 import { ADAPTIVE_MEDIA } from "../../core/adaptive-layout";
-import type { ServerConfigSection, SettingsSection, SetupStatus, User } from "./application-models";
+import type { ServerConfigSection, Settings, SettingsSection, SetupStatus, User } from "./application-models";
+import type { AuthConfig } from "../auth/AuthScreens";
 
 const ACCOUNT_SETTINGS_SECTIONS = new Set<SettingsSection>(["profile", "appearance", "performance", "home", "navigation", "privacy", "pin", "shortcuts", "accessibility", "notifications", "desktop", "forms", "licenses"]);
 const SERVER_CONFIG_SECTIONS = new Set<ServerConfigSection>(["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"]);
@@ -50,18 +51,55 @@ export function useSettingsSectionNavigation(initialRoute: string, initialSectio
   return { settingsInitialSection, setSettingsInitialSection, serverConfigInitialSection, setServerConfigInitialSection };
 }
 
-export async function loadClusterStartup() {
+export type ClusterStartup = {
+  setupStatus: SetupStatus | null;
+  user: User | null;
+  /** Present only when nobody is signed in: what the sign-in screen needs. */
+  authConfig: AuthConfig | null;
+  /** Present only when nobody is signed in: whether to offer the Apply link. */
+  applicationsOpen: boolean;
+  error: unknown;
+};
+
+/**
+ * One request for everything the first frame needs.
+ *
+ * This used to be three in series — `/api/setup/status`, then `/api/me` once
+ * that answered, then `/api/settings` once a user object existed — so nothing
+ * could paint until the third returned. `/api/bootstrap` answers all of it at
+ * once, and the studio settings it carries are written into the query cache
+ * under `/api/settings`, so the shell's existing settings path finds them
+ * already there and issues no request of its own.
+ */
+export async function loadClusterStartup(): Promise<ClusterStartup> {
   try {
-    const setupStatus = await queryApi<SetupStatus>("/api/setup/status", { staleMs: 0, force: true });
-    if (!setupStatus.setupComplete) return { setupStatus, user: null, error: null };
-    try {
-      const me = await api<{ user: User | null }>("/api/me");
-      return { setupStatus, user: me.user, error: null };
-    } catch (error) {
-      return { setupStatus, user: null, error };
+    const boot = await api<{
+      setup: SetupStatus;
+      user: User | null;
+      settings: Settings | null;
+      auth: AuthConfig | null;
+      applicationsOpen: boolean;
+    }>("/api/bootstrap");
+    if (boot.settings) {
+      // Seeded after the response, so the account scope the transport just
+      // bound from this payload is the scope the entry is written under.
+      setApiQueryData("/api/settings", boot.settings, { staleMs: 30_000, tags: ["settings"] });
     }
+    return {
+      setupStatus: boot.setup,
+      user: boot.user,
+      authConfig: boot.auth,
+      applicationsOpen: Boolean(boot.applicationsOpen),
+      error: null,
+    };
   } catch (error) {
-    return { setupStatus: null, user: null, error: error || new Error("Cluster could not determine first-run setup state.") };
+    return {
+      setupStatus: null,
+      user: null,
+      authConfig: null,
+      applicationsOpen: false,
+      error: error || new Error("Cluster could not reach the server to start up."),
+    };
   }
 }
 

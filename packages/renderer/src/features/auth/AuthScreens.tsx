@@ -109,10 +109,7 @@ function PasswordFields({
   </>;
 }
 
-export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null; onApply?: () => void; studioName?: string }) {
-  const [config, setConfig] = useState<AuthConfig | null>(null);
-  const [configLoading, setConfigLoading] = useState(true);
-  const [configError, setConfigError] = useState("");
+export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName, config, onRetryConfig }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null; onApply?: () => void; studioName?: string; config: AuthConfig | null; onRetryConfig: () => void }) {
   const authActionRef = useRef(false);
   const identifierFieldId = useId();
   const passwordFieldId = useId();
@@ -132,19 +129,6 @@ export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName }: {
   const [mfaRecoveryAvailable, setMfaRecoveryAvailable] = useState(false);
   const [mfaPasskeyPublicKey, setMfaPasskeyPublicKey] = useState<any>(null);
 
-  async function loadConfig() {
-    setConfigLoading(true);
-    setConfigError("");
-    try {
-      setConfig(await api<AuthConfig>("/api/auth/config"));
-    } catch (reason) {
-      setConfig(null);
-      setConfigError(errorMessage(reason, "Could not reach the studio authentication service."));
-    } finally {
-      setConfigLoading(false);
-    }
-  }
-  useEffect(() => { void loadConfig(); }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -249,8 +233,7 @@ export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName }: {
     <p className="eyebrow">{studioName || "Private studio"}</p>
     <h1>{mfaChallenge ? "Verify your sign-in" : recoveryMode === "request" ? "Recover account access" : "Welcome back"}</h1>
     <p className="muted">{mfaChallenge ? "Enter your second factor to finish signing in." : recoveryMode === "request" ? "Request a secure password reset from your administrator." : "Sign in with your Cluster account."}</p>
-    {configLoading && <p className="cluster-auth-inline-status-v11" role="status">Connecting to authentication service…</p>}
-    {configError && <div className="error-box" role="alert">{configError} <ClusterButton type="button" variant="secondary" size="compact" disabled={configLoading} onClick={() => void loadConfig()}>Retry connection</ClusterButton></div>}
+    {!config && <div className="error-box" role="alert">Could not reach the studio authentication service. <ClusterButton type="button" variant="secondary" size="compact" onClick={onRetryConfig}>Retry connection</ClusterButton></div>}
     {config && !config.passwordLoginEnabled && recoveryMode === "none" && !mfaChallenge && <p className="cluster-auth-inline-status-v11" role="status">Password sign-in is disabled by studio policy. Use an available passkey or contact an administrator.</p>}
     {recoveryMessage && <ClusterOperationalStatus model={{ state: "auth_expired", interactionState: operationalInteractionState("auth_expired"), label: "Authentication expired", detail: recoveryMessage }} className="managed-auth-recovery-v433" />}
     {config?.ownerSetupRequired && <div className="managed-auth-launcher-warning" role="status"><strong>No password-ready owner account was found.</strong><span>On the Cluster server, run <code>{config.setupLauncherName || "ClusterServer.exe"}</code> to repair owner access.</span></div>}
@@ -265,8 +248,8 @@ export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName }: {
       <div className="field"><label htmlFor={identifierFieldId}>Username, email or phone</label><ClusterTextInput id={identifierFieldId} autoFocus autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="next" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required /></div>
       <div className="field managed-auth-password-v473"><label htmlFor={passwordFieldId}>Password</label><div><ClusterInput id={passwordFieldId} type={showPassword ? "text" : "password"} autoComplete="current-password" enterKeyHint="go" value={password} onChange={(event) => setPassword(event.target.value)} required /><ClusterButton unstyled type="button" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</ClusterButton></div></div>
       {error && <div className="error-box" role="alert">{error}</div>}
-      <ClusterButton className="managed-auth-submit" disabled={busy || configLoading || !config || !config.passwordLoginEnabled} type="submit" variant="primary">{busy ? "Signing in…" : "Sign in"}</ClusterButton>
-      {webAuthnAvailable() && <ClusterButton className="cluster-auth-passkey-v11" type="button" variant="secondary" disabled={busy || configLoading || !config} onClick={() => void submitPasswordlessPasskey()}>{busy ? "Waiting for authenticator…" : "Use a passkey"}</ClusterButton>}
+      <ClusterButton className="managed-auth-submit" disabled={busy || !config || !config.passwordLoginEnabled} type="submit" variant="primary">{busy ? "Signing in…" : "Sign in"}</ClusterButton>
+      {webAuthnAvailable() && <ClusterButton className="cluster-auth-passkey-v11" type="button" variant="secondary" disabled={busy || !config} onClick={() => void submitPasswordlessPasskey()}>{busy ? "Waiting for authenticator…" : "Use a passkey"}</ClusterButton>}
       <details className="managed-auth-first-use-v11"><summary>First time signing in?</summary><p>Use the one-time temporary password provided privately by your studio administrator. Cluster will ask you to choose your permanent password before entering the workspace. If you never received that credential, contact the administrator for a replacement.</p></details>
       <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" disabled={busy} onClick={() => { setRecoveryMode("request"); setPassword(""); setError(""); }}>Forgot password?</ClusterButton>{onApply && <ClusterButton unstyled type="button" disabled={busy} onClick={onApply}>Not in the studio yet? Apply</ClusterButton>}</div>
     </form> : <form className="managed-auth-form managed-auth-recovery-form-v473" onSubmit={requestReset}>

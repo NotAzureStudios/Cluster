@@ -28,11 +28,15 @@ check("All sign-in modes keep a concise title and separate recovery state",
   screen.includes('mfaChallenge ? "Verify your sign-in"') &&
   screen.includes('recoveryMode === "request" ? "Recover account access"') &&
   screen.includes('mode={recoveryMode === "request" ? "recovery" : "signin"}'));
+// The sign-in configuration now arrives in the boot payload rather than from
+// a fetch this screen owns, so a failure is a boot failure and retrying means
+// re-running boot. The contract is unchanged: say so, offer a retry, and never
+// leave the form submittable without a configuration.
 check("Config failure is explicit and retryable instead of silently permitting submissions",
-  screen.includes('const [configLoading, setConfigLoading] = useState(true)') &&
-  screen.includes('const [configError, setConfigError] = useState("")') &&
-  screen.includes('onClick={() => void loadConfig()}') &&
-  screen.includes('disabled={busy || configLoading || !config || !config.passwordLoginEnabled}'));
+  screen.includes("config: AuthConfig | null") &&
+  screen.includes("{!config && <div className=\"error-box\" role=\"alert\">") &&
+  screen.includes("onClick={onRetryConfig}") &&
+  screen.includes('disabled={busy || !config || !config.passwordLoginEnabled}'));
 check("Password, MFA and recovery labels are attached to the corresponding inputs",
   screen.includes('label htmlFor={identifierFieldId}') && screen.includes('id={identifierFieldId}') &&
   screen.includes('label htmlFor={passwordFieldId}') && screen.includes('id={passwordFieldId}') &&

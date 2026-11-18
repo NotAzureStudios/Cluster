@@ -57,6 +57,7 @@ import { LoadingState, ScreenLoadingState, BoardLoadingState, WorkspaceLoadingSt
 import { RequestErrorState } from "../../components/RequestState";
 import { SECURITY_PIN_CONFIGURED_EVENT } from "../../core/security-pin";
 import { PublicClusterCover } from "../auth/PublicClusterCover";
+import type { AuthConfig } from "../auth/AuthScreens";
 import { authenticatedEntryScreen } from "../auth/AuthenticatedEntryGate";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
 import { type ToolKey } from "../admin/AdminToolControls";
@@ -213,6 +214,10 @@ export default function App() {
     studioName: "",
     organizationLogoUrl: "",
   });
+  // The boot payload carries these for a signed-out visitor, so the sign-in
+  // screen does not fetch its own configuration on a second round trip.
+  const [bootAuthConfig, setBootAuthConfig] = useState<AuthConfig | null>(null);
+  const [applicationsOpen, setApplicationsOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [contextualHelpOpen, setContextualHelpOpen] = useState(false);
@@ -637,6 +642,8 @@ export default function App() {
         const startup = await loadClusterStartup();
         if (startup.setupStatus) setSetupStatus(startup.setupStatus);
         if (startup.user) setUser(startup.user);
+        setBootAuthConfig(startup.authConfig);
+        setApplicationsOpen(startup.applicationsOpen);
         if (startup.error) setBootError(startup.error);
       } finally {
         setLoading(false);
@@ -1284,7 +1291,8 @@ export default function App() {
   }
   if (signedOutKiosk) return <LazyFeatureBoundary label="Kiosk"><LazySignedOutKioskPage exitShortcut={nativeKioskExitShortcut} /></LazyFeatureBoundary>;
   if (!user) {
-    return <PublicClusterCover recoveryMessage={sessionRecoveryMessage} onLogin={(loggedInUser) => {
+    return <PublicClusterCover recoveryMessage={sessionRecoveryMessage} authConfig={bootAuthConfig} applicationsOpen={applicationsOpen}
+      studioName={setupStatus?.studioName || ""} onRetryAuthConfig={() => setBootAttempt((attempt) => attempt + 1)} onLogin={(loggedInUser) => {
       setUser(loggedInUser as User);
       setSessionRecoveryMessage(null);
     }} />;

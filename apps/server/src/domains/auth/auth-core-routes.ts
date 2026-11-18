@@ -10,6 +10,7 @@ import { issueSecurityVerification, nextAuthenticationGeneration, nextVerificati
 import { verifyWebAuthnAssertion, webAuthnRpFromOrigin } from "./webauthn.js";
 import { desktopSessionHandoffAllowed } from "./desktop-session-handoff.js";
 import { PASSWORD_MIN_LENGTH } from "../../core/auth.js";
+import { buildClusterAuthConfig } from "../../core/auth-config.js";
 
 export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -100,24 +101,16 @@ export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
     return [...new Set(rows.map((row: any) => String(row.userId)))];
   }
 
-app.get("/api/auth/config", async () => {
-  const instanceSetup = await inspectInstanceSetup(prisma);
-  return {
-    passwordLoginEnabled: true,
-    discordConfigured: isDiscordConfigured(),
-    discordLinkRequired: REQUIRE_DISCORD_LINK,
-    devLoginEnabled: DEV_LOGIN_ENABLED,
-    discordLinkUrl: "/api/auth/discord/link",
-    ownerSetupRequired: instanceSetup.setupRequired,
-    ownerSetupReason: instanceSetup.reason,
-    passwordReadyAdministratorCount: instanceSetup.passwordReadyAdministratorCount,
-    setupLauncherName: process.platform === "win32" ? "ClusterServer.exe --recover-owner" : "docker compose logs cluster",
-    passwordPolicy: {
-      minimumLength: PASSWORD_MIN_LENGTH,
-      maximumLength: PASSWORD_MAX_LENGTH,
-    },
-  };
-});
+// The boot payload carries these same values, so both answer from one builder.
+app.get("/api/auth/config", async () => buildClusterAuthConfig({
+  prisma,
+  inspectInstanceSetup,
+  isDiscordConfigured,
+  requireDiscordLink: REQUIRE_DISCORD_LINK,
+  devLoginEnabled: DEV_LOGIN_ENABLED,
+  passwordMinimumLength: PASSWORD_MIN_LENGTH,
+  passwordMaximumLength: PASSWORD_MAX_LENGTH,
+}));
 
 app.post("/api/auth/desktop-session-code", async (request, reply) => {
   const session = await getCurrentSession(request);

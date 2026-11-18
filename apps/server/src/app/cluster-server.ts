@@ -134,6 +134,7 @@ import { withDatabaseBootstrapLock } from "../core/database-bootstrap-lock.js";
 import { registerHealthOperationsRoutes } from "./server-routes-health-operations.js";
 import { registerPersistenceRoutes } from "./server-routes-persistence.js";
 import { registerSetupRoutes } from "./server-routes-setup.js";
+import { registerBootstrapRoute } from "./server-routes-bootstrap.js";
 import { registerAccessAndApprovalRoutes } from "./server-routes-access-media.js";
 import { registerMediaWhiteboardRoutes } from "./server-routes-media-whiteboards.js";
 import { registerConfigurationIntegrationRoutes } from "./server-routes-configuration-integrations.js";
@@ -1101,6 +1102,21 @@ registerPersistenceRoutes({
   requireAdminUserForRequest,
   serializePersistenceRecord,
   validatePersistencePayload
+});
+registerBootstrapRoute({
+  app,
+  decorateUserForClient,
+  devLoginEnabled: DEV_LOGIN_ENABLED,
+  getCurrentUser,
+  getSetupStatus,
+  inspectInstanceSetup,
+  isDiscordConfigured,
+  passwordMaxLength: PASSWORD_MAX_LENGTH,
+  passwordMinLength: PASSWORD_MIN_LENGTH,
+  prisma,
+  readSettings,
+  requireDiscordLink: REQUIRE_DISCORD_LINK,
+  studioSettingsForClient,
 });
 registerSetupRoutes({
   REQUIRE_DISCORD_LINK,

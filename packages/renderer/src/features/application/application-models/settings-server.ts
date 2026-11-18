@@ -8,6 +8,9 @@ export type SetupStatus = {
   ok: boolean;
   version: string;
   setupComplete: boolean;
+  /** Sent by the server and shown on the sign-in screen before anyone is signed in. */
+  studioName?: string;
+  workspaceName?: string;
   setupCompletedAt?: string | null;
   serverInstanceId?: string | null;
   serverDisplayName?: string;

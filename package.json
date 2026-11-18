@@ -465,7 +465,8 @@
     "cluster:server-entry:build": "node tools/scripts/build-cluster-server-entry.mjs",
     "icons:generate": "node tools/scripts/generate-cluster-icons.mjs",
     "mail:check": "node tools/scripts/cluster-mail-transport-tests.mjs && node tools/scripts/cluster-mail-delivery-tests.mjs",
-    "auth:identity:check": "node tools/scripts/cluster-login-identity-tests.mjs"
+    "auth:identity:check": "node tools/scripts/cluster-login-identity-tests.mjs",
+    "boot:check": "node tools/scripts/cluster-boot-payload-tests.mjs"
   },
   "devDependencies": {
     "concurrently": "9.2.1",
