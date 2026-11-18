@@ -80,3 +80,7 @@ Thumbs.db
 
 # Prisma client generated into the server source tree by `npm run db:generate`.
 /apps/server/src/generated/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
