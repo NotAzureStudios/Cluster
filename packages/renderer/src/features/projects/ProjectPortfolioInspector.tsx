@@ -27,21 +27,55 @@ export function ProjectPortfolioInspector({ project, health, schedule, completen
   onOpenActivity: () => void;
   onOpenReports: () => void;
 }) {
-  if (!project) return <aside className="project-inspector-v146"><div className="empty-state flat-empty-v146"><h2>No project selected</h2><p>Select a project from the index.</p></div></aside>;
+  if (!project) return <aside className="pl-insp"><p className="pl-insp__empty">Select a project</p></aside>;
   const scheduleMeta = schedule || projectScheduleMeta(project, project.archived ? "archived" : String(project.status || "active"));
-  const nextAction = scheduleMeta.tone === "danger" ? `Review the overdue target and reset the delivery plan.` : gaps[0] ? gaps[0] : buildPlan.find((item) => item.status === "missing")?.label ? `Set up ${buildPlan.find((item) => item.status === "missing")?.label}.` : "Review the next milestone and keep delivery moving.";
+  const missingBuild = buildPlan.find((item) => item.status === "missing")?.label;
+  const nextAction = scheduleMeta.tone === "danger" ? "Reset the overdue target" : gaps[0] ? gaps[0] : missingBuild ? `Set up ${missingBuild}` : "On track";
+  const healthTone = health?.tone === "danger" || health?.tone === "warning" ? health.tone : "good";
+  const done = checklist.filter((item) => item.done).length;
+  const summary = (project.objective || project.description || "").trim();
+  /* Project preview beside the list: identity, readiness, the next step,
+     how to get in, then setup and team as indicators. */
   return (
-    <aside className="project-inspector-v146 project-inspector-v310" aria-label="Selected project details" style={runtimeStyle({ "--project-inspector-accent": project.color || "#60a5fa" })}>
-      <div className="project-inspector-head-v146"><div className="project-inspector-identity-rc38"><span><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span><h2>{project.name}</h2></div><div className="inspector-badges-v146">{!videoProject && source && <span className={`project-source-pill-v0112 ${source.tone}`}><ClusterIcon name={source.icon} /> {source.label}</span>}{videoProject ? <span className="project-source-pill-v0112 neutral"><ClusterIcon name="video" /> Video</span> : null}{status && <span className={`project-status-pill-v077 ${status.tone}`}>{project.archived ? "Archived" : project.status || "Active"}</span>}</div></div>
-      <div className="inspector-progress-v146"><div><span>Readiness</span><strong>{completeness}%</strong></div><div className="completion-meter"><span style={runtimeStyle({ width: `${completeness}%` })} /></div>{health && <em className={`health-pill ${health.tone}`}>{health.label}</em>}</div>
-      <section className={`project-next-action-v310 ${scheduleMeta.tone}`}><span>Next step</span><strong>{nextAction}</strong><small>{scheduleMeta.label} · {formatProjectDate(project.targetDate)}</small></section>
-      <div className="inspector-actions-v146"><ClusterButton type="button" className="" onClick={() => onOpenProject(project.id)} variant="primary">Open project</ClusterButton>{project.boards[0] && <ClusterButton type="button" className="" onClick={() => onOpenBoard(project.boards[0].id)} variant="secondary">Board</ClusterButton>}{whiteboards[0] && <ClusterButton type="button" className="" onClick={() => onOpenWhiteboard(whiteboards[0].id)} variant="secondary">Whiteboard</ClusterButton>}</div>
-      <div className="project-quick-grid-v310 project-quick-grid-v22"><ClusterButton unstyled type="button" onClick={onOpenTimeline}><strong>Timeline</strong></ClusterButton>{!videoProject ? <ClusterButton unstyled type="button" onClick={onOpenBuilds}><strong>Builds</strong></ClusterButton> : <ClusterButton unstyled type="button" onClick={() => onOpenProject(project.id)}><strong>Video Review</strong></ClusterButton>}<ClusterButton unstyled type="button" onClick={onOpenActivity}><strong>Activity</strong></ClusterButton><ClusterButton unstyled type="button" onClick={onOpenReports}><strong>Tickets</strong></ClusterButton></div>
-      <div className="inspector-kpis-v146 inspector-kpis-v22"><div><strong>{project.boards.length}</strong><span>Boards</span></div><div><strong>{whiteboards.length}</strong><span>Whiteboards</span></div><div><strong>{members.length}</strong><span>People</span></div>{!videoProject ? <div><strong>{buildPlan.length}</strong><span>Build beats</span></div> : <div><strong>{checklist.filter((item) => item.done).length}/{checklist.length}</strong><span>Setup</span></div>}</div>
-      <details className="inspector-section-v146 project-brief-inspector-v307 project-inspector-secondary-v22"><summary>Brief · {project.priority || "medium"}</summary><div className="project-inspector-secondary-body-v22"><p>{project.objective || project.description || "No project objective has been written yet."}</p><div className="project-inspector-tags-v307">{(project.tags || []).slice(0, 6).map((tag) => <span key={tag}>#{tag}</span>)}</div><dl><div><dt>Client</dt><dd>{project.clientName || "Internal"}</dd></div><div><dt>Target</dt><dd>{formatProjectDate(project.targetDate)}</dd></div></dl></div></details>
-      {members.length > 0 && <section className="inspector-section-v146"><div className="inspector-section-title-v146"><strong>Project team</strong><span>{members.length}</span></div><div className="project-avatar-stack-v310">{members.slice(0, 7).map((member) => member.avatarUrl ? <img loading="lazy" decoding="async" key={member.id} src={member.avatarUrl} alt={member.displayName || member.username} title={member.displayName || member.username} /> : <span key={member.id} title={member.displayName || member.username}>{(member.displayName || member.username).slice(0, 2).toUpperCase()}</span>)}</div></section>}
-      <details className="inspector-section-v146 project-inspector-secondary-v22"><summary>Setup readiness · {checklist.filter((item) => item.done).length}/{checklist.length}</summary><div className="project-inspector-secondary-body-v22"><div className="checklist-grid-v146">{checklist.map((item) => <span key={item.label} className={item.done ? "done" : "missing"}>{item.done ? <ClusterIcon name="check" /> : <ClusterIcon name="minus" />} {item.label}</span>)}</div></div></details>
-      {gaps.length > 0 && <section className="inspector-section-v146"><div className="inspector-section-title-v146"><strong>Needs work</strong><span>{gaps.length}</span></div><div className="gap-list-v146">{gaps.slice(0, 5).map((gap) => <em key={gap}>{gap}</em>)}</div></section>}
+    <aside className="pl-insp" aria-label="Selected project details" style={runtimeStyle({ "--pl-accent": project.color || "#57c1ff" })}>
+      <header className="pl-insp__head">
+        <span className="pl-card__mark"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
+        <div><h2>{project.name}</h2><small>{videoProject ? "Video" : source?.label || "Project"} · {project.archived ? "Archived" : String(project.status || "active").replaceAll("_", " ")}</small></div>
+      </header>
+      <div className="pl-insp__meter" data-tone={healthTone}>
+        <span><strong>{completeness}%</strong> ready</span>
+        <i aria-hidden="true"><b style={runtimeStyle({ width: `${completeness}%` })} /></i>
+        {health ? <span className="pl-status" data-tone={healthTone}>{health.label}</span> : null}
+      </div>
+      <div className="pl-insp__next" data-tone={scheduleMeta.tone === "danger" ? "danger" : gaps.length ? "warning" : "good"}>
+        <i className="pv-dot" aria-hidden="true" />
+        <span><strong>{nextAction}</strong><small><ClusterIcon name="calendar" />{scheduleMeta.label}{project.targetDate ? ` · ${formatProjectDate(project.targetDate)}` : ""}</small></span>
+      </div>
+      <div className="pl-insp__actions">
+        <ClusterButton variant="primary" size="compact" onClick={() => onOpenProject(project.id)}>Open</ClusterButton>
+        {project.boards[0] ? <ClusterButton variant="secondary" size="compact" onClick={() => onOpenBoard(project.boards[0].id)}>Board</ClusterButton> : null}
+        {whiteboards[0] ? <ClusterButton variant="secondary" size="compact" onClick={() => onOpenWhiteboard(whiteboards[0].id)}>Whiteboard</ClusterButton> : null}
+      </div>
+      <dl className="pl-insp__stats">
+        <div><dt>Boards</dt><dd>{project.boards.length}</dd></div>
+        <div><dt>Whiteboards</dt><dd>{whiteboards.length}</dd></div>
+        <div><dt>People</dt><dd>{members.length}</dd></div>
+        {!videoProject ? <div><dt>Build steps</dt><dd>{buildPlan.length}</dd></div> : null}
+      </dl>
+      {checklist.length ? <section className="pl-insp__section">
+        <h3>Setup <span>{done}/{checklist.length}</span></h3>
+        <ul className="pl-insp__check">{checklist.map((item) => <li key={item.label} data-done={item.done || undefined}><ClusterIcon name={item.done ? "check" : "minus"} />{item.label}</li>)}</ul>
+      </section> : null}
+      {members.length ? <section className="pl-insp__section">
+        <h3>Team <span>{members.length}</span></h3>
+        <div className="pl-insp__team">{members.slice(0, 10).map((member) => member.avatarUrl ? <img loading="lazy" decoding="async" key={member.id} src={member.avatarUrl} alt={member.displayName || member.username} title={member.displayName || member.username} /> : <span key={member.id} title={member.displayName || member.username}>{(member.displayName || member.username).slice(0, 1).toUpperCase()}</span>)}</div>
+      </section> : null}
+      {summary || project.clientName || (project.tags || []).length ? <section className="pl-insp__section">
+        <h3>Brief</h3>
+        {summary ? <p>{summary}</p> : null}
+        <dl className="pl-insp__brief"><div><dt>Client</dt><dd>{project.clientName || "Internal"}</dd></div><div><dt>Priority</dt><dd>{project.priority || "medium"}</dd></div></dl>
+        {(project.tags || []).length ? <div className="pl-insp__tags">{(project.tags || []).slice(0, 6).map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
+      </section> : null}
     </aside>
   );
 }

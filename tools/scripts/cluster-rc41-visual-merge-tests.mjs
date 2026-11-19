@@ -27,8 +27,7 @@ check(inventory.includes('loadedSummary.kinds.slice(0, 6)'), 'rank top kind cate
 check(!inventory.includes('Active shown'), 'duplicate inventory kpis removed');
 check(inventory.includes('"/api/admin/inventory/attention"'), 'existing audit action preserved');
 const projects=src('features/projects/ProjectsPage.tsx');
-check(projects.includes('projectCursor.hasMore ? "Loaded filtered projects · more on server"'), 'portfolio paging label');
-check(projects.includes('label="Average loaded readiness"'), 'portfolio average scope');
+check(projects.includes('Load 80 more projects from server'), 'portfolio paging control');
 check(projects.includes('onOpenProject(fact.project.id)'), 'project navigation preserved');
 const home=src('features/home-widgets/BuiltInHomeWidget.tsx');
 check(!home.includes('TrendIndicator'), 'no fabricated QA history');

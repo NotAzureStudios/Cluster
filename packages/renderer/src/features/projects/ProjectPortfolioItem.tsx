@@ -5,7 +5,7 @@ import { runtimeStyle } from "../../core/runtime-style";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
-import { ClusterVisualRing } from "../../components/ClusterVisualMetrics";
+import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
 import { ClusterRowActions } from "../../components/ClusterContextActions";
 
 export function ProjectPortfolioItem({ project, selected, pinned, density, health, schedule, completeness, stageLabel, statusLabel, typeLabel, gaps, memberCount, onSelect, onInspect, onTogglePin }: {
@@ -29,44 +29,37 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const titleId = `project-portfolio-title-${project.id}`;
   const typeId = `project-portfolio-type-${project.id}`;
   const summaryId = `project-portfolio-summary-${project.id}`;
-  const summary = (project.objective || project.description || "").trim();
+  const summary = density === "comfortable" ? (project.objective || project.description || "").trim() : "";
+  const tone = health.tone === "danger" || health.tone === "warning" ? health.tone : "good";
+  const scheduleTone = scheduleMeta.tone === "danger" || scheduleMeta.tone === "warning" ? scheduleMeta.tone : undefined;
+  const scheduleShort = scheduleMeta.label.replace(/^Due in /, "").replace(/^Overdue by /, "−");
+  /* One project: identity, a status chip, then indicators — readiness dial,
+     time to target, head count, setup gaps — with the words in tooltips.
+     The whole card opens the project; star and details sit on top of it. */
   return (
-    <article title={`${project.name} · ${typeLabel}`} data-cluster-context-row="true" data-project-id={project.id} className={`project-row-v146 project-row-v310 project-row-v57 project-row-accessible-v370 project-tile-rc25 ${selected ? "selected" : ""} ${pinned ? "pinned" : ""} density-${density}`} style={runtimeStyle({ "--project-row-accent": project.color || "#57c1ff" })}>
-      <ClusterButton unstyled type="button" className="project-row-select-v370" aria-labelledby={typeLabel ? `${titleId} ${typeId}` : titleId} aria-describedby={density === "comfortable" && summary ? summaryId : undefined} onClick={onSelect} title={`Open ${project.name}`} />
-      <div className="project-tile-head-rc25">
-        <span className="project-tile-avatar-rc25"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
-        <div className="project-tile-identity-rc25">
-          <strong id={titleId}>{project.name}</strong>
-          {typeLabel && <span id={typeId} className="project-tile-type-rc25" title={typeLabel}>{typeLabel}</span>}
-        </div>
+    <article data-cluster-context-row="true" data-project-id={project.id} className="pl-card" data-selected={selected || undefined} data-pinned={pinned || undefined} data-density={density} style={runtimeStyle({ "--pl-accent": project.color || "#57c1ff" })}>
+      <ClusterButton unstyled type="button" className="pl-card__hit" aria-labelledby={typeLabel ? `${titleId} ${typeId}` : titleId} aria-describedby={summary ? summaryId : undefined} onClick={onSelect} title={`Open ${project.name}`} />
+      <span className="pl-card__mark"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
+      <span className="pl-card__id">
+        <strong id={titleId}>{project.name}</strong>
+        {typeLabel ? <small id={typeId}>{typeLabel}</small> : null}
+      </span>
+      {summary ? <p id={summaryId} className="pl-card__summary" title={summary}>{summary}</p> : null}
+      <span className="pl-status" data-tone={tone} title={health.label}>{tone === "good" ? statusLabel : health.label}</span>
+      <ul className="pl-card__facts">
+        <li title={`Ready: ${completeness}%`}><ClusterMiniRing label="Ready" percent={completeness} tone={completeness < 50 ? "warning" : "accent"} /></li>
+        <li data-tone={scheduleTone} title={scheduleMeta.detail || scheduleMeta.label}><ClusterIcon name="calendar" />{scheduleShort}</li>
+        <li title={`${memberCount} people`}><ClusterIcon name="users" />{memberCount}</li>
+        {gaps.length ? <li data-tone="warning" title={gaps.join(" · ")}><ClusterIcon name="warning" />{gaps.length}</li> : null}
+        {project.priority === "urgent" || project.priority === "high" ? <li data-tone={project.priority === "urgent" ? "danger" : "warning"} title={`${project.priority} priority`}><ClusterIcon name="spark" />{project.priority === "urgent" ? "Urgent" : "High"}</li> : null}
+        {stageLabel ? <li className="pl-card__soft" title={`Stage: ${stageLabel}`}>{stageLabel}</li> : null}
+      </ul>
+      <span className="pl-card__actions">
         <ClusterRowActions label={`${project.name} actions`}>
-          <ClusterIconButton label={pinned ? `Unstar ${project.name}` : `Star ${project.name}`} size="compact" selected={pinned} onClick={onTogglePin} className={`project-pin-v307 ${pinned ? "active" : ""}`}><ClusterIcon name={pinned ? "star-filled" : "star"} /></ClusterIconButton>
-          <ClusterButton size="compact" variant="quiet" onClick={onInspect}>Details</ClusterButton>
+          <ClusterIconButton label={pinned ? `Unstar ${project.name}` : `Star ${project.name}`} size="compact" selected={pinned} onClick={onTogglePin} className="pl-card__pin"><ClusterIcon name={pinned ? "star-filled" : "star"} /></ClusterIconButton>
+          <ClusterIconButton label={`Details for ${project.name}`} size="compact" onClick={onInspect}><ClusterIcon name="panel-open" /></ClusterIconButton>
         </ClusterRowActions>
-      </div>
-      {density === "comfortable" && summary && (
-        <p id={summaryId} className="project-tile-summary-rc25" title={summary}>{summary}</p>
-      )}
-      <div className="project-tile-tags-rc25">
-        <span className="project-tile-status-rc25">{statusLabel}</span>
-        {health.tone !== "good" ? <span className={`project-tile-health-rc25 ${health.tone}`}>{health.label}</span> : null}
-        {project.priority === "urgent" || project.priority === "high" ? <span className="project-tile-priority-rc25">{project.priority} priority</span> : null}
-        {density === "comfortable" && gaps.length > 0 && (
-          <span className="project-tile-gaps-rc25" title={gaps.join(" · ")}>
-            {gaps.length} setup gap{gaps.length === 1 ? "" : "s"}
-          </span>
-        )}
-      </div>
-      <div className="project-tile-bottom-rc25">
-        <div className="project-tile-progress-rc25">
-          <ClusterVisualRing label="Ready" percent={completeness} compact tone={completeness < 50 ? "warning" : "accent"} />
-        </div>
-        <span className="project-tile-members-rc25" title={`${memberCount} assigned people`}><ClusterIcon name="users" /> {memberCount}</span>
-      </div>
-      {density === "comfortable" && <footer className="project-tile-footer-rc25">
-        <span title={scheduleMeta.detail || scheduleMeta.label}><ClusterIcon name="calendar" /> {scheduleMeta.label}</span>
-        {stageLabel ? <span title={`Build stage: ${stageLabel}`}>{stageLabel}</span> : null}
-      </footer>}
+      </span>
     </article>
   );
 }

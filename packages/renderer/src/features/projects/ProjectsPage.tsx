@@ -14,7 +14,7 @@ import { clusterDataQueryParameter } from "../../components/data-view-query";
 import { addDays } from "../../core/date-time";
 import { useServerState } from "../../core/server-state";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
@@ -26,6 +26,7 @@ import { DataExportBuilder } from "../../components/DataExportBuilder";
 import { DataImportBuilder } from "../../components/DataImportBuilder";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ToolPageHeader } from "../../components/ToolPageHeader";
+import "./projects-list.css";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BuildMilestonePlanItem, Project, ProjectSnapshot, TimelineEntry, TimelinePayload, UserActivitySummary, WhiteboardSummary } from "../application/application-models";
 import { projectScheduleState, projectSetupChecklist } from "./project-list-utils";
@@ -726,116 +727,77 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   function clearFilters() { projectDrilldown.reset(); setQuery(""); setStatusFilter("all"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet({ logic: "or", selections: [] }); persistFocus("all"); }
   function navigateSelection(delta: number) { if (!sortedFacts.length) return; const current = sortedFacts.findIndex((fact) => fact.project.id === selectedProject?.id); const next = sortedFacts[(Math.max(0, current) + delta + sortedFacts.length) % sortedFacts.length]; setSelectedProjectId(next.project.id); }
 
+  const collections = [...browserFilters.map((item) => ({ id: item.id, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.id === "at_risk" ? "Attention" : item.id === "unscheduled" ? "No date" : item.label, count: item.count, tone: item.id === "at_risk" && item.count ? "warning" : "" })), { id: "archived", label: "Archived", count: 0, tone: "" }];
+  const activeCollection = statusFilter === "archived" ? "archived" : focus;
+  const statusFilterCount = Number(statusFilter !== "all" && statusFilter !== "archived");
+
+  /* Projects. Title row, then one bar: collections as tabs on the left,
+     search, filters and layout on the right. The list is the page. */
   return (
-    <section className="page cluster-page-shell projects-page-v310">
-      <ToolPageHeader
-        className="projects-primary-header-v459 cluster-page-header"
-        title="Projects"
-        icon="project"
-
-        actions={
-          <>
-            {portfolioProjects.length > 0 && <ClusterButton variant="quiet" onClick={onOpenBuilds}>Releases</ClusterButton>}
-            {isAdmin && <ClusterButton variant="primary" onClick={onCreateProject}><ClusterIcon name="plus" /> New project</ClusterButton>}
-          </>
-        }
-      />
-
-
+    <section className="page pl">
+      <header className="pl-head">
+        <h1>Projects</h1>
+        <div className="pl-head__actions">
+          {portfolioProjects.length > 0 && <ClusterButton variant="quiet" size="compact" onClick={onOpenBuilds}>Releases</ClusterButton>}
+          {isAdmin ? <DataImportBuilder resourceKind="project" label="Projects" /> : null}
+          <DataExportBuilder fields={projectExportFields} selectionCount={selectedProjectIds.size} busy={projectExporting} onExport={({ format, fieldIds, scope, delivery }) => exportProjects(format, fieldIds, scope, delivery)} />
+          {isAdmin && <ClusterButton variant="primary" size="compact" onClick={onCreateProject}><ClusterIcon name="plus" /> New project</ClusterButton>}
+        </div>
+      </header>
 
       {projects.length === 0 && !portfolioProjects.length && !projectCursor.loading && !query.trim() && statusFilter === "all" && sourceFilter === "all" && scheduleFilter === "all" && priorityFilter === "all" && focus === "all" ? (
         <ClusterEmptyState
           kind="first-use"
           icon="project"
           className="projects-empty-start-v344"
-          eyebrow="Project portfolio"
-          title={isAdmin ? "Create the first project" : "No projects are available yet"}
-          description={isAdmin ? "Start with a real project. Boards, Build, QA, Library, ownership, and delivery context will attach to it as the team works." : "A project owner or administrator needs to create or assign a project before project work appears here."}
-          actions={isAdmin ? <ClusterButton variant="primary" onClick={onCreateProject}>Create project</ClusterButton> : undefined}
+          title={isAdmin ? "No projects yet" : "No projects yet"}
+          description={isAdmin ? "Boards, builds, QA and files attach to a project as the team works." : "An owner or admin needs to add you to a project."}
+          actions={isAdmin ? <ClusterButton variant="primary" onClick={onCreateProject}>New project</ClusterButton> : undefined}
         />
       ) : (
-        <div className="projects-browser-layout-rc25">
-          <aside className="projects-browser-rail-rc25" aria-label="Project collections">
-            <div className="projects-browser-rail-head-rc25"><strong>Browse</strong><span>{portfolioPulse.total}</span></div>
-            <nav aria-label="Project collections">
-              {browserFilters.map((item) => <ClusterButton unstyled key={item.id}
-                type="button" className={`projects-browser-rail-item-rc25 ${statusFilter !== "archived" && focus === item.id ? "active" : ""}`}
-                aria-current={statusFilter !== "archived" && focus === item.id ? "page" : undefined}
-                onClick={() => chooseBrowserFocus(item.id)}>
-                  <ClusterIcon name={item.icon} /><span>{item.label}</span><small>{item.count}</small>
-                </ClusterButton>)}
-              <ClusterButton unstyled type="button" className={`projects-browser-rail-item-rc25 ${statusFilter === "archived" ? "active" : ""}`}
-                aria-current={statusFilter === "archived" ? "page" : undefined}
-                onClick={() => { setStatusFilter("archived"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); persistFocus("all"); setInspectorOpen(false); }}>
-                <ClusterIcon name="archive" /><span>Archived</span>
-              </ClusterButton>
+        <>
+          <div className="pl-bar">
+            <nav className="pl-tabs" aria-label="Project collections">
+              {collections.map((item) => <ClusterButton unstyled key={item.id} type="button"
+                className={`pl-tab ${activeCollection === item.id ? "is-active" : ""}`.trim()}
+                aria-current={activeCollection === item.id ? "page" : undefined}
+                onClick={() => item.id === "archived"
+                  ? (setStatusFilter("archived"), setSourceFilter("all"), setScheduleFilter("all"), setPriorityFilter("all"), persistFocus("all"), setInspectorOpen(false))
+                  : chooseBrowserFocus(item.id as ProjectPortfolioFocus)}>
+                {item.label}{item.count ? <span className="pl-tab__count" data-tone={item.tone || undefined}>{item.count}</span> : null}
+              </ClusterButton>)}
             </nav>
-            {pinnedProjectIds.length > 0 && <div className="projects-browser-pinned-rc25">
-              <strong>Shortcuts</strong>
-              {pinnedProjectIds.slice(0, 6).map((id) => {
-                const pinned = projects.find((project) => project.id === id);
-                return pinned ? <ClusterButton key={id} unstyled type="button" title={pinned.name} onClick={() => onOpenProject(pinned.id)}>
-                  <i style={runtimeStyle({ background: pinned.color || "#57c1ff" })} /><span>{pinned.name}</span>
-                </ClusterButton> : null;
-              })}
-            </div>}
-          </aside>
-          <div className="projects-browser-main-rc25">
-            <div className="projects-browser-topline-rc25">
-              <div><h2>{statusFilter === "archived" ? "Archived" : browserFilters.find((item) => item.id === focus)?.label || "All projects"}</h2></div>
-              <ClusterButton size="compact" variant="quiet" aria-expanded={browserFiltersOpen} onClick={() => setBrowserFiltersOpen((open) => !open)}><ClusterIcon name="settings" /> {browserFiltersOpen ? "Hide filters" : "Filters"}{secondaryFilterCount || statusFilter !== "all" ? ` · ${secondaryFilterCount + Number(statusFilter !== "all")}` : ""}</ClusterButton>
-            </div>
-          <ClusterTableToolbar
-            className="projects-toolbar-v146"
-            inputRef={searchRef}
-            query={query}
-            onQueryChange={setQuery}
-            onSearchKeyDown={(event) => {
-              if (event.key === "Escape") { setQuery(""); event.currentTarget.blur(); }
-              if (event.key === "ArrowDown") { event.preventDefault(); navigateSelection(1); }
-              if (event.key === "ArrowUp") { event.preventDefault(); navigateSelection(-1); }
-              if (event.key === "Enter" && selectedProject) onOpenProject(selectedProject.id);
-            }}
-            searchLabel="Search projects"
-            placeholder="Search projects"
-            shortcut="/"
-            countLabel={`${sortedFacts.length} projects`}
-            filters={browserFiltersOpen ?
-              <>
-                <div className={`projects-filter-pills-v146 ${browserFiltersOpen ? "filters-open" : ""}`} aria-label="Project status filter">
-                  {[["all", "All"], ["attention", "Needs work"], ["ready", "Ready"], ["active", "Active"], ["on_hold", "On hold"], ["archived", "Archived"]].map(([value, label]) => (
-                    <ClusterButton unstyled type="button" key={value} className={statusFilter === value ? "active" : ""} aria-pressed={statusFilter === value} onClick={() => setStatusFilter(value as typeof statusFilter)}>{label}</ClusterButton>
-                  ))}
+            <div className="pl-bar__tools">
+              <label className="pl-search">
+                <ClusterIcon name="search" />
+                <input ref={searchRef} type="search" value={query} placeholder="Search" aria-label="Search projects"
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") { setQuery(""); event.currentTarget.blur(); }
+                    if (event.key === "ArrowDown") { event.preventDefault(); navigateSelection(1); }
+                    if (event.key === "ArrowUp") { event.preventDefault(); navigateSelection(-1); }
+                    if (event.key === "Enter" && selectedProject) onOpenProject(selectedProject.id);
+                  }} />
+                {!query ? <kbd>/</kbd> : null}
+              </label>
+              <ClusterFilterPopover className="pl-filter" panelClassName="projects-more-filters-panel-v547" label="Filter" count={secondaryFilterCount + statusFilterCount}>
+                <div className="projects-more-filters-body-v57">
+                  <label className="field"><span>Status</span><ClusterNativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">Any</option><option value="attention">Needs work</option><option value="ready">Ready</option><option value="active">Active</option><option value="on_hold">On hold</option><option value="archived">Archived</option></ClusterNativeSelect></label>
+                  <label className="field"><span>Sort</span><ClusterNativeSelect value={primarySortMode} onChange={(event) => { const fieldId = event.target.value; setProjectSorts([{ fieldId, direction: fieldId === "name" || fieldId === "target" ? "asc" : "desc" }]); }}><option value="attention">Attention</option><option value="updated">Updated</option><option value="readiness">Readiness</option><option value="target">Target date</option><option value="priority">Priority</option><option value="name">Name</option></ClusterNativeSelect></label>
+                  <label className="field"><span>Source</span><ClusterNativeSelect value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)}><option value="all">All</option><option value="git">Git</option><option value="manual">Manual</option><option value="external">External</option></ClusterNativeSelect></label>
+                  <label className="field"><span>Schedule</span><ClusterNativeSelect value={scheduleFilter} onChange={(event) => setScheduleFilter(event.target.value as typeof scheduleFilter)}><option value="all">Any date</option><option value="due_soon">Due in 30 days</option><option value="overdue">Overdue</option><option value="unscheduled">Unscheduled</option><option value="scheduled">Scheduled later</option></ClusterNativeSelect></label>
+                  <label className="field"><span>Priority</span><ClusterNativeSelect value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}><option value="all">All</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></ClusterNativeSelect></label>
                 </div>
-                <label className="field projects-sort-v57"><span>Sort</span><ClusterNativeSelect value={primarySortMode} onChange={(event) => { const fieldId = event.target.value; setProjectSorts([{ fieldId, direction: fieldId === "name" || fieldId === "target" ? "asc" : "desc" }]); }}><option value="attention">Attention</option><option value="updated">Updated</option><option value="readiness">Readiness</option><option value="target">Target date</option><option value="priority">Priority</option><option value="name">Name</option></ClusterNativeSelect></label>
-                <ClusterFilterPopover className="projects-more-filters-v57" panelClassName="projects-more-filters-panel-v547" label="More filters" count={secondaryFilterCount}>
-                  <div className="projects-more-filters-body-v57">
-                    <label className="field"><span>Source</span><ClusterNativeSelect value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)}><option value="all">All</option><option value="git">Git</option><option value="manual">Manual</option><option value="external">External</option></ClusterNativeSelect></label>
-                    <label className="field"><span>Schedule</span><ClusterNativeSelect value={scheduleFilter} onChange={(event) => setScheduleFilter(event.target.value as typeof scheduleFilter)}><option value="all">Any date</option><option value="due_soon">Due in 30 days</option><option value="overdue">Overdue</option><option value="unscheduled">Unscheduled</option><option value="scheduled">Scheduled later</option></ClusterNativeSelect></label>
-                    <label className="field"><span>Priority</span><ClusterNativeSelect value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as typeof priorityFilter)}><option value="all">All</option><option value="urgent">Urgent</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></ClusterNativeSelect></label>
-                  </div>
-                </ClusterFilterPopover>
-              </> : undefined
-            }
-            actions={<>{isAdmin ? <DataImportBuilder resourceKind="project" label="Projects" /> : null}<DataExportBuilder fields={projectExportFields} selectionCount={selectedProjectIds.size} busy={projectExporting} onExport={({ format, fieldIds, scope, delivery }) => exportProjects(format, fieldIds, scope, delivery)} />{activeFilterCount > 0 ? <ClusterButton variant="quiet" size="compact" className="projects-clear-v310" onClick={clearFilters}>Clear {activeFilterCount}</ClusterButton> : null}</>}
-          />
-          <div className={`projects-workspace-v146 projects-browser-rc24 ${inspectorOpen ? "has-inspector" : ""}`}>
-            <section className="project-index-v146" aria-label="Project list">
-              <div className="project-index-head-v146">
-                <div className="projects-index-heading-rc24"><strong>{viewMode === "table" ? "Detailed view" : viewMode === "list" ? "Project list" : "Project gallery"}</strong><span>{projectCursor.hasMore ? "More available" : `${sortedFacts.length} projects`}</span></div>
-                <div className="project-index-controls-v310">
-                  <ClusterButton variant={inspectorOpen ? "secondary" : "quiet"} size="compact" aria-expanded={inspectorOpen} onClick={() => setInspectorOpen((value) => !value)}><ClusterIcon name="note" /> {inspectorOpen ? "Hide details" : "Details"}</ClusterButton>
-                  <ClusterButton size="compact" variant="quiet" onClick={() => persistDensity(density === "compact" ? "comfortable" : "compact")} title="Toggle compact layout"><ClusterIcon name="settings" /> {density === "compact" ? "Spacious" : "Compact"}</ClusterButton>
-                  <ClusterSegmentedControl value={viewMode} onChange={persistView} label="Project layout" options={[{ value: "list", label: "List" }, { value: "cards", label: "Cards" }, { value: "table", label: "Table" }]} />
-                </div>
+              </ClusterFilterPopover>
+              {activeFilterCount > 0 ? <ClusterButton variant="quiet" size="compact" onClick={clearFilters}>Clear</ClusterButton> : null}
+              <div className="pl-seg" role="group" aria-label="Layout">
+                {([["cards", "grid", "Cards"], ["list", "list", "List"], ["table", "pages", "Table"]] as const).map(([value, icon, label]) => <ClusterIconButton key={value} size="compact" label={label} selected={viewMode === value} aria-pressed={viewMode === value} onClick={() => persistView(value)}><ClusterIcon name={icon} /></ClusterIconButton>)}
               </div>
-              {loadedHealth.total > 0 && <div className="project-loaded-snapshot-rc41" aria-label="Loaded portfolio snapshot">
-                <ClusterVisualComposition label={projectCursor.hasMore ? "Loaded filtered projects · more on server" : "Loaded filtered projects"} total={loadedHealth.total} parts={[
-                  { label: "Healthy", value: loadedHealth.healthy, tone: "good" },
-                  { label: "Needs attention", value: loadedHealth.attention, tone: "warning" },
-                ]} />
-                <ClusterVisualMeter label="Average loaded readiness" value={loadedHealth.averageReadiness} total={100} tone="accent" />
-              </div>}
+              <ClusterIconButton size="compact" label={inspectorOpen ? "Hide details" : "Show details"} selected={inspectorOpen} aria-expanded={inspectorOpen} onClick={() => setInspectorOpen((value) => !value)}><ClusterIcon name={inspectorOpen ? "panel-close" : "panel-open"} /></ClusterIconButton>
+            </div>
+          </div>
+          <div className={`pl-work ${inspectorOpen ? "has-inspector" : ""}`.trim()}>
+            <section className="pl-index" aria-label="Project list">
               {viewMode === "table" ? <>
                 <DataViewGroupControl fields={projectDataFields} groups={projectGroups} onChange={setProjectGroups} label="Group projects" />
                 <ClusterDataTable
@@ -866,12 +828,12 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 virtualization={{ rowHeight: density === "compact" ? 44 : 54, maxHeight: 760, minimumRows: 160, overscan: 12 }}
                 incremental={{ hasMore: projectCursor.hasMore, loading: projectCursor.loading, prefetchRows: 24, loadLabel: "Load 80 more projects", onLoadMore: projectCursor.loadMore }}
                 empty={<ClusterEmptyState kind="filtered" compact className="flat-empty-v146" title="No projects match this view" description="The portfolio still has projects. Clear the current search and filters to bring them back into view." actions={<ClusterButton variant="secondary" size="compact" onClick={clearFilters}>Clear filters</ClusterButton>} />}
-              /></> :               <div className={`project-list-v146 project-list-${viewMode}-v307`}>
+              /></> : <div className={`pl-list pl-list--${viewMode}`}>
                 {sortedFacts.length ? visibleFacts.map((fact) => (
                   <ProjectPortfolioItem
                     key={fact.project.id}
                     project={fact.project}
-                    selected={selectedProject?.id === fact.project.id}
+                    selected={(inspectorOpen || Boolean(query.trim())) && selectedProject?.id === fact.project.id}
                     pinned={pinnedProjectSet.has(fact.project.id)}
                     density={density}
                     health={fact.health}
@@ -910,8 +872,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 dismissInspector();
               }}>
               <div className="projects-browser-inspector-toolbar-rc25">
-                <strong id="projects-browser-inspector-heading-rc25">Project details{selectedProject ? ` · ${selectedProject.name}` : ""}</strong>
-                <ClusterButton variant="quiet" size="compact" onClick={dismissInspector} aria-label="Close project details"><ClusterIcon name="close" /></ClusterButton>
+                <strong id="projects-browser-inspector-heading-rc25">Details</strong>
+                <ClusterIconButton size="compact" label="Close details" onClick={dismissInspector}><ClusterIcon name="close" /></ClusterIconButton>
               </div>
               <p id="projects-browser-inspector-help-v11" className="sr-only-v204">Read-only project preview. Press Escape to close and return to the project list.</p>
               <ProjectPortfolioInspector
@@ -936,7 +898,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               onOpenReports={onOpenReports}
             /></div> : null}
           </div>
-          <section className="projects-browser-advanced-rc25" aria-label="Portfolio management">
+          <section className="pl-advanced" aria-label="Portfolio management">
             {isAdmin && portfolioProjects.length > 0 ? (
         <ClusterDisclosureGroup className="projects-intelligence-v30d" title="Portfolio signals"  open={intelligenceOpen} onOpenChange={setIntelligenceOpen} headerTrailing={portfolioIntelligence ? <span className={portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "good"}>{portfolioIntelligence.atRisk} at risk · {portfolioIntelligence.highPressureOwners} pressured</span> : null}>
           {intelligenceOpen && portfolioIntelligence ?
@@ -969,8 +931,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
           </ClusterDisclosureGroup>
           <DataExportOperationFeedback jobId={projectExportJobId} onDismiss={() => setProjectExportJobId("")} />
           </section>
-          </div>
-        </div>
+        </>
       )}
     </section>
   );
