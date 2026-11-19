@@ -40,6 +40,6 @@ check('resource browsing closes its own menu on selection',()=>assert.match(sw,/
 check('shared disclosures retain focus-visible styles',()=>assert.match(read('packages/renderer/src/styles/design-system/primitives.css'),/details\.cluster-field-v425 > summary:focus-visible/));
 check('Qt settings can be resized below old 520px constraint',()=>assert.match(read('apps/desktop-qt/qml/pages/AppSettingsWindow.qml'),/minimumWidth: 360/));
 check('taskbar still has Tickets, My Work, transfers',()=>{const s=read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');for(const c of ['TaskbarTransferCenter','canSeeMyWork','canSeeTickets'])assert.ok(s.includes(c));});
-check('project-only tab search transition still present',()=>assert.match(read('packages/renderer/src/features/shell/ShellPrimitives.tsx'),/cluster-taskbar-search-switch/));
+check('project-only tab search transition still present',()=>assert.match(read('packages/renderer/src/features/shell/ShellPrimitives.tsx'),/cl-tb__search-slot/));
 check('People identity retains independent user color and presence',()=>{const s=read('packages/renderer/src/components/PresenceAvatar.tsx');assert.match(s,/--user-avatar-accent/);assert.match(s,/cluster-presence-indicator-v227/);});
 console.log(`${count}/${count} TD3 Pass 16 tests passed`);

@@ -49,6 +49,8 @@ import "./styles/mobile-runtime-v495.css";
 import "../shell/sidebar.css";
 import "../shell/shell-v2.css";
 import "../shell/shell-spatial-rc27.css";
+// Last on purpose: the frame (title bar, sidebar, page edges) is owned here.
+import "../shell/shell-frame.css";
 import "../../styles/visual-system.css";
 import { useRoutePerformance, useRouteScrollRestoration, useShellKeyboardShortcuts, useUserHeartbeat } from "../shell/runtime-hooks";
 import { importantBuildEntries, projectCompleteness, projectHealth, projectStatusLabel } from "../projects/projects-utils";
@@ -65,7 +67,7 @@ import { isStandaloneToolRoute, StandaloneToolRoute } from "./modules/applicatio
 import { CalendarPage, ChangelogPage, PublicSharePage } from "./application-entrypoints";
 import type { User, Project, WhiteboardSummary, Board, AppTheme, SetupStatus, Settings, SettingsSection, ServerConfigSection, RecentNavigation } from "./application-models";
 import { boardOptions, projectTypeBadge, writeProjectTypePresetsCache } from "./modules/project-shell-helpers";
-import { ClusterBootError, NavigationOperationalStatus, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
+import { ClusterBootError, NavigationOperationalStatus, TitlebarStatus, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
 import { canUseProject, getProjectPermission } from "../projects/project-access-policy";
 
 import { MAX_PROJECT_TABS, THEME_STORAGE_KEY, applyCustomization, applyTheme, getStoredTheme, userPreferencesFromUser } from "./modules/application-shell-runtime";
@@ -1300,18 +1302,21 @@ export default function App() {
   const entryScreen = authenticatedEntryScreen({ user, onUserUpdated: (next) => setUser(next as User), onRefresh: loadMe, onLogout: logout });
   if (entryScreen) return entryScreen;
   return (
-    <StudioPolicyGate onLogout={logout}><div className={`app-shell shell-unified-v3430 visual-overhaul-v139 visual-declutter-v140 visual-card-diet-v141 builds-folded-v157 accessibility-pass-v204 ${resourceWindow ? "cluster-resource-window-v489" : ""}`}>
+    <StudioPolicyGate onLogout={logout}><div className={`cl-shell ${resourceWindow ? "cluster-resource-window-v489" : ""}`.trim()}>
       {desktopHost && !resourceWindow && !signedOutKiosk ? <Suspense fallback={null}><LazyDesktopPresencePublisher enabled navigation={currentNavigation} projects={projects} /></Suspense> : null}
       {!resourceWindow && <Sidebar screen={screen} currentRoute={currentNavigationRoute} setScreen={setScreen} user={activeUser} settings={appSettings} projects={projects} currentProjectId={projectId} onOpenProject={openProject} onOpenChangelog={() => setScreen("changelog")} open={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />}
-      {!resourceWindow && <ClusterButton unstyled type="button" className="mobile-sidebar-trigger-v289" data-drawer-open={mobileSidebarOpen ? "true" : "false"} onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-controls="cluster-sidebar" aria-expanded={mobileSidebarOpen}>
+      {!resourceWindow && <ClusterButton unstyled type="button" className="mobile-sidebar-trigger-v289" data-drawer-open={mobileSidebarOpen ? "true" : "false"} onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-controls="cl-sidebar" aria-expanded={mobileSidebarOpen}>
         <ClusterIcon name="menu" />
       </ClusterButton>}
-      {!resourceWindow && mobileSidebarOpen && <div className="sidebar-backdrop-v289" data-cluster-backdrop-for="cluster-sidebar" role="presentation" aria-hidden="true" onPointerDown={() => setMobileSidebarOpen(false)} />}
-      <main id="cluster-main-content" ref={mainContentRef} className="content-shell" tabIndex={-1} aria-label={`${accessibleRouteLabel} workspace`}>
+      {!resourceWindow && mobileSidebarOpen && <div className="sidebar-backdrop-v289" data-cluster-backdrop-for="cl-sidebar" role="presentation" aria-hidden="true" onPointerDown={() => setMobileSidebarOpen(false)} />}
+      {/* The page-scoping classes live on <main>, not the window root: about a hundred
+          page rules hang off them, but rules aimed at the root itself forced the
+          window grid with !important. On <main> they scope pages and nothing else. */}
+      <main id="cluster-main-content" ref={mainContentRef} className="content-shell visual-overhaul-v139 visual-declutter-v140 visual-card-diet-v141 builds-folded-v157 accessibility-pass-v204" tabIndex={-1} aria-label={`${accessibleRouteLabel} workspace`}>
         <div className="sr-only-v204" role="status" aria-live="polite" aria-atomic="true">
           Opened {accessibleRouteLabel}
         </div>
-        {!resourceWindow && <Suspense fallback={<div className="project-tabs-loading-v499" aria-hidden="true" />}><LazyProjectTabsBar projects={visibleProjects} openProjectIds={openProjectTabIds} pinnedProjectIds={pinnedProjectTabIds} activeProjectId={projectId} screen={screen} currentRoute={currentNavigationRoute} user={activeUser} settings={appSettings} onOpenHome={() => setScreen("dashboard")} onOpenProject={openProject} onCloseProject={closeProjectTab} onToggleProjectPin={toggleProjectTabPin} onMoveProjectTab={moveProjectTab} onCloseOtherProjects={closeOtherProjectTabs} onOpenProjects={() => setScreen("projects")} onOpenMyWork={() => setScreen("mywork")} onOpenNotifications={() => setScreen("inbox")} onOpenTickets={() => setScreen("tickets")} onOpenPeople={() => setScreen("people")} onOpenUserAdmin={() => setScreen("people", { section: activeUser.isAdmin ? "admin" : null })} onOpenProfile={() => setScreen("people")} onOpenSettings={() => setScreen("settings")} onOpenQuickCreate={() => setQuickCreateOpen(true)} commandPaletteOpen={commandOpen} resumeContext={resumeContext} onResumeContext={resumeWorkspace} onClearResumeContext={clearResumeWorkspace} onOpenCommandPalette={() => { setMobileSidebarOpen(false); setCommandOpen((current) => !current); }} onOpenNavigation={() => setMobileSidebarOpen(true)} onPresenceChange={updatePresence} onLogout={logout} /></Suspense>}
+        {!resourceWindow && <Suspense fallback={<div className="project-tabs-loading-v499" aria-hidden="true" />}><LazyProjectTabsBar status={<TitlebarStatus model={operationalStatus} />} projects={visibleProjects} openProjectIds={openProjectTabIds} pinnedProjectIds={pinnedProjectTabIds} activeProjectId={projectId} screen={screen} currentRoute={currentNavigationRoute} user={activeUser} settings={appSettings} onOpenHome={() => setScreen("dashboard")} onOpenProject={openProject} onCloseProject={closeProjectTab} onToggleProjectPin={toggleProjectTabPin} onMoveProjectTab={moveProjectTab} onCloseOtherProjects={closeOtherProjectTabs} onOpenProjects={() => setScreen("projects")} onOpenMyWork={() => setScreen("mywork")} onOpenNotifications={() => setScreen("inbox")} onOpenTickets={() => setScreen("tickets")} onOpenPeople={() => setScreen("people")} onOpenUserAdmin={() => setScreen("people", { section: activeUser.isAdmin ? "admin" : null })} onOpenProfile={() => setScreen("people")} onOpenSettings={() => setScreen("settings")} onOpenQuickCreate={() => setQuickCreateOpen(true)} commandPaletteOpen={commandOpen} resumeContext={resumeContext} onResumeContext={resumeWorkspace} onClearResumeContext={clearResumeWorkspace} onOpenCommandPalette={() => { setMobileSidebarOpen(false); setCommandOpen((current) => !current); }} onOpenNavigation={() => setMobileSidebarOpen(true)} onPresenceChange={updatePresence} onLogout={logout} /></Suspense>}
         {resourceWindow && <nav className="resource-window-toolbar-v493" aria-label="Workspace window navigation">
           <div className="resource-window-history-v493">
             <ClusterButton variant="quiet" size="compact" onClick={() => window.history.back()} aria-label="Go back"><ClusterIcon name="chevron-left" />Back</ClusterButton>

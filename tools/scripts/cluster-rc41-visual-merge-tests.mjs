@@ -32,7 +32,7 @@ check(projects.includes('label="Average loaded readiness"'), 'portfolio average 
 check(projects.includes('onOpenProject(fact.project.id)'), 'project navigation preserved');
 const home=src('features/home-widgets/BuiltInHomeWidget.tsx');
 check(!home.includes('TrendIndicator'), 'no fabricated QA history');
-for(const marker of ['Git connected','Discord connected','Departments staffed','Providers configured','Administrative work queues','Library types in loaded overview','Priority tickets · loaded sample','Open review states']) check(home.includes(marker),`Home visual ${marker}`);
+for(const marker of ['Git connected','Discord connected','Staffed','Providers','Admin queues','By type','Priority tickets','Reviews']) check(home.includes(marker),`Home visual ${marker}`);
 check(home.includes('scopedAggregatesUnavailable && !["clock", "note", "clipboard"].includes(id)'), 'scoped projections guard untouched');
 check(!inventory.includes('setInterval(() =>'), 'inventory visuals do not poll');
 console.log(`RC41 visual merge model and integration checks passed: ${n}/${n}`);

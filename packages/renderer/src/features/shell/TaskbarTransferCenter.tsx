@@ -188,14 +188,14 @@ export function TaskbarTransferCenter() {
         ref={triggerRef}
         unstyled
         type="button"
-        className={`cluster-taskbar-action cluster-taskbar-action--icon cluster-transfer-trigger ${open ? "is-active" : ""} ${failedCount ? "has-error" : ""}`}
+        className={`cl-tb-action cl-tb-action--icon cluster-transfer-trigger ${open ? "is-active" : ""} ${failedCount ? "has-error" : ""}`}
         title={label}
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => { if (!isExecuting()) setOpen((value) => !value); }}
       >
-        <ClusterIcon name="upload" className="cluster-taskbar-action__icon" />
+        <ClusterIcon name="upload" className="cl-tb-action__icon" />
         {activeCount ? <span className="cluster-transfer-trigger__counts" aria-hidden="true">↑{uploadingCount} ↓{downloadingCount}</span> : null}
         {nativeProgress !== null && activeCount ? <span className="cluster-transfer-trigger__progress" aria-hidden="true"><i style={{ width: `${nativeProgress}%` }} /></span> : null}
       </ClusterButton>

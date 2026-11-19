@@ -1520,60 +1520,9 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                           ]}
                         />
                       </ClusterSettingsRow>
-                      <div className="field">
-                        <label>Sidebar surface</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Sidebar surface">
-                          {(["match", "solid", "glass"] as Array<NonNullable<Settings["sidebarSurface"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.sidebarSurface || "match") === option ? "active" : ""} onClick={() => patch("sidebarSurface", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="field sidebar-item-style-field-rc27">
-                        <label>Sidebar buttons</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Sidebar button separation">
-                          {(["soft", "divided", "outlined"] as Array<NonNullable<Settings["sidebarItemStyle"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.sidebarItemStyle || "outlined") === option} className={(settings.sidebarItemStyle || "outlined") === option ? "active" : ""} onClick={() => patch("sidebarItemStyle", option)}>{option === "soft" ? "Soft" : option === "divided" ? "Lines" : "Borders"}</ClusterButton>)}
-                        </div>
-                      </div>
-                      <div className="field sidebar-layout-field-v546">
-                        <label>Sidebar layout</label>
-                        <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Sidebar layout">
-                          {(["docked", "floating"] as Array<NonNullable<Settings["sidebarLayout"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.sidebarLayout || "docked") === option} className={(settings.sidebarLayout || "docked") === option ? "active" : ""} onClick={() => patch("sidebarLayout", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                        <small className="muted">Floating separates navigation from workspace content on large screens. Phones keep the existing drawer.</small>
-                      </div>
-                      <div className="field taskbar-layout-field-v546">
-                        <label>Top taskbar layout</label>
-                        <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Top taskbar layout">
-                          {(["floating", "full-width"] as Array<NonNullable<Settings["taskbarLayout"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" aria-pressed={(settings.taskbarLayout || "floating") === option} className={(settings.taskbarLayout || "floating") === option ? "active" : ""} onClick={() => patch("taskbarLayout", option)}>
-                              {option === "floating" ? "Floating" : "Full width"}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                        <small className="muted">Both stay visible while scrolling. Floating has inset edges; Full width spans the workspace.</small>
-                      </div>
-                      <div className="field">
-                        <label>Taskbar surface</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Taskbar surface">
-                          {(["match", "solid", "glass"] as Array<NonNullable<Settings["taskbarSurface"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.taskbarSurface || "match") === option ? "active" : ""} onClick={() => patch("taskbarSurface", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label>Taskbar labels</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Taskbar labels">
-                          {(["auto", "always", "icons"] as Array<NonNullable<Settings["userTaskbarLabels"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.userTaskbarLabels || "auto") === option ? "active" : ""} onClick={() => patch("userTaskbarLabels", option)}>
-                              {option === "icons" ? "Icons" : option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Sidebar and taskbar surface, layout, button style and label options
+                          were retired with the window frame rebuild: one flush title bar and
+                          one sidebar, styled by features/shell/shell-frame.css. */}
                       <div className="field">
                         <label>Project tabs</label>
                         <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Project tab style">

@@ -28,6 +28,7 @@ test('QA filters use shared disclosure and keep severity quick actions',()=>{ass
 test('QA filters retain search project queue and severity with accessible labels',()=>{for(const f of ['search','project','queue','severity']){assert.match(p,new RegExp('htmlFor=\\{`\\$\\{qaFilterId\\}-'+f+'`\\}'));assert.match(p,new RegExp('id=\\{`\\$\\{qaFilterId\\}-'+f+'`\\}'));}});
 test('QA filter CSS targets canonical child wrapper rather than obsolete immediate child grid',()=>assert.match(qaCss,/\.qa-filter-panel-v118\.cluster-field-v425 > div\[id\$="-content"\]/));
 test('Canonical disclosure owns chevron on QA, preventing doubled arrows',()=>{assert.match(filters,/\.filter-menu-v0102:not\(\.cluster-field-v425\) summary::after/);assert.match(p,/title="QA filters"/)});
-for(const required of ['My Work','Tickets','TaskbarTransferCenter','TaskbarProjectTabs'])test(`Taskbar keeps ${required}`,()=>assert.ok(taskbar.includes(required)));
+for(const required of ['Tickets','TaskbarTransferCenter','TaskbarProjectTabs'])test(`Taskbar keeps ${required}`,()=>assert.ok(taskbar.includes(required)));
+test('Sidebar keeps My Work',()=>{assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');});
 test('People retains identity color and independent presence indicator',()=>{assert.match(avatar,/personalAccentColor|accentColor/);assert.match(avatar,/cluster-presence-indicator-v227/)});
 let passed=0;for(const [title,fn] of cases){try{fn();passed++;console.log('PASS',title)}catch(e){console.error('FAIL',title,e.message);process.exitCode=1}}console.log(`${passed}/${cases.length} TD3 Pass 20 assertions passed`);

@@ -112,16 +112,34 @@ export function initialNavigationRecoveryNotice(source: string): NavigationRecov
 }
 
 
-const GLOBAL_OPERATIONAL_BANNER_STATES = new Set(["offline", "reconnecting", "server_unreachable", "conflict", "incompatible", "read_only", "degraded", "maintenance", "recovery", "draining"]);
+/* Two kinds of server state, shown two ways.
+   Blocking states stop work or need a decision — you cannot reach the server,
+   this client must update, changes conflict, or the server is in maintenance
+   or recovery — so they keep a strip across the page with its action.
+   Informational states describe how things are without asking anything of
+   you, so they sit as a chip in the title bar, with the detail on hover.
+   Read-only used to take a 66px banner on every page for as long as it
+   lasted. */
+const BLOCKING_STATES = new Set(["reconnecting", "server_unreachable", "conflict", "incompatible", "maintenance", "recovery"]);
+const CHIP_STATES = new Set(["offline", "read_only", "degraded", "draining"]);
 
 export function NavigationOperationalStatus({ model, onReviewSync, onRetry }: { model: ClusterOperationalStatusModel; onReviewSync: () => void; onRetry: () => void }) {
-  if (!GLOBAL_OPERATIONAL_BANNER_STATES.has(model.state)) return null;
+  if (!BLOCKING_STATES.has(model.state)) return null;
   const actions = ["conflict", "incompatible"].includes(model.state)
-    ? <ClusterButton variant="secondary" size="compact" onClick={onReviewSync}>Review sync</ClusterButton>
-    : ["offline", "reconnecting", "server_unreachable"].includes(model.state)
+    ? <ClusterButton variant="secondary" size="compact" onClick={onReviewSync}>Review</ClusterButton>
+    : ["reconnecting", "server_unreachable"].includes(model.state)
       ? <ClusterButton variant="secondary" size="compact" busy={model.state === "reconnecting"} busyLabel="Reconnecting…" onClick={onRetry}>Retry</ClusterButton>
       : null;
-  return <ClusterOperationalStatus model={model} className="navigation-operational-status-v433" actions={actions} />;
+  return <ClusterOperationalStatus model={model} className="cl-status-strip" actions={actions} />;
+}
+
+export function TitlebarStatus({ model }: { model: ClusterOperationalStatusModel }) {
+  if (!CHIP_STATES.has(model.state)) return null;
+  const detail = model.pendingCount ? `${model.detail} ${model.pendingCount} pending.` : model.detail;
+  return <span className="cl-tb-status" data-cluster-state={model.interactionState} role="status" title={detail} aria-label={`${model.label}. ${detail}`}>
+    <span className="cl-tb-status__dot" aria-hidden="true" />
+    {model.label}
+  </span>;
 }
 
 export function publicShareToken() {

@@ -1,4 +1,3 @@
-import "../styles/application-sidebar-rc27.css";
 import { readPreferenceStorage, writePreferenceStorage } from "../../../core/preference-storage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useClusterDialogInteraction } from "../../../components/useClusterDialogInteraction";
@@ -54,7 +53,7 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
   useEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = effectiveCollapsed ? "true" : "false";
     document.documentElement.dataset.sidebarMode = sidebarMode;
-    document.documentElement.style.setProperty("--cluster-sidebar-current-width", effectiveCollapsed ? "72px" : "232px");
+    document.documentElement.style.setProperty("--cluster-sidebar-current-width", effectiveCollapsed ? "56px" : "208px");
     try { writePreferenceStorage("cluster.sidebar.mode", sidebarMode); } catch {}
     return () => {
       delete document.documentElement.dataset.sidebarCollapsed;
@@ -81,7 +80,6 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
     }))
     .filter((section) => section.routes.length > 0), [desktopHost, settings, user]);
   const visibleProjects = useMemo(() => projects.filter((project) => !project!.archived && canUseProject(user, project)), [projects, user]);
-  const projectCountLabel = visibleProjects.length ? `${visibleProjects.length}` : "0";
   function navigate(next: AppScreen) {
     setScreen(next);
     onClose?.();
@@ -106,40 +104,39 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
   }
   return (
     <ClusterSidebarShell sidebarRef={sidebarRef} collapsed={effectiveCollapsed} open={activeMobileDrawer} mode={sidebarMode}>
-      <div className="cluster-sidebar__header">
-        {settings.organizationLogoUrl ? <img className="cluster-sidebar__logo org-logo small" src={settings.organizationLogoUrl} alt="Organization logo" /> : <img className="cluster-sidebar__logo cluster-brand-logo small" src="/cluster-logo.png" alt="Cluster" />}
-        <div className="cluster-sidebar__brand">
-          <strong>Cluster</strong>
-          <span>{settings.studioName || "local studio"}</span>
-        </div>
+      <div className="cl-sb__header">
+        {settings.organizationLogoUrl ? <img className="cl-sb__logo" src={settings.organizationLogoUrl} alt="" /> : <img className="cl-sb__logo" src="/cluster-logo.png" alt="" />}
+        {/* One line: the studio's name. "Cluster" over it repeated what the
+            logo already says. */}
+        <strong className="cl-sb__brand" title={settings.studioName || "Cluster"}>{settings.studioName || "Cluster"}</strong>
         <ClusterButton
           unstyled
           type="button"
-          className="cluster-sidebar__mode-toggle"
+          className="cl-sb__toggle"
           onClick={() => setSidebarMode(nextSidebarMode(effectiveCollapsed))}
-          aria-label={effectiveCollapsed ? "Expand navigation" : "Collapse navigation"}
+          aria-label={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-pressed={effectiveCollapsed}
-          title={effectiveCollapsed ? "Expand navigation" : "Collapse navigation"}
+          title={effectiveCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <ClusterIcon name={effectiveCollapsed ? "chevron-right" : "chevron-left"} />
         </ClusterButton>
-        <ClusterButton unstyled type="button" className="cluster-sidebar__mobile-close" onClick={onClose} aria-label="Close navigation">
+        <ClusterButton unstyled type="button" className="cl-sb__close" onClick={onClose} aria-label="Close sidebar">
           <ClusterIcon name="close" />
         </ClusterButton>
       </div>
 
-      <nav className="cluster-sidebar__nav" aria-label="Main navigation">
-        <SidebarSection className="cluster-sidebar__section cluster-sidebar__section--primary">
+      <nav className="cl-sb__nav" aria-label="Main navigation">
+        {/* Home, My Work and Projects are where people start from, so they
+            lead, unlabelled. My Work used to live only in the title bar as a
+            labelled button, the one destination missing from here. */}
+        <SidebarSection>
           <SidebarNavItem icon="home" label={screenLabel("dashboard")} active={screen === "dashboard"} onClick={() => navigate("dashboard")} />
+          {canOpenScreen(user, "mywork") && <SidebarNavItem icon="check" label={screenLabel("mywork")} active={screen === "mywork"}
+            onPointerEnter={() => prefetch("mywork")} onFocus={() => prefetch("mywork")} onClick={() => navigate("mywork")} />}
+          {canSeeProjects && <SidebarNavItem icon="project" label="Projects" active={screen === "projects" || screen === "project"}
+            badge={visibleProjects.length || undefined} onPointerEnter={() => prefetch("projects")} onFocus={() => prefetch("projects")}
+            onClick={() => navigate("projects")} />}
         </SidebarSection>
-
-        {canSeeProjects && (
-          <SidebarSection className="cluster-sidebar__section cluster-sidebar__projects">
-            <SidebarNavItem icon="project" label="Projects" active={screen === "projects" || screen === "project"}
-              badge={projectCountLabel} onPointerEnter={() => prefetch("projects")} onFocus={() => prefetch("projects")}
-              onClick={() => navigate("projects")} />
-          </SidebarSection>
-        )}
 
         {sidebarSections.map((section) => {
           if (section.id === "administration") {
@@ -147,20 +144,21 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
             const selectedSection = currentRoute?.split("/")[1] || "";
             const selectedSubsection = currentRoute?.split("/")[2] || "";
             const childActive = tools.some((entry) => entry.screen === screen) || screen === "studioSettings";
-            return <SidebarSection key={section.id} className={`cluster-sidebar__section cluster-sidebar__section--administration ${childActive ? "has-active-child" : ""}`}>
-              <SidebarNavItem icon="settings" label="Admin tools" active={childActive} ariaExpanded={effectiveCollapsed ? undefined : adminToolsOpen} ariaControls={effectiveCollapsed ? undefined : "cluster-sidebar-admin-list"} trailing={<ClusterIcon name={adminToolsOpen ? "chevron-down" : "chevron-right"} />} onClick={() => effectiveCollapsed ? navigate("admin") : setAdminToolsOpen((value) => !value)} />
-              {!effectiveCollapsed && adminToolsOpen ? <div id="cluster-sidebar-admin-list" className="cluster-sidebar__admin-list">
-                <span className="cluster-sidebar__admin-group-label">Manage</span>
+            // No section label: the one item in it is already called Admin.
+            return <SidebarSection key={section.id}>
+              <SidebarNavItem icon="settings" label="Admin" active={childActive} ariaExpanded={effectiveCollapsed ? undefined : adminToolsOpen} ariaControls={effectiveCollapsed ? undefined : "cl-sb-admin-list"} trailing={<ClusterIcon name={adminToolsOpen ? "chevron-down" : "chevron-right"} />} onClick={() => effectiveCollapsed ? navigate("admin") : setAdminToolsOpen((value) => !value)} />
+              {!effectiveCollapsed && adminToolsOpen ? <div id="cl-sb-admin-list" className="cl-sb__subnav">
+                <span className="cl-sb__sublabel">Manage</span>
                 {tools.filter(({ screen: route }) => route !== "studioSettings").map(({ screen: route }) => renderRouteLink(route, true))}
-                <span className="cluster-sidebar__admin-group-label">Configure</span>
+                <span className="cl-sb__sublabel">Configure</span>
                 {screen === "studioSettings" && selectedSection && ADMIN_STUDIO_DESTINATIONS.some((item) => item.section === selectedSection) ? <SidebarNavItem nested icon="settings" label="Studio settings" onClick={() => navigate("studioSettings")} /> : renderRouteLink("studioSettings", true)}
-                <ClusterButton type="button" variant="quiet" size="compact" className="cluster-sidebar__studio-shortcuts-toggle"
-                  aria-expanded={adminStudioShortcutsOpen} aria-controls="cluster-sidebar-studio-shortcuts"
+                <ClusterButton type="button" variant="quiet" size="compact" className="cl-sb__more"
+                  aria-expanded={adminStudioShortcutsOpen} aria-controls="cl-sb-studio-shortcuts"
                   onClick={() => setAdminStudioShortcutsOpen((value) => !value)}>
                   <ClusterIcon name={adminStudioShortcutsOpen ? "chevron-down" : "chevron-right"} />
-                  Studio shortcuts
+                  More settings
                 </ClusterButton>
-                {adminStudioShortcutsOpen ? <div id="cluster-sidebar-studio-shortcuts" className="cluster-sidebar__studio-shortcuts">
+                {adminStudioShortcutsOpen ? <div id="cl-sb-studio-shortcuts" className="cl-sb__subnav">
                   {ADMIN_STUDIO_DESTINATIONS.map((item) =>
                     <SidebarNavItem key={`${item.section}:${item.subsection || ""}`} nested icon={item.icon} label={item.label}
                       active={screen === "studioSettings" && selectedSection === item.section && (!item.subsection || selectedSubsection === item.subsection)}
@@ -171,13 +169,13 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
               </div> : null}
             </SidebarSection>;
           }
-          return <SidebarSection key={section.id} className={`cluster-sidebar__section cluster-sidebar__section--${section.id}`}>
+          return <SidebarSection key={section.id} label={effectiveCollapsed ? undefined : section.label}>
             {section.routes.map(({ screen: route }) => renderRouteLink(route))}
           </SidebarSection>;
         })}
       </nav>
-      <div className="cluster-sidebar__footer">
-        <ClusterButton type="button" variant="quiet" size="compact" onClick={() => { window.dispatchEvent(new Event(CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT)); onClose?.(); }} aria-label="Help and common tasks">? Help</ClusterButton>
+      <div className="cl-sb__footer">
+        <ClusterButton type="button" variant="quiet" size="compact" onClick={() => { window.dispatchEvent(new Event(CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT)); onClose?.(); }} aria-label="Help" title="Help"><ClusterIcon name="comment" />Help</ClusterButton>
         <AppVersionFooter onOpenChangelog={() => { onOpenChangelog(); onClose?.(); }} onOpenOperations={isAdmin ? () => navigate("admin") : undefined} /></div>
     </ClusterSidebarShell>
   );

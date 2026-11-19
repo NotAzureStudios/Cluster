@@ -43,7 +43,7 @@ await check('Help has accessible modal, discoverable commands, and lazy componen
  assert.match(registry,/LazyClusterHelpDialog = lazy\(/);
  assert.match(app,/contextualHelpOpen && <Suspense/);
  assert.match(app,/canAccess=\{\(candidate\) => canOpenScreen\(activeUser, candidate\)\}/);
- assert.match(sidebar,/aria-label="Help and common tasks"/);
+ assert.match(sidebar,/aria-label="Help"/);
  assert.match(palette,/key: "action-help", title: "Help & common tasks"/);
  assert.match(component,/aria-label="Help topics"/);
  assert.match(component,/labelledBy="cluster-help-title"/);

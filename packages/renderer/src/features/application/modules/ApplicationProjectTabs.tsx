@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { isClosedTicketStage } from "@cluster/shared";
 import { ClusterNativeSelect } from "../../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
@@ -55,7 +56,7 @@ const TASKBAR_PRESENCE_OPTIONS = [
   { value: "away", label: "Away", meta: "Temporarily unavailable" },
 ] as const;
 
-export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, activeProjectId, screen, currentRoute, user, settings, commandPaletteOpen, resumeContext, onResumeContext, onClearResumeContext, onOpenHome, onOpenProject, onCloseProject, onToggleProjectPin, onMoveProjectTab, onCloseOtherProjects, onOpenProjects, onOpenMyWork, onOpenNotifications, onOpenTickets, onOpenPeople, onOpenUserAdmin, onOpenProfile, onOpenSettings, onOpenQuickCreate, onOpenCommandPalette, onOpenNavigation, onPresenceChange, onLogout }: { projects: Project[]; openProjectIds: string[]; pinnedProjectIds: string[]; activeProjectId?: string | null; screen: AppScreen; currentRoute?: string; user: User; settings: Settings; commandPaletteOpen: boolean; resumeContext?: SmartWorkspaceContext | null; onResumeContext?: () => void; onClearResumeContext?: () => void; onOpenHome: () => void; onOpenProject: (projectId: string) => void; onCloseProject: (projectId: string) => void; onToggleProjectPin: (projectId: string) => void; onMoveProjectTab: (projectId: string, delta: -1 | 1) => void; onCloseOtherProjects: (projectId: string) => void; onOpenProjects: () => void; onOpenMyWork: () => void; onOpenNotifications: () => void; onOpenTickets: () => void; onOpenPeople: () => void; onOpenUserAdmin: () => void; onOpenProfile: () => void; onOpenSettings: () => void; onOpenQuickCreate: () => void; onOpenCommandPalette: () => void; onOpenNavigation: () => void; onPresenceChange: (availability: string, message?: string | null, connectionVisibility?: "visible" | "invisible") => Promise<void>; onLogout: () => void }) {
+export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProjectIds, activeProjectId, screen, currentRoute, user, settings, commandPaletteOpen, resumeContext, onResumeContext, onClearResumeContext, onOpenHome, onOpenProject, onCloseProject, onToggleProjectPin, onMoveProjectTab, onCloseOtherProjects, onOpenProjects, onOpenMyWork, onOpenNotifications, onOpenTickets, onOpenPeople, onOpenUserAdmin, onOpenProfile, onOpenSettings, onOpenQuickCreate, onOpenCommandPalette, onOpenNavigation, onPresenceChange, onLogout }: { status?: ReactNode; projects: Project[]; openProjectIds: string[]; pinnedProjectIds: string[]; activeProjectId?: string | null; screen: AppScreen; currentRoute?: string; user: User; settings: Settings; commandPaletteOpen: boolean; resumeContext?: SmartWorkspaceContext | null; onResumeContext?: () => void; onClearResumeContext?: () => void; onOpenHome: () => void; onOpenProject: (projectId: string) => void; onCloseProject: (projectId: string) => void; onToggleProjectPin: (projectId: string) => void; onMoveProjectTab: (projectId: string, delta: -1 | 1) => void; onCloseOtherProjects: (projectId: string) => void; onOpenProjects: () => void; onOpenMyWork: () => void; onOpenNotifications: () => void; onOpenTickets: () => void; onOpenPeople: () => void; onOpenUserAdmin: () => void; onOpenProfile: () => void; onOpenSettings: () => void; onOpenQuickCreate: () => void; onOpenCommandPalette: () => void; onOpenNavigation: () => void; onPresenceChange: (availability: string, message?: string | null, connectionVisibility?: "visible" | "invisible") => Promise<void>; onLogout: () => void }) {
   const assignedProjectCount = projects.filter((project) => projectMemberIds(project).includes(user.id)).length;
   const canSeeProjects = canUseTool(user, "projects");
   const canSeeMyWork = canUseTool(user, "mywork");
@@ -585,14 +586,14 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
   }, [desktopShell]);
   const notificationBadgeLabel = `${notificationCount} unread ${notificationSeverity} notification${notificationCount === 1 ? "" : "s"}`;
   const taskbarUserMenu = (
-    <div className="taskbar-user-menu-v078 taskbar-user-menu-pinned-v145">
-      <ClusterButton ref={userMenuTriggerRef} unstyled type="button" className={`taskbar-profile-v073 ${screen === "people" ? "active" : ""}`} onClick={() => { if (presenceRequestGateRef.current.isMutating() || accountUtilityInvocationRef.current.isExecuting()) return; setAccountUtilityError(""); setUserMenuOpen((open) => !open); setNotificationMenuOpen(false); setTicketMenuOpen(false); }} title="Open account menu" aria-haspopup="dialog" aria-expanded={userMenuOpen}>
-        <PresenceAvatar userId={user.id} imageUrl={user.avatarUrl} accentColor={user.personalAccentColor} label={displayUserName(user)} fallback={userInitial(user)} state={presenceState(user)} title={presenceLabel(user)} className="taskbar-profile-avatar-v227" />
-        <span className="taskbar-profile-copy-v546">
+    <div className="cl-tb-menu">
+      <ClusterButton ref={userMenuTriggerRef} unstyled type="button" className={`cl-tb-profile ${screen === "people" ? "active" : ""}`} onClick={() => { if (presenceRequestGateRef.current.isMutating() || accountUtilityInvocationRef.current.isExecuting()) return; setAccountUtilityError(""); setUserMenuOpen((open) => !open); setNotificationMenuOpen(false); setTicketMenuOpen(false); }} title="Open account menu" aria-haspopup="dialog" aria-expanded={userMenuOpen}>
+        <PresenceAvatar userId={user.id} imageUrl={user.avatarUrl} accentColor={user.personalAccentColor} label={displayUserName(user)} fallback={userInitial(user)} state={presenceState(user)} title={presenceLabel(user)} className="cl-tb-profile__avatar" />
+        <span className="cl-tb-profile__copy">
           <strong>{displayUserName(user)}</strong>
           <small>{presenceLabel(user)}</small>
         </span>
-        <ClusterIcon name="chevron-down" className="taskbar-chevron-v227" />
+        <ClusterIcon name="chevron-down" className="cl-tb-profile__chevron" />
       </ClusterButton>
       <ClusterFloatingSurface
         open={userMenuOpen}
@@ -744,18 +745,11 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
       <ClusterTaskbar searchOpen={commandPaletteOpen}
         left={<>
             <TaskbarHistory resumeContext={resumeContext} onResumeContext={onResumeContext} onClearResumeContext={onClearResumeContext} />
-            {canSeeMyWork && (
-              <ClusterButton unstyled type="button" className={`cluster-taskbar-action my-work ${screen === "mywork" ? "is-active" : ""}`} onClick={onOpenMyWork} title="Open your work hub">
-                <ClusterIcon name="work" className="cluster-taskbar-action__icon" />
-                <span className="cluster-taskbar-action__label">My Work</span>
-                <em className="cluster-taskbar-action__badge">{assignedProjectCount}</em>
-              </ClusterButton>
-            )}
             {canSeeNotifications && (
-              <div className="taskbar-notification-menu-v473">
-                <ClusterButton ref={notificationMenuTriggerRef} unstyled type="button" className={`cluster-taskbar-action cluster-taskbar-action--icon notifications severity-${notificationSeverity} ${screen === "inbox" || notificationMenuOpen ? "is-active" : ""}`} onClick={() => { if (notificationRequestGateRef.current.isMutating()) return; setNotificationMenuOpen((open) => !open); setUserMenuOpen(false); setTicketMenuOpen(false); if (!notificationMenuOpen) void loadNotificationPreview(true); }} title={notificationBadgeLabel} aria-label={`Inbox, ${notificationBadgeLabel}`} aria-haspopup="dialog" aria-expanded={notificationMenuOpen}>
-                  <ClusterIcon name="bell" className="cluster-taskbar-action__icon" />
-                  <span className={`taskbar-count-badge-v086 severity-${notificationSeverity} ${notificationCount ? "" : "empty"}`} aria-hidden="true">{notificationCount > 99 ? "99+" : notificationCount}</span>
+              <div className="cl-tb-menu">
+                <ClusterButton ref={notificationMenuTriggerRef} unstyled type="button" className={`cl-tb-action cl-tb-action--icon notifications severity-${notificationSeverity} ${screen === "inbox" || notificationMenuOpen ? "is-active" : ""}`} onClick={() => { if (notificationRequestGateRef.current.isMutating()) return; setNotificationMenuOpen((open) => !open); setUserMenuOpen(false); setTicketMenuOpen(false); if (!notificationMenuOpen) void loadNotificationPreview(true); }} title={notificationBadgeLabel} aria-label={`Inbox, ${notificationBadgeLabel}`} aria-haspopup="dialog" aria-expanded={notificationMenuOpen}>
+                  <ClusterIcon name="bell" className="cl-tb-action__icon" />
+                  <span className={`cl-tb-badge severity-${notificationSeverity} ${notificationCount ? "" : "empty"}`} aria-hidden="true">{notificationCount > 99 ? "99+" : notificationCount}</span>
                 </ClusterButton>
                 <ClusterFloatingSurface open={notificationMenuOpen} anchorRef={notificationMenuTriggerRef} placement="bottom-start" mobileMode="sheet" className="notification-popover-v473 taskbar-floating-menu-v522" label="Recent notifications" canDismiss={() => !notificationRequestGateRef.current.isMutating()} onDismiss={() => { if (!notificationRequestGateRef.current.isMutating()) setNotificationMenuOpen(false); }}>
                   <header><div><strong>Inbox</strong><span>{notificationCount ? `${notificationCount} unread` : "You're caught up"}</span></div><ClusterButton type="button" className="" onClick={() => void loadNotificationPreview(true)} disabled={notificationPreviewLoading || notificationActionBusy} variant="quiet" size="compact">{notificationPreviewLoading ? "Loading…" : "Refresh"}</ClusterButton></header>
@@ -765,9 +759,9 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
               </div>
             )}
             {canSeeTickets && (
-              <div className="taskbar-ticket-menu-v254">
+              <div className="cl-tb-menu">
                 <ClusterButton ref={ticketMenuTriggerRef} unstyled type="button"
-                  className={`cluster-taskbar-action cluster-taskbar-action--icon tickets ${screen === "tickets" || ticketMenuOpen ? "is-active" : ""}`}
+                  className={`cl-tb-action cl-tb-action--icon tickets ${screen === "tickets" || ticketMenuOpen ? "is-active" : ""}`}
                   onClick={() => {
                     setTicketMenuOpen((open) => !open);
                     setUserMenuOpen(false);
@@ -778,8 +772,8 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                   aria-haspopup="dialog"
                   aria-expanded={ticketMenuOpen}
                 >
-                  <ClusterIcon name="ticket" className="cluster-taskbar-action__icon" />
-                  <span className={`taskbar-ticket-count-v254 ${personalTickets.length ? "" : "empty"}`} aria-hidden="true">
+                  <ClusterIcon name="ticket" className="cl-tb-action__icon" />
+                  <span className={`cl-tb-badge ${personalTickets.length ? "" : "empty"}`} aria-hidden="true">
                     {personalTickets.length > 99 ? "99+" : personalTickets.length}
                   </span>
                 </ClusterButton>
@@ -942,17 +936,18 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                 </ClusterFloatingSurface>
               </div>
             )}
-            <ClusterButton unstyled type="button" className="cluster-taskbar-action cluster-taskbar-action--icon cluster-taskbar-create" onClick={onOpenQuickCreate} title="Quick create" aria-label="Quick create">
-              <ClusterIcon name="plus" className="cluster-taskbar-action__icon" />
+            <ClusterButton unstyled type="button" className="cl-tb-action cl-tb-action--icon cl-tb-create" onClick={onOpenQuickCreate} title="Quick create" aria-label="Quick create">
+              <ClusterIcon name="plus" className="cl-tb-action__icon" />
             </ClusterButton>
           </>}
         tabs={<TaskbarProjectTabs projects={projects} openProjectIds={openProjectIds} pinnedProjectIds={pinnedProjectIds} activeProjectId={activeProjectId} screen={screen} canSeeProjects={canSeeProjects} onOpenProject={onOpenProject} onOpenProjects={onOpenProjects} onOpenMyWork={onOpenMyWork} onToggleProjectPin={onToggleProjectPin} onMoveProjectTab={onMoveProjectTab} onCloseOtherProjects={onCloseOtherProjects} onCloseProject={onCloseProject} />}
         utilities={<>
+            {status}
             <TaskbarTransferCenter />
-            <ClusterButton unstyled type="button" id="cluster-taskbar-search-trigger" className="cluster-taskbar-action cluster-taskbar-command" onClick={onOpenCommandPalette} title={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-label={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-expanded={commandPaletteOpen} aria-controls={commandPaletteOpen ? "cluster-command-palette" : undefined}>
-              <ClusterIcon name={commandPaletteOpen ? "close" : "search"} className="cluster-taskbar-action__icon" />
-              <span className="cluster-taskbar-action__label">{commandPaletteOpen ? "Close" : "Search"}</span>
-              <kbd className="cluster-taskbar-action__hotkey">{settings.userCommandPaletteHotkey || "Ctrl+K"}</kbd>
+            <ClusterButton unstyled type="button" id="cluster-taskbar-search-trigger" className="cl-tb-action cl-tb-command" onClick={onOpenCommandPalette} title={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-label={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-expanded={commandPaletteOpen} aria-controls={commandPaletteOpen ? "cluster-command-palette" : undefined}>
+              <ClusterIcon name={commandPaletteOpen ? "close" : "search"} className="cl-tb-action__icon" />
+              <span className="cl-tb-action__label">{commandPaletteOpen ? "Close" : "Search"}</span>
+              <kbd className="cl-tb-action__hotkey">{settings.userCommandPaletteHotkey || "Ctrl+K"}</kbd>
             </ClusterButton>
             {taskbarUserMenu}
           </>}

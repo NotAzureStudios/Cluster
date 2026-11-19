@@ -49,8 +49,8 @@ test('Keyboard shortcuts and toolbar commands converge on registry execute',()=>
   assert.match(registrySource,/return this\.execute\(winner\.id, context\)/);
   assert.match(registrySource,/private executing = false/);
 });
-test('Taskbar preservation: tabs, My Work, Tickets and transfers',()=> {
-  for (const token of ['TaskbarProjectTabs','My Work','Tickets','TaskbarTransferCenter']) assert.ok(taskbar.includes(token),token);
+test('Taskbar preservation: tabs, Tickets and transfers; My Work in the sidebar',()=> {
+  for (const token of ['TaskbarProjectTabs','Tickets','TaskbarTransferCenter']) assert.ok(taskbar.includes(token),token); assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');
 });
 test('People identity preservation: individual color and independent presence dot',()=> {
   assert.match(avatar,/personalAccentColor|accentColor/);

@@ -71,7 +71,7 @@ test('Transfer failures retain theme-aware, accessible material styling',()=>{
 });
 test('Taskbar and People identity protections remain present',()=>{
  const taskbar=src('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
- for(const part of ['TaskbarProjectTabs','TaskbarTransferCenter','My Work','Tickets','commandPaletteOpen'])assert.ok(taskbar.includes(part),part);
+ for(const part of ['TaskbarProjectTabs','TaskbarTransferCenter','Tickets','commandPaletteOpen'])assert.ok(taskbar.includes(part),part); assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');
  const avatar=src('packages/renderer/src/components/PresenceAvatar.tsx');
  for(const part of ['accentColor','cluster-presence-indicator-v227'])assert.ok(avatar.includes(part),part);
 });
