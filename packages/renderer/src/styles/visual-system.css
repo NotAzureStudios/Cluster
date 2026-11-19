@@ -117,6 +117,34 @@
   --cluster-workbench-background-position: var(--cluster-visual-pattern-position), center top;
 }
 
+/* The single painter of the workbench surface.
+   html carries the flat canvas colour so overscroll and the area behind a
+   short page match the workspace. The pattern and its base gradient go on one
+   fixed pseudo-element: the compositor keeps that on its own layer and leaves
+   it alone while content scrolls, where background-attachment: fixed would
+   repaint the whole viewport every frame. Nothing else in the app paints a
+   page background — if a surface needs to sit over this one it sets its own
+   background-color and stays opaque. */
+html {
+  background-color: var(--cluster-visual-bg-color);
+}
+
+body {
+  background-color: transparent;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--cluster-workbench-background);
+  background-size: var(--cluster-workbench-background-size, cover);
+  background-position: var(--cluster-workbench-background-position, center top);
+  background-repeat: repeat;
+}
+
 :root[data-surface-style="flat"],
 .appearance-shell-preview-v10[data-surface-style="flat"] {
   --cluster-visual-surface-raised: var(--cluster-visual-surface);
@@ -177,13 +205,8 @@
 }
 
 
-html, body, #root, .visual-overhaul-v139 {
-  background-color: var(--cluster-visual-bg-color) !important;
-  background-image: var(--cluster-visual-pattern-image), var(--cluster-visual-bg-base) !important;
-  background-size: var(--cluster-visual-pattern-size), cover !important;
-  background-position: var(--cluster-visual-pattern-position), center top !important;
-  background-attachment: fixed !important;
-}
+/* The four-element painter that used to live here is now the single
+   body::before layer above. */
 
 :is(:root, .appearance-shell-preview-v10)[data-sidebar-surface="glass"] #cluster-sidebar.cluster-sidebar,
 :is(:root, .appearance-shell-preview-v10)[data-taskbar-surface="glass"] .taskbar-unified-v3430 {

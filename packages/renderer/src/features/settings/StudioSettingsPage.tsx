@@ -263,7 +263,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           studioHomeDefaultPreset: "balanced",
           studioHomeRequiredWidgetsCsv: "",
           studioHomeUnavailableWidgetsCsv: "",
-          studioHomeRecommendedWidgetsCsv: "brief, roleFocus, readiness, myWork, upcoming, builds, notifications, people, scheduler, activity, clock",
+          studioHomeRecommendedWidgetsCsv: "brief, roleFocus, readiness, upcoming, builds, notifications, people, scheduler, activity, clock",
           studioCustomWidgetPolicy: "allow",
           studioCustomWidgetAllowedPermissionsCsv: HOME_WIDGET_PERMISSIONS.join(", "),
           studioCustomWidgetBlockedIdsCsv: "",

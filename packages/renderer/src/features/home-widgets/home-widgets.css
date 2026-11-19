@@ -137,7 +137,11 @@
 .home-widget-card-head-v484 > div { min-width:0; display:grid; gap:2px; }
 .home-widget-card-head-v484 h3 { margin:0; font-size:.94rem; line-height:1.2; }
 .home-widget-card-head-v484 > span { color:var(--muted); font-size:.72rem; white-space:nowrap; }
-.home-widget-metrics-v484 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+/* Counters fit to the width the widget actually has. This was a fixed two
+   columns at every size, so a six-column card spent three rows and ~370px of
+   height on five single-digit numbers while half of each tile sat empty. The
+   compact and detailed presentations below still pin the count by hand. */
+.home-widget-metrics-v484 { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:7px; }
 .home-widget-metrics-v484 > div { min-width:0; display:grid; gap:2px; padding:8px 9px; border:1px solid var(--cluster-compact-line, var(--border)); border-radius:10px; background:color-mix(in srgb,var(--surface-soft,var(--panel-2)) 84%,transparent); }
 .home-widget-metrics-v484 span,.home-widget-custom-metric-v484 span,.home-widget-custom-clock-v484 span { color:var(--muted); font-size:.67rem; }
 .home-widget-metrics-v484 strong { font-size:.94rem; }
@@ -818,12 +822,12 @@ overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vert
     grid-column-start:var(--cluster-home-column,1);
   }
 }
-@media (min-width: 1600px) {
-  .home-widget-canvas-v484 { --cluster-home-columns:16; }
-}
-@media (min-width: 2200px) {
-  .home-widget-canvas-v484 { --cluster-home-columns:20; }
-}
+/* The board stays twelve columns at every desktop width, so the columns grow
+   with the window instead of the board growing a gutter. It used to widen to
+   sixteen past 1600px and twenty past 2200px while widget spans and stored
+   start columns stayed sized for twelve, which left the last quarter — then
+   the last two fifths — of the workspace permanently empty, and made a saved
+   layout render differently on a different monitor. */
 .home-widget-canvas-v484[data-edit-mode="true"] {
   min-height:300px;
   position:relative;

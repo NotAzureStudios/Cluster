@@ -396,7 +396,10 @@ export const CURATED_HOME_WIDGET_GALLERY: CustomHomeWidgetManifest[] = [
 export const DASHBOARD_WIDGET_GROUPS = CLUSTER_DASHBOARD_WIDGET_GROUPS;
 
 export const CORE_DASHBOARD_KEYS: DashboardWidgetKey[] = ["brief", "roleFocus", "readiness"];
-export const DEFAULT_HOME_WIDGET_KEYS: DashboardWidgetKey[] = ["brief", "roleFocus", "readiness", "myWork", "upcoming", "builds", "inbox", "people", "scheduler", "activity", "clock"];
+/* "myWork" is an alias of "roleFocus" — BuiltInHomeWidget binds one renderer to
+   both keys, so shipping the pair put the same five counters on Home twice. The
+   catalog still offers both; only the default board picks one. */
+export const DEFAULT_HOME_WIDGET_KEYS: DashboardWidgetKey[] = ["brief", "roleFocus", "readiness", "upcoming", "builds", "inbox", "people", "scheduler", "activity", "clock"];
 export const TOOL_WORKSPACE_WIDGET_KEYS: DashboardWidgetKey[] = ["projects", "control", "workflow", "closeout", "attachments", "coverage", "myWork", "scheduler", "inbox", "people", "departments", "builds", "qa", "timeline", "tickets", "deliveryAttention", "library", "activity", "digest", "pulse", "clipboard"];
 
 export const HOME_WIDGET_SIZE_OPTIONS: Array<{ value: HomeWidgetSize; label: string }> = [
@@ -566,8 +569,11 @@ const DEFAULT_SIZE: Record<DashboardWidgetKey, HomeWidgetSize> = Object.fromEntr
   HOME_WIDGET_REGISTRY.map((item) => [item.key, item.defaultSize]),
 ) as Record<DashboardWidgetKey, HomeWidgetSize>;
 
-export const HOME_WIDGET_LAYOUT_COLUMNS = 20;
 export const HOME_WIDGET_BASE_COLUMNS = 12;
+/* One column count for placement, clamping and the rendered grid alike. These
+   were 20 and 12, so a widget could be dropped into a column the default
+   layout never fills and that a narrower screen cannot show. */
+export const HOME_WIDGET_LAYOUT_COLUMNS = HOME_WIDGET_BASE_COLUMNS;
 
 export const HOME_WIDGET_COLUMN_SPAN: Record<HomeWidgetSize, number> = {
   micro: 2,
@@ -587,17 +593,25 @@ export function clampHomeWidgetColumn(column: number, size: HomeWidgetSize, colu
   return Math.max(1, Math.min(Math.max(1, columns - span + 1), Math.trunc(Number(column) || 1)));
 }
 
+/* Pack the widgets Home actually shows. This used to walk the whole catalog,
+   so every widget that ships disabled still advanced the cursor and pushed the
+   next visible one along — the board rendered with columns missing out of the
+   middle of a row. Widgets that are off get a column too, for when they are
+   switched on, but they no longer displace the ones that are on. */
 function defaultHomeWidgetColumns() {
   const columns = new Map<string, number>();
   let cursor = 1;
-  for (const widget of DASHBOARD_WIDGETS) {
-    const size = DEFAULT_SIZE[widget.key];
+  const place = (key: DashboardWidgetKey) => {
+    const size = DEFAULT_SIZE[key];
     const span = Math.min(homeWidgetColumnSpan(size), HOME_WIDGET_BASE_COLUMNS);
     if (size === "feature" || cursor + span - 1 > HOME_WIDGET_BASE_COLUMNS) cursor = 1;
-    columns.set(widget.key, cursor);
+    columns.set(key, cursor);
     cursor += span;
     if (cursor > HOME_WIDGET_BASE_COLUMNS) cursor = 1;
-  }
+  };
+  for (const widget of DASHBOARD_WIDGETS) if (DEFAULT_HOME_WIDGET_KEYS.includes(widget.key)) place(widget.key);
+  cursor = 1;
+  for (const widget of DASHBOARD_WIDGETS) if (!columns.has(widget.key)) place(widget.key);
   return columns;
 }
 

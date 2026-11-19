@@ -82,7 +82,7 @@ export const CLUSTER_VISUAL_MASTER: Readonly<VisualSettingsInput> = Object.freez
   glassStrength: 58,
   interfaceDensity: "compact",
   backgroundBaseStyle: "clean",
-  backgroundPattern: "hex",
+  backgroundPattern: "none",
   backgroundPatternIntensity: 4,
   backgroundPatternScale: "medium",
   surfaceStyle: "outlined",
@@ -214,10 +214,14 @@ function backgroundBaseFromInput(settings: VisualSettingsInput): VisualBackgroun
   return "clean";
 }
 
+/* A patterned wallpaper behind a dense work surface competes with the content
+   sitting on it, so the workspace ships plain. All four patterns stay on offer
+   in Appearance, and anyone who has already chosen one keeps it: a stored
+   setting is read before this default is reached. */
 function backgroundPatternFromInput(settings: VisualSettingsInput): VisualBackgroundPattern {
-  if (settings.backgroundPattern) return choice(settings.backgroundPattern, ["none", "hex", "grid", "dots"] as const, "hex");
+  if (settings.backgroundPattern) return choice(settings.backgroundPattern, ["none", "hex", "grid", "dots"] as const, "none");
   if (settings.backgroundStyle === "grid") return "grid";
-  return "hex";
+  return "none";
 }
 
 export function resolveVisualContext(

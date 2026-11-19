@@ -89,7 +89,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .cluster-dialog-v389 > footer > .cluster-button-v425 { flex: 1 1 auto; }
 }
 
-.cluster-status-v425 { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 24px; max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--soft-text); font-size: var(--cluster-font-size-xs); font-weight: 650; line-height: 1.2; }
+/* justify-self keeps the badge hugging its text when it is a grid item: CSS
+   blockifies inline-flex there, so a pill stretched to the whole column — the
+   read-only banner showed a 609px outline around 114px of words. It has no
+   effect in flex or inline flow, where inline-flex already shrink-wraps. */
+.cluster-status-v425 { display: inline-flex; justify-self: start; align-items: center; gap: var(--space-1); min-height: 24px; max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--soft-text); font-size: var(--cluster-font-size-xs); font-weight: 650; line-height: 1.2; }
 .cluster-status-v425 > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cluster-status-v425.compact { min-height: 20px; padding-inline: var(--space-1); }
 .cluster-status-v425.info { border-color: color-mix(in srgb, var(--info) 36%, var(--line)); background: color-mix(in srgb, var(--info) 8%, var(--panel)); color: var(--info); }

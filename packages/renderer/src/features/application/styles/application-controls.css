@@ -14,8 +14,12 @@ html, body, #root { background: transparent ; }
 :root[data-card-style="outlined"] .visual-overhaul-v139 :where(.panel, .settings-card-v092) { background-color: color-mix(in srgb, var(--cluster-workbench-panel) 76%, transparent) !important; }
 :root[data-card-style="flat"] .visual-overhaul-v139 :where(.panel, .settings-card-v092) { background-color: var(--cluster-workbench-panel-raised) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .visual-overhaul-v139 .content-shell,.visual-overhaul-v139 .app-main,.visual-overhaul-v139 .workspace-shell,.visual-overhaul-v139 .page {background-color: transparent;background-image: none;}
-html,body,#root,.visual-overhaul-v139 {min-height: 100%;background-color: transparent ;background-image: var(--cluster-workbench-background) ;background-size: var(--cluster-workbench-background-size, cover);background-position: center top;background-attachment: fixed;}
-body { background-color: var(--cluster-workbench-canvas); }
+html,body,#root,.visual-overhaul-v139 { min-height: 100%; }
+/* The workbench surface is painted once, by styles/visual-system.css. This
+   rule used to put the pattern on all four of these elements at once, each
+   with background-attachment: fixed — twenty-four full-viewport gradient
+   layers, eighteen of them hidden under the topmost one, every one of them
+   repainting on each scroll frame. */
 .visual-overhaul-v139 .content-shell,.visual-overhaul-v139 .app-main,.visual-overhaul-v139 .workspace-shell,.visual-overhaul-v139 .content-shell > .page {background: transparent;}
 .visual-overhaul-v139 .content-shell {}
 
