@@ -185,8 +185,10 @@
 }
 
 .cl-tb-profile { gap: var(--space-2); padding: 0 var(--space-1) 0 3px; }
-.cl-tb-profile .cl-tb-profile__avatar { --avatar-size: 26px; flex: none; font-size: var(--cluster-font-size-xs); }
-.cl-tb-profile .cl-tb-profile__avatar :where(img, span, i) { border-radius: 50%; }
+/* Avatars are rounded squares everywhere in Cluster (9px at People's 34px);
+   7px keeps that proportion at the title bar's 26px. Children inherit it, so
+   the presence dot keeps its own round shape. */
+.cl-tb-profile .cl-tb-profile__avatar { --avatar-size: 26px; flex: none; border-radius: 7px; font-size: var(--cluster-font-size-xs); }
 .cl-tb-profile__copy { display: grid; text-align: left; line-height: 1.15; }
 .cl-tb-profile__copy strong { color: var(--text); font-size: var(--cluster-font-size-sm); font-weight: 600; }
 .cl-tb-profile__copy small { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 500; }

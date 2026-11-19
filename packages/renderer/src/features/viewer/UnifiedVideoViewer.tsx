@@ -71,7 +71,8 @@ function bufferAhead(snapshot: TimedMediaSnapshot) {
   return range ? Math.max(0, range.end - snapshot.currentTime) : 0;
 }
 function readNumberPreference(key: string, fallback: number) {
-  const value = Number(readPreferenceStorage(key));
+  const raw = readPreferenceStorage(key);
+  const value = raw == null || raw === "" ? Number.NaN : Number(raw);
   return Number.isFinite(value) ? value : fallback;
 }
 function sourceLabel(mode: VideoSourceMode) { return mode === "auto" ? "Auto" : mode === "review" ? "Review" : mode === "proxy" ? "Proxy" : "Original"; }
@@ -473,23 +474,26 @@ function VideoAdapter({ session, compareSession, visibleOverlayIds, overlayPlace
       </div>
     </div>
 
+    {/* One transport bar. Frame stepping is icons, the go-to-timecode box sits
+        beside the readout and seeks on Enter, and source, speed, audio track,
+        captions and chapters are compact selects on the same row — they used
+        to be a second row of large labelled inputs under the transport. */}
     <div className="cluster-video-transport" role="group" aria-label="Video transport controls">
-      <ClusterIconButton label={snapshot.phase === "playing" ? "Pause" : "Play"} variant="primary" onClick={() => void controller.toggle()}><ClusterIcon name={snapshot.phase === "playing" ? "pause" : "play"} /></ClusterIconButton>
-      <ClusterButton size="compact" variant="quiet" onClick={() => controller.stepFrame(-1, frameRate)}>Previous frame</ClusterButton>
-      <ClusterButton size="compact" variant="quiet" onClick={() => controller.stepFrame(1, frameRate)}>Next frame</ClusterButton>
-      <span className="cluster-video-time-readout"><strong>{formatVideoTimecode(snapshot.currentTime, frameRate)}</strong><small>F{videoFrameNumber(snapshot.currentTime, frameRate).toLocaleString()} / {formatVideoTimecode(snapshot.duration, frameRate)}</small></span>
-      <form className="cluster-video-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Seek to timecode" placeholder="00:00:00:00" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /><ClusterButton size="compact" variant="quiet" type="submit">Go</ClusterButton></form>
-      <label className="cluster-video-volume"><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /><ClusterSlider aria-label="Master volume" min="0" max="1" step="0.01" value={snapshot.volume} onChange={(event) => { const value = Number(event.target.value); controller.setVolume(value); writePreferenceStorage("cluster-media-volume", String(value)); }} /></label>
-      <ClusterIconButton label={snapshot.muted ? "Unmute" : "Mute"} size="compact" variant="quiet" selected={snapshot.muted} onClick={() => controller.setMuted(!snapshot.muted)}><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /></ClusterIconButton>
-    </div>
-
-    <div className="cluster-video-production-controls">
-      <label><span>Source</span><ClusterNativeSelect value={sourceMode} onChange={(event) => onSourceMode(event.target.value as VideoSourceMode)}>{VIDEO_SOURCE_MODES.map((value) => <option key={value} value={value}>{sourceLabel(value)}</option>)}</ClusterNativeSelect></label>
-      <label><span>Speed</span><ClusterNativeSelect value={snapshot.playbackRate} onChange={(event) => { const value = Number(event.target.value); controller.setPlaybackRate(value); writePreferenceStorage("cluster-media-playback-rate", String(value)); }}>{VIDEO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect></label>
-      {tracks.length ? <label><span>Audio</span><ClusterNativeSelect value={activeTrackId || ""} onChange={(event) => setActiveTrackId(event.target.value || null)}>{tracks.map((track) => <option key={track.id} value={track.id}>{audioTrackLabel(track)}</option>)}</ClusterNativeSelect></label> : null}
-      {captions.length ? <label><span>Captions</span><ClusterNativeSelect value={activeCaptionId} onChange={(event) => setActiveCaptionId(event.target.value)}><option value="">Off</option>{captions.map((track) => <option key={track.id} value={track.id}>{captionLabel(track)}</option>)}</ClusterNativeSelect></label> : null}
-      {chapters.length ? <label><span>Chapter</span><ClusterNativeSelect value="" onChange={(event) => { const target = chapters.find((chapter) => String(chapter.index) === event.target.value); if (target) controller.seek(target.startSeconds); }}><option value="">Jump to…</option>{chapters.map((chapter) => <option key={chapter.index} value={chapter.index}>{chapter.title}</option>)}</ClusterNativeSelect></label> : null}
-      <span className="cluster-video-source-detail">{selection.label} · {formatBytes(selection.derivative?.sizeBytes || session.resource.source.sizeBytes)} · {videoCodec(session)}{videoBitRate(session) ? ` · ${(videoBitRate(session)! / 1_000_000).toFixed(1)} Mb/s` : ""}</span>
+      <ClusterIconButton className="cluster-video-play" label={snapshot.phase === "playing" ? "Pause" : "Play"} title={snapshot.phase === "playing" ? "Pause (Space)" : "Play (Space)"} variant="primary" onClick={() => void controller.toggle()}><ClusterIcon name={snapshot.phase === "playing" ? "pause" : "play"} /></ClusterIconButton>
+      <ClusterIconButton size="compact" label="Previous frame" title="Previous frame (←)" onClick={() => controller.stepFrame(-1, frameRate)}><ClusterIcon name="previous" /></ClusterIconButton>
+      <ClusterIconButton size="compact" label="Next frame" title="Next frame (→)" onClick={() => controller.stepFrame(1, frameRate)}><ClusterIcon name="next" /></ClusterIconButton>
+      <span className="cluster-video-time-readout" title={`Frame ${videoFrameNumber(snapshot.currentTime, frameRate).toLocaleString()}`}><strong>{formatVideoTimecode(snapshot.currentTime, frameRate)}</strong><small>/ {formatVideoTimecode(snapshot.duration, frameRate)}</small></span>
+      <form className="cluster-video-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Go to timecode" title="Type a timecode and press Enter" placeholder="Go to…" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /></form>
+      <span className="cluster-video-transport-spacer" />
+      <ClusterNativeSelect aria-label="Playback speed" title="Playback speed" value={snapshot.playbackRate} onChange={(event) => { const value = Number(event.target.value); controller.setPlaybackRate(value); writePreferenceStorage("cluster-media-playback-rate", String(value)); }}>{VIDEO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect>
+      <ClusterNativeSelect aria-label="Source" title={`${selection.label} · ${formatBytes(selection.derivative?.sizeBytes || session.resource.source.sizeBytes)} · ${videoCodec(session)}${videoBitRate(session) ? ` · ${(videoBitRate(session)! / 1_000_000).toFixed(1)} Mb/s` : ""}`} value={sourceMode} onChange={(event) => onSourceMode(event.target.value as VideoSourceMode)}>{VIDEO_SOURCE_MODES.map((value) => <option key={value} value={value}>{sourceLabel(value)}</option>)}</ClusterNativeSelect>
+      {tracks.length ? <ClusterNativeSelect aria-label="Audio track" title="Audio track" value={activeTrackId || ""} onChange={(event) => setActiveTrackId(event.target.value || null)}>{tracks.map((track) => <option key={track.id} value={track.id}>{audioTrackLabel(track)}</option>)}</ClusterNativeSelect> : null}
+      {captions.length ? <ClusterNativeSelect aria-label="Captions" title="Captions" value={activeCaptionId} onChange={(event) => setActiveCaptionId(event.target.value)}><option value="">CC off</option>{captions.map((track) => <option key={track.id} value={track.id}>{captionLabel(track)}</option>)}</ClusterNativeSelect> : null}
+      {chapters.length ? <ClusterNativeSelect aria-label="Jump to chapter" title="Jump to chapter" value="" onChange={(event) => { const target = chapters.find((chapter) => String(chapter.index) === event.target.value); if (target) controller.seek(target.startSeconds); }}><option value="">Chapters</option>{chapters.map((chapter) => <option key={chapter.index} value={chapter.index}>{chapter.title}</option>)}</ClusterNativeSelect> : null}
+      <span className="cluster-video-volume">
+        <ClusterIconButton size="compact" label={snapshot.muted ? "Unmute" : "Mute"} title={snapshot.muted ? "Unmute (M)" : "Mute (M)"} selected={snapshot.muted} onClick={() => controller.setMuted(!snapshot.muted)}><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /></ClusterIconButton>
+        <ClusterSlider aria-label="Volume" min="0" max="1" step="0.01" value={snapshot.volume} onChange={(event) => { const value = Number(event.target.value); controller.setVolume(value); writePreferenceStorage("cluster-media-volume", String(value)); }} />
+      </span>
     </div>
 
     {tracks.length > 1 && snapshot.embeddedTrackControl === "metadata_only" ? <small className="cluster-video-degraded-note">This runtime exposes audio-track metadata but not native container-track switching. Selection is retained as review context while playback uses the container default.</small> : null}

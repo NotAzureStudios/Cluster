@@ -18,6 +18,20 @@ export function ClusterVisualRing({ label, percent, tone = "accent", compact = f
   </div>;
 }
 
+/** An inline ring for a header line or a table cell: a 16px dial and the
+ * number beside it, at the height of the text around it. */
+export function ClusterMiniRing({ label, percent, tone = "accent", showValue = true }: {
+  label: string; percent: number | null | undefined; tone?: VisualTone; showValue?: boolean;
+}) {
+  const valid = typeof percent === "number" && Number.isFinite(percent);
+  const value = valid ? Math.round(Math.min(100, Math.max(0, percent))) : null;
+  return <span className={`cluster-mini-ring tone-${tone}`} role="progressbar" aria-label={label} title={`${label}: ${value === null ? "not available" : `${value}%`}`}
+    aria-valuemin={0} aria-valuemax={100} aria-valuenow={value === null ? undefined : value}>
+    <svg aria-hidden="true" viewBox="0 0 20 20" focusable="false"><circle className="track" cx="10" cy="10" r="8" /><circle className="value" cx="10" cy="10" r="8" pathLength="100" strokeDasharray={`${value ?? 0} 100`} /></svg>
+    {showValue ? <span>{value === null ? "—" : `${value}%`}</span> : null}
+  </span>;
+}
+
 /** Capacity/stock proportions: no percentage if the denominator is unknown. */
 export function ClusterVisualMeter({ label, value, total, tone = "accent", compact = false, showValues = true, formatValue = (amount: number) => amount.toLocaleString() }: {
   label: string; value: number | null | undefined; total: number | null | undefined;

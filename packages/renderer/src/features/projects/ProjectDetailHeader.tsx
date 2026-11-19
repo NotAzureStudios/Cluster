@@ -1,4 +1,6 @@
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
+import "./project-head.css";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { formatRelativeTime } from "../../core/format";
@@ -32,49 +34,44 @@ type Props = {
   onOpenTickets: () => void;
 };
 
+/* The project header, two rows: identity and key facts, then the tabs.
+   It used to stack four — a breadcrumb repeating the project type and the
+   current tab, a title row with a 48px mark, the tab band with an Info
+   dropdown, then a presence bar — about 230px before any content. The facts
+   from Info sit on the title line as small indicators instead, so nothing is
+   hidden behind a click. */
 export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets }: Props) {
   const status = projectStatusLabel(project);
-  const activeSectionLabel = tabs.find((item) => item.id === activeTab)?.label || "Overview";
-  const targetDate = project.targetDate
-    ? new Date(project.targetDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-    : "Not set";
+  const statusTone = projectStatusMeta(project).tone;
+  const target = project.targetDate ? new Date(project.targetDate) : null;
+  const daysToTarget = target ? Math.ceil((target.getTime() - Date.now()) / 86_400_000) : null;
+  const targetLabel = target ? target.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null;
+  const readinessTone = readiness >= 75 ? "good" : readiness >= 40 ? "warning" : "danger";
 
   return (
-    <header className="project-hero-v312 project-hero-v57 project-hero-rc24 project-hero-rc25">
-      <div className="project-head-breadcrumb-rc25">
-        <ClusterButton variant="quiet" size="compact" className="project-back-v147" onClick={onBack}><ClusterIcon name="chevron-left" /> Projects</ClusterButton>
-        <span aria-hidden="true">/</span><span>{typeLabel}</span>
-        <span aria-hidden="true">/</span><span aria-current="page" className="project-breadcrumb-current-v11">{activeSectionLabel}</span>
-      </div>
-      <div className="project-hero-main-rc24 project-hero-main-rc25">
-        <div className="project-hero-identity-rc24 project-hero-identity-rc25">
-          <span className="project-hero-mark-rc25" aria-hidden="true" style={runtimeStyle({ "--project-detail-accent": project.color || "#57c1ff" })}><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
-          <div className="project-hero-title-content-rc25">
-            <div className="project-hero-title-line-rc25"><h1 title={project.name}>{project.name}</h1><span className={`project-status-pill-v077 ${projectStatusMeta(project).tone}`}>{status}</span></div>
-          </div>
-        </div>
-        <div className="project-hero-actions-rc24">
-          {primaryBoardId && <ClusterButton variant="primary" size="compact" onClick={() => onOpenBoard(primaryBoardId)}><ClusterIcon name="project" /> Board</ClusterButton>}
-          <ClusterActionMenu label="Project shortcuts" triggerLabel="Open" items={[
-            { id: "timeline", label: "Timeline", onSelect: onOpenTimeline },
-            { id: "tickets", label: "Tickets", onSelect: onOpenTickets },
+    <header className="pj-head">
+      <div className="pj-head__row">
+        <ClusterIconButton size="compact" className="pj-head__back" label="All projects" onClick={onBack}><ClusterIcon name="chevron-left" /></ClusterIconButton>
+        <span className="pj-head__mark" aria-hidden="true" style={runtimeStyle({ "--project-detail-accent": project.color || "#57c1ff" })}><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
+        <h1 title={project.name}>{project.name}</h1>
+        <span className="pj-status" data-tone={statusTone}>{status}</span>
+        <ul className="pj-facts" aria-label="Project facts">
+          <li title="Type">{typeLabel}</li>
+          <li><ClusterMiniRing label="Readiness" percent={readiness} tone={readinessTone} /></li>
+          {targetLabel ? <li title={`Target ${target!.toLocaleDateString()}`} data-tone={daysToTarget != null && daysToTarget < 0 ? "danger" : daysToTarget != null && daysToTarget <= 7 ? "warning" : undefined}><ClusterIcon name="calendar" />{targetLabel}{daysToTarget != null ? <small>{daysToTarget < 0 ? `${-daysToTarget}d late` : daysToTarget === 0 ? "today" : `${daysToTarget}d`}</small> : null}</li> : null}
+          <li title={`${teamCount} on the team`}><ClusterIcon name="users" />{teamCount}</li>
+          {project.priority === "urgent" || project.priority === "high" ? <li data-tone={project.priority === "urgent" ? "danger" : "warning"}>{project.priority === "urgent" ? "Urgent" : "High priority"}</li> : null}
+          {project.updatedAt ? <li className="pj-facts__soft" title={new Date(project.updatedAt).toLocaleString()}>Updated {formatRelativeTime(project.updatedAt)}</li> : null}
+        </ul>
+        <div className="pj-head__actions">
+          {primaryBoardId ? <ClusterButton variant="primary" size="compact" onClick={() => onOpenBoard(primaryBoardId)}><ClusterIcon name="grid" />Board</ClusterButton> : null}
+          <ClusterActionMenu label="Go to" iconOnly items={[
+            { id: "timeline", label: "Timeline", icon: "timeline", onSelect: onOpenTimeline },
+            { id: "tickets", label: "Tickets", icon: "ticket", onSelect: onOpenTickets },
           ]} />
         </div>
       </div>
-      <div className="project-nav-row-rc25">
-        <ProjectWorkspaceNav items={tabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
-        <details className="project-header-details-rc25">
-          <summary>Info <ClusterIcon name="chevron-down" /></summary>
-          <div className="project-header-details-menu-rc25">
-            <div><span>Type</span><strong>{typeLabel}</strong></div>
-            <div><span>Target</span><strong>{targetDate}</strong></div>
-            <div><span>Team</span><strong>{teamCount}</strong></div>
-            <div><span>Readiness</span><strong>{readiness}%</strong></div>
-            <div><span>Updated</span><strong>{project.updatedAt ? formatRelativeTime(project.updatedAt) : "Unknown"}</strong></div>
-            {project.priority === "urgent" || project.priority === "high" ? <div><span>Priority</span><strong>{project.priority}</strong></div> : null}
-          </div>
-        </details>
-      </div>
+      <ProjectWorkspaceNav items={tabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
     </header>
   );
 }

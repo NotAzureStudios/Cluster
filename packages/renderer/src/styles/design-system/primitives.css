@@ -81,7 +81,12 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .cluster-button-v425[aria-busy="true"] { cursor: progress; }
 .cluster-button-v425 > svg { display: block; width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; }
 .cluster-icon-svg { display: block; flex: 0 0 auto; overflow: visible !important; box-sizing: border-box; transform-origin: center; color: currentColor; }
-.cluster-icon-button-v425 > .cluster-icon-svg { max-width: calc(100% - 8px); max-height: calc(100% - 8px); }
+/* Icon size is set outright. This used to cap the icon at calc(100% - 8px),
+   but an icon button is an inline-grid whose track sizes to the icon itself
+   (1em from svg.cluster-icon--unified), so the cap resolved to 12px - 8px and
+   every icon button in the app drew a 4px speck. */
+.cluster-icon-button-v425 > svg.cluster-icon-svg { inline-size: var(--cluster-icon-md); block-size: var(--cluster-icon-md); max-width: none; max-height: none; }
+.cluster-icon-button-v425.compact > svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
 .cluster-icon-button-v425 { width: var(--cluster-control-height); padding: 0; flex: 0 0 var(--cluster-control-height); display: inline-grid; place-items: center; line-height: 0; overflow: visible; }
 .cluster-icon-button-v425.compact { width: calc(var(--cluster-control-height) - var(--space-1)); padding: 0; flex-basis: calc(var(--cluster-control-height) - var(--space-1)); }
 .cluster-action-group-v425 { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); width: fit-content; max-width: 100%; min-width: 0; }

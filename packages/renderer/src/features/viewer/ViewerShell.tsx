@@ -423,7 +423,10 @@ export function ViewerShell({
         minWidth={280}
         maxWidth={560}
         defaultWidth={360}
-        inspector={<>
+        // null, not an empty fragment, when no panel is open: the split counts a
+        // fragment as a second pane and reserved an empty 360px column beside the
+        // picture.
+        inspector={panel === "none" ? null : <>
           {panel === "overlays" ? <ViewerOverlayDrawer overlays={availableOverlays} visibleIds={visibleOverlayIds} preferences={overlayPreferences} onChange={setOverlayPreferences} onClose={() => setPanel("none")} onDetach={canDetachCurrentViewer() && commandContext ? () => invokeViewerCommand("viewer.system.detach") : undefined} /> : null}
           {panel === "inspector" && diagnostics ? <ViewerInspector session={session} diagnostics={diagnostics} onLoadSensitiveMetadata={assetSession.loadSensitiveMetadata} adapterSections={[...adapterInspectorSections, ...hardeningInspectorSections, ...accessibilityInspectorSections]} onClose={() => setPanel("none")} onDetach={canDetachCurrentViewer() && commandContext ? () => invokeViewerCommand("viewer.system.detach") : undefined} /> : null}
           {panel === "comments" && session.capabilities.viewReviewHistory ? <ViewerReviewPanel session={session} onNavigate={onReviewNavigate} onReload={assetSession.reload} onClose={() => setPanel("none")} /> : null}

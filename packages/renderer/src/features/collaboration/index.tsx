@@ -438,6 +438,15 @@ export function CollaborationStrip({ presence, actions, currentUserId, followedU
   const active = presence.filter((item) => collaborationPresenceIsActive(item.updatedAt));
   const otherEditors = active.filter((item) => item.userId !== currentUserId && item.editing);
   const contextualPeers = active.filter((item) => item.userId !== currentUserId && (item.declaredStatus || item.availability || item.clockState || item.workContext?.projectName || item.workContext?.branch)).slice(0, 2);
+  /* Silent when there is nothing to say. With nobody else here and the
+     connection fine, this used to spend a full-width bar on "No one else
+     active · 0 active · Polling fallback" above every project, board and
+     whiteboard. It appears once someone else is present, someone is editing,
+     there is recent activity, or the connection needs attention. Polling is a
+     working transport, not a problem. */
+  const others = active.filter((item) => item.userId !== currentUserId);
+  const connectionTrouble = Boolean(connection && (connection.conflictMutations || connection.pendingMutations || connection.state === "offline" || connection.state === "reconnecting"));
+  if (!others.length && !actions.length && !connectionTrouble) return null;
   return <div className="collaboration-strip-v193 collaboration-strip-v196 collaboration-strip-v201">
     <div className="collaboration-presence-v193"><span className="eyebrow">Live</span><div className="collaboration-avatar-row-v193">
       {active.length ? active.slice(0, 10).map((item) => {

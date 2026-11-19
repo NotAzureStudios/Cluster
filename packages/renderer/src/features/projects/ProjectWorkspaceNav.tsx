@@ -12,13 +12,13 @@ export function ProjectWorkspaceNav({ items, activeId, onChange, primaryIds: req
   const primaryIds = useMemo(() => projectPrimaryTabIds(items, requestedPrimaryIds?.length ? requestedPrimaryIds : PRIMARY_PROJECT_SECTIONS, activeId), [items, requestedPrimaryIds, activeId]);
   return (
     <CompactSectionNav
-      className="project-workspace-nav-compact-v495 project-workspace-nav-current"
+      className="pj-tabs"
       label="Project sections"
       items={items.map((item) => ({ id: item.id, label: item.label, detail: item.detail, group: item.group }))}
       activeId={activeId}
       onChange={onChange}
       primaryIds={primaryIds}
-      moreLabel="More tools"
+      moreLabel="More"
     />
   );
 }

@@ -99,7 +99,8 @@ function parseTime(value: string) {
 }
 
 function readNumberPreference(key: string, fallback: number) {
-  const value = Number(readPreferenceStorage(key));
+  const raw = readPreferenceStorage(key);
+  const value = raw == null || raw === "" ? Number.NaN : Number(raw);
   return Number.isFinite(value) ? value : fallback;
 }
 

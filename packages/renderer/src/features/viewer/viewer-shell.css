@@ -18,3 +18,51 @@
 /* RC73: keep PDF virtual page offsets aligned with the rendered page box. */
 .cluster-static-pdf-page{line-height:13px;}
 .cluster-static-pdf-paper{box-sizing:content-box;}
+
+
+/* The stage takes its height from the frame when its container has no height
+   of its own. The adapter's stage row is minmax(0, 1fr), which only means
+   something inside a fixed-height host such as a modal; on a scrolling page it
+   resolved to 0px and the absolutely positioned video was clipped away
+   entirely — the project review tab showed controls and no picture. In a
+   fixed-height host the stretched row height still wins, since aspect-ratio
+   yields to a definite height. */
+.cluster-video-stage { aspect-ratio: var(--cluster-video-aspect, 16 / 9); }
+
+/* ---------- Video frame ----------
+   Rows separate by tone, not lines. The command bar is hidden for video:
+   every command in it is on the transport (play, frame steps) or in the host's
+   review toolbar and notes panel, and keyboard shortcuts run through the
+   command registry regardless of whether the bar is drawn. */
+.cluster-viewer-shell[data-medium="video"] > .cluster-viewer-command-bar { display: none; }
+.cluster-viewer-shell .cluster-viewer-header { min-height: 36px; padding: 4px 8px; border-bottom: 0; background: var(--cluster-workbench-panel); }
+.cluster-viewer-shell .cluster-video-timeline-wrap { padding: 10px 12px 4px; border-top: 0; background: var(--cluster-workbench-panel); }
+.cluster-viewer-shell .cluster-video-transport {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px 10px;
+  border-top: 0;
+  background: var(--cluster-workbench-panel);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cluster-viewer-shell .cluster-video-transport::-webkit-scrollbar { display: none; }
+.cluster-viewer-shell .cluster-video-transport > * { flex: none; }
+.cluster-viewer-shell .cluster-video-play.cluster-icon-button-v425 { width: 36px; height: 36px; min-height: 36px; flex-basis: 36px; border-radius: 50%; }
+.cluster-viewer-shell .cluster-video-play > svg.cluster-icon-svg { inline-size: 18px; block-size: 18px; }
+.cluster-viewer-shell .cluster-video-time-readout { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; margin: 0 6px 0 8px; font-family: var(--cluster-font-mono); font-variant-numeric: tabular-nums; }
+.cluster-viewer-shell .cluster-video-time-readout strong { font-size: 13px; font-weight: 600; }
+.cluster-viewer-shell .cluster-video-time-readout small { color: var(--muted); font-size: 11px; }
+.cluster-viewer-shell .cluster-video-time-entry { order: 0; width: auto; }
+.cluster-viewer-shell .cluster-video-time-entry input { width: 96px; height: 28px; min-height: 28px; padding: 0 8px; font: 12px/1 var(--cluster-font-mono); }
+.cluster-video-transport-spacer { flex: 1 1 auto !important; min-width: 8px; }
+.cluster-viewer-shell .cluster-video-transport select { width: auto; min-width: 0; max-width: 140px; height: 28px; min-height: 28px; padding-block: 0; font-size: 12px; }
+.cluster-viewer-shell .cluster-video-volume { display: inline-flex; align-items: center; gap: 2px; min-width: 0; margin: 0; }
+.cluster-viewer-shell .cluster-video-volume input { width: 76px; min-width: 0; }
+
+/* Embedded in project review, the stage header above already names the asset,
+   so the viewer's own identity block steps aside and leaves only its tools. */
+.vr-stage__player .cluster-viewer-identity { display: none; }
+.vr-stage__player .cluster-viewer-header { justify-content: flex-end; }
