@@ -221,6 +221,8 @@
   --cluster-elevation-card: 0 0 0 1px rgb(12 18 24 / 5%), 0 1px 2px rgb(12 18 24 / 6%);
   --cluster-elevation-raised: 0 0 0 1px rgb(12 18 24 / 6%), 0 4px 12px rgb(12 18 24 / 8%);
   --cluster-recess: #eef1f4;
+  --cluster-button-fill: #e9edf1;
+  --cluster-button-fill-hover: #dde3e9;
 }
 :root[data-theme="dark"] {
   --cluster-surface-0: var(--cluster-workbench-canvas);
@@ -257,6 +259,8 @@
   --cluster-elevation-card: 0 1px 2px rgb(0 0 0 / 34%), inset 0 1px 0 rgb(255 255 255 / 3%);
   --cluster-elevation-raised: 0 6px 18px rgb(0 0 0 / 40%), inset 0 1px 0 rgb(255 255 255 / 4%);
   --cluster-recess: #101316;
+  --cluster-button-fill: #242a30;
+  --cluster-button-fill-hover: #2d343b;
 }
 :root[data-density="comfortable"] {
   --cluster-control-height: 40px;

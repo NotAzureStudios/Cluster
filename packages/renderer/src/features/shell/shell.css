@@ -445,9 +445,7 @@
   }.app-shell.shell-unified-v3430 > .shell-sidebar-v3430.open{ transform: translateX(0) !important; }.shell-sidebar-v3430 .sidebar-collapse-toggle{ display: none !important; }.shell-unified-v3430 > .content-shell{ height: auto !important; min-height: 100dvh !important; padding: 8px 10px 20px !important; }.shell-unified-v3430 .taskbar-unified-v3430{ grid-template-columns: minmax(0,1fr) auto !important; padding-left: 52px !important; }.shell-unified-v3430 .taskbar-tabs-shell-v073{ grid-column: 1 / -1 !important; grid-row: 2 !important; }}.shell-unified-v3430 :where(button, [role="button"]){
   outline: 0;
   box-shadow: none;
-}.shell-unified-v3430 .content-shell :where(button, [role="button"]){
-  border-color: var(--cluster-line) !important;
-}.shell-unified-v3430 .content-shell :where(svg){
+}/* A rule here gave every button in the content area a visible border with !important, whatever the component asked for. Buttons own their own edges now (primitives.css). */.shell-unified-v3430 .content-shell :where(svg){
   filter: none;
   text-shadow: none !important;
 }@media  (min-width: 901px) {.shell-unified-v3430 .taskbar-unified-v3430 > .taskbar-left-v073{

@@ -60,16 +60,23 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .cluster-dialog-field-v389 strong { color: var(--text); }
 .cluster-dialog-v389 > footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--line); background: var(--panel-2); }
 
-.cluster-button-v425 { min-height: var(--cluster-control-height); max-width: 100%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--text); font: inherit; font-size: max(.8125rem, var(--cluster-font-size-sm)); font-weight: 600; line-height: 1.35; white-space: nowrap; cursor: pointer; transform: none; box-shadow: none; transition:background-color var(--cluster-motion-feedback) var(--cluster-ease-standard),border-color var(--cluster-motion-feedback) var(--cluster-ease-standard),color var(--cluster-motion-feedback) var(--cluster-ease-standard),box-shadow var(--cluster-motion-feedback) var(--cluster-ease-standard),transform var(--cluster-motion-feedback) var(--cluster-ease-standard);}
-.cluster-button-v425:hover:not(:disabled) { border-color: var(--line-strong); background: var(--cluster-interactive-hover); }
+.cluster-button-v425 { min-height: var(--cluster-control-height); max-width: 100%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--cluster-radius-control); background: var(--cluster-button-fill); color: var(--text); font: inherit; font-size: var(--cluster-font-size-md); font-weight: 600; line-height: 1.35; white-space: nowrap; cursor: pointer; transform: none; box-shadow: none; transition:background-color var(--cluster-motion-feedback) var(--cluster-ease-standard),border-color var(--cluster-motion-feedback) var(--cluster-ease-standard),color var(--cluster-motion-feedback) var(--cluster-ease-standard),box-shadow var(--cluster-motion-feedback) var(--cluster-ease-standard),transform var(--cluster-motion-feedback) var(--cluster-ease-standard);}
+/* Tonal, not outlined: a secondary button is a filled shape a step above the
+   surface it sits on. The 1px border stays, transparent, so focus and selected
+   states can colour it without the control changing size. */
+.cluster-button-v425:hover:not(:disabled) { background: var(--cluster-button-fill-hover); }
 .cluster-button-v425:active:not(:disabled){background:var(--cluster-interactive-pressed);transform:translateY(1px) scale(.985)}
-.cluster-button-v425.primary { border-color: color-mix(in srgb, var(--accent) 78%, var(--line)); background: var(--accent); color: var(--accent-contrast); }
+.cluster-button-v425.primary { background: var(--accent); color: var(--accent-contrast); }
 .cluster-button-v425.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 90%, var(--text)); color: var(--accent-contrast); }
-.cluster-button-v425.danger { border-color: color-mix(in srgb, var(--danger) 72%, var(--line)); background: var(--danger); color: var(--danger-contrast); }
+.cluster-button-v425.danger { background: var(--danger); color: var(--danger-contrast); }
 .cluster-button-v425.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 90%, var(--text)); color: var(--danger-contrast); }
 .cluster-button-v425.quiet { background: transparent; color: var(--soft-text); }
+/* A text button with no fill is a plain button in the HIG sense: it takes the
+   tint so it reads as something you can press. Icon-only quiet buttons stay
+   neutral, or every row's menu would light up in accent. */
+.cluster-button-v425.quiet:not(.cluster-icon-button-v425) { color: var(--accent); }
 .cluster-button-v425.quiet:hover:not(:disabled) { background: var(--cluster-interactive-hover); color: var(--text); }
-.cluster-button-v425.compact { min-height: calc(var(--cluster-control-height) - var(--space-1)); padding-inline: var(--space-2); font-size: var(--cluster-font-size-xs); }
+.cluster-button-v425.compact { min-height: calc(var(--cluster-control-height) - var(--space-1)); padding-inline: var(--space-2-5); font-size: var(--cluster-font-size-sm); }
 .cluster-button-v425:disabled { opacity: var(--cluster-disabled-opacity); cursor: not-allowed; }
 .cluster-button-v425[aria-busy="true"] { cursor: progress; }
 .cluster-button-v425 > svg { display: block; width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; }
