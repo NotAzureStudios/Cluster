@@ -4,8 +4,8 @@
  * Workspace/component CSS consumes these tokens instead of owning theme logic.
  */
 :root {
-  --cluster-visual-bg-color: var(--cluster-workbench-canvas, #101214);
-  --cluster-visual-bg-base: linear-gradient(145deg, #111315, #0d0f10 65%, #17191b);
+  --cluster-visual-bg-color: var(--cluster-workbench-canvas, #0c0e10);
+  --cluster-visual-bg-base: linear-gradient(145deg, #0d0f12, #090b0d 62%, #101317);
   --cluster-visual-pattern-image: none;
   --cluster-visual-pattern-size: auto;
   --cluster-visual-pattern-position: 0 0;
@@ -33,14 +33,14 @@
 
 :root[data-theme="light"],
 .appearance-shell-preview-v10[data-theme="light"] {
-  --cluster-visual-bg-color: #f7fafb;
+  --cluster-visual-bg-color: #eef1f4;
   /* Light needs a safe first-paint default before Appearance applies its base attribute. */
-  --cluster-visual-bg-base: linear-gradient(145deg, #fff 0%, #f6f7f8 58%, #eef1f3 100%);
+  --cluster-visual-bg-base: linear-gradient(145deg, #f1f4f7 0%, #e9edf1 60%, #eef1f4 100%);
 }
 
 :root[data-theme="dark"][data-background-base="clean"],
 .appearance-shell-preview-v10[data-theme="dark"][data-background-base="clean"] {
-  --cluster-visual-bg-base: linear-gradient(145deg, #111315, #0d0f10 65%, #17191b);
+  --cluster-visual-bg-base: linear-gradient(145deg, #0d0f12, #090b0d 62%, #101317);
 }
 :root[data-theme="dark"][data-background-base="gradient"],
 .appearance-shell-preview-v10[data-theme="dark"][data-background-base="gradient"] {
@@ -57,7 +57,7 @@
 
 :root[data-theme="light"][data-background-base="clean"],
 .appearance-shell-preview-v10[data-theme="light"][data-background-base="clean"] {
-  --cluster-visual-bg-base: linear-gradient(145deg, #fff 0%, #f6f7f8 58%, #eef1f3 100%);
+  --cluster-visual-bg-base: linear-gradient(145deg, #f1f4f7 0%, #e9edf1 60%, #eef1f4 100%);
 }
 :root[data-theme="light"][data-background-base="gradient"],
 .appearance-shell-preview-v10[data-theme="light"][data-background-base="gradient"] {

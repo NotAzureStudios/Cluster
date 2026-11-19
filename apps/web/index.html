@@ -20,8 +20,10 @@
       second copy of the design system drifting out of step with the first.
     -->
     <style>
-      :root { color-scheme: dark; background-color: #101214; }
-      :root[data-theme="light"] { color-scheme: light; background-color: #f7f8f9; }
+      /* Must match --cluster-workbench-canvas per theme in
+         packages/renderer/src/styles/application-theme-contract.css. */
+      :root { color-scheme: dark; background-color: #0c0e10; }
+      :root[data-theme="light"] { color-scheme: light; background-color: #eef1f4; }
       html, body { margin: 0; }
       body { min-height: 100vh; }
     </style>
