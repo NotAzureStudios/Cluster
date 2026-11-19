@@ -25,7 +25,7 @@ export function TaskbarProjectTabs({ projects, openProjectIds, pinnedProjectIds,
   const openProjects = openProjectIds.map((id) => projects.find((project) => project.id === id)).filter((project): project is Project => Boolean(project)).sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)));
 
   if (!openProjects.length) {
-    return <ClusterButton unstyled type="button" className="cluster-taskbar-projects__empty taskbar-empty-tabs-v073" onClick={canSeeProjects ? onOpenProjects : onOpenMyWork}>Open a project to pin it here</ClusterButton>;
+    return <ClusterButton unstyled type="button" className="cluster-taskbar-projects__empty taskbar-empty-tabs-v073" onClick={canSeeProjects ? onOpenProjects : onOpenMyWork}>No open projects</ClusterButton>;
   }
 
   return <div className="cluster-taskbar-projects">

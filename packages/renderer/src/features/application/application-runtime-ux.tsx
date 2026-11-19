@@ -119,7 +119,7 @@ export function NavigationOperationalStatus({ model, onReviewSync, onRetry }: { 
   const actions = ["conflict", "incompatible"].includes(model.state)
     ? <ClusterButton variant="secondary" size="compact" onClick={onReviewSync}>Review sync</ClusterButton>
     : ["offline", "reconnecting", "server_unreachable"].includes(model.state)
-      ? <ClusterButton variant="secondary" size="compact" busy={model.state === "reconnecting"} busyLabel="Reconnecting…" onClick={onRetry}>Retry connection</ClusterButton>
+      ? <ClusterButton variant="secondary" size="compact" busy={model.state === "reconnecting"} busyLabel="Reconnecting…" onClick={onRetry}>Retry</ClusterButton>
       : null;
   return <ClusterOperationalStatus model={model} className="navigation-operational-status-v433" actions={actions} />;
 }

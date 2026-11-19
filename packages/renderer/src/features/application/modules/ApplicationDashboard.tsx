@@ -923,40 +923,21 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   return (
     <section className="page dashboard-page overview-page-v040 home-page-v091 home-card-diet-v141 cluster-tool-page-v228 home-unified-v231">
       <ToolPageHeader
-        eyebrow="Workspace"
         title="Home"
         metrics={[
-          {
-            label: "Attention",
-            value: urgentAttentionCount,
-            tone: urgentAttentionCount ? "warning" : "good",
-          },
-          {
-            label: "Readiness",
-            value: `${readinessAverage}%`,
-            tone: readinessAverage >= 75 ? "good" : readinessAverage >= 45 ? "warning" : "danger",
-          },
-          {
-            label: "People active",
-            value: `${activeUsers}/${users.length || 0}`,
-          },
-          {
-            label: "Clock",
-            value: homeActiveEntry ? minutesToHuman(activeClockMinutes) : "Out",
-            tone: homeActiveEntry ? "good" : "neutral",
-          },
+          { label: "need attention", value: urgentAttentionCount, tone: urgentAttentionCount ? "warning" : "good" },
+          { label: "ready", value: `${readinessAverage}%`, tone: readinessAverage >= 75 ? "good" : readinessAverage >= 45 ? "warning" : "danger" },
+          { label: "online", value: `${activeUsers}/${users.length || 0}` },
+          // Only while clocked in: the Clock in button already says when you are not.
+          ...(homeActiveEntry ? [{ label: "on the clock", value: minutesToHuman(activeClockMinutes), tone: "good" as const }] : []),
         ]}
         actions={
           <>
-            {!kioskHomeState.active && <ClusterButton type="button" className="" onClick={() => setHomeEditMode((editing) => !editing)} variant={homeEditMode ? "primary" : "secondary"}>
-              {homeEditMode ? "Done editing" : "Customize"}
+            {/* Inbox and Projects buttons used to sit here too; the taskbar bell
+                and the sidebar already open both, one click away. */}
+            {!kioskHomeState.active && <ClusterButton type="button" onClick={() => setHomeEditMode((editing) => !editing)} variant={homeEditMode ? "primary" : "secondary"}>
+              {homeEditMode ? "Done" : "Edit"}
             </ClusterButton>}
-            <ClusterButton type="button" className="" onClick={onOpenNotifications} variant="secondary">
-              Inbox
-            </ClusterButton>
-            <ClusterButton type="button" className="" onClick={onOpenProjects} variant="secondary">
-              Projects
-            </ClusterButton>
             {!kioskHomeState.readOnly && <ClusterButton type="button" variant={homeActiveEntry ? "danger" : "primary"} onClick={openHomeClockModal} disabled={clockBusy} data-cluster-kiosk-write-action="true">
               {clockButtonLabel}
             </ClusterButton>}
@@ -969,12 +950,12 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
 
       {!kioskHomeState.active && homeEditMode && (
         <div className="home-widget-edit-mode-bar-v505" role="toolbar" aria-label="Home layout editing">
-          <div><strong>Editing Home</strong><span>Drag widgets on the visible grid, resize from the lower-right corner, or drag new widgets in from the palette.</span></div>
+          <div><strong>Editing Home</strong><span>Drag to move, drag a corner to resize.</span></div>
           <div>
             <div className="home-widget-edit-inline-setting-v506"><span>Density</span><ClusterSelect ariaLabel="Home widget density" value={homeDensity} options={[{ value: "compact", label: "Compact" }, { value: "balanced", label: "Balanced" }, { value: "expanded", label: "Expanded" }]} onChange={(value) => updateHomeDensity(value as "compact" | "balanced" | "expanded")} /></div>
             <div className="home-widget-edit-inline-setting-v506"><span>Phone</span><ClusterSelect ariaLabel="Mobile Home layout" value={homeMobileLayout} options={[{ value: "stack", label: "Stack" }, { value: "grid", label: "Grid" }, { value: "carousel", label: "Carousel" }, { value: "focus", label: "Focus" }]} onChange={(value) => updateHomeMobileLayout(value as typeof homeMobileLayout)} /></div>
-            <ClusterButton variant="secondary" size="compact" onClick={() => { setHomeEditorFocusId(null); setHomeEditorOpen(true); }}>Advanced settings</ClusterButton>
-            <ClusterButton variant="quiet" size="compact" onClick={dashboardWidgets.resetLayout}>Reset layout</ClusterButton>
+            <ClusterButton variant="secondary" size="compact" onClick={() => { setHomeEditorFocusId(null); setHomeEditorOpen(true); }}>Settings</ClusterButton>
+            <ClusterButton variant="quiet" size="compact" onClick={dashboardWidgets.resetLayout}>Reset</ClusterButton>
             <ClusterButton variant="primary" size="compact" onClick={() => setHomeEditMode(false)}>Done</ClusterButton>
           </div>
         </div>
