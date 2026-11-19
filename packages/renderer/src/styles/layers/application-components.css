@@ -156,26 +156,14 @@ cursor: grabbing;
 .setup-progress button.active{background:linear-gradient(135deg,rgba(47,128,237,.34),color-mix(in srgb, var(--cluster-blue-400) 14%, transparent));color:var(--text);border-color:color-mix(in srgb, var(--cluster-blue-400) 50%, transparent)}
 .setup-progress button.done{color:var(--cluster-blue-100);border-color:rgba(47,128,237,.28)}
 @media (max-width: 860px){.setup-header .logo-mark{margin-top:12px}}
+/* Per-data-background body paints removed: the workbench surface is painted once, by body::before in styles/visual-system.css. These outranked it on specificity and covered the pattern layer. */
 :root {
 --glass-alpha: .72;
 --glass-blur: 20px;
 }
-:root[data-background="clean"] body {
-background: var(--bg);
-}
-:root[data-background="midnight"] body {
-background:
-radial-gradient(circle at 50% -15%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 34%),
-linear-gradient(135deg, var(--cluster-slate-950), #090e1a 58%, var(--cluster-slate-900));
-}
-:root[data-background="grid"] body {
-background:
-linear-gradient(color-mix(in srgb, var(--cluster-slate-400) 5.5%, transparent) 1px, transparent 1px),
-linear-gradient(90deg, color-mix(in srgb, var(--cluster-slate-400) 5.5%, transparent) 1px, transparent 1px),
-radial-gradient(circle at 12% 4%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 30%),
-linear-gradient(135deg, #060912, #101827);
-background-size: 34px 34px, 34px 34px, auto, auto;
-}
+
+
+
 input,
 textarea,
 select,

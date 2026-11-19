@@ -74,7 +74,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 /* A text button with no fill is a plain button in the HIG sense: it takes the
    tint so it reads as something you can press. Icon-only quiet buttons stay
    neutral, or every row's menu would light up in accent. */
-.cluster-button-v425.quiet:not(.cluster-icon-button-v425) { color: var(--accent); }
+.cluster-button-v425.quiet:not(.cluster-icon-button-v425) { color: var(--accent-text); }
 .cluster-button-v425.quiet:hover:not(:disabled) { background: var(--cluster-interactive-hover); color: var(--text); }
 .cluster-button-v425.compact { min-height: calc(var(--cluster-control-height) - var(--space-1)); padding-inline: var(--space-2-5); font-size: var(--cluster-font-size-sm); }
 .cluster-button-v425:disabled { opacity: var(--cluster-disabled-opacity); cursor: not-allowed; }

@@ -129,20 +129,49 @@ html {
   background-color: var(--cluster-visual-bg-color);
 }
 
+/* body is its own stacking context so the z-index:-1 layer below paints above
+   body's background rather than beneath it. Without isolation a negative-z
+   child of a non-stacking body falls into the root context and lands under
+   body's in-flow background — any opaque body or #root background then hid the
+   pattern completely, which is how the patterns went dark for a while. */
 body {
+  background-color: transparent;
+  isolation: isolate;
+}
+
+#root {
   background-color: transparent;
 }
 
-body::before {
+/* Two fixed layers: the base tone, and the pattern above it on a layer of its
+   own so it can be masked independently. A pattern is decoration and should
+   never sit under words. Cards are opaque, so the only text that ever lands on
+   the canvas is the page title band at the top of every page — the pattern
+   fades out across that band and reaches full strength below it, where it
+   shows in the gutters between cards. That holds at any intensity the slider
+   allows, so the slider no longer needs to protect legibility. */
+body::before,
+body::after {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: var(--cluster-workbench-background);
-  background-size: var(--cluster-workbench-background-size, cover);
-  background-position: var(--cluster-workbench-background-position, center top);
+}
+
+body::before {
+  background-image: var(--cluster-visual-bg-base);
+  background-size: cover;
+  background-position: center top;
+}
+
+body::after {
+  background-image: var(--cluster-visual-pattern-image);
+  background-size: var(--cluster-visual-pattern-size);
+  background-position: var(--cluster-visual-pattern-position);
   background-repeat: repeat;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent var(--cluster-pattern-clear-top, 180px), #000 var(--cluster-pattern-full-at, 360px));
+  mask-image: linear-gradient(to bottom, transparent 0, transparent var(--cluster-pattern-clear-top, 180px), #000 var(--cluster-pattern-full-at, 360px));
 }
 
 :root[data-surface-style="flat"],
