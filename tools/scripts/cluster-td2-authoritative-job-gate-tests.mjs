@@ -98,6 +98,14 @@ await check('server runtime gate reads authoritative DB truth and fails closed w
     '../domains/jobs/job-types.js':types,
     '../domains/jobs/job-tool-ownership.js':policy,
     '../domains/access/configurable-tool-availability.js':{TOOL_AVAILABILITY},
+    // Handlers this test does not drive still have to resolve: the runtime
+    // requires every module at load time, so an unmocked one fails the whole
+    // file rather than the one check that needs it.
+    '../domains/planning/calendar-reminder-occurrences.js':{dueCalendarReminderOccurrence:()=>null},
+    '../domains/studio-systems/studio-announcement-delivery.js':{createStudioAnnouncementDelivery:()=>({publishDue:async()=>({})})},
+    '../domains/users/studio-access-expiry-lifecycle.js':{runStudioAccessExpiryTick:async()=>({})},
+    '../domains/inventory/inventory-credential-expiry-lifecycle.js':{runInventoryCredentialExpiryTick:async()=>({})},
+    '../core/mail-transport.js':{sendStudioMail:async()=>({messageId:'test',accepted:['t@example.test'],rejected:[]})},
   });
   const requests=[];
   let settings={calendarEnabled:false,libraryEnabled:false};

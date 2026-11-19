@@ -291,16 +291,19 @@ export function createBuiltInIntegrationRegistry() {
     })
     .register({
       id: "communication.email",
-      label: "Email adapter contract",
+      label: "Email (SMTP)",
       category: "communication",
-      version: 1,
+      version: 2,
       builtIn: true,
-      implementation: "adapter-contract",
+      implementation: "active",
       capabilities: ["mail.send"],
       actions: [{ id: "mail.send", label: "Send transactional mail", capability: "mail.send", permission: "manage" }],
-      settingKeys: [], secretSettingKeys: [], outboundHosts: [], projectScoped: false,
-      healthCheck: "none", permissionTool: "integrations", setupSurface: "provider-adapter:email",
-      notes: "Reserved provider contract. Use signed webhooks for an email relay until a native mail transport is configured.",
+      settingKeys: ["mailEnabled", "mailHost", "mailPort", "mailUsername", "mailPassword", "mailFromAddress", "mailFromName"],
+      secretSettingKeys: ["mailPassword"],
+      // Any SMTP host is allowed; the configured host is what is contacted.
+      outboundHosts: [], projectScoped: false,
+      healthCheck: "live", permissionTool: "integrations", setupSurface: "server-config:email",
+      notes: "SMTP transport for verification, recovery and digest mail. Google Workspace requires an app password on an account with 2-step verification; the account password will not authenticate.",
     })
     .register({
       id: "calendar.external",

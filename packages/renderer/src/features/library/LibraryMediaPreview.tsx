@@ -2,7 +2,7 @@ import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../compo
 import { useEffect, useRef, useState } from "react";
 import { ClusterModal } from "../../components/ClusterModal";
 import { API_URL } from "../../core/api";
-import { PRIVACY_CONSENT_CHANGED_EVENT, externalContentAllowed, openPrivacyChoices } from "../../core/privacy-consent";
+
 import { LibraryIcon, itemIconName } from "./LibraryIcons";
 import { LibraryAudioArtwork } from "./LibraryAudioArtwork";
 import { LibraryDocumentPreview } from "./LibraryDocumentPreview";
@@ -224,14 +224,11 @@ export function LibraryModelThumbnail({ item }: { item: LibraryItem }) {
 }
 
 function YouTubePreview({ item, expanded }: { item: LibraryItem; expanded: boolean }) {
-  const [externalAllowed, setExternalAllowed] = useState(() => externalContentAllowed());
-  useEffect(() => {
-    const update = () => setExternalAllowed(externalContentAllowed());
-    window.addEventListener(PRIVACY_CONSENT_CHANGED_EVENT, update);
-    return () => window.removeEventListener(PRIVACY_CONSENT_CHANGED_EVENT, update);
-  }, []);
+  // Previews used to be withheld behind an external-content consent choice.
+  // On a studio's own server there is no visitor to ask and no banner left to
+  // ask with, so the embed loads directly; referrerPolicy keeps the request
+  // from carrying where it came from.
   if (!item.youtubeEmbedUrl) return <div className="library-preview-empty-v217"><LibraryIcon name={item.type === "youtube-playlist" ? "playlist" : "youtube"} size={44} /><strong>YouTube preview unavailable</strong><p>Check that the saved URL points to a public YouTube {item.type === "youtube-playlist" ? "playlist" : "video"}.</p>{item.externalUrl && <ClusterLinkButton className="" href={item.externalUrl} target="_blank" rel="noreferrer" variant="primary">Open on YouTube</ClusterLinkButton>}</div>;
-  if (!externalAllowed) return <div className="library-preview-empty-v217 library-external-consent-v363"><LibraryIcon name={item.type === "youtube-playlist" ? "playlist" : "youtube"} size={44} /><strong>External preview blocked</strong><p>Cluster will not connect to YouTube until you allow external content in Privacy choices.</p><div><ClusterButton type="button" className="" onClick={openPrivacyChoices} variant="primary">Privacy choices</ClusterButton>{item.externalUrl && <ClusterLinkButton variant="secondary" href={item.externalUrl} target="_blank" rel="noreferrer">Open on YouTube</ClusterLinkButton>}</div></div>;
   return <div className={`library-youtube-preview-v229${expanded ? " expanded" : ""}`}>
     <iframe src={item.youtubeEmbedUrl} title={`${item.title} YouTube preview`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
     <div><LibraryIcon name={item.type === "youtube-playlist" ? "playlist" : "youtube"} size={17} /><strong>{item.type === "youtube-playlist" ? "YouTube playlist" : "YouTube video"}</strong>{item.externalUrl && <a href={item.externalUrl} target="_blank" rel="noreferrer">Open on YouTube</a>}</div>

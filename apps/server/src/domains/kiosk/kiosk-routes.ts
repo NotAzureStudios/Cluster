@@ -1,3 +1,4 @@
+import { normalizeLoginEmail } from "@cluster/shared";
 import { z } from "zod";
 import { normalizeClusterKioskProfiles } from "@cluster/shared";
 import type { ClusterKioskRuntime } from "./kiosk-runtime.js";
@@ -73,7 +74,9 @@ export function registerKioskRoutes(deps: {
     const profile = normalizeClusterKioskProfiles(settings.desktopKioskProfiles).find((item) => item.id === body.profileId && item.enabled && item.sessionMode === "signed-out" && item.managedExitRequired);
     const normalizedUsername = normalizeAuthUsername(body.identifier);
     const user = profile ? await prisma.user.findFirst({
-      where: { OR: [{ username: { equals: normalizedUsername, mode: "insensitive" } }, { email: { equals: body.identifier, mode: "insensitive" } }] },
+      // Usernames and emails are both stored normalised, so these match on
+      // their unique indexes instead of a case-insensitive comparison.
+      where: { OR: [{ username: normalizedUsername }, { email: normalizeLoginEmail(body.identifier) || "" }] },
     }) : null;
     const decorated = user ? await decorateUserForClient(user) : null;
     let credentialMatches = false;

@@ -8,6 +8,9 @@ export type SetupStatus = {
   ok: boolean;
   version: string;
   setupComplete: boolean;
+  /** Sent by the server and shown on the sign-in screen before anyone is signed in. */
+  studioName?: string;
+  workspaceName?: string;
   setupCompletedAt?: string | null;
   serverInstanceId?: string | null;
   serverDisplayName?: string;
@@ -245,6 +248,15 @@ export type Settings = {
   discordApplicationPublicKey?: string;
   discordBotTokenConfigured?: boolean;
   discordWebhookUrlConfigured?: boolean;
+  mailEnabled?: boolean;
+  mailHost?: string;
+  mailPort?: number;
+  mailUsername?: string;
+  /** Write-only: the server returns mailPasswordConfigured, never the value. */
+  mailPassword?: string;
+  mailPasswordConfigured?: boolean;
+  mailFromAddress?: string;
+  mailFromName?: string;
   notifyCardCreated?: boolean;
   notifyCardMoved?: boolean;
   notifyCardCompleted?: boolean;

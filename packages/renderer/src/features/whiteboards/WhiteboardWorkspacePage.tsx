@@ -8,7 +8,7 @@ import { keyboardNudge } from "../../core/accessibility";
 import { compactDateTime } from "../../core/date-time";
 import { formatRelativeTime, levelLabel } from "../../core/format";
 import { downloadJsonFile, localId, readLocalJson, writeLocalJson } from "../../core/storage";
-import { readPreferenceStorage, writePreferenceStorage } from "../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 import { NumberStepper } from "../../components/NumberStepper";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { CompactColorField } from "../../components/ColorField";

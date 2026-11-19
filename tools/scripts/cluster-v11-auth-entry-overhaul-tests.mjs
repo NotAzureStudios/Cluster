@@ -28,11 +28,15 @@ check("All sign-in modes keep a concise title and separate recovery state",
   screen.includes('mfaChallenge ? "Verify your sign-in"') &&
   screen.includes('recoveryMode === "request" ? "Recover account access"') &&
   screen.includes('mode={recoveryMode === "request" ? "recovery" : "signin"}'));
+// The sign-in configuration now arrives in the boot payload rather than from
+// a fetch this screen owns, so a failure is a boot failure and retrying means
+// re-running boot. The contract is unchanged: say so, offer a retry, and never
+// leave the form submittable without a configuration.
 check("Config failure is explicit and retryable instead of silently permitting submissions",
-  screen.includes('const [configLoading, setConfigLoading] = useState(true)') &&
-  screen.includes('const [configError, setConfigError] = useState("")') &&
-  screen.includes('onClick={() => void loadConfig()}') &&
-  screen.includes('disabled={busy || configLoading || !config || !config.passwordLoginEnabled}'));
+  screen.includes("config: AuthConfig | null") &&
+  screen.includes("{!config && <div className=\"error-box\" role=\"alert\">") &&
+  screen.includes("onClick={onRetryConfig}") &&
+  screen.includes('disabled={busy || !config || !config.passwordLoginEnabled}'));
 check("Password, MFA and recovery labels are attached to the corresponding inputs",
   screen.includes('label htmlFor={identifierFieldId}') && screen.includes('id={identifierFieldId}') &&
   screen.includes('label htmlFor={passwordFieldId}') && screen.includes('id={passwordFieldId}') &&
@@ -72,11 +76,20 @@ check("Recovery keeps generic non-enumerating response and a clear back path",
   screen.includes('Cluster does not reveal whether an account exists') &&
   screen.includes('"/api/auth/password-reset-request"') &&
   screen.includes('Back to sign in'));
-check("Studio cover, loading, error and application routes share the login design",
-  cover.includes('if (loadError && !cover) return <AuthEntryLayout>') &&
-  cover.includes('if (!cover) return <AuthEntryLayout>') &&
+// The entry point used to be a cover page with Sign in and Apply buttons,
+// which blocked first paint on /api/public/v1/studio-cover and cost a click to
+// reach the password field. Sign-in is now the entry point and the cover loads
+// in the background, so the loading and error states this check once required
+// are deliberately gone: nothing may stand between a member and the form.
+check("Sign-in is the entry point and nothing blocks it",
+  cover.includes('useState<"signin" | "apply">("signin")') &&
+  !cover.includes('if (!cover) return') &&
+  !cover.includes('loadError') &&
+  cover.includes('return <LoginScreen'));
+check("The application route still shares the login design",
   cover.includes('mode="setup" cardClassName="cluster-auth-application-v11"') &&
-  cover.includes('return <AuthEntryLayout studioName={cover.studioName}>') &&
+  cover.includes('/api/public/v1/applications/') &&
+  cover.includes('onApply={applicationsOpen ?') &&
   css.includes('cluster-auth-application-v11'));
 check("First-login remains server-backed, with readable step progress",
   firstLogin.includes('aria-current={item === step ? "step" : undefined}') &&

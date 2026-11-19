@@ -16,7 +16,7 @@ import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { clusterApiFetch } from "@cluster/api-client";
-import { readPreferenceStorage, writePreferenceStorage } from "../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 import { runtimeStyle } from "../../core/runtime-style";
 import { useAudioMeter } from "./use-audio-meter";
 import { useAudioWaveform } from "./audio-waveform";

@@ -1,4 +1,5 @@
 import type { SettingPayload } from "../../app/server-composition-types.js";
+import { MailSendError, describeMailConfiguration, verifyMailConfiguration } from "../../core/mail-transport.js";
 import type { IntegrationProviderManifest, IntegrationProviderRegistry } from "./integration-provider-registry.js";
 
 export type IntegrationProviderHealthState = "healthy" | "degraded" | "misconfigured" | "disabled" | "contract-only" | "unknown";
@@ -33,6 +34,19 @@ function configurationHealth(manifest: IntegrationProviderManifest, settings: Se
     const webhookConfigured = Boolean(settings.discordWebhookUrl);
     if (!botConfigured && !webhookConfigured) return { providerId: manifest.id, state: "misconfigured", checkedAt: new Date().toISOString(), latencyMs: Date.now() - startedAt, detail: "Configure a Discord bot/guild or webhook endpoint.", live: false };
     return { providerId: manifest.id, state: "healthy", checkedAt: new Date().toISOString(), latencyMs: Date.now() - startedAt, detail: botConfigured ? "Discord bot and guild configuration is present." : "Discord webhook delivery is configured.", live: false };
+  }
+  if (manifest.id === "communication.email") {
+    // Mail has its own notion of "configured" — a default port and a sender
+    // derived from the username — so the generic required-keys check below
+    // would report a working setup as incomplete, and would read
+    // mailEnabled: false as missing rather than deliberately off.
+    const described = describeMailConfiguration(settings);
+    const checkedAt = new Date().toISOString();
+    if (described.configured) {
+      return { providerId: manifest.id, state: "healthy", checkedAt, latencyMs: Date.now() - startedAt, detail: `SMTP is configured for ${described.host}:${described.port} as ${described.fromAddress}.`, live: false };
+    }
+    const off = settings.mailEnabled === false;
+    return { providerId: manifest.id, state: off ? "disabled" : "misconfigured", checkedAt, latencyMs: Date.now() - startedAt, detail: described.reason || "Outbound mail is not configured.", live: false };
   }
   const required = manifest.settingKeys.filter((key) => !manifest.secretSettingKeys.includes(key));
   const missing = required.filter((key) => !configuredValue(settings[key]));
@@ -79,8 +93,26 @@ export function createIntegrationProviderHealthService(input: {
           live: true,
         };
       }
+      if (manifest.id === "communication.email") {
+        // Connect and authenticate without sending: the only way to tell an
+        // administrator their app password works before real mail needs it.
+        const verified = await verifyMailConfiguration(settings);
+        return {
+          providerId: manifest.id,
+          state: "healthy",
+          checkedAt: new Date().toISOString(),
+          latencyMs: Date.now() - startedAt,
+          detail: `Authenticated with ${verified.host}:${verified.port} over ${verified.secure ? "TLS" : "STARTTLS"}; sending as ${verified.fromAddress}.`,
+          live: true,
+        };
+      }
       return { ...base, checkedAt: new Date().toISOString(), latencyMs: Date.now() - startedAt };
     } catch (error) {
+      // A credential the server refuses outright is a configuration fault, not
+      // a transient one; calling it "degraded" would suggest waiting helps.
+      if (error instanceof MailSendError && error.permanent) {
+        return { providerId: manifest.id, state: "misconfigured", checkedAt: new Date().toISOString(), latencyMs: Date.now() - startedAt, detail: error.message.slice(0, 500), live: true };
+      }
       return {
         providerId: manifest.id,
         state: "degraded",

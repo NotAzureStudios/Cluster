@@ -263,10 +263,6 @@
   .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-switch__input,
   .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-field-v546 { min-width: 0; width: 100%; height: 100%; }
 }
-/* Canonical icon boxes: artwork sizes must not move buttons off their centerline. */
-.shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) :is(.cluster-icon-svg, .taskbar-svg-icon-v227) {
-  display: block; flex: 0 0 auto; vertical-align: middle; transform-origin: 50% 50%;
-}
 .shell-unified-v3430 .taskbar-unified-v3430 :is(.cluster-taskbar-action, .taskbar-icon-button-v081) { align-items: center; justify-content: center; }
 
 /* RC15 unified icon grid: same optical box for all three curated icon sets.
@@ -295,7 +291,6 @@
 .shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar__empty { padding: 3px 0 4px 42px; font-size: .68rem; line-height: 1.25; color: var(--cluster-visual-text-muted); }
 /* RC15 account button: old global avatar selectors must not size the copy or badges. */
 .shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { display: inline-flex !important; align-items: center !important; justify-content: flex-start !important; gap: 6px !important; min-width: 0 !important; max-width: 172px !important; overflow: hidden !important; white-space: nowrap !important; }
-.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 :is(.taskbar-profile-copy-v546, .taskbar-profile-copy-v227) { display: flex; flex: 1 1 auto; min-width: 0 !important; max-width: 100%; flex-direction: column; align-items: flex-start; justify-content: center; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
 .shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 :is(.taskbar-profile-copy-v546, .taskbar-profile-copy-v227) :is(strong, small, em) { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 @media (max-width: 1180px) { :root[data-taskbar-labels="auto"] .shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { max-width: 54px !important; justify-content: center !important; } }
 

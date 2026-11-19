@@ -1,6 +1,6 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
 
-import { writePreferenceStorage } from "../../core/privacy-consent";
+import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWindowEvent } from "../../core/window-events";
@@ -57,11 +57,12 @@ import { LoadingState, ScreenLoadingState, BoardLoadingState, WorkspaceLoadingSt
 import { RequestErrorState } from "../../components/RequestState";
 import { SECURITY_PIN_CONFIGURED_EVENT } from "../../core/security-pin";
 import { PublicClusterCover } from "../auth/PublicClusterCover";
+import type { AuthConfig } from "../auth/AuthScreens";
 import { authenticatedEntryScreen } from "../auth/AuthenticatedEntryGate";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
 import { type ToolKey } from "../admin/AdminToolControls";
 import { isStandaloneToolRoute, StandaloneToolRoute } from "./modules/application-standalone-tool-registry";
-import { CalendarPage, ChangelogPage, OperatorAgreementPage, CopyrightCounterNoticePage, CopyrightPolicyPage, CopyrightReportPage, PrivacyPolicyPage, PublicSharePage, SecurityDisclosurePolicyPage, TermsPolicyPage, ThirdPartyDisclosurePage } from "./application-entrypoints";
+import { CalendarPage, ChangelogPage, PublicSharePage } from "./application-entrypoints";
 import type { User, Project, WhiteboardSummary, Board, AppTheme, SetupStatus, Settings, SettingsSection, ServerConfigSection, RecentNavigation } from "./application-models";
 import { boardOptions, projectTypeBadge, writeProjectTypePresetsCache } from "./modules/project-shell-helpers";
 import { ClusterBootError, NavigationOperationalStatus, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
@@ -213,6 +214,10 @@ export default function App() {
     studioName: "",
     organizationLogoUrl: "",
   });
+  // The boot payload carries these for a signed-out visitor, so the sign-in
+  // screen does not fetch its own configuration on a second round trip.
+  const [bootAuthConfig, setBootAuthConfig] = useState<AuthConfig | null>(null);
+  const [applicationsOpen, setApplicationsOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [contextualHelpOpen, setContextualHelpOpen] = useState(false);
@@ -637,6 +642,8 @@ export default function App() {
         const startup = await loadClusterStartup();
         if (startup.setupStatus) setSetupStatus(startup.setupStatus);
         if (startup.user) setUser(startup.user);
+        setBootAuthConfig(startup.authConfig);
+        setApplicationsOpen(startup.applicationsOpen);
         if (startup.error) setBootError(startup.error);
       } finally {
         setLoading(false);
@@ -1262,22 +1269,6 @@ export default function App() {
     setSessionRecoveryMessage(null);
     clearAuthenticatedUiState();
   }
-  const privacyPolicyPath = typeof window !== "undefined" && /^\/legal\/privacy\/?$/.test(window.location.pathname);
-  const termsPolicyPath = typeof window !== "undefined" && /^\/legal\/terms\/?$/.test(window.location.pathname);
-  const operatorAgreementPath = typeof window !== "undefined" && /^\/legal\/operator-agreement\/?$/.test(window.location.pathname);
-  const copyrightPolicyPath = typeof window !== "undefined" && /^\/legal\/copyright\/?$/.test(window.location.pathname);
-  const securityDisclosurePolicyPath = typeof window !== "undefined" && /^\/legal\/security\/?$/.test(window.location.pathname);
-  const thirdPartyDisclosurePath = typeof window !== "undefined" && /^\/legal\/third-parties\/?$/.test(window.location.pathname);
-  const copyrightReportPath = typeof window !== "undefined" && /^\/legal\/copyright\/report\/?$/.test(window.location.pathname);
-  const copyrightCounterPath = typeof window !== "undefined" && /^\/legal\/copyright\/counter\/?$/.test(window.location.pathname);
-  if (privacyPolicyPath) return <PrivacyPolicyPage />;
-  if (termsPolicyPath) return <TermsPolicyPage />;
-  if (operatorAgreementPath) return <OperatorAgreementPage />;
-  if (copyrightReportPath) return <CopyrightReportPage />;
-  if (copyrightCounterPath) return <CopyrightCounterNoticePage />;
-  if (copyrightPolicyPath) return <CopyrightPolicyPage />;
-  if (securityDisclosurePolicyPath) return <SecurityDisclosurePolicyPage />;
-  if (thirdPartyDisclosurePath) return <ThirdPartyDisclosurePage />;
   if (loading) return <WorkspaceLoadingState />;
   if (shareToken) return <PublicSharePage token={shareToken} />;
   if (bootError) return <ClusterBootError error={bootError} onRetry={() => { setLoading(true); setBootError(null); setBootAttempt((current) => current + 1); }} />;
@@ -1300,7 +1291,8 @@ export default function App() {
   }
   if (signedOutKiosk) return <LazyFeatureBoundary label="Kiosk"><LazySignedOutKioskPage exitShortcut={nativeKioskExitShortcut} /></LazyFeatureBoundary>;
   if (!user) {
-    return <PublicClusterCover recoveryMessage={sessionRecoveryMessage} onLogin={(loggedInUser) => {
+    return <PublicClusterCover recoveryMessage={sessionRecoveryMessage} authConfig={bootAuthConfig} applicationsOpen={applicationsOpen}
+      studioName={setupStatus?.studioName || ""} onRetryAuthConfig={() => setBootAttempt((attempt) => attempt + 1)} onLogin={(loggedInUser) => {
       setUser(loggedInUser as User);
       setSessionRecoveryMessage(null);
     }} />;

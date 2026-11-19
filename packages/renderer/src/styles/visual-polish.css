@@ -102,12 +102,11 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 .cluster-tool-page-v228,
 .settings-page-v092,
 .server-config-page-v094 { padding: 20px; } }
-@media  (max-width: 900px) {     .nav-admin-section-v228 { grid-column: 1 / -1; }  }
 @media  (max-width: 640px) { .page,
 .cluster-tool-page-v228,
 .settings-page-v092,
 .server-config-page-v094 { padding: 14px; } .page-header,
-.standard-header-v043 { align-items: stretch; flex-direction: column; }     .nav-admin-section-v228 { grid-column: auto; } .modal-backdrop, .workspace-detail-backdrop-v254 { padding: 8px; } .modal, [role="dialog"] { border-radius: 9px; } .toast { right: 10px; top: 66px; max-width: calc(100vw - 20px); } }
+.standard-header-v043 { align-items: stretch; flex-direction: column; } .modal-backdrop, .workspace-detail-backdrop-v254 { padding: 8px; } .modal, [role="dialog"] { border-radius: 9px; } .toast { right: 10px; top: 66px; max-width: calc(100vw - 20px); } }
 
 .nav-projects-toggle-v046 > span { flex: 1 1 auto; text-align: left; }
 .nav-projects-toggle-v046 > em { min-width: 24px; padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--panel-2) 80%, transparent); color: var(--muted); font-style: normal; font-size: 10px; text-align: center; }
@@ -181,7 +180,6 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 :root[data-density="comfortable"] .people-list-v244 > button, :root[data-density="comfortable"] .notification-date-group-v252 > article, :root[data-density="comfortable"] .admin-tool-access-list-v235 > article, :root[data-density="comfortable"] .tickets-row-v184 { min-height: 62px; }
 @media  (max-width: 760px) { .cluster-data-toolbar-v289 { grid-template-columns: 1fr; align-items: stretch; } .cluster-data-filters-v289 { display: grid; grid-template-columns: 1fr 1fr; } .cluster-data-filters-v289 .field { min-width: 0; } .cluster-data-count-v289 { justify-self: start; } }
 
-
 /* WIP23: one quieter search-field language across Cluster. Search should read as a tool, not a random form control. */
 :where(.cluster-text-input-v491[type="search"], .cluster-input-v495[type="search"], .global-search-input-v121, .project-section-search-v312) {
   -webkit-appearance: none;
@@ -232,34 +230,9 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 }
 .global-search-input-v121 { width: 100%; padding-inline: 12px; }
 .project-section-search-v312 { padding-inline: 10px; }
-
-/* WIP23: Project Detail header is intentionally flatter and shorter. The overview owns the dashboard metrics. */
-.cluster-project-detail-workspace .project-hero-converged-v495 {
-  gap: 7px;
-  padding: 10px 12px 8px;
-  border-radius: 10px;
-}
-.cluster-project-detail-workspace .project-header-grid-v495 {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-.cluster-project-detail-workspace .project-title-stack-v495 { grid-column: 1; grid-row: 1; }
-.cluster-project-detail-workspace .project-hero-actions-v495 { grid-column: 2; grid-row: 1; }
 .cluster-project-detail-workspace .project-title-stack-v495 h1 {
   margin-block: 1px 3px;
   font-size: clamp(1.38rem, 2vw, 2rem);
-}
-.project-header-meta-v523 {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px 10px;
-  min-width: 0;
-  color: var(--muted);
-  font-size: .68rem;
 }
 .project-header-meta-v523 > span {
   display: inline-flex;
@@ -269,7 +242,6 @@ details > summary:hover { background: var(--cluster-hover-surface); }
   white-space: nowrap;
 }
 .project-header-meta-v523 strong { color: var(--text); font-size: .7rem; font-weight: 700; }
-.project-header-updated-v523 { justify-self: end; margin-top: -2px; color: var(--muted); font-size: .62rem; }
 .cluster-project-detail-workspace .project-workspace-nav-current.project-workspace-nav-compact-v495 {
   padding: 3px;
   border-radius: 9px;
@@ -281,13 +253,6 @@ details > summary:hover { background: var(--cluster-hover-surface); }
   padding: 5px 9px;
 }
 .project-review-flow-v523 > small { color: var(--muted); text-transform: capitalize; }
-@media (max-width: 760px) {
-  .cluster-project-detail-workspace .project-header-grid-v495 { grid-template-columns: minmax(0, 1fr); }
-  .cluster-project-detail-workspace .project-title-stack-v495 { grid-column: 1; grid-row: 1; }
-  .cluster-project-detail-workspace .project-hero-actions-v495 { grid-column: 1; grid-row: 2; justify-content: flex-start; }
-  .project-header-meta-v523 { grid-column: 1; grid-row: 3; gap: 5px 8px; }
-  .project-header-updated-v523 { justify-self: start; }
-}
 
 /* WIP31: native file pickers never own Cluster's visible chrome. */
 .cluster-file-input-v475,

@@ -27,15 +27,11 @@ model User {
   firstLoginCompletedAt DateTime?
   employeeNumber String?  @unique
   displayName    String?
-  email          String?
+  email          String?  @unique
+  emailVerifiedAt DateTime?
   avatarUrl      String?
   personalAccentColor String?
   preferences    String   @default("{}")
-  privacyConsent  PrivacyConsentPreference?
-  privacyDataRequests PrivacyDataRequest[]
-  privacyLegalHolds PrivacyLegalHold[]
-  policyAcceptances PolicyAcceptance[]
-  behavioralAnalyticsEvents BehavioralAnalyticsEvent[]
   notificationInboxItems NotificationInboxItem[]
   notificationDigestDeliveries NotificationDigestDelivery[]
   studioFormReminderDeliveries StudioFormReminderDelivery[]
@@ -54,6 +50,7 @@ model User {
   preferredName  String?
   pronouns       String?
   phoneNumber    String?
+  phoneLookup    String?  @unique
   alternatePhoneNumber String?
   alternateEmails String @default("[]")
   addressLine1   String?
@@ -3665,351 +3662,20 @@ model AppSetting {
 
 
 
-model BehavioralAnalyticsProvider {
-  id                 String   @id
-  name               String
-  adapter            String   @default("cluster_first_party")
-  purpose            String
-  dataCategoriesJson String   @default("[]")
-  enabled            Boolean  @default(false)
-  collectScreenViews Boolean  @default(true)
-  collectFeatureActions Boolean @default(false)
-  reviewedAt         DateTime?
-  reviewedById       String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  events             BehavioralAnalyticsEvent[]
 
-  @@index([enabled, reviewedAt])
-  @@index([adapter])
-}
 
-model BehavioralAnalyticsEvent {
-  id         String   @id @default(cuid())
-  providerId String
-  userId     String
-  eventName  String
-  surface    String
-  client     String
-  occurredAt DateTime
-  createdAt  DateTime @default(now())
-  provider   BehavioralAnalyticsProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([providerId, createdAt])
-  @@index([userId, createdAt])
-  @@index([eventName, createdAt])
-  @@index([surface, createdAt])
-}
 
-model PrivacyConsentPreference {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  schemaVersion   Int      @default(1)
-  noticeVersion   String
-  preferences     Boolean  @default(false)
-  analytics       Boolean  @default(false)
-  externalContent Boolean  @default(false)
-  source          String   @default("web")
-  decidedAt       DateTime @default(now())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([noticeVersion, updatedAt])
-}
 
-model PrivacyDataRequest {
-  id             String   @id @default(cuid())
-  userId         String
-  requestType    String
-  status         String   @default("pending")
-  note           String?
-  resolutionNote String?
-  requestedAt    DateTime @default(now())
-  resolvedAt     DateTime?
-  cancelledAt    DateTime?
-  approvedAt     DateTime?
-  fulfilledAt    DateTime?
-  fulfilledById  String?
-  fulfillmentMode String?
-  fulfillmentDigest String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  erasureReceipt PrivacyErasureReceipt?
 
-  @@index([userId, status, requestedAt])
-  @@index([requestType, status, requestedAt])
-}
 
-model PrivacyLegalHold {
-  id             String   @id @default(cuid())
-  userId         String
-  reason         String
-  authorityRef   String?
-  status         String   @default("active")
-  createdById    String
-  releasedById   String?
-  releaseNote    String?
-  createdAt      DateTime @default(now())
-  releasedAt     DateTime?
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Restrict)
 
-  @@index([userId, status, createdAt])
-  @@index([status, createdAt])
-}
 
-model PrivacyErasureReceipt {
-  id             String   @id @default(cuid())
-  requestId      String   @unique
-  userId         String
-  subjectKey     String
-  mode           String   @default("pseudonymize")
-  planHash       String
-  resultJson     String   @default("{}")
-  evidenceHash   String
-  actorUserId    String
-  createdAt      DateTime @default(now())
-  request        PrivacyDataRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
 
-  @@index([userId, createdAt])
-  @@index([actorUserId, createdAt])
-}
 
-model ThirdPartyDisclosureProvider {
-  id                 String   @id @default(cuid())
-  sourceKey          String?  @unique
-  name               String
-  category           String
-  purpose            String
-  dataCategoriesJson String   @default("[]")
-  recipientRole      String   @default("unclassified")
-  feature            String?
-  consentCategory    String?
-  privacyUrl         String?
-  termsUrl           String?
-  regionsJson        String   @default("[]")
-  retentionNote      String?
-  transferNote       String?
-  operatorNote       String?
-  required           Boolean  @default(false)
-  status             String   @default("active")
-  publicVisible      Boolean  @default(false)
-  reviewedAt         DateTime?
-  reviewedById       String?
-  createdById        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
 
-  @@index([status, publicVisible])
-  @@index([category])
-  @@index([reviewedAt])
-}
 
-model LegalPolicyVersion {
-  id            String   @id @default(cuid())
-  kind          String
-  version       String
-  title         String
-  summary       String?
-  bodyMarkdown  String
-  metadataJson  String?
-  contentHash   String
-  status        String   @default("draft")
-  effectiveAt   DateTime?
-  publishedAt   DateTime?
-  createdById   String?
-  publishedById String?
-  acceptanceMode String @default("none")
-  acceptanceAudience String @default("all_users")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  acceptances   PolicyAcceptance[]
-
-  @@unique([kind, version])
-  @@index([kind, status, effectiveAt])
-  @@index([kind, publishedAt])
-  @@index([contentHash])
-}
-
-model PolicyAcceptance {
-  id                 String   @id @default(cuid())
-  userId             String?
-  subjectUsername    String
-  subjectPolicyKey   String   @unique
-  policyId           String
-  policyKind         String
-  policyVersion      String
-  policyContentHash  String
-  acceptanceMode     String
-  acceptanceAudience String
-  requirementHash    String
-  acceptedAt         DateTime @default(now())
-  sessionId          String?
-  authMethod         String?
-  ipAddress          String?
-  userAgent          String?
-  source             String   @default("web")
-  requestId          String?
-  evidenceHash       String   @unique
-  createdAt          DateTime @default(now())
-
-  user   User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  policy LegalPolicyVersion @relation(fields: [policyId], references: [id], onDelete: Restrict)
-
-  @@index([policyId, acceptedAt])
-  @@index([userId, acceptedAt])
-  @@index([policyKind, policyVersion])
-}
-
-model CopyrightCase {
-  id                        String   @id @default(cuid())
-  publicReference           String   @unique
-  publicTokenHash           String   @unique
-  jurisdiction              String   @default("us_dmca")
-  status                    String   @default("submitted")
-  reporterName              String
-  reporterEmail             String
-  reporterCompany           String?
-  reporterAddress           String
-  reporterPhone             String?
-  copyrightOwnerName        String
-  authorizedAgent           Boolean  @default(false)
-  copyrightWorkDescription  String
-  infringingMaterialDescription String
-  infringingLocation        String
-  resourceType              String?
-  resourceId                String?
-  resourceUrl               String?
-  uploaderUserId            String?
-  reviewerUserId            String?
-  signatureText             String
-  goodFaithAttested         Boolean  @default(false)
-  accuracyAuthorityAttested Boolean  @default(false)
-  noticeHash                String
-  needsInfoNote             String?
-  submittedAt               DateTime @default(now())
-  acknowledgedAt            DateTime?
-  disabledAt                DateTime?
-  restoredAt                DateTime?
-  legalActionReceivedAt     DateTime?
-  closedAt                  DateTime?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime @updatedAt
-  counterNotice             CopyrightCounterNotice?
-  evidence                  CopyrightEvidence[]
-  events                    CopyrightCaseEvent[]
-  restriction               CopyrightResourceRestriction?
-  strikes                   CopyrightStrike[]
-
-  @@index([status, submittedAt])
-  @@index([reporterEmail, submittedAt])
-  @@index([resourceType, resourceId])
-  @@index([uploaderUserId, submittedAt])
-  @@index([reviewerUserId, status])
-}
-
-model CopyrightCounterNotice {
-  id                    String   @id @default(cuid())
-  caseId                String   @unique
-  submitterUserId       String?
-  submitterName         String
-  submitterEmail        String
-  submitterAddress      String
-  submitterPhone        String?
-  signatureText         String
-  materialDescription   String
-  previousLocation      String
-  mistakeAttested       Boolean  @default(false)
-  jurisdictionAttested  Boolean  @default(false)
-  serviceAttested       Boolean  @default(false)
-  contentHash           String
-  status                String   @default("submitted")
-  submittedAt           DateTime @default(now())
-  forwardedAt           DateTime?
-  restorationEligibleAt DateTime?
-  restorationDeadlineAt DateTime?
-  legalActionReceivedAt DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  case                  CopyrightCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  evidence              CopyrightEvidence[]
-
-  @@index([status, submittedAt])
-  @@index([submitterUserId, submittedAt])
-  @@index([restorationDeadlineAt])
-}
-
-model CopyrightEvidence {
-  id              String   @id @default(cuid())
-  caseId          String
-  counterNoticeId String?
-  evidenceType    String   @default("supporting")
-  originalName    String
-  storedName      String
-  mimeType        String
-  sizeBytes       Int
-  sha256          String
-  createdAt       DateTime @default(now())
-  case            CopyrightCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  counterNotice   CopyrightCounterNotice? @relation(fields: [counterNoticeId], references: [id], onDelete: Cascade)
-
-  @@index([caseId, createdAt])
-  @@index([counterNoticeId, createdAt])
-  @@index([sha256])
-}
-
-model CopyrightCaseEvent {
-  id          String   @id @default(cuid())
-  caseId      String
-  actorUserId String?
-  eventType   String
-  audience    String   @default("internal")
-  message     String
-  metadata    String   @default("{}")
-  createdAt   DateTime @default(now())
-  case        CopyrightCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@index([caseId, createdAt])
-  @@index([eventType, createdAt])
-}
-
-model CopyrightResourceRestriction {
-  id             String   @id @default(cuid())
-  caseId         String   @unique
-  resourceType   String
-  resourceId     String
-  state          String   @default("disabled")
-  disabledAt     DateTime @default(now())
-  disabledById   String?
-  restoredAt     DateTime?
-  restoredById   String?
-  reason         String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  case           CopyrightCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@index([resourceType, resourceId, state])
-  @@index([state, updatedAt])
-}
-
-model CopyrightStrike {
-  id           String   @id @default(cuid())
-  caseId       String
-  userId       String
-  status       String   @default("active")
-  reason       String?
-  createdById  String?
-  rescindedById String?
-  createdAt    DateTime @default(now())
-  rescindedAt  DateTime?
-  case         CopyrightCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@unique([caseId, userId])
-  @@index([userId, status, createdAt])
-}
 
 
 

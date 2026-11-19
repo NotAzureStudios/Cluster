@@ -1,4 +1,4 @@
-.search-command-backdrop-v294{padding:clamp(32px,8vh,88px) 16px 24px;background:rgba(4,8,12,.62);backdrop-filter: blur(12px)}
+
 .search-command-palette-v294 {
   width: min(820px, calc(100vw - 32px));
   max-height: min(780px, calc(100vh - 48px));
@@ -184,9 +184,7 @@
 }
 
 @media  (max-width: 720px) {
-  .search-command-backdrop-v294 { padding: 12px; }
   .search-command-palette-v294 { width: 100%; max-height: calc(100vh - 24px); border-radius: 14px; }
-
 
   .search-command-status-v294 { align-items: flex-start; flex-direction: column; gap: 2px; }
 }
@@ -389,9 +387,7 @@
 @media  (max-width: 720px) {
   .search-command-input-v294 { grid-template-columns: auto minmax(0, 1fr) auto; }
 
-
 }
-
 
 /* Phase D: unified search + command mode, v0.415. */
 .search-mode-strip-v415 {
@@ -435,7 +431,6 @@
 .search-diagnostics-v495 strong { font-size:12px; }
 .search-diagnostics-v495 span { font-size:11px; color:var(--text-muted); }
 @media  (max-width: 860px) { .search-diagnostics-v495 { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-
 
 /* Block E2 v0.495: hardening, command discovery, degraded mode, and touch/focus ergonomics. */
 .search-degraded-v495 {
@@ -494,10 +489,6 @@
   .search-degraded-v495 { align-items: flex-start; }
 }
 @media  (max-width: 520px) {
-  .search-command-backdrop-v294 {
-    padding: 0;
-    align-items: stretch;
-  }
   .search-command-palette-v294 {
     width: 100vw;
     height: 100dvh;
@@ -521,23 +512,6 @@
   .search-command-results-v294 > button { grid-template-columns: 64px minmax(0,1fr) auto; }
   .search-result-copy-v495 em, .search-result-copy-v495 small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
-
-/* WIP22: command palette is a viewport overlay, not a child of the application grid. */
-.search-command-backdrop-v294 {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 1800 !important;
-  box-sizing: border-box;
-  display: grid !important;
-  place-items: start center;
-  width: 100vw;
-  min-width: 0;
-  height: 100dvh;
-  min-height: 100dvh;
-  overflow: auto;
-  overscroll-behavior: contain;
-  isolation: isolate;
-}
 .search-command-palette-v294 {
   min-width: 0;
   margin: 0 auto;
@@ -549,10 +523,6 @@
 .search-result-group-v431 {
   background-color: color-mix(in srgb, var(--panel-strong, var(--panel)) 94%, transparent);
 }
-@media (max-width: 520px) {
-  .search-command-backdrop-v294 { place-items: stretch; }
-}
-
 
 /* WIP29: selected search results should read as a row highlight, not a thick outlined card. */
 .search-command-results-v294 > button:hover,

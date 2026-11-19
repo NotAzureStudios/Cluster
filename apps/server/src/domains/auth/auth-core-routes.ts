@@ -1,3 +1,4 @@
+import { looksLikeEmail, normalizeLoginEmail, normalizePhoneLookup } from "@cluster/shared";
 import crypto from "node:crypto";
 import { z } from "zod";
 import type { AuthRouteDependencies } from "./auth-types.js";
@@ -9,6 +10,7 @@ import { issueSecurityVerification, nextAuthenticationGeneration, nextVerificati
 import { verifyWebAuthnAssertion, webAuthnRpFromOrigin } from "./webauthn.js";
 import { desktopSessionHandoffAllowed } from "./desktop-session-handoff.js";
 import { PASSWORD_MIN_LENGTH } from "../../core/auth.js";
+import { buildClusterAuthConfig } from "../../core/auth-config.js";
 
 export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
   const notificationService = deps.notificationService;
@@ -65,37 +67,29 @@ export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
     while (desktopSessionCodes.size > DESKTOP_SESSION_CODE_LIMIT) desktopSessionCodes.delete(desktopSessionCodes.keys().next().value as string);
   }
 
-  function normalizedPhone(value: unknown) {
-    const raw = String(value || "").trim();
-    const digits = raw.replace(/\D/g, "");
-    return digits.length >= 7 ? digits : "";
-  }
-
   async function resolveLoginIdentity(identifierValue: unknown) {
     const identifier = String(identifierValue || "").normalize("NFKC").trim();
     if (!identifier) return null;
-    const candidates: any[] = [];
+
+    // Three indexed equality lookups at most. This used to read up to 5,000
+    // users with any phone number and filter them in memory on every attempt
+    // whose identifier held seven or more digits, numeric usernames included.
+    if (looksLikeEmail(identifier)) {
+      const email = normalizeLoginEmail(identifier);
+      return email ? await (prisma as any).user.findUnique({ where: { email } }) : null;
+    }
+
     try {
       const username = normalizeAuthUsername(identifier);
       const user = await (prisma as any).user.findUnique({ where: { username } });
-      if (user) candidates.push(user);
+      if (user) return user;
     } catch {
-      // Email and phone identifiers do not need to satisfy the username grammar.
+      // Phone numbers do not have to satisfy the username grammar.
     }
-    if (identifier.includes("@")) {
-      const emailUsers = await (prisma as any).user.findMany({ where: { email: { equals: identifier, mode: "insensitive" } }, take: 3 });
-      candidates.push(...emailUsers);
-    }
-    const phone = normalizedPhone(identifier);
-    if (phone) {
-      const phoneUsers = await (prisma as any).user.findMany({
-        where: { OR: [{ phoneNumber: { not: null } }, { alternatePhoneNumber: { not: null } }] },
-        take: 5000,
-      });
-      candidates.push(...phoneUsers.filter((user: any) => [user.phoneNumber, user.alternatePhoneNumber].some((value) => normalizedPhone(value) === phone)));
-    }
-    const unique = [...new Map(candidates.map((user) => [user.id, user])).values()];
-    return unique.length === 1 ? unique[0] : null;
+
+    const phoneLookup = normalizePhoneLookup(identifier);
+    if (!phoneLookup) return null;
+    return await (prisma as any).user.findUnique({ where: { phoneLookup } });
   }
 
   async function adminRecipientIds() {
@@ -107,24 +101,16 @@ export function registerAuthCoreRoutes(deps: AuthRouteDependencies) {
     return [...new Set(rows.map((row: any) => String(row.userId)))];
   }
 
-app.get("/api/auth/config", async () => {
-  const instanceSetup = await inspectInstanceSetup(prisma);
-  return {
-    passwordLoginEnabled: true,
-    discordConfigured: isDiscordConfigured(),
-    discordLinkRequired: REQUIRE_DISCORD_LINK,
-    devLoginEnabled: DEV_LOGIN_ENABLED,
-    discordLinkUrl: "/api/auth/discord/link",
-    ownerSetupRequired: instanceSetup.setupRequired,
-    ownerSetupReason: instanceSetup.reason,
-    passwordReadyAdministratorCount: instanceSetup.passwordReadyAdministratorCount,
-    setupLauncherName: process.platform === "win32" ? "ClusterServer.exe --recover-owner" : "docker compose logs cluster",
-    passwordPolicy: {
-      minimumLength: PASSWORD_MIN_LENGTH,
-      maximumLength: PASSWORD_MAX_LENGTH,
-    },
-  };
-});
+// The boot payload carries these same values, so both answer from one builder.
+app.get("/api/auth/config", async () => buildClusterAuthConfig({
+  prisma,
+  inspectInstanceSetup,
+  isDiscordConfigured,
+  requireDiscordLink: REQUIRE_DISCORD_LINK,
+  devLoginEnabled: DEV_LOGIN_ENABLED,
+  passwordMinimumLength: PASSWORD_MIN_LENGTH,
+  passwordMaximumLength: PASSWORD_MAX_LENGTH,
+}));
 
 app.post("/api/auth/desktop-session-code", async (request, reply) => {
   const session = await getCurrentSession(request);

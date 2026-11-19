@@ -2,6 +2,11 @@
  * renderer's offline account identity. An MFA factor, device, session or
  * recovery-record ID is never an account ID. */
 const IDENTITY_RESPONSES = new Set([
+  // The boot payload reports who you are in place of /api/me, so it binds the
+  // offline account identity the same way. Without this the scope would stay
+  // "anonymous" for a signed-in person and every offline cache would be
+  // written to the wrong scope.
+  "/api/bootstrap",
   "/api/auth/login",
   "/api/auth/mfa/challenge",
   "/api/auth/mfa/passkeys/challenge",

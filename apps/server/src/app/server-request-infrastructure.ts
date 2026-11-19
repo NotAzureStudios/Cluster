@@ -10,7 +10,6 @@ import { accountNextStep, accountStateAllowsWorkspace, REAUTH_WINDOW_MS, session
 import { normalizeHttpError } from "../core/http-errors.js";
 import { assessRuntimeSaturation } from "../core/operational-health.js";
 import type { ResourceGovernor } from "../core/resource-governor.js";
-import { ensureSessionPolicyAcceptance } from "../core/policy-acceptance.js";
 import { apiTransportRateLimitPolicy, authTransportRateLimitPolicy, boundedPayloadStream, requestWorkPolicy, userScopedRateLimitPolicy } from "../core/request-workload.js";
 import { hasValidSecurityVerification, highRiskSecurityVerificationPurpose, strongerVerificationStrength } from "../core/security-verification.js";
 import { normalizeStudioSecurityPolicy, securityPolicyHighRiskVerificationStrength } from "../core/studio-security-policy.js";
@@ -467,13 +466,10 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       sessionDefaults: { sessionDays, sessionIdleHours, sessionMaxPerUser }, reply, onUserSessionsRevoked, clearSessionCookies,
     })) return;
 
-    if (!policy.pathname.startsWith("/api/legal/acceptance")) {
-      const acceptance = await ensureSessionPolicyAcceptance(prisma, session, Boolean(decorated?.isAdmin));
-      if (!acceptance.complete) {
-        reply.code(428).send({ ok: false, code: "POLICY_ACCEPTANCE_REQUIRED", error: "Review and accept the current required policy versions before continuing.", action: "Open the policy review screen, review each current version, then record your acknowledgement or acceptance.", retryable: false, acceptance: { schemaVersion: acceptance.schemaVersion, pending: acceptance.pending } });
-        return;
-      }
-    }
+    // Studio policies are enforced by StudioPolicyGate against
+    // /api/studio-policies, which is the system with an editor behind it. The
+    // retired LegalPolicyVersion gate used to run a database check on every
+    // single request to this server.
 
     const hasPrivilegedConfigAccess = Boolean(
       decorated?.isAdmin

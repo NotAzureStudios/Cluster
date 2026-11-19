@@ -305,16 +305,6 @@
   text-align: center !important;
 }
 
-#cluster-sidebar .cluster-sidebar__projects-toggle > .sidebar-chevron-v289 {
-  display: block !important;
-  width: 14px !important;
-  min-width: 14px !important;
-  height: 14px !important;
-  min-height: 14px !important;
-  overflow: visible !important;
-  color: var(--cluster-shell-muted) !important;
-}
-
 #cluster-sidebar .cluster-sidebar__project-list {
   box-sizing: border-box !important;
   display: grid !important;
@@ -497,16 +487,7 @@
   min-height: 82px !important;
   padding-inline: 0 !important;
 }
-
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__brand,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section > span,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__subhead,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon),
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle > em,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle > .sidebar-chevron-v289,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__project-list,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-name-v201,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 strong {
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__brand, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__section > span, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__subhead, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon), :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__projects-toggle > em, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__project-list, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-name-v201, :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__footer .app-version-footer-v201 strong{
   display: none !important;
 }
 
@@ -647,7 +628,6 @@
 #cluster-sidebar .cluster-sidebar__section { border-top:0 !important; }
 #cluster-sidebar .cluster-sidebar__section + .cluster-sidebar__section { margin-top:2px !important; }
 
-
 /* WIP28: compact sidebar must remain an icon rail, not an empty strip. This block intentionally
    owns the final cascade after legacy shell rules. */
 :root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__header .cluster-sidebar__logo {
@@ -664,8 +644,7 @@
   min-height: 82px !important;
   padding: 6px 0 !important;
 }
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .sidebar-icon-slot-v344 {
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon{
   display: inline-grid !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -717,12 +696,7 @@
   padding: 0 !important;
   margin: 0 auto !important;
 }
-/* The earlier WIP24 rule hid every direct span, including the icon wrapper. Only label spans belong hidden. */
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > span:not(.cluster-sidebar__icon):not(.sidebar-icon-slot-v344) {
-  display: none !important;
-}
-#cluster-sidebar .cluster-sidebar__icon,
-#cluster-sidebar .sidebar-icon-slot-v344 {
+#cluster-sidebar .cluster-sidebar__icon{
   line-height: 0 !important;
   vertical-align: middle !important;
 }
@@ -738,7 +712,6 @@
   translate: none !important;
   vertical-align: middle !important;
 }
-
 
 /* WIP29: flattened navigation, subtler selection, and optical icon alignment. */
 #cluster-sidebar .cluster-sidebar__section > span,
@@ -776,8 +749,7 @@
 #cluster-sidebar .cluster-sidebar__link[aria-current="page"] .cluster-sidebar__icon {
   background: transparent !important;
 }
-#cluster-sidebar .cluster-sidebar__icon,
-#cluster-sidebar .sidebar-icon-slot-v344 {
+#cluster-sidebar .cluster-sidebar__icon{
   width: 24px !important;
   min-width: 24px !important;
   height: 24px !important;

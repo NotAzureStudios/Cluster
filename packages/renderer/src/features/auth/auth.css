@@ -36,11 +36,6 @@
 .managed-auth-legal-v362 a { color: var(--muted-text, #8d96a7); text-decoration: none; white-space: nowrap; }
 .managed-auth-legal-v362 a:hover { color: var(--accent-color, var(--cluster-cyan-400)); text-decoration: underline; }
 
-
-
-
-
-
 .managed-auth-internal-v445{color:var(--muted-text);opacity:.78;white-space:nowrap}.managed-auth-internal-v445::after{content:"·";margin-left:10px;opacity:.65}
 
 /* v0.473 identity and recovery */
@@ -62,7 +57,6 @@
 .managed-auth-first-use-v11 p {
   margin: 8px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5;
 }
-
 
 /* v1.1 authentication entry: intentional visual hierarchy, compact copy and
    studio-neutral branding. No additional network/assets or decorative motion. */
@@ -100,10 +94,8 @@
 .cluster-auth-entry-card-v11 .managed-auth-brand-row:has(.managed-auth-server-switch){justify-content:flex-end}
 .cluster-auth-entry-card-v11 .managed-auth-server-switch{width:min(280px,100%);margin-left:auto}
 .cluster-auth-entry-card-v11 .managed-auth-server-switch strong{max-width:195px}
-.cluster-auth-entry-card-v11 .cluster-auth-back-v11{align-self:flex-start}
 .cluster-auth-entry-card-v11 .cluster-auth-step-v11{color:var(--muted);font-size:.76rem;margin:0}
 .cluster-auth-entry-card-v11 .cluster-auth-passkey-v11{width:100%;min-height:42px}
-.cluster-auth-entry-card-v11 .cluster-auth-inline-error-v11{margin:0;font-size:.78rem}
 .cluster-auth-entry-card-v11 .cluster-auth-inline-status-v11{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted);padding:9px 10px;border:1px solid var(--border);border-radius:9px}
 .cluster-auth-entry-card-v11 button:focus-visible,.cluster-auth-entry-card-v11 a:focus-visible,.cluster-auth-entry-card-v11 summary:focus-visible{outline:2px solid var(--cluster-brand-blue,#57c1ff);outline-offset:3px}
 .cluster-auth-entry-card-v11 .managed-auth-first-use-v11{padding:10px 12px;background:var(--surface,var(--ds-surface-raised));}
@@ -128,7 +120,6 @@
   .cluster-auth-entry-card-v11 .managed-auth-brand-row:empty{display:none}
 }
 @media(prefers-reduced-motion:reduce){.cluster-auth-entry-v11 *{scroll-behavior:auto}}
-
 
 /* First-login stage navigation is informational; step changes remain governed
    by the existing server-backed onboarding progress workflow. */

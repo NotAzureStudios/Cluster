@@ -54,6 +54,14 @@ export type SettingPayload = Record<string, unknown> & PacketsSettingsPayload & 
   discordAdminRoleId?: string;
   discordApplicationId?: string;
   discordApplicationPublicKey?: string;
+  /** Outbound SMTP. mailPassword is encrypted at rest and never returned. */
+  mailEnabled?: boolean;
+  mailHost?: string;
+  mailPort?: number;
+  mailUsername?: string;
+  mailPassword?: string;
+  mailFromAddress?: string;
+  mailFromName?: string;
   notifyCardCreated?: boolean;
   notifyCardMoved?: boolean;
   notifyCardCompleted?: boolean;

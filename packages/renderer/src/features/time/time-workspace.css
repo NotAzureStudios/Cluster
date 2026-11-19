@@ -74,11 +74,9 @@
 .time-form-grid-v212 select:focus,
 .time-form-grid-v212 textarea:focus { border-color: var(--time-accent); box-shadow: 0 0 0 3px var(--time-accent-soft); }
 
-
 .time-clock-actions-v212 { display: flex; justify-content: flex-end; gap: 8px; white-space: nowrap; align-items: center; }
 
 .time-clock-primary-v212 { min-width: 112px; }
-
 
 .time-message-v212 { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--time-accent) 35%, var(--border)); border-radius: 10px; background: var(--time-accent-soft); color: var(--text); font-size: .82rem; }
 .time-message-v212 button { border: 0; background: transparent; color: var(--muted); cursor: pointer; }
@@ -112,7 +110,6 @@
 .time-ledger-duration-v212 { text-align: right; }
 .time-ledger-duration-v212 strong { font-size: .88rem; }
 
-
 .time-schedule-block-v212 footer button { border: 0; border-radius: 7px; background: var(--surface-2); color: var(--muted); padding: 5px 7px; font-size: .68rem; cursor: pointer; }
 .time-schedule-block-v212 footer button:hover { color: var(--text); }
 .time-schedule-block-v212 footer button.danger { color: var(--time-danger); }
@@ -123,7 +120,6 @@
 .time-summary-card-v212 > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 
 .time-summary-card-v212 > p { margin: 0; color: var(--muted); font-size: .77rem; line-height: 1.5; }
-.time-progress-v212 { height: 7px; margin: 1px 0 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .time-progress-v212 span { display: block; height: 100%; border-radius: inherit; background: var(--time-accent); }
 .time-summary-card-v212 dl { display: grid; gap: 7px; margin: 0; }
 .time-summary-card-v212 dl > div { display: flex; justify-content: space-between; gap: 12px; }
@@ -161,7 +157,6 @@
 .time-schedule-empty-v212 { min-height: 54px; border: 1px dashed var(--border); border-radius: 9px; background: transparent; color: var(--muted); font-size: .72rem; cursor: pointer; }
 .time-schedule-empty-v212:hover { border-color: var(--time-accent); color: var(--time-accent); }
 
-
 .time-dialog-backdrop-v212 { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px; background: rgba(4, 8, 16, .68); backdrop-filter: blur(7px); }
 .time-dialog-v212 { width: min(680px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); box-shadow: 0 24px 80px color-mix(in srgb, var(--cluster-black) 38%, transparent); }
 .time-dialog-v212 > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
@@ -169,7 +164,6 @@
 .time-form-grid-v212 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; padding: 18px; }
 .time-form-grid-v212 textarea { min-height: 84px; resize: vertical; }
 .time-form-wide-v212 { grid-column: 1 / -1; }
-
 
 .time-dialog-v212 > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 18px; border-top: 1px solid var(--border); }
 @media (max-width: 1320px) {
@@ -185,7 +179,6 @@
   .time-week-layout-v212 { grid-template-columns: 1fr; }
   .time-week-sidebar-v212 { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-
 }
 @media (max-width: 760px) {
   .time-workspace-v212 { gap: 11px; }
@@ -197,7 +190,6 @@
   .time-ledger-row-v212 { grid-template-columns: 66px minmax(0, 1fr) 72px; gap: 8px; }
 
   .time-week-sidebar-v212 { grid-template-columns: 1fr; }
-
 
   .time-form-grid-v212 { grid-template-columns: 1fr; }
   .time-form-wide-v212 { grid-column: auto; }
@@ -211,7 +203,6 @@
 .time-workspace-v212 { gap: 11px; }
 .time-week-label-v212 { min-width: 190px; padding: 5px 10px; }
 .time-week-label-v212 span { display: none; }
-
 
 /* Consolidated feature refinements. */
 /* Cluster v0.302: feature-owned legacy compatibility rules. */
@@ -343,9 +334,7 @@
 
 .time-entry-row .row-actions:empty { display: none; }
 
-
 .home-clock-status-v0109 { grid-column: 1 / -1; margin: -2px 6px 0; padding: 8px 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border)); background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--muted); font-size: .78rem; }
-
 
 .clock-modal-backdrop-v113 { align-items: center; justify-content: center; padding: 24px; }
 .clock-intent-modal-v113 { width: min(680px, calc(100vw - 32px)); max-height: min(760px, calc(100vh - 48px)); overflow: auto; display: grid; gap: 18px; }
@@ -357,9 +346,7 @@
 .clock-out-summary-v113 span { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
 .clock-modal-actions-v113 { justify-content: flex-end; }
 
-
 .time-entry-row .soft-pill { align-self: center; }
-
 
 .page-header,
 .page-header.panel,
@@ -368,10 +355,6 @@
 .field label, .clean-form-grid label, .time-form-grid label { margin-bottom: 0 !important; }
 
 .modal-backdrop, .clock-modal-backdrop-v113 { backdrop-filter: blur(10px) !important; }
-
-
-.availability-matrix-v120 { display: grid; gap: var(--space-3, 14px); margin-top: var(--space-3, 14px); }
-.availability-grid-v120 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .availability-grid-v120 button { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); color: var(--text); padding: 12px; display: grid; gap: 5px; text-align: left; cursor: pointer; }
 .availability-grid-v120 button:hover { border-color: var(--accent); transform: translateY(-1px); }
 .availability-grid-v120 span, .availability-grid-v120 em, .availability-grid-v120 small { color: var(--muted); font-style: normal; line-height: 1.35; }
@@ -394,9 +377,7 @@
 .page-header { display: grid !important; } .header-actions,
 .button-row { width: 100%; }  }
 
-
 /* Extracted from legacy-overrides.css for feature ownership. */
-
 
 /* Phase G Scheduler + Time operating polish. */
 .time-capacity-strip-v418 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-bottom: 10px; }
@@ -569,7 +550,6 @@
   .time-schedule-board-v212 { overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; }
   .time-schedule-day-v212 { min-width: min(84vw, 320px); scroll-snap-align: start; }
 }
-
 
 /* WIP57 P16B: preferred workforce availability is positive planning evidence, not a conflict. */
 .time-planning-readiness-v16b { border: 1px solid color-mix(in srgb, var(--success) 45%, var(--border)); border-radius: 12px; padding: 12px; display: grid; gap: 7px; background: color-mix(in srgb, var(--success) 5%, var(--surface)); }

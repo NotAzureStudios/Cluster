@@ -14,20 +14,14 @@
 .admin-settings-map-v123 span { display: block; margin-top: 5px; color: var(--muted); font-size: .84rem; line-height: 1.4; }
 
 @media (max-width: 980px) {
-.time-correction-form-v123,
-.project-budget-form-v123,
-.admin-settings-map-v123 { grid-template-columns: 1fr; }
+.time-correction-form-v123, .admin-settings-map-v123{ grid-template-columns: 1fr; }
 }
 
 .home-widget-settings-v143 {
   display: grid;
   gap: 0;
 }
-
-.work-link-list-v121,
-.project-role-list-v121,
-.meeting-list-v121,
-.audit-row-list-v121 { display: grid; gap: 10px; }
+.work-link-list-v121, .meeting-list-v121, .audit-row-list-v121{ display: grid; gap: 10px; }
 
 .work-link-list-v121 article,
 .project-role-list-v121 article,
@@ -38,9 +32,7 @@
 .project-role-list-v121 article span,
 .meeting-list-v121 article span,
 .audit-row-list-v121 article span { color: var(--muted); }
-
-.work-link-summary-v121,
-.project-role-summary-v121 { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.work-link-summary-v121{ display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 
 .work-link-summary-v121 span,
 .project-role-summary-v121 span { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 999px; padding: 7px 10px; background: var(--surface); color: var(--muted); }
@@ -73,13 +65,10 @@
 .time-correction-list-v123 article span,
 .build-artifact-list-v123 article span,
 .project-budget-list-v123 article span { display: block; color: var(--muted); font-size: .82rem; }
-
-.time-correction-form-v123,
-.project-budget-form-v123 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.time-correction-form-v123{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: end; }
 
 .time-correction-form-v123 .full,
 .project-budget-form-v123 .full { grid-column: 1 / -1; }
-
 
 .build-artifact-list-v123 article { grid-template-columns: minmax(0, 1fr) auto auto; }
 
@@ -284,7 +273,7 @@
 .attachment-kpis-v135 button strong { font-size: 1.5rem; }
 .attachment-form-v135 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; padding: .9rem; border: 1px solid var(--border); border-radius: 20px; background: var(--panel-soft); }
 .attachment-form-v135 .full { grid-column: 1 / -1; }
-.attachment-list-v135, .maintenance-history-v135 { display: grid; gap: .75rem; }
+.attachment-list-v135{ display: grid; gap: .75rem; }
 .attachment-list-v135 article, .maintenance-history-v135 article { border: 1px solid var(--border); background: var(--panel-soft); border-radius: 18px; padding: .9rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: start; }
 .attachment-list-v135 article.needs-review, .maintenance-history-v135 article.review, .maintenance-history-v135 article.queued { border-color: color-mix(in srgb, var(--cluster-amber-500) 45%, transparent); }
 .attachment-list-v135 article.clean, .maintenance-history-v135 article.completed { border-color: rgba(39, 174, 96, .25); }
@@ -361,7 +350,4 @@
   .operations-visual-intelligence-v504 { overflow: hidden; }
   .operations-visual-intelligence-v504 .cluster-pipeline { overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-inline: contain; }
   .operations-visual-intelligence-v504 .cluster-pipeline > li { scroll-snap-align: start; }
-}
-
-/* WIP24 Operations debloat. */
-.operations-summary-grid-v524{grid-template-columns:repeat(3,minmax(150px,1fr)) !important;gap:8px !important}.operations-overview-layout{grid-template-columns:minmax(0,1fr) minmax(260px,320px) !important;gap:10px !important}.operations-action-queue,.operations-system-health{box-shadow:none !important}@media(max-width:980px){.operations-overview-layout{grid-template-columns:1fr !important}}
+}.operations-overview-layout{grid-template-columns:minmax(0,1fr) minmax(260px,320px) !important;gap:10px !important}.operations-action-queue,.operations-system-health{box-shadow:none !important}@media(max-width:980px){.operations-overview-layout{grid-template-columns:1fr !important}}

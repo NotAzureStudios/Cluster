@@ -1,4 +1,4 @@
-import { readPreferenceStorage, writePreferenceStorage } from "../../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 import { CLUSTER_SEARCH_SCOPE_IDS, CLUSTER_SEARCH_SCOPE_MANIFEST, COMMAND_SEARCH_KNOWN_OPERATORS, COMMAND_SEARCH_OPERATOR_ALIASES, type ClusterSearchScope } from "@cluster/shared";
 import type { CommandSearchResultKind } from "../application/application-models";
 

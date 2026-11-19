@@ -37,18 +37,6 @@ import { registerSyncRoutes } from "../domains/sync/sync-routes.js";
 import { registerCalendarRoutes } from "../domains/planning/calendar-routes.js";
 import { registerTimelineRoutes } from "../domains/planning/timeline-routes.js";
 import { registerMetaDiagnosticsRoutes } from "../domains/admin/meta-diagnostics-routes.js";
-import { registerPrivacyPolicyRoutes } from "../domains/legal/privacy-policy-routes.js";
-import { registerTermsPolicyRoutes } from "../domains/legal/terms-policy-routes.js";
-import { registerOperatorAgreementRoutes } from "../domains/legal/operator-agreement-routes.js";
-import { registerCopyrightPolicyRoutes } from "../domains/legal/copyright-policy-routes.js";
-import { registerSecurityDisclosurePolicyRoutes } from "../domains/legal/security-disclosure-policy-routes.js";
-import { registerLegalComplianceRoutes } from "../domains/legal/legal-compliance-routes.js";
-import { registerThirdPartyDisclosureRoutes } from "../domains/legal/third-party-disclosure-routes.js";
-import { registerPolicyAcceptanceRoutes } from "../domains/legal/policy-acceptance-routes.js";
-import { registerCopyrightWorkflowRoutes } from "../domains/legal/copyright-workflow-routes.js";
-import { registerPrivacyConsentRoutes } from "../domains/legal/privacy-consent-routes.js";
-import { registerBehavioralAnalyticsRoutes } from "../domains/legal/behavioral-analytics-routes.js";
-import { registerPrivacyDataRoutes } from "../domains/legal/privacy-data-routes.js";
 import { registerDataRetentionRoutes } from "../domains/legal/data-retention-routes.js";
 import { registerStudioSystemsRoutes } from "../domains/studio-systems/studio-systems-routes.js";
 import { registerStudioOnboardingRoutes, runStudioOnboardingLifecycleTick } from "../domains/studio-systems/studio-onboarding-routes.js";
@@ -116,6 +104,7 @@ import { configureBackgroundJobExecutionAuthorization } from "../domains/jobs/jo
 import { registerServerArchitectureRoutes } from "../domains/admin/server-architecture-routes.js";
 import { createBuiltInIntegrationRegistry } from "../domains/integrations/integration-provider-registry.js";
 import { registerIntegrationRoutes } from "../domains/integrations/integration-routes.js";
+import { registerMailRoutes } from "../domains/integrations/mail-routes.js";
 import { createServerAutomationJobRuntime } from "./server-automation-job-runtime.js";
 import { createServerResourceGovernorRuntime } from "./server-resource-governor-runtime.js";
 import { createServerIntegrationsRuntime } from "./server-integrations-runtime.js";
@@ -144,6 +133,7 @@ import { withDatabaseBootstrapLock } from "../core/database-bootstrap-lock.js";
 import { registerHealthOperationsRoutes } from "./server-routes-health-operations.js";
 import { registerPersistenceRoutes } from "./server-routes-persistence.js";
 import { registerSetupRoutes } from "./server-routes-setup.js";
+import { registerBootstrapRoute } from "./server-routes-bootstrap.js";
 import { registerAccessAndApprovalRoutes } from "./server-routes-access-media.js";
 import { registerMediaWhiteboardRoutes } from "./server-routes-media-whiteboards.js";
 import { registerConfigurationIntegrationRoutes } from "./server-routes-configuration-integrations.js";
@@ -650,18 +640,6 @@ registerMetaDiagnosticsRoutes({
     configuredOriginCount: CONFIGURED_CORS_ORIGINS.size,
   },
 });
-registerPrivacyPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerTermsPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerOperatorAgreementRoutes({ app, prisma, getCurrentUser, readSettings });
-registerCopyrightPolicyRoutes({ app, prisma, getCurrentUser, readSettings });
-registerSecurityDisclosurePolicyRoutes({ app, prisma, getCurrentUser, readSettings, webOrigin: WEB_ORIGIN });
-registerLegalComplianceRoutes({ app, prisma, readSettings, authorization, logSecurityEvent });
-registerThirdPartyDisclosureRoutes({ app, prisma, getCurrentUser, readSettings });
-registerPolicyAcceptanceRoutes({ app, prisma, getCurrentSession, decorateUserForClient, logSecurityEvent });
-registerCopyrightWorkflowRoutes({ app, prisma, dataLayout: DATA_LAYOUT, getCurrentUser, authorization, logActivity, logSecurityEvent });
-registerPrivacyConsentRoutes({ app, prisma, getCurrentUser });
-registerBehavioralAnalyticsRoutes({ app, prisma, getCurrentUser });
-registerPrivacyDataRoutes({ app, prisma, getCurrentUser, getCurrentSession, requireConfirmation, logSecurityEvent, clearSessionCookies, onUserSessionsRevoked, requireDiscordLink: REQUIRE_DISCORD_LINK, authorization });
 registerDataRetentionRoutes({ app, prisma, authorization, readSettings, requireConfirmation, logSecurityEvent });
 registerStudioSystemsRoutes({ app, prisma, authorization, getCurrentUser, logActivity });
 registerStudioOnboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, jobQueue });
@@ -746,6 +724,7 @@ app.addHook("onReady", async () => { mediaWorkerSupervisor.start(); });
 app.addHook("onClose", async () => { await mediaWorkerSupervisor.close(); });
 const productionIntegrations = createServerProductionIntegrationRuntime({ app, prisma, queue: jobQueue, worker: jobWorker, backgroundTasks, readSettings, discordRequest, fetchWithTimeout, notificationService, authorization, getCurrentUser, enforceTargetAccess, localDiscordUrl: `http://${["0.0.0.0", "::", ""].includes(RUNTIME_CONFIG.listenHost) ? "127.0.0.1" : RUNTIME_CONFIG.listenHost === "::1" ? "[::1]" : RUNTIME_CONFIG.listenHost}:${RUNTIME_CONFIG.listenPort}`, repositoriesRoot: DATA_LAYOUT.repositoriesRoot, sourceWorkspacesRoot: DATA_LAYOUT.sourceWorkspacesRoot, dataLayout: DATA_LAYOUT, logActivity });
 registerIntegrationRoutes({ app, prisma, registry: integrationRegistry, readSettings, saveSettings, settingsForClient, authorization, sourceProvider: productionIntegrations.sourceProvider, discordRequest, logActivity });
+registerMailRoutes({ app, authorization, readSettings, logActivity });
 registerUserPreferenceRoutes({ app, prisma, getCurrentUser, decorateUserForClient, normalizePersonalAccent, verifyPassword, hashPassword, verifyUserPin, logSecurityEvent, readSettings });
 registerKioskRoutes({ app, prisma, readSettings, getCurrentSession, decorateUserForClient, verifyPassword, verifyUserPin, dummyPasswordHash, normalizeAuthUsername, rateLimitKey, clearRateLimitKey, authRateLimitMax: AUTH_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, logSecurityEvent, kioskRuntime });
 registerAuthRoutes({
@@ -1121,6 +1100,21 @@ registerPersistenceRoutes({
   requireAdminUserForRequest,
   serializePersistenceRecord,
   validatePersistencePayload
+});
+registerBootstrapRoute({
+  app,
+  decorateUserForClient,
+  devLoginEnabled: DEV_LOGIN_ENABLED,
+  getCurrentUser,
+  getSetupStatus,
+  inspectInstanceSetup,
+  isDiscordConfigured,
+  passwordMaxLength: PASSWORD_MAX_LENGTH,
+  passwordMinLength: PASSWORD_MIN_LENGTH,
+  prisma,
+  readSettings,
+  requireDiscordLink: REQUIRE_DISCORD_LINK,
+  studioSettingsForClient,
 });
 registerSetupRoutes({
   REQUIRE_DISCORD_LINK,

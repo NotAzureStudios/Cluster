@@ -75,6 +75,12 @@ type ServerGovernorRuntimeRead = {
   };
 };
 
+type MailStatusRead = {
+  ok: true;
+  mail: { configured: boolean; reason?: string; host?: string; port?: number; secure?: boolean; username?: string; fromAddress?: string; fromName?: string };
+  guidance: string;
+};
+
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
 
 const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
@@ -474,6 +480,67 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     restart: true,
   },
   {
+    key: "mailEnabled",
+    label: "Send outbound email",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "boolean",
+  },
+  {
+    key: "mailHost",
+    label: "SMTP host",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "text",
+    placeholder: "smtp.gmail.com",
+  },
+  {
+    key: "mailPort",
+    label: "Port",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "number",
+    min: 1,
+    max: 65535,
+    step: 1,
+    placeholder: "587",
+  },
+  {
+    key: "mailUsername",
+    label: "Username (full mailbox address)",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "text",
+    placeholder: "no-reply@example.com",
+    wide: true,
+  },
+  {
+    key: "mailPassword",
+    label: "Password or app password",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "password",
+    placeholder: "Google requires an app password",
+    wide: true,
+  },
+  {
+    key: "mailFromAddress",
+    label: "Send as (defaults to the username)",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "text",
+    placeholder: "no-reply@example.com",
+    wide: true,
+  },
+  {
+    key: "mailFromName",
+    label: "Sender name",
+    section: "integrations",
+    group: "Email (SMTP)",
+    type: "text",
+    placeholder: "Cluster",
+  },
+  {
     key: "autoSeed",
     label: "Seed starter data on empty database",
     section: "storage",
@@ -697,6 +764,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [webhookAllowPrivate, setWebhookAllowPrivate] = useState(false);
   const [webhookAllowHttpPrivate, setWebhookAllowHttpPrivate] = useState(false);
   const [webhookSecret, setWebhookSecret] = useState<{ name: string; value: string } | null>(null);
+  const [mailStatus, setMailStatus] = useState<MailStatusRead | null>(null);
+  const [mailTestTo, setMailTestTo] = useState("");
+  const [mailBusy, setMailBusy] = useState<"verify" | "test" | null>(null);
+  const [mailOutcome, setMailOutcome] = useState<{ ok: boolean; message: string; retryable?: boolean } | null>(null);
   const [operationsLoading, setOperationsLoading] = useState(false);
   const [governorRuntime, setGovernorRuntime] = useState<ServerGovernorRuntimeRead | null>(null);
   const [governorRuntimeLoading, setGovernorRuntimeLoading] = useState(false);
@@ -1082,6 +1153,13 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   async function fetchWebhooks(force = false) {
     return queryApi<{ ok: boolean; endpoints: WebhookEndpointRecord[]; deliveries: WebhookDeliveryRecord[] }>("/api/admin/integrations/webhooks", { force, staleMs: 5_000, maxAgeMs: 2 * 60_000, tags: ["webhooks", "integrations"] }).catch(() => ({ ok: false, endpoints: [], deliveries: [] }));
   }
+  async function fetchMailStatus(force = false) {
+    return queryApi<MailStatusRead>("/api/admin/mail/status", { force, staleMs: 5_000, maxAgeMs: 2 * 60_000, tags: ["mail", "integrations"] })
+      .catch(() => null);
+  }
+  async function refreshMailStatus(force = true) {
+    setMailStatus(await fetchMailStatus(force));
+  }
   async function refreshSessions(force = true) {
     const result = await fetchServerSessions(force); setServerSessions(result.sessions || []);
   }
@@ -1101,7 +1179,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     const sequence = ++operationsRequestSequence.current;
     setOperationsLoading(true);
     try {
-      const [diagnostics, sessionsResult, backupBundle, devicesResult, credentialsResult, policyResult, postureResult, webhooksResult] = await Promise.all([
+      const [diagnostics, sessionsResult, backupBundle, devicesResult, credentialsResult, policyResult, postureResult, webhooksResult, mailResult] = await Promise.all([
         fetchSecurityDiagnostics(force),
         fetchServerSessions(force),
         fetchServerBackups(force),
@@ -1110,6 +1188,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         fetchSecurityPolicy(force),
         fetchSecurityPosture(force),
         fetchWebhooks(force),
+        fetchMailStatus(force),
       ]);
       if (sequence !== operationsRequestSequence.current) return;
       const [backupsResult, readinessResult] = backupBundle;
@@ -1121,6 +1200,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       setServiceCredentials(credentialsResult.credentials || []);
       setWebhookEndpoints(webhooksResult.endpoints || []);
       setWebhookDeliveries(webhooksResult.deliveries || []);
+      setMailStatus(mailResult);
       if (policyResult.ok && policyResult.policy) setSecurityPolicy(policyResult.policy);
       if (postureResult.ok && postureResult.posture) setSecurityPosture(postureResult.posture);
     } catch (error) {
@@ -1213,6 +1293,35 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   async function testWebhookEndpoint(endpoint: WebhookEndpointRecord) {
     await api(`/api/admin/integrations/webhooks/${encodeURIComponent(endpoint.id)}/test`, { method: "POST" });
     setStatus(`Queued a signed test delivery for ${endpoint.name}.`); await refreshWebhooks();
+  }
+  /**
+   * Mail failures are reported in the mail server's own words. An app password
+   * that does not work has to say so here, at setup time, rather than silently
+   * swallowing verification links later.
+   */
+  async function runMailAction(action: "verify" | "test") {
+    setMailBusy(action);
+    setMailOutcome(null);
+    try {
+      if (action === "verify") {
+        const result = await api<{ ok: true; host: string; port: number; secure: boolean; fromAddress: string }>("/api/admin/mail/verify", { method: "POST" });
+        setMailOutcome({ ok: true, message: `Authenticated with ${result.host}:${result.port} over ${result.secure ? "TLS" : "STARTTLS"}, sending as ${result.fromAddress}.` });
+      } else {
+        const to = mailTestTo.trim();
+        const result = await api<{ ok: true; to: string }>("/api/admin/mail/test", { method: "POST", body: JSON.stringify(to ? { to } : {}) });
+        setMailOutcome({ ok: true, message: `Test message accepted for ${result.to}. Check that it arrives — a mail server accepting a message is not the same as it being delivered.` });
+      }
+      await refreshMailStatus();
+    } catch (error) {
+      // The route answers 422 for a fault the administrator must fix and 502
+      // for an upstream blip, which is what ApiError.retryable reflects.
+      const detail = error instanceof ApiError
+        ? { message: error.userMessage || error.message, retryable: error.retryable }
+        : { message: error instanceof Error ? error.message : "Mail could not be sent.", retryable: undefined };
+      setMailOutcome({ ok: false, ...detail });
+    } finally {
+      setMailBusy(null);
+    }
   }
   async function rotateWebhookSecret(endpoint: WebhookEndpointRecord) {
     const result = await confirmedRequest<{ ok: boolean; signingSecret: string }>("ROTATE WEBHOOK SECRET", `/api/admin/integrations/webhooks/${encodeURIComponent(endpoint.id)}/rotate-secret`, { method: "POST" });
@@ -1966,6 +2075,27 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       )}
       {section === "integrations" && (
         <div className="server-config-groups-v238 server-config-integrations-v241">
+          <section className="panel server-config-operations-v238 integration-mail-v512">
+            <div className="server-config-group-head-v238">
+              <div><h2>Email delivery</h2><p className="muted tight">Verification links, password recovery and digests are sent over SMTP. Save the fields above, then prove the credentials work before anything depends on them.</p></div>
+              <span>{mailStatus?.mail.configured ? "configured" : "not configured"}</span>
+            </div>
+            {mailStatus?.mail.configured
+              ? <div className="hint-box"><strong>{mailStatus.mail.host}:{mailStatus.mail.port} · {mailStatus.mail.secure ? "TLS" : "STARTTLS"}</strong><span>Sending as {mailStatus.mail.fromName} &lt;{mailStatus.mail.fromAddress}&gt;, authenticating as {mailStatus.mail.username}.</span></div>
+              : <ClusterEmptyState compact kind="first-use" title="Outbound mail is not configured" description={mailStatus?.mail.reason || "Fill in the Email (SMTP) fields above and save."} />}
+            <div className="hint-box"><strong>Google Workspace</strong><span>{mailStatus?.guidance || "Use smtp.gmail.com on port 587, the full mailbox address as the username, and an app password from an account with 2-step verification turned on. The account password will not authenticate."}</span></div>
+            <div className="server-config-form-grid-v238">
+              <label className="field span-2"><span>Send the test to (defaults to your own address)</span><ClusterInput type="email" autoComplete="off" value={mailTestTo} onChange={(event) => setMailTestTo(event.target.value.slice(0, 320))} placeholder="you@example.com" /></label>
+            </div>
+            <div className="button-row">
+              <ClusterButton type="button" variant="secondary" disabled={mailBusy !== null || !mailStatus?.mail.configured} busy={mailBusy === "verify"} busyLabel="Connecting" onClick={() => void runMailAction("verify")}>Verify credentials</ClusterButton>
+              <ClusterButton type="button" variant="primary" disabled={mailBusy !== null || !mailStatus?.mail.configured} busy={mailBusy === "test"} busyLabel="Sending" onClick={() => void runMailAction("test")}>Send test email</ClusterButton>
+              <span className="muted">Verifying connects and signs in without sending anything.</span>
+            </div>
+            {mailOutcome && (mailOutcome.ok
+              ? <div className="hint-box" role="status"><strong>Mail is working</strong><span>{mailOutcome.message}</span></div>
+              : <div className="error-box" role="alert">{mailOutcome.message}{mailOutcome.retryable === false ? " This will not succeed on a retry — correct the settings above." : ""}</div>)}
+          </section>
           <section className="panel server-config-operations-v238 integration-webhooks-v495">
             <div className="server-config-group-head-v238"><div><h2>Outbound webhooks</h2><p className="muted tight">Signed, durable deliveries use encrypted destinations and retry payloads. HTTPS is required unless private-network HTTP is explicitly enabled.</p></div><span>{webhookEndpoints.filter((endpoint) => endpoint.enabled).length} active</span></div>
             <div className="server-config-form-grid-v238">

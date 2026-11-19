@@ -65,7 +65,6 @@
   :root[data-renderer-viewport="phone"] .cluster-dialog-v389 { max-height: 100dvh; border-radius: 0; }
 }
 
-
 /* Adaptive data tables keep semantics while becoming readable row cards on phones. */
 :root[data-renderer-viewport="phone"] .data-table-shell { overflow: visible; }
 :root[data-renderer-viewport="phone"] .data-table-shell table { display: block; inline-size: 100%; }
@@ -137,11 +136,6 @@
 }
 :root[data-renderer-viewport="tablet"] .whiteboard-outline-v299 {
   max-block-size: min(48dvh, 520px);
-}
-:root[data-renderer-viewport="phone"] .board-workspace-v257.board-fullscreen-v254,
-:root[data-renderer-viewport="tablet"] .board-workspace-v257.board-fullscreen-v254 {
-  padding-inline: max(8px, var(--cluster-safe-left)) max(8px, var(--cluster-safe-right));
-  padding-block-end: max(8px, var(--cluster-safe-bottom));
 }
 :root[data-renderer-viewport="phone"] .board-workspace-v257 .board-columns-v257 {
   grid-auto-columns: minmax(272px, calc(100dvw - 28px));

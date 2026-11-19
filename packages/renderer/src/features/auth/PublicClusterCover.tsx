@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../../core/api";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterInput } from "../../components/ClusterNativeControls";
-import { RequestErrorState } from "../../components/RequestState";
 import { StudioFormRunner, type StudioFormDocument } from "../studio-systems/StudioFormRunner";
-import { LoginScreen, type ClusterAuthUser } from "./AuthScreens";
+import { LoginScreen, type AuthConfig, type ClusterAuthUser } from "./AuthScreens";
 import { AccountInvitationActivation } from "./AccountInvitationActivation";
 import { AuthEntryLayout } from "./AuthEntryLayout";
 
@@ -15,8 +14,6 @@ type PublicApplication = {
   description?: string | null;
   versions?: StudioFormDocument["version"][];
 };
-
-type StudioCover = { ok: true; studioName: string; applications: PublicApplication[] };
 
 // URL fragments never reach the Server or referrer headers. Capture once and
 // remove the secret from the visible URL before rendering the invitation form.
@@ -33,55 +30,74 @@ function captureActivationFragment(): string | null {
   return null;
 }
 
-export function PublicClusterCover({ onLogin, recoveryMessage }: { onLogin: (user: ClusterAuthUser) => void; recoveryMessage?: string | null }) {
-  const [cover, setCover] = useState<StudioCover | null>(null);
-  const [loadError, setLoadError] = useState<unknown>(null);
-  const [mode, setMode] = useState<"cover" | "signin" | "apply">("cover");
+/**
+ * The studio entry point: a sign-in form, with Apply beside it.
+ *
+ * Everything needed to draw it arrives in the boot payload — the studio name,
+ * the authentication configuration, and whether any application is open — so
+ * this screen issues no request of its own. The application forms are fetched
+ * when somebody actually opens Apply, which is a click rather than a page
+ * load, so a member signing in never waits for a query they will not use.
+ */
+export function PublicClusterCover({ onLogin, recoveryMessage, authConfig, applicationsOpen, studioName, onRetryAuthConfig }: {
+  onLogin: (user: ClusterAuthUser) => void;
+  recoveryMessage?: string | null;
+  authConfig: AuthConfig | null;
+  applicationsOpen: boolean;
+  studioName: string;
+  onRetryAuthConfig: () => void;
+}) {
+  const [mode, setMode] = useState<"signin" | "apply">("signin");
   const [activationToken, setActivationToken] = useState<string | null>(() => captureActivationFragment());
+  const [applications, setApplications] = useState<PublicApplication[] | null>(null);
   const [applicationKey, setApplicationKey] = useState("");
+  const [applicationError, setApplicationError] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [website, setWebsite] = useState("");
 
-  async function load() {
-    setLoadError(null);
-    try {
-      const result = await api<StudioCover>("/api/public/v1/studio-cover");
-      setCover(result);
-      setApplicationKey((current) => result.applications.some((item) => item.key === current) ? current : result.applications[0]?.key || "");
-    } catch (error) { setLoadError(error); }
-  }
-
-  useEffect(() => { void load(); }, []);
   if (activationToken !== null) return <AccountInvitationActivation token={activationToken}
     onReturnToSignIn={() => {
       setActivationToken(null);
       setMode("signin");
     }} />;
-  if (mode === "signin") return <LoginScreen recoveryMessage={recoveryMessage} onLogin={onLogin} onBack={() => setMode("cover")} studioName={cover?.studioName} />;
-  if (loadError && !cover) return <AuthEntryLayout><RequestErrorState error={loadError} title="Studio cover could not be loaded" onRetry={() => void load()} /><ClusterButton type="button" variant="secondary" onClick={() => setMode("signin")}>Sign in</ClusterButton></AuthEntryLayout>;
-  if (!cover) return <AuthEntryLayout><span className="cluster-auth-inline-status-v11" role="status">Loading studio…</span></AuthEntryLayout>;
 
-  const selected = cover.applications.find((item) => item.key === applicationKey) || null;
+  async function openApply() {
+    setMode("apply");
+    if (applications) return;
+    setApplicationError("");
+    try {
+      const result = await api<{ ok: true; applications: PublicApplication[] }>("/api/public/v1/studio-cover");
+      setApplications(result.applications);
+      setApplicationKey(result.applications[0]?.key || "");
+    } catch {
+      setApplicationError("The application forms could not be loaded. Try again in a moment.");
+    }
+  }
+
+  const selected = applications?.find((item) => item.key === applicationKey) || null;
   const version = selected?.versions?.[0] || null;
-  const document: StudioFormDocument | null = selected && version ? { form: { id: selected.id, key: selected.key, title: selected.title, description: selected.description }, version } : null;
+  const document: StudioFormDocument | null = selected && version
+    ? { form: { id: selected.id, key: selected.key, title: selected.title, description: selected.description }, version }
+    : null;
 
-  if (mode === "apply" && document) return <AuthEntryLayout studioName={cover.studioName} mode="setup" cardClassName="cluster-auth-application-v11">
+  if (mode === "apply") return <AuthEntryLayout studioName={studioName} mode="setup" cardClassName="cluster-auth-application-v11">
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
-    <p className="eyebrow">{cover.studioName}</p><h1>Apply</h1>
-    {cover.applications.length > 1 && <div className="button-row">{cover.applications.map((application) => <ClusterButton type="button" variant={application.key === applicationKey ? "primary" : "secondary"} key={application.key} onClick={() => { setApplicationKey(application.key); setPrivacyAccepted(false); }}>{application.title}</ClusterButton>)}</div>}
-    <StudioFormRunner drafts={false} document={document} submitLabel="Submit application" submit={async (payload) => {
-      if (!privacyAccepted) throw new Error("Confirm the privacy notice before submitting your application.");
-      return api(`/api/public/v1/applications/${document.form.key}/submissions`, { method: "POST", body: JSON.stringify({ ...payload, privacyAccepted: true, website }) });
-    }} />
-    <label className="field"><span><ClusterInput type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} /> I consent to the studio using this application information to review my application.</span><small>Application answers do not grant Cluster access, roles, permissions, or membership.</small></label>
-    <label aria-hidden="true" className="sr-only-v204">Website<ClusterInput tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></label>
-    <div className="button-row"><ClusterButton type="button" variant="quiet" onClick={() => setMode("cover")}>Back</ClusterButton><ClusterLinkButton href="/legal/privacy" variant="quiet">Privacy</ClusterLinkButton></div>
+    <p className="eyebrow">{studioName}</p><h1>Apply</h1>
+    {applicationError && <div className="error-box" role="alert">{applicationError}</div>}
+    {!applications && !applicationError && <p className="cluster-auth-inline-status-v11" role="status">Loading the application form…</p>}
+    {applications && applications.length > 1 && <div className="button-row">{applications.map((application) => <ClusterButton type="button" variant={application.key === applicationKey ? "primary" : "secondary"} key={application.key} onClick={() => { setApplicationKey(application.key); setPrivacyAccepted(false); }}>{application.title}</ClusterButton>)}</div>}
+    {document && <>
+      <StudioFormRunner drafts={false} document={document} submitLabel="Submit application" submit={async (payload) => {
+        if (!privacyAccepted) throw new Error("Confirm the privacy notice before submitting your application.");
+        return api(`/api/public/v1/applications/${document.form.key}/submissions`, { method: "POST", body: JSON.stringify({ ...payload, privacyAccepted: true, website }) });
+      }} />
+      <label className="field"><span><ClusterInput type="checkbox" checked={privacyAccepted} onChange={(event) => setPrivacyAccepted(event.target.checked)} /> I consent to the studio using this application information to review my application.</span><small>Application answers do not grant Cluster access, roles, permissions, or membership.</small></label>
+      <label aria-hidden="true" className="sr-only-v204">Website<ClusterInput tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></label>
+    </>}
+    <div className="button-row"><ClusterButton type="button" variant="quiet" onClick={() => setMode("signin")}>Back to sign in</ClusterButton></div>
   </AuthEntryLayout>;
 
-  return <AuthEntryLayout studioName={cover.studioName}>
-    <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
-    <p className="eyebrow">Studio entry</p><h1>{cover.studioName}</h1><p className="muted">Already part of the studio? Sign in. {cover.applications.length ? "Applications are available below." : "Access is managed by a studio administrator."}</p>
-    <div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => setMode("signin")}>Sign in</ClusterButton>{cover.applications.length > 0 && <ClusterButton type="button" variant="secondary" onClick={() => setMode("apply")}>Apply</ClusterButton>}</div>
-    <div className="managed-auth-help-v473"><ClusterLinkButton href="/legal/privacy" variant="quiet" size="compact">Privacy</ClusterLinkButton><ClusterLinkButton href="/legal/terms" variant="quiet" size="compact">Terms</ClusterLinkButton></div>
-  </AuthEntryLayout>;
+  return <LoginScreen recoveryMessage={recoveryMessage} onLogin={onLogin} studioName={studioName}
+    config={authConfig} onRetryConfig={onRetryAuthConfig}
+    onApply={applicationsOpen ? () => void openApply() : undefined} />;
 }

@@ -45,8 +45,6 @@
     --cluster-taskbar-gutter-right:8px;
   }
 }
-/* Noninteractive page-level wrappers should not make a second scroll pane. */
-.content-shell :where(.projects-page-v310, .timeline-page-v156, .project-detail-page-v310) { max-width:100%; min-width:0; overflow-x:clip; }
 /* The live Appearance preview uses the same nav button treatment as the persistent shell. */
 .appearance-shell-preview-v10[data-sidebar-item-style="outlined"] .appearance-shell-preview__nav:not(.active) { border:1px solid var(--cluster-visual-border); background:color-mix(in srgb,var(--cluster-visual-surface-raised) 35%,transparent); }
 .appearance-shell-preview-v10[data-sidebar-item-style="divided"] .appearance-shell-preview__nav:not(.active) { border-bottom:1px solid var(--cluster-visual-border);border-radius:3px; }

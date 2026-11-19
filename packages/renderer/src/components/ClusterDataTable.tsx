@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { ClusterDataGroup, ClusterDataGroupSummaryResult, ClusterDataScalar, ClusterDataSort, ClusterDataViewLayout } from "@cluster/shared";
 import { normalizeClusterDataSorts } from "@cluster/shared";
-import { readPreferenceStorage, writePreferenceStorage } from "../core/privacy-consent";
+import { readPreferenceStorage, writePreferenceStorage } from "../core/preference-storage";
 import { runtimeStyle } from "../core/runtime-style";
 import { ClusterButton, ClusterIconButton } from "./ClusterButton";
 import { ClusterIcon } from "./ClusterIcon";

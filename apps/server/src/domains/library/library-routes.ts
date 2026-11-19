@@ -27,7 +27,6 @@ import {
   wouldCreateLibraryCycle
 } from "../../core/library.js";
 import { decodeDataUrl, detectedMimeType, normalizeMimeType, safeFileName, untrustedFileResponseHeaders, uploadContentDisposition } from "../../core/uploads.js";
-import { copyrightDisabledResponse, isCopyrightResourceDisabled } from "../../core/copyright-workflow.js";
 import { createBlendPreview, ModelPreviewBusyError } from "../../core/blender-preview.js";
 import { validateManagedDerivativePath } from "./library-derivative-file-safety.js";
 import { ManagedPreviewIOError, openManagedPreviewStream, saveManagedModelThumbnail } from "./library-managed-preview-io.js";
@@ -1018,7 +1017,6 @@ export function registerLibraryRoutes({
     const result = await findAccessibleItem(request, reply, params.itemId);
     if (!result) return;
     const item = result.item;
-    if (await isCopyrightResourceDisabled(prisma, "library", item.id)) return copyrightDisabledResponse(reply);
     if (!item.fileName) return reply.code(404).send({ ok: false, error: "This library item has no stored file." });
     const resolved = await resolveStoredLibraryFile(item);
     if (!resolved) return reply.code(404).send({ ok: false, error: "Stored file is missing. Run Cluster repair to rebuild the Library index." });
@@ -1036,7 +1034,6 @@ export function registerLibraryRoutes({
     const params = z.object({ itemId: z.string() }).parse(request.params);
     const result = await findAccessibleItem(request, reply, params.itemId);
     if (!result) return;
-    if (await isCopyrightResourceDisabled(prisma, "library", result.item.id)) return copyrightDisabledResponse(reply);
     const derivatives = await prisma.libraryDerivative.findMany({
       where: { itemId: result.item.id, status: "ready", invalidatedAt: null, ...(result.item.checksumSha256 ? { sourceChecksumSha256: result.item.checksumSha256 } : {}) },
       orderBy: { updatedAt: "desc" },
@@ -1064,7 +1061,6 @@ export function registerLibraryRoutes({
     const params = z.object({ itemId: z.string() }).parse(request.params);
     const result = await findAccessibleItem(request, reply, params.itemId);
     if (!result) return;
-    if (await isCopyrightResourceDisabled(prisma, "library", params.itemId)) return copyrightDisabledResponse(reply);
     if (libraryPreviewKind(result.item) !== "model") return reply.code(404).send({ ok: false, error: "No model thumbnail is available." });
     const settings = await readSettings();
     if (settings.libraryAllowModelPreviews === false) return reply.code(403).send({ ok: false, error: "3D model previews are disabled." });
@@ -1085,7 +1081,6 @@ export function registerLibraryRoutes({
     const result = await findAccessibleItem(request, reply, params.itemId, "contribute");
     if (!result) return;
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(params.itemId)) return reply.code(400).send({ ok: false, code: "INVALID_LIBRARY_ID", error: "Invalid Library item identity." });
-    if (await isCopyrightResourceDisabled(prisma, "library", params.itemId)) return copyrightDisabledResponse(reply);
     if (libraryPreviewKind(result.item) !== "model") return reply.code(400).send({ ok: false, error: "Thumbnails can only be stored for 3D models." });
     const settings = await readSettings();
     if (settings.libraryAllowModelPreviews === false) return reply.code(403).send({ ok: false, error: "3D model previews are disabled." });
@@ -1147,17 +1142,6 @@ export function registerLibraryRoutes({
       if (error instanceof LibraryModelPreviewError) return reply.code(403).send({ ok: false, code: error.code, error: error.message });
       throw error;
     }
-    // Check active copyright restrictions once for the source + all embedded
-    // companions. One bounded query, not 128 sequential provider/DB calls.
-    const copyrightRestrictions = await prisma.copyrightResourceRestriction.findMany({
-      where: { resourceType: "library", resourceId: { in: [item.id, ...companionIds] }, state: "disabled" },
-      select: { resourceId: true }, take: 129,
-    });
-    const copyrightDisabledIds = new Set(copyrightRestrictions.map((row: any) => row.resourceId));
-    if (copyrightDisabledIds.has(item.id)) return copyrightDisabledResponse(reply);
-    if (permittedCompanions.some(({ record }) => copyrightDisabledIds.has(record.id))) {
-      return reply.code(403).send({ ok: false, code: "MODEL_PREVIEW_DEPENDENCY_DENIED", error: "A model dependency is not available for preview." });
-    }
     const authorizationSnapshot = modelPreviewAuthorizationSnapshot(item, permittedCompanions);
     const inputFileEvidence = new Map<string, Awaited<ReturnType<typeof fs.lstat>>>();
     inputFileEvidence.set(item.id, resolved.stat);
@@ -1217,11 +1201,6 @@ export function registerLibraryRoutes({
         if (error instanceof LibraryModelPreviewError) return denied();
         throw error;
       }
-      const freshRestrictions = await prisma.copyrightResourceRestriction.findMany({
-        where: { resourceType: "library", resourceId: { in: [item.id, ...companionIds] }, state: "disabled" },
-        select: { resourceId: true }, take: 129,
-      });
-      if (freshRestrictions.length) return denied();
       const freshSettings = await readSettings();
       if (freshSettings.libraryAllowModelPreviews === false || freshSettings.libraryAllowBlendPreviews === false) return denied();
       if (modelPreviewAuthorizationSnapshot(freshSource, freshCompanions) !== authorizationSnapshot) {

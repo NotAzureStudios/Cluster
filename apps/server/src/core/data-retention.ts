@@ -6,7 +6,6 @@ export type RetentionCategoryKey =
   | "sync_receipts"
   | "resolved_sync_conflicts"
   | "sync_tombstones"
-  | "behavioral_analytics"
   | "notification_inbox";
 
 export type RetentionPolicyDefinition = {
@@ -28,7 +27,6 @@ export const CONFIGURABLE_RETENTION_POLICIES: readonly RetentionPolicyDefinition
   { key: "sync_receipts", label: "Offline sync receipts", description: "Completed offline-sync delivery receipts. Pending mutations are not stored here.", defaultDays: 30, minimumDays: 7, maximumDays: 365 },
   { key: "resolved_sync_conflicts", label: "Resolved sync conflicts", description: "Offline conflict records only after a user has resolved them. Open/quarantined conflicts remain protected.", defaultDays: 90, minimumDays: 30, maximumDays: 730 },
   { key: "sync_tombstones", label: "Sync deletion tombstones", description: "Deletion markers retained long enough for offline clients to observe removals.", defaultDays: 90, minimumDays: 30, maximumDays: 365 },
-  { key: "behavioral_analytics", label: "Behavioral analytics", description: "Consent-gated first-party analytics events containing only coarse event/screen identifiers and client type.", defaultDays: 90, minimumDays: 7, maximumDays: 365 },
   { key: "notification_inbox", label: "Notification inbox", description: "Per-user work-inbox delivery and read/snooze state. Underlying authoritative work records are retained separately.", defaultDays: 180, minimumDays: 30, maximumDays: 730 },
 ] as const;
 
@@ -108,7 +106,6 @@ async function categoryCounts(prisma: any, category: RetentionCategoryKey, cutof
     case "sync_receipts": return { total: await prisma.clusterSyncReceipt.count(), eligible: await prisma.clusterSyncReceipt.count({ where: { createdAt: { lt: cutoffAt } } }) };
     case "resolved_sync_conflicts": return { total: await prisma.clusterSyncConflict.count(), eligible: await prisma.clusterSyncConflict.count({ where: { status: "RESOLVED", resolvedAt: { lt: cutoffAt } } }) };
     case "sync_tombstones": return { total: await prisma.syncTombstone.count(), eligible: await prisma.syncTombstone.count({ where: { deletedAt: { lt: cutoffAt } } }) };
-    case "behavioral_analytics": return { total: await prisma.behavioralAnalyticsEvent.count(), eligible: await prisma.behavioralAnalyticsEvent.count({ where: { createdAt: { lt: cutoffAt } } }) };
     case "notification_inbox": return { total: await prisma.notificationInboxItem.count(), eligible: await prisma.notificationInboxItem.count({ where: { createdAt: { lt: cutoffAt } } }) };
   }
 }
@@ -144,7 +141,6 @@ export async function applyRetentionPolicies(prisma: any, options: { actorUserId
         case "sync_receipts": operations.push(prisma.clusterSyncReceipt.deleteMany({ where: { createdAt: { lt: cutoffAt } } })); break;
         case "resolved_sync_conflicts": operations.push(prisma.clusterSyncConflict.deleteMany({ where: { status: "RESOLVED", resolvedAt: { lt: cutoffAt } } })); break;
         case "sync_tombstones": operations.push(prisma.syncTombstone.deleteMany({ where: { deletedAt: { lt: cutoffAt } } })); break;
-        case "behavioral_analytics": operations.push(prisma.behavioralAnalyticsEvent.deleteMany({ where: { createdAt: { lt: cutoffAt } } })); break;
         case "notification_inbox": operations.push(prisma.notificationInboxItem.deleteMany({ where: { createdAt: { lt: cutoffAt } } })); break;
       }
       operationKeys.push(row.key as RetentionCategoryKey);
@@ -164,11 +160,9 @@ export async function applyRetentionPolicies(prisma: any, options: { actorUserId
 
 export async function dataInventorySnapshot(prisma: any, settings: any) {
   const policies = await retentionPreview(prisma);
-  const [securityAuditEvents, legalPolicies, policyAcceptances, privacyRequests, projects, projectFiles, users, backupsDelegated] = await Promise.all([
+  const [securityAuditEvents, policyAcceptances, projects, projectFiles, users, backupsDelegated] = await Promise.all([
     prisma.securityAuditEvent.count(),
-    prisma.legalPolicyVersion.count(),
-    prisma.policyAcceptance.count(),
-    prisma.privacyDataRequest.count(),
+    prisma.studioPolicyAcceptance.count(),
     prisma.project.count(),
     prisma.projectFile.count(),
     prisma.user.count(),
@@ -180,9 +174,7 @@ export async function dataInventorySnapshot(prisma: any, settings: any) {
     configurable: policies,
     protected: [
       { key: "security_audit_events", label: "Security audit trail", count: securityAuditEvents, retention: "protected", reason: "Append-only tamper-evident security evidence is excluded from generic retention." },
-      { key: "legal_policy_versions", label: "Legal policy versions", count: legalPolicies, retention: "protected", reason: "Published policy history is immutable evidence and is not automatically erased." },
       { key: "policy_acceptances", label: "Policy acceptance evidence", count: policyAcceptances, retention: "protected", reason: "Auditable acknowledgement/acceptance evidence is excluded from generic age-based cleanup; deletion or anonymization requires an explicit legal/operator workflow." },
-      { key: "privacy_requests", label: "Privacy request evidence", count: privacyRequests, retention: "manual", reason: "Request evidence may be subject to legal or operator retention obligations." },
       { key: "core_work_records", label: "Users & project work", count: users + projects, retention: "manual", reason: "Authoritative account/project records are not subject to unattended age-based deletion." },
       { key: "authoritative_uploads", label: "Project file records", count: projectFiles, retention: "manual", reason: "Authoritative project files follow explicit project/file deletion workflows, not generic retention." },
     ],

@@ -5,7 +5,6 @@ import path from "node:path";
 import { z } from "zod";
 import { METADATA_EXPORT_POLICIES, SENSITIVE_METADATA_CATEGORIES, assetProcessingJobSupportedForMedium, type MetadataExportSelection, type ReviewMedium } from "@cluster/shared";
 import type { ServerRouteRegistrationDeps } from "../../app/server-composition-types.js";
-import { copyrightDisabledResponse, isCopyrightResourceDisabled } from "../../core/copyright-workflow.js";
 import { mediaArtifactRoot, selectMediaQueue } from "../../core/media-processing.js";
 import { mediaJobCostUnits } from "../../core/media-resource-budgets.js";
 import { resolveReviewAssetCapabilities } from "./review-capabilities.js";
@@ -112,7 +111,6 @@ export function registerReviewAssetExportRoutes(deps: ServerRouteRegistrationDep
     if (!project || !(await authorization.requireTarget(request, reply, "review_asset", asset.id, project, "view"))) return;
     const capabilities = await resolveReviewAssetCapabilities(authorization, request, asset, project);
     if (!capabilities.downloadOriginal) return reply.code(403).send({ code: "ACCESS_DENIED", message: "Original download is not permitted for this asset." });
-    if (await isCopyrightResourceDisabled(prisma, "review_asset", asset.id)) return copyrightDisabledResponse(reply);
     const fullPath = await resolveProjectStoredFile(asset.projectId, "review_asset", asset.fileName, asset.medium);
     return sendStoredResource(request, reply, {
       filePath: fullPath,
@@ -221,7 +219,6 @@ export function registerReviewAssetExportRoutes(deps: ServerRouteRegistrationDep
     if (!project || !(await authorization.requireTarget(request, reply, "review_asset", asset.id, project, "view"))) return;
     const capabilities = await resolveReviewAssetCapabilities(authorization, request, asset, project);
     if (!capabilities.exportDerivative) return reply.code(403).send({ code: "ACCESS_DENIED", message: "Derivative export is not permitted for this asset." });
-    if (await isCopyrightResourceDisabled(prisma, "review_asset", asset.id)) return copyrightDisabledResponse(reply);
     const artifact = await prisma.assetArtifact.findUnique({ where: { reviewAssetId_kind_variantKey: { reviewAssetId: asset.id, kind: "sanitized_export", variantKey: params.variantKey } } });
     if (!artifact) return reply.code(404).send({ code: "MEDIA_ARTIFACT_NOT_FOUND", message: "Sanitized export is not available." });
     if (asset.checksumSha256 && artifact.sourceChecksumSha256 !== asset.checksumSha256) return reply.code(409).send({ code: "MEDIA_ARTIFACT_STALE", message: "This export belongs to an older source revision and must be regenerated." });

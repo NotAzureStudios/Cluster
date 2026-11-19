@@ -94,6 +94,10 @@ export function isPublicRequest(pathname: string, method = "GET") {
   if (["/health", "/health/live", "/health/ready"].includes(path)) return normalizedMethod === "GET" || normalizedMethod === "HEAD";
   if (path === "/api/meta/compatibility") return normalizedMethod === "GET" || normalizedMethod === "HEAD";
   if (path === "/api/me") return normalizedMethod === "GET";
+  // The boot payload answers for a signed-out visitor too, reporting
+  // user: null rather than 401. It withholds studio settings in that case, so
+  // being reachable without a session exposes nothing /api/me did not already.
+  if (path === "/api/bootstrap") return normalizedMethod === "GET";
   if (path === "/api/auth/config") return normalizedMethod === "GET";
   if (path === "/api/auth/csrf") return normalizedMethod === "GET";
   if (["/api/auth/login", "/api/auth/passkeys/login/start", "/api/auth/passkeys/login/verify", "/api/auth/mfa/challenge", "/api/auth/mfa/passkeys/challenge", "/api/auth/dev-login", "/api/auth/logout", "/api/auth/password-reset-request", "/api/auth/owner-recovery", "/api/auth/desktop-session-redeem"].includes(path)) return normalizedMethod === "POST";
@@ -108,9 +112,6 @@ export function isPublicRequest(pathname: string, method = "GET") {
   if (path === "/api/kiosk/public") return normalizedMethod === "GET" || normalizedMethod === "HEAD";
   if (path === "/api/kiosk/admin-exit") return normalizedMethod === "POST";
   if (path.startsWith("/api/public/v1/")) return ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(normalizedMethod);
-  if (["/api/public/legal/privacy", "/api/public/legal/terms", "/api/public/legal/operator-agreement", "/api/public/legal/copyright", "/api/public/legal/security"].includes(path)) return normalizedMethod === "GET" || normalizedMethod === "HEAD";
-  if (["/api/public/privacy/consent-config", "/api/public/privacy/third-parties"].includes(path)) return normalizedMethod === "GET" || normalizedMethod === "HEAD";
-  if (path === "/api/public/copyright/reports" || path === "/api/public/copyright/cases/status") return normalizedMethod === "POST";
   if (path.startsWith("/api/public/share/")) return normalizedMethod === "GET";
   return false;
 }
