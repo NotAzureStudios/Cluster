@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light" data-theme-mode="light">
+<html lang="en" data-theme="dark" data-theme-mode="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
@@ -11,6 +11,41 @@
     <link rel="icon" href="/cluster-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Cluster</title>
+    <!--
+      The page is blank until React mounts, and the stylesheet that gives the
+      body a background is several hundred kilobytes down the wire. Without
+      these few lines the document paints white first and the studio's dark
+      workspace arrives as a flash. Only the surface colour lives here: it is
+      the smallest thing that stops the flash, and anything more would be a
+      second copy of the design system drifting out of step with the first.
+    -->
+    <style>
+      :root { color-scheme: dark; background-color: #101214; }
+      :root[data-theme="light"] { color-scheme: light; background-color: #f7f8f9; }
+      html, body { margin: 0; }
+      body { min-height: 100vh; }
+    </style>
+    <script>
+      // Mirrors applyTheme() in application-shell-runtime.ts, which cannot run
+      // this early. Keep the two in step: stored value or "dark" by default,
+      // with "system" resolved against prefers-color-scheme. Guarded because
+      // storage throws in a private window with site data blocked.
+      (function () {
+        var theme = "dark";
+        try {
+          var stored = window.localStorage.getItem("cluster-theme-mode");
+          if (stored === "dark" || stored === "light" || stored === "system") theme = stored;
+        } catch (error) {
+          /* no stored preference reachable; the dark default stands */
+        }
+        var resolved = theme;
+        if (theme === "system") {
+          resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.dataset.themeMode = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

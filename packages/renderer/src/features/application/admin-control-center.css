@@ -321,7 +321,7 @@
 .cluster-presence-avatar-v227[data-presence="offline"] > .cluster-presence-indicator-v227 { background:var(--cluster-slate-500); }
 
 .admin-avatar-editor-v251 { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px; border:1px solid var(--cluster-border); border-radius:10px; background:var(--cluster-surface-2); }
-.admin-avatar-preview-v251 { --avatar-size:64px; --presence-size:13px; border-radius:12px; }
+.admin-avatar-preview-v251 { --avatar-size:58px; --presence-size:10px; border-radius:12px; }
 .admin-avatar-editor-v251 > div:nth-child(2) { display:grid; gap:3px; min-width:0; }
 .admin-avatar-editor-v251 > div:nth-child(2) span { color:var(--muted); font-size:11px; }
 @media  (max-width:720px) { .admin-avatar-editor-v251{grid-template-columns:auto minmax(0,1fr)} .admin-avatar-editor-v251>.button-row{grid-column:1/-1} }
