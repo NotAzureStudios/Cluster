@@ -14,12 +14,9 @@
 }
 .calendar-page .page-header{min-height:0 !important;}
 .calendar-page .calendar-upcoming-panel,.calendar-page .calendar-month-panel{margin-top:0 !important;}
-.calendar-sync-preview-v121{display:grid;gap:4px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);}
 .calendar-page-v189{display:grid;gap:14px;align-content:start;}
 .calendar-toolbar-v189{display:grid;grid-template-columns:auto minmax(260px,1fr) minmax(280px,auto);gap:14px;align-items:center;padding:12px 14px;}
 .calendar-range-control-v189,.calendar-filter-row-v189{display:flex;align-items:center;gap:8px;min-width:0;}
-
-
 
 .calendar-range-control-v189 strong{margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .calendar-filter-row-v189{justify-content:flex-end;}

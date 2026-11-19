@@ -2,9 +2,6 @@
   padding: 0;
   overflow: hidden;
 }
-.cluster-resource-window-v489 .board-fullscreen-v254 {
-  padding: 8px;
-}
 .cluster-resource-window-v489 .whiteboard-page-v069 {
   min-height: 100dvh;
   padding: 8px;
@@ -25,11 +22,6 @@
 .board-workspace-v257 .cluster-tool-metrics-v228,
 .whiteboard-page-v069 .cluster-tool-metrics-v228 {
   min-width: min(100%, 440px);
-}
-.board-loading-state-v489,
-.whiteboard-loading-state-v489 {
-  min-height: min(58dvh, 620px);
-  align-content: start;
 }
 
 .resource-window-toolbar-v493 {

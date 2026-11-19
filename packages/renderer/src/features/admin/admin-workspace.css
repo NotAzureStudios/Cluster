@@ -46,7 +46,6 @@
   .admin-report-drilldown-head-v470 > button { width: 100%; }
 }
 
-
 .admin-page .admin-stats {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -166,7 +165,6 @@
   border-radius: 20px;
 }
 
-
 .admin-subnav {
   display: flex;
   flex-wrap: wrap;
@@ -233,17 +231,13 @@
 .segmented-control button {
   min-width: fit-content;
 }
-.button-row,
-.inline-form,
-.bulk-bar-v032,
-.profile-actions-v032 {
+.button-row, .inline-form{
   gap: 12px;
   flex-wrap: wrap;
 }
 .admin-page-v064 .admin-subnav button {
   min-height: 64px;
 }
-
 
 .text-button,
 .admin-subnav button {
@@ -270,16 +264,13 @@
 .admin-time-entry-row-v105 { grid-template-columns: minmax(220px, 1.2fr) minmax(190px, .9fr) minmax(120px, .45fr) auto; }
 @media  (max-width: 1100px) { .admin-hours-summary-v105 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-time-entry-row-v105 { grid-template-columns: 1fr; } }
 
-
 @media  (max-width: 880px) { .permission-preview-banner-v111 { align-items: flex-start; flex-direction: column; } }
 .admin-hours-manual-v114 { margin: 16px 0; }
-
 
 .stat-strip,
 .admin-stats,
 .admin-hours-summary-v105 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important; }
 @media  (max-width: 760px) { :where(.two-col, .three-col, .builds-filter-grid-v115, .builds-form-grid-v115, .admin-form-grid, .clean-form-grid) { grid-template-columns: 1fr ; } }
-
 
 .remaining-system-card-v122,
 .editable-availability-v122,
@@ -292,9 +283,7 @@
 .availability-editor-grid-v122,
 .template-form-v122 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
 .templates-admin-section-v122 > .template-studio-v122 { margin-top: 16px; }
-.changelog-panel-v124,
-.demo-empty-states-v124 { display: grid; gap: var(--space-4, 16px); }
-
+.demo-empty-states-v124{ display: grid; gap: var(--space-4, 16px); }
 
 .admin-subnav { overflow-x: auto; scrollbar-width: thin; }
 .admin-subnav button { min-width: 145px; }
@@ -302,7 +291,6 @@
 @media  (max-width: 920px) {  .admin-subnav { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 8px; } .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
 @media  (max-width: 620px) { .stat-strip,
 .demo-empty-grid-v124 { grid-template-columns: 1fr ; } table, .admin-table, .data-table { display: block; overflow-x: auto; white-space: nowrap; } }
-.data-model-admin-section-v125 { display: grid; gap: 1rem; }
 .role-home-panel-v126.admin { box-shadow: none; }
 .external-rules-grid-v126, .permission-matrix-summary-v126, .permission-bulk-grid-v126 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
 .external-rules-grid-v126 article, .permission-matrix-summary-v126 article, .permission-bulk-grid-v126 > div { border: 1px solid var(--border); background: var(--surface-soft); border-radius: var(--radius-lg); padding: 14px; }
@@ -353,7 +341,7 @@
 .ops-diagnostic-grid-v135,
 .ops-diagnostics-v135.compact .ops-diagnostic-grid-v135,
 .attachment-form-v135 { grid-template-columns: 1fr; } }
-.persistence-admin-section-v137, .persistence-panel-v137 { display: grid; gap: 18px; }
+.persistence-panel-v137{ display: grid; gap: 18px; }
 .stat-card,
 .ops-diagnostic-grid-v135 article,
 .control-domain-card-v136 { background: var(--cluster-workspace-surface-muted) !important; border: 1px solid var(--cluster-workspace-line) !important; border-radius: 13px !important; box-shadow: none !important; }
@@ -541,7 +529,6 @@
 @media (max-width:430px) { .user-admin-layout-v244.detail-open-v456 .user-admin-detail-v244 { inset-inline:6px; } }
 
 .user-admin-detail-v244 .settings-card-v092, .user-admin-detail-v244 .two-col, .user-admin-detail-v244 .field { min-width: 0 ; }
-
 
 .admin-avatar-preview-v251 { --avatar-size: 58px !important; --presence-size: 10px !important; }
 .admin-credential-status-v270 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
@@ -972,7 +959,6 @@
   .operations-admin-page-v241 .operations-overview-side { position: static; }
 }
 
-
 /* WIP28 footage pass: Operations overview shows the decision layer first; deep diagnostics are on demand. */
 .operations-server-details-v528{border:1px solid var(--border);border-radius:10px;background:var(--panel);overflow:hidden}
 .operations-server-details-v528>summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;cursor:pointer;color:var(--text)}
@@ -992,8 +978,6 @@
   position: static !important;
   top: auto !important;
 }
-
-
 
 /* WIP57 Pass 15 — consolidated admin surfaces and visual decision layer. */
 .admin-consolidated-stack-v15{display:grid;gap:12px;min-width:0}

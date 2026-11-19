@@ -37,7 +37,6 @@
 .accessibility-pass-v204 [aria-disabled="true"],
 .accessibility-pass-v204 :disabled { cursor: not-allowed; }
 
-
 .compact-section-nav-v204 {
   position: relative;
   display: flex;
@@ -127,11 +126,9 @@
 .compact-section-menu-v204 button.active { background: var(--surface-muted, rgba(127,127,127,.10)); }
 .compact-section-menu-v204 button span { color: var(--muted, #6b7280); font-size: .76rem; }
 
-
 /* Stop legacy summary grids from taking over pages that have compact navigation. */
 .admin-page-v064 .admin-subnav { display: none; }
 .admin-subnav-v204 { margin-bottom: 14px; }
-
 
 .projects-page-v310 .projects-toolbar-v146 { margin-top: 4px; }
 /* More predictable empty, status, and destructive surfaces. */
@@ -151,16 +148,13 @@
 
   .compact-section-primary-v204 { padding-bottom: 2px; }
 
-
 }
 @media  (max-width: 720px) {
-
 
   .compact-section-nav-v204 { align-items: center; }
   .compact-section-primary-v204 > button { padding-inline: 9px; }
   .compact-section-primary-v204 > button span { display: none; }
   .compact-section-more-v204 > button em { display: none; }
-
 
 }
 @media  (pointer: coarse) {
@@ -226,7 +220,6 @@
   .cluster-accessibility-v370 :where(.active, [aria-selected="true"], [aria-current="page"]) { outline: 2px solid Highlight; }
 }
 
-
 .project-row-accessible-v370 { position: relative; }
 .project-row-accessible-v370 > .project-row-select-v370 {
   position: absolute;
@@ -247,12 +240,10 @@
   z-index: 2;
   pointer-events: none;
 }
-.project-row-accessible-v370 > :is(.project-pin-v307, .project-row-open-v310) { pointer-events: auto; }
 .project-row-accessible-v370:has(.project-row-select-v370:focus-visible) {
   outline: 1px solid color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 82%, var(--text));
   outline-offset: 1px;
 }
-
 
 /* v0.371 user-controlled accessibility preferences */
 :root[data-text-scale="largest"] { font-size: 150%; }
@@ -273,14 +264,12 @@
 :root[data-large-targets="true"] :where(button, summary) { min-width: 44px; }
 :root[data-large-targets="true"] :where(input[type="checkbox"], input[type="radio"]) { inline-size: 22px; block-size: 22px; }
 
-
 :root[data-transparency="off"] *,
 :root[data-transparency="off"] *::before,
 :root[data-transparency="off"] *::after {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-
 
 :root[data-high-contrast="true"] {
   
@@ -348,7 +337,6 @@
   max-height: none;
 }
 
-
 @media  (max-width: 840px) {
   :root[data-text-scale="large"] :where(.cluster-master-detail-v429, .people-layout-v244, .build-workbench-grid-v309) {
     grid-template-columns: minmax(0, 1fr);
@@ -387,7 +375,6 @@
   --line: color-mix(in srgb, var(--cluster-workbench-border) 66%, transparent);
   --line-strong: color-mix(in srgb, var(--cluster-workbench-border-strong) 72%, transparent);
 }
-
 
 /* WIP31: keep focus visible without painting a neon moat around text fields. */
 :root[data-focus-indicator="strong"] :where(input,textarea,select):focus-visible{

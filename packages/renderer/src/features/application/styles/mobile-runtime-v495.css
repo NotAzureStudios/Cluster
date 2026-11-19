@@ -194,13 +194,10 @@ padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 76px));
 position: relative;
 padding: 10px;
 }
-.project-page-v312 .project-header-top-v148,
-.project-section-shell-head-v312 {
+.project-section-shell-head-v312{
 grid-template-columns: minmax(0, 1fr);
 }
-.project-page-v312 .project-header-summary-v148 { padding: 9px; }
-.project-page-v312 .project-hero-actions-v310,
-.project-section-shell-actions-v312 {
+.project-section-shell-actions-v312{
 justify-content: stretch;
 }
 .project-page-v312 .project-hero-actions-v310 > *,
@@ -208,16 +205,6 @@ justify-content: stretch;
 flex: 1 1 132px;
 min-width: 0;
 }
-.project-workspace-nav-v312 {
-margin-inline: -10px;
-padding-inline: 10px;
-scroll-padding-inline: 10px;
-scroll-snap-type: x proximity;
-overscroll-behavior-inline: contain;
-scrollbar-width: none;
-}
-.project-workspace-nav-v312::-webkit-scrollbar { display: none; }
-.project-workspace-nav-group-v312 { scroll-snap-align: start; }
 .project-workspace-nav-group-v312 > span { display: none; }
 .project-workspace-nav-group-v312 button { min-height: 44px; }
 .project-section-metrics-v312 {
@@ -265,10 +252,6 @@ scrollbar-width: none;
 }
 .project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495)::-webkit-scrollbar { display: none; }
 .project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495) > * { flex: 0 0 auto; }
-/* Board controls become a compact touch console while Kanban lanes keep snap navigation. */
-.board-fullscreen-v254 {
-padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
-}
 .board-workspace-v257 .board-workspace-search-v256 {
 position: sticky;
 top: 0;
@@ -340,7 +323,6 @@ padding-right: max(8px, env(safe-area-inset-right));
 }
 @media (any-pointer: coarse) {
 .comment-actions-v227 { opacity: 1; }
-.library-media-center-v218 { opacity: 1; }
 .whiteboard-page-v069 .whiteboard-canvas { touch-action: none; }
 .board-card-touch-move-v495 { display: grid; }
 .board-workspace-v257 .drag-handle { min-width: 30px; min-height: 44px; }

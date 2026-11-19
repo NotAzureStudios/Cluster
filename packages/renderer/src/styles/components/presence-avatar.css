@@ -58,10 +58,6 @@
   clip-path: none !important;
   overflow: visible !important;
 }
-.profile-avatar-presence-v227 { --avatar-size: 64px; --presence-size: 14px; }
-.member-avatar-presence-v227 { --avatar-size: 44px; --presence-size: 11px; }
-.users-status-avatar-v193.cluster-presence-avatar-v227 { --avatar-size: 38px; --presence-size: 10px; }
-.users-work-avatar-v227 { --avatar-size: 34px; --presence-size: 10px; }
 .comment-avatar-v227 { --avatar-size: 32px; --presence-size: 9px; }
 
 /* Block 13: final application presence chrome consolidated into the shared presence owner. */

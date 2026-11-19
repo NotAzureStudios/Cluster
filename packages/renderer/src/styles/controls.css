@@ -11,7 +11,7 @@ progress, .ui-progress-v224 { appearance: none; -webkit-appearance: none; width:
 progress::-webkit-progress-bar, .ui-progress-v224::-webkit-progress-bar { border-radius: inherit; background: var(--control-track); }
 progress::-webkit-progress-value, .ui-progress-v224::-webkit-progress-value { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
 progress::-moz-progress-bar, .ui-progress-v224::-moz-progress-bar { border-radius: inherit; background: var(--control-fill); }
-.progress-bar-v146, .completion-meter, .progress-rail { min-height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 72%, transparent); border-radius: 999px; background: var(--control-track); }
+.completion-meter, .progress-rail{ min-height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 72%, transparent); border-radius: 999px; background: var(--control-track); }
 .progress-bar-v146 > span, .completion-meter > span, .progress-rail > span { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
 @media (pointer: coarse) { input[type="range"] { height: 34px; } input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; } input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; } }
 /* Settings only needs a slightly taller hit area. Track/thumb visuals inherit the canonical range control above. */
@@ -123,7 +123,6 @@ textarea { resize: vertical; }
 .cluster-icon-button-v227 { min-width: 36px; min-height: 36px; display: inline-grid; place-items: center; padding: 7px; overflow: visible; border: 1px solid var(--cluster-border); color: var(--soft-text); background: var(--cluster-surface-2); cursor: pointer; }
 .cluster-icon-button-v227:hover { color: white; border-color: var(--cluster-border-strong); background: var(--cluster-surface-3); }
 .cluster-icon-button-v227 svg { width: 18px; height: 18px; overflow: visible; }
-
 
 /* Block 14: presentation migrated from the retired global application-workspaces registry. */
 button:focus-visible,
@@ -254,7 +253,6 @@ input, select, textarea{ scroll-margin: 80px; }
 /* Shared DataView shortcut affordance. */
 .cluster-data-shortcut-v495{min-width:26px;padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--muted);background:var(--panel);font:600 10px/1.4 var(--cluster-font-mono);text-align:center}
 
-
 /* WIP24 shared resizable rail and boolean geometry. */
 .cluster-resizable-rail-v497{min-width:0;display:grid;grid-template-columns:minmax(0,min(var(--cluster-rail-width,230px),max(0px,calc(100% - 297px)))) 7px minmax(0,1fr);align-items:stretch}.cluster-resizable-rail-v497.rail-collapsed{grid-template-columns:minmax(0,1fr)}
 .cluster-resizable-rail-content-v497,.cluster-resizable-main-v497{min-width:0;min-height:0}
@@ -262,7 +260,6 @@ input, select, textarea{ scroll-margin: 80px; }
 .cluster-resizable-rail-handle-v497::after{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--border)}
 .cluster-resizable-rail-handle-v497:hover::after,.cluster-resizable-rail-handle-v497:focus-visible::after{background:var(--accent);width:2px;left:2px}
 @media(max-width:980px){.cluster-resizable-rail-v497{grid-template-columns:minmax(0,1fr)}.cluster-resizable-rail-handle-v497{display:none}.cluster-resizable-main-v497{border-top:1px solid var(--border)}}
-:where(.settings-inline-toggle-v469,.studio-inline-check-v272,.studio-setting-toggle-v272,.profile-visibility-toggle-v473,.records-check-v9e3,.packet-required-toggle-v34f,.tool-check,.library-scope-v217){display:flex !important;flex-direction:row !important;grid-template-columns:none !important;align-items:center !important;justify-content:flex-start !important;gap:9px !important;min-width:0 !important;width:auto !important}
 :where(.settings-inline-toggle-v469,.studio-inline-check-v272,.studio-setting-toggle-v272,.profile-visibility-toggle-v473,.records-check-v9e3,.packet-required-toggle-v34f,.tool-check,.library-scope-v217)>input[type="checkbox"]{flex:0 0 18px !important;width:18px !important;min-width:18px !important;height:18px !important;min-height:18px !important;margin:0 !important}
 .cluster-icon-button-v425,.cluster-detail-close-v429{line-height:0 !important;align-items:center !important;justify-items:center !important}.cluster-icon-button-v425>.cluster-icon-svg,.cluster-detail-close-v429>.cluster-icon-svg{display:block !important;align-self:center !important;justify-self:center !important;margin:auto !important}
 label:has(> input[type="checkbox"]),label:has(> input[type="radio"]){display:flex;flex-direction:row;align-items:center;gap:8px;min-width:0}
