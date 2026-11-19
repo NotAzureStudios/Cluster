@@ -166,10 +166,6 @@ export function requestWorkPolicy(input: {
     return { cost: 4, workClass: "heavy", bodyLimitBytes: base64EnvelopeLimit(input.avatarUploadLimitBytes, globalLimit) };
   }
 
-  if (/\/api\/(?:public\/copyright\/reports|copyright\/cases\/[^/]+\/counter-notice)$/.test(path)) {
-    return { cost: 6, workClass: "heavy", bodyLimitBytes: Math.min(globalLimit, 18 * MIB) };
-  }
-
   if (/\/api\/library\/[^/]+\/model-thumbnail$/.test(path)) {
     return { cost: 4, workClass: "heavy", bodyLimitBytes: Math.min(globalLimit, 8 * MIB) };
   }

@@ -108,14 +108,6 @@ export type User = {
   hideLocation?: boolean;
   discordAdminConfigured?: boolean;
   discordAdminRoleId?: string | null;
-  policyAcceptance?: {
-    schemaVersion: number;
-    required: boolean;
-    complete: boolean;
-    digest: string;
-    requirements: Array<{ policyId: string; kind: string; version: string; title: string; summary?: string | null; contentHash: string; acceptanceMode: "acknowledge" | "accept"; acceptanceAudience: "all_users" | "admins"; requirementHash: string; publicPath: string; effectiveAt?: string | null; publishedAt?: string | null; accepted: boolean; acceptedAt?: string | null; evidenceHash?: string | null }>;
-    pending: Array<{ policyId: string; kind: string; version: string; title: string; summary?: string | null; contentHash: string; acceptanceMode: "acknowledge" | "accept"; acceptanceAudience: "all_users" | "admins"; requirementHash: string; publicPath: string; effectiveAt?: string | null; publishedAt?: string | null; accepted: boolean; acceptedAt?: string | null; evidenceHash?: string | null }>;
-  } | null;
 };
 
 export type IssuedTemporaryPassword = {

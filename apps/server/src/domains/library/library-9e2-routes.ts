@@ -8,7 +8,6 @@ import type { CollaborationRuntime } from "../../core/collaboration-runtime.js";
 import type { ClusterDataLayout } from "../../core/data-layout.js";
 import { untrustedFileResponseHeaders } from "../../core/uploads.js";
 import { sendStoredResource } from "../media/resource-delivery.js";
-import { copyrightDisabledResponse, isCopyrightResourceDisabled } from "../../core/copyright-workflow.js";
 import { libraryDerivativeClientState, libraryDerivativeIsDeliverable } from "./library-derivative-version.js";
 import { validateManagedDerivativePath } from "./library-derivative-file-safety.js";
 import { libraryMimeGroup, libraryPreviewKind, parseLibraryMetadata } from "../../core/library.js";
@@ -303,7 +302,6 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
     const { itemId } = z.object({ itemId: idSchema }).parse(request.params);
     const access = await requireItem(request, reply, itemId, "view");
     if (!access) return;
-    if (await isCopyrightResourceDisabled(prisma, "library", itemId)) return copyrightDisabledResponse(reply);
     const derivatives = await prisma.libraryDerivative.findMany({ where: { itemId }, orderBy: [{ invalidatedAt: "asc" }, { kind: "asc" }, { updatedAt: "desc" }] });
     reply.header("Cache-Control", "private, no-store");
     return { ok: true, sourceChecksumSha256: access.item.checksumSha256 || null, derivatives: derivatives.map((row: any) => serializeDerivative(row, access.item)) };
@@ -334,7 +332,6 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
     const { itemId, derivativeId } = z.object({ itemId: idSchema, derivativeId: idSchema }).parse(request.params);
     const access = await requireItem(request, reply, itemId, "view");
     if (!access) return;
-    if (await isCopyrightResourceDisabled(prisma, "library", itemId)) return copyrightDisabledResponse(reply);
     const derivative = await prisma.libraryDerivative.findFirst({ where: { id: derivativeId, itemId, status: "ready", invalidatedAt: null } });
     if (!derivative?.storagePath) return reply.code(404).send({ ok: false, code: "LIBRARY_DERIVATIVE_NOT_FOUND", error: "Derivative file not found." });
     if (!libraryDerivativeIsDeliverable(access.item, derivative)) return reply.code(409).send({ ok: false, code: "LIBRARY_DERIVATIVE_SOURCE_CHANGED", error: "This preview belongs to a different Library file version. Rebuild previews for the current version." });

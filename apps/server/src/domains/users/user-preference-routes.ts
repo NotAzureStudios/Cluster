@@ -3,7 +3,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { CLUSTER_CREATE_MODE_IDS, type ClusterCreateMode } from "@cluster/shared";
-import { policyAcceptanceStatus } from "../../core/policy-acceptance.js";
 import { expertiseSchema, normalizeExpertise, parseJsonRecord as parsePeopleJsonRecord, profileFieldDefinitionsSchema, validateCustomProfileFields, workingHoursSchema } from "./people-profile-contract.js";
 import { PeopleGovernanceError, lockPeopleProfile } from "./people-governance.js";
 import { nextVerificationGeneration, revokeUserSecurityVerifications } from "../../core/security-verification.js";
@@ -207,10 +206,9 @@ export function registerUserPreferenceRoutes(deps: RouteDependencies) {
   app.get("/api/me", async (request) => {
     const user = await getCurrentUser(request);
     const decorated = await decorateUserForClient(user);
-    const acceptance = decorated && user?.id ? await policyAcceptanceStatus(prisma, user, Boolean(decorated.isAdmin)) : null;
     return {
       user: decorated
-        ? { ...decorated, preferences: parseJsonRecord(user?.preferences), policyAcceptance: acceptance }
+        ? { ...decorated, preferences: parseJsonRecord(user?.preferences) }
         : null,
     };
   });

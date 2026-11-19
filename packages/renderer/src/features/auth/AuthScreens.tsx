@@ -21,7 +21,6 @@ export type ClusterAuthUser = {
   discordLinkRequired?: boolean;
   discordUserId?: string | null;
   nextAuthStep?: string | null;
-  policyAcceptance?: any;
 };
 
 export type AuthConfig = {

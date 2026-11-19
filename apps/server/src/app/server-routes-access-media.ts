@@ -214,15 +214,8 @@ export function registerAccessAndApprovalRoutes(deps: ServerRouteRegistrationDep
       sections.includes("threads") ? prisma.sourceReview.findMany({ where: { projectId: project.id }, select: { id: true }, orderBy: { updatedAt: "desc" }, take: 120 }) : Promise.resolve([]),
     ]);
 
-    const restrictionOr: any[] = [];
-    if (libraryRows.length) restrictionOr.push({ resourceType: "library", resourceId: { in: libraryRows.map((item: any) => item.id) } });
-    if (reviewRows.length) restrictionOr.push({ resourceType: "review_asset", resourceId: { in: reviewRows.map((item: any) => item.id) } });
-    const disabledResources = restrictionOr.length
-      ? await prisma.copyrightResourceRestriction.findMany({ where: { state: "disabled", OR: restrictionOr }, select: { resourceType: true, resourceId: true } })
-      : [];
-    const disabledKeys = new Set(disabledResources.map((entry: any) => `${entry.resourceType}:${entry.resourceId}`));
-    const safeLibraryRows = libraryRows.filter((item: any) => !disabledKeys.has(`library:${item.id}`));
-    const safeReviewRows = reviewRows.filter((item: any) => !disabledKeys.has(`review_asset:${item.id}`));
+    const safeLibraryRows = libraryRows;
+    const safeReviewRows = reviewRows;
 
     const entityCommentScopes = sections.includes("threads") ? [
       { entityType: "ticket", ids: ticketRows.map((item: any) => item.id) },

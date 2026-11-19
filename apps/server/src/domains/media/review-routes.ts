@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import { ASSET_ARTIFACT_KINDS, ASSET_PROCESSING_JOBS, METADATA_EXPORT_POLICIES, REVIEW_MEDIA, SENSITIVE_METADATA_CATEGORIES } from "@cluster/shared";
 import type { ServerRouteRegistrationDeps } from "../../app/server-composition-types.js";
-import { copyrightDisabledResponse, isCopyrightResourceDisabled } from "../../core/copyright-workflow.js";
 import { cleanupProjectMediaCache, mediaArtifactRoot, resolveMediaProcessingPolicy, selectMediaQueue } from "../../core/media-processing.js";
 import { mediaJobCostUnits } from "../../core/media-resource-budgets.js";
 import { registerReviewAssetExportRoutes } from "./review-export-routes.js";
@@ -601,7 +600,6 @@ export function registerReviewAssetRoutes(deps: ServerRouteRegistrationDeps, hel
     const query = z.object({ variant: z.string().trim().min(1).max(80).regex(/^[A-Za-z0-9._-]+$/).default("default") }).parse(request.query || {});
     const asset = await prisma.reviewAsset.findUnique({ where: { id: params.assetId } });
     if (!asset) return reply.code(404).send({ code: "REVIEW_ASSET_NOT_FOUND", message: "Review asset not found." });
-    if (await isCopyrightResourceDisabled(prisma, "review_asset", asset.id)) return copyrightDisabledResponse(reply);
     const project = await prisma.project.findUnique({ where: { id: asset.projectId } });
     if (!project || !(await authorization.requireTarget(request, reply, "review_asset", asset.id, project, "view"))) return;
     const artifact = await prisma.assetArtifact.findUnique({ where: { reviewAssetId_kind_variantKey: { reviewAssetId: asset.id, kind: params.kind, variantKey: query.variant } } });
@@ -714,7 +712,6 @@ export function registerReviewAssetRoutes(deps: ServerRouteRegistrationDeps, hel
     if (!asset) return reply.code(404).send({ code: "REVIEW_ASSET_NOT_FOUND", message: "Review asset not found." });
     const project = await prisma.project.findUnique({ where: { id: asset.projectId } });
     if (!project || !(await authorization.requireTarget(request, reply, "review_asset", asset.id, project, "view"))) return;
-    if (await isCopyrightResourceDisabled(prisma, "review_asset", asset.id)) return copyrightDisabledResponse(reply);
     const fullPath = await resolveProjectStoredFile(asset.projectId, "review_asset", asset.fileName, asset.medium);
     return sendStoredResource(request, reply, {
       filePath: fullPath,

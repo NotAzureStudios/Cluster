@@ -37,7 +37,6 @@ import { registerSyncRoutes } from "../domains/sync/sync-routes.js";
 import { registerCalendarRoutes } from "../domains/planning/calendar-routes.js";
 import { registerTimelineRoutes } from "../domains/planning/timeline-routes.js";
 import { registerMetaDiagnosticsRoutes } from "../domains/admin/meta-diagnostics-routes.js";
-import { registerPolicyAcceptanceRoutes } from "../domains/legal/policy-acceptance-routes.js";
 import { registerDataRetentionRoutes } from "../domains/legal/data-retention-routes.js";
 import { registerStudioSystemsRoutes } from "../domains/studio-systems/studio-systems-routes.js";
 import { registerStudioOnboardingRoutes, runStudioOnboardingLifecycleTick } from "../domains/studio-systems/studio-onboarding-routes.js";
@@ -641,7 +640,6 @@ registerMetaDiagnosticsRoutes({
     configuredOriginCount: CONFIGURED_CORS_ORIGINS.size,
   },
 });
-registerPolicyAcceptanceRoutes({ app, prisma, getCurrentSession, decorateUserForClient, logSecurityEvent });
 registerDataRetentionRoutes({ app, prisma, authorization, readSettings, requireConfirmation, logSecurityEvent });
 registerStudioSystemsRoutes({ app, prisma, authorization, getCurrentUser, logActivity });
 registerStudioOnboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, jobQueue });

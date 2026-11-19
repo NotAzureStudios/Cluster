@@ -3,7 +3,6 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { REVIEW_MEDIA } from "@cluster/shared";
-import { copyrightDisabledResponse, isCopyrightResourceDisabled } from "../core/copyright-workflow.js";
 import { mediaLimits, mediaStorageIdentity, resolveMediaProcessingPolicy } from "../core/media-processing.js";
 import { registerMediaOperationsRoutes } from "../domains/media/media-operations-routes.js";
 import { registerReviewAssetRoutes } from "../domains/media/review-routes.js";
@@ -91,15 +90,7 @@ export function registerMediaWhiteboardRoutes(deps: ServerRouteRegistrationDeps)
     const projectAccess = await prisma.project.findUnique({ where: { id: params.projectId } });
     const aclVideos = projectAccess ? await authorization.filterTargetsForRequest(request, videos, "review_asset", projectAccess, "view") : [];
     const aclFiles = projectAccess ? await authorization.filterTargetsForRequest(request, files, "file", projectAccess, "view") : [];
-    const restrictions = await prisma.copyrightResourceRestriction.findMany({
-      where: { state: "disabled", OR: [
-        { resourceType: "review_asset", resourceId: { in: aclVideos.map((item: any) => item.id) } },
-        { resourceType: "project_file", resourceId: { in: aclFiles.map((item: any) => item.id) } },
-      ] },
-      select: { resourceType: true, resourceId: true },
-    });
-    const blocked = new Set(restrictions.map((item: any) => `${item.resourceType}:${item.resourceId}`));
-    const visibleVideoRows = aclVideos.filter((item: any) => !blocked.has(`review_asset:${item.id}`));
+    const visibleVideoRows = aclVideos;
     const visibleVideos = visibleVideoRows.map(serializeReviewAsset);
     const visibleVideoIds = visibleVideos.map((video: any) => video.id);
     const artifacts = visibleVideoIds.length ? await prisma.assetArtifact.findMany({ where: { reviewAssetId: { in: visibleVideoIds } }, orderBy: { updatedAt: "desc" }, take: 4000 }) : [];
@@ -116,7 +107,7 @@ export function registerMediaWhiteboardRoutes(deps: ServerRouteRegistrationDeps)
     const mediaSummary = summarizeProjectMediaPayload(records, visibleVideos);
     return {
       reviewAssets: visibleVideos,
-      files: aclFiles.filter((item: any) => !blocked.has(`project_file:${item.id}`)).map((item: any) => serializeProjectAsset(item)),
+      files: aclFiles.map((item: any) => serializeProjectAsset(item)),
       production: {
         records,
         summary: mediaSummary.production,
@@ -199,12 +190,7 @@ export function registerMediaWhiteboardRoutes(deps: ServerRouteRegistrationDeps)
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     });
     const visibleFiles = await authorization.filterTargetsForRequest(request, files, "file", project, "view");
-    const restrictions = await prisma.copyrightResourceRestriction.findMany({
-      where: { state: "disabled", resourceType: "project_file", resourceId: { in: visibleFiles.map((item: any) => item.id) } },
-      select: { resourceId: true },
-    });
-    const blocked = new Set(restrictions.map((item: any) => item.resourceId));
-    return visibleFiles.filter((item: any) => !blocked.has(item.id)).map((item: any) => serializeProjectAsset(item));
+    return visibleFiles.map((item: any) => serializeProjectAsset(item));
   });
 
   app.post("/api/projects/:projectId/files", async (request, reply) => {
@@ -297,7 +283,6 @@ export function registerMediaWhiteboardRoutes(deps: ServerRouteRegistrationDeps)
     });
     if (!file) return reply.code(404).send({ code: "PROJECT_FILE_NOT_FOUND", message: "Project file not found." });
     if (!(await authorization.requireTarget(request, reply, "file", file.id, file.project, "view"))) return;
-    if (await isCopyrightResourceDisabled(prisma, "project_file", file.id)) return copyrightDisabledResponse(reply);
     const query = z.object({ inline: z.preprocess((value) => value === true || value === "true" || value === "1", z.boolean()).optional().default(false) }).parse(request.query || {});
     const locator = projectFileStorageLocator(file);
     if (locator) {
@@ -316,7 +301,6 @@ export function registerMediaWhiteboardRoutes(deps: ServerRouteRegistrationDeps)
     const file = await prisma.projectFile.findUnique({ where: { id: params.fileId }, include: { project: { include: { memberships: { where: { status: "active" } } } }, managedBlob: true } });
     if (!file) return reply.code(404).send({ code: "PROJECT_FILE_NOT_FOUND", message: "Project file not found." });
     if (!(await authorization.requireTarget(request, reply, "file", file.id, file.project, "view"))) return;
-    if (await isCopyrightResourceDisabled(prisma, "project_file", file.id)) return copyrightDisabledResponse(reply);
     const resource = projectFileViewableResource(file);
     if (!resource) return reply.code(415).send({ code: "RESOURCE_NOT_VIEWABLE", message: "This project file does not have a registered viewer format." });
     return { resource };
