@@ -189,18 +189,6 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
         </div>
       </div>
 
-      <ClusterDisclosureGroup className="project-secondary-details-v57" contentClassName="project-control-stack-v57"
-        title="Controls"
-        headerTrailing={<em>{controlCenter?.summary.attention.length || 0} attention</em>}>
-          {controlCenter?.records.length ? <ClusterMetricStrip label="Project control summary" items={[
-            { label: "Deliverables", value: controlCenter.summary.counts.deliverables, detail: `${controlCenter.summary.progress.deliverables}% complete`, progress: controlCenter.summary.progress.deliverables, onSelect: () => onOpenSection("control") },
-            { label: "High risks", value: controlCenter.summary.counts.highRisks, tone: controlCenter.summary.counts.highRisks ? "danger" : "good", onSelect: () => onOpenSection("control") },
-            { label: "Decisions", value: controlCenter.summary.counts.pendingDecisions, tone: controlCenter.summary.counts.pendingDecisions ? "warning" : "neutral", onSelect: () => onOpenSection("control") },
-            { label: "Dependencies", value: controlCenter.summary.counts.criticalDependencies, tone: controlCenter.summary.counts.criticalDependencies ? "warning" : "neutral", onSelect: () => onOpenSection("control") },
-            { label: "Linked work", value: projectRelationships.length, detail: projectRelationshipTypes.length ? projectRelationshipTypes.join(" · ") : "No relationships", tone: projectBlockingRelationships ? "warning" : projectRelationships.length ? "good" : "neutral", onSelect: () => onOpenSection("control") },
-          ]} /> : <div className="project-clear-v57"><strong>Project controls are not configured.</strong><ClusterButton size="compact" onClick={() => onOpenSection("control")}>Configure controls</ClusterButton></div>}
-          <div className="project-metadata-stack-v57"><RelatedRecordsPanel entity={{ kind: "project", id: project.id, label: project.name, projectId: project.id }} projectId={project.id} /><CustomFieldValuesPanel entity="project" entityId={project.id} projectId={project.id} title="Project fields" /><VersionHistoryPanel entityType="project" entityId={project.id} projectId={project.id} label={project.name} data={project} onRestore={onRestore} /></div>
-      </ClusterDisclosureGroup>
     </div>
   );
 }

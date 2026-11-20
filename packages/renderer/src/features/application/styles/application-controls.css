@@ -39,7 +39,7 @@ html,body,#root,.visual-overhaul-v139 { min-height: 100%; }
 
 /* Close affordances use one geometry even when older surfaces still own their markup. */
 :where(
-  button[aria-label^="Close"]:not(.sidebar-backdrop-v289),
+  :is(button[aria-label="Close"], button[aria-label^="Close "]):not(.sidebar-backdrop-v289),
   .modal-close-v19,
   .library-viewer-close-v220,
   .library-inspector-close-v220,
@@ -74,7 +74,7 @@ html,body,#root,.visual-overhaul-v139 { min-height: 100%; }
   padding: 0 !important;
   overflow: visible !important;
 }
-:where(button[aria-label^="Close"]:has(svg), button[title^="Close"]:has(svg)) {
+:where(button[aria-label="Close"]:has(svg), button[aria-label^="Close "]:has(svg), button[title="Close"]:has(svg), button[title^="Close "]:has(svg)) {
   width: 32px;
   min-width: 32px;
   height: 32px;

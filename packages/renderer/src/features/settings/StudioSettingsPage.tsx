@@ -2224,7 +2224,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="field span-2"><label>Project tool availability</label>
                         <small>One authoritative state per tool. On = shown by default, Optional = available when needed, Off = hidden for this Project Type.</small>
                         <div className="project-type-tool-matrix-v5123">
-                          {CLUSTER_PROJECT_TOOL_IDS.map((tool) => {
+                          {CLUSTER_PROJECT_TOOL_IDS.filter((tool) => tool !== "settings").map((tool) => {
                             const state = (preset.defaultTools || []).includes(tool) ? "on" : (preset.hiddenTools || []).includes(tool) ? "off" : "optional";
                             return <label key={tool} className="project-type-tool-row-v5123"><span>{CLUSTER_PROJECT_TOOL_MANIFEST[tool].label}</span><ClusterNativeSelect aria-label={`${CLUSTER_PROJECT_TOOL_MANIFEST[tool].label} availability`} value={state} onChange={(event) => updateProjectTypePreset(preset.id, setClusterProjectToolState(preset, tool, event.target.value as "on" | "optional" | "off"))}><option value="on">On</option><option value="optional">Optional</option><option value="off">Off</option></ClusterNativeSelect></label>;
                           })}

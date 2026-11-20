@@ -68,6 +68,7 @@ export function SettingsWorkspaceShell<Id extends string>({
   showGroupHeadings: _showGroupHeadings = false,
   items,
   navTop,
+  inline = false,
   children,
 }: {
   className?: string;
@@ -85,6 +86,9 @@ export function SettingsWorkspaceShell<Id extends string>({
   items: CompactSectionNavItem<Id>[];
   /** Rendered above the section list, e.g. the settings search. */
   navTop?: ReactNode;
+  /** Inside another page (project settings): no title row, just the
+      section list beside the content, with actions above the content. */
+  inline?: boolean;
   children: ReactNode;
 }) {
   const host = useContext(SettingsShellHostContext);
@@ -113,6 +117,32 @@ export function SettingsWorkspaceShell<Id extends string>({
       <div className="st-main">{children}</div>
     </section>
   );
+  const nav = <nav className="st-nav" aria-label={navLabel}>
+    {navTop ? <div className="st-nav__top">{navTop}</div> : null}
+    {groups.map(([group, groupItems]) => <div key={group || "_"} className="st-nav__group">
+      {group && groups.length > 1 ? <h2>{group}</h2> : null}
+      {groupItems.map((item) => <ClusterButton unstyled type="button" key={item.id}
+        className={`st-nav__item ${item.id === activeId ? "is-active" : ""}`.trim()}
+        aria-current={item.id === activeId ? "page" : undefined}
+        title={item.detail ? `${item.label} · ${item.detail}` : item.label}
+        onClick={() => onChange(item.id)}>
+        <ClusterIcon name={sectionIcon(item as CompactSectionNavItem<string>)} />
+        <span>{item.label}</span>
+        {item.detailTone === "warning" || item.detailTone === "danger" ? <i data-tone={item.detailTone} aria-label={item.detail || "Needs attention"} /> : null}
+      </ClusterButton>)}
+    </div>)}
+  </nav>;
+  if (inline) return (
+    <div className={`st st--inline ${className}`.trim()}>
+      <div className="st-body">
+        {nav}
+        <div className="st-main">
+          {status || actions ? <div className="st-inline-bar">{status ? <span className="st-head__status" role="status">{status}</span> : null}{actions ? <div className="st-head__actions">{actions}</div> : null}</div> : null}
+          {children}
+        </div>
+      </div>
+    </div>
+  );
   return (
     <section className={`page st ${className}`.trim()}>
       <header className="st-head">
@@ -122,21 +152,7 @@ export function SettingsWorkspaceShell<Id extends string>({
         {actions ? <div className="st-head__actions">{actions}</div> : null}
       </header>
       <div className="st-body">
-        <nav className="st-nav" aria-label={navLabel}>
-          {navTop ? <div className="st-nav__top">{navTop}</div> : null}
-          {groups.map(([group, groupItems]) => <div key={group || "_"} className="st-nav__group">
-            {group && groups.length > 1 ? <h2>{group}</h2> : null}
-            {groupItems.map((item) => <ClusterButton unstyled type="button" key={item.id}
-              className={`st-nav__item ${item.id === activeId ? "is-active" : ""}`.trim()}
-              aria-current={item.id === activeId ? "page" : undefined}
-              title={item.detail ? `${item.label} · ${item.detail}` : item.label}
-              onClick={() => onChange(item.id)}>
-              <ClusterIcon name={sectionIcon(item as CompactSectionNavItem<string>)} />
-              <span>{item.label}</span>
-              {item.detailTone === "warning" || item.detailTone === "danger" ? <i data-tone={item.detailTone} aria-label={item.detail || "Needs attention"} /> : null}
-            </ClusterButton>)}
-          </div>)}
-        </nav>
+        {nav}
         <div className="st-main">{children}</div>
       </div>
     </section>

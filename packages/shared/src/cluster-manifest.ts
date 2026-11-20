@@ -280,6 +280,7 @@ export const CLUSTER_PROJECT_TOOL_MANIFEST = {
   links: { label: "Integrations", mode: "People & Access", order: 150, lifecycle: "active" },
   access: { label: "Access", mode: "People & Access", order: 160, lifecycle: "active" },
   closeout: { label: "Closeout", mode: "Lifecycle", order: 170, lifecycle: "active" },
+  settings: { label: "Settings", mode: "Lifecycle", order: 200, lifecycle: "active" },
 } as const satisfies Record<string, ClusterProjectToolDefinition>;
 
 export type ClusterProjectToolId = keyof typeof CLUSTER_PROJECT_TOOL_MANIFEST;
