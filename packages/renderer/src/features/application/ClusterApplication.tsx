@@ -2,6 +2,7 @@ import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-ty
 
 import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
+import { setToastPosition } from "../../core/toasts";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useWindowEvent } from "../../core/window-events";
 import "./styles/application-shell.css";
@@ -666,6 +667,7 @@ export default function App() {
   useEffect(() => {
     applyCustomization(appSettings, user?.personalAccentColor);
     configureClusterSounds(appSettings);
+    setToastPosition(appSettings?.userToastPosition);
   }, [appSettings, user?.personalAccentColor]);
   useEffect(() => {
     const preferredTheme = userPreferencesFromUser(user).themePreference;

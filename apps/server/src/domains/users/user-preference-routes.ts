@@ -92,6 +92,7 @@ const userPreferenceSchema = z
     userUiSoundVolume: z.number().min(0).max(100).optional(),
     userNotificationSoundsEnabled: z.boolean().optional(),
     userNotificationSoundVolume: z.number().min(0).max(100).optional(),
+    userToastPosition: z.enum(["top-right", "top-left", "bottom-right", "bottom-left"]).optional(),
     browserNotifications: z.boolean().optional(),
     userShortcutProfile: z
       .enum(["default", "editor", "producer", "qa", "custom"])

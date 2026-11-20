@@ -20,6 +20,24 @@ export type ClusterToast = {
   action?: { label: string; onSelect: () => void };
 };
 
+export type ClusterToastPosition = "top-right" | "top-left" | "bottom-right" | "bottom-left";
+const TOAST_POSITIONS: ClusterToastPosition[] = ["top-right", "top-left", "bottom-right", "bottom-left"];
+let position: ClusterToastPosition = "top-right";
+const positionListeners = new Set<(position: ClusterToastPosition) => void>();
+
+/** Which corner the stack sits in; set from the user's preference. */
+export function setToastPosition(next: string | null | undefined) {
+  const value = TOAST_POSITIONS.includes(next as ClusterToastPosition) ? next as ClusterToastPosition : "top-right";
+  if (value === position) return;
+  position = value;
+  for (const listener of positionListeners) listener(position);
+}
+export function subscribeToastPosition(listener: (position: ClusterToastPosition) => void): () => void {
+  positionListeners.add(listener);
+  listener(position);
+  return () => { positionListeners.delete(listener); };
+}
+
 type Listener = (toasts: ClusterToast[]) => void;
 const MAX_TOASTS = 5;
 let toasts: ClusterToast[] = [];

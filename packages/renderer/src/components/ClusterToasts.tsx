@@ -2,21 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterIcon, type ClusterIconName } from "./ClusterIcon";
 import { runtimeStyle } from "../core/runtime-style";
-import { dismissToast, subscribeToasts, type ClusterToast } from "../core/toasts";
+import { dismissToast, subscribeToastPosition, subscribeToasts, type ClusterToast, type ClusterToastPosition } from "../core/toasts";
 import "./cluster-toasts.css";
 
 const TONE_ICON: Record<ClusterToast["tone"], ClusterIconName> = { info: "bell", success: "check", warning: "warning", danger: "warning" };
 
-/* The toast stack: bottom right, newest at the bottom. Three are
-   visible; the rest wait. Timers pause on hover, on focus and while the
+/* The toast stack: in the corner the user picked (top right by default),
+   newest nearest the edge. Three are visible; the rest wait. Timers pause on hover, on focus and while the
    window is hidden, so nothing expires unseen. */
 export function ClusterToasts() {
   const [items, setItems] = useState<ClusterToast[]>([]);
+  const [position, setPosition] = useState<ClusterToastPosition>("top-right");
   useEffect(() => subscribeToasts(setItems), []);
-  const visible = items.slice(0, 3).reverse();
-  return <section className="ct-stack" aria-label="Notifications" aria-live="polite">
-    {items.length > visible.length ? <span className="ct-more">+{items.length - visible.length} more</span> : null}
+  useEffect(() => subscribeToastPosition(setPosition), []);
+  const top = position.startsWith("top");
+  const newest = items.slice(0, 3);
+  const visible = top ? newest : [...newest].reverse();
+  const more = items.length > newest.length ? <span className="ct-more">+{items.length - newest.length} more</span> : null;
+  return <section className="ct-stack" data-position={position} aria-label="Notifications" aria-live="polite">
+    {top ? null : more}
     {visible.map((toast) => <ToastCard key={toast.id} toast={toast} />)}
+    {top ? more : null}
   </section>;
 }
 

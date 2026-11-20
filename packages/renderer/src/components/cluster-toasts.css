@@ -1,19 +1,20 @@
-/* Toasts — the only stylesheet for ct-*. A stack of small cards at the
-   bottom right, clear of every page's header controls. Tone tints the icon; a hairline at the bottom
+/* Toasts — the only stylesheet for ct-*. A stack of small cards in the
+   corner the user chose (top right by default). Tone tints the icon; a hairline at the bottom
    shows the time left and stops while the toast is paused. */
 
 .ct-stack {
   position: fixed;
-  bottom: var(--space-3);
-  right: var(--space-3);
   z-index: 2147483000;
   display: grid;
-  justify-items: end;
-  align-content: end;
   gap: var(--space-2);
   width: min(380px, calc(100vw - 2 * var(--space-3)));
   pointer-events: none;
 }
+/* Top corners sit under the title bar so they never cover its controls. */
+.ct-stack[data-position^="top"] { top: calc(var(--cl-titlebar-h, 44px) + var(--space-2)); align-content: start; }
+.ct-stack[data-position^="bottom"] { bottom: var(--space-3); align-content: end; }
+.ct-stack[data-position$="right"] { right: var(--space-3); justify-items: end; }
+.ct-stack[data-position$="left"] { left: var(--space-3); justify-items: start; }
 .ct-stack:empty { display: none; }
 .ct-more { padding: 2px 8px; border-radius: 999px; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); color: var(--muted); font-size: var(--cluster-font-size-2xs); pointer-events: auto; }
 
@@ -35,7 +36,8 @@
 .ct[data-tone="success"] { --ct-tone: var(--success); }
 .ct[data-tone="warning"] { --ct-tone: var(--warning); }
 .ct[data-tone="danger"] { --ct-tone: var(--danger); }
-@keyframes ct-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes ct-in { from { opacity: 0; transform: translateY(var(--ct-enter, -8px)) scale(.98); } }
+.ct-stack[data-position^="bottom"] { --ct-enter: 8px; }
 @media (prefers-reduced-motion: reduce) { .ct { animation: none; } }
 
 .ct-body { display: flex; flex: 1; align-items: flex-start; gap: var(--space-2-5); min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; }
@@ -58,5 +60,29 @@ button.ct-body:focus-visible { outline: 2px solid var(--accent); outline-offset:
 @keyframes ct-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 @media (max-width: 640px) {
-  .ct-stack { bottom: calc(var(--space-3) + 56px + env(safe-area-inset-bottom, 0px)); right: 50%; transform: translateX(50%); justify-items: center; }
+  .ct-stack[data-position] { left: 50%; right: auto; transform: translateX(-50%); justify-items: center; }
 }
+
+/* Corner picker (Settings → Notifications): a small screen with a button
+   in each corner; the chosen corner shows a toast-shaped bar. */
+.ct-corner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  width: 112px;
+  height: 72px;
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--cluster-recess);
+  box-shadow: inset 0 9px 0 color-mix(in srgb, var(--text) 6%, transparent);
+}
+.ct-corner > button { display: flex; padding: 3px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; }
+.ct-corner > button:hover { background: var(--cluster-button-fill); }
+.ct-corner > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ct-corner > button[data-corner^="top"] { align-items: flex-start; padding-top: 9px; }
+.ct-corner > button[data-corner^="bottom"] { align-items: flex-end; }
+.ct-corner > button[data-corner$="right"] { justify-content: flex-end; }
+.ct-corner > button > i { width: 26px; height: 8px; border-radius: 3px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.ct-corner > button.is-active > i { background: var(--accent); }
+.ct-corner-row { align-items: center; }

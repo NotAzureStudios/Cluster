@@ -24,6 +24,7 @@ import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup"
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { configureClusterSounds, previewClusterNotificationSound, previewClusterUiSound } from "../../core/cluster-sounds";
+import { setToastPosition, showToast } from "../../core/toasts";
 import { DesignSystemPreview } from "../../components/DesignSystemPreview";
 import { AppearanceShellPreview } from "./AppearanceShellPreview";
 import { SyncSettingsPanel } from "../../components/SyncStatusIndicator";
@@ -599,6 +600,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       const next = { ...prev, [key]: value };
       if (appearanceKeys.has(key)) applyCustomization(next, personalAccentColor);
       if (["userUiSoundsEnabled", "userUiSoundVolume", "userNotificationSoundsEnabled", "userNotificationSoundVolume"].includes(String(key))) configureClusterSounds(next);
+      if (key === "userToastPosition") { setToastPosition(next.userToastPosition); showToast({ tone: "info", title: "Toasts appear here", duration: 2500 }); }
       persistAccountDraft(next);
       return next;
     });
@@ -1714,6 +1716,15 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div>
                     <div className="notification-delivery-row-v473">
                       <span><strong>Native alerts</strong><small>Categories using Native push or Both require permission on each device.</small></span><b>{settings.browserNotifications ? "Ready" : "Permission needed"}</b>
+                    </div>
+                    <div className="notification-delivery-row-v473 ct-corner-row">
+                      <span><strong>Toast position</strong><small>Where pop-up notifications appear.</small></span>
+                      <div className="ct-corner" role="radiogroup" aria-label="Toast position">
+                        {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((corner) => {
+                          const current = (settings.userToastPosition || "top-right") === corner;
+                          return <button key={corner} type="button" role="radio" aria-checked={current} data-corner={corner} className={current ? "is-active" : ""} title={corner.replace("-", " ")} aria-label={corner.replace("-", " ")} onClick={() => patch("userToastPosition", corner)}><i aria-hidden="true" /></button>;
+                        })}
+                      </div>
                     </div>
                     <div className="cluster-sound-settings-v533">
                       <section className="cluster-sound-card-v533">
