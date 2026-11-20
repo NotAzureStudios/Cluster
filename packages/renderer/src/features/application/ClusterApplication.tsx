@@ -75,7 +75,7 @@ import { canUseProject, getProjectPermission } from "../projects/project-access-
 import { MAX_PROJECT_TABS, THEME_STORAGE_KEY, applyCustomization, applyTheme, getStoredTheme, userPreferencesFromUser } from "./modules/application-shell-runtime";
 import { openSharedCreate } from "../create/shared-create-handoff";
 import { clearIncompatibleRouteContext, clearProjectSwitchRouteContext, nextOpenProjectTabs } from "./modules/project-tab-workspace";
-import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
+import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
 import { toolConfigSettingsPatch } from "./modules/tool-config-settings";
 import { Sidebar } from "./modules/ApplicationSidebar";
 
@@ -1335,7 +1335,7 @@ export default function App() {
             if (!await copyClusterText(window.location.href)) throw new Error("Clipboard access was denied.");
           }} workingLabel="Copying…" successLabel="Copied" errorLabel="Copy failed">Copy link</ClusterActionButton>
         </nav>}
-        {!resourceWindow && screen !== "project" && screen !== "settings" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && routeSection === "admin"))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
+        {!resourceWindow && screen !== "project" && screen !== "settings" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && (routeSection === "admin" || routeSection === "account")))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
           <ClusterButton type="button" className="" onClick={openContextualParent} variant="quiet" size="compact">
             <ClusterIcon name="chevron-left" />
             <span>{contextualParentLabel}</span>
@@ -1364,7 +1364,12 @@ export default function App() {
           </div>
         )}
         <Suspense fallback={<ScreenLoadingState screen={screen} />}>
-        {screen === "people" && adminFramed(<LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "admin" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "admin" && activeUser.isAdmin} /></section></LazyFeatureBoundary>, routeSection === "admin")}
+        {screen === "people" && routeSection === "admin" && activeUser.isAdmin ? adminFramed(<LazyFeatureBoundary label="Users"><LazyAdminUsersPage currentUser={activeUser} startCreating={routeSubsection === "create"} onOpenPerson={(id) => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("inspect", `person:${id}`);
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+          void setScreen("people", { section: "account" });
+        }} /></LazyFeatureBoundary>) : screen === "people" && adminFramed(<LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "account" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "account" && activeUser.isAdmin} onCreateAccount={activeUser.isAdmin ? () => void setScreen("people", { section: "admin", subsection: "create" }) : undefined} /></section></LazyFeatureBoundary>, routeSection === "account")}
         {screen === "dashboard" && (
           <LazyDashboard
             key={activeUser.id}

@@ -57,12 +57,8 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
-import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
-import { PeopleAccountProvisioningWizard } from "./PeopleAccountProvisioningWizard";
-import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { AccountInvitationHandoff } from "./AccountInvitationHandoff";
-import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
   { id: "people_department", kind: "grouped", dimensions: ["department"], measures: [{ id: "count", kind: "count", label: "People" }], limit: 20, drilldown: { mode: "filter", presentation: "table" } },
@@ -129,17 +125,14 @@ function workingHoursSummary(hours?: User["workingHours"]) {
   return `${days.length} days${same && first?.[0] ? ` · ${first[0].start}–${first[0].end}` : " configured"}`;
 }
 
-export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfile, adminMode = false }: { currentUser: User; projects: Project[]; onOpenProject: (projectId: string) => void; onEditProfile?: () => void; adminMode?: boolean }) {
+export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfile, adminMode = false, onCreateAccount }: { onCreateAccount?: () => void; currentUser: User; projects: Project[]; onOpenProject: (projectId: string) => void; onEditProfile?: () => void; adminMode?: boolean }) {
   const [assignments, setAssignments] = useState<TeamAssignment[]>([]);
   const [selectedUserId, setSelectedUserId] = useState(currentUser.id);
   const [selectedPeopleIds, setSelectedPeopleIds] = useState<Set<string>>(() => new Set());
   const [profile, setProfile] = useState<PeopleProfilePayload | null>(null);
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
-  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory");
-  const workforceModeRef = useRef(workforceMode);
-  workforceModeRef.current = workforceMode;
-  const previousWorkforceModeRef = useRef(workforceMode);
+  const [workforceMode, setWorkforceMode] = useState<"directory" | "organization" | "teams" | "capacity" | "availability">("directory");
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -148,7 +141,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [statusFilter, setStatusFilter] = useState("all");
   type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit";
   const [profileView, setProfileViewState] = useState<ProfileView>("overview");
-  const pendingManagedAccountViewRef = useRef<{ id: string; view: "overview" | "edit" | "access" } | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const { confirmDiscard: confirmEditorDiscard } = useUnsavedChangesGuard({
     dirty: profileView === "edit" && editorDirty,
@@ -163,17 +155,12 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } else setProfileViewState(next);
   }
   const [profileExpanded, setProfileExpanded] = useState(false);
-  const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);
   async function changeWorkforceMode(next: typeof workforceMode) {
     if (next === workforceMode) return;
     if (profileView === "edit" && editorDirty) {
       if (!(await confirmEditorDiscard())) return;
       setEditorDirty(false);
       setProfileViewState("overview");
-    }
-    if (next === "accounts") {
-      setProfileExpanded(false);
-      setAccountsReturnAvailable(false);
     }
     setWorkforceMode(next);
   }
@@ -200,83 +187,17 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [loadStatus, setLoadStatus] = useState("Loading people...");
   const [securityActionUserId, setSecurityActionUserId] = useState("");
   const effectiveAdminMode = Boolean(adminMode && currentUser.isAdmin);
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
-  const [createAccountBusy, setCreateAccountBusy] = useState(false);
-  type CreateRoleCatalog = {
-    actorRole: string;
-    workspaceId: string;
-    roles: StudioAssignableRoleChoice[];
-  };
-  const [createRoleCatalog, setCreateRoleCatalog] = useState<CreateRoleCatalog | null>(null);
-  const [createRoleError, setCreateRoleError] = useState("");
-  const [createRoleLoading, setCreateRoleLoading] = useState(false);
-  useEffect(() => {
-    if (!effectiveAdminMode || !createAccountOpen) {
-      setCreateRoleCatalog(null);
-      setCreateRoleError("");
-      return;
-    }
-    let cancelled = false;
-    setCreateRoleLoading(true);
-    setCreateRoleError("");
-    void queryApi<CreateRoleCatalog>("/api/admin/users/assignable-roles", {
-      force: true, staleMs: 0, persist: false, tags: ["roles", "users", "people"],
-    }).then((result) => {
-      if (cancelled) return;
-      setCreateRoleCatalog(result);
-      const canAssign = (id: string) => result.roles.some((role) =>
-        role.id === id && canChooseStudioRole(role, result.actorRole));
-      setCreateAccountDraft((draft) => canAssign(draft.role) ? draft : { ...draft, role: "member" });
-    }).catch((cause: unknown) => {
-      if (!cancelled) {
-        setCreateRoleCatalog(null);
-        setCreateRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
-      }
-    }).finally(() => { if (!cancelled) setCreateRoleLoading(false); });
-    return () => { cancelled = true; };
-  }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
-  const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
   const [adminActionFeedback, setAdminActionFeedback] = useState<{ message: string; error: boolean } | null>(null);
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
   const [issuedActivationLink, setIssuedActivationLink] = useState<{ username: string; activationLink: string; expiresAt: string } | null>(null);
-  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-  const [createAccountError, setCreateAccountError] = useState("");
-  const [onboardingFollowup, setOnboardingFollowup] = useState<{ userId: string; versionId: string; message: string } | null>(null);
-  const [onboardingRetryBusy, setOnboardingRetryBusy] = useState(false);
-  const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
-  const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
-    canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
-  const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
-  const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
-    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.onboardingVersionId || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
-  const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
-    dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
-    title: "Discard account draft?",
-    message: "The new account has not been created. Closing will discard the entered information.",
-  });
-  function patchCreateAccountDraft(changes: Partial<typeof createAccountDraft>) {
-    setCreateAccountDraft((draft) => ({ ...draft, ...changes }));
-    setCreateAccountError("");
-  }
-  async function toggleCreateAccount() {
-    if (createAccountBusy) return;
-    if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
-    if (createAccountOpen) {
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-      setCreateAccountError("");
-    }
-    setCreateAccountOpen((open) => !open);
-  }
   const [directoryRefresh, setDirectoryRefresh] = useState(0);
   useEffect(() => {
     if (effectiveAdminMode) return;
-    setCreateAccountOpen(false);
     setIssuedCredential(null);
     setIssuedActivationLink(null);
-    setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
@@ -299,7 +220,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setWorkforceContext(null);
     setIssuedCredential(null);
     setIssuedActivationLink(null);
-    setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
   const peopleServerDataQuery = useMemo<ClusterDataQuery>(() => ({
@@ -402,9 +322,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (sequence !== peopleLoadSequenceRef.current) return;
     }
-    // Sensitive account administration needs only the selected profile. Avoid
-    // three heavyweight workforce calls until the user opens a workforce tab.
-    if (workforceModeRef.current === "accounts") return;
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -418,18 +335,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       await loadProfile(targetUserId, force);
     }
   }
-  useEffect(() => {
-    if (!effectiveAdminMode && workforceMode === "accounts") setWorkforceMode("directory");
-  }, [effectiveAdminMode, workforceMode]);
-  useEffect(() => {
-    const previous = previousWorkforceModeRef.current;
-    previousWorkforceModeRef.current = workforceMode;
-    if (previous === "accounts" && workforceMode !== "accounts") {
-      void loadProfiles(activeProfileIdRef.current, false, false, true).catch((error) => {
-        setLoadStatus(error instanceof Error ? error.message : "People context load failed");
-      });
-    }
-  }, [workforceMode]);
   useEffect(() => {
     const initialTarget = readClusterDetailSelection("person") || currentUser.id;
     activeProfileIdRef.current = initialTarget;
@@ -465,84 +370,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } finally {
       setSecurityActionUserId("");
     }
-  }
-
-  async function createPersonAccount() {
-    if (!effectiveAdminMode || accountCreateGateRef.current) return;
-    const username = createAccountDraft.username.trim();
-    const onboardingVersionId = createAccountDraft.onboardingVersionId;
-    if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {
-      setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.");
-      return;
-    }
-    accountCreateGateRef.current = true;
-    const scope = currentUser.id;
-    setCreateAccountBusy(true);
-    setCreateAccountError("");
-    setOnboardingFollowup(null);
-    setLoadStatus("Creating account…");
-    try {
-      const created = await api<PeopleProfilePayload & { temporaryPassword: string }>("/api/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username,
-          displayName: createAccountDraft.displayName.trim() || null,
-          email: createAccountDraft.email.trim() || null,
-          accountType: createAccountDraft.accountType,
-          accessExpiresAt: createAccountDraft.accessExpiresAt ? new Date(`${createAccountDraft.accessExpiresAt}T23:59:59`).toISOString() : null,
-          role: createAccountDraft.role,
-        }),
-      });
-      if (accountScopeRef.current !== scope) return; // Never show another session's credential.
-      setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-      setCreateAccountOpen(false);
-      setDirectoryRefresh((current) => current + 1);
-      setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
-      if (onboardingVersionId) {
-        try {
-          await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(onboardingVersionId)}/assign-person`, {
-            method: "POST", body: JSON.stringify({ userId: created.id }),
-          });
-          if (accountScopeRef.current === scope) setLoadStatus("Account created and onboarding assigned. Complete the private credential handoff.");
-        } catch (error) {
-          if (accountScopeRef.current === scope) {
-            const message = error instanceof Error ? error.message : "Onboarding could not be assigned.";
-            setOnboardingFollowup({ userId: created.id, versionId: onboardingVersionId, message });
-            setLoadStatus("Account created. Onboarding assignment needs a separate retry; do not create another account.");
-          }
-        }
-      }
-      // Creation already committed. A failed follow-up read must never invite a retry
-      // of the POST or falsely claim that the account was not created.
-      const refreshWarning = await reconcileAfterCommit(() => loadProfiles(created.id, true, true));
-      if (refreshWarning) setLoadStatus(`Account created for ${displayUserName(created)}, but the directory refresh failed. The temporary password above remains valid; refresh People manually. ${refreshWarning}`);
-    } catch (error) {
-      if (accountScopeRef.current === scope) {
-        const message = error instanceof Error ? error.message : "Account creation failed.";
-        setCreateAccountError(message);
-        setLoadStatus(message);
-      }
-    } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
-  }
-  async function retryOnboardingFollowup() {
-    if (!effectiveAdminMode || !onboardingFollowup || onboardingRetryBusy) return;
-    const current = onboardingFollowup;
-    setOnboardingRetryBusy(true);
-    try {
-      await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(current.versionId)}/assign-person`, {
-        method: "POST", body: JSON.stringify({ userId: current.userId }),
-      });
-      if (accountScopeRef.current === currentUser.id) {
-        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? null : state);
-        setLoadStatus("Onboarding assigned to the existing account. No duplicate account was created.");
-      }
-    } catch (error) {
-      if (accountScopeRef.current === currentUser.id) {
-        const message = error instanceof Error ? error.message : "Onboarding assignment still unavailable.";
-        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? { ...state, message } : state);
-      }
-    } finally { setOnboardingRetryBusy(false); }
   }
 
   async function issueActivationInvitationForProfile() {
@@ -712,10 +539,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
   async function selectProfile(userId: string) {
     if (profileView === "edit" && editorDirty && userId !== activeProfileIdRef.current) {
-      if (!(await confirmEditorDiscard())) {
-        if (pendingManagedAccountViewRef.current?.id === userId) pendingManagedAccountViewRef.current = null;
-        return;
-      }
+      if (!(await confirmEditorDiscard())) return;
       setEditorDirty(false);
     }
     ++peopleLoadSequenceRef.current; // Cancel older directory loads selecting a stale target.
@@ -736,11 +560,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(profileResult);
       setLoadStatus("Profile loaded.");
-      const pending = pendingManagedAccountViewRef.current;
-      if (pending?.id === userId) {
-        pendingManagedAccountViewRef.current = null;
-        setProfileViewState(pending.view);
-      }
       void queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`, {
         staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["people", "teams", "profiles"],
       }).then((contextResult) => {
@@ -1021,8 +840,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         className="cluster-page-header"
         title="People"
         actions={<>
-          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: workforceMode === "accounts" ? "Refresh accounts" : "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); if (workforceMode !== "accounts") void loadProfiles(); } }]} />
-          {effectiveAdminMode && workforceMode !== "accounts" && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); void loadProfiles(); } }]} />
+          {onCreateAccount ? <ClusterButton variant="secondary" onClick={onCreateAccount}>Add person</ClusterButton> : null}
           <ClusterButton variant="primary" onClick={() => { setWorkforceMode("directory"); openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
       />
@@ -1030,7 +849,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       <div className="people-workforce-modebar-v504">
         <ClusterSegmentedControl value={workforceMode} onChange={(value) => { void changeWorkforceMode(value as typeof workforceMode); }} label="People workspace" options={[
           { value: "directory", label: "Directory" },
-          ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
           { value: "organization", label: "Organization" },
           { value: "teams", label: "Teams" },
           { value: "capacity", label: "Capacity" },
@@ -1039,43 +857,12 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         <span>{effectiveAdminMode ? "People administration" : workforceContext ? `${users.length} people` : "Loading…"}</span>
       </div>
 
-      {effectiveAdminMode && createAccountOpen && <PeopleAccountProvisioningWizard
-        draft={createAccountDraft}
-        onPatch={patchCreateAccountDraft}
-        roleCatalog={createRoleCatalog}
-        rolesLoading={createRoleLoading}
-        rolesError={createRoleError}
-        creating={createAccountBusy}
-        actionError={createAccountError}
-        onCreate={createPersonAccount}
-        onCancel={() => { void toggleCreateAccount(); }}
-      />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
       {effectiveAdminMode && issuedActivationLink && <AccountInvitationHandoff username={issuedActivationLink.username} activationLink={issuedActivationLink.activationLink} expiresAt={issuedActivationLink.expiresAt} onDismiss={() => setIssuedActivationLink(null)} />}
-      {effectiveAdminMode && onboardingFollowup && <div className="people-onboarding-followup-v11 panel" role="alert">
-        <strong>Account created, onboarding pending</strong>
-        <span>{onboardingFollowup.message}</span>
-        <ClusterButton type="button" variant="secondary" size="compact" disabled={onboardingRetryBusy} onClick={() => void retryOnboardingFollowup()}>
-          {onboardingRetryBusy ? "Retrying…" : "Retry onboarding only"}
-        </ClusterButton>
-      </div>}
 
-      {effectiveAdminMode && <div hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"><PeopleAccountManagementPanel
-        active={workforceMode === "accounts"}
-        refreshVersion={directoryRefresh}
-        onOpenAccount={(id, view) => {
-          pendingManagedAccountViewRef.current = { id, view };
-          setAccountsReturnAvailable(true);
-          setWorkforceMode("directory");
-          openFullProfile(id);
-          if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
-        }}
-        accountCreationOpen={createAccountOpen}
-        onToggleCreateAccount={() => { void toggleCreateAccount(); }}
-      /></div>}
 
-      {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
+      {workforceMode !== "directory" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
             <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
@@ -1241,7 +1028,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
                 </div>
                 <div className="button-row compact people-person-actions-v495">
-                  {accountsReturnAvailable && effectiveAdminMode && <ClusterButton size="compact" variant="secondary" onClick={() => { void changeWorkforceMode("accounts"); }}>Back to Accounts</ClusterButton>}
                   {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant="secondary" onClick={() => setProfileView("edit")}>Edit user</ClusterButton>}
                   <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
                   <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [

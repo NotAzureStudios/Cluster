@@ -35,3 +35,4 @@ export const LazyServerConfigPage = lazy(() => import("../../settings/ServerConf
 export const LazyActivityPage = lazy(() => import("../../activity/ActivityPage").then((module) => ({ default: module.ActivityPage })));
 export const LazyMyWorkPage = lazy(() => import("../../work/MyWorkPage").then((module) => ({ default: module.MyWorkPage })));
 export const LazyProfilesPage = lazy(() => import("../../people/PeoplePages").then((module) => ({ default: module.ProfilesPage })));
+export const LazyAdminUsersPage = lazy(() => import("../../admin/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));

@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 const read=(path)=>readFileSync(path,"utf8");
 const route=read("apps/server/src/domains/studio-systems/studio-onboarding-routes.ts");
 const wizard=read("packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx");
-const people=read("packages/renderer/src/features/people/PeoplePages.tsx");
+const people=read("packages/renderer/src/features/people/use-account-provisioning.ts");
+const usersPage=read("packages/renderer/src/features/admin/AdminUsersPage.tsx");
 const css=read("packages/renderer/src/features/people/people-account-provisioning-wizard.css");
 let n=0;function check(label,okay){assert.ok(okay,label);n++;console.log("PASS",label);}
 
@@ -41,18 +42,17 @@ check("Review identity includes onboarding choice without changing authenticatio
   wizard.includes('The onboarding assignment is a separate governed operation after account creation'));
 check("Account creation commits before onboarding without interpreting failure as account failure",
   people.includes('setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword })') &&
-  people.includes('const onboardingVersionId = createAccountDraft.onboardingVersionId;') &&
+  people.includes('const onboardingVersionId = draft.onboardingVersionId;') &&
   people.indexOf('setIssuedCredential({ username: created.username') < people.indexOf('if (onboardingVersionId) {') &&
   people.includes('setOnboardingFollowup({ userId: created.id, versionId: onboardingVersionId, message })'));
 check("Retry is scoped to existing user only, never re-posts an account",
-  people.includes('async function retryOnboardingFollowup()') &&
-  people.includes('Retry onboarding only') &&
-  people.includes('No duplicate account was created.') &&
-  people.includes('setOnboardingFollowup(null);'));
+  people.includes('async function retryOnboarding()') &&
+  people.includes('/assign-person`, {\n        method: "POST", body: JSON.stringify({ userId: current.userId })') &&
+  usersPage.includes('Retry onboarding') &&
+  people.includes('No duplicate account was created.'));
 check("Session changes clear private handoff and pending remediation state",
-  people.includes('setIssuedCredential(null);\n    setIssuedActivationLink(null);\n    setOnboardingFollowup(null);\n  }, [currentUser.id]);'));
+  people.includes('setIssuedCredential(null);\n    setOnboardingFollowup(null);\n  }, [currentUserId]);'));
 check("Responsive followup avoids onboarding burying the one-time credential handoff",
-  css.includes('.people-onboarding-followup-v11') &&
-  people.includes('<AccountCredentialHandoff') &&
-  people.includes('role="alert"') );
+  usersPage.indexOf('<AccountCredentialHandoff') < usersPage.indexOf('provisioning.onboardingFollowup ? <div className="au-followup" role="alert">') &&
+  usersPage.includes('<AccountCredentialHandoff'));
 console.log(`Targeted onboarding contract checks: ${n} passed.`);

@@ -14,6 +14,7 @@ const { reconcileAfterCommit } = module.exports;
 let total = 0;
 async function test(label, callback) { await callback(); total++; console.log('PASS ' + label); }
 const page = read('packages/renderer/src/features/people/PeoplePages.tsx');
+const provisioning = read('packages/renderer/src/features/people/use-account-provisioning.ts');
 const account = read('packages/renderer/src/features/settings/AccountSettingsPage.tsx');
 const studio = read('packages/renderer/src/features/settings/StudioSettingsPage.tsx');
 await test('Committed view refresh returns null only when its follow-up succeeded', async () => {
@@ -69,10 +70,10 @@ await test('Identity changes clear credential, profile, Calendar and team contex
   assert.match(identityEffect, /\}, \[currentUser\.id\]\)/);
 });
 await test('Creation and password reset distinguish committed success from refresh failure', () => {
-  const create = page.slice(page.indexOf('  async function createPersonAccount('), page.indexOf('  async function issuePasswordResetForProfile('));
-  assert.match(create, /await api<PeopleProfilePayload & \{ temporaryPassword: string \}>\("\/api\/users"/);
+  const create = provisioning.slice(provisioning.indexOf('  async function create('), provisioning.indexOf('  async function retryOnboarding('));
+  assert.match(create, /await api<CreatedAccount>\("\/api\/users"/);
   assert.match(create, /setIssuedCredential\(\{ username: created\.username, temporaryPassword: created\.temporaryPassword \}\)/);
-  assert.match(create, /reconcileAfterCommit\(\(\) => loadProfiles\(created\.id, true, true\)\)/);
+  assert.match(create, /reconcileAfterCommit\(\(\) => onCreated\(created\)\)/);
   const reset = page.slice(page.indexOf('  async function issuePasswordResetForProfile('), page.indexOf('  async function setProfileAccountState('));
   assert.match(reset, /await api<\{ ok: boolean; username: string; temporaryPassword: string \}>/);
   assert.match(reset, /reconcileAfterCommit\(async \(\) =>/);
@@ -101,10 +102,10 @@ await test('Studio settings switch account source and cannot misstate committed 
   assert.match(studio, /The previous local draft could not be cleared and may reappear/);
 });
 await test('Account Create uses synchronous admission and scopes one-time credentials to the active session', () => {
-  assert.match(page, /if \(!effectiveAdminMode \|\| accountCreateGateRef\.current\) return/);
-  assert.match(page, /accountCreateGateRef\.current = true/);
-  assert.match(page, /if \(accountScopeRef\.current !== scope\) return; \/\/ Never show another session's credential/);
-  assert.match(page, /finally \{ accountCreateGateRef\.current = false/);
+  assert.match(provisioning, /if \(!enabled \|\| gateRef\.current\) return/);
+  assert.match(provisioning, /gateRef\.current = true/);
+  assert.match(provisioning, /if \(scopeRef\.current !== scope\) return; \/\/ Never show another session's credential/);
+  assert.match(provisioning, /finally \{\n      gateRef\.current = false/);
   assert.match(page, /if \(accountScopeRef\.current !== scope\) return;/);
 });
 await test('Team mutations share per-team same-frame admission and release', () => {

@@ -5,10 +5,11 @@ import { cursorWhere, decodeCursor, encodeCursor } from "../../apps/server/src/c
 
 const source = (path) => readFileSync(path, "utf8");
 const api = source("apps/server/src/domains/users/people-account-management-routes.ts");
-const admin = source("packages/renderer/src/features/people/PeopleAccountManagementPanel.tsx");
+const admin = source("packages/renderer/src/features/admin/AdminUsersPage.tsx");
 const people = source("packages/renderer/src/features/people/PeoplePages.tsx");
 const directory = source("apps/server/src/domains/users/user-directory-routes.ts");
-const css = source("packages/renderer/src/features/people/people.css");
+const css = source("packages/renderer/src/features/admin/admin-users.css");
+const app = source("packages/renderer/src/features/application/ClusterApplication.tsx");
 
 let count = 0;
 function check(label, action) { action(); count++; console.log("PASS", label); }
@@ -83,27 +84,19 @@ check("Pagination and query size remain bounded and invalid cursors rejected", (
   assert.ok(api.includes('buildCursorPage(rows, query.limit, "updatedAt")'));
 });
 
-check("General People directory no longer uses client-only account filters", () => {
-  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
+check("Account management lives in Admin → Users, not in the People directory", () => {
+  assert.ok(!people.includes('"accounts"'));
   assert.ok(!people.includes('accountFilter === "attention"'));
-  assert.ok(!people.includes('accountFilter === "restricted"'));
   assert.ok(!people.includes('&includeArchived=true'));
+  assert.ok(people.includes('onCreateAccount'));
+  assert.ok(app.includes('routeSection === "admin"'));
   assert.ok(directory.includes('registerPeopleAccountManagementRoutes({ app, prisma, getCurrentUser, authorization });'));
 });
 
-check("Account toolbar and page navigation offer task-first actions", () => {
-  assert.ok(admin.includes('label="User account management"'));
-  assert.ok(admin.includes('Search accounts'));
-  assert.ok(admin.includes('<option value="archived">Archived</option>'));
-  assert.ok(admin.includes('onOpenAccount(account.id, "edit")'));
-  assert.ok(admin.includes('onOpenAccount(account.id, "access")'));
-  assert.ok(people.includes('pendingManagedAccountViewRef.current = { id, view }'));
-  assert.ok(people.includes('setProfileViewState(pending.view)'));
-  assert.ok(people.includes("accountCreationOpen={createAccountOpen}"));
-  assert.ok(people.includes('workforceMode !== "accounts" && <ClusterButton variant="secondary"'));
-  assert.ok(people.includes('workforceMode === "accounts" ? "Refresh accounts" : "Refresh people"'));
-  assert.ok(admin.includes("onToggleCreateAccount"));
-  assert.ok(admin.includes('Role filter unavailable: {roleError}'));
+check("Users views map to server-side status filters", () => {
+  for (const id of ["all", "setup", "restricted", "expiring", "expired", "archived"]) assert.ok(admin.includes(`{ id: "${id}", label:`), id);
+  assert.ok(admin.includes('aria-label="Search accounts"'));
+  assert.ok(admin.includes('onClick={() => onOpenPerson(account.id)}'));
 });
 
 check("Account fetch is generation guarded and search is debounced", () => {
@@ -111,34 +104,12 @@ check("Account fetch is generation guarded and search is debounced", () => {
   assert.ok(admin.includes('const current = ++generation.current'));
   assert.ok(admin.includes('if (current !== generation.current) return;'));
   assert.ok(admin.includes('if (requestGeneration !== generation.current) return;'));
-  assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
-  assert.ok(admin.includes('if (!active || roleCatalogLoadedRef.current) return;'));
+  assert.ok(admin.includes('if (!nextCursor || loading || paging.current) return;'));
+  assert.ok(admin.includes('return () => { generation.current += 1; };'));
 });
 
-check("Admin workspace is responsive without bloating the general People layout", () => {
-  assert.ok(css.includes('.people-account-management-v11'));
-  assert.ok(css.includes('@media(max-width:670px)'));
-  assert.ok(people.includes('adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory"'));
-  assert.ok(people.includes('enabled: workforceMode === "directory"'));
-  assert.ok(people.includes('if (workforceModeRef.current === "accounts") return;'));
-  assert.ok(people.includes('previous === "accounts" && workforceMode !== "accounts"'));
-  assert.ok(people.includes('!activateTarget && !contextOnly'));
-});
-
-check("Opening an account does not destroy active account filters or result context", () => {
-  assert.ok(people.includes('hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"'));
-  assert.ok(people.includes('active={workforceMode === "accounts"}'));
-  assert.ok(admin.includes('if (!active) { generation.current += 1; paging.current = false;'));
-  assert.ok(admin.includes('if (!active || !nextCursor || loading || paging.current) return;'));
-});
-check("Returning from user editing and access preserves Accounts navigation and guards drafts", () => {
-  assert.ok(people.includes('const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);'));
-  assert.ok(people.includes('async function changeWorkforceMode(next: typeof workforceMode)'));
-  assert.ok(people.includes('if (!(await confirmEditorDiscard())) return;'));
-  assert.ok(people.includes('Back to Accounts'));
-  assert.ok(people.includes('setAccountsReturnAvailable(true);'));
-});
-check("Deep-linked users retain their profile rather than getting an empty admin Accounts view", () => {
-  assert.ok(people.includes('!readClusterDetailSelection("person") ? "accounts" : "directory"'));
+check("Users list stays dense at narrow widths", () => {
+  assert.ok(css.includes('.au-row'));
+  assert.ok(css.includes('@media (max-width: 1100px)'));
 });
 console.log(`People account management: ${count} contract and runtime checks passed.`);

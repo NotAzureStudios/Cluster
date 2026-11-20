@@ -32,7 +32,7 @@ export function AdminFrame({ screen, section, onNavigate, children }: {
 }) {
   const [pageNav, setPageNav] = useState<SettingsPageNav | null>(null);
   const host = useMemo(() => ({ publish: setPageNav }), []);
-  const isActive = (entry: Entry) => entry.screen === screen && (!entry.section || entry.section === section);
+  const isActive = (entry: Entry) => entry.screen === screen && (!entry.section || entry.section === section || (entry.section === "admin" && section === "account"));
   const groups = ENTRIES.reduce<Array<[string, Entry[]]>>((list, entry) => {
     const found = list.find(([name]) => name === entry.group);
     if (found) found[1].push(entry); else list.push([entry.group, [entry]]);
