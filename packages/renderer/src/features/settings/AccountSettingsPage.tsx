@@ -2159,38 +2159,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
             </div>
           )}
         </div>
-        <aside className="settings-context-v267 panel">
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Current profile</span>
-            <strong>{displayUserName(currentUser)}</strong>
-            <small>@{currentUser.username}</small>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Interface</span>
-            <div className="settings-context-chips-v267">
-              <span>{theme}</span>
-              <span>{settings.backgroundBaseStyle || "clean"}</span>
-              <span>{settings.backgroundPattern || "hex"}</span>
-              <span>{settings.surfaceStyle || "outlined"}</span>
-              <span>{settings.interfaceDensity || "compact"}</span>
-            </div>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Security</span>
-            <strong>{currentUser.pinConfigured ? "PIN configured" : "PIN required"}</strong>
-            <ClusterButton variant="secondary" type="button" onClick={() => void openSecurityPinPad()}>
-              Open PIN pad
-            </ClusterButton>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Sync</span>
-            <strong>{section === "performance" ? (dirty ? "Other account changes not saved" : "Device-local preferences") : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
-            <small>{section === "performance" ? "Performance changes apply immediately and remain on this device." : lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
-            {section === "forms" || section === "licenses" || section === "performance"
-              ? <small>{section === "performance" ? "Rendering settings stay on this device. Save any other pending account changes with the header action." : "Resources are saved in their own panels."}</small>
-              : <small>Save pending changes using the single action in the page header.</small>}
-          </div>
-        </aside>
       </div>
     </SettingsWorkspaceShell>
   );

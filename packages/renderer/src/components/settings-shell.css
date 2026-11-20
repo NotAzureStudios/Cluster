@@ -68,28 +68,42 @@
 .st-nav__top .cluster-settings-search-symbol-v11 { position: absolute; top: 50%; left: 9px; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
 .st-nav__top .cluster-settings-search-results-v11 { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 320px; max-height: 360px; overflow-y: auto; padding: var(--space-1); border-radius: 10px; background: color-mix(in srgb, var(--cluster-workbench-panel) 94%, var(--text)); box-shadow: 0 10px 30px rgb(0 0 0 / .35); }
 
-/* ---------- section content (older markup, restyled here) ---------- */
-/* A section's own header: title on the left, actions on the right. */
-.st-main :is(.settings-panel-head-v092, .server-config-group-head-v238) {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-1); padding: 0; border: 0; background: transparent;
+/* ---------- section content (older markup, restyled here) ----------
+   Three levels only: the page (flat), cards (one surface each), rows inside
+   cards (label left, control right, hairline between). Anything that holds
+   other cards is a container and draws no chrome of its own. */
+
+/* Containers: flat. */
+.st-main :is(.settings-primary-layout-v469, .settings-content-v092, .settings-section-v092, .studio-settings-section-v272,
+  .admin-consolidated-stack-v15, .admin-reports-stack-v470, .server-config-groups-v238),
+.st-main .panel:has(.panel, .settings-card-v092, .cluster-visual-summary-grid, .server-config-group-v238) {
+  display: grid; align-content: start; gap: var(--space-3); min-width: 0; margin: 0; padding: 0 !important;
+  border: 0 !important; border-radius: 0; background: transparent !important; box-shadow: none !important;
 }
-.st-main :is(.settings-panel-head-v092, .server-config-group-head-v238) :is(h2, h3) { margin: 0; font-size: var(--cluster-font-size-lg); font-weight: 600; }
-.st-main :is(.settings-panel-head-v092, .server-config-group-head-v238) > :last-child:not(:first-child) { margin-left: auto; }
-.st-main :is(.settings-panel-head-v092, .server-config-group-head-v238) p { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-sm); }
-/* The title row already names the section; a section's own heading that
-   repeats it is hidden (its actions stay). */
-.st-main > :is(.settings-section-v092, .studio-settings-section-v272, div, section) > :is(.settings-panel-head-v092, .server-config-group-head-v238):first-child > :is(h2, div:first-child > h2) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.st-main > :is(.settings-section-v092, .studio-settings-section-v272, div, section) > :is(.settings-panel-head-v092, .server-config-group-head-v238):first-child:not(:has(> :not(h2):not(:empty))) { display: none; }
-/* Long explanations become one muted line; they are hints, not paragraphs. */
+.st-main .server-config-groups-v238 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+
+/* A heading that repeats the title row is hidden by the shell (data-st-dup). */
+.st-main [data-st-dup] { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238):not(:has(> :not([data-st-dup], .eyebrow, :empty))) { display: none; }
+.st-main .settings-panel-head-v092 > .eyebrow { display: none; }
+
+/* Section header: title left, actions right. */
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: 0; border: 0; background: transparent;
+}
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) :is(h2, h3) { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; text-align: left; }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) > :last-child:not(:first-child):not(h1, h2, h3) { margin-left: auto; }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) p { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .server-config-group-head-v238 > span:last-child { color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+
+/* Hints: one muted line. */
 .st-main :is(.studio-explanation-v272, .studio-section-intro-v272, .hint-box) { margin: 0; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: var(--cluster-font-size-xs); line-height: 1.4; }
 .st-main .eyebrow { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .st-main .muted { color: var(--muted); }
 .st-main p.muted, .st-main small.muted { font-size: var(--cluster-font-size-xs); }
 
-.st-main :is(.settings-section-v092, .studio-settings-section-v272) { display: grid; gap: var(--space-3); min-width: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
-
-/* Cards */
-.st-main :is(.settings-card-grid-v092) { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-3); align-items: start; }
+/* Cards. */
+.st-main .settings-card-grid-v092 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; }
 .st-main :is(.settings-card-v092, .studio-settings-block-v272, .studio-editor-panel-v272, .panel) {
   display: grid; align-content: start; gap: var(--space-2); min-width: 0; margin: 0;
   padding: var(--space-3); border: 0; border-radius: var(--cluster-radius-card);
@@ -100,11 +114,34 @@
 .st-main .settings-card-head-v092 :is(h3, h4, strong) { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
 .st-main .settings-card-head-v092 > span { margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); }
 
-/* Fields: label above control, tight. */
-.st-main .field { display: grid; gap: 4px; min-width: 0; margin: 0; }
-.st-main .field > :is(label, span:first-child) { color: var(--muted); font-size: var(--cluster-font-size-xs); font-weight: 500; }
-.st-main :is(.compact-fields-v092, .settings-stack) { display: grid; gap: var(--space-2); }
-.st-main :is(.two-col, .studio-form-grid-v272) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-3); }
+/* Rows: label left, control right. Wide controls (text areas, chip sets)
+   sit under their label. Multi-column field grids become one column. */
+.st-main :is(.compact-fields-v092, .settings-stack, .two-col, .studio-form-grid-v272, .server-config-fields-v238) { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+.st-main :is(.field, .server-config-field-v238).span-2 { grid-column: auto !important; }
+.st-main :is(.field, .server-config-field-v238) {
+  display: flex !important; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3);
+  min-width: 0; min-height: 40px; margin: 0; padding: var(--space-1) 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border) !important;
+}
+.st-main :is(.field, .server-config-field-v238):last-child { box-shadow: none !important; }
+/* Label takes ~40%, control the rest; a row narrower than both wraps to label-over-control. */
+.st-main .field > :first-child, .st-main .server-config-field-header-v11 { flex: 1 1 38%; min-width: 120px; }
+.st-main .field > :not(:first-child), .st-main .server-config-field-v238 > :not(.server-config-field-header-v11) { flex: 1 1 52%; min-width: 170px; }
+.st-main :is(.field, .server-config-field-v238) > :is(textarea, .chip-row, .cl-seg, .cluster-segmented-v11) { flex-basis: 100%; }
+.st-main .server-config-toggle-v238 > input[type="checkbox"], .st-main .field > input[type="checkbox"] { flex: 0 0 auto; min-width: 0; margin-left: auto; }
+.st-main .field > :first-child,
+.st-main .server-config-field-header-v11 label strong {
+  color: var(--text) !important; font-size: var(--cluster-font-size-sm) !important; font-weight: 500 !important;
+  letter-spacing: normal !important; text-transform: none !important;
+}
+.st-main .field > :is(small, .muted):not(:first-child) { flex-basis: 100%; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .server-config-field-header-v11 { display: flex; align-items: center; gap: var(--space-1-5); min-width: 0; }
+.st-main .server-config-field-header-v11 label { min-width: 0; }
+.st-main .server-config-field-actions-v11 { display: inline-flex; align-items: center; gap: var(--space-1); }
+.st-main .server-config-field-v238.is-dirty .server-config-field-header-v11 label strong { color: var(--warning) !important; }
+.st-main .server-config-toggle-v238 > input[type="checkbox"] { justify-self: end; }
+.st-restart { display: inline-grid; place-items: center; width: 18px; height: 18px; color: var(--muted); opacity: .7; }
+.st-restart svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
 .st-main .span-2 { grid-column: 1 / -1; }
 
 /* Controls inside settings are 32px and body-sized. */
@@ -155,6 +192,15 @@
   .st-nav__group { display: flex; gap: 2px; }
   .st-nav__group > h2 { display: none; }
   .st-nav__item { flex: none; }
-  .st-main :is(.two-col, .studio-form-grid-v272) { grid-template-columns: minmax(0, 1fr); }
   .st-head__crumb { display: none; }
 }
+
+/* Colour fields: the trigger already names itself, so the legend goes. */
+.st-main .cluster-color-field-v455 { min-width: 0; margin: 0; padding: var(--space-1) 0; border: 0; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.st-main .cluster-color-field-v455 > legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Number steppers: one 32px line, arrows side by side. */
+.st-main .number-stepper-v110 { height: 32px; }
+.st-main .number-stepper-v110 > input { height: 32px !important; }
+.st-main .number-stepper-controls-v110 { display: flex !important; flex-direction: row !important; height: 32px; }
+.st-main .number-stepper-controls-v110 > * { height: 100% !important; min-height: 0 !important; }

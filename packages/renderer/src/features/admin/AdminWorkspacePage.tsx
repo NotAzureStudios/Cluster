@@ -8,7 +8,7 @@ import { csvToTags, unique } from "../../core/storage";
 import { defaultToolPermissionsForUser, EXTERNAL_COLLABORATOR_TOOL_PERMISSIONS, PROJECT_LEVEL_OPTIONS, ROLE_PERMISSION_TEMPLATES, TOOL_LEVEL_OPTIONS, TOOL_PERMISSION_OPTIONS, canUseTool, getToolLevel, type ProjectPermissionLevel, type ProjectPermissions, type ToolPermissionKey, type ToolPermissionLevel, type ToolPermissions } from "../../core/permissions";
 import { formatRelativeTime, levelLabel } from "../../core/format";
 import { ClusterSelect } from "../../components/ClusterSelect";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
@@ -1073,16 +1073,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {(adminSection === "systems" || canonicalAdminOperationsSection(adminSection) === "systems") && (
         <div className="admin-consolidated-stack-v15">
-          <HealthStrip
-            density="compact"
-            label="Systems health"
-            items={[
-              { id: "server", label: "Server", value: operationsDiagnostics?.ok ? "Online" : "Check", detail: operationsDiagnostics?.version ? `v${operationsDiagnostics.version}` : "runtime", tone: operationsDiagnostics?.ok ? "success" : "warning" },
-              { id: "security", label: "Security", value: operationsSecurity?.authRequired ? "Protected" : "Review", detail: "authentication", tone: operationsSecurity?.authRequired ? "success" : "danger" },
-              { id: "storage", label: "Storage", value: operationsFolderWarnings || 0, detail: operationsFolderWarnings ? "path issues" : "issues", tone: operationsFolderWarnings ? "danger" : "success" },
-              { id: "records", label: "Records", value: Number(operationsDatabaseTotal || 0), detail: "database", tone: "info" },
-            ]}
-          />
           {adminSection === "systems" ? <><OperationsSystemsPanel />
           <ClusterButton type="button" variant="quiet" className="admin-jobs-shortcut-v12" onClick={() => setAdminSection("jobs")}>
             <span className="admin-jobs-shortcut-icon-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
@@ -1097,16 +1087,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {adminSection === "security-center" && (
         <div className="admin-consolidated-stack-v15">
-          <HealthStrip
-            density="compact"
-            label="Governance health"
-            items={[
-              { id: "approvals", label: "Approvals", value: adminPendingApprovals, detail: adminPendingApprovals ? "waiting" : "clear", tone: adminPendingApprovals ? "warning" : "success" },
-              { id: "access", label: "Access reviews", value: adminAccessReviewUserCount, detail: "accounts", tone: adminAccessReviewUserCount ? "warning" : "success" },
-              { id: "suspended", label: "Suspended", value: adminSuspendedUserCount, detail: "accounts", tone: adminSuspendedUserCount ? "info" : "success" },
-              { id: "expired", label: "Expired access", value: adminExpiredAccessCount, detail: "accounts", tone: adminExpiredAccessCount ? "danger" : "success" },
-            ]}
-          />
           <SecurityCenterPanel onOpenServerConfig={onOpenServerConfig} />
         </div>
       )}
@@ -1156,124 +1136,49 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       {adminSection === "overview" && (
         <div className="operations-overview">
           <ClusterPulse label="Studio operations" items={[
-            { id: "readiness", label: "Ready", value: `${adminReadinessScore}%`, sub: adminCriticalGapCount ? `${adminCriticalGapCount} open` : undefined, tone: adminCriticalGapCount ? "warning" : "good", onSelect: () => document.querySelector(".operations-action-queue")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
             { id: "approvals", label: "Approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good", onSelect: () => setAdminSection("approvals") },
             { id: "projects", label: "Projects", value: adminActiveProjects.length, sub: adminAtRiskProjectCount ? `${adminAtRiskProjectCount} at risk` : undefined, tone: adminAtRiskProjectCount ? "warning" : "good", icon: "project", onSelect: () => onOpenProjects?.() },
             { id: "people", label: "People", value: adminActiveUserCount, sub: adminAwayUserCount ? `${adminAwayUserCount} away` : undefined, tone: "accent", icon: "users", onSelect: () => onOpenUserAdmin?.() },
             { id: "tools", label: "Tools on", value: `${TOOL_INFRASTRUCTURE_CATALOG.length - adminDisabledToolCount}/${TOOL_INFRASTRUCTURE_CATALOG.length}`, tone: adminDisabledToolCount ? "warning" : "neutral", icon: "tools", onSelect: () => onOpenToolInfrastructure?.() },
           ]} />
-          <AdminSetupChecklist
-            onOpenStudioSettings={onOpenStudioSettings}
-            onOpenServerConfig={onOpenServerConfig}
-            onOpenProjects={onOpenProjects}
-            onOpenUserAdmin={onOpenUserAdmin}
-          />
-          <div className="operations-overview-layout">
-            <main className="operations-overview-main">
-              <details className="operations-server-details-v528">
-                <summary><span><strong>Server details</strong><small>Runtime, queues, fleet sync, media workers, storage, and recovery</small></span><span>Open diagnostics</span></summary>
-                <ServerAdminExperiencePanel onOpenServerConfig={onOpenServerConfig} onOpenMaintenance={() => setAdminSection("systems")} onOpenReports={() => setAdminSection("reports")} />
-              </details>
-              {(adminCriticalGapCount > 0 || adminStaleUserCount > 0) && <section className="panel operations-action-queue">
-                <header>
-                  <strong>Action queue</strong>
-                  <ClusterButton type="button"
-                    className=""
-                    onClick={() => {
-                      void onReloadProjects();
-                      void onReloadWhiteboards();
-                      void loadAdminUsers(true);
-                    }}
-                   variant="quiet" size="compact">
-                    Refresh
-                  </ClusterButton>
-                </header>
-                <div className="operations-action-grid">
-                  {adminPendingApprovals ? <ClusterButton type="button" className="attention" onClick={() => setAdminSection("security-center")}>
-                    <span>Approvals</span>
-                    <strong>{adminPendingApprovals}</strong>
-                  </ClusterButton> : null}
-                  {adminProjectsWithoutLeads.length ? <ClusterButton type="button" className="attention" onClick={() => onOpenProjects?.()}>
-                    <span>Projects without leads</span>
-                    <strong>{adminProjectsWithoutLeads.length}</strong>
-                  </ClusterButton> : null}
-                  {adminProjectsWithoutBoards.length ? <ClusterButton type="button" className="attention" onClick={() => onOpenProjects?.()}>
-                    <span>Projects without boards</span>
-                    <strong>{adminProjectsWithoutBoards.length}</strong>
-                  </ClusterButton> : null}
-                  {adminProfileGapUsers.length ? <ClusterButton type="button" className="attention" onClick={() => openAdminUser()}>
-                    <span>Incomplete users</span>
-                    <strong>{adminProfileGapUsers.length}</strong>
-                  </ClusterButton> : null}
-                  {adminPermissionGapCount ? <ClusterButton type="button" className="attention" onClick={() => openAdminUser()}>
-                    <span>Access reviews</span>
-                    <strong>{adminPermissionGapCount}</strong>
-                  </ClusterButton> : null}
-                  {adminStaleUserCount ? <ClusterButton type="button" className="attention" onClick={() => document.querySelector(".operations-live-v249")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                    <span>Inactive users</span>
-                    <strong>{adminStaleUserCount}</strong>
-                  </ClusterButton> : null}
-                </div>
-              </section>}
-
-            </main>
-
-            <aside className="operations-overview-side">
-              <section className="panel operations-system-health">
-                <header>
-                  <strong>System health</strong>
-                  <div className="button-row">
-                    <span className={`soft-pill ${operationsDiagnostics?.ok && !operationsFolderWarnings ? "good" : "warning"}`}>v{operationsDiagnostics?.version || "..."}</span>
-                    <ClusterButton type="button" className="" onClick={() => void loadOperationsDiagnostics(true)} variant="quiet" size="compact">
-                      Refresh
-                    </ClusterButton>
-                  </div>
-                </header>
-                <div className="operations-health-grid">
-                  <span className={operationsDiagnostics?.ok ? "good" : "attention"}>
-                    <b>Server</b>
-                    <strong>{operationsDiagnostics?.ok ? "Online" : "Check"}</strong>
-                  </span>
-                  <span className={operationsSecurity?.authRequired ? "good" : "attention"}>
-                    <b>Security</b>
-                    <strong>{operationsSecurity?.authRequired ? "Protected" : "Review"}</strong>
-                  </span>
-                  <span className={operationsFolderWarnings ? "attention" : "good"}>
-                    <b>Storage</b>
-                    <strong>{operationsFolderWarnings ? `${operationsFolderWarnings} issue` : "Ready"}</strong>
-                  </span>
-                  <span>
-                    <b>Records</b>
-                    <strong>{operationsDatabaseTotal}</strong>
-                  </span>
-                </div>
-                <div className="operations-health-issues">
-                  {(operationsDiagnostics?.folders || [])
-                    .filter((folder) => !folder.exists)
-                    .map((folder) => (
-                      <div key={folder.key}>
-                        <span>
-                          <strong>{levelLabel(folder.key)}</strong>
-                          <em>{folder.path}</em>
-                        </span>
-                        <b>Missing</b>
-                      </div>
-                    ))}
-                  {operationsDiagnostics && !operationsFolderWarnings && (
-                    <div className="good">
-                      <span>
-                        <strong>Storage paths</strong>
-                        <em>All required folders are available.</em>
-                      </span>
-                      <b>Ready</b>
-                    </div>
-                  )}
-                  {!operationsDiagnostics && <InlineLoadingState label="Loading runtime health" lines={2} />}
-                </div>
-              </section>
-
-            </aside>
+          <div className="adm-dash">
+            <AdminSetupChecklist
+              onOpenStudioSettings={onOpenStudioSettings}
+              onOpenServerConfig={onOpenServerConfig}
+              onOpenProjects={onOpenProjects}
+              onOpenUserAdmin={onOpenUserAdmin}
+            />
+            <section className="adm-card adm-health" aria-label="System health">
+              <header className="adm-card__head">
+                <h2>System</h2>
+                <span className="adm-card__meta">{operationsDiagnostics?.version ? `v${operationsDiagnostics.version}` : ""}</span>
+                <ClusterIconButton size="compact" label="Refresh system health" onClick={() => void loadOperationsDiagnostics(true)}><ClusterIcon name="refresh" /></ClusterIconButton>
+              </header>
+              {operationsDiagnostics ? <ul className="adm-health__list">
+                <li data-tone={operationsDiagnostics.ok ? "good" : "warning"}><i />Server<b>{operationsDiagnostics.ok ? "Online" : "Check"}</b></li>
+                <li data-tone={operationsSecurity?.authRequired ? "good" : "danger"}><i />Sign-in<b>{operationsSecurity?.authRequired ? "Required" : "Open"}</b></li>
+                <li data-tone={operationsFolderWarnings ? "danger" : "good"}><i />Storage<b>{operationsFolderWarnings ? `${operationsFolderWarnings} missing` : "Ready"}</b></li>
+                <li data-tone="neutral"><i />Records<b>{operationsDatabaseTotal}</b></li>
+                {(operationsDiagnostics.folders || []).filter((folder) => !folder.exists).map((folder) => <li key={folder.key} data-tone="danger" className="adm-health__issue" title={folder.path}><i />{levelLabel(folder.key)}<b>Missing</b></li>)}
+              </ul> : <InlineLoadingState label="Loading system health" lines={3} />}
+              <ClusterButton type="button" variant="quiet" size="compact" className="adm-card__more" onClick={() => setAdminSection("systems")}>System health<ClusterIcon name="chevron-right" /></ClusterButton>
+            </section>
+            {adminCriticalGapCount > 0 || adminStaleUserCount > 0 ? <section className="adm-card adm-queue" aria-label="Needs attention">
+              <header className="adm-card__head"><h2>Needs attention</h2></header>
+              <ul className="adm-queue__list">
+                {adminPendingApprovals ? <li><ClusterButton unstyled type="button" onClick={() => setAdminSection("approvals")}>Approvals<b>{adminPendingApprovals}</b></ClusterButton></li> : null}
+                {adminProjectsWithoutLeads.length ? <li><ClusterButton unstyled type="button" onClick={() => onOpenProjects?.()}>Projects without a lead<b>{adminProjectsWithoutLeads.length}</b></ClusterButton></li> : null}
+                {adminProjectsWithoutBoards.length ? <li><ClusterButton unstyled type="button" onClick={() => onOpenProjects?.()}>Projects without a board<b>{adminProjectsWithoutBoards.length}</b></ClusterButton></li> : null}
+                {adminProfileGapUsers.length ? <li><ClusterButton unstyled type="button" onClick={() => onOpenUserAdmin?.()}>Incomplete profiles<b>{adminProfileGapUsers.length}</b></ClusterButton></li> : null}
+                {adminPermissionGapCount ? <li><ClusterButton unstyled type="button" onClick={() => onOpenUserAdmin?.()}>Access reviews<b>{adminPermissionGapCount}</b></ClusterButton></li> : null}
+                {adminStaleUserCount ? <li><ClusterButton unstyled type="button" onClick={() => onOpenUserAdmin?.()}>Inactive people<b>{adminStaleUserCount}</b></ClusterButton></li> : null}
+              </ul>
+            </section> : null}
           </div>
+          <details className="operations-server-details-v528">
+            <summary><span><strong>Server details</strong><small>Runtime, queues, workers, storage</small></span><span>Open</span></summary>
+            <ServerAdminExperiencePanel onOpenServerConfig={onOpenServerConfig} onOpenMaintenance={() => setAdminSection("systems")} onOpenReports={() => setAdminSection("reports")} />
+          </details>
         </div>
       )}
 

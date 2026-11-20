@@ -21,7 +21,7 @@ const checks = [
   ["chip icons + text", chips.includes('DEFAULT_ICONS') && chips.includes('children: ReactNode')],
   ["color not sole signal", chips.includes('<span>{children}</span>') && chipCss.includes("border: 1px")],
   ["no arbitrary rainbow panel", chipCss.includes("--chip-color: var(--warning") && chipCss.includes("--chip-color: var(--danger")],
-  ["restart field metadata", server.includes("Restart after save") && server.includes("Restart on change")],
+  ["restart field metadata", server.includes("Restart after save") && server.includes("Takes effect after the server restarts")],
   ["server network chip is not public proof", server.includes("Local startup verified")],
   ["integration health uses observed healthState", integrations.includes("integrationStateTone(connection.healthState)") && integrations.includes("Last check healthy")],
   ["integration provider is availability not health", integrations.includes('label: "Discord provider"') && integrations.includes('detail: botTokenConfigured || webhookConfigured ? "Credentials configured · health unverified"')],

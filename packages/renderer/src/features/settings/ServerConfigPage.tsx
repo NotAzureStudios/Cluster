@@ -8,6 +8,7 @@ import { compactDateTime } from "../../core/date-time";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { AdminConfigurationTransfer } from "../admin/AdminSetupChecklist";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterSettingsChangeReview, ClusterSettingsHelp } from "../../components/ClusterSettingsPrimitives";
@@ -1389,8 +1390,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     const inputId = "server-config-field-" + String(field.key);
     const className = "server-config-field-v238 server-config-compact-field-v11" + (field.wide ? " span-2" : "") + (changed ? " is-dirty" : "");
     const help = SERVER_CONFIG_HELP[field.key] || "Controls this server setting.";
-    const status = field.restart
-      ? <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>
+    const status = field.restart && changed ? <SettingsStateChip tone="warning" icon="refresh">Restart after save</SettingsStateChip>
+      : field.restart ? <span className="st-restart" title="Takes effect after the server restarts" aria-label="Takes effect after the server restarts"><ClusterIcon name="refresh" aria-hidden="true" /></span>
       : changed ? <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip> : null;
     const header = <span className="server-config-field-header-v11">
       <label htmlFor={inputId}><strong>{field.label}</strong></label>
@@ -1461,8 +1462,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "integrations" as const, label: "Extensions" },
   ];
   const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
-  const activeServerGroupId = serverGroupForSection(section);
-  const activeServerGroup = serverConfigGroups.find((group) => group.id === activeServerGroupId) || serverConfigGroups[0];
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
@@ -1517,14 +1516,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             : field.restart ? "restart" : "protected",
         }))}
       />}
-      <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
-        <div className="studio-settings-context-head-v15 settings-section-context-v12">
-          <h2 className="server-config-section-title-v103"><span className="settings-context-icon-v12"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" /></span>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2>
-          {section === "security" && securityPosture ? <SettingsStateChip tone={securityPosture.healthy ? "success" : "warning"}>{securityPosture.healthy ? "Healthy" : "Needs review"}</SettingsStateChip> : null}
-          {section === "sessions" ? <SettingsStateChip tone="neutral" icon="users">{serverSessions.length} sessions</SettingsStateChip> : null}
-          {section === "backups" ? <SettingsStateChip tone="neutral" icon="archive">{serverBackups.length} backups</SettingsStateChip> : null}
-        </div>
-      </section>
 
       {section === "overview" && (
         <div className="server-config-overview-v238">
@@ -2060,6 +2051,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           </section>
         </div>
       )}
+      {section === "backups" && <AdminConfigurationTransfer />}
       {section === "integrations" && (
         <div className="server-config-groups-v238 server-config-integrations-v241">
           <section className="panel server-config-operations-v238 integration-mail-v512">

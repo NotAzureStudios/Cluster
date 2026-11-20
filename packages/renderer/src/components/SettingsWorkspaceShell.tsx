@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import type { ToolPageMetric } from "./ToolPageHeader";
 import type { CompactSectionNavItem } from "./CompactSectionNav";
 import { ClusterButton } from "./ClusterButton";
@@ -51,6 +51,31 @@ function sectionIcon(item: CompactSectionNavItem<string>): ClusterIconName {
   if (item.icon) return item.icon;
   const key = `${item.id} ${item.label}`.toLowerCase();
   return SECTION_ICONS.find(([pattern]) => pattern.test(key))?.[1] || "settings";
+}
+
+/* Sections were written as standalone pages and open with their own title.
+   The title row already names the section, so the first heading inside it
+   that says the same thing is hidden. "Same" is loose: the first word, with
+   a plural s dropped ("Automation rules" under "Automations"). */
+const stem = (text: string) => (text.trim().toLowerCase().match(/[a-z]+/)?.[0] || "").replace(/s$/, "");
+function useHideRepeatedHeading(main: RefObject<HTMLElement | null>, label: string | undefined) {
+  useEffect(() => {
+    const root = main.current;
+    if (!root || !label) return;
+    const target = stem(label);
+    const mark = () => {
+      root.querySelectorAll("[data-st-dup]").forEach((node) => node.removeAttribute("data-st-dup"));
+      const first = root.querySelector("h1, h2, h3");
+      if (!first || !target || stem(first.textContent || "") !== target) return;
+      first.setAttribute("data-st-dup", "");
+      const eyebrow = first.previousElementSibling;
+      if (eyebrow?.classList.contains("eyebrow")) eyebrow.setAttribute("data-st-dup", "");
+    };
+    mark();
+    const observer = new MutationObserver(mark);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [main, label]);
 }
 
 export function SettingsWorkspaceShell<Id extends string>({
@@ -107,6 +132,8 @@ export function SettingsWorkspaceShell<Id extends string>({
     if (existing) existing[1].push(item); else groups.push([group, [item]]);
   }
   const active = items.find((item) => item.id === activeId);
+  const mainRef = useRef<HTMLDivElement>(null);
+  useHideRepeatedHeading(mainRef, active?.label);
   if (host) return (
     <section className={`st st--embedded ${className}`.trim()}>
       <header className="st-head">
@@ -114,7 +141,7 @@ export function SettingsWorkspaceShell<Id extends string>({
         {status ? <span className="st-head__status" role="status">{status}</span> : null}
         {actions ? <div className="st-head__actions">{actions}</div> : null}
       </header>
-      <div className="st-main">{children}</div>
+      <div className="st-main" ref={mainRef}>{children}</div>
     </section>
   );
   const nav = <nav className="st-nav" aria-label={navLabel}>
@@ -136,7 +163,7 @@ export function SettingsWorkspaceShell<Id extends string>({
     <div className={`st st--inline ${className}`.trim()}>
       <div className="st-body">
         {nav}
-        <div className="st-main">
+        <div className="st-main" ref={mainRef}>
           {status || actions ? <div className="st-inline-bar">{status ? <span className="st-head__status" role="status">{status}</span> : null}{actions ? <div className="st-head__actions">{actions}</div> : null}</div> : null}
           {children}
         </div>
@@ -153,7 +180,7 @@ export function SettingsWorkspaceShell<Id extends string>({
       </header>
       <div className="st-body">
         {nav}
-        <div className="st-main">{children}</div>
+        <div className="st-main" ref={mainRef}>{children}</div>
       </div>
     </section>
   );
