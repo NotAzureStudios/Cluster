@@ -1,0 +1,57 @@
+/* Admin workspace frame — the only stylesheet for adm-*. One navigation
+   column (220px) beside the page; the open page's sections nest under its
+   entry, indented, so Studio and Server need no second menu. */
+.adm { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4); align-items: start; min-width: 0; padding: var(--space-2) 0 var(--space-6); }
+
+.adm-nav {
+  position: sticky;
+  top: calc(var(--cl-titlebar-h, 44px) + var(--space-2));
+  display: grid;
+  gap: var(--space-3);
+  max-height: calc(100dvh - var(--cl-titlebar-h, 44px) - var(--space-4));
+  overflow-y: auto;
+  padding-bottom: var(--space-4);
+  scrollbar-width: thin;
+}
+.adm-nav__title { margin: 0; padding: 0 var(--space-2); font-size: var(--cluster-font-size-2xl); font-weight: 600; letter-spacing: -.01em; line-height: 40px; }
+.adm-nav__group { display: grid; gap: 1px; }
+.adm-nav__group > h2 { margin: 0 0 2px; padding: 0 var(--space-2); color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.adm-nav__entry { display: grid; gap: 1px; }
+
+.adm-nav__item, .adm-sub__item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; height: 30px; padding: 0 var(--space-2);
+  border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--muted);
+  font: inherit; font-size: var(--cluster-font-size-sm); text-align: left; cursor: pointer;
+}
+.adm-nav__item:hover, .adm-sub__item:hover { background: var(--cluster-button-fill); color: var(--text); }
+.adm-nav__item:focus-visible, .adm-sub__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.adm-nav__item svg.cluster-icon-svg, .adm-sub__item svg.cluster-icon-svg { flex: none; inline-size: 15px; block-size: 15px; }
+.adm-nav__item > span, .adm-sub__item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-nav__item.is-active { color: var(--text); font-weight: 600; }
+.adm-nav__item.is-active:not([aria-current]) svg.cluster-icon-svg:first-child { color: var(--accent); }
+.adm-nav__item.is-active[aria-current] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.adm-nav__item.is-active[aria-current] svg.cluster-icon-svg { color: var(--accent); }
+.adm-nav__chev.cluster-icon-svg { inline-size: 12px !important; block-size: 12px !important; opacity: .6; }
+
+.adm-sub { display: grid; gap: var(--space-2); margin: 2px 0 var(--space-1) 14px; padding-left: var(--space-2); box-shadow: inset 1px 0 0 var(--cluster-workbench-border); }
+.adm-sub__group { display: grid; gap: 1px; }
+.adm-sub__group > h3 { margin: var(--space-1) 0 2px; padding: 0 var(--space-2); color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.adm-sub__item { height: 28px; font-size: var(--cluster-font-size-xs); }
+.adm-sub__item svg.cluster-icon-svg { inline-size: 13px; block-size: 13px; }
+.adm-sub__item.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-weight: 600; }
+.adm-sub__item.is-active svg.cluster-icon-svg { color: var(--accent); }
+.adm-sub__item > i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--warning); }
+.adm-sub__item > i[data-tone="danger"] { background: var(--danger); }
+
+.adm-main { min-width: 0; }
+/* Pages inside the frame drop their own outer padding and page chrome. */
+.adm-main > .page, .adm-main > section.page { padding-top: 0; }
+.adm-main .st--embedded { padding: 0 0 var(--space-6); grid-template-rows: auto auto; }
+
+@media (max-width: 960px) {
+  .adm { grid-template-columns: minmax(0, 1fr); }
+  .adm-nav { position: static; max-height: none; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .adm-nav__title, .adm-nav__group > h2, .adm-sub { display: none; }
+  .adm-nav__group { display: flex; gap: 2px; }
+  .adm-nav__item { width: auto; }
+}

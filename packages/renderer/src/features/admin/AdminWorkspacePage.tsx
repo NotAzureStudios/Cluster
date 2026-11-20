@@ -15,8 +15,10 @@ import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { HealthStrip } from "../../components/ClusterVisualIntelligence";
+import { ClusterPulse } from "../../components/ClusterPulse";
 import { InlineLoadingState } from "../../components/LoadingState";
-import { SectionedWorkspaceShell } from "../../components/SectionedWorkspaceShell";
+import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
+import type { CompactSectionNavItem } from "../../components/CompactSectionNav";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { confirmCluster } from "../../components/cluster-dialog-service";
@@ -1009,7 +1011,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
     setStatus(`${levelLabel(kind)} export downloaded.`);
   }
   return (
-    <SectionedWorkspaceShell
+    <SettingsWorkspaceShell
       className={`admin-workspace-v298 admin-page admin-page-v064 ${scope === "users" ? "user-admin-page-v241" : "operations-admin-page-v241"}`}
       title={scope === "users" ? "People Management" : "Operations"}
       icon={scope === "users" ? "users" : "operations"}
@@ -1025,8 +1027,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       ]}
       actions={
         <div className="button-row compact">
-          {scope === "operations" && onOpenStudioSettings ? <ClusterButton variant="quiet" onClick={onOpenStudioSettings}><ClusterIcon name="settings" /> Studio settings</ClusterButton> : null}
-          {scope === "operations" && onOpenServerConfig ? <ClusterButton variant="quiet" onClick={onOpenServerConfig}><ClusterIcon name="cloud" /> Server configuration</ClusterButton> : null}
           <ClusterButton
             variant="secondary"
             onClick={() => {
@@ -1042,19 +1042,16 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       }
       status={status}
       navLabel={scope === "users" ? "People management sections" : "Operations sections"}
-      navClassName="admin-subnav-v204"
-      activeId={scope === "users" ? adminSection : canonicalAdminOperationsSection(adminSection)}
+      activeId={adminSection}
       onChange={setAdminSection}
-      primaryIds={(scope === "users" ? ["users", "exports"] : ["overview", "incidents", "jobs", "approvals", "systems", "reports"]) as AdminSection[]}
-      items={buildAdminWorkspaceNav(scope, { userCount: users.length, pendingApprovals: adminPendingApprovals })}
+      items={buildAdminWorkspaceNav(scope, { userCount: users.length, pendingApprovals: adminPendingApprovals }).flatMap((item): CompactSectionNavItem<AdminSection>[] => {
+        const context = scope === "operations" ? ADMIN_OPERATIONS_CONTEXT[item.id as keyof typeof ADMIN_OPERATIONS_CONTEXT] : undefined;
+        const label = item.id === "overview" ? "Dashboard" : item.label;
+        if (!context) return [{ id: item.id, label, detail: item.detail }];
+        return context.map((destination) => ({ id: destination.id as AdminSection, label: destination.label, group: item.label,
+          detail: destination.id === "approvals" ? item.detail : undefined, detailTone: destination.id === "approvals" && adminPendingApprovals ? "warning" as const : undefined }));
+      })}
     >
-      {scope === "operations" && (["approvals", "systems", "reports"] as const).includes(canonicalAdminOperationsSection(adminSection) as "approvals" | "systems" | "reports") && (
-        <nav className="admin-context-rail-v5123" aria-label="Operations specialist sections">
-          {ADMIN_OPERATIONS_CONTEXT[canonicalAdminOperationsSection(adminSection) as keyof typeof ADMIN_OPERATIONS_CONTEXT].map((destination) => (
-            <ClusterButton key={destination.id} type="button" size="compact" variant={adminSection === destination.id ? "secondary" : "quiet"} aria-pressed={adminSection === destination.id} onClick={() => setAdminSection(destination.id)}>{destination.label}</ClusterButton>
-          ))}
-        </nav>
-      )}
 
       {adminSection === "approvals" && <AdminApprovalCenter projects={projects} />}
 
@@ -1158,51 +1155,13 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {adminSection === "overview" && (
         <div className="operations-overview">
-          <HealthStrip
-            density="compact"
-            label="Studio operations health"
-            items={[
-              { id: "readiness", label: "Readiness", value: `${adminReadinessScore}%`, detail: `${adminCriticalGapCount} open signals`, tone: adminCriticalGapCount ? "warning" : "success" },
-              { id: "projects", label: "Portfolio", value: adminActiveProjects.length, detail: `${adminAtRiskProjectCount} at risk`, tone: adminAtRiskProjectCount ? "warning" : "success" },
-              { id: "people", label: "People", value: adminActiveUserCount, detail: `${adminAwayUserCount} away`, tone: "info" },
-              { id: "tools", label: "Tools", value: `${TOOL_INFRASTRUCTURE_CATALOG.length - adminDisabledToolCount}/${TOOL_INFRASTRUCTURE_CATALOG.length}`, detail: "enabled", tone: adminDisabledToolCount ? "warning" : "success" },
-            ]}
-          />
-          <section className="operations-summary-grid" aria-label="Operations summary">
-            <ClusterButton type="button" className={adminCriticalGapCount ? "attention" : "good"} onClick={() => document.querySelector(".operations-action-queue")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-              <span>Readiness</span>
-              <strong>{adminReadinessScore}%</strong>
-              <b>{adminCriticalGapCount}</b>
-            </ClusterButton>
-            <ClusterButton type="button" className={adminAtRiskProjectCount ? "attention" : "good"} onClick={() => onOpenProjects?.()}>
-              <span>Projects</span>
-              <strong>{adminActiveProjects.length}</strong>
-              <b>{adminAtRiskProjectCount} risk</b>
-            </ClusterButton>
-            <ClusterButton type="button" onClick={() => document.querySelector(".operations-live-v249")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-              <span>People</span>
-              <strong>{adminActiveUserCount}</strong>
-              <b>{adminAwayUserCount} away</b>
-            </ClusterButton>
-            <ClusterButton type="button" className={adminDisabledToolCount ? "attention" : "good"} onClick={() => onOpenToolInfrastructure?.()}>
-              <span>Tools</span>
-              <strong>
-                {TOOL_INFRASTRUCTURE_CATALOG.length - adminDisabledToolCount}/{TOOL_INFRASTRUCTURE_CATALOG.length}
-              </strong>
-              <b>enabled</b>
-            </ClusterButton>
-          </section>
-
-              <section className="panel admin-workspace-hub-v15" aria-label="Administration workspaces">
-                <header><div><strong>Administration</strong><small>Quick access to canonical administrative workspaces.</small></div></header>
-                <div className="admin-workspace-hub-grid-v15">
-                  <ClusterButton type="button" onClick={() => onOpenStudioSettings?.()}><ClusterIcon name="settings" /><span><strong>Studio settings</strong><small>People, project defaults, policy</small></span></ClusterButton>
-                  <ClusterButton type="button" onClick={() => onOpenToolInfrastructure?.()}><ClusterIcon name="tools" /><span><strong>Tools</strong><small>Tool health, availability, specialist controls</small></span></ClusterButton>
-                  <ClusterButton type="button" onClick={() => onOpenServerConfig?.()}><ClusterIcon name="cloud" /><span><strong>Server</strong><small>Security, data, runtime</small></span></ClusterButton>
-                  <ClusterButton type="button" onClick={() => setAdminSection("approvals")}><ClusterIcon name="lock" /><span><strong>Governance</strong><small>Approvals, policies, permissions</small></span></ClusterButton>
-                  <ClusterButton type="button" onClick={() => setAdminSection("reports")}><ClusterIcon name="activity" /><span><strong>Data & Audit</strong><small>Reports, activity, templates</small></span></ClusterButton>
-                </div>
-              </section>
+          <ClusterPulse label="Studio operations" items={[
+            { id: "readiness", label: "Ready", value: `${adminReadinessScore}%`, sub: adminCriticalGapCount ? `${adminCriticalGapCount} open` : undefined, tone: adminCriticalGapCount ? "warning" : "good", onSelect: () => document.querySelector(".operations-action-queue")?.scrollIntoView({ behavior: "smooth", block: "start" }) },
+            { id: "approvals", label: "Approvals", value: adminPendingApprovals, tone: adminPendingApprovals ? "warning" : "good", onSelect: () => setAdminSection("approvals") },
+            { id: "projects", label: "Projects", value: adminActiveProjects.length, sub: adminAtRiskProjectCount ? `${adminAtRiskProjectCount} at risk` : undefined, tone: adminAtRiskProjectCount ? "warning" : "good", icon: "project", onSelect: () => onOpenProjects?.() },
+            { id: "people", label: "People", value: adminActiveUserCount, sub: adminAwayUserCount ? `${adminAwayUserCount} away` : undefined, tone: "accent", icon: "users", onSelect: () => onOpenUserAdmin?.() },
+            { id: "tools", label: "Tools on", value: `${TOOL_INFRASTRUCTURE_CATALOG.length - adminDisabledToolCount}/${TOOL_INFRASTRUCTURE_CATALOG.length}`, tone: adminDisabledToolCount ? "warning" : "neutral", icon: "tools", onSelect: () => onOpenToolInfrastructure?.() },
+          ]} />
           <AdminSetupChecklist
             onOpenStudioSettings={onOpenStudioSettings}
             onOpenServerConfig={onOpenServerConfig}
@@ -1864,6 +1823,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
         downloadAdminExport={downloadAdminExport}
       />
 
-    </SectionedWorkspaceShell>
+    </SettingsWorkspaceShell>
   );
 }

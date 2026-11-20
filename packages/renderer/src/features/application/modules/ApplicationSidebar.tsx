@@ -140,33 +140,13 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
 
         {sidebarSections.map((section) => {
           if (section.id === "administration") {
-            const tools = section.routes;
-            const selectedSection = currentRoute?.split("/")[1] || "";
-            const selectedSubsection = currentRoute?.split("/")[2] || "";
-            const childActive = tools.some((entry) => entry.screen === screen) || screen === "studioSettings";
-            // No section label: the one item in it is already called Admin.
+            // One entry: every admin page lives in the Admin workspace, which
+            // has its own navigation (features/admin/AdminFrame).
+            const adminActive = section.routes.some((entry) => entry.screen === screen) || screen === "studioSettings" || (screen === "people" && currentRoute?.split("/")[1] === "admin");
             return <SidebarSection key={section.id}>
-              <SidebarNavItem icon="settings" label="Admin" active={childActive} ariaExpanded={effectiveCollapsed ? undefined : adminToolsOpen} ariaControls={effectiveCollapsed ? undefined : "cl-sb-admin-list"} trailing={<ClusterIcon name={adminToolsOpen ? "chevron-down" : "chevron-right"} />} onClick={() => effectiveCollapsed ? navigate("admin") : setAdminToolsOpen((value) => !value)} />
-              {!effectiveCollapsed && adminToolsOpen ? <div id="cl-sb-admin-list" className="cl-sb__subnav">
-                <span className="cl-sb__sublabel">Manage</span>
-                {tools.filter(({ screen: route }) => route !== "studioSettings").map(({ screen: route }) => renderRouteLink(route, true))}
-                <span className="cl-sb__sublabel">Configure</span>
-                {screen === "studioSettings" && selectedSection && ADMIN_STUDIO_DESTINATIONS.some((item) => item.section === selectedSection) ? <SidebarNavItem nested icon="settings" label="Studio settings" onClick={() => navigate("studioSettings")} /> : renderRouteLink("studioSettings", true)}
-                <ClusterButton type="button" variant="quiet" size="compact" className="cl-sb__more"
-                  aria-expanded={adminStudioShortcutsOpen} aria-controls="cl-sb-studio-shortcuts"
-                  onClick={() => setAdminStudioShortcutsOpen((value) => !value)}>
-                  <ClusterIcon name={adminStudioShortcutsOpen ? "chevron-down" : "chevron-right"} />
-                  More settings
-                </ClusterButton>
-                {adminStudioShortcutsOpen ? <div id="cl-sb-studio-shortcuts" className="cl-sb__subnav">
-                  {ADMIN_STUDIO_DESTINATIONS.map((item) =>
-                    <SidebarNavItem key={`${item.section}:${item.subsection || ""}`} nested icon={item.icon} label={item.label}
-                      active={screen === "studioSettings" && selectedSection === item.section && (!item.subsection || selectedSubsection === item.subsection)}
-                      onPointerEnter={() => prefetch("studioSettings")} onFocus={() => prefetch("studioSettings")}
-                      onClick={() => { setScreen("studioSettings", { section: item.section, subsection: item.subsection }); onClose?.(); }} />
-                  )}
-                </div> : null}
-              </div> : null}
+              <SidebarNavItem icon="settings" label="Admin" active={adminActive}
+                onPointerEnter={() => prefetch("admin")} onFocus={() => prefetch("admin")}
+                onClick={() => navigate("admin")} />
             </SidebarSection>;
           }
           return <SidebarSection key={section.id} label={effectiveCollapsed ? undefined : section.label}>

@@ -3,7 +3,8 @@ import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-ty
 import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
 import { setToastPosition } from "../../core/toasts";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { AdminFrame, ADMIN_FRAME_SCREENS } from "../admin/AdminFrame";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useWindowEvent } from "../../core/window-events";
 import "./styles/application-shell.css";
 import "./styles/application-controls.css";
@@ -130,6 +131,11 @@ export default function App() {
   const [routeSubsection, setRouteSubsection] = useState<string | null>(() => initialNavigation.state.subsection);
   const historyRestoreRef = useRef(false);
   const interactiveNavigationEpochRef = useRef(0);
+  /* Admin screens render inside one Admin workspace frame (single nav). */
+  function adminFramed(node: ReactNode, framed = true) {
+    if (!framed || !user?.isAdmin) return node;
+    return <AdminFrame screen={screen} section={routeSection} onNavigate={(next, section) => void setScreen(next as AppScreen, section ? { section } : {})}>{node}</AdminFrame>;
+  }
   async function setScreen(next: AppScreen, options: { section?: string | null; subsection?: string | null } = {}) {
     // Explicit navigation supersedes any outstanding asynchronous Back/Forward
     // admission, even if the user ultimately returns to the same route.
@@ -1329,7 +1335,7 @@ export default function App() {
             if (!await copyClusterText(window.location.href)) throw new Error("Clipboard access was denied.");
           }} workingLabel="Copying…" successLabel="Copied" errorLabel="Copy failed">Copy link</ClusterActionButton>
         </nav>}
-        {!resourceWindow && screen !== "project" && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
+        {!resourceWindow && screen !== "project" && screen !== "settings" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && routeSection === "admin"))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
           <ClusterButton type="button" className="" onClick={openContextualParent} variant="quiet" size="compact">
             <ClusterIcon name="chevron-left" />
             <span>{contextualParentLabel}</span>
@@ -1358,7 +1364,7 @@ export default function App() {
           </div>
         )}
         <Suspense fallback={<ScreenLoadingState screen={screen} />}>
-        {screen === "people" && <LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "admin" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "admin" && activeUser.isAdmin} /></section></LazyFeatureBoundary>}
+        {screen === "people" && adminFramed(<LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "admin" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "admin" && activeUser.isAdmin} /></section></LazyFeatureBoundary>, routeSection === "admin")}
         {screen === "dashboard" && (
           <LazyDashboard
             key={activeUser.id}
@@ -1541,12 +1547,12 @@ export default function App() {
           ) : (
             <ToolDisabledPage label="Packets" />
           ))}
-        {isStandaloneToolRoute(screen) && <StandaloneToolRoute screen={screen} context={{
+        {isStandaloneToolRoute(screen) && adminFramed(<StandaloneToolRoute screen={screen} context={{
           isAdmin: Boolean(activeUser.isAdmin),
           pinConfigured: Boolean(activeUser.pinConfigured),
-        }} />}
-        {screen === "toolInfrastructure" && user.isAdmin && <LazyToolInfrastructurePage projects={projects} settings={appSettings} initialSection={routeSection} />}
-        {screen === "admin" && user.isAdmin && (
+        }} />, ADMIN_FRAME_SCREENS.includes(screen))}
+        {screen === "toolInfrastructure" && user.isAdmin && adminFramed(<LazyToolInfrastructurePage projects={projects} settings={appSettings} initialSection={routeSection} />)}
+        {screen === "admin" && user.isAdmin && adminFramed(
           <LazyAdminPage
             projects={projects}
             whiteboards={whiteboards}
@@ -1611,7 +1617,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "studioSettings" && user.isAdmin && (
+        {screen === "studioSettings" && user.isAdmin && adminFramed(
           <LazyStudioSettingsPage
             currentUser={user}
             initialSection={routeSection}
@@ -1638,7 +1644,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "serverConfig" && user.isAdmin && (
+        {screen === "serverConfig" && user.isAdmin && adminFramed(
           <LazyServerConfigPage
             currentUser={user}
             initialSection={serverConfigInitialSection}

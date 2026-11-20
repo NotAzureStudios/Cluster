@@ -1175,8 +1175,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       onChange={(nextSection) => { setSection(nextSection); onSectionChange?.(nextSection); }}
       primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "performance", "navigation"] as SettingsSection[]}
       items={settingsSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.domain }))}
-    >
-      <ClusterSettingsSearch
+      navTop={<ClusterSettingsSearch
         label="Find account settings"
         entries={ACCOUNT_SETTINGS_SEARCH_ENTRIES}
         onNavigate={(entry) => {
@@ -1184,7 +1183,8 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           onSectionChange?.(entry.section);
           setSettingsSearchJump({ section: entry.section, targetId: entry.targetId || null });
         }}
-      />
+      />}
+    >
       {heldAccountDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated account settings draft">
         <strong>Local draft needs review</strong>
         <p className="muted">This draft was saved under an earlier or unknown account preferences revision. It was not applied automatically. Restoring it may replace newer changes.</p>

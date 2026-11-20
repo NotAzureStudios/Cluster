@@ -1484,28 +1484,15 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         </>
       }
       status={status}
-      navLabel="Server configuration categories"
-      activeId={activeServerGroupId}
+      navLabel="Server settings sections"
+      activeId={section}
       onChange={(value) => selectSection(value as ServerConfigSection)}
-      primaryIds={serverConfigGroups.map((group) => group.id)}
-      items={serverConfigGroups.map((group) => ({
-        id: group.id, label: group.label,
-        icon: sectionLabels.find((item) => item.id === group.id)?.icon || "settings",
-        detail: group.id === "network" && networkDeploymentPending ? "Restart" : undefined,
-        detailTone: group.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
-      }))}
+      items={serverConfigGroups.flatMap((group) => sectionLabels.filter((item) => serverGroupForSection(item.id) === group.id).map((item) => ({
+        id: item.id, label: item.label, icon: item.icon, group: group.label,
+        detail: item.id === "network" && networkDeploymentPending ? "Restart pending" : undefined,
+        detailTone: item.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
+      })))}
     >
-      <nav className="settings-subsection-tabs-v11" aria-label={`${activeServerGroup.label} settings`}>
-        {sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId).map((item) => (
-          <ClusterButton key={item.id} type="button" size="compact"
-            variant="quiet" aria-pressed={section === item.id}
-            onClick={() => selectSection(item.id)}>
-            <ClusterIcon name={item.icon} aria-hidden="true" />
-            <span>{item.label}</span>
-          </ClusterButton>
-        ))}
-      </nav>
-
       {networkDeploymentPending && (
         <section className="panel server-config-rollout-guard-v103" aria-label="Network deployment awaiting managed restart" role="status">
           <div className="server-config-section-status-v103"><h2>Network change awaiting restart</h2><SettingsStateChip tone="warning" icon="refresh">Staged · action needed</SettingsStateChip></div>

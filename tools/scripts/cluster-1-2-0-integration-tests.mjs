@@ -45,5 +45,5 @@ assert.match(webNative,/os\.O_CREATE\|os\.O_EXCL/);
 assert.match(admin,/canonicalAdminOperationsSection\(adminSection\) === "jobs"/);
 assert.match(jobs,/JOB_FILTERS\.map/);
 assert.match(jobs,/window\.setTimeout\(\(\) => setDebouncedSearch\(search\.trim\(\)\), 300\)/);
-assert.match(studio,/settings-admin-navrow-v12/);
+assert.match(studio,/navTop=\{<ClusterSettingsSearch/);
 console.log("PASS: 1.2 integrated GPU, native signed update discovery, signed broker admission, Jobs and admin Settings are included.");
