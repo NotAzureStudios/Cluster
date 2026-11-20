@@ -236,3 +236,7 @@
 .vr-composer__meta { grid-template-columns: 1fr 1fr; }
 .vr-composer__meta > :last-child { grid-column: 1 / -1; }
 .vr-composer textarea { font-size: var(--cluster-font-size-sm); }
+
+/* Keep the transport on screen: on shorter windows the player narrows
+   (keeping 16:9) instead of pushing the controls below the fold. */
+.vr-stage__player { width: 100%; max-width: max(420px, calc((100dvh - 500px) * 16 / 9)); margin-inline: auto; }
