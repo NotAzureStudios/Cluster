@@ -320,7 +320,7 @@ export function DesktopWorkstationPanel() {
     }
   }
 
-  async function runGitOperation(workspaceId: string, repositoryId: string, action: "fetch" | "pull" | "push" | "lfs.fetch.current" | "lfs.fetch.recent" | "lfs.checkout" | "lfs.locks" | "lfs.lock" | "lfs.unlock", relativePath?: string) {
+  async function runGitOperation(workspaceId: string, repositoryId: string, action: "fetch" | "pull" | "rebase" | "push" | "lfs.fetch.current" | "lfs.fetch.recent" | "lfs.checkout" | "lfs.locks" | "lfs.lock" | "lfs.unlock", relativePath?: string) {
     const intent = `gitop:${repositoryId}:${action}:${relativePath || "repo"}`;
     if (!claimNativeIntent(intent)) return;
     setBusyAction(intent);
@@ -580,7 +580,7 @@ export function DesktopWorkstationPanel() {
                   </div>
                 </header>
                 <div className="desktop-workstation-git-actions-v9m">
-                  {(["fetch", "pull", "push"] as const).map((action) => <ClusterButton key={action} size="compact" variant={action === "pull" ? "secondary" : "quiet"} disabled={repository.trust !== "trusted" || taskActive || gitActive} busy={busyAction === `gitop:${repository.id}:${action}`} busyLabel={`${action}…`} onClick={() => void runGitOperation(workspace.id, repository.id, action)}>{action[0].toUpperCase() + action.slice(1)}</ClusterButton>)}
+                  {([["fetch", "Fetch"], ["pull", "Pull"], ["rebase", "Update"], ["push", "Push"]] as const).map(([action, label]) => <ClusterButton key={action} size="compact" variant={action === "pull" ? "secondary" : "quiet"} title={action === "rebase" ? "Pull with rebase: replays your unpushed commits on top of the remote, keeping uncommitted work" : undefined} disabled={repository.trust !== "trusted" || taskActive || gitActive} busy={busyAction === `gitop:${repository.id}:${action}`} busyLabel={`${label}…`} onClick={() => void runGitOperation(workspace.id, repository.id, action)}>{label}</ClusterButton>)}
                   <ClusterButton size="compact" variant="quiet" disabled={repository.trust !== "trusted" || taskActive || gitActive} busy={busyAction === `secretscan:${repository.id}:staged`} busyLabel="Scanning…" onClick={() => void runSecretScan(workspace.id, repository.id, "staged")}>Scan staged secrets</ClusterButton>
                   <ClusterButton size="compact" variant="quiet" disabled={repository.trust !== "trusted" || taskActive || gitActive} busy={busyAction === `secretscan:${repository.id}:outgoing`} busyLabel="Scanning…" onClick={() => void runSecretScan(workspace.id, repository.id, "outgoing")}>Scan outgoing secrets</ClusterButton>
                   {repository.trust !== "trusted" && <span>Trust this repository before network mutations.</span>}

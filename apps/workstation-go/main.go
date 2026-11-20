@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -139,6 +138,10 @@ type service struct {
 	state      persistedState
 	candidates map[string]candidate
 	operations map[string]*operation
+	// repoLocks serializes writes per repository (see gitWrite); lockCache
+	// keeps the last LFS lock list per repository (see cachedLFSLocks).
+	repoLocks sync.Map
+	lockCache sync.Map
 }
 
 func main() {
@@ -296,7 +299,7 @@ func (s *service) runGitCommand(ctx context.Context, dir string, args ...string)
 	if runtimeInfo.Executable == "" {
 		return "", errors.New("Git runtime is unavailable")
 	}
-	return runCommand(ctx, dir, runtimeInfo.Executable, s.gitCommandEnv(), args...)
+	return runCommand(ctx, dir, runtimeInfo.Executable, s.gitCommandEnv(), gitArgs(args)...)
 }
 
 func (s *service) runGitCommandToFile(ctx context.Context, cwd, outputPath string, args ...string) error {
@@ -486,13 +489,14 @@ func (s *service) dispatchSource(req sourceRequest) (any, string, error) {
 	case "revision.materialize":
 		return s.sourceRevisionMaterialize(repo, req.Paths, req.Input)
 	case "files.add":
-		_, e := s.git(repo, 20*time.Second, append([]string{"add", "--"}, safePaths(req.Paths)...)...)
+		_, e := s.gitWith(repo, gitLocalTimeout, gitOptions{write: true, stdin: pathspecInput(safePaths(req.Paths))}, "add", "--pathspec-from-file=-", "--pathspec-file-nul")
 		return ack(e)
 	case "files.delete":
-		_, e := s.git(repo, 20*time.Second, append([]string{"rm", "--"}, safePaths(req.Paths)...)...)
+		_, e := s.gitWith(repo, gitLocalTimeout, gitOptions{write: true, stdin: pathspecInput(safePaths(req.Paths))}, "rm", "--pathspec-from-file=-", "--pathspec-file-nul")
 		return ack(e)
 	case "files.revert":
-		_, e := s.git(repo, 20*time.Second, append([]string{"restore", "--"}, safePaths(req.Paths)...)...)
+		// Revert means back to HEAD: unstage and restore the working tree.
+		_, e := s.gitWith(repo, gitLocalTimeout, gitOptions{write: true, stdin: pathspecInput(safePaths(req.Paths))}, "restore", "--staged", "--worktree", "--source=HEAD", "--pathspec-from-file=-", "--pathspec-file-nul")
 		return ack(e)
 	case "files.checkout":
 		if boolFromInput(req.Input, "lock") {
@@ -821,7 +825,7 @@ func (s *service) gitInit(p map[string]any) (any, string, error) {
 		return s.attachOrReturnRootRepo(ws)
 	}
 	repo := repository{ID: randomID("repo"), Name: ws.RootName, RelativePath: ".", RootPath: ws.RootPath, Trust: "trusted", AddedAt: nowISO()}
-	if _, err := s.git(repo, 20*time.Second, "init", "-b", "main"); err != nil {
+	if _, err := s.gitWrite(repo, gitQuickTimeout, "init", "-b", "main"); err != nil {
 		return nil, "GIT_INIT_FAILED", err
 	}
 	s.mu.Lock()
@@ -905,7 +909,7 @@ func (s *service) nativeDiff(p map[string]any) (any, string, error) {
 		args = append(args, "--cached")
 	}
 	args = append(args, "--", path)
-	out, e := s.git(repo, 15*time.Second, args...)
+	out, e := s.git(repo, gitReadTimeout, args...)
 	if e != nil {
 		return nil, "GIT_DIFF_FAILED", e
 	}
@@ -996,7 +1000,7 @@ func (s *service) nativeMutate(p map[string]any) (any, string, error) {
 	case "ignore.add", "ignore.remove", "attributes.text", "attributes.binary", "attributes.remove":
 		return s.nativePolicyMutation(repo, action, p)
 	case "lfs.prune.dry-run":
-		out, e := s.git(repo, 30*time.Second, "lfs", "prune", "--dry-run")
+		out, e := s.git(repo, gitReadTimeout, "lfs", "prune", "--dry-run")
 		if e != nil {
 			return nil, "GIT_LFS_PRUNE_FAILED", e
 		}
@@ -1005,7 +1009,7 @@ func (s *service) nativeMutate(p map[string]any) (any, string, error) {
 		if !boolFromInput(p, "confirmed") {
 			return nil, "CONFIRMATION_REQUIRED", errors.New("LFS prune requires explicit confirmation.")
 		}
-		out, e := s.git(repo, 60*time.Second, "lfs", "prune")
+		out, e := s.gitWrite(repo, gitLocalTimeout, "lfs", "prune")
 		if e != nil {
 			return nil, "GIT_LFS_PRUNE_FAILED", e
 		}
@@ -1016,7 +1020,7 @@ func (s *service) nativeMutate(p map[string]any) (any, string, error) {
 	if len(args) == 0 {
 		return nil, "GIT_MUTATION_INVALID", errors.New("Git mutation arguments were empty.")
 	}
-	out, e := s.git(repo, 45*time.Second, args...)
+	out, e := s.gitWrite(repo, gitLocalTimeout, args...)
 	if e != nil {
 		return nil, "GIT_MUTATION_FAILED", e
 	}
@@ -1093,15 +1097,14 @@ func (s *service) nativeOperationStart(p map[string]any) (any, string, error) {
 	op := s.startOperation(kind, ws.ID, repo.ID, repo.Name, func(ctx context.Context, report operationProgressReporter) (any, error) {
 		var args []string
 		switch action {
-		case "fetch":
-			report("fetching", "Fetching remote refs", 25)
-			args = []string{"fetch", "--prune"}
-		case "pull":
-			report("pulling", "Fast-forwarding from upstream", 25)
-			args = []string{"pull", "--ff-only"}
-		case "push":
-			report("pushing", "Publishing local commits", 25)
-			args = []string{"push"}
+		case "fetch", "pull", "rebase", "push":
+			report("syncing", syncStageMessage(action), 25)
+			result, _, err := s.runSync(ctx, repo, action)
+			if err != nil {
+				return nil, err
+			}
+			report("finalizing", "Refreshing repository state", 92)
+			return result, nil
 		case "lfs.fetch.current":
 			report("lfs-fetch", "Fetching current LFS objects", 25)
 			args = []string{"lfs", "fetch", "--recent"}
@@ -1113,15 +1116,11 @@ func (s *service) nativeOperationStart(p map[string]any) (any, string, error) {
 			args = []string{"lfs", "checkout"}
 		case "lfs.locks":
 			report("lfs-locks", "Reading remote LFS locks", 30)
-			out, err := s.runGitCommand(ctx, repo.RootPath, "lfs", "locks", "--json")
+			locks, err := s.readLFSLocks(repo)
 			if err != nil {
-				return nil, fmt.Errorf("git lfs locks failed: %w: %s", err, tail(out, 2000))
+				return nil, err
 			}
-			var result any
-			if json.Unmarshal([]byte(out), &result) != nil {
-				result = map[string]any{"raw": out}
-			}
-			return map[string]any{"lfsLocks": result}, nil
+			return map[string]any{"lfsLocks": locks}, nil
 		case "lfs.lock":
 			report("lfs-lock", "Acquiring LFS lock", 30)
 			if rel == "" {
@@ -1137,12 +1136,15 @@ func (s *service) nativeOperationStart(p map[string]any) (any, string, error) {
 		default:
 			return nil, fmt.Errorf("unsupported background operation %q", action)
 		}
-		out, err := s.runGitCommand(ctx, repo.RootPath, args...)
+		stdout, stderr, err := s.gitCtx(ctx, repo, gitOptions{write: action == "lfs.checkout"}, args...)
+		if strings.HasPrefix(action, "lfs.lock") || strings.HasPrefix(action, "lfs.unlock") {
+			s.lockCache.Delete(repo.RootPath)
+		}
 		if err != nil {
-			return nil, fmt.Errorf("Git operation failed: %w: %s", err, tail(out, 4000))
+			return nil, err
 		}
 		report("finalizing", "Refreshing repository state", 92)
-		return map[string]any{"output": tail(out, 8000)}, nil
+		return map[string]any{"output": tail(strings.TrimSpace(stdout+"\n"+stderr), 8000)}, nil
 	})
 	return map[string]any{"operation": op}, "", nil
 }
@@ -1296,60 +1298,55 @@ func (s *service) repoFromPayload(p map[string]any) (repository, workspace, erro
 	return repo, ws, nil
 }
 
+// git runs a read. Writes go through gitWrite.
 func (s *service) git(repo repository, timeout time.Duration, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	out, err := s.runGitCommand(ctx, repo.RootPath, args...)
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return out, fmt.Errorf("Git command timed out")
-	}
-	if err != nil {
-		return out, fmt.Errorf("%w: %s", err, tail(out, 4000))
-	}
-	return out, nil
+	return s.gitWith(repo, timeout, gitOptions{}, args...)
 }
+
+// runCommand returns stdout and stderr together, for operation logs.
+// Anything that parses output uses gitCtx, which keeps them apart.
 func runCommand(ctx context.Context, dir, name string, env []string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	cmd.Env = env
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	out, err := cmd.CombinedOutput()
-	return string(out), err
+	stdout, stderr, err := runCommandIO(ctx, dir, name, env, "", args...)
+	return strings.TrimSpace(stdout + "\n" + stderr), err
 }
 
 func (s *service) nativeStatus(repo repository) (any, string, error) {
-	version, err := s.git(repo, 5*time.Second, "--version")
+	version, err := s.git(repo, gitQuickTimeout, "--version")
 	if err != nil {
 		return nil, "GIT_UNAVAILABLE", err
 	}
-	branchOut, _ := s.git(repo, 5*time.Second, "rev-parse", "--abbrev-ref", "HEAD")
+	// symbolic-ref also answers on an unborn branch (a fresh repository).
+	branchOut, branchErr := s.git(repo, gitQuickTimeout, "symbolic-ref", "--short", "-q", "HEAD")
 	branch := strings.TrimSpace(branchOut)
-	detached := branch == "HEAD" || branch == ""
-	upstreamOut, _ := s.git(repo, 5*time.Second, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	detached := branchErr != nil || branch == ""
+	if detached {
+		branch = "HEAD"
+	}
+	upstreamOut, _ := s.git(repo, gitQuickTimeout, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
 	upstream := strings.TrimSpace(upstreamOut)
 	ahead, behind := 0, 0
 	if upstream != "" {
-		counts, _ := s.git(repo, 5*time.Second, "rev-list", "--left-right", "--count", "HEAD...@{u}")
+		counts, _ := s.git(repo, gitReadTimeout, "rev-list", "--left-right", "--count", "HEAD...@{u}")
 		parts := strings.Fields(counts)
 		if len(parts) == 2 {
 			ahead, _ = strconv.Atoi(parts[0])
 			behind, _ = strconv.Atoi(parts[1])
 		}
 	}
-	statusOut, _ := s.git(repo, 8*time.Second, "status", "--porcelain")
-	changed := 0
-	if strings.TrimSpace(statusOut) != "" {
-		changed = len(strings.Split(strings.TrimSpace(statusOut), "\n"))
+	// A status that failed is an error, never "clean": reporting a dirty
+	// Unreal tree as clean is how work gets overwritten by a sync.
+	statusOut, err := s.git(repo, gitReadTimeout, "status", "--porcelain=v1", "-z")
+	if err != nil {
+		return nil, "GIT_STATUS_FAILED", err
 	}
-	remotesOut, _ := s.git(repo, 5*time.Second, "remote")
+	changed := len(parsePorcelainZ(statusOut))
+	remotesOut, _ := s.git(repo, gitQuickTimeout, "remote")
 	remotes := nonEmptyLines(remotesOut)
 	return map[string]any{"available": true, "version": strings.TrimSpace(version), "branch": branch, "detached": detached, "upstream": nilIfEmpty(upstream), "ahead": ahead, "behind": behind, "changedFiles": changed, "clean": changed == 0, "remotes": remotes}, "", nil
 }
 
 func (s *service) gitDetails(repo repository) (any, string, error) {
-	branchesOut, _ := s.git(repo, 8*time.Second, "for-each-ref", "--format=%(refname:short)%09%(HEAD)%09%(upstream:short)", "refs/heads")
+	branchesOut, _ := s.git(repo, gitReadTimeout, "for-each-ref", "--format=%(refname:short)%09%(HEAD)%09%(upstream:short)", "refs/heads")
 	branches := []map[string]any{}
 	for _, line := range nonEmptyLines(branchesOut) {
 		parts := strings.Split(line, "\t")
@@ -1361,9 +1358,9 @@ func (s *service) gitDetails(repo repository) (any, string, error) {
 			branches = append(branches, b)
 		}
 	}
-	tagsOut, _ := s.git(repo, 5*time.Second, "tag", "--list")
+	tagsOut, _ := s.git(repo, gitReadTimeout, "tag", "--list")
 	tags := nonEmptyLines(tagsOut)
-	historyOut, _ := s.git(repo, 8*time.Second, "log", "-30", "--date=iso-strict", "--pretty=format:%H%x09%h%x09%an%x09%aI%x09%s")
+	historyOut, _ := s.git(repo, gitReadTimeout, "log", "-30", "--date=iso-strict", "--pretty=format:%H%x09%h%x09%an%x09%aI%x09%s")
 	history := []map[string]any{}
 	for _, line := range nonEmptyLines(historyOut) {
 		p := strings.SplitN(line, "\t", 5)
@@ -1371,22 +1368,24 @@ func (s *service) gitDetails(repo repository) (any, string, error) {
 			history = append(history, map[string]any{"sha": p[0], "shortSha": p[1], "author": p[2], "authoredAt": p[3], "subject": p[4]})
 		}
 	}
-	changesOut, _ := s.git(repo, 8*time.Second, "status", "--porcelain")
+	changesOut, err := s.git(repo, gitReadTimeout, "status", "--porcelain=v1", "-z")
+	if err != nil {
+		return nil, "GIT_STATUS_FAILED", err
+	}
 	changes := []map[string]any{}
 	conflicts := []string{}
-	for _, line := range nonEmptyLines(changesOut) {
-		if len(line) < 3 {
-			continue
+	for _, entry := range parsePorcelainZ(changesOut) {
+		change := map[string]any{"state": strings.TrimSpace(entry.XY), "relativePath": entry.Path}
+		if entry.OrigPath != "" {
+			change["previousPath"] = entry.OrigPath
 		}
-		state := strings.TrimSpace(line[:2])
-		path := strings.TrimSpace(line[3:])
-		changes = append(changes, map[string]any{"state": state, "relativePath": path})
-		if strings.Contains(state, "U") || state == "AA" || state == "DD" {
-			conflicts = append(conflicts, path)
+		changes = append(changes, change)
+		if isConflictXY(entry.XY) {
+			conflicts = append(conflicts, entry.Path)
 		}
 	}
-	diffStat, _ := s.git(repo, 8*time.Second, "diff", "--stat")
-	stashOut, _ := s.git(repo, 5*time.Second, "stash", "list", "--format=%gd%x09%H%x09%s")
+	diffStat, _ := s.git(repo, gitReadTimeout, "diff", "--stat")
+	stashOut, _ := s.git(repo, gitReadTimeout, "stash", "list", "--format=%gd%x09%H%x09%s")
 	stashes := []map[string]any{}
 	for _, line := range nonEmptyLines(stashOut) {
 		p := strings.SplitN(line, "\t", 3)
@@ -1394,7 +1393,7 @@ func (s *service) gitDetails(repo repository) (any, string, error) {
 			stashes = append(stashes, map[string]any{"ref": p[0], "sha": p[1], "subject": p[2]})
 		}
 	}
-	remoteOut, _ := s.git(repo, 5*time.Second, "remote", "-v")
+	remoteOut, _ := s.git(repo, gitReadTimeout, "remote", "-v")
 	remotes := []map[string]any{}
 	seen := map[string]bool{}
 	for _, line := range nonEmptyLines(remoteOut) {
@@ -1453,10 +1452,10 @@ func (s *service) nativeSecretScan(p map[string]any) (any, string, error) {
 	case "staged":
 		args = []string{"diff", "--cached", "--unified=0", "--no-ext-diff", "--no-color", "--no-renames"}
 	case "outgoing":
-		if _, upstreamErr := s.git(repo, 5*time.Second, "rev-parse", "--verify", "@{u}"); upstreamErr != nil {
+		if _, upstreamErr := s.git(repo, gitReadTimeout, "rev-parse", "--verify", "@{u}"); upstreamErr != nil {
 			return nil, "GIT_UPSTREAM_REQUIRED", errors.New("outgoing secret scan requires a configured upstream branch")
 		}
-		countOut, countErr := s.git(repo, 5*time.Second, "rev-list", "--count", "@{u}..HEAD")
+		countOut, countErr := s.git(repo, gitReadTimeout, "rev-list", "--count", "@{u}..HEAD")
 		if countErr != nil {
 			return nil, "GIT_SCAN_FAILED", countErr
 		}
@@ -1465,7 +1464,7 @@ func (s *service) nativeSecretScan(p map[string]any) (any, string, error) {
 	default:
 		return nil, "SECRET_SCAN_SCOPE_INVALID", errors.New("secret scan scope must be staged or outgoing")
 	}
-	diff, diffErr := s.git(repo, 20*time.Second, args...)
+	diff, diffErr := s.git(repo, gitReadTimeout, args...)
 	if diffErr != nil {
 		return nil, "GIT_SCAN_FAILED", diffErr
 	}
@@ -1524,17 +1523,17 @@ func (s *service) nativeSecretScan(p map[string]any) (any, string, error) {
 }
 
 func (s *service) lfsHealth(repo repository) (any, string, error) {
-	version, err := s.git(repo, 5*time.Second, "lfs", "version")
+	version, err := s.git(repo, gitReadTimeout, "lfs", "version")
 	if err != nil {
 		return map[string]any{"installed": false, "healthy": false, "message": "Git LFS is not available."}, "", nil
 	}
-	envOut, _ := s.git(repo, 8*time.Second, "lfs", "env")
+	envOut, _ := s.git(repo, gitReadTimeout, "lfs", "env")
 	endpoint := strings.Contains(envOut, "Endpoint=")
 	return map[string]any{"installed": true, "healthy": true, "version": strings.TrimSpace(version), "endpointConfigured": endpoint, "localMediaConfigured": exists(filepath.Join(repo.RootPath, ".git", "lfs")), "message": "Git LFS is available."}, "", nil
 }
 func (s *service) lfsPolicy(repo repository) (any, string, error) {
 	patterns, lockable := readAttributes(repo)
-	_, lfsErr := s.git(repo, 5*time.Second, "lfs", "version")
+	_, lfsErr := s.git(repo, gitReadTimeout, "lfs", "version")
 	installed := lfsErr == nil
 	message := "Policy read from .gitattributes."
 	if !installed {
@@ -1636,7 +1635,10 @@ func (s *service) sourceRepositoryStatus(ws workspace, repo repository) (any, st
 	lfs, _, _ := s.lfsHealth(repo)
 	pm := policy.(map[string]any)
 	lm := lfs.(map[string]any)
-	details, _, _ := s.gitDetails(repo)
+	details, code, err := s.gitDetails(repo)
+	if err != nil {
+		return nil, code, err
+	}
 	conflicts := len(details.(map[string]any)["conflicts"].([]string))
 	return map[string]any{"schema": 1, "repositoryId": repo.ID, "workspaceId": ws.ID, "displayName": repo.Name, "provider": "git", "branch": m["branch"], "detached": m["detached"], "upstream": m["upstream"], "ahead": m["ahead"], "behind": m["behind"], "changedFiles": m["changedFiles"], "conflicts": conflicts, "clean": m["clean"], "lfsAvailable": lm["installed"], "lockablePatterns": pm["lockablePatterns"], "remotes": details.(map[string]any)["remotes"], "updatedAt": nowISO()}, "", nil
 }
@@ -1651,61 +1653,32 @@ func (s *service) sourceOperationStart(ws workspace, repo repository, paths []st
 		switch action {
 		case "repository.sync":
 			mode := stringFromInput(input, "mode")
-			if mode == "" {
-				mode = "fetch"
-			}
-			var args []string
-			switch mode {
-			case "fetch":
-				report("fetching", "Fetching remote refs", 25)
-				args = []string{"fetch", "--prune"}
-			case "pull":
-				report("pulling", "Fast-forwarding from upstream", 25)
-				args = []string{"pull", "--ff-only"}
-			case "push":
-				report("pushing", "Publishing local commits", 25)
-				args = []string{"push"}
-			default:
-				return nil, fmt.Errorf("unsupported sync mode %q", mode)
-			}
-			out, err := s.runGitCommand(ctx, repo.RootPath, args...)
+			report("syncing", syncStageMessage(mode), 25)
+			result, _, err := s.runSync(ctx, repo, mode)
 			if err != nil {
-				return nil, fmt.Errorf("Git sync failed: %w: %s", err, tail(out, 4000))
+				return nil, err
 			}
 			report("finalizing", "Refreshing source-control state", 92)
-			return map[string]any{"mode": mode, "output": tail(out, 8000)}, nil
+			return result, nil
 		case "changes.commit":
-			message := strings.TrimSpace(stringFromInput(input, "message"))
-			if message == "" {
-				return nil, errors.New("Commit message is required")
-			}
-			safe := safePaths(paths)
-			if len(safe) > 0 {
-				report("staging", "Staging selected files", 20)
-				out, err := s.runGitCommand(ctx, repo.RootPath, append([]string{"add", "--"}, safe...)...)
-				if err != nil {
-					return nil, fmt.Errorf("Git add failed: %w: %s", err, tail(out, 4000))
-				}
-			}
-			report("committing", "Creating commit", 55)
-			out, err := s.runGitCommand(ctx, repo.RootPath, "commit", "-m", message)
-			if err != nil {
-				return nil, fmt.Errorf("Git commit failed: %w: %s", err, tail(out, 4000))
-			}
-			if boolFromInput(input, "push") {
-				report("pushing", "Publishing commit", 78)
-				pushOut, pushErr := s.runGitCommand(ctx, repo.RootPath, "push")
-				if pushErr != nil {
-					return nil, fmt.Errorf("Git push failed after commit: %w: %s", pushErr, tail(pushOut, 4000))
-				}
-			}
-			report("finalizing", "Resolving committed revision", 94)
-			shaOut, _ := s.runGitCommand(ctx, repo.RootPath, "rev-parse", "HEAD")
-			return map[string]any{"committed": true, "revision": strings.TrimSpace(shaOut), "output": tail(out, 4000)}, nil
+			result, _, err := s.commitAndPush(ctx, repo, strings.TrimSpace(stringFromInput(input, "message")), safePaths(paths), boolFromInput(input, "push"), report)
+			return result, err
 		}
 		return nil, errors.New("Unsupported source-control operation")
 	})
 	return map[string]any{"operation": op}, "", nil
+}
+
+func syncStageMessage(mode string) string {
+	switch mode {
+	case "pull":
+		return "Fast-forwarding from upstream"
+	case "rebase":
+		return "Updating from upstream"
+	case "push":
+		return "Publishing local commits"
+	}
+	return "Fetching remote refs"
 }
 
 func (s *service) sourceOperationStatus(repo repository, input map[string]any) (any, string, error) {
@@ -1762,7 +1735,7 @@ func (s *service) sourceHistory(repo repository, paths []string, limit int) (any
 		args = append(args, "--")
 		args = append(args, safe...)
 	}
-	out, err := s.git(repo, 8*time.Second, args...)
+	out, err := s.git(repo, gitReadTimeout, args...)
 	if err != nil {
 		return nil, "GIT_HISTORY_FAILED", err
 	}
@@ -1776,7 +1749,7 @@ func (s *service) sourceHistory(repo repository, paths []string, limit int) (any
 	return entries, "", nil
 }
 func (s *service) sourceFileStates(repo repository, filter []string) (any, string, error) {
-	out, err := s.git(repo, 10*time.Second, "status", "--porcelain=v1", "--untracked-files=all")
+	out, err := s.git(repo, gitReadTimeout, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return nil, "GIT_STATUS_FAILED", err
 	}
@@ -1786,31 +1759,20 @@ func (s *service) sourceFileStates(repo repository, filter []string) (any, strin
 		want[filepath.ToSlash(p)] = true
 	}
 
+	// The editor asks for state constantly; locks come from a short cache so
+	// a status never waits on (or fails with) the LFS server.
 	locksByPath := map[string]map[string]any{}
-	if rawLocks, _, lockErr := s.lfsLocks(repo); lockErr == nil {
-		if locks, ok := rawLocks.([]map[string]any); ok {
-			for _, lock := range locks {
-				path := filepath.ToSlash(strings.TrimSpace(fmt.Sprint(lock["path"])))
-				if path != "" {
-					locksByPath[path] = lock
-				}
-			}
+	for _, lock := range s.cachedLFSLocks(repo) {
+		path := filepath.ToSlash(strings.TrimSpace(fmt.Sprint(lock["path"])))
+		if path != "" {
+			locksByPath[path] = lock
 		}
 	}
 
 	attributes := readAttributesSimple(repo)
 	stateByPath := map[string]map[string]any{}
-	for _, line := range nonEmptyLines(out) {
-		if len(line) < 3 {
-			continue
-		}
-		xy := line[:2]
-		path := strings.TrimSpace(line[3:])
-		if strings.Contains(path, " -> ") {
-			parts := strings.SplitN(path, " -> ", 2)
-			path = parts[1]
-		}
-		path = filepath.ToSlash(path)
+	for _, entry := range parsePorcelainZ(out) {
+		xy, path := entry.XY, entry.Path
 		if len(want) > 0 && !want[path] {
 			continue
 		}
@@ -1818,7 +1780,7 @@ func (s *service) sourceFileStates(repo repository, filter []string) (any, strin
 		switch {
 		case xy == "??":
 			state = "untracked"
-		case strings.Contains(xy, "U") || xy == "AA" || xy == "DD":
+		case isConflictXY(xy):
 			state = "conflicted"
 		case strings.Contains(xy, "A"):
 			state = "added"
@@ -1829,35 +1791,63 @@ func (s *service) sourceFileStates(repo repository, filter []string) (any, strin
 		}
 		binary := isBinaryAsset(path)
 		lockable := binary || matchesLockable(path, attributes)
-		stateByPath[path] = map[string]any{"path": path, "state": state, "staged": xy[0] != ' ' && xy[0] != '?', "tracked": xy != "??", "ignored": false, "binary": binary, "lockable": lockable, "lock": locksByPath[path]}
+		result := map[string]any{"path": path, "state": state, "staged": xy[0] != ' ' && xy[0] != '?', "tracked": xy != "??", "ignored": false, "binary": binary, "lockable": lockable, "lock": locksByPath[path]}
+		if entry.OrigPath != "" {
+			result["previousPath"] = entry.OrigPath
+		}
+		stateByPath[path] = result
 	}
 
 	// Unreal asks state for clean assets too. Preserve one result per requested path
 	// instead of silently omitting clean files from the response.
 	if len(requested) > 0 {
-		trackedOut, _ := s.git(repo, 8*time.Second, append([]string{"ls-files", "--"}, requested...)...)
-		tracked := map[string]bool{}
-		for _, line := range nonEmptyLines(trackedOut) {
-			tracked[filepath.ToSlash(strings.TrimSpace(line))] = true
-		}
+		missing := []string{}
 		for _, raw := range requested {
+			if _, exists := stateByPath[filepath.ToSlash(raw)]; !exists {
+				missing = append(missing, raw)
+			}
+		}
+		tracked := map[string]bool{}
+		// ls-files has no --pathspec-from-file; batch to stay under the
+		// Windows command-line limit.
+		for start := 0; start < len(missing); start += 200 {
+			end := start + 200
+			if end > len(missing) {
+				end = len(missing)
+			}
+			trackedOut, err := s.git(repo, gitReadTimeout, append([]string{"ls-files", "-z", "--"}, missing[start:end]...)...)
+			if err != nil {
+				return nil, "GIT_STATUS_FAILED", err
+			}
+			for _, path := range nulFields(trackedOut) {
+				tracked[path] = true
+			}
+		}
+		untracked := []string{}
+		for _, raw := range missing {
+			if !tracked[filepath.ToSlash(raw)] {
+				untracked = append(untracked, raw)
+			}
+		}
+		ignored := map[string]bool{}
+		if len(untracked) > 0 {
+			// One check-ignore for all paths; exit 1 just means none matched.
+			ignoredOut, _ := s.gitWith(repo, gitReadTimeout, gitOptions{stdin: pathspecInput(untracked)}, "check-ignore", "-z", "--stdin")
+			for _, path := range nulFields(ignoredOut) {
+				ignored[path] = true
+			}
+		}
+		for _, raw := range missing {
 			path := filepath.ToSlash(raw)
-			if _, exists := stateByPath[path]; exists {
-				continue
-			}
-			ignored := false
-			if _, checkErr := s.git(repo, 3*time.Second, "check-ignore", "-q", "--", raw); checkErr == nil {
-				ignored = true
-			}
 			binary := isBinaryAsset(path)
 			lockable := binary || matchesLockable(path, attributes)
 			state := "untracked"
 			if tracked[path] {
 				state = "clean"
-			} else if ignored {
+			} else if ignored[path] {
 				state = "ignored"
 			}
-			stateByPath[path] = map[string]any{"path": path, "state": state, "staged": false, "tracked": tracked[path], "ignored": ignored, "binary": binary, "lockable": lockable, "lock": locksByPath[path]}
+			stateByPath[path] = map[string]any{"path": path, "state": state, "staged": false, "tracked": tracked[path], "ignored": ignored[path], "binary": binary, "lockable": lockable, "lock": locksByPath[path]}
 		}
 	}
 
@@ -1868,6 +1858,7 @@ func (s *service) sourceFileStates(repo repository, filter []string) (any, strin
 	sort.Slice(states, func(i, j int) bool { return fmt.Sprint(states[i]["path"]) < fmt.Sprint(states[j]["path"]) })
 	return states, "", nil
 }
+
 func readAttributesSimple(repo repository) []string { _, locks := readAttributes(repo); return locks }
 func isBinaryAsset(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
@@ -1998,7 +1989,7 @@ func (s *service) sourceDiff(repo repository, paths []string, input map[string]a
 		args = append(args, "--")
 		args = append(args, safePaths(paths)...)
 	}
-	out, err := s.git(repo, 15*time.Second, args...)
+	out, err := s.git(repo, gitReadTimeout, args...)
 	if err != nil {
 		return nil, "GIT_DIFF_FAILED", err
 	}
@@ -2009,30 +2000,146 @@ func (s *service) sourceDiff(repo repository, paths []string, input map[string]a
 	return map[string]any{"patch": out, "truncated": truncated}, "", nil
 }
 func (s *service) sourceCommit(repo repository, input map[string]any, paths []string) (any, string, error) {
-	message := strings.TrimSpace(stringFromInput(input, "message"))
+	ctx, cancel := context.WithTimeout(context.Background(), gitNetworkTimeout)
+	defer cancel()
+	return s.commitAndPush(ctx, repo, strings.TrimSpace(stringFromInput(input, "message")), safePaths(paths), boolFromInput(input, "push"), func(string, string, int) {})
+}
+
+// commitAndPush commits exactly the given paths (or everything staged when
+// none are given) and optionally publishes. Selected paths are committed
+// with --only semantics: other staged files stay staged and out of the
+// commit, so "check in these three assets" commits those three.
+//
+// When there is nothing new to commit but earlier commits never reached the
+// remote (a push that failed), a push still runs: checking in again is how
+// someone retries.
+func (s *service) commitAndPush(ctx context.Context, repo repository, message string, paths []string, push bool, report operationProgressReporter) (any, string, error) {
 	if message == "" {
 		return nil, "COMMIT_MESSAGE_REQUIRED", errors.New("Commit message is required.")
 	}
+	committed := false
+	output := ""
 	if len(paths) > 0 {
-		args := append([]string{"add", "--"}, safePaths(paths)...)
-		if _, err := s.git(repo, 20*time.Second, args...); err != nil {
+		report("staging", "Staging selected files", 20)
+		if _, _, err := s.gitCtx(ctx, repo, gitOptions{write: true, stdin: pathspecInput(paths)}, "add", "--pathspec-from-file=-", "--pathspec-file-nul"); err != nil {
 			return nil, "GIT_ADD_FAILED", err
 		}
 	}
-	out, err := s.git(repo, 45*time.Second, "commit", "-m", message)
-	if err != nil {
+	report("committing", "Creating commit", 55)
+	args := []string{"commit", "-m", message}
+	opts := gitOptions{write: true}
+	if len(paths) > 0 {
+		args = append(args, "--pathspec-from-file=-", "--pathspec-file-nul")
+		opts.stdin = pathspecInput(paths)
+	}
+	stdout, _, err := s.gitCtx(ctx, repo, opts, args...)
+	switch {
+	case err == nil:
+		committed = true
+		output = stdout
+	case push && s.hasUnpushedCommits(repo) && nothingToCommit(err):
+		// Retry of a check-in whose push failed earlier.
+	default:
 		return nil, "GIT_COMMIT_FAILED", err
 	}
-	if boolFromInput(input, "push") {
-		if _, err := s.git(repo, 60*time.Second, "push"); err != nil {
-			return map[string]any{"committed": true, "pushFailed": true, "output": tail(out, 4000)}, "GIT_PUSH_FAILED", err
+	if push {
+		report("pushing", "Publishing to the remote", 75)
+		if err := s.push(ctx, repo); err != nil {
+			return map[string]any{"committed": committed, "pushFailed": true, "output": tail(output, 4000)}, "GIT_PUSH_FAILED", err
 		}
 	}
-	sha, _ := s.git(repo, 5*time.Second, "rev-parse", "HEAD")
-	return map[string]any{"committed": true, "revision": strings.TrimSpace(sha), "output": tail(out, 4000)}, "", nil
+	report("finalizing", "Resolving committed revision", 94)
+	sha, _ := s.git(repo, gitQuickTimeout, "rev-parse", "HEAD")
+	return map[string]any{"committed": committed, "pushed": push, "revision": strings.TrimSpace(sha), "output": tail(output, 4000)}, "", nil
 }
+
+func nothingToCommit(err error) bool {
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "nothing to commit") || strings.Contains(text, "no changes added to commit") || strings.Contains(text, "nothing added to commit")
+}
+
+func (s *service) hasUnpushedCommits(repo repository) bool {
+	out, err := s.git(repo, gitReadTimeout, "rev-list", "--count", "@{u}..HEAD")
+	if err != nil {
+		// No upstream yet: any commit at all is unpublished.
+		out, err = s.git(repo, gitReadTimeout, "rev-list", "--count", "-n", "1", "HEAD")
+		if err != nil {
+			return false
+		}
+	}
+	count, _ := strconv.Atoi(strings.TrimSpace(out))
+	return count > 0
+}
+
+// push publishes the current branch, setting its upstream the first time,
+// and makes sure LFS objects go with it.
+func (s *service) push(ctx context.Context, repo repository) error {
+	args := []string{"push"}
+	if _, err := s.git(repo, gitQuickTimeout, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"); err != nil {
+		remote := s.defaultRemote(repo)
+		if remote == "" {
+			return errors.New("This repository has no remote to push to.")
+		}
+		args = []string{"push", "-u", remote, "HEAD"}
+	}
+	if usesLFS(repo) && !lfsPrePushHookInstalled(repo) {
+		// Without the pre-push hook, git push sends LFS pointers without the
+		// objects they point to and everyone else gets broken assets.
+		_, _ = s.gitWrite(repo, gitQuickTimeout, "lfs", "install", "--local")
+		if !lfsPrePushHookInstalled(repo) {
+			remote := s.defaultRemote(repo)
+			if _, _, err := s.gitCtx(ctx, repo, gitOptions{}, "lfs", "push", remote, "HEAD"); err != nil {
+				return err
+			}
+		}
+	}
+	_, _, err := s.gitCtx(ctx, repo, gitOptions{write: true}, args...)
+	return err
+}
+
+func (s *service) defaultRemote(repo repository) string {
+	remotes := nonEmptyLines(func() string { out, _ := s.git(repo, gitQuickTimeout, "remote"); return out }())
+	for _, remote := range remotes {
+		if remote == "origin" {
+			return remote
+		}
+	}
+	if len(remotes) > 0 {
+		return remotes[0]
+	}
+	return ""
+}
+
+func usesLFS(repo repository) bool {
+	data, err := os.ReadFile(filepath.Join(repo.RootPath, ".gitattributes"))
+	return err == nil && strings.Contains(string(data), "filter=lfs")
+}
+
+func lfsPrePushHookInstalled(repo repository) bool {
+	dir := gitDir(repo.RootPath)
+	if dir == "" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "hooks", "pre-push"))
+	return err == nil && strings.Contains(string(data), "git lfs pre-push")
+}
+
 func (s *service) sourceSync(repo repository, input map[string]any) (any, string, error) {
-	mode := stringFromInput(input, "mode")
+	ctx, cancel := context.WithTimeout(context.Background(), gitNetworkTimeout)
+	defer cancel()
+	out, code, err := s.runSync(ctx, repo, stringFromInput(input, "mode"))
+	if err != nil {
+		return nil, code, err
+	}
+	return out, "", nil
+}
+
+// runSync is fetch, pull, rebase or push. "pull" fast-forwards only;
+// "rebase" replays local commits on top of the remote, the usual Unreal
+// flow when assets are locked and history should stay linear. Both stash
+// and restore uncommitted work around the update, since an open editor
+// always has some.
+func (s *service) runSync(ctx context.Context, repo repository, mode string) (map[string]any, string, error) {
 	if mode == "" {
 		mode = "fetch"
 	}
@@ -2041,52 +2148,130 @@ func (s *service) sourceSync(repo repository, input map[string]any) (any, string
 	case "fetch":
 		args = []string{"fetch", "--prune"}
 	case "pull":
-		args = []string{"pull", "--ff-only"}
+		args = []string{"pull", "--ff-only", "--autostash"}
+	case "rebase":
+		args = []string{"pull", "--rebase", "--autostash"}
 	case "push":
-		args = []string{"push"}
+		if err := s.push(ctx, repo); err != nil {
+			return nil, "GIT_SYNC_FAILED", err
+		}
+		return map[string]any{"mode": mode, "output": ""}, "", nil
 	default:
 		return nil, "SYNC_MODE_INVALID", fmt.Errorf("unsupported sync mode %q", mode)
 	}
-	out, err := s.git(repo, 60*time.Second, args...)
+	stdout, stderr, err := s.gitCtx(ctx, repo, gitOptions{write: mode != "fetch"}, args...)
 	if err != nil {
 		return nil, "GIT_SYNC_FAILED", err
 	}
-	return map[string]any{"mode": mode, "output": tail(out, 8000)}, "", nil
+	s.lockCache.Delete(repo.RootPath)
+	return map[string]any{"mode": mode, "output": tail(strings.TrimSpace(stdout+"\n"+stderr), 8000)}, "", nil
 }
 
 func (s *service) lfsLocks(repo repository) (any, string, error) {
-	out, err := s.git(repo, 15*time.Second, "lfs", "locks", "--json")
+	locks, err := s.readLFSLocks(repo)
 	if err != nil {
 		return nil, "GIT_LFS_LOCKS_FAILED", err
 	}
-	var raw map[string]any
-	if json.Unmarshal([]byte(out), &raw) != nil {
-		return []any{}, "", nil
-	}
-	locks := []map[string]any{}
-	for _, key := range []string{"ours", "theirs"} {
-		arr, _ := raw[key].([]any)
-		for _, v := range arr {
-			m, _ := v.(map[string]any)
-			if m == nil {
-				continue
-			}
-			path, _ := m["path"].(string)
-			owner := ""
-			if o, ok := m["owner"].(map[string]any); ok {
-				owner = fmt.Sprint(o["name"])
-			}
-			locks = append(locks, map[string]any{"id": fmt.Sprint(m["id"]), "path": path, "owner": owner, "lockedAt": m["locked_at"], "ownership": key})
-		}
-	}
 	return locks, "", nil
 }
+
+type lockCacheEntry struct {
+	at    time.Time
+	locks []map[string]any
+}
+
+const lockCacheTTL = 20 * time.Second
+
+// readLFSLocks asks the LFS server for every lock with ownership. --verify
+// returns {"ours":[...],"theirs":[...]}. A server without verify support gets
+// the plain list with ownership "unknown": the lock is shown, never claimed
+// as ours from a matching name. A response that cannot be read is an error —
+// an empty list would tell the editor that nobody holds a lock.
+func (s *service) readLFSLocks(repo repository) ([]map[string]any, error) {
+	stdout, err := s.git(repo, gitReadTimeout, "lfs", "locks", "--verify", "--json")
+	verified := err == nil
+	if !verified {
+		stdout, err = s.git(repo, gitReadTimeout, "lfs", "locks", "--json")
+		if err != nil {
+			return nil, err
+		}
+	}
+	locks, err := parseLFSLocks(stdout)
+	if err != nil {
+		return nil, err
+	}
+	s.lockCache.Store(repo.RootPath, lockCacheEntry{at: time.Now(), locks: locks})
+	return locks, nil
+}
+
+func parseLFSLocks(stdout string) ([]map[string]any, error) {
+	stdout = strings.TrimSpace(stdout)
+	locks := []map[string]any{}
+	add := func(raw any, ownership string) {
+		m, _ := raw.(map[string]any)
+		if m == nil {
+			return
+		}
+		path, _ := m["path"].(string)
+		owner := ""
+		if o, ok := m["owner"].(map[string]any); ok {
+			owner = fmt.Sprint(o["name"])
+		}
+		if ownership == "" {
+			ownership = "unknown"
+		}
+		locks = append(locks, map[string]any{"id": fmt.Sprint(m["id"]), "path": filepath.ToSlash(path), "owner": owner, "lockedAt": m["locked_at"], "ownership": ownership})
+	}
+	if stdout == "" {
+		return locks, nil
+	}
+	var verified map[string][]any
+	if json.Unmarshal([]byte(stdout), &verified) == nil {
+		for _, key := range []string{"ours", "theirs"} {
+			for _, raw := range verified[key] {
+				add(raw, key)
+			}
+		}
+		return locks, nil
+	}
+	var list []any
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
+		return nil, fmt.Errorf("unreadable LFS lock list: %s", tail(stdout, 300))
+	}
+	for _, raw := range list {
+		add(raw, "")
+	}
+	return locks, nil
+}
+
+// cachedLFSLocks returns a recent lock list, refreshing it when stale. If
+// the server cannot be reached the last known list is kept.
+func (s *service) cachedLFSLocks(repo repository) []map[string]any {
+	if cached, ok := s.lockCache.Load(repo.RootPath); ok {
+		entry := cached.(lockCacheEntry)
+		if time.Since(entry.at) < lockCacheTTL {
+			return entry.locks
+		}
+	}
+	if !usesLFS(repo) {
+		return nil
+	}
+	locks, err := s.readLFSLocks(repo)
+	if err != nil {
+		if cached, ok := s.lockCache.Load(repo.RootPath); ok {
+			return cached.(lockCacheEntry).locks
+		}
+		return nil
+	}
+	return locks
+}
+
 func (s *service) lfsLock(repo repository, path string) (any, string, error) {
 	path, err := safeRel(path)
 	if err != nil {
 		return nil, "INVALID_PATH", err
 	}
-	out, err := s.git(repo, 20*time.Second, "lfs", "lock", "--json", path)
+	out, err := s.git(repo, gitReadTimeout, "lfs", "lock", "--json", path)
 	if err != nil {
 		return nil, "GIT_LFS_LOCK_FAILED", err
 	}
@@ -2106,7 +2291,7 @@ func (s *service) lfsUnlock(repo repository, path string, force bool) (any, stri
 		args = append(args, "--force")
 	}
 	args = append(args, path)
-	out, err := s.git(repo, 20*time.Second, args...)
+	out, err := s.git(repo, gitReadTimeout, args...)
 	if err != nil {
 		return nil, "GIT_LFS_UNLOCK_FAILED", err
 	}
@@ -2131,7 +2316,7 @@ func (s *service) nativeLFSMutate(repo repository, action string, p map[string]a
 			args = append(args, "--lockable")
 		}
 	}
-	out, err := s.git(repo, 20*time.Second, args...)
+	out, err := s.gitWrite(repo, gitQuickTimeout, args...)
 	if err != nil {
 		return nil, "GIT_LFS_POLICY_FAILED", err
 	}

@@ -17,6 +17,7 @@
     "setup:instance": "tsx src/scripts/setup-instance.ts",
     "setup:status": "tsx src/scripts/setup-status.ts",
     "storage:sync": "tsx src/scripts/sync-storage.ts",
+    "source-control:check": "tsx src/scripts/source-control-check.ts",
     "storage:verify": "tsx src/scripts/verify-storage.ts",
     "media:worker": "node dist/workers/media-worker.js",
     "media:worker:dev": "tsx src/workers/media-worker.ts",

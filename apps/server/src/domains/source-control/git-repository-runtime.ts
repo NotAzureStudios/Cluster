@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { safeStorageSegment } from "../../core/data-layout.js";
@@ -88,6 +88,34 @@ function parsePorcelainV2(value: string): Omit<WorkingCopyState, "status" | "hea
   return { branchName, upstreamName, dirtyFiles, stagedFiles, conflictCount, aheadCount, behindCount };
 }
 
+/* Ceilings for hung Git, not expectations. A mirror of an Unreal project
+   moves gigabytes of LFS content; a timeout that fires on real work kills Git
+   mid-write. Tunable for unusual installs. */
+const LOCAL_TIMEOUT_MS = Number(process.env.CLUSTER_GIT_LOCAL_TIMEOUT_MS) || 30 * 60_000;
+const NETWORK_TIMEOUT_MS = Number(process.env.CLUSTER_GIT_NETWORK_TIMEOUT_MS) || 6 * 60 * 60_000;
+const OUTPUT_LIMIT_BYTES = 256 * 1024 * 1024;
+
+/** `git diff --name-status -z`: verbatim paths, renames as "R100\0old\0new". */
+function parseNameStatusZ(value: string) {
+  const parts = value.split("\u0000");
+  const rows: Array<{ status: string; previousPath: string | null; path: string }> = [];
+  for (let index = 0; index < parts.length; index += 1) {
+    const code = parts[index];
+    if (!code) continue;
+    if (code.startsWith("R") || code.startsWith("C")) {
+      const previousPath = parts[index + 1] || null;
+      const path = parts[index + 2] || previousPath || "";
+      index += 2;
+      if (path) rows.push({ status: code[0], previousPath, path });
+    } else {
+      const path = parts[index + 1] || "";
+      index += 1;
+      if (path) rows.push({ status: code[0] || "M", previousPath: null, path });
+    }
+  }
+  return rows;
+}
+
 export function createGitRepositoryRuntime(input: { repositoriesRoot: string; workspacesRoot: string; executable?: string }) {
   const executable = String(input.executable || process.env.CLUSTER_GIT_EXECUTABLE || "git").trim() || "git";
   const workspacesRoot = path.resolve(input.workspacesRoot);
@@ -101,26 +129,81 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     return path.join(workspacesRoot, safeStorageSegment(workingCopyId, "working-copy"));
   }
 
-  function run(args: string[], options: { cwd?: string; token?: string | null; providerId?: string | null; timeoutMs?: number; env?: Record<string, string> } = {}) {
+  /* One Git invocation. Its own process group, so a timeout also stops
+     git-lfs and remote helpers; stdout and stderr kept apart; paths printed
+     unquoted. */
+  function run(args: string[], options: { cwd?: string; token?: string | null; providerId?: string | null; timeoutMs?: number; env?: Record<string, string>; stdin?: string } = {}) {
     const env = { ...process.env, ...options.env, GIT_TERMINAL_PROMPT: "0" } as Record<string, string>;
     if (options.token) {
       env.GIT_CONFIG_COUNT = "1";
       env.GIT_CONFIG_KEY_0 = "http.extraHeader";
       env.GIT_CONFIG_VALUE_0 = gitAuthorizationHeader(options.providerId, options.token);
     }
+    const timeoutMs = options.timeoutMs ?? LOCAL_TIMEOUT_MS;
+    const started = Date.now();
     return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-      execFile(executable, args, {
+      const child = spawn(executable, ["-c", "core.quotepath=false", ...args], {
         cwd: options.cwd,
         env,
         windowsHide: true,
-        timeout: options.timeoutMs ?? 120_000,
-        maxBuffer: 8 * 1024 * 1024,
-        encoding: "utf8",
-      }, (error, stdout, stderr) => {
-        if (error) return reject(new Error(sanitizeGitError(`${error.message}\n${stderr || ""}`, options.token)));
-        resolve({ stdout: String(stdout || ""), stderr: String(stderr || "") });
+        detached: process.platform !== "win32",
+        stdio: [options.stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+      });
+      const stdout: Buffer[] = [];
+      const stderr: Buffer[] = [];
+      let size = 0;
+      let failure: string | null = null;
+      const kill = (reason: string) => {
+        if (failure) return;
+        failure = reason;
+        try {
+          if (process.platform === "win32") spawn("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true });
+          else if (child.pid) process.kill(-child.pid, "SIGKILL");
+        } catch { child.kill("SIGKILL"); }
+      };
+      const timer = setTimeout(() => kill(`git ${args.find((arg) => !arg.startsWith("-")) || ""} timed out after ${Math.round(timeoutMs / 1000)}s`), timeoutMs);
+      const collect = (into: Buffer[]) => (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > OUTPUT_LIMIT_BYTES) return kill("Git output exceeded the safety limit.");
+        into.push(chunk);
+      };
+      child.stdout?.on("data", collect(stdout));
+      child.stderr?.on("data", collect(stderr));
+      if (options.stdin !== undefined) child.stdin?.end(options.stdin);
+      child.on("error", (error) => { clearTimeout(timer); reject(new Error(sanitizeGitError(error, options.token))); });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        const out = Buffer.concat(stdout).toString("utf8");
+        const err = Buffer.concat(stderr).toString("utf8");
+        if (failure || code !== 0) {
+          if (failure && options.cwd) void removeOwnIndexLock(options.cwd, started);
+          return reject(new Error(sanitizeGitError(`${failure || `git exited with ${code}`}\n${err}`, options.token)));
+        }
+        resolve({ stdout: out, stderr: err });
       });
     });
+  }
+
+  /* A killed Git leaves index.lock behind and every later command fails.
+     Only a lock created after our command started is ours to remove. */
+  async function removeOwnIndexLock(cwd: string, started: number) {
+    const lockPath = path.join(cwd, ".git", "index.lock");
+    try {
+      const info = await fs.stat(lockPath);
+      if (info.mtimeMs >= started - 1_000) await fs.rm(lockPath, { force: true });
+    } catch {}
+  }
+
+  /* Writes to one mirror or working copy run one at a time: two jobs on the
+     same checkout otherwise race for index.lock. */
+  const exclusiveTails = new Map<string, Promise<unknown>>();
+  function exclusive<T>(key: string, work: () => Promise<T>): Promise<T> {
+    const previous = exclusiveTails.get(key) || Promise.resolve();
+    const next = previous.catch(() => undefined).then(work);
+    const tail = next.catch(() => undefined);
+    exclusiveTails.set(key, tail);
+    void tail.then(() => { if (exclusiveTails.get(key) === tail) exclusiveTails.delete(key); });
+    return next;
   }
 
   async function succeeds(args: string[], options: { cwd?: string; token?: string | null; providerId?: string | null; timeoutMs?: number } = {}) {
@@ -197,27 +280,28 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
       await run(["init", "--initial-branch", defaultBranch, seed], { timeoutMs: 60_000 });
       const name = String(inputData.projectName || "Cluster Project").replace(/[\r\n\u0000]/g, " ").trim().slice(0, 160) || "Cluster Project";
       const ignore = inputData.ignoreTemplate === "unreal"
-        ? ["Binaries/", "DerivedDataCache/", "Intermediate/", "Saved/", ".vs/", "*.sln", "Plugins/*/Intermediate/", "Plugins/*/Binaries/"].join("\n")
+        ? ["Binaries/", "DerivedDataCache/", "Intermediate/", "Saved/", "Build/*/", "!Build/*/*.ini", ".vs/", ".vscode/", ".idea/", "*.sln", "*.suo", "*.sdf", "*.VC.db", "*.opensdf", "*.xcworkspace", "*.xcodeproj", "Plugins/**/Intermediate/", "Plugins/**/Binaries/", "Plugins/**/DerivedDataCache/", "Plugins/**/Saved/"].join("\n")
         : inputData.ignoreTemplate === "software"
           ? ["node_modules/", "dist/", "build/", ".cache/", ".env", ".env.*", "*.log"].join("\n")
           : [".DS_Store", "Thumbs.db", "*.log", ".env", ".env.*"].join("\n");
       await fs.writeFile(path.join(seed, "README.md"), `# ${name}\n\nManaged by Cluster Source Control.\n`);
       await fs.writeFile(path.join(seed, ".gitignore"), `${ignore}\n`);
       if (inputData.lfs) {
+        // Unreal packages are binary and cannot be merged, so they are
+        // lockable: editors check them out before changing them.
+        const lockable = ["uasset", "umap"];
+        const binary = ["ubulk", "uexp", "upk", "udk", "fbx", "obj", "abc", "blend", "max", "ma", "mb", "psd", "tga", "exr", "hdr", "png", "jpg", "jpeg", "wav", "mp3", "ogg", "bank", "mp4", "mov", "ttf", "otf", "zip", "7z"];
         await fs.writeFile(path.join(seed, ".gitattributes"), [
-          "*.uasset filter=lfs diff=lfs merge=lfs -text",
-          "*.umap filter=lfs diff=lfs merge=lfs -text",
-          "*.ubulk filter=lfs diff=lfs merge=lfs -text",
-          "*.uexp filter=lfs diff=lfs merge=lfs -text",
-          "*.fbx filter=lfs diff=lfs merge=lfs -text",
-          "*.psd filter=lfs diff=lfs merge=lfs -text",
+          "* text=auto",
+          ...lockable.map((ext) => `*.${ext} filter=lfs diff=lfs merge=lfs -text lockable`),
+          ...binary.map((ext) => `*.${ext} filter=lfs diff=lfs merge=lfs -text`),
         ].join("\n") + "\n");
       }
       await run(["add", "-A"], { cwd: seed });
       await run(["commit", "-m", "Initialize Cluster project repository"], { cwd: seed, env: { GIT_AUTHOR_NAME: "Cluster", GIT_COMMITTER_NAME: "Cluster", GIT_AUTHOR_EMAIL: "cluster@localhost.invalid", GIT_COMMITTER_EMAIL: "cluster@localhost.invalid" } });
       const headRevision = (await run(["rev-parse", "HEAD"], { cwd: seed })).stdout.trim();
       await run(["remote", "add", "origin", target], { cwd: seed });
-      await run(["push", "-u", "origin", `HEAD:refs/heads/${defaultBranch}`], { cwd: seed, timeoutMs: 300_000 });
+      await run(["push", "-u", "origin", `HEAD:refs/heads/${defaultBranch}`], { cwd: seed, timeoutMs: NETWORK_TIMEOUT_MS });
       return { defaultBranch, headRevision, lfs: Boolean(inputData.lfs), lfsVersion: inputData.lfs ? runtime.lfsVersion : null, mirrorState: "ready" as const };
     } catch (error) {
       // Only a directory created exclusively by this attempt can be cleaned.
@@ -230,7 +314,11 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
   }
   async function deleteManagedRepository(repositoryId: string, repositoryPathOverride?: string | null) { await fs.rm(repositoryPath(repositoryId, repositoryPathOverride), { recursive: true, force: true }); }
 
-  async function syncMirror(inputData: { repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null }) {
+  function syncMirror(inputData: { repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null }) {
+    return exclusive(`mirror:${repositoryPath(inputData.repositoryId, inputData.repositoryPath)}`, () => syncMirrorNow(inputData));
+  }
+
+  async function syncMirrorNow(inputData: { repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null }) {
     const runtime = await inspect();
     if (!runtime.available) return { runtime, mirrorState: "unavailable" as const, action: "skipped" as const, message: runtime.message };
     const target = repositoryPath(inputData.repositoryId, inputData.repositoryPath);
@@ -241,11 +329,11 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     try {
       if (!remoteUrl) { if (!exists) throw new Error("Cluster-managed repository storage is missing."); return { runtime, mirrorState: "ready" as const, action: "local" as const, message: "Cluster-managed repository is ready." }; }
       if (!exists) {
-        await run(["clone", "--mirror", "--", remoteUrl, target], { token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+        await run(["clone", "--mirror", "--", remoteUrl, target], { token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
         return { runtime, mirrorState: "ready" as const, action: "cloned" as const, message: "Managed repository mirror created." };
       }
       await run(["--git-dir", target, "remote", "set-url", "origin", remoteUrl], { token: inputData.token, providerId: inputData.providerId, timeoutMs: 15_000 });
-      await run(["--git-dir", target, "fetch", "--prune", "origin"], { token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+      await run(["--git-dir", target, "fetch", "--prune", "origin"], { token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
       return { runtime, mirrorState: "ready" as const, action: "fetched" as const, message: "Managed repository mirror updated." };
     } catch (error) {
       throw new Error(sanitizeGitError(error, inputData.token));
@@ -292,7 +380,11 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     await run(["lfs", "install", "--local"], { cwd: target, timeoutMs: 30_000 });
   }
 
-  async function prepareWorkingCopy(inputData: { workingCopyId: string; repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null; branchName: string; baseBranch: string; createBranch?: boolean; lfs?: boolean }) {
+  function prepareWorkingCopy(inputData: { workingCopyId: string; repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null; branchName: string; baseBranch: string; createBranch?: boolean; lfs?: boolean }) {
+    return exclusive(`working-copy:${workingCopyPath(inputData.workingCopyId)}`, () => prepareWorkingCopyNow(inputData));
+  }
+
+  async function prepareWorkingCopyNow(inputData: { workingCopyId: string; repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null; branchName: string; baseBranch: string; createBranch?: boolean; lfs?: boolean }) {
     const runtime = await inspect();
     if (!runtime.available) throw new Error(runtime.message);
     const branchName = safeBranchName(inputData.branchName);
@@ -306,10 +398,10 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     await fs.mkdir(workspacesRoot, { recursive: true });
     let exists = true;
     try { await fs.access(path.join(target, ".git")); } catch { exists = false; }
-    if (!exists) await run(["clone", "--no-hardlinks", "--", mirror, target], { timeoutMs: 10 * 60_000, env: inputData.lfs ? { GIT_LFS_SKIP_SMUDGE: "1" } : undefined });
+    if (!exists) await run(["clone", "--no-hardlinks", "--", mirror, target], { timeoutMs: NETWORK_TIMEOUT_MS, env: inputData.lfs ? { GIT_LFS_SKIP_SMUDGE: "1" } : undefined });
     if (inputData.lfs) await configureWorkingCopyLfs(target, inputData.repositoryPath, runtime);
     await run(["remote", "set-url", "origin", remoteUrl], { cwd: target, timeoutMs: 15_000 });
-    await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+    await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
     const localExists = await succeeds(["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], { cwd: target, timeoutMs: 10_000 });
     const remoteExists = await succeeds(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd: target, timeoutMs: 10_000 });
     if (inputData.createBranch && (localExists || remoteExists)) throw new Error(`Branch ${branchName} already exists.`);
@@ -328,13 +420,17 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     }
     if (!inputData.createBranch && remoteExists) await run(["branch", "--set-upstream-to", `origin/${branchName}`, branchName], { cwd: target, timeoutMs: 15_000 }).catch(() => undefined);
     if (inputData.lfs) {
-      if (inputData.repositoryPath) await run(["lfs", "checkout"], { cwd: target, timeoutMs: 10 * 60_000 });
-      else await run(["lfs", "pull", "origin", branchName], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 20 * 60_000 });
+      if (inputData.repositoryPath) await run(["lfs", "checkout"], { cwd: target, timeoutMs: NETWORK_TIMEOUT_MS });
+      else await run(["lfs", "pull", "origin", branchName], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
     }
     return inspectWorkingCopy(inputData.workingCopyId);
   }
 
-  async function commitWorkingCopy(inputData: { workingCopyId: string; message: string; authorName: string; authorEmail?: string | null }) {
+  function commitWorkingCopy(inputData: { workingCopyId: string; message: string; authorName: string; authorEmail?: string | null }) {
+    return exclusive(`working-copy:${workingCopyPath(inputData.workingCopyId)}`, () => commitWorkingCopyNow(inputData));
+  }
+
+  async function commitWorkingCopyNow(inputData: { workingCopyId: string; message: string; authorName: string; authorEmail?: string | null }) {
     const target = workingCopyPath(inputData.workingCopyId);
     const before = await inspectWorkingCopy(inputData.workingCopyId);
     if (before.status === "missing" || before.status === "unavailable") throw new Error("Working copy is not available.");
@@ -344,27 +440,26 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     if (!message) throw new Error("Commit message is required.");
     const authorName = String(inputData.authorName || "Cluster User").replace(/[\r\n\u0000]/g, " ").trim().slice(0, 200) || "Cluster User";
     const authorEmail = String(inputData.authorEmail || "cluster@localhost.invalid").replace(/[\r\n\u0000]/g, "").trim().slice(0, 320) || "cluster@localhost.invalid";
-    await run(["add", "-A", "--", "."], { cwd: target, timeoutMs: 5 * 60_000 });
-    const staged = await run(["diff", "--cached", "--name-status", "--"], { cwd: target, timeoutMs: 60_000 });
-    if (!staged.stdout.trim()) throw new Error("Working copy has no staged changes to commit.");
-    const committedPaths = staged.stdout.split(/\r?\n/).filter(Boolean).slice(0, 5_000).map((line) => {
-      const parts = line.split("\t");
-      const code = String(parts[0] || "M");
-      if (code.startsWith("R") || code.startsWith("C")) return { status: code[0], previousPath: parts[1] || null, path: parts[2] || parts[1] || "" };
-      return { status: code[0], previousPath: null, path: parts[1] || "" };
-    }).filter((item) => item.path);
-    await run(["commit", "-m", message], { cwd: target, timeoutMs: 5 * 60_000, env: { GIT_AUTHOR_NAME: authorName, GIT_COMMITTER_NAME: authorName, GIT_AUTHOR_EMAIL: authorEmail, GIT_COMMITTER_EMAIL: authorEmail } });
+    await run(["add", "-A", "--", "."], { cwd: target, timeoutMs: LOCAL_TIMEOUT_MS });
+    const staged = await run(["diff", "--cached", "--name-status", "-z", "--"], { cwd: target, timeoutMs: LOCAL_TIMEOUT_MS });
+    const committedPaths = parseNameStatusZ(staged.stdout).slice(0, 5_000);
+    if (!committedPaths.length) throw new Error("Working copy has no staged changes to commit.");
+    await run(["commit", "-m", message], { cwd: target, timeoutMs: LOCAL_TIMEOUT_MS, env: { GIT_AUTHOR_NAME: authorName, GIT_COMMITTER_NAME: authorName, GIT_AUTHOR_EMAIL: authorEmail, GIT_COMMITTER_EMAIL: authorEmail } });
     return { state: await inspectWorkingCopy(inputData.workingCopyId), committedPaths };
   }
 
-  async function pushWorkingCopy(inputData: { workingCopyId: string; branchName: string; token?: string | null; providerId?: string | null }) {
+  function pushWorkingCopy(inputData: { workingCopyId: string; branchName: string; token?: string | null; providerId?: string | null }) {
+    return exclusive(`working-copy:${workingCopyPath(inputData.workingCopyId)}`, () => pushWorkingCopyNow(inputData));
+  }
+
+  async function pushWorkingCopyNow(inputData: { workingCopyId: string; branchName: string; token?: string | null; providerId?: string | null }) {
     const branchName = safeBranchName(inputData.branchName);
     const target = workingCopyPath(inputData.workingCopyId);
     const before = await inspectWorkingCopy(inputData.workingCopyId);
     if (before.status === "missing" || before.status === "unavailable") throw new Error("Working copy is not available.");
     if (before.branchName !== branchName) throw new Error("Working-copy branch changed unexpectedly. Refresh the working copy before pushing.");
     if (before.conflictCount) throw new Error("Resolve working-copy conflicts before pushing.");
-    await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+    await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
     const remoteExists = await succeeds(["show-ref", "--verify", "--quiet", `refs/remotes/origin/${branchName}`], { cwd: target, timeoutMs: 10_000 });
     if (remoteExists) {
       const counts = await run(["rev-list", "--left-right", "--count", `HEAD...origin/${branchName}`], { cwd: target, timeoutMs: 30_000 });
@@ -372,12 +467,16 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
       const behind = Number(behindText) || 0;
       if (behind > 0) throw new Error(`Remote branch is ${behind} commit${behind === 1 ? "" : "s"} ahead. Synchronize or merge before pushing.`);
     }
-    await run(["push", "origin", `HEAD:refs/heads/${branchName}`], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+    await run(["push", "origin", `HEAD:refs/heads/${branchName}`], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
     await run(["branch", "--set-upstream-to", `origin/${branchName}`, branchName], { cwd: target, timeoutMs: 15_000 }).catch(() => undefined);
     return inspectWorkingCopy(inputData.workingCopyId);
   }
 
-  async function evaluateMerge(inputData: { repositoryId: string; repositoryPath?: string | null; sourceBranch: string; targetBranch: string; token?: string | null; providerId?: string | null }) {
+  function evaluateMerge(inputData: { repositoryId: string; repositoryPath?: string | null; sourceBranch: string; targetBranch: string; token?: string | null; providerId?: string | null }) {
+    return exclusive(`mirror:${repositoryPath(inputData.repositoryId, inputData.repositoryPath)}`, () => evaluateMergeNow(inputData));
+  }
+
+  async function evaluateMergeNow(inputData: { repositoryId: string; repositoryPath?: string | null; sourceBranch: string; targetBranch: string; token?: string | null; providerId?: string | null }) {
     const runtime = await inspect();
     if (!runtime.available) throw new Error(runtime.message);
     const sourceBranch = safeBranchName(inputData.sourceBranch);
@@ -385,7 +484,7 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     const mirror = repositoryPath(inputData.repositoryId, inputData.repositoryPath);
     try { await fs.access(path.join(mirror, "HEAD")); } catch { throw new Error("Managed repository mirror is not ready. Synchronize the repository first."); }
     const hasOrigin = await succeeds(["--git-dir", mirror, "remote", "get-url", "origin"], { timeoutMs: 10_000 });
-    if (hasOrigin) await run(["--git-dir", mirror, "fetch", "--prune", "origin"], { token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+    if (hasOrigin) await run(["--git-dir", mirror, "fetch", "--prune", "origin"], { token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
     const sourceRef = hasOrigin ? `refs/remotes/origin/${sourceBranch}` : `refs/heads/${sourceBranch}`;
     const targetRef = hasOrigin ? `refs/remotes/origin/${targetBranch}` : `refs/heads/${targetBranch}`;
     const sourceExists = await succeeds(["--git-dir", mirror, "show-ref", "--verify", "--quiet", sourceRef], { timeoutMs: 10_000 });
@@ -441,9 +540,9 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     await fs.mkdir(reviewRoot, { recursive: true });
     await fs.rm(target, { recursive: true, force: true });
     try {
-      await run(["clone", "--no-hardlinks", "--", mirror, target], { timeoutMs: 10 * 60_000, env: { GIT_LFS_SKIP_SMUDGE: "1" } });
+      await run(["clone", "--no-hardlinks", "--", mirror, target], { timeoutMs: NETWORK_TIMEOUT_MS, env: { GIT_LFS_SKIP_SMUDGE: "1" } });
       await run(["remote", "set-url", "origin", remoteUrl], { cwd: target, timeoutMs: 15_000 });
-      await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+      await run(["fetch", "--prune", "origin"], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
       const [sourceRevision, targetRevision] = await Promise.all([
         run(["rev-parse", `origin/${sourceBranch}`], { cwd: target, timeoutMs: 15_000 }),
         run(["rev-parse", `origin/${targetBranch}`], { cwd: target, timeoutMs: 15_000 }),
@@ -454,10 +553,10 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
       const authorName = String(inputData.authorName || "Cluster User").replace(/[\r\n\u0000]/g, " ").trim().slice(0, 200) || "Cluster User";
       const authorEmail = String(inputData.authorEmail || "cluster@localhost.invalid").replace(/[\r\n\u0000]/g, "").trim().slice(0, 320) || "cluster@localhost.invalid";
       const title = String(inputData.title || `Merge ${sourceBranch} into ${targetBranch}`).replace(/\u0000/g, "").trim().slice(0, 500);
-      await run(["merge", "--no-ff", "--no-edit", `origin/${sourceBranch}`], { cwd: target, timeoutMs: 5 * 60_000, env: { GIT_AUTHOR_NAME: authorName, GIT_COMMITTER_NAME: authorName, GIT_AUTHOR_EMAIL: authorEmail, GIT_COMMITTER_EMAIL: authorEmail, GIT_MERGE_AUTOEDIT: "no" } });
+      await run(["merge", "--no-ff", "--no-edit", `origin/${sourceBranch}`], { cwd: target, timeoutMs: LOCAL_TIMEOUT_MS, env: { GIT_AUTHOR_NAME: authorName, GIT_COMMITTER_NAME: authorName, GIT_AUTHOR_EMAIL: authorEmail, GIT_COMMITTER_EMAIL: authorEmail, GIT_MERGE_AUTOEDIT: "no" } });
       const mergedRevision = (await run(["rev-parse", "HEAD"], { cwd: target, timeoutMs: 15_000 })).stdout.trim();
       if (!mergedRevision) throw new Error("Merge completed without a readable revision.");
-      await run(["push", "origin", `HEAD:refs/heads/${targetBranch}`], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: 10 * 60_000 });
+      await run(["push", "origin", `HEAD:refs/heads/${targetBranch}`], { cwd: target, token: inputData.token, providerId: inputData.providerId, timeoutMs: NETWORK_TIMEOUT_MS });
       return { mergedRevision, sourceBranch, targetBranch, title };
     } finally {
       await fs.rm(target, { recursive: true, force: true }).catch(() => undefined);

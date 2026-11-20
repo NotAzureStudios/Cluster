@@ -40,7 +40,7 @@ const checks = [
   ["Unreal provider refreshes file state through Workstation", provider.includes('TEXT("files.status")')],
   ["Unreal provider maps checkout to Workstation LFS-aware checkout", provider.includes('TEXT("files.checkout")') && provider.includes('Input->SetBoolField(TEXT("lock"), true)')],
   ["Unreal provider maps check-in to Workstation commit", provider.includes('TEXT("changes.commit")') && provider.includes('GetDescription().ToString()')],
-  ["Unreal provider maps sync to Workstation pull", provider.includes('TEXT("repository.sync")') && provider.includes('TEXT("pull")')],
+  ["Unreal provider maps sync to Workstation update (pull with rebase)", provider.includes('TEXT("repository.sync")') && provider.includes('TEXT("rebase")')],
   ["Unreal provider releases owned LFS locks after revert/check-in", provider.includes("ReleaseOwnedLocks(InFiles)") && provider.includes('TEXT("locks.release")')],
   ["Unreal provider has no direct Git process execution", !provider.includes("CreateProc") && !client.includes("CreateProc") && !provider.includes('TEXT("git ') && !client.includes('TEXT("git ')],
   ["Unreal provider has explicit file-state object", stateHeader.includes("public ISourceControlState") && state.includes("UpdateFromWorkstation")],
