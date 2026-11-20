@@ -388,7 +388,6 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     ? ["overview", "plan", "viewer", "boards", "library", "people"]
     : ["overview", "plan", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
   const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id)).slice(0, 6);
-  const showHealthStrip = ["intelligence", "control", "tickets", "builds", "qa"].includes(activeTab);
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
       <ProjectDetailHeader
@@ -408,7 +407,6 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       />
       {activeTab !== "source" ? <ProjectCollaborationStrip tool="project" projectId={project.id} activity={`Project · ${tabs.find((item: ProjectDetailTab) => item.id === activeTab)?.label || activeTab}`} /> : null}
 
-      {showHealthStrip ? <ProjectHealthStripAdapter project={project} ticketCount={projectTicketLinkCount} blockerCount={projectBlockerCount} failedBuilds={failedBuildCount} qaStatus={activeQaSessionCount ? `${activeQaSessionCount} active` : passedBuildCount ? `${passedBuildCount} passed` : projectQaPlanCount ? `${projectQaPlanCount} plans` : "setup"} qaLabel={toolLabel("qa", "QA")} overdue={projectOverdueLinkCount} showBuilds={supportsBuilds} showQa={supportsQa} onOpenTickets={() => onOpenTickets(project.id)} onOpenBuilds={supportsBuilds ? () => setTab("builds") : undefined} onOpenQa={supportsQa ? () => setTab("qa") : undefined} /> : null}
 
       <div className="project-workspace-v312">
         <main className="project-content-v312">

@@ -87,7 +87,7 @@ await test('release publication independently checks positive QA case-count bloc
 });
 await test('provenance gate is displayed through the existing delivery UI, not an alternate view',()=>{
  const ui=readFileSync('packages/renderer/src/features/projects/ProjectDeliveryLifecycle.tsx','utf8');
- assert.match(ui,/readiness\.gates\.filter\(\(gate\) => gate\.required && !gate\.passed\)/);
+ assert.match(ui,/readiness\?\.gates \|\| \[\]\)\.filter\(\(gate\) => gate\.required && !gate\.passed\)/);
  const source=readFileSync(lifecyclePath,'utf8');
  assert.match(source,/Source review provenance/);
  assert.match(source,/sourceReviewId \? \["source_review"\]/);

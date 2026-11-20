@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterEmptyState, type ClusterEmptyStateKind } from "../../components/ClusterEmptyState";
 import { ClusterButton } from "../../components/ClusterButton";
+import "./project-section.css";
 
 export type ProjectSectionMetric = {
   label: string;
@@ -11,7 +11,11 @@ export type ProjectSectionMetric = {
   onClick?: () => void;
 };
 
-export function ProjectSectionHeader({ eyebrow, title, description, actions, metrics, compact = false }: {
+/* Section chrome for every project tab — styled by project-section.css only.
+   The tab row already names the section, so the header is one row: the
+   section's counts as indicator chips (tone dot, number, word) and its
+   actions. The title stays for screen readers. */
+export function ProjectSectionHeader({ eyebrow: _eyebrow, title, description: _description, actions, metrics }: {
   eyebrow: string;
   title: string;
   description?: ReactNode;
@@ -19,34 +23,24 @@ export function ProjectSectionHeader({ eyebrow, title, description, actions, met
   metrics?: ProjectSectionMetric[];
   compact?: boolean;
 }) {
+  if (!actions && !metrics?.length) return <h2 className="ps-sr">{title}</h2>;
   return (
-    <header className={`project-section-shell-head-v312 cluster-workspace-section-head-v391 ${compact ? "compact" : ""}`}>
-      <div className="project-section-shell-copy-v312">
-        <p className="eyebrow">{eyebrow}</p>
-        <h2>{title}</h2>
-        {description && compact ? <p className="muted">{description}</p> : null}
-      </div>
-      {actions ? <div className="project-section-shell-actions-v312 cluster-workspace-actions-v391">{actions}</div> : null}
-      {metrics?.length ? (
-        <ClusterMetricStrip
-          className="project-section-metrics-v312"
-          label={`${title} summary`}
-          items={metrics.map((metric) => ({
-            label: metric.label,
-            value: metric.value,
-            detail: metric.detail,
-            tone: metric.tone === "good" ? "good" : metric.tone === "warning" ? "warning" : metric.tone === "danger" ? "danger" : "neutral",
-            onSelect: metric.onClick,
-          }))}
-        />
-      ) : null}
+    <header className="ps-head">
+      <h2 className="ps-sr">{title}</h2>
+      {metrics?.length ? <ul className="ps-chips" aria-label={`${title} summary`}>{metrics.map((metric) => {
+        const body = <><i aria-hidden="true" /><strong>{metric.value}</strong><span>{metric.label}</span></>;
+        return <li key={metric.label} data-tone={metric.tone || "neutral"} title={typeof metric.detail === "string" ? metric.detail : undefined}>
+          {metric.onClick ? <ClusterButton unstyled type="button" className="ps-chip" onClick={metric.onClick}>{body}</ClusterButton> : <span className="ps-chip">{body}</span>}
+        </li>;
+      })}</ul> : null}
+      {actions ? <div className="ps-actions">{actions}</div> : null}
     </header>
   );
 }
 
 export function ProjectSectionStatus({ children, tone = "neutral" }: { children?: ReactNode; tone?: "neutral" | "good" | "warning" | "danger" }) {
   if (!children) return null;
-  return <div className={`project-section-status-v312 cluster-status-strip-v391 ${tone}`}>{children}</div>;
+  return <div className="ps-status" data-tone={tone} role={tone === "danger" ? "alert" : "status"}><i aria-hidden="true" /><div>{children}</div></div>;
 }
 
 export function ProjectSurface({ title, description, action, children, className = "", tone = "neutral" }: {
@@ -58,15 +52,16 @@ export function ProjectSurface({ title, description, action, children, className
   tone?: "neutral" | "accent" | "warning" | "danger";
 }) {
   return (
-    <section className={`project-surface-v312 cluster-surface-v391 ${tone} ${className}`.trim()}>
-      {title || description || action ? <header><div>{title ? <h3>{title}</h3> : null}{description && (tone === "warning" || tone === "danger") ? <p>{description}</p> : null}</div>{action}</header> : null}
-      <div className="project-surface-body-v312">{children}</div>
+    <section className={`ps-surface ${className}`.trim()} data-tone={tone}>
+      {title || action ? <header className="ps-surface__head">{title ? <h3>{title}</h3> : null}{action ? <div className="ps-surface__action">{action}</div> : null}</header> : null}
+      {description && (tone === "warning" || tone === "danger") ? <p className="ps-surface__note">{description}</p> : null}
+      <div className="ps-surface__body">{children}</div>
     </section>
   );
 }
 
 export function ProjectEmptyState({ title, description, action, kind = "empty" }: { title: string; description: ReactNode; action?: ReactNode; kind?: ClusterEmptyStateKind }) {
-  return <ClusterEmptyState title={title} description={description} actions={action} kind={kind} compact className="project-empty-v312 cluster-empty-state-v391" />;
+  return <ClusterEmptyState title={title} description={description} actions={action} kind={kind} compact className="ps-empty" />;
 }
 
 export function ProjectSegmentedControl<Id extends string>({ items, activeId, onChange, label }: {
@@ -75,5 +70,5 @@ export function ProjectSegmentedControl<Id extends string>({ items, activeId, on
   onChange: (id: Id) => void;
   label: string;
 }) {
-  return <div className="project-segmented-v312 cluster-segmented-v391" role="tablist" aria-label={label}>{items.map((item) => <ClusterButton unstyled key={item.id} type="button" role="tab" aria-selected={activeId === item.id} className={activeId === item.id ? "active" : ""} onClick={() => onChange(item.id)}><span>{item.label}</span>{typeof item.count === "number" ? <em>{item.count}</em> : null}</ClusterButton>)}</div>;
+  return <div className="ps-seg" role="tablist" aria-label={label}>{items.map((item) => <ClusterButton unstyled key={item.id} type="button" role="tab" aria-selected={activeId === item.id} className={activeId === item.id ? "is-active" : ""} onClick={() => onChange(item.id)}><span>{item.label}</span>{typeof item.count === "number" && item.count > 0 ? <em>{item.count}</em> : null}</ClusterButton>)}</div>;
 }

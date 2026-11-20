@@ -17,7 +17,6 @@ function own(path,title,className){ test(`${title} uses shared owner`,()=>{
  assert.match(texts[path],new RegExp(`<ClusterDisclosureGroup[^>]*title=(?:"${title.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"|\\{)`));
  if(className)assert.ok(texts[path].includes(className));
  }); }
-own('projects/ProjectBuildsPanel.tsx','Release context','project-release-context-disclosure-v30d');
 own('projects/ProjectIntelligencePanel.tsx','Advanced operations & evidence','project-intelligence-deep-dive-v30d');
 own('projects/ProjectsPage.tsx','Portfolio signals','projects-intelligence-v30d');
 own('projects/ProjectQaRunsPanel.tsx','More QA context');
@@ -27,7 +26,7 @@ own('notifications/NotificationInboxPage.tsx','Active threads');
 own('notifications/NotificationInboxPage.tsx','View sources');
 own('library/LibraryGovernancePanel.tsx','Child item evidence');
 own('library/LibraryGovernancePanel.tsx','Version evidence');
-for(const [label,field] of [['release stage','releaseStage'],['QA gate count','platformReadyCount'],['release blockers','blockers.length']])test(`Release context keeps ${label}`,()=>assert.ok(texts['projects/ProjectBuildsPanel.tsx'].includes(field)));
+for(const [label,field] of [['release stage','releaseStage'],['QA gate count','platformReadyCount'],['release blockers','blockers.length']])test(`Builds header keeps ${label}`,()=>assert.ok(texts['projects/ProjectBuildsPanel.tsx'].includes(field)));
 for(const f of ['ProjectDeliveryRiskPanel','LinkedWorkPanel','SharedWorkEvidencePanel','SharedWorkWatchControl','CollaborationPanel'])test(`QA keeps ${f}`,()=>assert.ok(texts['projects/ProjectQaRunsPanel.tsx'].includes(`<${f}`)));
 for(const f of ['ClusterMetricStrip','portfolioIntelligence.highPressureOwners','portfolioIntelligence.atRisk'])test(`Portfolio keeps ${f}`,()=>assert.ok(texts['projects/ProjectsPage.tsx'].includes(f)));
 for(const f of ['createProjectDependency','ensureDeliveryPipeline','snapshot?.activity'])test(`Intelligence retains ${f}`,()=>assert.ok(texts['projects/ProjectIntelligencePanel.tsx'].includes(f)));
