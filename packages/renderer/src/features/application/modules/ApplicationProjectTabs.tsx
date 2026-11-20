@@ -29,7 +29,7 @@ import { type NotificationItem } from "@cluster/shared";
 import { openTicketWorkspace } from "../../tickets/ticket-navigation";
 
 import { ClusterSelect } from "../../../components/ClusterSelect";
-import { ClusterButton } from "../../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../../components/ClusterButton";
 import { ClusterActionMenu } from "../../../components/ClusterContextActions";
 import type { User, Project, Priority, Board, Settings, NotificationSeverity, TicketCard } from "../application-models";import { PRIORITY_CREATE_OPTIONS } from "./priority-options";
 import { shouldHandleGlobalNavigationShortcut } from "../../../core/accessibility";
@@ -39,6 +39,9 @@ import { MobileViewportRuntime } from "./MobileViewportRuntime";
 import { ClusterTextArea } from "../../../components/ClusterTextArea";
 import { ClusterFloatingSurface } from "../../../components/ClusterFloatingSurface";
 import { ClusterTaskbar } from "../../shell/ShellPrimitives";
+import { NotificationRow, notificationCategoryIcon } from "../../notifications/NotificationRow";
+import { clearToasts, dismissToast, showToast } from "../../../core/toasts";
+import { ClusterSegmentedControl } from "../../../components/ClusterSegmentedControl";
 import { TaskbarHistory } from "../../shell/TaskbarHistory";
 import { TaskbarTransferCenter } from "../../shell/TaskbarTransferCenter";
 import { TaskbarProjectTabs } from "../../shell/TaskbarProjectTabs";
@@ -128,8 +131,7 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
   const [notificationActionBusy, setNotificationActionBusy] = useState(false);
   const [notificationActionError, setNotificationActionError] = useState("");
   const notificationRequestGateRef = useRef(createTaskbarActionRequestGate());
-  const [notificationToast, setNotificationToast] = useState<NotificationPreview | null>(null);
-  const [notificationToastQueue, setNotificationToastQueue] = useState<NotificationPreview[]>([]);
+  const [notificationPreviewFilter, setNotificationPreviewFilter] = useState<"all" | "unread" | "action">("all");
   const notificationSeenIds = useRef<Set<string>>(new Set());
   const notificationStreamRef = useRef<EventSource | null>(null);
   const notificationStreamRevisionRef = useRef(0);
@@ -307,10 +309,6 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
   function notificationDeliveryToken(item: NotificationPreview) {
     return `${item.id}:${Math.max(0, Number(item.escalationLevel || 0))}`;
   }
-  function notificationCategoryIcon(categoryValue: string): ClusterIconName {
-    const category = categoryValue as NotificationCategory;
-    return ({ mentions: "comment", approvals: "check", work: "work", schedule: "calendar", delivery: "cloud", qa: "check", system: "warning", activity: "activity" } as Record<NotificationCategory, ClusterIconName>)[category] || "bell";
-  }
   function enqueueNotification(item: NotificationPreview) {
     if (!item?.id) return;
     const token = notificationDeliveryToken(item);
@@ -321,7 +319,17 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
     window.dispatchEvent(new CustomEvent(CLUSTER_LIVE_NOTIFICATION_EVENT, { detail: item }));
     if (!notificationShouldToast(item)) return;
     playClusterNotificationSound();
-    setNotificationToastQueue((queue) => queue.some((queued) => notificationDeliveryToken(queued) === token) ? queue : [...queue, item]);
+    const category = NOTIFICATION_CATEGORY_DETAILS[item.category as NotificationCategory]?.label || levelLabel(item.category);
+    showToast({
+      id: `notification-${token}`,
+      tone: item.priority === "critical" ? "danger" : item.priority === "high" ? "warning" : "info",
+      icon: notificationCategoryIcon(item.category),
+      label: [category, item.projectName].filter(Boolean).join(" · "),
+      title: item.title,
+      message: item.message || undefined,
+      duration: item.priority === "critical" ? 10_000 : item.priority === "high" ? 8_000 : 6_500,
+      onOpen: () => openNotificationPreview(item),
+    });
   }
   async function loadNotificationPreview(showSpinner = false) {
     if (!canSeeNotifications) return;
@@ -363,7 +371,7 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
   function openNotificationPreview(item: NotificationPreview) {
     void markNotificationPreviewRead([item.id]);
     setNotificationMenuOpen(false);
-    setNotificationToast((current) => current?.id === item.id ? null : current);
+    dismissToast(`notification-${notificationDeliveryToken(item)}`);
     const route = String(item.metadata?.route || "");
     if (item.entityType === "password_reset_request") { onOpenUserAdmin(); return; }
     if (openClusterWorkNavigation(notificationWorkNavigation(item))) return;
@@ -379,18 +387,6 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
     onOpenNotifications();
   }
   useEffect(() => {
-    if (notificationToast || !notificationToastQueue.length || document.visibilityState !== "visible") return;
-    const [next, ...remaining] = notificationToastQueue;
-    setNotificationToast(next);
-    setNotificationToastQueue(remaining);
-  }, [notificationToast, notificationToastQueue]);
-  useEffect(() => {
-    if (!notificationToast) return;
-    const duration = notificationToast.priority === "critical" ? 10_000 : notificationToast.priority === "high" ? 8_000 : 6_500;
-    const timer = window.setTimeout(() => setNotificationToast((current) => current?.id === notificationToast.id ? null : current), duration);
-    return () => window.clearTimeout(timer);
-  }, [notificationToast?.id]);
-  useEffect(() => {
     if (!canSeeNotifications) {
       notificationRequestGateRef.current.invalidateReads();
       setAuthoritativeNotificationCount(0);
@@ -398,8 +394,7 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
       notificationRequestGateRef.current.invalidateReads();
       setNotificationPreviewItems([]);
       setNotificationActionError("");
-      setNotificationToast(null);
-      setNotificationToastQueue([]);
+      clearToasts();
       notificationSeenIds.current.clear();
       return;
     }
@@ -520,7 +515,6 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
     const recoverVisibleOnline = () => {
       if (!alive || document.visibilityState !== "visible" || !navigator.onLine) { clearBadge(); clearReconnect(); clearSummary(); return; }
       reconnectAttempts = 0;
-      setNotificationToastQueue((queue) => [...queue]);
       refreshNotificationBadge();
       scheduleBadgeRefresh();
       connectStream();
@@ -584,6 +578,15 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
       window.removeEventListener("popstate", syncInspector);
     };
   }, [desktopShell]);
+  const popoverUnread = Math.max(notificationCount, notificationPreviewItems.filter((item) => !item.read).length);
+  const popoverGroups = Object.entries(notificationPreviewItems
+    .filter((item) => notificationPreviewFilter === "unread" ? !item.read : notificationPreviewFilter === "action" ? Boolean(item.requiresAction && !item.acknowledgedAt) : true)
+    .reduce<Record<string, NotificationPreview[]>>((groups, item) => {
+      const day = new Date(item.createdAt); const today = new Date();
+      const label = day.toDateString() === today.toDateString() ? "Today" : "Earlier";
+      (groups[label] ||= []).push(item);
+      return groups;
+    }, {}));
   const notificationBadgeLabel = `${notificationCount} unread ${notificationSeverity} notification${notificationCount === 1 ? "" : "s"}`;
   const taskbarUserMenu = (
     <div className="cl-tb-menu">
@@ -751,10 +754,25 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
                   <ClusterIcon name="bell" className="cl-tb-action__icon" />
                   <span className={`cl-tb-badge severity-${notificationSeverity} ${notificationCount ? "" : "empty"}`} aria-hidden="true">{notificationCount > 99 ? "99+" : notificationCount}</span>
                 </ClusterButton>
-                <ClusterFloatingSurface open={notificationMenuOpen} anchorRef={notificationMenuTriggerRef} placement="bottom-start" mobileMode="sheet" className="notification-popover-v473 taskbar-floating-menu-v522" label="Recent notifications" canDismiss={() => !notificationRequestGateRef.current.isMutating()} onDismiss={() => { if (!notificationRequestGateRef.current.isMutating()) setNotificationMenuOpen(false); }}>
-                  <header><div><strong>Inbox</strong><span>{notificationCount ? `${notificationCount} unread` : "You're caught up"}</span></div><ClusterButton type="button" className="" onClick={() => void loadNotificationPreview(true)} disabled={notificationPreviewLoading || notificationActionBusy} variant="quiet" size="compact">{notificationPreviewLoading ? "Loading…" : "Refresh"}</ClusterButton></header>
-                  <div className="notification-popover-list-v473">{notificationActionError ? <p role="alert" className="taskbar-notification-error-v548">{notificationActionError}</p> : null}{notificationPreviewItems.length ? notificationPreviewItems.map((item) => <ClusterButton unstyled type="button" key={item.id} className="notification-popover-item-v473" data-priority={item.priority} data-category={item.category} onClick={() => openNotificationPreview(item)}><span className="notification-popover-icon-v473"><ClusterIcon name={notificationCategoryIcon(item.category)} /></span><span><small>{NOTIFICATION_CATEGORY_DETAILS[item.category as NotificationCategory]?.label || levelLabel(item.category)}</small><strong>{item.title}</strong><em>{item.message || levelLabel(item.category)}</em></span><time>{formatRelativeTime(item.createdAt)}</time></ClusterButton>) : <div className="notification-popover-empty-v473">No recent notifications.</div>}</div>
-                  <footer>{notificationPreviewItems.some((item) => !item.read) ? <ClusterButton type="button" className="" busy={notificationActionBusy} disabled={notificationActionBusy} onClick={() => void markNotificationPreviewRead(notificationPreviewItems.filter((item) => !item.read).map((item) => item.id))} variant="secondary">{notificationActionBusy ? "Marking read…" : "Mark visible read"}</ClusterButton> : <span />}<ClusterButton type="button" className="" onClick={() => { setNotificationMenuOpen(false); onOpenNotifications(); }} variant="primary">View all</ClusterButton></footer>
+                <ClusterFloatingSurface open={notificationMenuOpen} anchorRef={notificationMenuTriggerRef} placement="bottom-start" mobileMode="sheet" className="nt-pop taskbar-floating-menu-v522" label="Notifications" canDismiss={() => !notificationRequestGateRef.current.isMutating()} onDismiss={() => { if (!notificationRequestGateRef.current.isMutating()) setNotificationMenuOpen(false); }}>
+                  <header className="nt-pop__head">
+                    <h2>Notifications</h2>
+                    {popoverUnread ? <span className="nt-pop__count">{popoverUnread > 99 ? "99+" : popoverUnread}</span> : null}
+                    <span className="nt-pop__actions">
+                      {notificationPreviewItems.some((item) => !item.read) ? <ClusterIconButton size="compact" label="Mark these read" busy={notificationActionBusy} disabled={notificationActionBusy} onClick={() => void markNotificationPreviewRead(notificationPreviewItems.filter((item) => !item.read).map((item) => item.id))}><ClusterIcon name="check" /></ClusterIconButton> : null}
+                      <ClusterIconButton size="compact" label="Refresh" busy={notificationPreviewLoading} disabled={notificationPreviewLoading || notificationActionBusy} onClick={() => void loadNotificationPreview(true)}><ClusterIcon name="refresh" /></ClusterIconButton>
+                      <ClusterIconButton size="compact" label="Notification settings" onClick={() => { setNotificationMenuOpen(false); onOpenSettings(); }}><ClusterIcon name="settings" /></ClusterIconButton>
+                    </span>
+                  </header>
+                  <div className="nt-pop__filters"><ClusterSegmentedControl label="Show" value={notificationPreviewFilter} onChange={setNotificationPreviewFilter} options={[{ value: "all", label: "All" }, { value: "unread", label: popoverUnread ? `Unread ${popoverUnread}` : "Unread" }, { value: "action", label: "Action" }]} /></div>
+                  <div className="nt-pop__list">
+                    {notificationActionError ? <p role="alert" className="nt-pop__error">{notificationActionError}</p> : null}
+                    {popoverGroups.length ? popoverGroups.map(([group, rows]) => <section key={group} aria-label={group}>
+                      <h3 className="nt-group">{group}</h3>
+                      {rows.map((item) => <NotificationRow key={item.id} item={item} compact onOpen={() => openNotificationPreview(item)} />)}
+                    </section>) : <div className="nt-pop__empty"><ClusterIcon name="check" /><strong>{notificationPreviewFilter === "all" ? "Nothing new" : "Nothing here"}</strong></div>}
+                  </div>
+                  <footer className="nt-pop__foot"><ClusterButton type="button" variant="quiet" size="compact" onClick={() => { setNotificationMenuOpen(false); onOpenNotifications(); }}>Open Inbox</ClusterButton></footer>
                 </ClusterFloatingSurface>
               </div>
             )}
@@ -952,13 +970,6 @@ export function ProjectTabsBar({ status, projects, openProjectIds, pinnedProject
             {taskbarUserMenu}
           </>}
       >
-      {notificationToast && <div className="notification-toast-v473" role="status" data-priority={notificationToast.priority} data-category={notificationToast.category}>
-        <ClusterButton unstyled type="button" className="notification-toast-main-v473" onClick={() => openNotificationPreview(notificationToast)}>
-          <span className="notification-toast-icon-v473"><ClusterIcon name={notificationCategoryIcon(notificationToast.category)} /></span>
-          <span><small>{NOTIFICATION_CATEGORY_DETAILS[notificationToast.category as NotificationCategory]?.label || levelLabel(notificationToast.category)}{notificationToast.priority === "critical" ? " · Critical" : notificationToast.priority === "high" ? " · Important" : ""}</small><strong>{notificationToast.title}</strong><em>{notificationToast.message || "Open Cluster to review this update."}</em></span>
-        </ClusterButton>
-        <ClusterButton unstyled type="button" className="notification-toast-close-v473" aria-label="Dismiss notification" onClick={() => setNotificationToast(null)}><ClusterIcon name="close" /></ClusterButton>
-      </div>}
       </ClusterTaskbar>
       <MobilePrimaryNavigation
         screen={screen}

@@ -1,0 +1,17 @@
+/* Saved views — the only stylesheet for cl-views. One line: saved views as
+   chips (the current one highlighted), then "Save view" which opens a name
+   field in place. */
+.cl-views { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); min-height: 28px; min-width: 0; font-size: var(--cluster-font-size-sm); }
+.cl-views__label { color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.cl-views__chip { display: inline-flex; align-items: center; height: 24px; padding: 0 2px 0 var(--space-2); border-radius: 999px; background: var(--cluster-button-fill); }
+.cl-views__chip[data-active] { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-text, var(--accent)); }
+.cl-views__chip > button { display: inline-flex; align-items: center; height: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.cl-views__remove { width: 20px; justify-content: center; margin-left: 2px; border-radius: 50%; color: var(--muted) !important; opacity: .6; }
+.cl-views__chip:hover .cl-views__remove { opacity: 1; }
+.cl-views__remove svg.cluster-icon-svg { inline-size: 11px; block-size: 11px; }
+.cl-views__add { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 var(--space-2); border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.cl-views__add:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-views__add svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+.cl-views__new { display: inline-flex; align-items: center; gap: var(--space-1); }
+.cl-views__new input { width: 160px; height: 26px !important; min-height: 0 !important; font-size: var(--cluster-font-size-xs) !important; }
+.cl-views__status { color: var(--muted); font-size: var(--cluster-font-size-2xs); }

@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { ClusterStatus } from "./ClusterStatus";
 import { ClusterIcon } from "./ClusterIcon";
+import "./cluster-disclosure.css";
 
 export function ClusterDisclosureGroup({
   title,
@@ -41,7 +42,7 @@ export function ClusterDisclosureGroup({
 
   return (
     <details
-      className={`cluster-field-v425 ${className}`.trim()}
+      className={`cl-disc ${className}`.trim()}
       open={expanded}
       data-cluster-state={disabled ? "disabled" : expanded ? "selected" : "default"}
       onToggle={(event) => {
@@ -58,12 +59,12 @@ export function ClusterDisclosureGroup({
       <summary aria-controls={contentId} aria-disabled={disabled || undefined} onClick={(event) => { if (disabled) event.preventDefault(); }} onKeyDown={(event) => {
         if (disabled && (event.key === "Enter" || event.key === " ")) event.preventDefault();
       }}>
-        <span><strong>{title}</strong>{summary ? <>{" "}<small className="muted">{summary}</small></> : null}</span>
+        <ClusterIcon name="chevron-right" className="cl-disc__chevron" />
+        <span className="cl-disc__title"><strong>{title}</strong>{summary ? <small>{summary}</small> : null}</span>
         {badge ? <ClusterStatus compact>{badge}</ClusterStatus> : null}
-        {headerTrailing !== undefined && headerTrailing !== null ? <span className="cluster-disclosure-trailing-v546">{headerTrailing}</span> : null}
-        <ClusterIcon name="chevron-right" className="cluster-disclosure-chevron-v546" />
+        {headerTrailing !== undefined && headerTrailing !== null ? <span className="cl-disc__trailing">{headerTrailing}</span> : null}
       </summary>
-      <div id={contentId} className={contentClassName}>{children}</div>
+      <div id={contentId} className={`cl-disc__body ${contentClassName}`.trim()}>{children}</div>
     </details>
   );
 }

@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { ClusterButton } from "./ClusterButton";
+import "./cluster-segmented.css";
 
 export type ClusterSegmentedOption<T extends string = string> = {
   value: T;
@@ -44,17 +45,16 @@ export function ClusterSegmentedControl<T extends string>({
   }
 
   return (
-    <div className={`cluster-segmented-v391 ${className}`.trim()} role="radiogroup" aria-label={label}>
+    <div className={`cl-seg ${className}`.trim()} data-size={size} role="radiogroup" aria-label={label}>
       {options.map((option, index) => {
         const selected = option.value === value;
         return (
           <ClusterButton
+            unstyled
             key={option.value}
             ref={(node) => { refs.current[index] = node; }}
             type="button"
-            size={size}
-            className={selected ? "active" : ""}
-            selected={selected}
+            className={selected ? "is-active" : ""}
             disabled={disabled || option.disabled}
             role="radio"
             aria-checked={selected}

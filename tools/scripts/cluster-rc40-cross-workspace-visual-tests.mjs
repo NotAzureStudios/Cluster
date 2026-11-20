@@ -64,9 +64,7 @@ requireText(prefix+'features/admin/ProductionIntegrationAdminPages.tsx', [
   'recentFailures',
 ]);
 requireText(prefix+'features/notifications/NotificationInboxPage.tsx', [
-  'ClusterVisualComposition label="Loaded inbox priorities" total={active.length}',
-  'item.priority !== "critical" && item.priority !== "high"',
-  '<summary>Quick filters</summary>',
+  '<b data-tone={lane === "critical" ? "danger"',
   'filter === "unread"',
 ]);
 requireText(prefix+'features/work/MyWorkPage.tsx', [

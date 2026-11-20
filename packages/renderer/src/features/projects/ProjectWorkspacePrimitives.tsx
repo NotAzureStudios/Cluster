@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ClusterEmptyState, type ClusterEmptyStateKind } from "../../components/ClusterEmptyState";
 import { ClusterButton } from "../../components/ClusterButton";
 import "./project-section.css";
+import "../../components/cluster-segmented.css";
 
 export type ProjectSectionMetric = {
   label: string;
@@ -70,5 +71,5 @@ export function ProjectSegmentedControl<Id extends string>({ items, activeId, on
   onChange: (id: Id) => void;
   label: string;
 }) {
-  return <div className="ps-seg" role="tablist" aria-label={label}>{items.map((item) => <ClusterButton unstyled key={item.id} type="button" role="tab" aria-selected={activeId === item.id} className={activeId === item.id ? "is-active" : ""} onClick={() => onChange(item.id)}><span>{item.label}</span>{typeof item.count === "number" && item.count > 0 ? <em>{item.count}</em> : null}</ClusterButton>)}</div>;
+  return <div className="cl-seg" role="tablist" aria-label={label}>{items.map((item) => <ClusterButton unstyled key={item.id} type="button" role="tab" aria-selected={activeId === item.id} className={activeId === item.id ? "is-active" : ""} onClick={() => onChange(item.id)}><span>{item.label}</span>{typeof item.count === "number" && item.count > 0 ? <em>{item.count}</em> : null}</ClusterButton>)}</div>;
 }

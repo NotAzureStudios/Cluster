@@ -21,9 +21,9 @@ own('projects/ProjectIntelligencePanel.tsx','Advanced operations & evidence','pr
 own('projects/ProjectsPage.tsx','Portfolio signals','projects-intelligence-v30d');
 own('projects/ProjectQaRunsPanel.tsx','More QA context');
 own('viewer/ViewerInspector.tsx','Sensitive metadata','cluster-viewer-inspector-section');
-own('notifications/NotificationInboxPage.tsx','24-hour digest','notification-digest-v387');
-own('notifications/NotificationInboxPage.tsx','Active threads');
-own('notifications/NotificationInboxPage.tsx','View sources');
+own('notifications/NotificationInboxPage.tsx','Last 24 hours','nt-lanes__more');
+own('notifications/NotificationInboxPage.tsx','Threads');
+own('notifications/NotificationInboxPage.tsx','Sources');
 own('library/LibraryGovernancePanel.tsx','Child item evidence');
 own('library/LibraryGovernancePanel.tsx','Version evidence');
 for(const [label,field] of [['release stage','releaseStage'],['QA gate count','platformReadyCount'],['release blockers','blockers.length']])test(`Builds header keeps ${label}`,()=>assert.ok(texts['projects/ProjectBuildsPanel.tsx'].includes(field)));
@@ -39,7 +39,7 @@ const disclosure=read('packages/renderer/src/components/ClusterDisclosureGroup.t
 const css=read('packages/renderer/src/styles/design-system/primitives.css');
 test('Disclosure preserves controlled/uncontrolled state',()=>assert.match(disclosure,/controlled \? open : internalOpen/));
 test('Native details focus and disabled semantics preserved',()=>{assert.match(disclosure,/if \(disabled\) event\.preventDefault\(\)/);assert.match(css,/summary:focus-visible/)});
-test('Shared chevron exists without overriding domain surfaces',()=>{assert.match(disclosure,/name="chevron-right" className="cluster-disclosure-chevron-v546"/);assert.match(css,/\.cluster-disclosure-chevron-v546/)});
+test('Shared chevron exists without overriding domain surfaces',()=>{assert.match(disclosure,/name="chevron-right" className="cl-disc__chevron"/);assert.match(css,/\.cluster-disclosure-chevron-v546/)});
 test('Shared chevron respects reduced motion',()=>assert.match(css,/prefers-reduced-motion: reduce/));
 const combo=read('apps/desktop-qt/qml/components/ClusterComboBox.qml');
 test('Qt ComboBox resolves textRole through ComboBox API',()=>{assert.match(combo,/text: control\.textAt\(index\)/);assert.doesNotMatch(combo,/text: modelData/)});

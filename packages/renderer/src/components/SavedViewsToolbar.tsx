@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerState } from "../core/server-state";
 import type { SharedWorkSavedView } from "@cluster/shared";
+import "./cluster-saved-views.css";
 import { ClusterButton, ClusterIconButton } from "./ClusterButton";
 import { ClusterIcon } from "./ClusterIcon";
 import { ClusterStatus } from "./ClusterStatus";
@@ -43,6 +44,7 @@ export function SavedViewsToolbar({
   });
   const [lastView, setLastView, lastViewState] = useServerState<Record<string, string> | null>("user", `last-view.${scope}`, null);
   const [name, setName] = useState("");
+  const [naming, setNaming] = useState(false);
   const [restoreStatus, setRestoreStatus] = useState("");
   const restoredRef = useRef(false);
 
@@ -98,25 +100,19 @@ export function SavedViewsToolbar({
   }
 
   return (
-    <section className="panel saved-views-toolbar-v120">
-      <div>
-        <p className="eyebrow">Saved views</p>
-        <strong>{label}</strong>
-        <span>{summary || "Save a reusable filter setup."}</span>
-        {restoreStatus && <ClusterStatus tone="good" compact className="smart-view-status-v276">{restoreStatus}</ClusterStatus>}
-      </div>
-      <div className="saved-view-create-v120">
-        <ClusterTextInput value={name} onChange={(event) => setName(event.target.value)} placeholder="View name" />
-        <ClusterButton size="compact" onClick={saveView}>Save current</ClusterButton>
-      </div>
-      <div className="saved-view-list-v120">
-        {views.length ? views.map((view) => (
-          <span key={view.id}>
-            <ClusterButton variant="quiet" size="compact" aria-pressed={activeViewId === view.id} className={activeViewId === view.id ? "active" : ""} onClick={() => applyView(view.values)}>{view.name}{activeViewId === view.id ? " · Current" : ""}</ClusterButton>
-            <ClusterIconButton label={`Delete ${view.name}`} size="compact" onClick={() => deleteView(view.id)}><ClusterIcon name="trash" /></ClusterIconButton>
-          </span>
-        )) : <em>No saved views.</em>}
-      </div>
+    <section className="cl-views" aria-label={`${label}: saved views`}>
+      <span className="cl-views__label">Views</span>
+      {views.map((view) => <span key={view.id} className="cl-views__chip" data-active={activeViewId === view.id || undefined}>
+        <ClusterButton unstyled type="button" aria-pressed={activeViewId === view.id} onClick={() => applyView(view.values)} title={summary}>{view.name}</ClusterButton>
+        <ClusterButton unstyled type="button" className="cl-views__remove" aria-label={`Delete ${view.name}`} onClick={() => deleteView(view.id)}><ClusterIcon name="close" /></ClusterButton>
+      </span>)}
+      {naming
+        ? <form className="cl-views__new" onSubmit={(event) => { event.preventDefault(); saveView(); setNaming(false); }}>
+            <ClusterTextInput autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" aria-label="View name" onKeyDown={(event) => { if (event.key === "Escape") { setNaming(false); setName(""); } }} />
+            <ClusterButton size="compact" type="submit">Save</ClusterButton>
+          </form>
+        : activeViewId ? null : <ClusterButton unstyled type="button" className="cl-views__add" onClick={() => setNaming(true)}><ClusterIcon name="plus" />Save view</ClusterButton>}
+      {restoreStatus ? <span className="cl-views__status" role="status">{restoreStatus}</span> : null}
     </section>
   );
 }
