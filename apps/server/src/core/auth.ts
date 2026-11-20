@@ -160,6 +160,10 @@ export function nextAccountState(discordUserId?: string | null, requireDiscordLi
   return requireDiscordLink && !discordUserId ? "DISCORD_LINK_REQUIRED" : "ACTIVE";
 }
 
+/** Requests an account still in setup may make: the ones that finish setup.
+    Each handler re-checks the account state itself. */
+export const ACCOUNT_SETUP_PATHS: ReadonlySet<string> = new Set(["/api/auth/session-password"]);
+
 export function accountStateAllowsWorkspace(state?: string | null, requireDiscordLink = false) {
   return state === "ACTIVE" || (!requireDiscordLink && state === "DISCORD_LINK_REQUIRED");
 }

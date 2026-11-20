@@ -42,6 +42,10 @@ assert.doesNotMatch(handoff, /localStorage|sessionStorage|mailto:|fetch\(/);
 const auth = read("apps/server/src/domains/auth/auth-core-routes.ts");
 const userRoutes = read("apps/server/src/domains/users/user-directory-routes.ts");
 assert.match(auth, /app\.post\("\/api\/auth\/session-password"/);
+// A temporary-password account must be able to reach the endpoint that ends setup.
+const infra = read("apps/server/src/app/server-request-infrastructure.ts");
+assert.match(read("apps/server/src/core/auth.ts"), /ACCOUNT_SETUP_PATHS[^;]*"\/api\/auth\/session-password"/);
+assert.match(infra, /!accountStateAllowsWorkspace\(user\.accountState, requireDiscordLink\) && !ACCOUNT_SETUP_PATHS\.has\(policy\.pathname\)/);
 assert.match(userRoutes, /accountState: "PASSWORD_CHANGE_REQUIRED"/);
 const signIn = read("packages/renderer/src/features/auth/AuthScreens.tsx");
 assert.match(signIn, /First time signing in\?/);

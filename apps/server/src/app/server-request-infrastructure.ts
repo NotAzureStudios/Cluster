@@ -6,7 +6,7 @@ import { API_CONTRACT } from "@cluster/shared";
 import { BoundedWarningGate } from "../core/bounded-warning-gate.js";
 import { apiReadContractFor, evaluateReadBudget } from "../core/api-read-contracts.js";
 import { apiOperationLabel, normalizeApiErrorBody } from "../core/api-response.js";
-import { accountNextStep, accountStateAllowsWorkspace, REAUTH_WINDOW_MS, sessionRecentlyAuthenticated } from "../core/auth.js";
+import { ACCOUNT_SETUP_PATHS, accountNextStep, accountStateAllowsWorkspace, REAUTH_WINDOW_MS, sessionRecentlyAuthenticated } from "../core/auth.js";
 import { normalizeHttpError } from "../core/http-errors.js";
 import { assessRuntimeSaturation } from "../core/operational-health.js";
 import type { ResourceGovernor } from "../core/resource-governor.js";
@@ -456,7 +456,7 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       return;
     }
     if (enforceMfaEnrollmentRestriction({ pathname: policy.pathname, session, reply })) return;
-    if (!accountStateAllowsWorkspace(user.accountState, requireDiscordLink)) {
+    if (!accountStateAllowsWorkspace(user.accountState, requireDiscordLink) && !ACCOUNT_SETUP_PATHS.has(policy.pathname)) {
       reply.code(403).send({ ok: false, code: "account_setup_required", error: "Account setup must be completed before using Cluster.", accountState: user.accountState || "PASSWORD_CHANGE_REQUIRED", nextStep: accountNextStep(user.accountState, requireDiscordLink) });
       return;
     }
