@@ -39,7 +39,10 @@ import { ProjectResourceHubPanel } from "./ProjectResourceHubPanel";
 import { ProjectControlCenterPanel } from "./ProjectControlCenterPanel";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 
-const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "control", "links", "access", "closeout"];
+/* Settings holds configuration only: details, integrations, access.
+   Plan (the control center) is work and has its own tab; Closeout is a
+   lifecycle step opened from the header menu. */
+const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "links", "access"];
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel";
 import { ProjectVideoWorkspace } from "./ProjectVideoWorkspace";
 import { ProjectAssetWorkspace } from "./ProjectAssetWorkspace";
@@ -387,13 +390,9 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       detail: tabDetails[item.id],
       group: item.mode,
     }));
-  /* Settings: configuration that used to be five tabs (Plan, Control,
-     Integrations, Access, Closeout) is one Settings tab with those as
-     sections, so the tab bar is left to the work itself. Old links to
-     ?projectTab=plan etc. open Settings on that section. */
   const settingsSections = allTabs.filter((item) => PROJECT_SETTINGS_SECTION_IDS.includes(item.id));
-  const settingsLabels: Partial<Record<ProjectWorkspaceTabId, string>> = { plan: "Details", control: "Controls", links: "Integrations", access: "Access & sharing", closeout: "Closeout" };
-  const tabs = allTabs.filter((item) => !PROJECT_SETTINGS_SECTION_IDS.includes(item.id) && (item.id !== "settings" || settingsSections.length > 0));
+  const settingsLabels: Partial<Record<ProjectWorkspaceTabId, string>> = { plan: "Details", links: "Integrations", access: "Access & sharing" };
+  const tabs = allTabs.filter((item) => !PROJECT_SETTINGS_SECTION_IDS.includes(item.id) && (item.id !== "settings" || settingsSections.length > 0) && (item.id !== "closeout" || tab === "closeout"));
   const settingsSection = (settingsSections.some((item) => item.id === tab) ? tab : settingsSections[0]?.id) as ProjectWorkspaceTabId | undefined;
   const activeTab = PROJECT_SETTINGS_SECTION_IDS.includes(tab) && settingsSection ? "settings" : tabs.some((item: ProjectDetailTab) => item.id === tab) ? tab : (tabs[0]?.id || "overview");
   const view = activeTab === "settings" ? settingsSection : activeTab;
@@ -423,9 +422,9 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
                 await loadProjectDashboard();
               };
   const primaryTabCandidates: ProjectWorkspaceTabId[] = isVideoType
-    ? ["overview", "plan", "viewer", "boards", "library", "people"]
-    : ["overview", "plan", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
-  const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id)).slice(0, 6).concat(tabs.some((item) => item.id === "settings") ? ["settings" as ProjectWorkspaceTabId] : []);
+    ? ["overview", "control", "viewer", "boards", "library", "people"]
+    : ["overview", "control", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
+  const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id)).slice(0, 6);
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
       <ProjectDetailHeader
@@ -442,6 +441,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
         onOpenBoard={onOpenBoard}
         onOpenTimeline={onOpenTimeline}
         onOpenTickets={() => onOpenTickets(project.id)}
+        allowCloseout={allTabs.some((item) => item.id === "closeout")}
       />
       {activeTab !== "source" ? <ProjectCollaborationStrip tool="project" projectId={project.id} activity={`Project · ${tabs.find((item: ProjectDetailTab) => item.id === activeTab)?.label || activeTab}`} /> : null}
 
@@ -503,7 +503,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             items={settingsSections.map((item) => ({ id: item.id, label: settingsLabels[item.id] || item.label, detail: item.detail }))}>
           {view === "plan" && (
             <>
-              <ProjectPlanningPanel project={project} setupChecklist={setupChecklist} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
+              <ProjectPlanningPanel project={project} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
               <ClusterDisclosureGroup className="project-secondary-details-v57 project-plan-handoff-v57"
                 contentClassName="project-plan-handoff-body-v57" title="Workflow handoff"
                 summary="Recurring work, dependencies, meetings, and ownership handoff">
@@ -524,13 +524,16 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               </ClusterDisclosureGroup>
             </>
           )}
-          {view === "control" && <ProjectControlCenterPanel project={project} projects={projects} users={projectUsers} currentUser={currentUser} canManage={capabilities.canManage} permissionReason={capabilities.reason} data={controlCenter} loading={controlLoading} onReload={loadProjectControlCenter} onReloadProjectResources={async () => { await Promise.all([onReloadProjects(), onReloadWhiteboards(), loadProjectControlCenter()]); }} />}
+
           {view === "links" && (
             <ProjectConnectionsPanel project={project} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
           )}
           {view === "access" && <ProjectAccessPanel project={project} media={{ reviewAssets: visibleVideos, files: visibleFiles }} currentUser={currentUser} />}
-          {view === "closeout" && <CloseoutPortalPanel project={project} projects={projects} media={media} currentUser={currentUser} onArchiveProject={refreshAfterCloseout} />}
           </SettingsWorkspaceShell> : null}
+
+          {activeTab === "control" && <ProjectControlCenterPanel project={project} projects={projects} users={projectUsers} currentUser={currentUser} canManage={capabilities.canManage} permissionReason={capabilities.reason} data={controlCenter} loading={controlLoading} onReload={loadProjectControlCenter} onReloadProjectResources={async () => { await Promise.all([onReloadProjects(), onReloadWhiteboards(), loadProjectControlCenter()]); }} />}
+
+          {activeTab === "closeout" && <CloseoutPortalPanel project={project} projects={projects} media={media} currentUser={currentUser} onArchiveProject={refreshAfterCloseout} />}
 
 
           {activeTab === "tickets" && <ProjectIssuesPanel project={project} onOpenBoard={onOpenBoard} />}

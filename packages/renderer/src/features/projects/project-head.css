@@ -75,7 +75,12 @@
 @media (max-width: 1200px) { .pj-facts__soft { display: none; } }
 @media (max-width: 900px) { .pj-facts { display: none; } }
 
-/* Tabs */
+/* Tabs, then the settings gear at the far right of the same line. */
+.pj-tabbar { display: flex; align-items: stretch; min-width: 0; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.pj-tabbar > .compact-section-nav-v204 { flex: 1; box-shadow: none !important; }
+.pj-tabbar__settings { align-self: center; margin-left: var(--space-1); color: var(--muted); }
+.pj-tabbar__settings:hover, .pj-tabbar__settings[data-active] { color: var(--text); }
+.pj-tabbar__settings[data-active] { background: var(--cluster-button-fill); }
 .pj-head .compact-section-nav-v204 {
   display: flex;
   align-items: stretch;

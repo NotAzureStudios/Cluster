@@ -245,37 +245,32 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
             {canManage ? (
               <>
                 <span className={`project-unsaved-v312 ${dirty ? "dirty" : ""}`}>{dirty ? "Unsaved changes" : "Up to date"}</span>
-                <ClusterActionButton disabled={busy || !dirty} action={() => onSave(draft)} workingLabel="Saving…" successLabel="Saved" errorLabel="Save failed" variant="primary">Save integrations</ClusterActionButton>
+                <ClusterActionButton disabled={busy || !dirty} action={() => onSave(draft)} workingLabel="Saving…" successLabel="Saved" errorLabel="Save failed" variant="primary">Save</ClusterActionButton>
               </>
             ) : <span className="project-permission-badge-v316">Read only</span>}
           </>
         )}
       />
       <ProjectSectionStatus tone={statusText.toLowerCase().includes("failed") || catalogError || healthError ? "danger" : canManage ? "good" : "neutral"}>{statusText}</ProjectSectionStatus>
-      <div className="project-connection-health-v315">
-        <article className={healthTone(health?.git)}><span>Source Control</span><strong>{connectionState(health?.git.status, Boolean(draft.repositoryId), checking)}</strong><p>{health?.git.message || "Check the repository and its Source Control connection."}</p></article>
-        <article className={healthTone(health?.discord)}><span>Discord</span><strong>{connectionState(health?.discord.status, Boolean(draft.discordConnectionId), checking)}</strong><p>{health?.discord.message || "Check the project's Discord connection and destination access."}</p></article>
-      </div>
       <fieldset className="project-connection-grid-v312 project-permission-fieldset-v316" disabled={!canManage}>
         <ProjectSurface
           title="Source repository"
-          description="Repository identity and provider configuration are managed in Tool Infrastructure > Source Control."
-          tone={draft.repositoryId ? "accent" : "neutral"}
+            tone={draft.repositoryId ? "accent" : "neutral"}
           action={selectedRepository?.remoteUrl ? <ClusterLinkButton className="" href={selectedRepository.remoteUrl} target="_blank" rel="noreferrer" variant="secondary" size="compact">Open repository</ClusterLinkButton> : null}
         >
           <div className="project-form-grid-v312">
             <label className="field span-2"><span>Repository</span><ClusterSelect ariaLabel="Project source repository" value={draft.repositoryId} onChange={(value) => setDraft((current) => ({ ...current, repositoryId: value }))} placeholder="No repository" options={[{ value: "", label: "No repository" }, ...(catalog?.repositories || []).map((repository) => ({ value: repository.id, label: `${repository.name} · ${repository.defaultBranch}` }))]} /></label>
             <div className="field span-2"><span>Connection</span><strong>{selectedRepository?.connection?.displayName || (selectedRepository?.hostingMode === "cluster" ? "Cluster native" : "Not configured")}</strong></div>
+            <div className="field span-2"><span>Health</span><strong className="pc-health" data-tone={healthTone(health?.git)} title={health?.git.message || undefined}>{connectionState(health?.git.status, Boolean(draft.repositoryId), checking)}</strong></div>
           </div>
         </ProjectSurface>
         <ProjectSurface
           title="Discord"
-          description="Select an installed Discord connection. Channel and thread routing stay owned by the Discord integration."
           tone={draft.discordConnectionId ? "accent" : "neutral"}
         >
           <div className="project-form-grid-v312">
             <label className="field span-2"><span>Connection</span><ClusterSelect ariaLabel="Project Discord connection" value={draft.discordConnectionId} onChange={(value) => setDraft((current) => ({ ...current, discordConnectionId: value }))} placeholder="No Discord connection" options={[{ value: "", label: "No Discord connection" }, ...(catalog?.discordConnections || []).map((connection) => ({ value: connection.id, label: connection.displayName }))]} /></label>
-            <div className="field span-2"><span>Status</span><strong>{selectedDiscord ? (selectedDiscord.status === "configured" ? PRODUCT_CONNECTION_STATES.configured : PRODUCT_CONNECTION_STATES.needsAttention) : PRODUCT_CONNECTION_STATES.notConnected}</strong></div>
+            <div className="field span-2"><span>Health</span><strong className="pc-health" data-tone={healthTone(health?.discord)} title={health?.discord.message || undefined}>{selectedDiscord && selectedDiscord.status !== "configured" ? PRODUCT_CONNECTION_STATES.needsAttention : connectionState(health?.discord.status, Boolean(draft.discordConnectionId), checking)}</strong></div>
           </div>
           {activeDiscordBinding(project) ? (
             <>

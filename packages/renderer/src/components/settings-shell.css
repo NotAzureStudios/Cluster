@@ -204,3 +204,14 @@
 .st-main .number-stepper-v110 > input { height: 32px !important; }
 .st-main .number-stepper-controls-v110 { display: flex !important; flex-direction: row !important; height: 32px; }
 .st-main .number-stepper-controls-v110 > * { height: 100% !important; min-height: 0 !important; }
+
+/* Connection health in project integrations: a dot and a word. */
+.st-main .pc-health { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.st-main .pc-health::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.st-main .pc-health[data-tone="accent"]::before { background: var(--success); }
+.st-main .pc-health[data-tone="warning"]::before { background: var(--warning); }
+.st-main .pc-health[data-tone="danger"]::before { background: var(--danger); }
+.st-main .project-form-grid-v312 { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+.st-main .project-form-layout-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }
+.st-main .project-form-layout-v312 > .span-2 { grid-column: 1 / -1; }
+.st-main .project-connection-grid-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }

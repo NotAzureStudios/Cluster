@@ -264,8 +264,8 @@ export type ClusterProjectToolDefinition = {
 export const CLUSTER_PROJECT_TOOL_MANIFEST = {
   overview: { label: "Overview", mode: "Overview", order: 10, lifecycle: "active" },
   intelligence: { label: "Intelligence", mode: "Overview", order: 20, lifecycle: "active" },
-  plan: { label: "Plan", mode: "Plan & Control", order: 30, lifecycle: "active" },
-  control: { label: "Control", mode: "Plan & Control", order: 40, lifecycle: "active" },
+  plan: { label: "Details", mode: "Plan & Control", order: 30, lifecycle: "active" },
+  control: { label: "Plan", mode: "Plan & Control", order: 40, lifecycle: "active" },
   tickets: { label: PRODUCT_TERMS.tickets, mode: "Plan & Control", order: 50, lifecycle: "active" },
   source: { label: "Source Control", mode: "Produce & Validate", order: 55, lifecycle: "active" },
   builds: { label: PRODUCT_TERMS.builds, mode: "Produce & Validate", order: 60, lifecycle: "active" },

@@ -32,6 +32,7 @@ type Props = {
   onOpenBoard: (boardId: string) => void;
   onOpenTimeline: () => void;
   onOpenTickets: () => void;
+  allowCloseout?: boolean;
 };
 
 /* The project header, two rows: identity and key facts, then the tabs.
@@ -40,13 +41,18 @@ type Props = {
    dropdown, then a presence bar — about 230px before any content. The facts
    from Info sit on the title line as small indicators instead, so nothing is
    hidden behind a click. */
-export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets }: Props) {
+export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets, allowCloseout = false }: Props) {
   const status = projectStatusLabel(project);
   const statusTone = projectStatusMeta(project).tone;
   const target = project.targetDate ? new Date(project.targetDate) : null;
   const daysToTarget = target ? Math.ceil((target.getTime() - Date.now()) / 86_400_000) : null;
   const targetLabel = target ? target.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null;
   const readinessTone = readiness >= 75 ? "good" : readiness >= 40 ? "warning" : "danger";
+  // Settings is a gear at the end of the tab bar, always visible; Closeout is
+  // opened from the menu. Neither competes for a tab slot.
+  const hasSettings = tabs.some((item) => item.id === "settings");
+  const hasCloseout = allowCloseout;
+  const workTabs = tabs.filter((item) => item.id !== "settings");
 
   return (
     <header className="pj-head">
@@ -68,10 +74,15 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
           <ClusterActionMenu label="Go to" iconOnly items={[
             { id: "timeline", label: "Timeline", icon: "timeline", onSelect: onOpenTimeline },
             { id: "tickets", label: "Tickets", icon: "ticket", onSelect: onOpenTickets },
+            ...(hasCloseout ? [{ id: "closeout", label: project.archived ? "Closeout record" : "Close out project…", icon: "archive" as const, onSelect: () => onTabChange("closeout") }] : []),
           ]} />
         </div>
       </div>
-      <ProjectWorkspaceNav items={tabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
+      <div className="pj-tabbar">
+        <ProjectWorkspaceNav items={workTabs} activeId={activeTab} onChange={onTabChange} primaryIds={primaryTabIds} />
+        {hasSettings ? <ClusterIconButton size="compact" className="pj-tabbar__settings" label="Project settings" aria-pressed={activeTab === "settings"}
+          data-active={activeTab === "settings" || undefined} onClick={() => onTabChange("settings")}><ClusterIcon name="settings" /></ClusterIconButton> : null}
+      </div>
     </header>
   );
 }
