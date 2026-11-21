@@ -19,6 +19,7 @@ import { useVisibleRefresh } from "../../core/visible-refresh";
 import { IntegrationProvidersPanel } from "./IntegrationProvidersPanel";
 import "./admin.css";
 import "./source-control-admin.css";
+import { useGitCloneUrl } from "../settings/GitAccessPanel";
 
 type Provider = {
   id: string;
@@ -112,6 +113,7 @@ function repositoryStateLabel(repository: Repository) {
 type Repository = {
   id: string;
   name: string;
+  slug?: string | null;
   hostingMode: string;
   remoteUrl?: string | null;
   defaultBranch: string;
@@ -396,6 +398,7 @@ export function SourceControlAdminPage(_props: { embedded?: boolean } = {}) {
   const connectionTone = (connection: Connection) => connection.healthState === "healthy" ? "ready" : connection.healthState === "failed" ? "failed" : "pending";
   const attentionCount = repositories.filter((repository) => repoTone(repository) === "failed").length;
   const detail = selectedRepository && repositoryDetail?.repositoryId === selectedRepository.id ? repositoryDetail.data : null;
+  const cloneUrl = useGitCloneUrl(selectedRepository);
 
   return (
     <section className="scm" aria-label="Repositories">
@@ -458,6 +461,7 @@ export function SourceControlAdminPage(_props: { embedded?: boolean } = {}) {
               <div><dt>Head</dt><dd><code title={selectedRepository.headRevision || undefined}>{selectedRepository.headRevision?.slice(0, 10) || "—"}</code></dd></div>
               <div><dt>Last sync</dt><dd>{selectedRepository.lastSyncedAt ? new Date(selectedRepository.lastSyncedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never"}</dd></div>
               <div><dt>Projects</dt><dd>{selectedRepository.projects?.length ? selectedRepository.projects.map((link) => link.project?.name || link.projectId).join(", ") : "None"}</dd></div>
+              {cloneUrl ? <div className="scm-facts__wide"><dt>Clone</dt><dd><code>{cloneUrl}</code><ClusterIconButton size="compact" label="Copy clone URL" onClick={() => void copyClusterText(cloneUrl).then((copied) => setStatus(copied ? "Clone URL copied." : "Clipboard unavailable."))}><ClusterIcon name="link" /></ClusterIconButton></dd></div> : null}
               {selectedRepository.remoteUrl ? <div className="scm-facts__wide"><dt>Remote</dt><dd><code>{selectedRepository.remoteUrl}</code><ClusterIconButton size="compact" label="Copy remote URL" onClick={() => void copyClusterText(selectedRepository.remoteUrl!).then((copied) => setStatus(copied ? "Remote URL copied." : "Clipboard unavailable."))}><ClusterIcon name="link" /></ClusterIconButton></dd></div> : null}
             </dl>
             {repositoryDetailError ? <p className="scm-notice" data-state="failed">{repositoryDetailError}</p> : null}

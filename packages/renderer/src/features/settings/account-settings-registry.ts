@@ -24,6 +24,7 @@ export const ACCOUNT_SETTINGS_SECTIONS = [
   { key: "accessibility", label: "Accessibility", description: "Motion, target size, focus behavior, and contrast options.", domain: "Accessibility", order: 90 },
   { key: "desktop", label: "Desktop & device", description: "Desktop startup, tray, close, links, and notifications.", domain: "Device", order: 100 },
   { key: "forms", label: "My forms", description: "Assigned forms, responses, and review outcomes.", domain: "Studio Resources", order: 105 },
+  { key: "git", label: "Git access", description: "Tokens for cloning and pushing studio repositories.", domain: "Studio Resources", order: 108 },
   { key: "licenses", label: "My resources", description: "Your equipment, license seats, and PIN-protected game keys.", domain: "Studio Resources", order: 110 },
 ] as const satisfies ReadonlyArray<{
   key: SettingsSection;

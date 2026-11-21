@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { slugifyRepositoryName } from "../source-control/git-http-routes.js";
 import { expectedServerConfigFields } from "../../core/server-config-preconditions.js";
 import type { SettingPayload } from "../../app/server-composition-types.js";
 import type { IntegrationProviderRegistry } from "./integration-provider-registry.js";
@@ -35,6 +36,15 @@ function parseArray(value: unknown) {
 
 function serializeConnection(row: any) {
   return { ...row, configuration: parseObject(row.configuration), secretRefs: parseObject(row.secretRefs), capabilities: parseArray(row.capabilities) };
+}
+
+async function uniqueRepositorySlug(prisma: any, workspaceId: string, name: string) {
+  const base = slugifyRepositoryName(name);
+  for (let attempt = 1; attempt < 50; attempt++) {
+    const slug = attempt === 1 ? base : `${base}-${attempt}`;
+    if (!(await prisma.sourceRepository.findFirst({ where: { workspaceId, slug }, select: { id: true } }))) return slug;
+  }
+  return `${base}-${Date.now().toString(36)}`;
 }
 
 function serializeRepository(row: any) {
@@ -410,6 +420,8 @@ export function registerIntegrationRoutes(input: {
         defaultBranch: body.defaultBranch,
         providerRepositoryId: body.providerRepositoryId || null,
         metadata: body.hostingMode === "cluster" ? JSON.stringify({ storageKind: "managed", template: body.template }) : "{}",
+        // Cluster-hosted repositories are cloned at /git/<slug>.git.
+        slug: body.hostingMode === "cluster" ? await uniqueRepositorySlug(input.prisma, workspace.id, body.name) : undefined,
       },
       include: { connection: true, _count: { select: { projects: true, branches: true, commits: true, changes: true, operations: true } } },
     });

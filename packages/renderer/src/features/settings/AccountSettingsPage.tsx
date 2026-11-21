@@ -1,3 +1,4 @@
+import { GitAccessPanel } from "./GitAccessPanel";
 import { reconcileAfterCommit } from "../../core/post-commit-reconciliation";
 import { decideDraftRecovery } from "./settings-draft-authority";
 import { AccountRequestAuthority, type AccountRequestTicket } from "./account-request-authority";
@@ -1138,6 +1139,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     desktop: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "web preview",
     licenses: "assigned assets & keys",
     forms: "available forms",
+    git: "clone tokens",
   });
   const notificationCategoryDelivery = normalizedNotificationCategoryDelivery(settings);
   const notificationToolModes = normalizedNotificationToolModes(settings);
@@ -1160,7 +1162,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
-      actions={section === "licenses" || section === "forms" || (section === "performance" && !dirty) ? null : section === "profile" ? (
+      actions={section === "licenses" || section === "forms" || section === "git" || (section === "performance" && !dirty) ? null : section === "profile" ? (
         <ClusterButton type="button" variant={profileDirty ? "primary" : "secondary"} onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
           {profileSaving ? "Saving…" : profileDirty ? "Save profile" : "Saved"}
         </ClusterButton>
@@ -2058,6 +2060,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           )}
 
           {section === "forms" && <MyFormsPanel key={currentUser.id} />}
+          {section === "git" && <GitAccessPanel key={currentUser.id} />}
           {section === "licenses" && <MyInventoryLicensesPanel key={currentUser.id} pinConfigured={Boolean(currentUser.pinConfigured)} />}
 
           {section === "desktop" && (

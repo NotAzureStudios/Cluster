@@ -146,6 +146,12 @@ export function requestWorkPolicy(input: {
   const method = upper(input.method);
   const globalLimit = Math.max(MIB, input.globalBodyLimitBytes);
 
+  // Git pushes and LFS uploads stream to disk; an Unreal push can be many
+  // gigabytes. The Git routes authenticate and authorize per repository.
+  if (path.startsWith("/git/")) {
+    return { cost: method === "GET" || method === "HEAD" ? 1 : 4, workClass: "normal", bodyLimitBytes: Number.MAX_SAFE_INTEGER };
+  }
+
   if (["GET", "HEAD", "OPTIONS"].includes(method)) {
     const critical = /\/api\/admin\/(?:diagnostics\/bundle|backups(?:\/[^/]+\/(?:verify|restore-drill))?|storage\/verify)/.test(path);
     const heavy = critical || /(?:\/export$|\/model-preview$|\/api\/command\/search$|\/api\/security\/events\/integrity$)/.test(path);

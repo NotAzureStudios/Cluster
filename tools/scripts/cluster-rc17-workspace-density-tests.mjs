@@ -16,7 +16,7 @@ const directory = read('packages/renderer/src/features/admin/ToolDirectoryPanel.
 const shell = read('packages/renderer/src/features/inventory/InventoryWorkspacePage.tsx');
 assert.doesNotMatch(studio, /<PipelineRail\b|import \{ PipelineRail \}/, 'Studio Settings must not show numbered workflow rail');
 assert.match(studio, /activeId=\{section\}/, 'Actual current section must be selected in nav, not group anchor');
-assert.match(studio, /STUDIO_SETTINGS_NAV_ICONS\[item\.key\]/, 'Each Studio Settings navigation item gets a semantic icon');
+assert.match(studio, /STUDIO_SETTINGS_NAV_ICONS\[(?:item\.)?key\]/, 'Each Studio Settings navigation item gets a semantic icon');
 assert.match(nav, /item\.icon && <ClusterIcon/, 'Navigation uses semantic icon boundary');
 assert.match(studioCss, /RC17 density/);
 assert.match(directory, /cluster-tool-hub__card/);

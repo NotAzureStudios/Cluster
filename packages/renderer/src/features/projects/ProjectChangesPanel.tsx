@@ -17,6 +17,7 @@ import { PeopleMultiPicker } from "../people/PeoplePicker";
 import { ProjectCollaborationStrip } from "../collaboration";
 import { readFocusedSourceReview, readFocusedSourceCommit } from "./source-review-navigation";
 import "./project-source.css";
+import { useGitCloneUrl } from "../settings/GitAccessPanel";
 
 /* Project → Source Control. One bar (repository, branch, head, sync) and
    five views: Work, Reviews, History, Branches, Policy. Rows, not cards;
@@ -448,6 +449,7 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
   }
 
   const repository = payload?.repository || null;
+  const cloneUrl = useGitCloneUrl(repository);
   const policy = payload?.policy || null;
   const branches = payload?.branches || [];
   const workingCopies = payload?.workingCopies || [];
@@ -503,6 +505,7 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
           {sourceOperationLabel(activeOperation)} {activeOperation.progress || 0}%
         </span> : null}
         <span className="sx-bar__end">
+          {cloneUrl ? <ClusterButton variant="quiet" size="compact" title={cloneUrl} onClick={() => void copyClusterText(cloneUrl).then((copied) => setStatus(copied ? "Clone URL copied. Sign in with a token from Account → Git access." : "Clipboard unavailable."))}><ClusterIcon name="link" aria-hidden="true" />Clone</ClusterButton> : null}
           {repository.remoteUrl ? <ClusterLinkButton href={repository.remoteUrl} target="_blank" rel="noreferrer" variant="quiet" size="compact" title="Open remote"><ClusterIcon name="forward" aria-hidden="true" />Remote</ClusterLinkButton> : null}
           <ClusterButton variant="primary" size="compact" disabled={busy || Boolean(activeOperation) || !canContribute} onClick={() => void sync()}><ClusterIcon name="sync" aria-hidden="true" />{activeOperation ? "Syncing…" : "Sync"}</ClusterButton>
         </span>

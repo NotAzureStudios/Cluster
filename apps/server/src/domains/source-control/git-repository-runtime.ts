@@ -630,5 +630,5 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     return { defaultBranch: preferred, branches, commits, changes };
   }
 
-  return { inspect, status, initializeManagedRepository, readLocalHistory, deleteManagedRepository, syncMirror, inspectWorkingCopy, prepareWorkingCopy, commitWorkingCopy, pushWorkingCopy, evaluateMerge, mergeReview };
+  return { repositoryPath, inspect, status, initializeManagedRepository, readLocalHistory, deleteManagedRepository, syncMirror, inspectWorkingCopy, prepareWorkingCopy, commitWorkingCopy, pushWorkingCopy, evaluateMerge, mergeReview };
 }

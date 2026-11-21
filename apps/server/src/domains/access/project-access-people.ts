@@ -45,6 +45,18 @@ export async function listProjectAccessPeople(input: { prisma: any; authorizatio
   return { ok: true as const, projectId: project.id, truncated, people };
 }
 
+/* One person's effective level on one project, by the same rule as the list. */
+export async function projectLevelForUser(input: { prisma: any; authorization: AuthorizationService; project: any; user: any; role: string | null }) {
+  const { prisma, authorization, project, user, role } = input;
+  const [memberships, teamRows, rules] = await Promise.all([
+    prisma.projectMembership.findMany({ where: { projectId: project.id, userId: user.id, status: "active" } }),
+    prisma.studioTeamMember.findMany({ where: { userId: user.id, archived: false, team: { archived: false } }, select: { teamId: true } }),
+    prisma.accessRule.findMany({ where: { status: "active", targetKind: "project", targetId: project.id } }),
+  ]);
+  const scoped = { ...user, studioTeamMemberships: teamRows.map((team: any) => ({ teamId: team.teamId, archived: false })) };
+  return LEVELS.find((candidate) => authorization.hasProjectResourceAccess(scoped, role, { ...project, memberships }, rules, candidate)) || "none";
+}
+
 function reasonFor(authorization: AuthorizationService, user: any, role: string | null, project: any, rules: any[], level: string): Reason {
   const explained = authorization.explainProjectPermission(user, role, project) as { source: string; level: string };
   if (explained.source === "account-inactive") return { kind: "inactive", label: "Account inactive" };
