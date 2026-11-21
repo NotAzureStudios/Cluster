@@ -68,20 +68,20 @@ export function SharedCreateModePicker({
         </section> : null}
         <div className="shared-create-type-groups-v458">
           {filteredGroups.map((group) => <section key={group.label} className="shared-create-type-group-v458">
-            <header><h3>{group.label}</h3><span>{group.detail}</span></header>
+            <header><h3>{group.label}</h3></header>
             <div className="shared-create-type-list-v458">{group.modes.map((modeId) => {
               const item = modes.find((candidate) => candidate.id === modeId)!;
               return <ClusterButton variant="quiet" key={item.id} data-create-mode={item.id} data-active={activeMode === item.id ? "true" : undefined} onMouseEnter={() => onActivateMode(item.id)} onFocus={() => onActivateMode(item.id)} onClick={() => onChooseMode(item.id)}>
                 <span className="create-mode-icon-v448"><ClusterIcon name={item.icon} treatment="duotone" /></span>
-                <span className="shared-create-type-copy-v458"><strong>{item.label}</strong><small>{item.detail}</small></span>
+                <span className="shared-create-type-copy-v458" title={item.detail}><strong>{item.label}</strong></span>
                 <ClusterIcon name="chevron-right" className="shared-create-picker-chevron-v455" />
               </ClusterButton>;
             })}</div>
           </section>)}
         </div>
-        {announcementMatch && <section className="shared-create-type-group-v458"><header><h3>Communicate</h3><span>Author an announcement in Studio Settings</span></header><div className="shared-create-type-list-v458"><ClusterButton variant="quiet" onClick={onCreateAnnouncement}><span className="create-mode-icon-v448"><ClusterIcon name="bell" /></span><span className="shared-create-type-copy-v458"><strong>Studio announcement</strong><small>Draft, schedule or publish an Inbox announcement with audience controls.</small></span><ClusterIcon name="chevron-right" className="shared-create-picker-chevron-v455" /></ClusterButton></div></section>}
-        {filteredGroups.length === 0 && !announcementMatch ? <div className="shared-create-empty-v457"><ClusterIcon name="search" /><strong>No matching item type</strong><span>Try project, ticket, meeting, build, or board.</span></div> : null}
-        {!normalizedQuery && specializedModeCount > 0 ? <section className="shared-create-specialized-toggle-v495"><div><strong>{showSpecializedModes ? "All item types" : "Keep first-use choices focused"}</strong><span>{showSpecializedModes ? "Specialized workflows are visible alongside the six everyday creation paths." : "Bug, Build, Meeting, and Whiteboard stay one click away without crowding the main picker."}</span></div><ClusterButton variant="secondary" size="compact" onClick={onToggleSpecializedModes}>{showSpecializedModes ? "Show everyday types" : `More item types · ${specializedModeCount}`}</ClusterButton></section> : null}
+        {announcementMatch && <section className="shared-create-type-group-v458"><header><h3>Communicate</h3></header><div className="shared-create-type-list-v458"><ClusterButton variant="quiet" onClick={onCreateAnnouncement}><span className="create-mode-icon-v448"><ClusterIcon name="bell" /></span><span className="shared-create-type-copy-v458"><strong>Studio announcement</strong></span><ClusterIcon name="chevron-right" className="shared-create-picker-chevron-v455" /></ClusterButton></div></section>}
+        {filteredGroups.length === 0 && !announcementMatch ? <div className="shared-create-empty-v457"><ClusterIcon name="search" /><strong>No matching item type</strong></div> : null}
+        {!normalizedQuery && specializedModeCount > 0 ? <section className="shared-create-specialized-toggle-v495"><ClusterButton variant="secondary" size="compact" onClick={onToggleSpecializedModes}>{showSpecializedModes ? "Show everyday types" : `More item types · ${specializedModeCount}`}</ClusterButton></section> : null}
       </div>
       <footer className="shared-create-picker-footer-v455 shared-create-picker-footer-v466">
         <span>{normalizedQuery ? `${visibleModeIds.length + (announcementMatch ? 1 : 0)} ${visibleModeIds.length + (announcementMatch ? 1 : 0) === 1 ? "match" : "matches"}` : `${visibleModeIds.length + (announcementMatch ? 1 : 0)} shown · ${modes.length + (onCreateAnnouncement ? 1 : 0)} total`}</span>

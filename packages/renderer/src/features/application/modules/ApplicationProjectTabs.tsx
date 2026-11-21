@@ -813,7 +813,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                     <header>
                       <div>
                         <strong>My tickets</strong>
-                        <span>{personalTickets.length} open and assigned to you</span>
+                        <span>{personalTickets.length} open</span>
                       </div>
                       <ClusterButton type="button" className="" onClick={() => void loadPersonalTickets()} disabled={ticketLoading} variant="quiet" size="compact">
                         {ticketLoading ? "Loading…" : "Refresh"}
@@ -951,8 +951,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                         ))
                       ) : (
                         <div className="taskbar-ticket-empty-v254">
-                          <strong>No open tickets assigned to you.</strong>
-                          <span>Submit one here when you need work tracked.</span>
+                          <span>No open tickets</span>
                         </div>
                       )}
                     </div>
