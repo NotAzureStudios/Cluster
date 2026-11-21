@@ -1,0 +1,79 @@
+/* Studio → Roles & permissions — the only stylesheet for rp-*. A filter bar,
+   then a thin role list beside the editor. Every row uses the same two
+   columns (label 140px, control), so controls line up down the page. */
+
+.st-main .rp { display: grid; gap: var(--space-2-5); }
+.rp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); }
+.rp-search { display: flex; align-items: center; gap: var(--space-1-5); flex: 0 1 220px; height: 30px; padding: 0 var(--space-2); border-radius: var(--cluster-radius-control); background: var(--cluster-recess); color: var(--muted); }
+.rp-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+.rp-search svg.cluster-icon-svg { flex: none; inline-size: 13px; block-size: 13px; }
+.rp .rp-search > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm) !important;
+}
+.rp-count { margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+
+.rp-create { display: grid; grid-template-columns: minmax(160px, 1.2fr) minmax(150px, 1fr) minmax(140px, 1fr) auto; gap: var(--space-1-5); align-items: center; padding: var(--space-2); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+
+.rp-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+
+/* Role list: one line each — name and department, member count right. */
+.rp-list { position: sticky; top: 0; display: grid; align-content: start; gap: 1px; max-height: calc(100dvh - 220px); overflow: auto; padding: var(--space-1); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.rp-role { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-2); border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.rp-role:hover { background: var(--cluster-button-fill); }
+.rp-role[aria-current="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.rp-role[data-disabled] { opacity: .55; }
+.rp-role > span { display: grid; flex: 1; min-width: 0; line-height: 1.2; }
+.rp-role b { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.rp-role small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-2xs); text-overflow: ellipsis; white-space: nowrap; }
+.rp-role em { flex: none; min-width: 18px; color: var(--muted); font-size: var(--cluster-font-size-xs); font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.rp-note { margin: 0; padding: var(--space-1) var(--space-2); color: var(--muted); font-size: var(--cluster-font-size-xs); }
+
+/* Editor */
+.rp-editor { display: grid; align-content: start; gap: var(--space-2-5); min-width: 0; }
+.rp-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-height: 32px; }
+.rp-head h3 { margin: 0; font-size: var(--cluster-font-size-lg); font-weight: 600; }
+.rp-tag { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font-size: var(--cluster-font-size-2xs); }
+.rp-tag svg.cluster-icon-svg { inline-size: 11px; block-size: 11px; }
+.rp-head .rp-enabled { margin-left: auto; }
+.rp-head .rp-enabled .cluster-toggle-copy-v533 strong { font-size: var(--cluster-font-size-sm); font-weight: 500; }
+
+.rp-rows { display: grid; padding: var(--space-1) var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.rp-row { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: var(--space-3); min-height: 42px; padding: var(--space-1) 0; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.rp-rows > .rp-row:last-child, .rp-rows > .rp-row:has(+ .rp-members) { box-shadow: none; }
+.rp-row--wide { align-items: start; }
+.rp-row--wide > span { padding-top: 7px; }
+.rp-row > span:first-child { color: var(--muted); font-size: var(--cluster-font-size-sm); }
+.rp-row > span[title]:first-child { text-decoration: underline dotted color-mix(in srgb, var(--muted) 50%, transparent); text-underline-offset: 3px; cursor: help; }
+.rp-row > :last-child { justify-self: stretch; max-width: 420px; }
+.rp-key { justify-self: start !important; padding: 2px 6px; border-radius: 4px; background: var(--cluster-recess); color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.rp-members { border-top: 1px solid var(--cluster-workbench-border); }
+.rp-members > summary { padding: var(--space-2) 0; color: var(--muted); font-size: var(--cluster-font-size-sm); cursor: pointer; }
+
+.rp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.rp-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.rp-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
+.rp-chip svg.cluster-icon-svg { inline-size: 11px; block-size: 11px; }
+.rp-chip:disabled { opacity: .55; cursor: default; }
+
+.rp-access { display: grid; gap: var(--space-2-5); }
+.rp-preview { display: flex; align-items: center; gap: var(--space-2); color: var(--danger); font-size: var(--cluster-font-size-xs); }
+
+/* Protected actions: label left, switch in a fixed right column. */
+.rp-actions { display: grid; padding: var(--space-1) var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.rp-action { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: center; gap: var(--space-3); min-height: 48px; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.rp-action:last-child { box-shadow: none; }
+.rp-action > span { display: grid; min-width: 0; line-height: 1.3; }
+.rp-action b { font-size: var(--cluster-font-size-sm); font-weight: 600; }
+.rp-action small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.rp-action > .cluster-toggle-v533 { justify-self: end; }
+
+@media (max-width: 1000px) {
+  .rp-body { grid-template-columns: minmax(0, 1fr); }
+  .rp-list { position: static; max-height: 220px; }
+  .rp-create { grid-template-columns: minmax(0, 1fr); }
+  .rp-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* Switches draw only their track: no button chrome from the older cascade. */
+.rp button.cluster-toggle-v533 { min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }

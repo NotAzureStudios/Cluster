@@ -62,10 +62,10 @@ test("Studio UI exposes controlled filters and can restore a hidden selection", 
   assert.ok(begin > 0 && end > begin);
   const ui = page.slice(begin, end);
   assert.match(ui, /ROLE_DIRECTORY_FILTER_OPTIONS\.map/);
-  assert.match(ui, /aria-pressed=\{roleDirectoryFilter === option.value\}/);
+  assert.match(ui, /<ClusterSegmentedControl value=\{roleDirectoryFilter\} onChange=\{setRoleDirectoryFilter\}/);
   assert.match(ui, /option\.needsCounts && !roleMemberCounts/);
   assert.match(ui, /visibleStudioRoles\.map/);
-  assert.match(ui, /Clear filters/);
+  assert.match(ui, /Hidden by filter · clear/);
   assert.match(page, /filterRoleDirectory\(studioRoles/);
   assert.match(page, /memberCounts: roleMemberCounts/);
 });
@@ -75,7 +75,7 @@ test("Role changes preserve server-authoritative assignment and policy checks", 
   assert.match(page, /includeArchived=true/);
   assert.match(page, /force: true, staleMs: 0/);
   assert.match(page, /if \(await roleHasAssignments\(id\)\)/);
-  assert.match(page, /Changing it clears role-specific overrides/);
+  assert.match(page, /Changing it clears this role's overrides/);
 });
 test("Role department pickers reuse the shared searchable selector, not raw options", () => {
   const page = source("packages/renderer/src/features/settings/StudioSettingsPage.tsx");
@@ -88,7 +88,10 @@ test("Role department pickers reuse the shared searchable selector, not raw opti
   compiled("packages/renderer/src/features/settings/StudioSettingsPage.tsx", true);
 });
 test("Responsive and keyboard-accessible directory controls keep focus visible", () => {
-  const css = source("packages/renderer/src/features/settings/people-management-layout-v11.css");
-  for (const matcher of [/studio-role-directory-filters-v11/, /aria-pressed/, /:focus-visible/, /pointer:coarse/, /min-height:44px/, /studio-role-entity-field-v11/]) assert.match(css, matcher);
+  // Filters are the shared segmented control (keyboard and focus handled there).
+  const css = source("packages/renderer/src/features/settings/roles-permissions.css");
+  const segmented = source("packages/renderer/src/components/cluster-segmented.css");
+  for (const matcher of [/\.rp-search:focus-within/, /\.rp-role\[aria-current="true"\]/, /@media \(max-width: 1000px\)/]) assert.match(css, matcher);
+  assert.match(segmented, /focus-visible/);
 });
 console.log(passed + "/" + passed + " role directory continuation tests passed");

@@ -215,3 +215,11 @@
 .st-main .project-form-layout-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }
 .st-main .project-form-layout-v312 > .span-2 { grid-column: 1 / -1; }
 .st-main .project-connection-grid-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }
+
+/* The studio/account content wrapper is a container, never a card. */
+.st .st-main .panel.settings-content-v092,
+.st .st-main .panel.settings-content-v092.studio-settings-content-v165 {
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important; backdrop-filter: none !important;
+}
+.st .st-main .panel.settings-content-v092 > .settings-section-v092 { padding-bottom: 0; border-bottom: 0; }

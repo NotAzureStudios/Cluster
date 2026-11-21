@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 const page=fs.readFileSync("packages/renderer/src/features/settings/StudioSettingsPage.tsx","utf8");
-const css=fs.readFileSync("packages/renderer/src/features/settings/people-management-layout-v11.css","utf8");
+const css=fs.readFileSync("packages/renderer/src/features/settings/roles-permissions.css","utf8");
 const start=page.indexOf('{section === "roles" && (');
 const end=page.indexOf('{section === "defaults" && (',start);
 assert.ok(start>=0&&end>start);
@@ -15,12 +15,13 @@ const checks=[
   [page.includes('filterRoleDirectory(studioRoles, {') && roles.includes('visibleStudioRoles.map((role) =>'),"search filters the actual directory using a tested pure projection"],
   [roles.includes('typeof roleMemberCounts[role.id] === "number"'),"role rows display membership counts"],
   [roles.includes('typeof roleMemberCounts[selectedRole.id] === "number"'),"selected role displays assigned member count"],
-  [roles.includes("No roles match the current filters."),"empty search and status state is explicit"],
-  [roles.includes("role editing still works."),"count lookup failures do not block editing"],
+  [roles.includes("No roles match."),"empty search and status state is explicit"],
+  [roles.includes("editing still works.") && roles.includes("Member counts unavailable"),"count lookup failures do not block editing"],
   [!roles.includes("roleMemberCounts[role.id] ?? 0"),"missing scoped count is not invented as zero"],
   [roles.includes("StudioPermissionEditor permissions={selectedRole.toolPermissions}"),"permission editor preserved"],
-  [roles.includes('aria-label="Immutable role key"'),"role key remains immutable"],
-  [css.includes(".studio-role-directory-search-v11"),"compact responsive search styling"],
+  // The key is shown as text, so there is nothing to edit.
+  [roles.includes('<code className="rp-key">{selectedRole.id}</code>') && !/updateStudioRole\(selectedRole\.id, \{ id:/.test(roles),"role key remains immutable"],
+  [css.includes(".rp-search") && css.includes("@media (max-width: 1000px)"),"compact responsive search styling"],
 ];
 for(const [ok,name] of checks)assert.ok(ok,name);
 console.log(`v1.1 role directory: ${checks.length} contracts passed.`);

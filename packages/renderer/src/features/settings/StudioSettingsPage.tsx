@@ -25,6 +25,8 @@ import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
+import { ClusterToggle } from "../../components/ClusterToggle";
+import "./roles-permissions.css";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { DataRetentionAdminPanel } from "../legal/DataRetentionAdminPanel";
 import { BUILD_PLATFORM_PROFILES } from "../projects/ProjectBuildsPanel";
@@ -1311,126 +1313,107 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           )}
 
           {section === "roles" && (
-            <div className="settings-section-v092 studio-settings-section-v272 studio-people-management-v11 studio-roles-management-v11">
-              <div className="settings-panel-head-v092 studio-section-intro-v272">
-                <div>
-                  <p className="eyebrow">Access</p>
-                  <h2>Roles & permissions</h2>
-                  <p className="muted tight">Build reusable access profiles for studio members. Department access is inherited first, role access is applied next, and user-specific permissions remain the final override.</p>
-                </div>
-                <div className="studio-people-manager-head-actions-v11">
-                  <span className="studio-section-count-v272">{enabledStudioRoles.length} active</span>
-                  <ClusterButton type="button" variant="primary" size="compact" aria-expanded={roleCreationOpen} onClick={() => setRoleCreationOpen((open) => !open)}>{roleCreationOpen ? "Close form" : "New role"}</ClusterButton>
-                </div>
+            <div className="settings-section-v092 studio-settings-section-v272 rp">
+              <div className="rp-bar">
+                <label className="rp-search">
+                  <ClusterIcon name="search" aria-hidden="true" />
+                  <input type="search" value={roleDirectorySearch} placeholder="Find a role" aria-label="Find a role" autoComplete="off" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
+                </label>
+                <ClusterSegmentedControl value={roleDirectoryFilter} onChange={setRoleDirectoryFilter} label="Filter roles"
+                  options={ROLE_DIRECTORY_FILTER_OPTIONS.map((option) => ({ value: option.value, label: option.label, disabled: option.needsCounts && !roleMemberCounts }))} />
+                <span className="rp-count">{enabledStudioRoles.length} active</span>
+                <ClusterButton type="button" variant="primary" size="compact" aria-expanded={roleCreationOpen} onClick={() => setRoleCreationOpen((open) => !open)}><ClusterIcon name={roleCreationOpen ? "close" : "plus"} />{roleCreationOpen ? "Cancel" : "New role"}</ClusterButton>
               </div>
 
               {roleCreationOpen && (
-              <div className="studio-create-strip-v272 studio-create-role-v272">
-                <div><strong>Add role</strong><span>Create a role from a permission preset, then refine its access.</span></div>
-                <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" />
-                <div className="studio-role-entity-field-v11">
+                <div className="rp-create">
+                  <ClusterInput value={newRoleLabel} onChange={(event) => setNewRoleLabel(event.target.value)} placeholder="Role name" aria-label="Role name" autoFocus />
                   <ClusterEntityPicker ariaLabel="New role department" value={newRoleDepartmentId}
                     entities={enabledStudioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department" }))}
-                    onChange={setNewRoleDepartmentId} allowClear={false} placeholder="Choose department" searchPlaceholder="Find a department" />
+                    onChange={setNewRoleDepartmentId} allowClear={false} placeholder="Department" searchPlaceholder="Find a department" />
+                  <ClusterNativeSelect value={newRoleTemplateKey} aria-label="Starting preset" onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
+                  <ClusterButton type="button" variant="primary" size="compact" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add</ClusterButton>
                 </div>
-                <ClusterNativeSelect value={newRoleTemplateKey} onChange={(event) => setNewRoleTemplateKey(event.target.value)}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
-                <ClusterButton type="button" variant="secondary" onClick={addStudioRole} disabled={!newRoleLabel.trim()}>Add role</ClusterButton>
-              </div>
               )}
 
-              <div className="studio-entity-manager-v272">
-                <aside className="studio-entity-list-v272" aria-label="Studio roles">
-                  <div className="studio-entity-list-head-v272"><strong>Roles</strong><span>{visibleStudioRoles.length} / {studioRoles.length}</span></div>
-                  <label className="studio-role-directory-search-v11">
-                    <span>Find roles</span>
-                    <ClusterInput type="search" value={roleDirectorySearch} placeholder="Search roles or departments…" autoComplete="off" onChange={(event) => setRoleDirectorySearch(event.target.value)} />
-                  </label>
-                  <div className="studio-role-directory-filters-v11" role="group" aria-label="Filter roles">
-                    {ROLE_DIRECTORY_FILTER_OPTIONS.map((option) => (
-                      <ClusterButton type="button" variant="quiet" size="compact" key={option.value}
-                        aria-pressed={roleDirectoryFilter === option.value}
-                        className={roleDirectoryFilter === option.value ? "active" : ""}
-                        disabled={option.needsCounts && !roleMemberCounts}
-                        onClick={() => setRoleDirectoryFilter(option.value)}>{option.label}</ClusterButton>
-                    ))}
-                  </div>
-                  {roleMemberCountsError && <small className="studio-role-directory-warning-v11" role="status">Member counts unavailable. Assignment filters are disabled; role editing still works.</small>}
-                  {visibleStudioRoles.map((role) => (
-                    <ClusterButton type="button" key={role.id} className={selectedRole?.id === role.id ? "active" : ""} onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setBundlePreviewError(""); setBundlePreviewLoading(false); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
-                      <span className="studio-entity-list-copy-v272"><strong>{role.label}</strong><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
-                      <span className="studio-entity-list-meta-v272">{role.enabled === false ? "Disabled" : roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? `${roleMemberCounts[role.id]} members` : role.permissionTemplateKey || "Custom"}</span>
-                    </ClusterButton>
-                  ))}
-                  {!visibleStudioRoles.length && <p className="studio-role-directory-empty-v11">No roles match the current filters.</p>}
-                </aside>
+              <div className="rp-body">
+                <nav className="rp-list" aria-label="Studio roles">
+                  {roleMemberCountsError && <small className="rp-note" role="status" title="Assignment filters are off; editing still works.">Member counts unavailable</small>}
+                  {visibleStudioRoles.map((role) => {
+                    const members = roleMemberCounts && typeof roleMemberCounts[role.id] === "number" ? roleMemberCounts[role.id] : null;
+                    return <button type="button" key={role.id} className="rp-role" aria-current={selectedRole?.id === role.id ? "true" : undefined} data-disabled={role.enabled === false || undefined}
+                      onClick={() => { permissionPreviewSequence.current += 1; setBundlePreview(null); setBundlePreviewError(""); setBundlePreviewLoading(false); setSelectedRoleId(role.id); setRoleEditorTab("details"); }}>
+                      <span><b>{role.label}</b><small>{studioDepartments.find((department) => department.id === role.departmentId)?.label || "No department"}</small></span>
+                      <em title={members === null ? undefined : `${members} member${members === 1 ? "" : "s"}`}>{role.enabled === false ? "Off" : members ?? ""}</em>
+                    </button>;
+                  })}
+                  {!visibleStudioRoles.length && <p className="rp-note">No roles match.</p>}
+                </nav>
 
                 {selectedRole && (
-                  <div className="studio-entity-editor-v272">
-                    {!visibleStudioRoles.some((role) => role.id === selectedRole.id) && (
-                      <div className="studio-role-directory-hidden-v11" role="status">
-                        <span>The selected role is hidden by the current filters.</span>
-                        <ClusterButton type="button" size="compact" variant="quiet" onClick={() => { setRoleDirectorySearch(""); setRoleDirectoryFilter("all"); }}>Clear filters</ClusterButton>
-                      </div>
-                    )}
-                    <header className="studio-entity-editor-head-v272">
-                      <div><span className="eyebrow">Role · {selectedRole.id}</span><h3>{selectedRole.label}</h3><p>{selectedRole.description || "Add a concise explanation of who should receive this role."}</p>{roleMemberCounts && typeof roleMemberCounts[selectedRole.id] === "number" && <small className="studio-role-member-count-v11">{roleMemberCounts[selectedRole.id]} assigned workspace members</small>}</div>
-                      <div className="button-row compact"><label className="studio-inline-check-v272"><ClusterInput type="checkbox" checked={selectedRole.enabled !== false} onChange={(event) => void setStudioRoleEnabled(selectedRole.id, event.target.checked)} /> Enabled</label><ClusterButton type="button" size="compact" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton></div>
+                  <section className="rp-editor" aria-label={`${selectedRole.label} role`}>
+                    <header className="rp-head">
+                      <h3>{selectedRole.label}</h3>
+                      <span className="rp-tag">{selectedRoleDepartment?.label || "No department"}</span>
+                      {roleMemberCounts && typeof roleMemberCounts[selectedRole.id] === "number" ? <span className="rp-tag"><ClusterIcon name="users" aria-hidden="true" />{roleMemberCounts[selectedRole.id]}</span> : null}
+                      {!visibleStudioRoles.some((role) => role.id === selectedRole.id) ? <ClusterButton type="button" size="compact" variant="quiet" onClick={() => { setRoleDirectorySearch(""); setRoleDirectoryFilter("all"); }}>Hidden by filter · clear</ClusterButton> : null}
+                      <ClusterToggle className="rp-enabled" checked={selectedRole.enabled !== false} label="Enabled" onCheckedChange={(checked) => void setStudioRoleEnabled(selectedRole.id, checked)} />
+                      <ClusterButton type="button" size="compact" variant="quiet" onClick={() => void removeStudioRole(selectedRole.id)}>{selectedRole.locked ? "Disable" : "Remove"}</ClusterButton>
                     </header>
 
-                    <ClusterSegmentedControl
-                      value={roleEditorTab}
-                      onChange={setRoleEditorTab}
-                      label="Role settings"
-                      className="studio-editor-tabs-v272"
-                      options={[
-                        { value: "details", label: "Details" },
-                        { value: "permissions", label: "Tool access" },
-                        { value: "actions", label: "Protected actions" },
-                      ]}
-                    />
+                    <ClusterSegmentedControl value={roleEditorTab} onChange={setRoleEditorTab} label="Role settings"
+                      options={[{ value: "details", label: "Details" }, { value: "permissions", label: "Tool access" }, { value: "actions", label: "Protected actions" }]} />
 
                     {roleEditorTab === "details" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Role identity and defaults</strong><span>These values are suggested when this role is assigned to a user. Changing a role does not silently overwrite existing user profile fields.</span></div>
-                        <div className="studio-form-grid-v272">
-                          <div className="field"><label>Display name</label><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></div>
-                          <div className="field"><label>Role key</label><ClusterInput value={selectedRole.id} readOnly disabled aria-label="Immutable role key" /><small>Role IDs are immutable because account memberships and permission policies reference them. Create a new role to change the key.</small></div>
-                          <div className="field studio-role-entity-field-v11"><span>Department</span>
-                            <ClusterEntityPicker ariaLabel="Role department" value={selectedRole.departmentId || ""}
-                              entities={[
-                                ...(selectedRole.departmentId && !studioDepartments.some((department) => department.id === selectedRole.departmentId)
-                                  ? [{ id: selectedRole.departmentId, label: "Existing department unavailable", disabled: true, kind: "department" }]
-                                  : []),
-                                ...studioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department", disabled: department.enabled === false })),
-                              ]}
-                              onChange={(departmentId) => updateStudioRole(selectedRole.id, { departmentId, toolPermissions: {} })}
-                              placeholder="No department" searchPlaceholder="Find a department" allowClear />
-                            <small>Provides the inherited baseline. Changing it clears role-specific overrides.</small>
-                          </div>
-                          <div className="field"><label>Default title</label><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></div>
-                          <div className="field span-2"><label>Description</label><ClusterTextarea value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Responsibilities, expected access, and intended users" /></div>
+                      <div className="rp-rows">
+                        <label className="rp-row"><span>Name</span><ClusterInput value={selectedRole.label} onChange={(event) => updateStudioRole(selectedRole.id, { label: event.target.value })} /></label>
+                        <div className="rp-row"><span title="Gives the role its starting access. Changing it clears this role's overrides.">Department</span>
+                          <ClusterEntityPicker ariaLabel="Role department" value={selectedRole.departmentId || ""}
+                            entities={[
+                              ...(selectedRole.departmentId && !studioDepartments.some((department) => department.id === selectedRole.departmentId)
+                                ? [{ id: selectedRole.departmentId, label: "Existing department unavailable", disabled: true, kind: "department" }]
+                                : []),
+                              ...studioDepartments.map((department) => ({ id: department.id, label: department.label, kind: "department", disabled: department.enabled === false })),
+                            ]}
+                            onChange={(departmentId) => updateStudioRole(selectedRole.id, { departmentId, toolPermissions: {} })}
+                            placeholder="No department" searchPlaceholder="Find a department" allowClear />
                         </div>
+                        <label className="rp-row"><span title="Suggested when the role is assigned; never overwrites a profile.">Default title</span><ClusterInput value={selectedRole.defaultTitle || ""} onChange={(event) => updateStudioRole(selectedRole.id, { defaultTitle: event.target.value })} placeholder={selectedRole.label} /></label>
+                        <label className="rp-row rp-row--wide"><span>Description</span><ClusterTextarea rows={2} value={selectedRole.description || ""} onChange={(event) => updateStudioRole(selectedRole.id, { description: event.target.value })} placeholder="Who gets this role" /></label>
+                        <div className="rp-row"><span title="Fixed: memberships and policies reference it.">Key</span><code className="rp-key">{selectedRole.id}</code></div>
                         {currentUser.isAdmin && (
-                          <RoleMembershipReviewPanel
-                            roleId={selectedRole.id}
-                            snapshot={roleMemberSnapshot?.ownerId === currentUser.id && roleMemberSnapshot?.roleId === selectedRole.id ? roleMemberSnapshot : null}
-                            loading={roleMemberReviewLoading}
-                            error={roleMemberReviewError}
-                            onRefresh={() => void loadRoleMembers(selectedRole.id)}
-                          />
+                          <details className="rp-members">
+                            <summary>Members</summary>
+                            <RoleMembershipReviewPanel
+                              roleId={selectedRole.id}
+                              snapshot={roleMemberSnapshot?.ownerId === currentUser.id && roleMemberSnapshot?.roleId === selectedRole.id ? roleMemberSnapshot : null}
+                              loading={roleMemberReviewLoading}
+                              error={roleMemberReviewError}
+                              onRefresh={() => void loadRoleMembers(selectedRole.id)}
+                            />
+                          </details>
                         )}
                       </div>
                     )}
 
                     {roleEditorTab === "permissions" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Role tool access</strong><span>{selectedRoleDepartment ? `This role starts with the ${selectedRoleDepartment.label} department baseline.` : "This role starts with the studio member baseline."} The preset is applied next, followed by the explicit overrides below.</span></div>
-                        <div className="field studio-template-field-v272"><label>Role permission preset</label><ClusterNativeSelect value={selectedRole.permissionTemplateKey || "member"} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => updateStudioRole(selectedRole.id, { permissionTemplateKey: event.target.value, toolPermissions: {} })}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect><small>Changing the preset clears role-specific overrides. Owner and Admin always retain management access.</small></div>
-                        <div className="studio-explanation-v272"><strong>Assigned role bundles</strong><span>Applied in the listed order after the role preset, before explicit overrides.</span></div>
-                        <div className="studio-action-rule-list-v272">{studioBundles.map((bundle) => <label key={bundle.id} className="studio-action-rule-v272"><span><strong>{bundle.label}</strong><small>rev {bundle.revision}{bundle.enabled === false ? " · disabled" : ""}</small></span><ClusterInput type="checkbox" checked={(selectedRole.permissionBundleIds || []).includes(bundle.id)} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => assignBundle("role", selectedRole.id, bundle.id, event.target.checked)} /></label>)}</div>
+                      <div className="rp-access">
+                        <div className="rp-rows">
+                          <div className="rp-row"><span title="Starts from the department, then this preset, then bundles, then the overrides below. Changing it clears overrides.">Preset</span>
+                            <ClusterNativeSelect value={selectedRole.permissionTemplateKey || "member"} disabled={["owner", "admin"].includes(selectedRole.id)} onChange={(event) => updateStudioRole(selectedRole.id, { permissionTemplateKey: event.target.value, toolPermissions: {} })}>{rolePermissionTemplateOptions().map((template) => <option key={template.key} value={template.key}>{template.label}</option>)}</ClusterNativeSelect>
+                          </div>
+                          {studioBundles.length ? <div className="rp-row"><span title="Applied after the preset, before overrides.">Bundles</span>
+                            <span className="rp-chips">{studioBundles.map((bundle) => {
+                              const on = (selectedRole.permissionBundleIds || []).includes(bundle.id);
+                              return <button type="button" key={bundle.id} className="rp-chip" aria-pressed={on} disabled={["owner", "admin"].includes(selectedRole.id)} title={`Revision ${bundle.revision}${bundle.enabled === false ? " · disabled" : ""}`} onClick={() => assignBundle("role", selectedRole.id, bundle.id, !on)}>{on ? <ClusterIcon name="check" aria-hidden="true" /> : null}{bundle.label}</button>;
+                            })}</span>
+                          </div> : null}
+                        </div>
                         <StudioPermissionEditor permissions={selectedRole.toolPermissions} inherited={selectedRoleInheritedPermissions} readOnly={["owner", "admin"].includes(selectedRole.id)} onChange={(tool, level) => updateStudioRolePermission(selectedRole.id, tool, level)} />
-                        <div className="button-row compact"><ClusterButton type="button" variant="secondary" disabled={bundlePreviewLoading} onClick={() => void previewPermissionBundleChanges(selectedRole.id, selectedRole.departmentId || null)}>{bundlePreviewLoading ? "Comparing…" : "Preview effective-access changes"}</ClusterButton></div>
-                        {bundlePreviewError && <p role="alert">{bundlePreviewError}</p>}
+                        <div className="rp-preview">
+                          <ClusterButton type="button" size="compact" variant="quiet" disabled={bundlePreviewLoading} onClick={() => void previewPermissionBundleChanges(selectedRole.id, selectedRole.departmentId || null)}>{bundlePreviewLoading ? "Comparing…" : "Preview who this changes"}</ClusterButton>
+                          {bundlePreviewError && <span role="alert">{bundlePreviewError}</span>}
+                        </div>
                         {activeRolePreview && (
                           <ClusterEffectiveAccessInspector
                             key={activeRolePreview.requestKey}
@@ -1442,19 +1425,16 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                     )}
 
                     {roleEditorTab === "actions" && (
-                      <div className="studio-editor-panel-v272">
-                        <div className="studio-explanation-v272"><strong>Protected action policy</strong><span>These permissions control studio-wide actions that are not represented by ordinary page access. Server-side checks continue to protect administrator-only operations.</span></div>
-                        <div className="studio-action-rule-list-v272">
-                          {studioActionRules.map((rule) => (
-                            <label key={`${selectedRole.id}-${rule.key}`} className="studio-action-rule-v272">
-                              <span><strong>{rule.label}</strong><small>{rule.detail}</small></span>
-                              <ClusterInput type="checkbox" checked={roleIsSelected(rule.key, selectedRole.id)} onChange={(event) => setRoleList(rule.key, selectedRole.id, event.target.checked)} />
-                            </label>
-                          ))}
-                        </div>
+                      <div className="rp-actions" role="group" aria-label="Protected actions">
+                        {studioActionRules.map((rule) => (
+                          <div key={`${selectedRole.id}-${rule.key}`} className="rp-action">
+                            <span title={rule.detail}><b>{rule.label}</b><small>{rule.detail}</small></span>
+                            <ClusterToggle checked={roleIsSelected(rule.key, selectedRole.id)} aria-label={rule.label} onCheckedChange={(checked) => setRoleList(rule.key, selectedRole.id, checked)} />
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </div>
+                  </section>
                 )}
               </div>
               <details className="studio-advanced-access-v11">
