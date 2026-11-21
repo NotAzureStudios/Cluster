@@ -907,6 +907,21 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   }
 
   /** Mutating creates use durable server receipts in addition to the immediate click lock. */
+  /** Calendar and Scheduler refuse placements that clash with availability
+   * or allocations unless the caller says to go ahead. Show what clashes and
+   * let the person schedule anyway, as the full Calendar and Scheduler do. */
+  async function withConflictOverride<T>(send: (allowConflicts: boolean) => Promise<T>): Promise<T> {
+    try { return await send(false); }
+    catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code !== "MEETING_SCHEDULER_CONFLICT" && code !== "SCHEDULER_CONFLICT") throw error;
+      const conflicts = ((error as { payload?: { conflicts?: Array<{ title?: string; message?: string }> } }).payload?.conflicts || []).slice(0, 4);
+      const detail = conflicts.map((item) => item.message || item.title).filter(Boolean).join("\n");
+      const go = await confirmCluster({ title: "Schedule anyway?", message: detail || "This time clashes with availability or reservations.", confirmLabel: "Schedule anyway" });
+      if (!go) throw error;
+      return send(true);
+    }
+  }
   function createMutation<T>(path: string, options: NonNullable<Parameters<typeof api>[1]>): Promise<T> {
     if (createSessionController.current.signal.aborted) return Promise.reject(new Error("Create session has changed."));
     const method = String(options.method || "POST").toUpperCase();
@@ -1205,9 +1220,10 @@ ${bugActual}`,
       if (mode === "calendar") {
         const startsAt = fromDateTimeLocalInput(calendarStartsAt);
         const endsAt = calendarAllDay ? null : fromDateTimeLocalInput(calendarEndsAt);
-        const createdCalendar = await createMutation<{ id: string; title: string; projectId?: string | null }>("/api/calendar/events", {
+        const createdCalendar = await withConflictOverride((allowConflicts) => createMutation<{ id: string; title: string; projectId?: string | null }>("/api/calendar/events", {
           method: "POST",
           body: JSON.stringify({
+            ...(allowConflicts ? { meeting: { allowConflicts: true } } : {}),
             projectId: selectedProject?.id || null,
             title: title.trim(),
             description: details || null,
@@ -1222,14 +1238,15 @@ ${bugActual}`,
             attendeeIds,
             reminderMinutes: calendarReminder ? Number(calendarReminder) : null,
           }),
-        });
+        }));
         completionWarning = await finalizeCreatedEntity({ kind: "calendar", id: createdCalendar.id, projectId: createdCalendar.projectId || selectedProject?.id || null, label: createdCalendar.title }, disposition);
         setStatus(`Calendar event created.${completionWarning}`);
       }
       if (mode === "scheduler") {
-        const createdSchedule = await createMutation<{ id?: string; title?: string; projectId?: string | null; pendingApproval?: boolean }>("/api/schedule/blocks", {
+        const createdSchedule = await withConflictOverride((allowConflicts) => createMutation<{ id?: string; title?: string; projectId?: string | null; pendingApproval?: boolean }>("/api/schedule/blocks", {
           method: "POST",
           body: JSON.stringify({
+            allowConflicts,
             userId: assigneeId || currentUser.id,
             projectId: selectedProject?.id || null,
             boardId: activeHandoff?.source?.kind === "board" ? activeHandoff.source.id : activeHandoff?.boardId || null,
@@ -1241,7 +1258,7 @@ ${bugActual}`,
             type: timeBlockType,
             color: timeColor,
           }),
-        });
+        }));
         createIntentRef.current.commit();
         if (createdSchedule.id) completionWarning = await finalizeCreatedEntity({ kind: "scheduler", id: createdSchedule.id, projectId: createdSchedule.projectId || selectedProject?.id || null, label: createdSchedule.title || title.trim() }, disposition);
         setStatus(`${createdSchedule.pendingApproval ? "Time-off request created." : "Schedule block created."}${completionWarning}`);

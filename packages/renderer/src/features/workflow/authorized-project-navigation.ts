@@ -1,6 +1,7 @@
 import type { ClusterWorkNavigationTarget } from "./work-navigation-types";
 
-export type AuthorizedProjectRead = { id?: string } | null;
+/** The project snapshot names its project as `projectId`; older reads used `id`. */
+export type AuthorizedProjectRead = { id?: string; projectId?: string } | null;
 
 /** Direct Project links need a fresh authenticated project read before URL mutation. */
 export async function resolveAuthorizedProjectNavigation(
@@ -12,7 +13,7 @@ export async function resolveAuthorizedProjectNavigation(
   if (typeof id !== "string" || !id.trim() || id.length > 200) return null;
   try {
     const project = await input.read(id);
-    if (!input.isCurrent() || !project || project.id !== id) return null;
+    if (!input.isCurrent() || !project || (project.projectId ?? project.id) !== id) return null;
     return target;
   } catch {
     return null;
