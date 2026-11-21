@@ -652,3 +652,4 @@ svg.cluster-icon--unified {
   background-color: var(--cl-chrome, var(--app-bg, #15181b)) !important;
   background-image: linear-gradient(var(--cluster-surface-1, transparent), var(--cluster-surface-1, transparent)) !important;
 }
+:root[data-theme="light"] .cluster-floating-surface-v504 { background-color: #fff !important; }
