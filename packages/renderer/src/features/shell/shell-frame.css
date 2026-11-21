@@ -475,3 +475,16 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
   .page-head.tph .page-head-actions > * { flex: 0 0 auto; }
   .page-head.tph .cl-seg { flex-wrap: nowrap; }
 }
+
+/* Account menu: the same row rhythm as every other menu — 32px rows, small icons, no subtitles. */
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 { gap: 1px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button,
+.taskbar-account-menu-v546 .taskbar-account-signout-v546 { min-height: 32px !important; padding: 4px 8px !important; gap: 8px !important; border-radius: 6px; }
+.taskbar-account-menu-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; border: 0; background: none; }
+.taskbar-account-menu-v546 .taskbar-account-action-icon-v546 svg { width: 15px; height: 15px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 strong, .taskbar-account-menu-v546 .taskbar-account-signout-v546 strong { font-size: .8125rem; font-weight: 500; }
+.taskbar-account-menu-v546 .taskbar-account-action-chevron-v546 { width: 13px; height: 13px; opacity: .5; }
+.taskbar-account-menu-v546 .taskbar-presence-options-v546 > button, .taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { min-height: 32px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button, .taskbar-account-menu-v546 .taskbar-account-signout-v546, .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { grid-template-columns: 22px minmax(0, 1fr) auto !important; }

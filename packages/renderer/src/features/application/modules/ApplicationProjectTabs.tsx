@@ -650,7 +650,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
                   onClick={() => void updateOwnPresence(option.value)}
                 >
                   <span className="taskbar-presence-dot-v546" aria-hidden="true" />
-                  <span><strong>{option.label}</strong><small>{option.meta}</small></span>
+                  <span><strong>{option.label}</strong></span>
                 </ClusterButton>
               );
             })}
@@ -664,7 +664,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
             onClick={() => void updateOwnPresence(user.status || "available", presenceMessage.trim() || null, user.connectionVisibility === "invisible" ? "visible" : "invisible")}
           >
             <span className="taskbar-account-action-icon-v546"><ClusterIcon name={user.connectionVisibility === "invisible" ? "cloud-off" : "cloud"} /></span>
-            <span><strong>{user.connectionVisibility === "invisible" ? "Become visible" : "Appear offline"}</strong><small>{user.connectionVisibility === "invisible" ? "Your availability will be visible again." : "Hide presence without changing availability or time records."}</small></span>
+            <span><strong>{user.connectionVisibility === "invisible" ? "Become visible" : "Appear offline"}</strong></span>
           </ClusterButton>
           <div className="taskbar-presence-message-v228 taskbar-presence-message-v546">
             <ClusterTextInput value={presenceMessage} onChange={(event) => setPresenceMessage(event.target.value)} placeholder="Add a status message" maxLength={120} aria-label="Status message" />
@@ -684,27 +684,27 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
           <div className="taskbar-account-actions-v546">
             <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); onOpenProfile(); }}>
               <span className="taskbar-account-action-icon-v546"><ClusterIcon name="user" /></span>
-              <span><strong>My profile</strong><small>Profile, identity, and contact details</small></span>
+              <span><strong>My profile</strong></span>
               <ClusterIcon name="chevron-right" className="taskbar-account-action-chevron-v546" />
             </ClusterButton>
             {canSeeSettings && (
               <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); onOpenSettings(); }}>
                 <span className="taskbar-account-action-icon-v546"><ClusterIcon name="settings" /></span>
-                <span><strong>Settings</strong><small>Appearance, account, and preferences</small></span>
+                <span><strong>Settings</strong></span>
                 <ClusterIcon name="chevron-right" className="taskbar-account-action-chevron-v546" />
               </ClusterButton>
             )}
             {canSeePeople && (
               <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); onOpenPeople(); }}>
                 <span className="taskbar-account-action-icon-v546"><ClusterIcon name="users" /></span>
-                <span><strong>People</strong><small>Directory, teams, and availability</small></span>
+                <span><strong>People</strong></span>
                 <ClusterIcon name="chevron-right" className="taskbar-account-action-chevron-v546" />
               </ClusterButton>
             )}
             {user.isAdmin && (
               <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); onOpenUserAdmin(); }}>
                 <span className="taskbar-account-action-icon-v546"><ClusterIcon name="tools" /></span>
-                <span><strong>User administration</strong><small>Accounts, access, and security actions</small></span>
+                <span><strong>User administration</strong></span>
                 <ClusterIcon name="chevron-right" className="taskbar-account-action-chevron-v546" />
               </ClusterButton>
             )}
@@ -741,7 +741,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
         <div className="taskbar-account-signout-v546">
           <ClusterButton unstyled type="button" className="danger" onClick={() => { setUserMenuOpen(false); onLogout(); }}>
             <span className="taskbar-account-action-icon-v546"><ClusterIcon name="forward" /></span>
-            <span><strong>Sign out</strong><small>End this Cluster session</small></span>
+            <span><strong>Sign out</strong></span>
           </ClusterButton>
         </div>
       </ClusterFloatingSurface>
