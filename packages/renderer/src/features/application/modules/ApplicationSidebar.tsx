@@ -1,5 +1,5 @@
 import { readPreferenceStorage, writePreferenceStorage } from "../../../core/preference-storage";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useClusterDialogInteraction } from "../../../components/useClusterDialogInteraction";
 import { APP_SIDEBAR_SECTIONS, canOpenScreen, routeDefinition, screenLabel, sidebarRouteDefinitions, type AppScreen } from "../../../core/navigation";
 import { ADAPTIVE_MEDIA } from "../../../core/adaptive-layout";
@@ -25,7 +25,7 @@ const ADMIN_STUDIO_DESTINATIONS: readonly { label: string; icon: ClusterIconName
   { label: "Applications", icon: "users", section: "studioSystems", subsection: "applications" },
   { label: "Announcements", icon: "bell", section: "studioSystems", subsection: "announcements" },
 ];
-export function Sidebar({ screen, currentRoute, setScreen, user, settings, projects, currentProjectId, onOpenProject, onOpenChangelog, open = false, onClose }: { screen: AppScreen; currentRoute?: string; setScreen: (screen: AppScreen, options?: { section?: string | null; subsection?: string | null }) => void; user: User; settings: Settings; projects: Project[]; currentProjectId?: string | null; onOpenProject: (projectId: string) => void; onOpenChangelog: () => void; open?: boolean; onClose?: () => void }) {
+export function Sidebar({ status, screen, currentRoute, setScreen, user, settings, projects, currentProjectId, onOpenProject, onOpenChangelog, open = false, onClose }: { status?: ReactNode; screen: AppScreen; currentRoute?: string; setScreen: (screen: AppScreen, options?: { section?: string | null; subsection?: string | null }) => void; user: User; settings: Settings; projects: Project[]; currentProjectId?: string | null; onOpenProject: (projectId: string) => void; onOpenChangelog: () => void; open?: boolean; onClose?: () => void }) {
   const sidebarRef = useRef<HTMLElement | null>(null);
   const [adminToolsOpen, setAdminToolsOpen] = useState(() => routeDefinition(screen).parent === "admin");
   const [adminStudioShortcutsOpen, setAdminStudioShortcutsOpen] = useState(false);
@@ -154,6 +154,7 @@ export function Sidebar({ screen, currentRoute, setScreen, user, settings, proje
           </SidebarSection>;
         })}
       </nav>
+      {status ? <div className="cl-sb__status">{status}</div> : null}
       <div className="cl-sb__footer">
         <ClusterButton type="button" variant="quiet" size="compact" onClick={() => { window.dispatchEvent(new Event(CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT)); onClose?.(); }} aria-label="Help" title="Help"><ClusterIcon name="comment" />Help</ClusterButton>
         <AppVersionFooter onOpenChangelog={() => { onOpenChangelog(); onClose?.(); }} onOpenOperations={isAdmin ? () => navigate("admin") : undefined} /></div>

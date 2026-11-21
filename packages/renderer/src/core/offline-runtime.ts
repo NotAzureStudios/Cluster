@@ -30,6 +30,8 @@ export type OfflineSyncSnapshot = {
   online: boolean;
   serverReachable: boolean;
   serverState: string;
+  /** Comma-joined health signals that are not passing, plus "saturated" when the server is shedding load. */
+  serverIssues: string;
   readAccessAllowed: boolean;
   mutationReplayAllowed: boolean;
   syncing: boolean;
@@ -79,7 +81,7 @@ export type OfflineSyncSnapshot = {
 };
 
 export type OfflineOperationalSnapshot = Pick<OfflineSyncSnapshot,
-  "online" | "serverReachable" | "serverState" | "readAccessAllowed" | "mutationReplayAllowed" | "syncing" | "uploading" | "pulling" | "pending" | "paused" | "conflicts" | "failed" | "queuedUploads" | "pausedUploads" | "failedUploads" | "queuePressure" | "lastCheckedAt" | "consecutiveFailures" | "nextSyncAt" | "serverOpenConflicts" | "serverQuarantinedConflicts" | "lastError"
+  "online" | "serverReachable" | "serverState" | "serverIssues" | "readAccessAllowed" | "mutationReplayAllowed" | "syncing" | "uploading" | "pulling" | "pending" | "paused" | "conflicts" | "failed" | "queuedUploads" | "pausedUploads" | "failedUploads" | "queuePressure" | "lastCheckedAt" | "consecutiveFailures" | "nextSyncAt" | "serverOpenConflicts" | "serverQuarantinedConflicts" | "lastError"
 >;
 
 const listeners = new Set<() => void>();
@@ -98,6 +100,7 @@ let snapshot: OfflineSyncSnapshot = {
   serverState: "compatibility-check-pending",
   readAccessAllowed: false,
   mutationReplayAllowed: false,
+  serverIssues: "",
   syncing: false,
   uploading: false,
   pulling: false,
@@ -149,6 +152,7 @@ function selectOperationalSnapshot(value: OfflineSyncSnapshot): OfflineOperation
     online: value.online,
     serverReachable: value.serverReachable,
     serverState: value.serverState,
+    serverIssues: value.serverIssues,
     readAccessAllowed: value.readAccessAllowed,
     mutationReplayAllowed: value.mutationReplayAllowed,
     syncing: value.syncing,
@@ -440,7 +444,11 @@ async function checkServer() {
       cache: "no-store",
       signal: controller.signal,
     });
-    const payload = await response.json().catch(() => null) as { state?: unknown; version?: unknown } | null;
+    const payload = await response.json().catch(() => null) as { state?: unknown; version?: unknown; signals?: Array<{ key?: unknown; status?: unknown }>; saturation?: { state?: unknown } } | null;
+    const serverIssues = [
+      ...(Array.isArray(payload?.signals) ? payload!.signals.filter((signal) => signal && signal.status && signal.status !== "pass").map((signal) => String(signal.key)) : []),
+      ...(["saturated", "critical"].includes(String(payload?.saturation?.state || "")) ? ["saturated"] : []),
+    ].join(",");
     const serverState = String(payload?.state || response.headers.get("x-cluster-server-state") || "unknown").toLowerCase();
     const healthVersion = String(payload?.version || "").trim() || null;
     const reachable = response.ok;
@@ -486,7 +494,7 @@ async function checkServer() {
       : serverState;
     const readAccessAllowed = reachable && compatibilityReadsAllowed && !["maintenance", "recovery", "draining", "starting", "unavailable"].includes(serverState);
     const mutationReplayAllowed = reachable && compatibilityReplayAllowed && ["healthy", "degraded"].includes(serverState);
-    setSnapshot({ online: true, serverReachable: reachable, serverState: effectiveServerState, readAccessAllowed, mutationReplayAllowed, lastCheckedAt: Date.now() });
+    setSnapshot({ online: true, serverReachable: reachable, serverState: effectiveServerState, serverIssues, readAccessAllowed, mutationReplayAllowed, lastCheckedAt: Date.now() });
     return reachable;
   } catch {
     setSnapshot({ online: true, serverReachable: false, serverState: "unreachable", readAccessAllowed: false, mutationReplayAllowed: false, lastCheckedAt: Date.now() });

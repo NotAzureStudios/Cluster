@@ -8,6 +8,7 @@ let operationalSnapshot: OfflineOperationalSnapshot = {
   online: typeof navigator === "undefined" ? true : navigator.onLine !== false,
   serverReachable: true,
   serverState: "unknown",
+  serverIssues: "",
   readAccessAllowed: true,
   mutationReplayAllowed: true,
   syncing: false,

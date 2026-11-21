@@ -1,5 +1,6 @@
 import type { OfflineOperationalSnapshot } from "../core/offline-runtime";
 import type { ClusterInteractionState } from "./interaction-state";
+import type { ClusterIconName } from "./ClusterIcon";
 
 export const CLUSTER_OPERATIONAL_STATES = [
   "online",
@@ -30,7 +31,42 @@ export type ClusterOperationalStatusModel = {
   pendingCount?: number;
   conflictCount?: number;
   lastCheckedAt?: number | string | Date | null;
+  /** What is affected, one icon each: transfers, speed, maintenance, services. */
+  causes?: ClusterOperationalCause[];
 };
+
+export type ClusterOperationalCause = { key: string; icon: ClusterIconName; label: string };
+
+const SIGNAL_CAUSES: Record<string, Omit<ClusterOperationalCause, "key">> = {
+  saturated: { icon: "speed", label: "Server busy, responses are slower" },
+  requests: { icon: "speed", label: "Requests are slow or failing" },
+  "event-loop": { icon: "activity", label: "Server is lagging" },
+  memory: { icon: "activity", label: "Server memory is high" },
+  database: { icon: "archive", label: "Database is unhealthy" },
+  storage: { icon: "folder", label: "Storage is unhealthy" },
+  "background-tasks": { icon: "operations", label: "Background jobs are behind" },
+  lifecycle: { icon: "refresh", label: "Server is starting or stopping" },
+};
+
+/** Icons for everything currently affecting the connection, most severe first. */
+export function operationalCauses(snapshot: OfflineOperationalSnapshot): ClusterOperationalCause[] {
+  const causes: ClusterOperationalCause[] = [];
+  const add = (key: string, icon: ClusterIconName, label: string) => { if (!causes.some((cause) => cause.key === key)) causes.push({ key, icon, label }); };
+  if (!snapshot.online) add("offline", "cloud", "No network connection");
+  else if (!snapshot.serverReachable) add("unreachable", "cloud", "Server isn't responding");
+  if (snapshot.serverState === "maintenance") add("maintenance", "tools", "Maintenance mode");
+  if (snapshot.serverState === "recovery") add("recovery", "tools", "Server recovering");
+  if (snapshot.serverState === "draining") add("draining", "refresh", "Server restarting");
+  if (snapshot.serverState === "read-only") add("read-only", "lock", "Read-only");
+  if (snapshot.failedUploads > 0) add("transfers-failed", "upload", `${snapshot.failedUploads} transfer${snapshot.failedUploads === 1 ? "" : "s"} failed`);
+  else if (snapshot.queuedUploads + snapshot.pausedUploads > 0) add("transfers", "upload", `${snapshot.queuedUploads + snapshot.pausedUploads} transfer${snapshot.queuedUploads + snapshot.pausedUploads === 1 ? "" : "s"} waiting`);
+  if (snapshot.queuePressure && snapshot.queuePressure !== "normal") add("queue", "clock", "Sync queue is backed up");
+  for (const issue of String(snapshot.serverIssues || "").split(",").filter(Boolean)) {
+    const cause = SIGNAL_CAUSES[issue];
+    add(issue, cause?.icon || "warning", cause?.label || `${issue.replace(/-/g, " ")} is unhealthy`);
+  }
+  return causes;
+}
 
 export function operationalInteractionState(state: ClusterOperationalState): ClusterInteractionState {
   if (state === "online") return "success";
@@ -45,6 +81,12 @@ export function operationalInteractionState(state: ClusterOperationalState): Clu
 const changes = (count: number) => `${count} change${count === 1 ? "" : "s"}`;
 
 export function deriveSyncOperationalStatus(snapshot: OfflineOperationalSnapshot): ClusterOperationalStatusModel {
+  const model = deriveSyncOperationalState(snapshot);
+  const causes = operationalCauses(snapshot);
+  return causes.length ? { ...model, causes } : model;
+}
+
+function deriveSyncOperationalState(snapshot: OfflineOperationalSnapshot): ClusterOperationalStatusModel {
   const pendingCount = snapshot.pending + snapshot.queuedUploads;
   const serverAttentionConflicts = snapshot.serverOpenConflicts + snapshot.serverQuarantinedConflicts;
   const conflictCount = Math.max(snapshot.conflicts, serverAttentionConflicts) + snapshot.failed + snapshot.failedUploads;

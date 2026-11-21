@@ -1,6 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterOperationalStatus } from "../../components/ClusterOperationalStatus";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import type { ClusterOperationalStatusModel } from "../../components/operational-status";
 import { RequestErrorState } from "../../components/RequestState";
 import { api, setApiQueryData } from "../../core/api";
@@ -133,12 +134,18 @@ export function NavigationOperationalStatus({ model, onReviewSync, onRetry }: { 
   return <ClusterOperationalStatus model={model} className="cl-status-strip" actions={actions} />;
 }
 
-export function TitlebarStatus({ model }: { model: ClusterOperationalStatusModel }) {
-  if (!CHIP_STATES.has(model.state)) return null;
-  const detail = model.pendingCount ? `${model.detail} ${model.pendingCount} pending.` : model.detail;
-  return <span className="cl-tb-status" data-cluster-state={model.interactionState} role="status" title={detail} aria-label={`${model.label}. ${detail}`}>
-    <span className="cl-tb-status__dot" aria-hidden="true" />
-    {model.label}
+/* Server status, bottom of the sidebar: shown for informational states and
+   whenever something is affected. One icon per cause (transfers, speed,
+   maintenance, services); hover lists them. */
+export function ServerStatusPill({ model }: { model: ClusterOperationalStatusModel }) {
+  const causes = model.causes || [];
+  if (!CHIP_STATES.has(model.state) && !causes.length) return null;
+  const detail = [causes.length ? "" : model.pendingCount ? `${model.detail} ${model.pendingCount} pending.` : model.detail, ...causes.map((cause) => cause.label)].filter(Boolean).join("\n");
+  const tone = CHIP_STATES.has(model.state) ? model.interactionState : "warning";
+  return <span className="cl-sb-status" data-cluster-state={tone} role="status" title={detail} aria-label={`${model.label}. ${detail}`}>
+    <span className="cl-sb-status__dot" aria-hidden="true" />
+    <span className="cl-sb-status__label">{CHIP_STATES.has(model.state) ? model.label : causes[0]?.label}</span>
+    {causes.length ? <span className="cl-sb-status__causes" aria-hidden="true">{causes.slice(0, 4).map((cause) => <ClusterIcon key={cause.key} name={cause.icon} />)}</span> : null}
   </span>;
 }
 
