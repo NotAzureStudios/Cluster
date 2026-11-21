@@ -1154,7 +1154,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 settings-page-v092 account-settings-page-v267 account-settings-console-v271 settings-console-v269"
-      title="Account Settings"
+      title="Account"
       icon="user"
       description={`Personal preferences, performance, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
       metrics={[
@@ -1208,20 +1208,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         <div id="account-settings-section-focus-v11" tabIndex={-1} className="settings-content panel settings-content-v092 settings-content-v267">
           {section === "profile" && (
             <div className="settings-section-v092 profile-editor-v473">
-              <div className="settings-panel-head-v092 profile-editor-head-v473">
-                <div>
-                  <p className="eyebrow">Your profile</p>
-                  <h2>Identity & contact</h2>
-                  <p className="muted tight">Choose how people recognize and contact you. Email and phone stay private unless you explicitly share them.</p>
-                </div>
-              </div>
+              <h2 className="sr-only">Profile</h2>
               <section className="profile-account-hero-v547">
                 <div className="profile-account-avatar-v547">
                   <PresenceAvatar userId={currentUser.id} imageUrl={profileAvatarUrl} accentColor={personalAccentColor} label={displayUserName(currentUser)} fallback={userInitial(currentUser)} state={presenceState(currentUser)} title={presenceLabel(currentUser)} />
                   <ClusterFileButton label="Change profile image" accept="image/png,image/jpeg,image/webp,image/gif" size="compact" busy={avatarUploading} busyLabel="Uploading…" onChange={uploadProfileAvatar}>Change image</ClusterFileButton>
                 </div>
                 <div className="profile-account-hero-copy-v547">
-                  <span className="eyebrow">Account identity</span>
                   <h3>{profileForm.preferredName || profileForm.displayName || currentUser.username}</h3>
                   <p>@{currentUser.username}{currentUser.title ? ` · ${currentUser.title}` : ""}{currentUser.department ? ` · ${currentUser.department}` : ""}</p>
                   <div className="profile-account-hero-meta-v547"><span>{presenceVisibility === "invisible" ? "Appearing offline" : presenceLabel({ ...currentUser, status: presenceAvailability })}</span><span>{profileForm.timezone || "Timezone not set"}</span><span>{profileSkills.length} skills</span></div>
@@ -1229,18 +1222,17 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 <div className="profile-account-color-v547"><span>User color</span><ColorField label="User color" value={personalAccentColor} onChange={(next) => { setPersonalAccentColor(next); setProfileDirty(true); persistAccountDraft(settings, next, theme); applyCustomization(settings, next); }} /></div>
               </section>
               <section className="settings-card-v092 cluster-discord-identity-v548" aria-label="Discord account connection">
-                <div className="settings-card-head-v092"><h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord account</h3><span className={`soft-pill ${currentUser.discordUserId ? "good" : ""}`}>{currentUser.discordUserId ? "Linked" : "Not linked"}</span></div>
+                <h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord</h3>
                 {currentUser.discordUserId ? <div className="cluster-discord-identity-row-v548">
                   {currentUser.discordAvatar ? <img src={currentUser.discordAvatar} alt="" width={40} height={40} loading="lazy" /> : <ResourceIdentityMark iconId="brand:discord" label="Discord" />}
                   <div><strong>{currentUser.discordDisplayName || currentUser.discordUsername || "Discord account"}</strong><span>{currentUser.discordUsername ? `@${currentUser.discordUsername}` : "Connected identity"}{currentUser.discordLinkedAt ? ` · Linked ${compactDateTime(currentUser.discordLinkedAt)}` : ""}</span></div>
-                </div> : <p className="muted tight">Link your personal Discord identity to receive optional notifications and use authorized bot actions. Your Cluster password and permissions do not change.</p>}
-                {discordOAuthError ? <p role="status" className="muted">Connection readiness could not be checked. Retry by reopening Profile.</p> : !discordOAuth ? <span className="muted">Checking Discord linking…</span> : !discordOAuth.configured ? <p role="status" className="warning">Discord linking is not ready. An admin must finish the OAuth application setup under Integrations → Discord.</p> : null}
+                </div> : <span className="cluster-discord-state-v6" role="status" title={discordOAuth && !discordOAuth.configured ? "An admin must finish Discord setup under Integrations." : undefined}>{discordOAuthError ? "Unavailable" : !discordOAuth ? "Checking…" : !discordOAuth.configured ? "Not set up" : "Not linked"}</span>}
                 <div className="button-row">
-                  {discordOAuth?.configured && !currentUser.discordUserId ? <ClusterLinkButton variant="primary" href={discordLinkUrl}><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Link Discord account</ClusterLinkButton> : null}
+                  {discordOAuth?.configured && !currentUser.discordUserId ? <ClusterLinkButton variant="primary" href={discordLinkUrl}>Link</ClusterLinkButton> : null}
                   {discordOAuth?.configured && currentUser.discordUserId ? <ClusterButton type="button" variant="secondary" onClick={async () => {
                     if (await confirmCluster({ title: "Change linked Discord account?", message: "This will verify a different Discord identity and rotate your Cluster sessions. Your Cluster access will not change.", confirmLabel: "Continue to Discord" })) window.location.assign(discordLinkUrl);
-                  }}>Change linked account</ClusterButton> : null}
-                  {currentUser.discordUserId ? <ClusterButton type="button" variant="quiet" onClick={() => { setSection("privacy"); onSectionChange?.("privacy"); }}>Disconnect / privacy controls</ClusterButton> : null}
+                  }}>Change</ClusterButton> : null}
+                  {currentUser.discordUserId ? <ClusterButton type="button" variant="quiet" onClick={() => { setSection("privacy"); onSectionChange?.("privacy"); }}>Privacy</ClusterButton> : null}
                 </div>
               </section>
               <div className="profile-editor-grid-v473">
@@ -1257,28 +1249,27 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   </div>
                 </section>
                 <section className="settings-card-v092 profile-editor-card-v473">
-                  <div className="settings-card-head-v092"><h3>Contact</h3><span>Optional</span></div>
+                  <div className="settings-card-head-v092"><h3>Contact</h3></div>
                   <div className="profile-fields-v473">
                     <label className="field"><span>Email</span><ClusterInput type="email" value={profileForm.email} onChange={(event) => patchProfile("email", event.target.value)} placeholder="name@example.com" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowEmail} disabled={!profileForm.email} onCheckedChange={(checked) => patchProfile("profileShowEmail", checked)} label="Show email" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowEmail} disabled={!profileForm.email} onCheckedChange={(checked) => patchProfile("profileShowEmail", checked)} label="Public" aria-label="Show email on profile" />
                     <label className="field"><span>Phone</span><ClusterInput inputMode="tel" value={profileForm.phoneNumber} onChange={(event) => patchProfile("phoneNumber", event.target.value)} placeholder="Optional" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowPhone} disabled={!profileForm.phoneNumber} onCheckedChange={(checked) => patchProfile("profileShowPhone", checked)} label="Show phone" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowPhone} disabled={!profileForm.phoneNumber} onCheckedChange={(checked) => patchProfile("profileShowPhone", checked)} label="Public" aria-label="Show phone on profile" />
                     <label className="field"><span>Discord username</span><ClusterInput value={profileForm.profileDiscordUsername} onChange={(event) => patchProfile("profileDiscordUsername", event.target.value)} placeholder="username" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowDiscord} disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername} onCheckedChange={(checked) => patchProfile("profileShowDiscord", checked)} label="Show Discord" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowDiscord} disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername} onCheckedChange={(checked) => patchProfile("profileShowDiscord", checked)} label="Public" aria-label="Show Discord on profile" />
                     <label className="field span-2"><span>Website / portfolio</span><ClusterInput type="url" value={profileForm.profileWebsite} onChange={(event) => patchProfile("profileWebsite", event.target.value)} placeholder="https://..." /></label>
                     <label className="field span-2"><span>Preferred contact</span><ClusterNativeSelect value={profileForm.profilePreferredContact} onChange={(event) => patchProfile("profilePreferredContact", event.target.value as ProfileForm["profilePreferredContact"])}><option value="cluster">Cluster</option><option value="discord" disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername}>Discord</option><option value="email" disabled={!profileForm.email}>Email</option><option value="phone" disabled={!profileForm.phoneNumber}>Phone</option></ClusterNativeSelect></label>
                   </div>
                 </section>
                 <section className="settings-card-v092 profile-editor-card-v473 span-2 people-capability-editor-v495">
-                  <div className="settings-card-head-v092"><h3>Expertise & working hours</h3><span>{profileForm.expertise.length} expertise areas</span></div>
+                  <div className="settings-card-head-v092"><h3>Expertise & hours</h3></div>
                   <div className="people-expertise-editor-v495">
                     <div className="people-expertise-add-v495"><ClusterInput value={expertiseDraft} onChange={(event) => setExpertiseDraft(event.target.value)} placeholder="Expertise area" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addExpertise(); } }} /><ClusterNativeSelect value={expertiseLevel} onChange={(event) => setExpertiseLevel(event.target.value as typeof expertiseLevel)}><option value="learning">Learning</option><option value="working">Working</option><option value="advanced">Advanced</option><option value="expert">Expert</option></ClusterNativeSelect><ClusterButton type="button" variant="secondary" onClick={addExpertise} disabled={!expertiseDraft.trim()}>Add</ClusterButton></div>
-                    <div className="people-expertise-tags-v495">{profileForm.expertise.map((item) => <ClusterButton type="button" key={item.name} className="tag-chip" onClick={() => removeExpertise(item.name)} title={`Remove ${item.name}`}><strong>{item.name}</strong><span>{item.level}</span><b aria-hidden="true"><ClusterIcon name="close" /></b></ClusterButton>)}{!profileForm.expertise.length && <span className="muted">Add proficiency levels for the skills teammates depend on.</span>}</div>
+                    <div className="people-expertise-tags-v495">{profileForm.expertise.map((item) => <ClusterButton type="button" key={item.name} className="tag-chip" onClick={() => removeExpertise(item.name)} title={`Remove ${item.name}`}><strong>{item.name}</strong><span>{item.level}</span><b aria-hidden="true"><ClusterIcon name="close" /></b></ClusterButton>)}</div>
                   </div>
                   <div className="people-working-hours-v495">
                     {workingDayKeys.map((day) => { const intervals = Array.isArray(profileForm.workingHours[day]) ? profileForm.workingHours[day] as Array<{ start: string; end: string }> : []; const first = intervals[0] || { start: "09:00", end: "17:00" }; const enabled = intervals.length > 0; return <div key={day}><label><ClusterInput type="checkbox" checked={enabled} onChange={(event) => patchWorkingDay(day, event.target.checked)} /><span>{day.slice(0,3).toUpperCase()}</span></label><ClusterInput type="time" value={first.start} disabled={!enabled} onChange={(event) => patchWorkingDay(day, true, event.target.value, first.end)} /><span>to</span><ClusterInput type="time" value={first.end} disabled={!enabled} onChange={(event) => patchWorkingDay(day, true, first.start, event.target.value)} /></div>; })}
                   </div>
-                  <small className="muted">Working hours are profile context, not a time-off authority. Scheduler availability and approved time off still win when planning work.</small>
                 </section>
                 {(settings.studioPeopleProfileFields || []).length > 0 && <section className="settings-card-v092 profile-editor-card-v473 span-2 people-custom-fields-v495">
                   <div className="settings-card-head-v092"><h3>Studio profile fields</h3><span>{(settings.studioPeopleProfileFields || []).length} configured</span></div>

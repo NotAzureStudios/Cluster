@@ -11,7 +11,7 @@ const draft = fs.readFileSync("packages/renderer/src/features/people/people-user
 
 const checks = [
   [page.includes('import { PeopleUserEditor } from "./PeopleUserEditor";'), "admin editor imported"],
-  [page.includes('label: "Edit user"') && page.includes('>Edit user</ClusterButton>'), "admin Edit User action visible"],
+  [page.includes('onClick={() => setProfileView("edit")}>Edit</ClusterButton>'), "admin Edit User action visible"],
   [page.includes('profileView === "edit" && effectiveAdminMode && !profile.archived'), "no edit affordance for archived account"],
   [page.includes('onDirtyChange={setEditorDirty}') && page.includes('useUnsavedChangesGuard({'), "draft state and app leave guard linked"],
   [page.includes('await confirmEditorDiscard()') && page.includes('setProfileViewState(next);'), "tab changes ask before discarding"],

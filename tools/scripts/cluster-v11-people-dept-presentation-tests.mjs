@@ -13,7 +13,7 @@ const tests = [
   [people.includes("departmentIdentity={departmentForPerson(person)}"), "member directory passes department identity"],
   [people.includes("departmentIdentity={departmentForPerson(profile)}"), "person profile header passes department identity"],
   [people.includes('cell: (person) => { const department = departmentForPerson(person);'), "table Department column uses canonical mark"],
-  [people.includes('departmentForPerson(profile)!} label size={22}'), "profile Organization section uses canonical mark"],
+  [people.includes('<DepartmentIdentityMark department={department} label size={16} />'), "profile Organization section uses canonical mark"],
   [people.includes('canEdit={Boolean(currentUser.isAdmin)}'), "UI does not advertise admin-only department controls to non-admins"],
   [people.includes('iconId?: string | null; members: number;'), "workforce identity payload includes icon"],
   [summary.includes("departmentIdentity?: DepartmentIdentity | null"), "PersonSummary supports supplied identity without IO"],
