@@ -50,8 +50,6 @@ const ADMIN_USER_RENDER_BATCH = 160;
 type PasswordResetRequest = { id: string; status: "pending" | "fulfilled" | "dismissed"; createdAt: string; user: { id: string; username: string; displayName?: string | null; email?: string | null; phoneNumber?: string | null; avatarUrl?: string | null } };
 export type AdminPageDependencies = {
   PersistenceBridgePanel: React.ComponentType<any>;
-  WorkLinkManager: React.ComponentType<any>;
-  DataModelStandardsPanel: React.ComponentType<any>;
   AdminMaintenanceToolsPanel: React.ComponentType<any>;
   PermissionMatrixControls: React.ComponentType<any>;
   TemplateStudioPanel: React.ComponentType<any>;
@@ -66,7 +64,6 @@ export type AdminPageDependencies = {
   projectTypeBadge: (project: Project) => string;
   readFileAsDataUrl: (file: File) => Promise<string>;
   UserEditorForm: React.ComponentType<any>;
-  StabilizationCenterPanel: React.ComponentType<any>;
   ImportToolsPanel: React.ComponentType<any>;
   TOOL_INFRASTRUCTURE_CATALOG: any;
   AdminReportsPanel: React.ComponentType<any>;
@@ -76,7 +73,7 @@ export type AdminPageDependencies = {
 export type AdminPageProps = { projects: Project[]; whiteboards: WhiteboardSummary[]; currentUser: User; onReloadProjects: () => Promise<void>; onReloadWhiteboards: () => Promise<void>; previewUser: User | null; onStartPreview: (user: User) => void; onStopPreview: () => void; onOpenBoard: (boardId: string) => void; onOpenWhiteboard: (whiteboardId: string) => void; settings?: Settings; scope?: AdminPageScope; initialSection?: AdminSection; onOpenUserAdmin?: () => void; onOpenProjects?: () => void; onOpenProject?: (projectId: string) => void; onOpenToolInfrastructure?: () => void; onOpenServerConfig?: () => void; onOpenStudioSettings?: () => void; onOpenTickets?: () => void; onOpenQa?: () => void; onOpenTime?: () => void; };
 
 export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects, onReloadWhiteboards, previewUser, onStartPreview, onStopPreview, onOpenBoard, onOpenWhiteboard, settings, scope = "operations", initialSection, onOpenUserAdmin, onOpenProjects, onOpenProject, onOpenToolInfrastructure, onOpenServerConfig, onOpenStudioSettings, onOpenTickets, onOpenQa, onOpenTime }: AdminPageProps) {
-  const { PersistenceBridgePanel, WorkLinkManager, DataModelStandardsPanel, AdminMaintenanceToolsPanel, PermissionMatrixControls, TemplateStudioPanel, toDateInputValue, USER_DEPARTMENT_PRESETS, USER_TEAM_PRESETS, enabledStudioDepartmentsFromSettings, enabledStudioRolesFromSettings, rolePermissionsFromSettings, projectTypePresetsFromSettings, PROJECT_INTAKE_TEMPLATES, projectTypeBadge, readFileAsDataUrl, UserEditorForm, StabilizationCenterPanel, ImportToolsPanel, TOOL_INFRASTRUCTURE_CATALOG, AdminReportsPanel, getProjectPermission, projectPermissionReason } = ADMIN_PAGE_DEPENDENCIES;
+  const { PersistenceBridgePanel, AdminMaintenanceToolsPanel, PermissionMatrixControls, TemplateStudioPanel, toDateInputValue, USER_DEPARTMENT_PRESETS, USER_TEAM_PRESETS, enabledStudioDepartmentsFromSettings, enabledStudioRolesFromSettings, rolePermissionsFromSettings, projectTypePresetsFromSettings, PROJECT_INTAKE_TEMPLATES, projectTypeBadge, readFileAsDataUrl, UserEditorForm, ImportToolsPanel, TOOL_INFRASTRUCTURE_CATALOG, AdminReportsPanel, getProjectPermission, projectPermissionReason } = ADMIN_PAGE_DEPENDENCIES;
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [projectType, setProjectType] = useState<ProjectKind>(() => (settings?.defaultProjectTypeId || projectTypePresetsFromSettings(settings)[0]?.id || "general") as ProjectKind);
@@ -1073,15 +1070,9 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {(adminSection === "systems" || canonicalAdminOperationsSection(adminSection) === "systems") && (
         <div className="admin-consolidated-stack-v15">
-          {adminSection === "systems" ? <><OperationsSystemsPanel />
-          <ClusterButton type="button" variant="quiet" className="admin-jobs-shortcut-v12" onClick={() => setAdminSection("jobs")}>
-            <span className="admin-jobs-shortcut-icon-v12"><ClusterIcon name="work" aria-hidden="true" /></span>
-            <span><strong>Jobs</strong><small>Queues · retries · history</small></span>
-            <ClusterIcon name="chevron-right" aria-hidden="true" />
-          </ClusterButton></> : null}
+          {adminSection === "systems" ? <OperationsSystemsPanel /> : null}
           {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
           {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
-          {adminSection === "stabilization" ? <StabilizationCenterPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
         </div>
       )}
 
@@ -1099,10 +1090,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
           <AdminAuditStreamPanel projects={projects} users={users} />
           </> : null}
           {adminSection === "imports" ? <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
-          {adminSection === "data-model" ? <>
-            <DataModelStandardsPanel projects={projects} users={users} whiteboards={whiteboards} />
-            <WorkLinkManager projects={projects} />
-          </> : null}
           {adminSection === "templates" ? <TemplateStudioPanel projects={projects} users={users} /> : null}
           {adminSection === "changelog" ? <ChangelogPage /> : null}
 

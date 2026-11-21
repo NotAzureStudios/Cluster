@@ -120,5 +120,6 @@ check(checkRoute.includes('sampleIfDue(30_000)'),'on-demand checks enforce coold
 check(!checkRoute.includes('request.body') && !checkRoute.includes('request.query'),'no arbitrary URLs or service names accepted');
 check(read('apps/server/src/core/openapi.ts').includes('"/api/admin/operations/api-tools/check"'),'explicit check route documented in OpenAPI');
 const ui=read('packages/renderer/src/features/admin/OperationsSystemsPanel.tsx');
-check(ui.includes('Dependency readiness') && ui.includes('per-tool authorization'),'real UI distinguishes dependency readiness from tool correctness');
+// Each tool row shows dependency readiness and observed traffic as separate labels.
+check(ui.includes('DEPENDENCY_POSTURE_LABELS[tool.dependencyReadiness?.posture') && ui.includes('API_TOOL_POSTURE_LABELS[tool.posture]'),'real UI distinguishes dependency readiness from tool correctness');
 console.log(`Cluster F3 P2 API Dependency Readiness: ${n}/${n} focused assertions passed`);

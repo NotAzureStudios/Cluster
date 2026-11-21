@@ -19,6 +19,7 @@ import { useVisibleRefresh } from "../../core/visible-refresh";
 import { IntegrationProvidersPanel } from "./IntegrationProvidersPanel";
 import "./admin.css";
 import "./source-control-admin.css";
+import "./admin-ops.css";
 import { useGitCloneUrl } from "../settings/GitAccessPanel";
 
 type Provider = {
@@ -533,7 +534,7 @@ export function IntegrationsAdminPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [botTokenConfigured, setBotTokenConfigured] = useState(false);
   const [webhookConfigured, setWebhookConfigured] = useState(false);
-  const [status, setStatus] = useState("Loading integrations…");
+  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [integrationView, setIntegrationView] = useState<"connected" | "catalog" | "discord">("connected");
   const [discordBotState, setDiscordBotState] = useState<{ state: string; managed: boolean; message: string | null } | null>(null);
@@ -581,7 +582,7 @@ export function IntegrationsAdminPage() {
       setWebhookConfigured(Boolean(configurationResult.configuration?.webhookConfigured));
       setBotToken("");
       setWebhookUrl("");
-      setStatus(`${externalConnections.length} connected integration${externalConnections.length === 1 ? "" : "s"}`);
+      setStatus("");
     } catch (error) { setStatus(formatApiError(error)); }
   }
 
@@ -768,46 +769,45 @@ export function IntegrationsAdminPage() {
   ], [busy]);
 
   return (
-    <AdminSurface title="Integrations" description="Connect external services around Cluster. Native Source Control stays inside Projects and Tool Infrastructure." status={status}>
-      <div className="admin-integration-nav-v535"><ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} /></div>
-      {integrationView !== "discord" ? <ClusterMetricStrip label="Integration summary" items={[{ label: "Connected", value: connections.length, detail: "external service connections" }, { label: "Providers", value: integrationProviders.filter((provider) => provider.implementation === "active").length, detail: "active providers" }, { label: "Discord provider", value: discordProvider?.implementation === "active" ? "Available" : "Unavailable", detail: botTokenConfigured || webhookConfigured ? "Credentials configured · health unverified" : "Setup available", tone: discordProvider?.implementation === "active" ? "neutral" : "warning" }, { label: "Project routes", value: deliverySummary?.routeCount || 0, detail: `${deliverySummary?.projectCount || 0} linked projects` }]} /> : null}
-      {integrationView === "connected" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3><ClusterIcon name="link" aria-hidden="true" /> Connected integrations</h3><p>Saved connections and the latest observed health. A configured integration isn't necessarily reachable.</p></div><ClusterButton variant="secondary" size="compact" onClick={() => setIntegrationView("catalog")}><ClusterIcon name="plus" aria-hidden="true" /> Browse catalog</ClusterButton></div><ClusterDataTable rows={connections} columns={connectedIntegrationColumns} rowKey={(connection) => connection.id} rowLabel={(connection) => connection.displayName} label="Connected integrations" configurableColumns persistKey="admin-connected-integrations" onRowActivate={(connection) => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }} empty={<ClusterEmptyState title="No integrations connected" description="Open the catalog to see available external providers." actions={<ClusterButton variant="primary" onClick={() => setIntegrationView("catalog")}>Open catalog</ClusterButton>} />} /></section> : null}
+    <section className="ao admin-integrations" aria-label="Integrations">
+      <div className="ao-bar">
+        <ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: connections.length ? `Connected ${connections.length}` : "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} />
+        {integrationView === "discord" ? <ClusterSegmentedControl value={discordWorkspaceView} onChange={(next) => setDiscordWorkspaceView(next as typeof discordWorkspaceView)} label="Discord management views" options={[
+          { value: "dashboard", label: "Overview" }, { value: "configuration", label: "Setup" }, { value: "bot", label: "Bot & servers" }, { value: "delivery", label: deliverySummary?.deliveries.failed ? `Deliveries ${deliverySummary.deliveries.failed}` : "Deliveries" },
+        ]} /> : null}
+        <span className="ao-bar__end">
+          {status ? <span className="ao-msg" role="status">{status}</span> : null}
+          <ClusterIconButton size="compact" label="Refresh" disabled={busy} onClick={() => void load(true)}><ClusterIcon name="refresh" /></ClusterIconButton>
+        </span>
+      </div>
+      {integrationView === "connected" ? <section className="ao-card" aria-label="Connected integrations">
+        {connections.length ? <ul className="ao-rows">{connections.map((connection) => <li key={connection.id}>
+          <button type="button" className="ao-row ao-row--button" data-tone={connection.healthState === "healthy" ? "good" : connection.healthState === "failed" || connection.healthState === "degraded" ? "danger" : "warning"} onClick={() => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }}>
+            <i className="ao-dot" aria-hidden="true" />
+            <span className="ao-row__main"><b>{connection.displayName}</b><small>{providerLabel(connection.providerId)}{connection.healthMessage ? ` · ${connection.healthMessage}` : ""}</small></span>
+            <span className="ao-row__end"><small>{connection.lastCheckedAt ? `Checked ${new Date(connection.lastCheckedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Not checked"}</small><span className="ao-pill" data-tone={connection.status === "active" ? "good" : "warning"}>{connectionStateLabel(connection.status)}</span></span>
+          </button>
+        </li>)}</ul> : <div className="ao-row ao-row--plain">
+          <span className="ao-row__main"><b>No integrations</b><small>Discord, delivery providers and more are in the catalog.</small></span>
+          <span className="ao-row__end"><ClusterButton size="compact" variant="secondary" onClick={() => setIntegrationView("catalog")}>Catalog</ClusterButton><ClusterButton size="compact" variant="primary" onClick={() => setIntegrationView("discord")}>Set up Discord</ClusterButton></span>
+        </div>}
+      </section> : null}
       {integrationView === "catalog" ? <IntegrationProvidersPanel excludeCategories={["source-control"]} /> : null}
       {integrationView === "discord" ? <>
-      <section className="admin-panel-v243 cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
-        <div className="admin-section-heading-v243"><div><h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord management</h3><p>Bot runtime, account linking, approved servers and delivery health.</p></div>
-          <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void load(true)}><ClusterIcon name="refresh" /> Refresh</ClusterButton></div>
-        <ClusterSegmentedControl value={discordWorkspaceView} onChange={(next) => setDiscordWorkspaceView(next as typeof discordWorkspaceView)} label="Discord management views" options={[
-          { value: "dashboard", label: "Dashboard" }, { value: "configuration", label: "Setup" }, { value: "bot", label: "Bot & servers" }, { value: "delivery", label: "Deliveries" },
-        ]} />
-        {discordWorkspaceView === "dashboard" ? <>
-          <div className="cluster-discord-health-grid-v548">
-            <div><span><ClusterIcon name="cloud" aria-hidden="true" /> Gateway</span><SettingsStateChip tone={discordBotState?.state === "connected" ? "success" : discordBotState?.state === "failed" ? "danger" : "neutral"} icon={discordBotState?.state === "connected" ? "check" : "activity"}>{discordBotState?.state === "connected" ? "Last check connected" : discordBotState?.state || "Not checked"}</SettingsStateChip><small>{discordBotState?.managed ? "Managed by Cluster" : "Not running under Cluster"}</small></div>
-            <div><span><ClusterIcon name="lock" aria-hidden="true" /> OAuth linking</span><SettingsStateChip tone={discordOAuthReady && discordOAuthAppMatches ? "info" : "warning"} icon="lock">{discordOAuthReady && discordOAuthAppMatches ? "Configured" : "Needs setup"}</SettingsStateChip><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID mismatch" : discordOAuthReady ? "Configuration present · test account linking" : "Identity linking unavailable"}</small></div>
-            <div><span><ClusterIcon name="users" aria-hidden="true" /> Approved servers</span><strong>{discordGuilds.length}</strong><SettingsStateChip tone={discordGuilds.some((g) => g.reachable === false) ? "warning" : "neutral"}>{discordGuilds.filter((g) => g.reachable === false).length} reported unreachable</SettingsStateChip></div>
-            <div><span><ClusterIcon name="link" aria-hidden="true" /> Project routes</span><strong>{deliverySummary?.routeCount ?? "—"}</strong><small>{deliverySummary?.projectCount ?? 0} linked projects</small></div>
-          </div>
-          {discordLinkCoverage ? <ClusterVisualComposition label="Active accounts linked to Discord" total={discordLinkCoverage.active} parts={[
-            { label: "Linked", value: discordLinkCoverage.linked, tone: "good" },
-            { label: "Not linked", value: discordLinkCoverage.unlinked, tone: "neutral" },
-          ]} /> : <p className="muted">Account linking coverage not yet available.</p>}
-          {deliverySummary ? <ClusterVisualComposition label="Notification delivery" total={deliverySummary.deliveries.completed + deliverySummary.deliveries.pending + deliverySummary.deliveries.running + deliverySummary.deliveries.failed} parts={[
-            { label: "Delivered", value: deliverySummary.deliveries.completed, tone: "good" },
-            { label: "Queued", value: deliverySummary.deliveries.pending, tone: "neutral" },
-            { label: "Running", value: deliverySummary.deliveries.running, tone: "accent" },
-            { label: "Failed", value: deliverySummary.deliveries.failed, tone: "danger" },
-          ]} /> : null}
-          <div className="button-row">
-            <ClusterButton type="button" variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}><ClusterIcon name="play" /> Start / restart</ClusterButton>
-            <ClusterButton type="button" variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop bot</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("configuration")}>Configure OAuth</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("bot")}>Manage servers</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("delivery")}>Delivery details</ClusterButton>
-          </div>
-          {!discordOAuthReady || !discordOAuthAppMatches ? <p className="warning" role="status">Discord bot credentials and user OAuth are separate. Complete OAuth setup before anyone can link an account.</p> : null}
-          {deliverySummary?.deliveries.failed ? <p role="alert" className="warning">{deliverySummary.deliveries.failed} Discord deliveries need attention. Open Deliveries to inspect and retry.</p> : null}
-        </> : null}
-      </section>
+      {discordWorkspaceView === "dashboard" ? <section className="ao-card cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
+        <h3 className="ao-card__title">Discord
+          <span className="ao-inline">
+            <ClusterButton type="button" size="compact" variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}><ClusterIcon name="play" />{discordBotState?.managed ? "Restart" : "Start"}</ClusterButton>
+            <ClusterButton type="button" size="compact" variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop</ClusterButton>
+          </span>
+        </h3>
+        <ul className="ao-rows">
+          <li className="ao-row" data-tone={discordBotState?.state === "connected" ? "good" : discordBotState?.state === "failed" ? "danger" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Bot</b><small>{discordBotState?.managed ? "Run by Cluster" : "Not running under Cluster"}</small></span><span className="ao-row__end"><small>{discordBotState?.state || "Not checked"}</small></span></li>
+          <li className="ao-row" data-tone={discordOAuthReady && discordOAuthAppMatches ? "good" : "warning"}><i className="ao-dot" /><span className="ao-row__main"><b>Account linking</b><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID doesn't match the bot" : discordOAuthReady ? "Configured · test by linking an account" : "OAuth not configured"}</small></span><span className="ao-row__end">{!discordOAuthReady || !discordOAuthAppMatches ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("configuration")}>Set up</ClusterButton> : <small>{discordLinkCoverage ? `${discordLinkCoverage.linked}/${discordLinkCoverage.active} linked` : "Ready"}</small>}</span></li>
+          <li className="ao-row" data-tone={discordGuilds.some((guild) => guild.reachable === false) ? "warning" : discordGuilds.length ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Servers</b><small>{discordGuilds.length ? discordGuilds.map((guild) => guild.name || guild.id).join(", ") : "None approved"}</small></span><span className="ao-row__end"><ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("bot")}>Manage</ClusterButton></span></li>
+          <li className="ao-row" data-tone={deliverySummary?.deliveries.failed ? "danger" : deliverySummary ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Deliveries</b><small>{deliverySummary ? `${deliverySummary.deliveries.completed} delivered · ${deliverySummary.deliveries.pending + deliverySummary.deliveries.running} queued · ${deliverySummary.deliveries.failed} failed` : "No data"}</small></span><span className="ao-row__end"><small>{deliverySummary?.routeCount ?? 0} project routes</small>{deliverySummary?.deliveries.failed ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("delivery")}>Review</ClusterButton> : null}</span></li>
+        </ul>
+      </section> : null}
       {discordWorkspaceView === "configuration" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Discord</h3><p>Studio connection and credentials. Project routing remains attached to each project.</p></div><span className={`soft-pill ${discordProvider?.implementation === "active" ? "good" : "warning"}`}>{discordProvider?.implementation === "active" ? "Available" : "Unavailable"}</span></div><div className="admin-tool-field-grid-v232"><label><span>Connection name</span><ClusterTextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Studio Discord" /></label><label><span>Server ID</span><ClusterTextInput value={guildId} onChange={(event) => setGuildId(event.target.value)} placeholder="Discord server ID" /></label><label><span>Bot token</span><ClusterTextInput type="password" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Configured · enter a value to replace" : "Bot token"} /></label><label><span>Webhook URL</span><ClusterTextInput type="password" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Configured · enter a value to replace" : "Optional Discord webhook URL"} /></label><label><span>Forum channel ID</span><ClusterTextInput value={forumChannelId} onChange={(event) => setForumChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Chat channel ID</span><ClusterTextInput value={chatChannelId} onChange={(event) => setChatChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Admin role ID</span><ClusterTextInput value={adminRoleId} onChange={(event) => setAdminRoleId(event.target.value)} placeholder="Optional" /></label><label><span>Message prefix</span><ClusterTextInput value={messagePrefix} onChange={(event) => setMessagePrefix(event.target.value)} placeholder="Cluster" /></label><label><span>Application ID</span><ClusterTextInput value={applicationId} onChange={(event) => setApplicationId(event.target.value)} placeholder="Required for Discord actions" /></label><label><span>Application public key</span><ClusterTextInput type="password" value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Configured · enter a value to replace" : "Required for signed Discord actions"} /></label></div>{!discordOAuthReady ? <p className="warning" role="status">Discord account linking is not configured. Add DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI to the server environment, then restart Cluster. Bot installation alone does not enable user linking.</p> : !discordOAuthAppMatches ? <p className="warning" role="status">Discord OAuth uses a different Application ID than the configured bot. Verify that both settings refer to the intended Discord application.</p> : <p className="muted">Discord account linking is available.</p>}
         <details className="cluster-visual-advanced"><summary>Set up account linking (OAuth)</summary><div className="cluster-visual-advanced__body">
           <p>1. In the Discord Developer Portal, open your application's OAuth2 settings. Add the public callback URL below as a redirect.</p>
@@ -880,7 +880,7 @@ export function IntegrationsAdminPage() {
 ]} />}
 {deliverySummary?.deliveries.failed ? <p role="alert" className="warning">{deliverySummary.deliveries.failed} failed deliveries. {deliverySummary.healthMessage || "Review the failures below."}</p> : null}
 <details className="cluster-visual-advanced"><summary>Exact delivery counts</summary><div className="cluster-visual-advanced__body"><ClusterMetricStrip label="Discord delivery summary" items={[{ label: PRODUCT_OPERATION_STATES.completed, value: deliverySummary?.deliveries.completed || 0, detail: "deliveries completed", tone: "good" }, { label: PRODUCT_OPERATION_STATES.queued, value: deliverySummary?.deliveries.pending || 0, detail: "waiting for worker" }, { label: PRODUCT_OPERATION_STATES.running, value: deliverySummary?.deliveries.running || 0, detail: "attempts in progress" }, { label: PRODUCT_OPERATION_STATES.failed, value: deliverySummary?.deliveries.failed || 0, detail: deliverySummary?.healthMessage || "No connection health message", tone: deliverySummary?.deliveries.failed ? "warning" : "good" }]} /></div></details><ClusterDataTable rows={deliverySummary?.recentFailures || []} columns={discordFailureColumns} rowKey={(failure) => failure.id} rowLabel={(failure) => failure.error} label="Recent Discord delivery failures" configurableColumns persistKey="admin-discord-delivery-failures" empty={<p className="muted">No failed deliveries.</p>} /></section> : null}</> : null}
-    </AdminSurface>
+    </section>
   );
 }
 

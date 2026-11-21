@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
-import { ClusterEmptyState } from "../../components/ClusterEmptyState";
-import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
-import { ClusterVisualComposition, ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
-import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { api, queryApi } from "../../core/api";
 import { useVisibleRefresh } from "../../core/visible-refresh";
-import { IntegrationProvidersPanel } from "./IntegrationProvidersPanel";
+import "./admin-ops.css";
 
 type SyncClient = {
   id: string;
@@ -174,120 +171,83 @@ export function OperationsSystemsPanel() {
   useEffect(() => { void load(); }, [debouncedQuery, state]);
   useVisibleRefresh(() => load(true), { intervalMs: 30_000 });
 
-  const clientColumns = useMemo<ClusterDataTableColumn<SyncClient>[]>(() => [
-    { id: "name", header: "Client", hideable: false, pinnable: true, defaultWidth: 240, sortValue: (client) => client.name, cell: (client) => <span><strong>{client.name}</strong><small>{client.id}</small></span> },
-    { id: "platform", header: "Platform", defaultWidth: 160, sortValue: (client) => client.platform, cell: (client) => client.platform },
-    { id: "version", header: "Client version", defaultWidth: 150, sortValue: (client) => client.clientVersion, cell: (client) => client.clientVersion },
-    { id: "schema", header: "Mutation schema", defaultWidth: 145, sortValue: (client) => client.mutationSchemaVersion, cell: (client) => client.mutationSchemaVersion || 1 },
-    { id: "lastSeen", header: "Last seen", defaultWidth: 190, sortValue: (client) => new Date(client.lastSeenAt), cell: (client) => timeLabel(client.lastSeenAt) },
-  ], []);
-
   const apiToolRows = useMemo(() => (apiTools?.tools || []).filter((tool) => {
     if (apiToolPosture !== "all" && tool.posture !== apiToolPosture) return false;
     const search = apiToolQuery.trim().toLowerCase();
     return !search || [tool.key, tool.label, ...tool.routeRoots, ...tool.ownerModules].some((text) => text.toLowerCase().includes(search));
   }), [apiTools, apiToolQuery, apiToolPosture]);
-  const apiToolColumns = useMemo<ClusterDataTableColumn<ApiToolRow>[]>(() => [
-    { id: "tool", header: "Tool", hideable: false, defaultWidth: 220, sortValue: (tool) => tool.label, cell: (tool) => <span><strong>{tool.label}</strong><small>{tool.key}</small></span> },
-    { id: "dependencies", header: "Dependency readiness", defaultWidth: 230, sortValue: (tool) => tool.dependencyReadiness?.posture || "not-sampled", cell: (tool) => <span title={(tool.dependencyReadiness?.dependencies || []).map((item) => `${item.key}: ${item.status} · ${item.detail}`).join("\n")}>{DEPENDENCY_POSTURE_LABELS[tool.dependencyReadiness?.posture || "not-sampled"]}</span> },
-    { id: "posture", header: "Observed API posture", defaultWidth: 215, sortValue: (tool) => tool.posture, cell: (tool) => API_TOOL_POSTURE_LABELS[tool.posture] },
-    { id: "routes", header: "Routes seen", defaultWidth: 110, sortValue: (tool) => tool.observedRoutes, cell: (tool) => tool.observedRoutes },
-    { id: "requests", header: "Requests", defaultWidth: 120, sortValue: (tool) => tool.requests, cell: (tool) => tool.requests.toLocaleString() },
-    { id: "errors", header: "5xx errors", defaultWidth: 110, sortValue: (tool) => tool.serverErrors, cell: (tool) => tool.serverErrors.toLocaleString() },
-    { id: "rate", header: "Error rate", defaultWidth: 130, sortValue: (tool) => tool.serverErrorRate, cell: (tool) => tool.requests ? `${(tool.serverErrorRate * 100).toFixed(1)}%` : "—" },
-    { id: "p95", header: "Worst route p95", defaultWidth: 160, sortValue: (tool) => tool.highestRouteP95Ms, cell: (tool) => tool.highestRouteP95Ms == null ? "—" : `${Math.round(tool.highestRouteP95Ms)} ms` },
-    { id: "evidence", header: "Observed route evidence", defaultWidth: 270, cell: (tool) => <span title={tool.routes.map((route) => `${route.route}: ${route.count} requests, ${route.errors} 5xx, p95 ${Math.round(route.p95Ms)}ms`).join("\n")}>{tool.routes[0]?.route || "No observed route"}</span> },
-  ], []);
 
   const reviewQueue = (snapshot?.media?.queue?.failed || 0) + (snapshot?.media?.queue?.deadLetter || 0);
   const clientPosture = snapshot?.clients;
   const mediaWorkersOnline = snapshot?.media?.workers?.online;
   const mediaWorkersTotal = snapshot?.media?.workers?.total;
 
+  const toolTone = (tool: ApiToolRow) => {
+    const dependency = tool.dependencyReadiness?.posture;
+    if (tool.posture === "degraded" || dependency === "dependency-failed") return "danger";
+    if (tool.posture === "warning" || dependency === "dependency-warning") return "warning";
+    if (tool.posture === "observed-healthy" || dependency === "dependency-passing") return "good";
+    return "";
+  };
+  const short = (value?: string | null) => value ? new Date(value).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never";
+
   return (
-    <div className="operations-systems-v510">
-      <section className="panel">
-        <div className="section-heading">
-          <div><p className="eyebrow">Operations 2.0</p><h2>Systems & Integrations</h2><p className="muted tight">Server-connected clients, worker/queue posture, recovery readiness, and integration provider health. Configuration stays with the domain that owns it.</p></div>
-          <ClusterButton type="button" variant="secondary" onClick={() => void load()} disabled={loadingRef.current}>Refresh</ClusterButton>
+    <div className="ao operations-systems-v510">
+      <div className="ao-bar">
+        <div className="ao-chips">
+          <span className="ao-chip" data-tone={clientPosture?.stale ? "warning" : "good"} title={`${clientPosture?.stale || 0} stale`}><span>Clients</span><b>{clientPosture ? `${clientPosture.active || 0}/${clientPosture.total || 0}` : "—"}</b></span>
+          {clientPosture?.conflicts ? <span className="ao-chip" data-tone="warning"><span>Conflicts</span><b>{clientPosture.conflicts}</b></span> : null}
+          <span className="ao-chip" data-tone={mediaWorkersTotal && !mediaWorkersOnline ? "warning" : "good"}><span>Media workers</span><b>{typeof mediaWorkersTotal === "number" ? `${mediaWorkersOnline || 0}/${mediaWorkersTotal}` : "—"}</b></span>
+          {reviewQueue ? <span className="ao-chip" data-tone="danger"><span>Media failures</span><b>{reviewQueue}</b></span> : null}
+          {snapshot?.queues?.stalledLeases ? <span className="ao-chip" data-tone="danger"><span>Stalled</span><b>{snapshot.queues.stalledLeases}</b></span> : null}
+          <span className="ao-chip" data-tone={!snapshot?.backup?.enabled || snapshot?.backup?.latestVerificationOk === false ? "warning" : "good"} title={snapshot?.backup?.latestVerificationOk === false ? "Latest verification failed" : undefined}><span>Backups</span><b>{snapshot?.backup?.enabled ? snapshot.backup.generationCount || 0 : "Off"}</b></span>
         </div>
-        <div className="cluster-visual-summary-grid" aria-label="Systems at a glance">
-          {clientPosture && clientPosture.total != null && clientPosture.active != null && clientPosture.stale != null && <ClusterVisualComposition label="Connected clients" total={clientPosture.total} parts={[
-            { label: "Active", value: clientPosture.active, tone: "good" },
-            { label: "Stale", value: clientPosture.stale, tone: "warning" },
-            { label: "Other", value: Math.max(0, clientPosture.total - clientPosture.active - clientPosture.stale), tone: "neutral" },
-          ]} />}
-          {typeof mediaWorkersOnline === "number" && typeof mediaWorkersTotal === "number" && <ClusterVisualMeter label="Media workers online" value={mediaWorkersOnline} total={mediaWorkersTotal} tone={mediaWorkersTotal > 0 && mediaWorkersOnline === 0 ? "warning" : "good"} />}
-          <div className="cluster-visual-signal-list" role="status">
-            {clientPosture?.conflicts ? <span className="warning">{clientPosture.conflicts} sync conflicts</span> : null}
-            {reviewQueue ? <span className="danger">{reviewQueue} media failures</span> : null}
-            {snapshot?.queues?.stalledLeases ? <span className="danger">{snapshot.queues.stalledLeases} stalled leases</span> : null}
-            {snapshot?.backup?.latestVerificationOk === false ? <span className="danger">Backup verification failed</span> : null}
-            {snapshot && !clientPosture?.conflicts && !reviewQueue && !snapshot.queues?.stalledLeases && snapshot.backup?.latestVerificationOk !== false ? <span className="good">No reported queue or sync blockers</span> : null}
-          </div>
-        </div>
-        <details className="cluster-visual-advanced"><summary>System counts & recovery evidence</summary><div className="cluster-visual-advanced__body">
-        <ClusterMetricStrip label="Systems summary" items={[
-          { label: "Sync clients", value: clientPosture?.total ?? clients?.total ?? "—", detail: `${clientPosture?.active || 0} active · ${clientPosture?.stale || 0} stale`, tone: clientPosture?.stale ? "warning" : "good" },
-          { label: "Sync conflicts", value: clientPosture?.conflicts ?? "—", detail: `${clientPosture?.failedReceipts24h || 0} failed receipts / 24h`, tone: clientPosture?.conflicts || clientPosture?.failedReceipts24h ? "warning" : "good" },
-          { label: "Media workers", value: snapshot?.media?.workers ? `${snapshot.media.workers.online || 0}/${snapshot.media.workers.total || 0}` : "—", detail: `${snapshot?.media?.queue?.running || 0} running`, tone: snapshot?.media?.workers?.total && !snapshot?.media?.workers?.online ? "warning" : "good" },
-          { label: "Media review", value: reviewQueue, detail: `${snapshot?.media?.queue?.queued || 0} queued`, tone: reviewQueue ? "danger" : "good" },
-          { label: "Queue leases", value: snapshot?.queues?.stalledLeases ?? "—", detail: `${snapshot?.queues?.rows?.length || 0} active queues`, tone: snapshot?.queues?.stalledLeases ? "danger" : "good" },
-          { label: "Recovery", value: snapshot?.backup?.enabled ? `${snapshot.backup.generationCount || 0} backups` : "Disabled", detail: snapshot?.backup?.latestVerificationOk === false ? "latest verification failed" : snapshot?.backup?.latestVerificationOk ? "latest verified" : "verification pending", tone: !snapshot?.backup?.enabled || snapshot?.backup?.latestVerificationOk === false ? "warning" : "good" },
-        ]} />
-        </div></details>
-        <div className="button-row">
-          <label>Client search<ClusterTextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, platform, or version" /></label>
-          <label>Client state<ClusterNativeSelect value={state} onChange={(event) => setState(event.target.value as typeof state)}><option value="all">All clients</option><option value="active">Active</option><option value="stale">Stale</option></ClusterNativeSelect></label>
-        </div>
-        <ClusterDataTable rows={clients?.clients || []} columns={clientColumns} rowKey={(client) => client.id} rowLabel={(client) => client.name} label="Registered sync clients" configurableColumns persistKey="admin-operations-sync-clients" empty={<ClusterEmptyState compact kind="empty" title="No registered clients match" description="Adjust the filter or wait for a registered client to report in." />} />
-        <p className="muted">{status}</p>
-      </section>
-        <section className="panel" aria-label="API Tool Manager">
-          <div className="section-heading">
-            <div><p className="eyebrow">API Tool Manager · read-only</p><h3>Tool request and dependency health</h3><p className="muted tight">Passive HTTP measurements plus bounded server-side checks of known dependencies. No endpoint sweep or external HTTP probe. Passing dependencies do not certify individual tools.</p></div>
-          </div>
-          <div className="button-row"><ClusterButton type="button" variant="secondary" disabled={dependencyCheckBusy} aria-busy={dependencyCheckBusy} onClick={() => void checkDependencies()}>{dependencyCheckBusy ? "Checking…" : "Check dependencies now"}</ClusterButton><span className="muted" role="status">{dependencyCheckStatus}</span></div>
-          {apiToolError ? <p role="alert" className="muted">API diagnostics unavailable: {apiToolError}</p> : null}
-          {apiTools && <ClusterVisualComposition label="Observed API tools" total={apiTools.tools.length} parts={[
-            { label: "Healthy traffic", value: apiTools.counts["observed-healthy"], tone: "good" },
-            { label: "Warning", value: apiTools.counts.warning, tone: "warning" },
-            { label: "Degraded", value: apiTools.counts.degraded, tone: "danger" },
-            { label: "Not measured", value: apiTools.counts["no-observations"] + apiTools.counts["insufficient-data"], tone: "neutral" },
-          ]} />}
-          <details className="cluster-visual-advanced"><summary>API traffic counts</summary><div className="cluster-visual-advanced__body">
-          <ClusterMetricStrip label="API tool traffic" items={[
-            { label: "Registered tools", value: apiTools?.tools.length ?? "—", detail: "Canonical server domains", tone: "good" },
-            { label: "Normal metrics", value: apiTools?.counts["observed-healthy"] ?? "—", detail: "Measured traffic only", tone: "good" },
-            { label: "Warning", value: apiTools?.counts.warning ?? "—", detail: "Observed elevated latency/errors", tone: apiTools?.counts.warning ? "warning" : "good" },
-            { label: "Degraded", value: apiTools?.counts.degraded ?? "—", detail: "Observed elevated 5xx / p95", tone: apiTools?.counts.degraded ? "danger" : "good" },
-            { label: "No evidence", value: apiTools ? apiTools.counts["no-observations"] + apiTools.counts["insufficient-data"] : "—", detail: "Not a readiness verdict" },
-          ]} />
-          </div></details>
-          <div className="button-row">
-            <label>Find a tool<ClusterTextInput value={apiToolQuery} onChange={(event) => setApiToolQuery(event.target.value)} placeholder="Tool, route, or owner module" /></label>
-            <label>Observed posture<ClusterNativeSelect value={apiToolPosture} onChange={(event) => setApiToolPosture(event.target.value as ApiToolPosture | "all")}>
-              <option value="all">All tools</option>
-              {Object.entries(API_TOOL_POSTURE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </ClusterNativeSelect></label>
-          </div>
-          <ClusterDataTable rows={apiToolRows} columns={apiToolColumns} rowKey={(tool) => tool.key} rowLabel={(tool) => tool.label} label="Observed API tool metrics" configurableColumns persistKey="admin-operations-api-tools" empty={<ClusterEmptyState compact kind="empty" title="No tools match these filters" description="Adjust the tool search or observed posture filter." />} />
-          <details className="cluster-visual-advanced"><summary>Measurement scope & limitations</summary><div className="cluster-visual-advanced__body"><p className="muted">Dependencies checked: {timeLabel(apiTools?.dependencyReadiness?.sampledAt)}{apiTools?.dependencyReadiness?.stale ? " (stale or unavailable)" : ""}. The server samples known lifecycle, database, storage and scheduler signals on its own cadence; this page does not trigger active checks. Counts are since process start; latency percentiles reflect bounded recent samples. No per-tool authorization, route correctness or external connectivity is certified. Unclassified traffic: {apiTools?.unclassified.requests ?? "—"} requests.</p></div></details>
+        <span className="ao-bar__end">
+          {dependencyCheckStatus ? <span className="ao-msg" role="status">{dependencyCheckStatus}</span> : null}
+          <ClusterButton type="button" size="compact" variant="quiet" disabled={accelerationCheckBusy} title="Checks the Redis commands Cluster needs. It does not identify the server product." onClick={() => void checkAccelerationCompatibility()}>{accelerationCheckBusy ? "Testing…" : "Test Redis"}</ClusterButton>
+          <ClusterButton type="button" size="compact" variant="secondary" disabled={dependencyCheckBusy} aria-busy={dependencyCheckBusy} onClick={() => void checkDependencies()}>{dependencyCheckBusy ? "Checking…" : "Check dependencies"}</ClusterButton>
+        </span>
+      </div>
+
+      {accelerationCheck || accelerationCheckError ? <section className="ao-card" aria-label="Redis-compatible acceleration">
+        <h3 className="ao-card__title">Redis acceleration {accelerationCheck ? <span className="ao-pill" data-tone={accelerationCheck.status === "passed" ? "good" : "danger"}>{accelerationCheck.status === "passed" ? "Compatible" : accelerationCheck.status === "failed" ? "Failed" : "Unavailable"}</span> : null}</h3>
+        {accelerationCheckError ? <p className="ao-sub" role="alert">{accelerationCheckError}</p> : null}
+        {accelerationCheck ? <div className="ao-chips">{accelerationCheck.steps.map((step) => <span key={step.command} className="ao-chip" data-tone={step.ok ? "good" : "danger"}><span>{step.command}</span><b>{step.ok ? "✓" : "✕"}</b></span>)}</div> : null}
+      </section> : null}
+
+      <div className="ao-grid">
+        <section className="ao-card" aria-label="Registered sync clients">
+          <h3 className="ao-card__title">Clients <small>{clients?.total ?? ""}</small>
+            <ClusterSegmentedControl value={state} onChange={setState} label="Client state" options={[{ value: "all", label: "All" }, { value: "active", label: "Active" }, { value: "stale", label: "Stale" }]} />
+          </h3>
+          <label className="ao-search"><ClusterIcon name="search" aria-hidden="true" /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, platform or version" aria-label="Search clients" /></label>
+          {clients?.clients.length ? <ul className="ao-rows">{clients.clients.map((client) => <li key={client.id} className="ao-row ao-row--plain">
+            <span className="ao-row__main"><b title={client.id}>{client.name && !/^Unnamed client/i.test(client.name) ? client.name : client.platform && client.platform !== "unknown" ? client.platform : "Browser"}</b><small>{[client.platform, client.clientVersion].filter((value) => value && value !== "unknown").join(" · ") || client.id.slice(0, 8)}</small></span>
+            <span className="ao-row__end"><small>{short(client.lastSeenAt)}</small></span>
+          </li>)}</ul> : <p className="ao-empty">{status.startsWith("Loading") ? "Loading…" : "No clients match."}</p>}
         </section>
-      <section className="panel" aria-label="Redis-compatible acceleration protocol">
-        <div className="section-heading">
-          <div><p className="eyebrow">Acceleration · optional</p><h3>Redis-compatible backend verification</h3><p className="muted tight">Manually test Cluster's required Redis commands against the configured connection. This can help evaluate Garnet, but does not identify the server product or certify its Windows runtime.</p></div>
-        </div>
-        <div className="button-row"><ClusterButton type="button" variant="secondary" disabled={accelerationCheckBusy} aria-busy={accelerationCheckBusy} onClick={() => void checkAccelerationCompatibility()}>{accelerationCheckBusy ? "Testing…" : "Check configured backend"}</ClusterButton></div>
-        {accelerationCheckError ? <p role="alert">{accelerationCheckError}</p> : null}
-        {accelerationCheck && <div aria-live="polite">
-          <p><strong>{accelerationCheck.status === "passed" ? "Required commands responded" : accelerationCheck.status === "failed" ? "One or more protocol checks failed" : "Redis backend is unavailable or not configured"}</strong> · {timeLabel(accelerationCheck.checkedAt)}{accelerationCheck.cached ? " · cached" : ""}</p>
-          {accelerationCheck.steps.map(step => <p key={step.command} className={step.ok ? "muted tight" : "tight"}><strong>{step.command}:</strong> {step.ok ? "Supported" : "Failed or timed out"}</p>)}
-          <p className="muted tight">{accelerationCheck.note}</p>
-        </div>}
-        <p className="muted tight">Checks use temporary, expiring namespaced keys and a temporary Pub/Sub subscriber. The server limits repeated attempts; this view never contacts arbitrary hosts and does not enable or install Garnet automatically. PostgreSQL remains authoritative.</p>
-      </section>
-      <IntegrationProvidersPanel />
+
+        <section className="ao-card" aria-label="API tools">
+          <h3 className="ao-card__title">API tools <small>{apiTools?.tools.length ?? ""}</small>
+            <ClusterNativeSelect aria-label="Observed posture" value={apiToolPosture} onChange={(event) => setApiToolPosture(event.target.value as ApiToolPosture | "all")}>
+              <option value="all">All</option>
+              {Object.entries(API_TOOL_POSTURE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </ClusterNativeSelect>
+          </h3>
+          <label className="ao-search"><ClusterIcon name="search" aria-hidden="true" /><input type="search" value={apiToolQuery} onChange={(event) => setApiToolQuery(event.target.value)} placeholder="Tool, route or module" aria-label="Find a tool" /></label>
+          {apiToolError ? <p className="ao-sub" role="alert">{apiToolError}</p> : null}
+          {apiToolRows.length ? <ul className="ao-rows">{apiToolRows.map((tool) => <li key={tool.key} className="ao-row" data-tone={toolTone(tool) || undefined}>
+            <i className="ao-dot" aria-hidden="true" />
+            <span className="ao-row__main"><b>{tool.label}</b><small title={(tool.dependencyReadiness?.dependencies || []).map((item) => `${item.key}: ${item.status} · ${item.detail}`).join("\n")}>{DEPENDENCY_POSTURE_LABELS[tool.dependencyReadiness?.posture || "not-sampled"]} · {API_TOOL_POSTURE_LABELS[tool.posture]}</small></span>
+            <span className="ao-row__end" title={tool.routes.map((route) => `${route.route}: ${route.count} requests, ${route.errors} 5xx, p95 ${Math.round(route.p95Ms)}ms`).join("\n")}>
+              <small>{tool.requests.toLocaleString()} req</small>
+              <small>{tool.requests ? `${(tool.serverErrorRate * 100).toFixed(1)}% 5xx` : "—"}</small>
+              <small>{tool.highestRouteP95Ms == null ? "—" : `${Math.round(tool.highestRouteP95Ms)} ms`}</small>
+            </span>
+          </li>)}</ul> : <p className="ao-empty">No tools match.</p>}
+          {apiTools ? <p className="ao-sub">Dependencies checked {short(apiTools.dependencyReadiness?.sampledAt).toLowerCase()}{apiTools.dependencyReadiness?.stale ? " (stale)" : ""}. Traffic counts since server start.</p> : null}
+        </section>
+      </div>
     </div>
   );
 }

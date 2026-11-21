@@ -39,12 +39,10 @@ export const ADMIN_OPERATIONS_CONTEXT = {
     { id: "systems", label: "System health" },
     { id: "maintenance", label: "Maintenance" },
     { id: "persistence", label: "Data persistence" },
-    { id: "stabilization", label: "Stabilization" },
   ],
   reports: [
     { id: "reports", label: "Reports & audit" },
     { id: "imports", label: "Imports" },
-    { id: "data-model", label: "Data model" },
     { id: "templates", label: "Templates" },
     { id: "changelog", label: "Changelog" },
   ],
@@ -53,8 +51,8 @@ export const ADMIN_OPERATIONS_CONTEXT = {
 export function canonicalAdminOperationsSection(section: AdminSection): AdminSection {
   if (section === "permissions" || section === "security-center") return "approvals";
   if (section === "operations-center" || section === "jobs") return "jobs";
-  if (section === "maintenance" || section === "persistence" || section === "stabilization" || section === "system") return "systems";
-  if (section === "imports" || section === "data-model" || section === "templates" || section === "changelog" || section === "activity") return "reports";
+  if (section === "maintenance" || section === "persistence" || section === "system") return "systems";
+  if (section === "imports" || section === "templates" || section === "changelog" || section === "activity") return "reports";
   return section;
 }
 
@@ -63,8 +61,8 @@ export function coerceAdminWorkspaceSection(scope: AdminPageScope, requested?: A
   if (requested === "incidents" || requested === "jobs" || requested === "security-center" || requested === "systems" || requested === "reports" || requested === "overview" || requested === "approvals") return requested;
   if (requested === "permissions") return "security-center";
   if (requested === "operations-center") return "jobs";
-  if (["maintenance", "system", "persistence", "stabilization"].includes(String(requested || ""))) return "systems";
-  if (["activity", "imports", "changelog", "data-model", "templates"].includes(String(requested || ""))) return "reports";
+  if (["maintenance", "system", "persistence"].includes(String(requested || ""))) return "systems";
+  if (["activity", "imports", "changelog", "templates"].includes(String(requested || ""))) return "reports";
   return "overview";
 }
 

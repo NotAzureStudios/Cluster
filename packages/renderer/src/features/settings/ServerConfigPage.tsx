@@ -1444,7 +1444,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   }> = [
     { id: "overview", label: "Overview", group: "Runtime", icon: "home" },
     { id: "performance", label: "Performance & resources", group: "Runtime", icon: "settings", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "performance").length },
-    { id: "maintenance", label: "Maintenance", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
+    { id: "maintenance", label: "Updates", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
     { id: "network", label: "Network", group: "Runtime", icon: "cloud", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
     { id: "domains", label: "Domains & gateways", group: "Runtime", icon: "link" },
     { id: "advanced", label: "All settings", group: "Runtime", icon: "settings", count: serverManagedKeys.length },

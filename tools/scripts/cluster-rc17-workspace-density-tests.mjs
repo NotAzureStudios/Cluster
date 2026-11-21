@@ -19,7 +19,7 @@ assert.match(studio, /activeId=\{section\}/, 'Actual current section must be sel
 assert.match(studio, /STUDIO_SETTINGS_NAV_ICONS\[(?:item\.)?key\]/, 'Each Studio Settings navigation item gets a semantic icon');
 assert.match(nav, /item\.icon && <ClusterIcon/, 'Navigation uses semantic icon boundary');
 assert.match(studioCss, /RC17 density/);
-assert.match(directory, /cluster-tool-hub__card/);
+assert.match(directory, /export const BUILTIN_TOOL_DIRECTORY/);
 assert.match(inv, /cluster-inventory-catalog/);
 assert.match(inv, /assetCreatorOpen && <div/, 'Asset creation should be on demand');
 assert.match(inv, /<details className="settings-card-v092 cluster-resource-disclosure"/, 'Asset edits should be on demand');

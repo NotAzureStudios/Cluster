@@ -57,8 +57,8 @@ assert.match(repo,/className="scm-detail"/);
 assert.match(repo,/visibleRepositories\.map/);
 assert.match(repo,/aria-current=\{selectedRepositoryId === repository\.id \|\| undefined\}/);
 assert.match(repo,/syncRepository\(selectedRepository\)/);
-assert.match(directory,/cluster-tool-hub__categories/);
-assert.match(directory,/groupFilter === "all" \|\| tool\.group === groupFilter/);
+// Tool infrastructure: one searchable list grouped by tool group.
+assert.match(directory,/group: TOOL_GROUPS\[id\]/);
 assert.match(css,/\.cluster-inventory-filters/);
 assert.match(css,/\.cluster-vault-toolbar\{grid-template-columns:minmax\(180px/);
 assert.ok(JSON.parse(read('config/release-candidate.json')).sequence >= 18, 'RC18 regressions remain active in later candidates');

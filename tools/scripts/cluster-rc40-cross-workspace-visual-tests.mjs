@@ -23,20 +23,18 @@ function requireText(path, needles){
   return text;
 }
 const prefix='packages/renderer/src/';
+// Systems and incidents: status chips, then cards of rows.
 requireText(prefix+'features/admin/OperationsSystemsPanel.tsx', [
-  'ClusterVisualComposition label="Connected clients"',
-  'clientPosture.total != null && clientPosture.active != null && clientPosture.stale != null',
-  'ClusterVisualMeter label="Media workers online"',
-  '<summary>System counts & recovery evidence</summary>',
-  'ClusterVisualComposition label="Observed API tools"',
-  'apiTools.counts["no-observations"] + apiTools.counts["insufficient-data"]',
-  '<summary>Measurement scope & limitations</summary>',
+  'aria-label="Registered sync clients"',
+  '<span>Media workers</span>',
+  'aria-label="API tools"',
+  'apiTools.dependencyReadiness?.stale',
 ]);
 requireText(prefix+'features/admin/OperationsIncidentsPanel.tsx', [
-  'ClusterVisualComposition label="Open incident severity"',
-  'ClusterVisualComposition label="Operational checks"',
+  'title={`${criticalIncidents} critical · ${highIncidents} high`}',
+  'data-tone={unhealthyChecks.length ? "warning" : "good"}',
   'health?.performanceBudgets?.failures',
-  '<summary>Exact incident & diagnostic counts</summary>',
+  'aria-label="Health checks"',
 ]);
 requireText(prefix+'features/admin/BackgroundJobsPanel.tsx', [
   'ClusterVisualComposition label="Retained job states"',

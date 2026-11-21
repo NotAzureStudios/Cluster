@@ -24,8 +24,9 @@ const checks = [
   ["restart field metadata", server.includes("Restart after save") && server.includes("Takes effect after the server restarts")],
   ["server network chip is not public proof", server.includes("Local startup verified")],
   ["integration health uses observed healthState", integrations.includes("integrationStateTone(connection.healthState)") && integrations.includes("Last check healthy")],
-  ["integration provider is availability not health", integrations.includes('label: "Discord provider"') && integrations.includes('detail: botTokenConfigured || webhookConfigured ? "Credentials configured · health unverified"')],
-  ["discord OAuth configuration is not a live test", integrations.includes("Configuration present · test account linking")],
+  // The Discord overview reports observed bot state, never configured-as-healthy.
+  ["integration provider is availability not health", integrations.includes('discordBotState?.state || "Not checked"') && integrations.includes('"OAuth not configured"')],
+  ["discord OAuth configuration is not a live test", integrations.includes("Configured · test by linking an account")],
   ["integration telemetry scoped styling", adminCss.includes(".admin-integration-health-cell-v103")],
   ["form/policy version publication from records", systems.includes('version.status === "published"') && systems.includes("formsWithPublishedVersion") && systems.includes("policiesWithPublishedVersion")],
   ["form/policy chips", systems.includes("formTone(") && systems.includes("policyTone(")],

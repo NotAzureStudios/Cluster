@@ -77,7 +77,7 @@ test('Shared action gate maintains separate UI feedback and synchronous lock own
  assert.match(flight,/gate.current.leave\(id\)/);
 });
 test('Confirmed mutations retain status while a silent health refresh runs',()=>{
- assert.match(incidents,/if \(!silent\) setStatus\(`Operational evidence refreshed/);
+ assert.match(incidents,/if \(!silent\) setStatus\(""\)/);
  assert.match(incidents,/if \(!silent\) setStatus\(error instanceof Error/);
 });
 test('Admin actions expose busy state and suppress stale reads during checklist changes',()=>{

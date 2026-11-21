@@ -42,30 +42,6 @@ export type ActivityEvent = {
   card?: { id: string; title: string } | null;
 };
 
-export type StabilizationDiagnostic = {
-  ok: boolean;
-  version: string;
-  generatedAt: string;
-  checks: Array<{
-    key: string;
-    label: string;
-    status: "pass" | "warn" | "fail";
-    detail: string;
-  }>;
-  counts: Record<string, number>;
-  persistence: Array<{
-    system: string;
-    storage: string;
-    status: "persistent" | "local" | "planned";
-    note: string;
-  }>;
-  localCommands: string[];
-  security: Array<{
-    label: string;
-    status: "pass" | "warn" | "fail";
-    detail: string;
-  }>;
-};
 
 export type TeamAssignment = {
   user: User;
