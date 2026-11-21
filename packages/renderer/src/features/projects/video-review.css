@@ -243,3 +243,8 @@
 .vr-stage__viewer-tools { display: inline-flex; align-items: center; gap: 2px; }
 .vr-stage__viewer-tools:empty { display: none; }
 .vr-stage__viewer-tools .cluster-viewer-mode-switch { display: inline-flex; gap: 2px; }
+.vr-stage__head { align-items: center; }
+.vr-stage__title { flex: 1 1 auto; }
+.vr-stage__title p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vr-stage__actions { flex: none; flex-wrap: nowrap; gap: var(--space-1); }
+.vr-stage__open { width: 32px; padding: 0 !important; justify-content: center; }

@@ -420,7 +420,7 @@ export function ProjectVideoWorkspace({ project, media, users, videoEnabled, bui
           <div className="vr-stage__actions">
             <div className="vr-stage__viewer-tools" ref={setViewerToolbar} />
             {reviewHierarchy.compareCandidates.length ? <ClusterSelect ariaLabel="Compare with" value={compareVideoId} onChange={setCompareVideoId} options={[{ value: "", label: "No comparison" }, ...reviewHierarchy.compareCandidates.map((version) => ({ value: version.id, label: `Compare ${versionName(version)}` }))]} /> : null}
-            <ClusterLinkButton href={videoAssetUrl(selectedVideo)} target="_blank" rel="noreferrer" variant="quiet" size="compact">Open file</ClusterLinkButton>
+            <ClusterLinkButton className="vr-stage__open" href={videoAssetUrl(selectedVideo)} target="_blank" rel="noreferrer" variant="quiet" size="compact" aria-label="Open file" title="Open file"><ClusterIcon name="link" /></ClusterLinkButton>
             {canManage ? <><ClusterButton size="compact" variant="secondary" onClick={() => setApproval("changes")}>Request changes</ClusterButton><ClusterButton size="compact" variant="primary" onClick={() => setApproval("approved")}>Approve</ClusterButton></> : null}
           </div>
         </div>
