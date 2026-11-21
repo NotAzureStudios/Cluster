@@ -41,11 +41,13 @@ export function createServerResourceGovernorRuntime(input: {
     }
   })();
 
+  // Idle pooled connections report wait_event 'ClientRead' and stay open, so
+  // pressure counts only active statements and those blocked on locks.
   async function sampleDatabasePressure(now: number, sampledGeneration: number) {
     if (now - databaseSampleAt < (input.databaseSampleMs ?? (input.resourceGovernor.snapshot().mode === "normal" ? 30_000 : 5_000))) return;
     try {
       const rows = await input.prisma.$queryRawUnsafe(
-        "SELECT count(*)::int AS total, count(*) FILTER (WHERE state = 'active')::int AS active, count(*) FILTER (WHERE state = 'idle')::int AS idle, count(*) FILTER (WHERE wait_event IS NOT NULL)::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND application_name = $1",
+        "SELECT count(*)::int AS total, count(*) FILTER (WHERE state = 'active')::int AS active, count(*) FILTER (WHERE state = 'idle')::int AS idle, count(*) FILTER (WHERE state = 'active' AND wait_event_type = 'Lock')::int AS waiting FROM pg_stat_activity WHERE datname = current_database() AND application_name = $1",
         databaseApplicationName,
       ) as any[];
       const row = rows?.[0] || {};

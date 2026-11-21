@@ -196,7 +196,8 @@ export class RuntimeTelemetry {
       activeConnections: Math.max(0, Number(input.activeConnections || 0)),
       idleConnections: Math.max(0, Number(input.idleConnections || 0)),
       waitingConnections: Math.max(0, Number(input.waitingConnections || 0)),
-      utilization: poolMax > 0 ? Math.min(1, totalConnections / poolMax) : 0,
+      // Pools keep idle connections open; busy means connections doing work.
+      utilization: poolMax > 0 ? Math.min(1, Math.max(0, Number(input.activeConnections || 0)) / poolMax) : 0,
       sampledAt: new Date().toISOString(),
     };
   }
