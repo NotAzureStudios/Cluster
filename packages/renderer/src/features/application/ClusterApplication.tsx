@@ -515,6 +515,14 @@ export default function App() {
       window.setTimeout(() => { historyRestoreRef.current = false; }, 0);
     }
   }, []);
+  // A recovery notice describes the place the user was kept on; once they
+  // move somewhere else it no longer applies.
+  const noticeRouteRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${screen}|${projectId || ""}|${boardId || ""}|${whiteboardId || ""}`;
+    if (noticeRouteRef.current !== null && noticeRouteRef.current !== key) setNavigationNotice(null);
+    noticeRouteRef.current = key;
+  }, [screen, projectId, boardId, whiteboardId]);
   useEffect(() => {
     if (!signedOutKiosk) return;
     setSessionRecoveryMessage(null);
