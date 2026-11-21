@@ -2,11 +2,14 @@ import type { ClusterResourceAddress } from "@cluster/shared";
 import type { Card } from "./projects";
 import type { LocalComment } from "./workflow-access";
 
-export type WhiteboardTool = "select" | "pen" | "line" | "arrow" | "box" | "ellipse" | "diamond" | "sticky" | "process" | "terminator" | "database" | "cloud" | "actor" | "frame" | "callout" | "swimlane" | "card" | "text" | "eraser";
+export type WhiteboardTool = "select" | "pen" | "line" | "arrow" | "box" | "ellipse" | "diamond" | "sticky" | "process" | "terminator" | "database" | "cloud" | "actor" | "frame" | "callout" | "swimlane" | "chart" | "comment" | "card" | "text" | "eraser";
 
 export type WhiteboardPoint = { x: number; y: number; pressure?: number };
 
-export type WhiteboardShapeType = "box" | "ellipse" | "diamond" | "sticky" | "process" | "terminator" | "database" | "cloud" | "actor" | "frame" | "callout" | "swimlane";
+export type WhiteboardShapeType = "box" | "ellipse" | "diamond" | "sticky" | "process" | "terminator" | "database" | "cloud" | "actor" | "frame" | "callout" | "swimlane" | "chart" | "comment";
+
+/** Chart shapes read their data from `text`: an optional title line, then one "Label: value" per line. */
+export type WhiteboardChartKind = "bar" | "line" | "pie";
 
 export type WhiteboardPathElement = {
   id: string;
@@ -38,6 +41,12 @@ export type WhiteboardShapeElement = {
   shadow?: boolean;
   /** Frames marked as sections are navigable workspace regions, while remaining normal frame elements. */
   section?: boolean;
+  /** Chart shapes only. */
+  chartKind?: WhiteboardChartKind;
+  /** Comment shapes only: who wrote it, when, and whether it is resolved. */
+  author?: string | null;
+  createdAt?: string | null;
+  resolved?: boolean;
   categoryId?: string | null;
   labelIds?: string[];
   locked?: boolean;

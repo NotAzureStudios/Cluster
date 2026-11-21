@@ -88,7 +88,23 @@ export type ClusterIconName =
   | "warning"
   | "work"
   | "zoom-in"
-  | "zoom-out";
+  | "zoom-out"
+  | "pointer"
+  | "pen"
+  | "eraser"
+  | "square"
+  | "circle"
+  | "diamond"
+  | "sticky"
+  | "arrow"
+  | "line"
+  | "chart"
+  | "type"
+  | "undo"
+  | "redo"
+  | "info"
+  | "shapes"
+  | "frame";
 
 
 export type ClusterIconTreatment = "duotone" | "navigation" | "action";

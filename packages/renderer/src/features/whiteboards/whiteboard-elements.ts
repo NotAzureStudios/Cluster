@@ -166,7 +166,7 @@ export function arrowHeadPoints(x1: number, y1: number, x2: number, y2: number, 
 }
 
 export function isShapeElement(element: WhiteboardElement): element is WhiteboardShapeElement {
-  return element.type === "box" || element.type === "ellipse" || element.type === "diamond" || element.type === "sticky" || element.type === "process" || element.type === "terminator" || element.type === "database" || element.type === "cloud" || element.type === "actor" || element.type === "frame" || element.type === "callout" || element.type === "swimlane";
+  return element.type === "box" || element.type === "ellipse" || element.type === "diamond" || element.type === "sticky" || element.type === "process" || element.type === "terminator" || element.type === "database" || element.type === "cloud" || element.type === "actor" || element.type === "frame" || element.type === "callout" || element.type === "swimlane" || element.type === "chart" || element.type === "comment";
 }
 
 export function moveWhiteboardElement(element: WhiteboardElement, dx: number, dy: number): WhiteboardElement {
@@ -272,4 +272,29 @@ export function reflowWhiteboardConnectors(items: WhiteboardElement[]): Whiteboa
     const end = toBounds ? whiteboardConnectorAnchor(toBounds, fromCenter) : { x: element.x2, y: element.y2 };
     return { ...element, x1: Math.round(start.x), y1: Math.round(start.y), x2: Math.round(end.x), y2: Math.round(end.y) };
   });
+}
+
+/** Size a shape gets when it is placed with a click instead of dragged. */
+export function defaultWhiteboardShapeSize(type: string) {
+  if (type === "sticky") return { width: 180, height: 160 };
+  if (type === "chart") return { width: 340, height: 230 };
+  if (type === "comment") return { width: 240, height: 96 };
+  if (type === "frame" || type === "swimlane") return { width: 520, height: 320 };
+  if (type === "actor") return { width: 70, height: 120 };
+  return { width: 170, height: 100 };
+}
+
+export type WhiteboardChartDatum = { label: string; value: number };
+
+/** Title line (no colon) plus "Label: value" lines. */
+export function parseWhiteboardChart(text: string): { title: string; data: WhiteboardChartDatum[] } {
+  const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  let title = "";
+  const data: WhiteboardChartDatum[] = [];
+  for (const line of lines) {
+    const match = /^(.*?)[:=]\s*(-?\d+(?:\.\d+)?)\s*$/.exec(line);
+    if (match) data.push({ label: match[1].trim() || `#${data.length + 1}`, value: Number(match[2]) });
+    else if (!title && !data.length) title = line;
+  }
+  return { title, data: data.slice(0, 24) };
 }
