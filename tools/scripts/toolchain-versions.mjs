@@ -63,6 +63,13 @@ await textFile("apps/workstation-go/main.go", (text) => text.replace(/var buildV
 await textFile("packages/shared/src/index.ts", (text) => text.replace(/export const CLUSTER_SHARED_VERSION = "[^"]+";/, `export const CLUSTER_SHARED_VERSION = "${versions.cluster}";`));
 await textFile("apps/server/src/core/runtime-config.ts", (text) => text.replace(/const clusterVersion = options\.version \?\? "[^"]+";/, `const clusterVersion = options.version ?? "${versions.cluster}";`));
 
+// The Discord integration identifies itself to Discord and to the Server with the Cluster version.
+for (const relative of ["integrations/discord-bot/src/index.mjs", "integrations/discord-bot/src/register-commands.mjs"]) {
+  await textFile(relative, (text) => text.replace(/\b(ClusterDiscord(?:GatewayRelay|Bot))\/[0-9][0-9A-Za-z.-]*/g, `$1/${versions.cluster}`));
+}
+// Distribution profiles describe builds of this source version.
+await jsonFile("config/distribution-profiles.json", (profiles) => { profiles.sourceVersion = versions.cluster; });
+
 await textFile("apps/desktop-qt/CMakeLists.txt", (text) => text
   .replace(/cmake_minimum_required\(VERSION [^)]+\)/, `cmake_minimum_required(VERSION ${versions.cmake.minimum}...${versions.cmake.policyMaximum})`)
   .replace(/find_package\(Qt6 [^ ]+ REQUIRED/, `find_package(Qt6 ${versions.qt.majorMinor} REQUIRED`)

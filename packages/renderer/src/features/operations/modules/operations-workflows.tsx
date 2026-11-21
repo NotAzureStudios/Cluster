@@ -677,7 +677,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Work links</p>
-          <h2>Canonical relationship map</h2>
+          <h2>Relationship map</h2>
           <p className="muted tight">Project relationships now write to Cluster's shared Resource Graph. Loose text-only links are retired; every new edge points at a real resource ID.</p>
         </div>
         <span className="soft-pill">{projectLinks.length} linked</span>
@@ -724,7 +724,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
             <small>{compactDateTime(link.updatedAt || link.createdAt)}</small>
             <ClusterButton type="button" className="" onClick={() => setLinks(links.filter((item) => item.id !== link.id))} variant="quiet" size="compact">Remove</ClusterButton>
           </article>
-        )) : <div className="empty-state compact-empty">No canonical work links yet.</div>}
+        )) : <div className="empty-state compact-empty">No work links yet.</div>}
       </div>
     </section>
   );

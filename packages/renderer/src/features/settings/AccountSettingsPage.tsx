@@ -1766,7 +1766,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                         <option value="action-required">Mentions and action-required work</option>
                         <option value="all">All routed updates</option>
                       </ClusterNativeSelect>
-                      <small>Controls when Cluster may mention your linked Discord account. Your Cluster Inbox remains the canonical record.</small>
+                      <small>Controls when Cluster may mention your linked Discord account. Your Cluster Inbox remains the full record.</small>
                     </div>
                   </div>
                 </div>

@@ -1827,7 +1827,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           <section className="panel server-config-group-v238" aria-label="Resource governor safety policy">
             <div className="server-config-group-head-v238"><h2>Automatic overload protection</h2></div>
             <p className="muted tight">The governor continuously evaluates CPU, event-loop delay, database pressure and request latency. Busy, saturated and critical states still reduce background admission regardless of profile. The background worker cap cannot increase the server's physical capacity.</p>
-            <p className="muted tight">Saved configuration is authoritative. Changing these controls does not start or cancel a job.</p>
+            <p className="muted tight">Only saved configuration takes effect. Changing these controls does not start or cancel a job.</p>
           </section>
           <section className="panel server-config-group-v238" aria-label="Resource governor runtime diagnostics">
             <div className="server-config-group-head-v238">

@@ -291,7 +291,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
       </div>
       <div className="cluster-panel cluster-domain-workflow-card-v103" aria-label="Domain connectivity and deployment">
         <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103"><ClusterIcon name="cloud" aria-hidden="true" /></span><div><h3>Configure a gateway</h3><p>Choose how members connect, generate the deployment plan, then check local and public readiness.</p></div><SettingsStateChip tone={gatewayPlanSaved ? "info" : "neutral"}>{gatewayPlanSaved ? "Plan saved" : "Not configured"}</SettingsStateChip></div>
-        <p>Configure how members reach both the web frontend and API through one canonical address. Select a mode, save it, deploy its gateway configuration, then test from a separate device.</p>
+        <p>Configure how members reach both the web frontend and API through one address. Select a mode, save it, deploy its gateway configuration, then test from a separate device.</p>
         {!connectionBound && <p role="alert">First verify the domain and bind its hostname to this installation. A saved DNS binding alone does not expose the server.</p>}
         {connectionError && <p role="alert">{connectionError}</p>}
         {connectionLoading && <p role="status">Loading network deployment profile…</p>}

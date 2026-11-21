@@ -577,11 +577,11 @@ export function AdminMaintenanceToolsPanel({ onOpenOperationsCenter }: { project
 
   const actions = [
     { key: "search-rebuild", label: "Rebuild search index", detail: "Preview the current index posture, then queue a cancellable durable rebuild in Operations Center.", run: queueSearchRebuild, queued: true },
-    { key: "storage-verify", label: "Verify storage", detail: "Verify authoritative storage and surface integrity findings without deleting files.", run: verifyStorageIntegrity },
+    { key: "storage-verify", label: "Verify storage", detail: "Verify server storage and report integrity findings without deleting files.", run: verifyStorageIntegrity },
     { key: "data-integrity", label: "Scan data integrity", detail: "Refresh registered data-integrity evidence, including orphan/missing managed-data findings.", run: refreshDataIntegrity },
     { key: "storage-lifecycle", label: "Run storage lifecycle", detail: "Run the bounded storage lifecycle authority and refresh its health evidence.", run: runStorageLifecycle },
-    { key: "backup-create", label: "Create backup", detail: "Create an authoritative server backup now, using the same verified backup authority exposed by Server Configuration.", run: createBackupNow },
-    { key: "backup-verify", label: "Verify latest backup", detail: "Cryptographically and structurally verify the newest authoritative server backup.", run: verifyLatestBackup },
+    { key: "backup-create", label: "Create backup", detail: "Create a server backup now, the same way Server Configuration does.", run: createBackupNow },
+    { key: "backup-verify", label: "Verify latest backup", detail: "Verify the newest server backup, cryptographically and structurally.", run: verifyLatestBackup },
     { key: "restore-drill", label: "Validate restore", detail: "Run an isolated restore drill against the newest backup without replacing live workspace data.", run: runLatestRestoreDrill },
     { key: "retry-failed", label: "Retry failed operations", detail: "Preview and reauthorize a bounded batch of failed/dead-letter durable jobs through the operation retry command.", run: retryFailedOperations, queued: true },
     { key: "media-reprocess", label: "Reprocess failed media", detail: "Preview and requeue failed/dead-letter/cancelled media jobs through the existing durable media worker authority.", run: reprocessFailedMedia, queued: true },
@@ -593,7 +593,7 @@ export function AdminMaintenanceToolsPanel({ onOpenOperationsCenter }: { project
 
   return (
     <section className="panel maintenance-tools">
-      <div className="section-heading"><div><p className="eyebrow">Guarded maintenance</p><h3>Real server maintenance authorities</h3><p className="muted tight">Browser-only staged runs are retired. Actions call authoritative server workflows, use impact preview/confirmation when appropriate, and durable work remains traceable in Operations Center.</p></div>{onOpenOperationsCenter ? <ClusterButton type="button" variant="secondary" onClick={onOpenOperationsCenter}>Open Operations Center</ClusterButton> : null}</div>
+      <div className="section-heading"><div><p className="eyebrow">Guarded maintenance</p><h3>Real server maintenance authorities</h3><p className="muted tight">Browser-only staged runs are retired. Actions run on the server, use impact preview/confirmation when appropriate, and durable work remains traceable in Operations Center.</p></div>{onOpenOperationsCenter ? <ClusterButton type="button" variant="secondary" onClick={onOpenOperationsCenter}>Open Operations Center</ClusterButton> : null}</div>
       <div className="maintenance-actions">
         {actions.map((action) => <article key={action.key}><div><strong>{action.label}</strong><span>{action.detail}</span></div><ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => void action.run()}>{busy.startsWith(action.key) ? "Working…" : action.queued ? "Preview & run" : "Run"}</ClusterButton></article>)}
       </div>

@@ -2202,7 +2202,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="field"><label>Tracks</label><ClusterInput value={csv(preset.tracks)} onChange={(e) => updateProjectTypePreset(preset.id, { tracks: fromCsv(e.target.value) })} /></div>
                       <div className="field"><label>Category</label><ClusterInput value={preset.category || "general"} onChange={(e) => updateProjectTypePreset(preset.id, { category: e.target.value })} /></div>
                       <div className="field span-2"><label>Project tool availability</label>
-                        <small>One authoritative state per tool. On = shown by default, Optional = available when needed, Off = hidden for this Project Type.</small>
+                        <small>One state per tool. On = shown by default, Optional = available when needed, Off = hidden for this Project Type.</small>
                         <div className="project-type-tool-matrix-v5123">
                           {CLUSTER_PROJECT_TOOL_IDS.filter((tool) => tool !== "settings").map((tool) => {
                             const state = (preset.defaultTools || []).includes(tool) ? "on" : (preset.hiddenTools || []).includes(tool) ? "off" : "optional";

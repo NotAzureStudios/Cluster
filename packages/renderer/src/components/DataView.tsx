@@ -441,7 +441,7 @@ export function DataViewProjectionComposer({
     onChange([...projections, projection].slice(0, 4));
   }
   return <section className="cluster-data-projection-composer-v504" aria-label={label}>
-    <div className="cluster-data-derived-head-v504"><div><strong>{label}</strong><small>Compose grouped charts and pivot-style matrices from canonical semantic fields.</small></div></div>
+    <div className="cluster-data-derived-head-v504"><div><strong>{label}</strong><small>Build grouped charts and pivot tables from this view's fields.</small></div></div>
     <div className="cluster-data-derived-create-v504">
       <ClusterNativeSelect value={kind} onChange={(event) => setKind(event.target.value as "grouped" | "matrix")} aria-label="Projection type"><option value="grouped">Grouped chart</option><option value="matrix">Pivot matrix</option></ClusterNativeSelect>
       <ClusterNativeSelect value={dimensionA} onChange={(event) => setDimensionA(event.target.value)} aria-label="Primary projection dimension">{dimensions.map((field) => <option key={field.id} value={field.id}>{field.label}</option>)}</ClusterNativeSelect>
