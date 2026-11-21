@@ -134,3 +134,21 @@
 .cluster-video-timeline .cluster-video-review-marker[data-tone] { display: grid !important; place-items: center; grid-template-columns: auto !important; width: 14px !important; min-width: 0 !important; height: 26px !important; min-height: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; }
 .cluster-video-review-marker[data-tone] > span { min-width: 4px; }
 .cluster-video-review-marker[data-tone]:hover > span { min-width: 6px; }
+
+/* ---------- 3D: one control row under the model ---------- */
+.cluster-viewer-shell[data-medium="3d"] > .cluster-viewer-command-bar { display: none; }
+.cluster-three-controls { align-items: center; gap: 4px var(--space-2); min-height: 48px; padding: 6px var(--space-2); border-top: 0; }
+.cluster-three-control-group { gap: 2px; }
+.cluster-three-control-group.technical { padding-left: var(--space-2); }
+.cluster-three-controls-spacer { flex: 1; }
+.cluster-three-controls select.cluster-native-select-v495 { flex: none; width: auto !important; max-width: 150px; height: 30px; min-height: 30px; padding-block: 0; font-size: var(--cluster-font-size-xs); }
+.cluster-three-controls .cluster-button-v425 { min-height: 30px !important; height: 30px; font-size: var(--cluster-font-size-xs); }
+.cluster-three-controls .cluster-icon-button-v425 { width: 30px; }
+.cluster-three-hierarchy-tools { position: relative; }
+.cluster-three-hierarchy-tools > summary { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--cluster-radius-control); color: var(--cluster-workbench-muted); font-size: var(--cluster-font-size-xs); cursor: pointer; list-style: none; }
+.cluster-three-hierarchy-tools > summary::-webkit-details-marker { display: none; }
+.cluster-three-hierarchy-tools > summary:hover, .cluster-three-hierarchy-tools[open] > summary { background: var(--cluster-button-fill); color: var(--text); }
+.cluster-three-hierarchy-pop { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 6px); display: grid; gap: 4px; width: 320px; max-height: 340px; padding: 6px; border-radius: 10px; background: var(--cluster-workbench-panel); box-shadow: 0 10px 30px rgb(0 0 0 / .45); }
+.cluster-three-hierarchy-pop .cluster-three-hierarchy-list { max-height: 290px; overflow: auto; }
+.cluster-three-hierarchy-tools { flex: none; width: auto; }
+.cluster-three-hierarchy-tools > summary { width: auto; border: 0; background: transparent; }
