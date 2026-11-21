@@ -229,6 +229,7 @@ export type LibraryItemInteraction = {
   menu: (item: LibraryItem, event: ReactMouseEvent) => void;
   dragIds: (item: LibraryItem) => string[];
   dropInto: (folder: LibraryItem, ids: string[]) => void;
+  uploadInto: (folder: LibraryItem, files: File[]) => void;
 };
 const LIBRARY_DRAG_TYPE = "application/x-cluster-library-items";
 
@@ -242,11 +243,18 @@ function libraryDragProps(item: LibraryItem, interact: LibraryItemInteraction, r
     },
     onDragOver: (event: DragEvent<HTMLElement>) => {
       const internal = event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE);
-      if (reorderEnabled || (internal && item.type === "folder")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; event.currentTarget.classList.add("is-drop-target"); }
+      const files = event.dataTransfer.types.includes("Files");
+      if (reorderEnabled || ((internal || files) && item.type === "folder")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; event.currentTarget.classList.add("is-drop-target"); }
     },
     onDragLeave: (event: DragEvent<HTMLElement>) => { event.currentTarget.classList.remove("is-drop-target"); },
     onDrop: (event: DragEvent<HTMLElement>) => {
       event.currentTarget.classList.remove("is-drop-target");
+      // Files dragged in from the desktop upload straight into this folder.
+      if (item.type === "folder" && event.dataTransfer.files.length) {
+        event.preventDefault(); event.stopPropagation();
+        interact.uploadInto(item, Array.from(event.dataTransfer.files));
+        return;
+      }
       const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE);
       if (item.type === "folder" && raw && !reorderEnabled) {
         event.preventDefault(); event.stopPropagation();
@@ -1012,6 +1020,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       setItemMenu({ x: event.clientX, y: event.clientY, item });
     },
     dragIds: (item) => actionTargets(item),
+    uploadInto: (folder, files) => { if (files.length) void uploadSelection(files, false, folder.id); },
     dropInto: (folder, ids) => {
       const folderProject = folder.projectId || folder.project?.id || null;
       const crossing = items.filter((entry) => ids.includes(entry.id)).some((entry) => (entry.projectId || entry.project?.id || null) !== folderProject);
