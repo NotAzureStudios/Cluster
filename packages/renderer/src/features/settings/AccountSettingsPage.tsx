@@ -2004,26 +2004,8 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div>
                   </div>
                 </div>
-                <div className="settings-card-v092">
-                  <div className="settings-card-head-v092">
-                    <h3>Pinned tools</h3>
-                    <span>Personal only</span>
-                  </div>
-                  <div className="chip-row">
-                    {(settings.userPinnedToolsCsv || "Dashboard, Projects, Builds, QA")
-                      .split(",")
-                      .map((item) => item.trim())
-                      .filter(Boolean)
-                      .slice(0, 8)
-                      .map((item) => (
-                        <span className="soft-pill" key={item}>
-                          {item}
-                        </span>
-                      ))}
-                  </div>
-                </div>
                 <div className="settings-card-v092 span-2 shortcut-reference-v270">
-                  <div className="settings-card-head-v092"><h3>Keyboard reference</h3><span>Available app-wide</span></div>
+                  <div className="settings-card-head-v092"><h3>Keyboard</h3></div>
                   <div className="shortcut-reference-grid-v270">
                     <div><kbd>Ctrl K</kbd><span>Open command search</span></div>
                     <div><kbd>Ctrl /</kbd><span>Show available shortcuts</span></div>

@@ -94,7 +94,7 @@ export function DevicePerformanceSettingsSection() {
     <div className="settings-card-v092">
       <ClusterSettingsSection
         title="Rendering profile"
-        summary="Automatic uses detected hardware and OS accessibility settings. Other profiles override visual fidelity only."
+        summary="This device only."
       >
         <ClusterSettingsChoiceGroup<DevicePerformanceProfile>
           label="Rendering performance profile"
@@ -124,17 +124,17 @@ export function DevicePerformanceSettingsSection() {
             <option value="full">Full</option>
           </select>
         </ClusterSettingsRow>}
-        <p className="muted">Effective rendering tier: <strong>{capabilities.qualityTier}</strong>. Reduced transparency, forced colors, and unavailable backdrop effects always take priority.</p>
+        <p className="muted" title="Reduced transparency, forced colors and missing backdrop effects always take priority.">Current tier: <strong>{capabilities.qualityTier}</strong></p>
         {storageError && <p role="alert">This device blocked preference storage. No change was applied; check browser storage permissions.</p>}
       </ClusterSettingsSection>
     </div>
     <div className="settings-card-v092">
       <ClusterSettingsSection
         title="Performance diagnostics"
-        summary="Read existing in-session telemetry on demand. No extra polling or continuous profiler is started."
+        summary="Measured on demand; nothing runs in the background."
         actions={<>
-          <ClusterButton type="button" variant="secondary" disabled={sampling} onClick={captureFrameSample}>{sampling ? "Capturing…" : "Capture 5s frame sample"}</ClusterButton>
-          <ClusterButton type="button" variant="secondary" onClick={refreshMeasurements}>Refresh measurements</ClusterButton>
+          <ClusterButton type="button" variant="secondary" disabled={sampling} onClick={captureFrameSample}>{sampling ? "Capturing…" : "Sample frames"}</ClusterButton>
+          <ClusterButton type="button" variant="secondary" onClick={refreshMeasurements}>Measure</ClusterButton>
           <ClusterButton type="button" variant="secondary" onClick={downloadPerformanceReport}>Export report</ClusterButton>
         </>}
       >
@@ -144,11 +144,9 @@ export function DevicePerformanceSettingsSection() {
           <p className="muted">INP: {report.webVitals.inpMs == null ? "Unavailable" : report.webVitals.inpMs + " ms"} · JS heap: {report.memory.usedBytes == null ? "Unavailable" : (report.memory.usedBytes / 1048576).toFixed(1) + " MiB"}</p>
           <p className="muted">Frame sample: {report.frameSample ? `${report.frameSample.missedPercent}% estimated missed frames across ${report.frameSample.samples} sampled frame intervals` : "Not captured"}</p>
           <p className="muted">Document nodes: {domNodeCount === null ? "Unavailable" : domNodeCount.toLocaleString()} · Advisory budget: {domBudget.domNodeWarning.toLocaleString()} · {domNodeCount !== null && domNodeCount >= domBudget.domNodeHardLimit ? "Above hard-limit guideline" : domNodeCount !== null && domNodeCount >= domBudget.domNodeWarning ? "Above warning guideline" : "Within guideline"}</p>
-        </> : <p className="muted">Select Refresh measurements to inspect the current session. Metrics are unavailable until the browser records them.</p>}
+        </> : <p className="muted">No measurements yet.</p>}
         {samplingError && <p role="alert">{samplingError}</p>}
-        <p className="muted">Frame sampling is opt-in, lasts up to five seconds, and does not run continuously while idle. Exported reports stay on your device but may include resource filenames and timing metadata.</p>
       </ClusterSettingsSection>
     </div>
-    <p className="muted">Stored locally on this device and applied immediately. Server CPU/RAM limits, background workers, and transfer scheduling remain under Server Configuration.</p>
   </div>;
 }

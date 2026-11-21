@@ -85,7 +85,7 @@ assert.match(settings, /section === "performance" && !dirty/);
 assert.match(telemetry, /startPerformanceFrameSampling\(durationMs = 5_000, onComplete/);
 assert.match(telemetry, /startupFrameHandle = window\.requestAnimationFrame/);
 assert.doesNotMatch(telemetry, /frameHandle = window\.requestAnimationFrame\(\(timestamp\)/);
-assert.match(read("packages/renderer/src/features/settings/DevicePerformanceSettingsSection.tsx"), /Capture 5s frame sample/);
+assert.match(read("packages/renderer/src/features/settings/DevicePerformanceSettingsSection.tsx"), /captureFrameSample/);
 
 clearPerformanceMetrics();
 recordPerformanceMetric({

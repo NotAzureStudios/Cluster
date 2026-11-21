@@ -127,14 +127,14 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
         <div>
           <h2>My resources</h2>
         </div>
-        <ClusterButton disabled={loading || assetsLoading || Boolean(busyId)} onClick={() => { void load(); void loadAssets(); }}>Refresh assignments</ClusterButton>
+        <ClusterButton disabled={loading || assetsLoading || Boolean(busyId)} onClick={() => { void load(); void loadAssets(); }}>Refresh</ClusterButton>
       </div>
       {error && <div role="alert" className="settings-card-v092"><p>{error}</p><ClusterButton disabled={loading || Boolean(busyId)} onClick={() => void load()}>Retry</ClusterButton></div>}
       {notice && <p role="status" className="muted">{notice}</p>}
       {!loading && !assetsLoading && !keys.length && !allocations.length && !error && (
-        <ClusterEmptyState kind="first-use" title="No studio resources assigned" description="When a studio administrator assigns you a key, equipment, or license seat, it will appear here." />
+        <ClusterEmptyState compact kind="empty" title="Nothing assigned to you" description="Keys, equipment and license seats an admin assigns you appear here." />
       )}
-      <h3>Equipment & licenses <span className="inventory-resource-count-v22">{allocations.length}</span></h3>
+      {allocations.length > 0 && <h3>Equipment & licenses <span className="inventory-resource-count-v22">{allocations.length}</span></h3>}
       <div className="settings-card-grid-v092">
         {allocations.map((item) => (
           <article className="settings-card-v092" key={item.id}>
@@ -146,7 +146,7 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
       </div>
       {assetCursor && <ClusterButton disabled={assetsLoading} onClick={() => void loadAssets(assetCursor)}>Load more assets</ClusterButton>}
       {assetsLoading && <p className="muted" role="status">Loading assigned assets…</p>}
-      <h3>Keys <span className="inventory-resource-count-v22">{keys.length}</span></h3>
+      {keys.length > 0 && <h3>Keys <span className="inventory-resource-count-v22">{keys.length}</span></h3>}
       <div className="settings-card-grid-v092">
         {keys.map((key) => {
           const expired = Boolean(key.expiresAt && new Date(key.expiresAt) <= new Date());
@@ -175,7 +175,7 @@ export function MyInventoryLicensesPanel({ pinConfigured }: { pinConfigured: boo
       </div>
       {nextCursor && <ClusterButton disabled={loading || Boolean(busyId)} onClick={() => void load(nextCursor)}>Load more licenses</ClusterButton>}
       {loading && <p className="muted" role="status">Loading assigned licenses…</p>}
-      <p className="muted tight">Revealed values disappear from this panel after 20 seconds or when you leave Account Settings. Keys that have been revoked, redeemed, or closed by administrators cannot be revealed here. Copying a key does not clear your system clipboard.</p>
+      {keys.length > 0 && <p className="muted tight">Revealed keys hide again after 20 seconds.</p>}
     </section>
   );
 }
