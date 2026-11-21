@@ -1,0 +1,47 @@
+/* v2 first-run setup: the sign-in card's shape with a four-step strip. */
+.setup-v2 { min-height:100dvh; display:grid; place-items:center; padding:16px; background:var(--app-bg,#0d1116); color:var(--text); }
+.setup-v2-card { width:min(440px,100%); display:flex; flex-direction:column; gap:16px; padding:26px 26px 20px; border:1px solid var(--border); border-radius:16px; background:var(--panel); box-shadow:0 24px 60px rgb(0 0 0 / .32); }
+.setup-v2-head { display:flex; align-items:center; gap:12px; }
+.setup-v2-head img { width:34px; height:34px; object-fit:contain; }
+.setup-v2-head > div { display:grid; gap:1px; }
+.setup-v2-head h1 { margin:0; font-size:1.3rem; letter-spacing:-.02em; }
+.setup-v2-head span { color:var(--muted); font-size:.7rem; }
+.setup-v2-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.setup-v2-steps > button { display:grid; gap:6px; padding:0; border:0; background:none; color:var(--muted); font-size:.68rem; text-align:left; cursor:pointer; }
+.setup-v2-steps > button:disabled { cursor:default; }
+.setup-v2-steps i { display:block; height:3px; border-radius:2px; background:var(--border); }
+.setup-v2-steps > button.done i { background:color-mix(in srgb,var(--accent,#57c1ff) 55%,var(--border)); }
+.setup-v2-steps > button.active { color:var(--text); font-weight:600; }
+.setup-v2-steps > button.active i { background:var(--accent,#57c1ff); }
+.setup-v2-body { display:grid; gap:12px; min-height:190px; align-content:start; }
+.setup-v2-field { display:grid; gap:5px; min-width:0; }
+.setup-v2-field > span { font-size:.72rem; font-weight:600; color:var(--muted); }
+.setup-v2-field input, .setup-v2-field select { width:100%; min-height:38px; border-radius:9px; }
+.setup-v2-field small { font-size:.66rem; color:var(--muted); }
+.setup-v2-field small.ok { color:var(--success,#4ade80); }
+.setup-v2-field small.bad { color:var(--danger); }
+.setup-v2-field [aria-invalid="true"] { border-color:var(--danger) !important; }
+.setup-v2-password > div { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; }
+.setup-v2-password > div > button { padding:0 10px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text); font-size:.7rem; cursor:pointer; }
+.setup-v2-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.setup-v2-link { justify-self:start; padding:0; border:0; background:none; color:var(--accent,#57c1ff); font-size:.72rem; cursor:pointer; }
+.setup-v2-link:hover { text-decoration:underline; }
+.setup-v2-import { display:grid; gap:8px; }
+.setup-v2-preview { display:grid; gap:6px; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:var(--surface); font-size:.72rem; }
+.setup-v2-preview ul { display:grid; gap:3px; margin:0; padding:0; list-style:none; }
+.setup-v2-preview li { display:flex; justify-content:space-between; gap:10px; }
+.setup-v2-preview li span { color:var(--muted); }
+.setup-v2-note { margin:0; color:var(--muted); font-size:.7rem; }
+.setup-v2-review { display:grid; gap:0; margin:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.setup-v2-review > div { display:grid; grid-template-columns:90px minmax(0,1fr); gap:10px; padding:9px 12px; border-bottom:1px solid var(--border); }
+.setup-v2-review > div:last-child { border-bottom:0; }
+.setup-v2-review dt { color:var(--muted); font-size:.7rem; }
+.setup-v2-review dd { margin:0; font-size:.76rem; overflow-wrap:anywhere; }
+.setup-v2-error { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid color-mix(in srgb,var(--danger) 50%,var(--border)); border-radius:9px; background:color-mix(in srgb,var(--danger) 10%,transparent); font-size:.74rem; }
+.setup-v2-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:4px; }
+.setup-v2-foot .cluster-button-v425 { min-width:96px; }
+@media (max-width:480px) {
+  .setup-v2 { padding:0; place-items:stretch; }
+  .setup-v2-card { border:0; border-radius:0; box-shadow:none; min-height:100dvh; justify-content:center; padding:22px 18px; }
+  .setup-v2-steps span { display:none; }
+}
