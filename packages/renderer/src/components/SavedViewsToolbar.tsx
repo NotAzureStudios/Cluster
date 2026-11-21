@@ -53,8 +53,13 @@ export function SavedViewsToolbar({
     restoredRef.current = true;
     if (!lastView || !autoRestore) return;
     onApply(lastView);
-    setRestoreStatus("Last working view restored");
   }, [lastViewState.hydrated, lastView, onApply, autoRestore]);
+
+  useEffect(() => {
+    if (!restoreStatus) return;
+    const timer = window.setTimeout(() => setRestoreStatus(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [restoreStatus]);
 
   useEffect(() => {
     if (!autoRestore) return;
@@ -85,7 +90,7 @@ export function SavedViewsToolbar({
     const nextViews = existing ? [view, ...views.filter((item) => item.id !== existing.id)] : [view, ...views];
     void setViews(nextViews.slice(0, 12));
     void setLastView(current);
-    setRestoreStatus(existing ? `Updated ${existing.name}` : "Saved and set as current view");
+    setRestoreStatus(existing ? `Updated ${existing.name}` : "Saved");
     setName("");
   }
 

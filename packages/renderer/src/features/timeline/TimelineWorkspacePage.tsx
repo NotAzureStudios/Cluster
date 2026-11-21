@@ -647,7 +647,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
                     <div className="tl-map__axis" aria-hidden="true">
                       {tickDates.map((tick) => (
                         <span key={tick.toISOString()} style={runtimeStyle({ left: `${Math.max(0, Math.min(100, ((tick.getTime() - rangeStartMs) / rangeSpan) * 100))}%` })}>
-                          {tick.toLocaleDateString([], { month: "short", year: "2-digit" })}
+                          {tick.toLocaleDateString([], tick.getMonth() === 0 || tick === tickDates[0] ? { month: "short", year: "numeric" } : { month: "short" })}
                         </span>
                       ))}
                     </div>

@@ -121,6 +121,7 @@
 
 .time-summary-card-v212 > p { margin: 0; color: var(--muted); font-size: .77rem; line-height: 1.5; }
 .time-progress-v212 span { display: block; height: 100%; border-radius: inherit; background: var(--time-accent); }
+.time-summary-card-v212 > .cluster-visual-meter { margin-bottom: 10px; }
 .time-summary-card-v212 dl { display: grid; gap: 7px; margin: 0; }
 .time-summary-card-v212 dl > div { display: flex; justify-content: space-between; gap: 12px; }
 .time-summary-card-v212 dt { color: var(--muted); font-size: .73rem; }
