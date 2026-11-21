@@ -30,7 +30,9 @@ export function describeLibraryBulkImpact(
   return {
     title: `${labels[action]} ${count} Library item${count === 1 ? "" : "s"}?`,
     message: `Affected selected items: ${count}\n${names}${remainder > 0 ? `\n…and ${remainder} more` : ""}${target}${descendants}${caution}\nOnly explicitly selected items will be sent. The server checks revisions and permissions again before writing; nested contents are not individually rewritten.`,
-    needsConfirmation: ["move", "archive", "trash", "restore"].includes(action) || count >= 25,
+    // Moving a few plain files is reversible and needs no prompt (drag-to-folder);
+    // folders, nested contents, lifecycle changes and large batches still confirm.
+    needsConfirmation: (action === "move" ? (folderCount > 0 || (scope?.descendantCount ?? 0) > 0 || count >= 10) : ["archive", "trash", "restore"].includes(action)) || count >= 25,
     count,
   };
 }

@@ -27,11 +27,14 @@ export function ClusterActionMenu({
   iconOnly = false,
   align = "end",
   className = "",
+  icon = "more",
 }: {
   label: string;
   items: ClusterActionMenuItem[];
   triggerLabel?: string;
   iconOnly?: boolean;
+  /** The trigger's glyph; "more" (⋯) unless the menu is, say, a create menu (+). */
+  icon?: ClusterIconName;
   align?: "start" | "end";
   className?: string;
 }) {
@@ -52,9 +55,9 @@ export function ClusterActionMenu({
   return (
     <div className={`cluster-action-menu-v428 align-${align} ${className}`.trim()}>
       {iconOnly ? (
-        <ClusterIconButton {...triggerProps} disabled={actionExecution.busy} label={label} size="compact"><ClusterIcon name="more" /></ClusterIconButton>
+        <ClusterIconButton {...triggerProps} disabled={actionExecution.busy} label={label} size="compact"><ClusterIcon name={icon} /></ClusterIconButton>
       ) : (
-        <ClusterButton {...triggerProps} disabled={actionExecution.busy} variant="secondary" size="compact"><ClusterIcon name="more" />{triggerLabel}</ClusterButton>
+        <ClusterButton {...triggerProps} disabled={actionExecution.busy} variant="secondary" size="compact"><ClusterIcon name={icon} />{triggerLabel}</ClusterButton>
       )}
       <ClusterFloatingSurface
         open={open}

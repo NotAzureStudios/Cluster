@@ -3,7 +3,7 @@ import { downloadAuthenticatedClusterFile } from "../../core/browser-download-tr
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
@@ -18,7 +18,8 @@ import { ClusterSegmentedControl } from "../../components/ClusterSegmentedContro
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterModal } from "../../components/ClusterModal";
-import { ClusterActionMenu, ClusterBulkActionBar } from "../../components/ClusterContextActions";
+import { ClusterActionMenu, ClusterBulkActionBar, type ClusterActionMenuItem } from "../../components/ClusterContextActions";
+import { ClusterContextMenuSurface } from "../../components/ClusterContextMenu";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { SavedViewsToolbar } from "../../components/SavedViewsToolbar";
 import { ColorField } from "../../components/ColorField";
@@ -104,7 +105,8 @@ function FolderAppearancePicker({ color, icon, onColor, onIcon, compact = false 
   </div>;
 }
 
-function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFolder, onOpenItem, onCreateFolder, onManagePermissions }: {
+function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFolder, onOpenItem, onCreateFolder, onManagePermissions, onDropInto }: {
+  onDropInto?: (folder: LibraryItem, ids: string[]) => void;
   folders: LibraryItem[];
   files: LibraryItem[];
   activeId: string | null;
@@ -164,7 +166,10 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
         const hasChildren = Boolean((byParent.get(folder.id) || []).length || (showFiles && (filesByParent.get(folder.id) || []).length));
         const folderOpen = expanded.has(folder.id);
         return <div key={folder.id} className="library-tree-branch-v229">
-          <div className={`library-tree-row-v229${activeId === folder.id ? " active" : ""}`} style={runtimeStyle({ ...folderStyle(folder), paddingLeft: `${8 + depth * 13}px` })}>
+          <div className={`library-tree-row-v229${activeId === folder.id ? " active" : ""}`} style={runtimeStyle({ ...folderStyle(folder), paddingLeft: `${8 + depth * 13}px` })}
+            onDragOver={(event) => { if (onDropInto && event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; event.currentTarget.classList.add("is-drop-target"); } }}
+            onDragLeave={(event) => event.currentTarget.classList.remove("is-drop-target")}
+            onDrop={(event) => { event.currentTarget.classList.remove("is-drop-target"); const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE); if (!onDropInto || !raw) return; event.preventDefault(); try { const ids = (JSON.parse(raw) as string[]).filter((id) => id !== folder.id); if (ids.length) onDropInto(folder, ids); } catch { /* not ours */ } }}>
             <ClusterButton unstyled type="button" className="library-tree-disclosure-v229" onClick={() => hasChildren && toggle(folder.id)} aria-label={`${folderOpen ? "Collapse" : "Expand"} ${folder.title}`} disabled={!hasChildren}><LibraryIcon name="chevron" size={14} className={folderOpen ? "open" : ""} /></ClusterButton>
             <ClusterButton unstyled type="button" className="library-tree-target-v229" onClick={() => { onOpenFolder(folder.id); if (hasChildren) setExpanded((current) => new Set(current).add(folder.id)); }}><LibraryIcon name={folderIconName(folder)} size={16} /><strong>{folder.title}</strong><em>{folder.childCount || 0}</em></ClusterButton>
             <ClusterActionMenu
@@ -192,15 +197,15 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
   );
   const allExpanded = expandableFolderIds.every((id) => expanded.has(id)) && expanded.has("root");
   return <div className="library-tree-shell-v229">
-    <div className="library-tree-toolbar-v13">
-      <label className="library-tree-files-toggle-v229"><ClusterInput type="checkbox" checked={showFiles} onChange={(event) => onShowFiles(event.target.checked)} /><span>Show files in tree</span></label>
-      <ClusterButton unstyled type="button" className="library-tree-expand-all-v13" onClick={() => setExpanded(allExpanded ? new Set(["root"]) : new Set(["root", ...expandableFolderIds]))}>{allExpanded ? "Collapse" : "Expand"} all</ClusterButton>
-    </div>
     <nav className="library-folder-tree-v229" aria-label="Library file architecture">
       <div className={`library-tree-row-v229 root${activeId === null ? " active" : ""}`}>
         <ClusterButton unstyled type="button" className="library-tree-disclosure-v229" onClick={() => rootHasChildren && toggle("root")} disabled={!rootHasChildren} aria-label={`${expanded.has("root") ? "Collapse" : "Expand"} Library`}><LibraryIcon name="chevron" size={14} className={expanded.has("root") ? "open" : ""} /></ClusterButton>
         <ClusterButton unstyled type="button" className="library-tree-target-v229" onClick={() => onOpenFolder(null)}><LibraryIcon name="folder" size={16} /><strong>Library</strong><em>{folders.filter((item) => !item.parentId).length}</em></ClusterButton>
-        <ClusterActionMenu label="Library root actions" iconOnly className="library-tree-folder-actions-v14" items={[{ id: "new-folder", label: "New folder", icon: "plus", onSelect: () => onCreateFolder(null) }]} />
+        <ClusterActionMenu label="Library root actions" iconOnly className="library-tree-folder-actions-v14" items={[
+          { id: "new-folder", label: "New folder", icon: "plus", onSelect: () => onCreateFolder(null) },
+          { id: "toggle-files", label: showFiles ? "Hide files in tree" : "Show files in tree", icon: "file", separatorBefore: true, onSelect: () => onShowFiles(!showFiles) },
+          { id: "toggle-expand", label: allExpanded ? "Collapse all" : "Expand all", icon: allExpanded ? "minimize" : "fullscreen", onSelect: () => setExpanded(allExpanded ? new Set(["root"]) : new Set(["root", ...expandableFolderIds])) },
+        ]} />
       </div>
       {renderBranch(null, 0)}
     </nav>
@@ -216,26 +221,68 @@ function PinnedShelf({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: L
   </section>;
 }
 
-function LibraryListRows({ items, activeId, selectedIds, onSelect, onOpen, onPreview, reorderEnabled = false, onReorder }: {
+/** How a Library item responds: click selects (Ctrl/⌘ adds, Shift ranges),
+ *  double-click opens, right-click shows actions, dragging onto a folder moves. */
+export type LibraryItemInteraction = {
+  pick: (item: LibraryItem, event: ReactMouseEvent) => void;
+  open: (item: LibraryItem) => void;
+  menu: (item: LibraryItem, event: ReactMouseEvent) => void;
+  dragIds: (item: LibraryItem) => string[];
+  dropInto: (folder: LibraryItem, ids: string[]) => void;
+};
+const LIBRARY_DRAG_TYPE = "application/x-cluster-library-items";
+
+function libraryDragProps(item: LibraryItem, interact: LibraryItemInteraction, reorderEnabled: boolean, onReorder?: (sourceId: string, targetId: string) => void) {
+  return {
+    draggable: true,
+    onDragStart: (event: DragEvent<HTMLElement>) => {
+      event.dataTransfer.effectAllowed = "move";
+      if (reorderEnabled) event.dataTransfer.setData("application/x-cluster-library-item", item.id);
+      event.dataTransfer.setData(LIBRARY_DRAG_TYPE, JSON.stringify(interact.dragIds(item)));
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      const internal = event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE);
+      if (reorderEnabled || (internal && item.type === "folder")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; event.currentTarget.classList.add("is-drop-target"); }
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => { event.currentTarget.classList.remove("is-drop-target"); },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      event.currentTarget.classList.remove("is-drop-target");
+      const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE);
+      if (item.type === "folder" && raw && !reorderEnabled) {
+        event.preventDefault(); event.stopPropagation();
+        try { const ids = (JSON.parse(raw) as string[]).filter((id) => id !== item.id); if (ids.length) interact.dropInto(item, ids); } catch { /* not ours */ }
+        return;
+      }
+      if (!reorderEnabled || !onReorder) return;
+      event.preventDefault();
+      const sourceId = event.dataTransfer.getData("application/x-cluster-library-item");
+      if (sourceId && sourceId !== item.id) onReorder(sourceId, item.id);
+    },
+  };
+}
+
+function LibraryListRows({ items, activeId, selectedIds, onSelect, interact, reorderEnabled = false, onReorder }: {
   items: LibraryItem[]; activeId: string | null; selectedIds: Set<string>;
-  onSelect: (item: LibraryItem, checked: boolean) => void; onOpen: (item: LibraryItem) => void; onPreview: (item: LibraryItem) => void;
+  onSelect: (item: LibraryItem, checked: boolean) => void; interact: LibraryItemInteraction;
   reorderEnabled?: boolean; onReorder?: (sourceId: string, targetId: string) => void;
 }) {
   return <div className="library-list-rows-v10" role="rowgroup">
-    {items.map((item) => <div key={item.id} className={`library-file-row-v217${activeId === item.id ? " active" : ""}${reorderEnabled ? " is-reorderable-v11" : ""}`} style={item.type === "folder" ? folderStyle(item) : undefined} role="row" aria-selected={selectedIds.has(item.id)} draggable={reorderEnabled} onDragStart={(event) => { if (!reorderEnabled) return; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-cluster-library-item", item.id); }} onDragOver={(event) => { if (reorderEnabled) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={(event) => { if (!reorderEnabled || !onReorder) return; event.preventDefault(); const sourceId = event.dataTransfer.getData("application/x-cluster-library-item"); if (sourceId && sourceId !== item.id) onReorder(sourceId, item.id); }}>
+    {items.map((item) => <div key={item.id} data-library-item-id={item.id} className={`library-file-row-v217${activeId === item.id ? " active" : ""}${selectedIds.has(item.id) ? " selected" : ""}${reorderEnabled ? " is-reorderable-v11" : ""}`} style={item.type === "folder" ? folderStyle(item) : undefined} role="row" aria-selected={selectedIds.has(item.id) || activeId === item.id}
+      onClick={(event) => { if ((event.target as HTMLElement).closest("label")) return; interact.pick(item, event); }} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, reorderEnabled, onReorder)}>
       <label aria-label={`Select ${item.title}`} role="cell"><ClusterInput type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => onSelect(item, event.target.checked)} /></label>
-      <ClusterButton unstyled type="button" role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} onClick={() => onPreview(item)} aria-label={`${item.type === "folder" ? "Open" : "Preview"} ${item.title}`} title={item.type === "folder" ? "Open folder" : "Preview file"}><LibraryIcon name={itemIconName(item)} size={20} /></ClusterButton>
-      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" onClick={() => onOpen(item)}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.originalName || item.snippet || item.type}</span></ClusterButton>
+      <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryIcon name={itemIconName(item)} size={20} /></div>
+      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.originalName || item.snippet || item.type}</span></ClusterButton>
       <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} items` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
     </div>)}
   </div>;
 }
 
-function LibraryGridCard({ item, active, selected, onSelect, onOpen, onPreview, reorderEnabled = false, onReorder }: { item: LibraryItem; active: boolean; selected: boolean; onSelect: (checked: boolean) => void; onOpen: () => void; onPreview: () => void; reorderEnabled?: boolean; onReorder?: (sourceId: string, targetId: string) => void }) {
+function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEnabled = false, onReorder }: { item: LibraryItem; active: boolean; selected: boolean; onSelect: (checked: boolean) => void; interact: LibraryItemInteraction; reorderEnabled?: boolean; onReorder?: (sourceId: string, targetId: string) => void }) {
   const isText = item.previewKind === "text";
-  return <article className={`library-grid-card-v219${active ? " active" : ""}${reorderEnabled ? " is-reorderable-v11" : ""}`} style={item.type === "folder" ? folderStyle(item) : undefined} draggable={reorderEnabled} onDragStart={(event) => { if (!reorderEnabled) return; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("application/x-cluster-library-item", item.id); }} onDragOver={(event) => { if (reorderEnabled) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }} onDrop={(event) => { if (!reorderEnabled || !onReorder) return; event.preventDefault(); const sourceId = event.dataTransfer.getData("application/x-cluster-library-item"); if (sourceId && sourceId !== item.id) onReorder(sourceId, item.id); }}>
+  return <article data-library-item-id={item.id} className={`library-grid-card-v219${active ? " active" : ""}${selected ? " selected" : ""}${reorderEnabled ? " is-reorderable-v11" : ""}`} style={item.type === "folder" ? folderStyle(item) : undefined} aria-selected={selected || active}
+    onClick={(event) => { if ((event.target as HTMLElement).closest("label")) return; interact.pick(item, event); }} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, reorderEnabled, onReorder)}>
     <label><ClusterInput type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.title}`} /></label>
-    <ClusterButton unstyled type="button" className={`library-grid-preview-v219 ${item.mimeGroup || item.type}`} onClick={onPreview} aria-label={`${item.type === "folder" ? "Open" : "Preview"} ${item.title}`}>
+    <ClusterButton unstyled type="button" className={`library-grid-preview-v219 ${item.mimeGroup || item.type}`} aria-label={`${item.title}. Double-click to ${item.type === "folder" ? "open" : "preview"}`}>
       {(item.previewKind === "youtube-video" || item.previewKind === "youtube-playlist") && item.youtubeThumbnailUrl ? <span className="library-youtube-card-v229"><img src={item.youtubeThumbnailUrl} alt="" loading="lazy" /><span><LibraryIcon name={item.previewKind === "youtube-playlist" ? "playlist" : "youtube"} size={16} />{item.previewKind === "youtube-playlist" ? "Playlist" : "YouTube"}</span></span>
         : item.previewKind === "image" && item.fileUrl ? <LibraryAuthenticatedImage item={item} compact />
         : item.previewKind === "video" ? <LibraryVideoThumbnail item={item} />
@@ -244,7 +291,7 @@ function LibraryGridCard({ item, active, selected, onSelect, onOpen, onPreview, 
             : isText ? <LibraryTextPreview item={item} compact />
               : <LibraryIcon name={itemIconName(item)} size={item.type === "folder" ? 58 : 52} />}
     </ClusterButton>
-    <ClusterButton unstyled type="button" className="library-grid-name-v217" onClick={onOpen}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
+    <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
   </article>;
 }
 
@@ -471,8 +518,8 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
   }
 
   const tabs: Array<[InspectorTab, string]> = item.type === "folder"
-    ? [["preview", "Folder"], ["references", "References"], ["lifecycle", "Lifecycle"], ["activity", "History"]]
-    : [["preview", "Preview"], ["description", "Description"], ["references", "References"], ["lifecycle", "Lifecycle"], ["activity", "History"]];
+    ? [["preview", "Folder"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]]
+    : [["preview", "Preview"], ["description", "Info"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]];
   return <aside className="library-inspector-v217">
     <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryIcon name={itemIconName(item)} size={22} /><span>{item.mimeType || item.type}</span><strong>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
     <div className="library-inspector-tabs-v217" role="tablist" style={runtimeStyle({ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` })}>{tabs.map(([value, label]) => <ClusterButton unstyled type="button" key={value} className={tab === value ? "active" : ""} onClick={() => onTab(value)}>{label}</ClusterButton>)}</div>
@@ -607,6 +654,12 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       return id ? { id, status: "QUEUED", progress: 0, message: "Recovering storage-repair status…", unresolved: null } : null;
     } catch { return null; }
   });
+  // A clean relocation after a move needs no banner; problems stay until dismissed.
+  useEffect(() => {
+    if (storageRepair?.status !== "SUCCEEDED" || storageRepair.unresolved) return;
+    const timer = window.setTimeout(() => setStorageRepair(null), 1500);
+    return () => window.clearTimeout(timer);
+  }, [storageRepair]);
   const [orphanAudit, setOrphanAudit] = useState<{
     id: string; status: string; progress: number; message: string;
     result?: { inspectedFiles: number; protectedReferences: number; agedUnreferenced: number; agedBytes: number; recentUnreferenced: number; symlinksSkipped: number; warning: string; sample: Array<{ relativePath: string; sizeBytes: number; modifiedAt: string }> } | null;
@@ -662,7 +715,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   const folderById = useMemo(() => new Map(folders.map((folder) => [folder.id, folder])), [folders]);
   const viewerIndex = viewerItem ? viewerIndexById.get(viewerItem.id) ?? -1 : -1;
   const selectedProtectedFolders = useMemo(() => Array.from(selectedIds, (id) => folderById.get(id)).filter((folder): folder is LibraryItem => Boolean(folder && isProtectedLibraryFolder(folder))), [folderById, selectedIds]);
-  const groupedItems = useMemo(() => groupLibraryItems(items, groupBy), [items, groupBy]);
+  // Folders come first (as in Finder and Explorer) unless the folder uses a custom order.
+  const groupedItems = useMemo(() => groupLibraryItems(filters.sort === "custom" ? items : [...items.filter((item) => item.type === "folder"), ...items.filter((item) => item.type !== "folder")], groupBy), [items, groupBy, filters.sort]);
   const reorderEnabled = filters.sort === "custom" && librarySection === "folder" && !deferredQuery && groupBy === "none";
 
   useEffect(() => {
@@ -878,6 +932,159 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     }
     setSelectedIds((current) => { const next = new Set(current); if (checked && next.size < MAX_LIBRARY_BULK_IDS) next.add(item.id); else if (!checked) next.delete(item.id); return next; });
     if (checked) void selectItem(item);
+  }
+
+  // ---------- File-manager interaction: selection, keyboard, menus, drag ----------
+  const selectionAnchorRef = useRef<string | null>(null);
+  const [itemMenu, setItemMenu] = useState<{ x: number; y: number; item: LibraryItem | null } | null>(null);
+  const [pendingBulk, setPendingBulk] = useState<{ action: Parameters<typeof runBulk>[0]; extra?: Record<string, unknown>; ids: string[] } | null>(null);
+  const itemMenuId = useId();
+  const itemMenuAnchorRef = useRef<HTMLDivElement | null>(null);
+  const itemMenuSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const visibleOrder = () => groupedItems.flatMap((group) => group.items);
+  // Bulk actions read the selection; a context action on one item selects it,
+  // then runs once React has committed that selection.
+  useEffect(() => {
+    if (!pendingBulk) return;
+    if (pendingBulk.ids.length !== selectedIds.size || pendingBulk.ids.some((id) => !selectedIds.has(id))) return;
+    const next = pendingBulk; setPendingBulk(null);
+    void runBulk(next.action, next.extra);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingBulk, selectedIds]);
+  function bulkOn(ids: string[], action: Parameters<typeof runBulk>[0], extra?: Record<string, unknown>) {
+    if (!ids.length) return;
+    setSelectedIds(new Set(ids));
+    setPendingBulk({ action, extra, ids });
+  }
+  function actionTargets(item: LibraryItem) {
+    return selectedIds.has(item.id) && selectedIds.size > 1 ? [...selectedIds] : [item.id];
+  }
+  function pickItem(item: LibraryItem, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) {
+    const additive = event.metaKey || event.ctrlKey;
+    if (event.shiftKey && (selectionAnchorRef.current || activeId)) {
+      const order = visibleOrder();
+      const from = order.findIndex((entry) => entry.id === (selectionAnchorRef.current || activeId));
+      const to = order.findIndex((entry) => entry.id === item.id);
+      if (from >= 0 && to >= 0) {
+        const range = order.slice(Math.min(from, to), Math.max(from, to) + 1).map((entry) => entry.id).slice(0, MAX_LIBRARY_BULK_IDS);
+        setSelectedIds((current) => new Set(additive ? [...current, ...range] : range));
+        setActiveId(item.id);
+        return;
+      }
+    }
+    if (additive) {
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        // The item already open in the inspector joins the selection on the first Ctrl/⌘ click.
+        if (!next.size && activeId && activeId !== item.id) next.add(activeId);
+        if (next.has(item.id)) next.delete(item.id); else if (next.size < MAX_LIBRARY_BULK_IDS) next.add(item.id);
+        return next;
+      });
+      selectionAnchorRef.current = item.id;
+      return;
+    }
+    selectionAnchorRef.current = item.id;
+    if (selectedIds.size) setSelectedIds(new Set());
+    void selectItem(item);
+  }
+  function openLibraryItem(item: LibraryItem) {
+    if (item.type === "folder") { libraryDetailHistory.closeDetail(); setFolderId(item.id); setActiveId(null); setActiveItem(null); setSelectedIds(new Set()); return; }
+    void openItemViewer(item);
+  }
+  async function renameLibraryItem(item: LibraryItem) {
+    const title = await promptCluster({ title: `Rename ${item.type === "folder" ? "folder" : "file"}`, message: "", label: "Name", initialValue: item.title, confirmLabel: "Rename" });
+    if (!title || !title.trim() || title.trim() === item.title) return;
+    try {
+      const updated = await api<LibraryItem>(`/api/library/${item.id}`, { method: "PATCH", body: JSON.stringify({ title: title.trim(), expectedRevision: item.revision }) });
+      handleSaved(updated);
+    } catch (reason) { setError(reason instanceof Error ? reason : new Error("Rename failed.")); }
+  }
+  function downloadLibraryItem(item: LibraryItem) {
+    if (item.type !== "file" || !item.hasFile) return;
+    void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true });
+  }
+  const itemInteraction: LibraryItemInteraction = {
+    pick: (item, event) => pickItem(item, event),
+    open: openLibraryItem,
+    menu: (item, event) => {
+      event.preventDefault(); event.stopPropagation();
+      if (!selectedIds.has(item.id)) { if (selectedIds.size) setSelectedIds(new Set()); void selectItem(item); }
+      setItemMenu({ x: event.clientX, y: event.clientY, item });
+    },
+    dragIds: (item) => actionTargets(item),
+    dropInto: (folder, ids) => {
+      const folderProject = folder.projectId || folder.project?.id || null;
+      const crossing = items.filter((entry) => ids.includes(entry.id)).some((entry) => (entry.projectId || entry.project?.id || null) !== folderProject);
+      if (crossing) { setError(new Error(`Items can only move within the same project. ${folder.title} belongs to ${folder.project?.name || (folderProject ? "another project" : "the workspace")}.`)); return; }
+      setBulkFolderId(folder.id); bulkOn(ids, "move", { parentId: folder.id });
+    },
+  };
+  function libraryMenuItems(item: LibraryItem | null): ClusterActionMenuItem[] {
+    const inTrash = librarySection === "trash";
+    if (!item) return [
+      { id: "new-folder", label: "New folder", icon: "folder", onSelect: () => beginCreateFolder() },
+      { id: "upload", label: "Upload files…", icon: "upload", onSelect: () => fileInput.current?.click() },
+      { id: "link", label: "Add link…", icon: "link", onSelect: () => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" }) },
+      { id: "select-all", label: "Select all", icon: "check", separatorBefore: true, disabled: !items.length, onSelect: selectLoadedLibraryItems },
+      { id: "refresh", label: "Refresh", icon: "refresh", onSelect: () => void loadWorkspace(true, true) },
+    ];
+    const ids = actionTargets(item);
+    const many = ids.length > 1;
+    const targets = items.filter((entry) => ids.includes(entry.id));
+    const allPinned = targets.length > 0 && targets.every((entry) => entry.pinned);
+    return [
+      ...(!many ? [
+        { id: "open", label: item.type === "folder" ? "Open" : "Open preview", icon: item.type === "folder" ? "folder" : "fullscreen", onSelect: () => openLibraryItem(item) } as ClusterActionMenuItem,
+        { id: "info", label: "Show details", icon: "panel-open", onSelect: () => void selectItem(item) } as ClusterActionMenuItem,
+        ...(item.type === "file" && item.hasFile ? [{ id: "download", label: "Download", icon: "download", onSelect: () => downloadLibraryItem(item) } as ClusterActionMenuItem] : []),
+        { id: "rename", label: "Rename…", icon: "note", separatorBefore: true, disabled: inTrash, onSelect: () => void renameLibraryItem(item) } as ClusterActionMenuItem,
+        { id: "favorite", label: favoriteIds.has(item.id) ? "Remove from favorites" : "Add to favorites", icon: "star", onSelect: () => void toggleFavorite(item) } as ClusterActionMenuItem,
+      ] : []),
+      { id: "pin", label: allPinned ? (many ? `Unpin ${ids.length} items` : "Unpin") : (many ? `Pin ${ids.length} items` : "Pin"), icon: "pin", separatorBefore: many, disabled: inTrash, onSelect: () => bulkOn(ids, "pin", { pinned: !allPinned }) },
+      { id: "move", label: many ? `Move ${ids.length} items…` : "Move to…", icon: "forward", disabled: inTrash, onSelect: () => { setSelectedIds(new Set(ids)); window.setTimeout(() => document.querySelector<HTMLElement>('[aria-label="Move selected Library items"]')?.focus(), 60); } },
+      ...(inTrash
+        ? [{ id: "restore", label: many ? `Restore ${ids.length} items` : "Restore", icon: "refresh", separatorBefore: true, onSelect: () => bulkOn(ids, "restore") } as ClusterActionMenuItem]
+        : [
+          { id: "archive", label: many ? `Archive ${ids.length} items` : "Archive", icon: "archive", separatorBefore: true, onSelect: () => bulkOn(ids, "archive") } as ClusterActionMenuItem,
+          { id: "trash", label: many ? `Move ${ids.length} items to Trash` : "Move to Trash", icon: "trash", danger: true, onSelect: () => bulkOn(ids, "trash") } as ClusterActionMenuItem,
+        ]),
+    ];
+  }
+  /** Arrow keys move through items (grid rows by column count), Enter opens,
+   *  Space previews, Delete trashes, F2 renames, Ctrl/⌘+A selects all, Esc clears. */
+  function handleResultsKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+    const order = visibleOrder();
+    if (!order.length) return;
+    const current = order.find((entry) => entry.id === activeId) || null;
+    const index = current ? order.indexOf(current) : -1;
+    const columns = (() => {
+      const cards = [...event.currentTarget.querySelectorAll<HTMLElement>(".library-grid-card-v219")];
+      if (cards.length < 2) return 1;
+      const top = cards[0].offsetTop;
+      const count = cards.findIndex((card) => card.offsetTop !== top);
+      return count > 0 ? count : cards.length;
+    })();
+    const step: Record<string, number> = layout === "grid" || layout === "compact-grid"
+      ? { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns }
+      : { ArrowDown: 1, ArrowUp: -1 };
+    if (event.key in step) {
+      event.preventDefault();
+      const next = order[Math.max(0, Math.min(order.length - 1, index < 0 ? 0 : index + step[event.key]))];
+      if (next) {
+        pickItem(next, { shiftKey: event.shiftKey, metaKey: false, ctrlKey: false });
+        event.currentTarget.querySelector<HTMLElement>(`[data-library-item-id="${next.id}"]`)?.scrollIntoView({ block: "nearest" });
+      }
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") { event.preventDefault(); selectLoadedLibraryItems(); return; }
+    if (event.key === "Escape" && (selectedIds.size || itemMenu)) { event.preventDefault(); setSelectedIds(new Set()); setItemMenu(null); return; }
+    if (!current) return;
+    if (event.key === "Enter") { event.preventDefault(); openLibraryItem(current); }
+    else if (event.key === " " && current.type !== "folder") { event.preventDefault(); void openItemViewer(current); }
+    else if (event.key === "F2" && librarySection !== "trash") { event.preventDefault(); void renameLibraryItem(current); }
+    else if ((event.key === "Delete" || (event.key === "Backspace" && event.metaKey)) && librarySection !== "trash") { event.preventDefault(); bulkOn(actionTargets(current), "trash"); }
   }
 
   async function toggleFavorite(item: LibraryItem) {
@@ -1859,7 +2066,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     return [...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0])).slice(0, 8);
   }, [items]);
   const searchScopeLabel = searchScope === "folder" ? "This folder" : searchScope === "descendants" ? "Folder + subfolders" : searchScope === "project" ? "Current project" : "Entire Library";
-  const activeFilterCount = Object.entries(filters).filter(([key, value]) => !(["projectId", "ownerId", "tag"].includes(key) ? !value : ["type", "mimeGroup", "visibility"].includes(key) ? value === "all" : key === "activity" ? value === "active" : key === "modified" ? value === "any" : key === "pinned" ? value === "all" : key === "sort" ? value === "updated-desc" : false)).length + (query ? 1 : 0);
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => !(["projectId", "ownerId", "tag"].includes(key) ? !value : ["type", "mimeGroup", "visibility"].includes(key) ? value === "all" : key === "status" || key === "activity" ? value === "active" : key === "modified" ? value === "any" : key === "pinned" ? value === "all" : key === "sort" ? value === "updated-desc" : false)).length + (query ? 1 : 0);
   const savedLibraryView = useMemo(() => ({ ...filters, query, layout, searchScope, groupBy }), [filters, query, layout, searchScope, groupBy]);
   function applySavedLibraryView(values: Record<string, string>) {
     setQuery(values.query || "");
@@ -1918,16 +2125,18 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         </div>}
       </div>
 
-      <ClusterResizableRail className="library-browser-grid-v429" label="Library Explorer" persistKey="library-folders" minWidth={240} defaultWidth={272} maxWidth={380} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217" aria-label="Library Explorer">
-        <header className="library-explorer-head-v10"><div><LibraryIcon name="folder" size={18} /><strong>Library Explorer</strong></div><ClusterIconButton label="Collapse Library Explorer" type="button" onClick={() => setExplorerCollapsed(true)}><LibraryIcon name="chevron" size={16} /></ClusterIconButton></header>
+      <ClusterResizableRail className="library-browser-grid-v429" label="Library Explorer" persistKey="library-folders" minWidth={184} defaultWidth={224} maxWidth={380} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217" aria-label="Library Explorer">
         <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
         <section className="library-explorer-section-v10">
           <ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setViewsOpen(!viewsOpen)} aria-expanded={viewsOpen}><LibraryIcon name="chevron" size={14} className={viewsOpen ? "open" : ""} /><strong>Views</strong></ClusterButton>
           {viewsOpen ? <nav className="library-section-nav-v504" aria-label="Library views">{([ ["recent", "Recent"], ["favorites", "Favorites"], ["shared", "Shared with me"], ["created", "Created by me"], ["generated", "Generated"], ["trash", "Trash"] ] as Array<[LibrarySection, string]>).map(([section, label]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><LibraryIcon name={section === "favorites" ? "star" : section === "trash" ? "archive" : "file"} size={15} /><span>{label}</span></ClusterButton>)}</nav> : null}
         </section>
         <section className="library-explorer-section-v10 library-collections-v504">
-          <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setCollectionsOpen(!collectionsOpen)} aria-expanded={collectionsOpen}><LibraryIcon name="chevron" size={14} className={collectionsOpen ? "open" : ""} /><strong>Collections</strong><small>{collections.length}</small></ClusterButton><ClusterIconButton label="Create collection" type="button" onClick={() => void createLibraryCollection("manual")}>+</ClusterIconButton></div>
-          {collectionsOpen ? <><ClusterButton unstyled type="button" className="library-smart-collection-create-v504" onClick={() => void createLibraryCollection("smart")}><LibraryIcon name="search" size={14} /><span>Save current view</span><small>Smart</small></ClusterButton><nav aria-label="Library collections">{collections.map((collection) => <div key={collection.id} className={`library-collection-row-v10${activeCollection?.id === collection.id && librarySection === "collection" ? " active" : ""}`}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryIcon name={collection.kind === "smart" ? "search" : "folder"} size={15} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
+          <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setCollectionsOpen(!collectionsOpen)} aria-expanded={collectionsOpen}><LibraryIcon name="chevron" size={14} className={collectionsOpen ? "open" : ""} /><strong>Collections</strong><small>{collections.length}</small></ClusterButton><ClusterActionMenu label="Create collection" iconOnly icon="plus" items={[
+            { id: "manual", label: "New collection", icon: "folder", onSelect: () => void createLibraryCollection("manual") },
+            { id: "smart", label: "Save current view as smart collection", icon: "search", onSelect: () => void createLibraryCollection("smart") },
+          ]} /></div>
+          {collectionsOpen ? <><nav aria-label="Library collections">{collections.map((collection) => <div key={collection.id} className={`library-collection-row-v10${activeCollection?.id === collection.id && librarySection === "collection" ? " active" : ""}`}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryIcon name={collection.kind === "smart" ? "search" : "folder"} size={15} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
   { id: "share", label: "Share collection", icon: "users", onSelect: () => openLibraryCollectionSharing(collection) },
   { id: "rename", label: "Rename", icon: "note", onSelect: () => renameLibraryCollection(collection) },
   ...(collection.kind === "smart" ? [{ id: "refresh-rules", label: "Update from current view", icon: "refresh" as const, description: "Replace this smart collection's rules with the filters and sorting currently shown.", onSelect: () => updateSmartCollectionFromCurrentView(collection) }] : []),
@@ -1935,8 +2144,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
 ]} /> : <small className="muted" title="Collection sharing does not grant access to its underlying files.">{collection.accessRole === "editor" ? "Edit" : "View"}</small>}</div>)}</nav></> : null}
         </section>
         <section className="library-explorer-section-v10">
-          <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setFoldersOpen(!foldersOpen)} aria-expanded={foldersOpen}><LibraryIcon name="chevron" size={14} className={foldersOpen ? "open" : ""} /><strong>Folders</strong><small>{folders.length}</small></ClusterButton><ClusterIconButton label="Create folder" type="button" onClick={() => beginCreateFolder(folderId)}>+</ClusterIconButton></div>
-          {foldersOpen ? <FolderTree folders={folders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} /> : null}
+          <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setFoldersOpen(!foldersOpen)} aria-expanded={foldersOpen}><LibraryIcon name="chevron" size={14} className={foldersOpen ? "open" : ""} /><strong>Folders</strong><small>{folders.length}</small></ClusterButton><ClusterIconButton label="Create folder" type="button" size="compact" onClick={() => beginCreateFolder(folderId)}><ClusterIcon name="plus" /></ClusterIconButton></div>
+          {foldersOpen ? <FolderTree folders={folders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} onDropInto={itemInteraction.dropInto} /> : null}
         </section>
       </aside>}>
         <ClusterMasterDetail className="library-master-detail-v429" label="Library items and inspector" masterLabel="Library items" detailLabel="Library inspector" detailOpen={Boolean(activeItem)} onCloseDetail={libraryDetailHistory.closeDetail} detailSize="narrow" persistKey="library" master={<main className="library-main-v217">
@@ -2012,8 +2221,6 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             {!(["SUCCEEDED", "CANCELLED", "DEAD_LETTER"].includes(backgroundBulkJob.status)) ? <ClusterButton size="compact" variant="quiet" onClick={() => void cancelBackgroundBulk()}>Cancel remaining</ClusterButton> : <ClusterButton size="compact" variant="quiet" onClick={() => setBackgroundBulkJob(null)}>Dismiss</ClusterButton>}
           </div> : null}
           <ClusterBulkActionBar selectionCount={selectedIds.size} label="Selected Library item actions" onClear={() => { if (!bulkPendingRef.current) { matchingSelectionRef.current = null; setSelectedIds(new Set()); } }} className="library-bulk-v217">
-            <ClusterButton size="compact" variant="quiet" disabled={bulkBusy} onClick={() => void copySelectedLibraryIds()} title="Copy selected Library item IDs">Copy IDs</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" disabled={bulkBusy} onClick={() => exportSelectedLibraryMetadata()} title="Export selected loaded Library metadata as CSV">Export CSV</ClusterButton>
             <ClusterSelect value={bulkFolderId} onChange={setBulkFolderId} ariaLabel="Move selected Library items" disabled={bulkBusy || selectedProtectedFolders.length > 0} options={[{ value: "", label: "Move to Library root" }, ...folders.filter((folder) => !selectedIds.has(folder.id)).map((folder) => ({ value: folder.id, label: folder.title }))]} />
             <ClusterButton size="compact" disabled={bulkBusy || selectedProtectedFolders.length > 0} busy={bulkBusy} title={selectedProtectedFolders.length ? "Managed folders cannot be moved." : undefined} onClick={() => void runBulk("move", { parentId: bulkFolderId || null })}>Move</ClusterButton>
             <ClusterActionMenu label="Organize selected Library items" triggerLabel="Organize" align="start" items={[
@@ -2029,20 +2236,25 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
               { id: "active", label: "Mark active", icon: "check", separatorBefore: true, onSelect: () => runBulk("status", { status: "active" }) },
               { id: "review", label: "Send to review", icon: "comment", onSelect: () => runBulk("status", { status: "in-review" }) },
               { id: "approved", label: "Mark approved", icon: "check", onSelect: () => runBulk("status", { status: "approved" }) },
+              { id: "copy-ids", label: "Copy IDs", icon: "link", separatorBefore: true, disabled: bulkBusy, onSelect: () => void copySelectedLibraryIds() },
+              { id: "export-csv", label: "Export metadata (CSV)", icon: "download", disabled: bulkBusy, onSelect: () => exportSelectedLibraryMetadata() },
             ]} />
             {librarySection === "collection" && activeCollection?.kind === "manual" && activeCollection.accessRole !== "viewer" ? <ClusterButton size="compact" variant="secondary" disabled={bulkBusy} onClick={() => void removeSelectedFromCollection()}>Remove from collection</ClusterButton> : null}
-            <ClusterButton size="compact" variant={librarySection === "trash" ? "secondary" : "danger"} disabled={bulkBusy || (librarySection !== "trash" && selectedProtectedFolders.length > 0)} title={selectedProtectedFolders.length ? "Managed folders cannot be moved to Trash." : undefined} onClick={() => void runBulk(librarySection === "trash" ? "restore" : "trash")}>{librarySection === "trash" ? "Restore" : "Move to Trash"}</ClusterButton>
+            <ClusterButton size="compact" variant={librarySection === "trash" ? "secondary" : "danger"} disabled={bulkBusy || (librarySection !== "trash" && selectedProtectedFolders.length > 0)} title={selectedProtectedFolders.length ? "Managed folders cannot be moved to Trash." : undefined} onClick={() => void runBulk(librarySection === "trash" ? "restore" : "trash")}><ClusterIcon name={librarySection === "trash" ? "refresh" : "trash"} />{librarySection === "trash" ? "Restore" : "Trash"}</ClusterButton>
           </ClusterBulkActionBar>
           {reorderEnabled ? <div className="library-custom-order-note-v14" role="status"><ClusterIcon name="drag" width={15} height={15} /><span><strong>Custom order</strong>Folders and files share one manual sequence in this folder. Drag any loaded item before another item to save its position.</span></div> : null}
           {uploading.active && <div className="library-upload-v217"><div><strong>Transferring {uploading.current} of {uploading.total} · {uploading.percent}%</strong><span>{uploading.name}{uploading.message ? ` · ${uploading.message}` : ""}</span></div><progress className="ui-progress-v224" value={Math.max(0, uploading.percent)} max={100} aria-label="File transfer progress" /></div>}
           {status && <div className="status-box slim">{status}</div>}
           {error ? <RequestErrorState error={error} title={storageIssue ? "Library storage needs repair" : undefined} compact onRetry={() => void loadWorkspace(true, true)} actions={storageIssue ? <span className="muted">Close Cluster Server and run <code>ClusterServer.exe --repair</code>.</span> : undefined} /> : null}
-          <div className="library-results-v217" aria-busy={loading || refreshing}>
+          <div className="library-results-v217" aria-busy={loading || refreshing} tabIndex={0} aria-label="Library items" onKeyDown={handleResultsKeyDown}
+            onContextMenu={(event) => { if ((event.target as HTMLElement).closest("[data-library-item-id]")) return; event.preventDefault(); setItemMenu({ x: event.clientX, y: event.clientY, item: null }); }}
+            onClick={(event) => { if (!(event.target as HTMLElement).closest("[data-library-item-id]") && selectedIds.size && !event.metaKey && !event.ctrlKey) setSelectedIds(new Set()); }}>
             {loading ? ((layout === "grid" || layout === "compact-grid") ? <CardGridLoadingState label="Loading Library items" cards={8} /> : <TableLoadingState label="Loading Library items" rows={9} columns={6} compact />) : error && !items.length ? null : items.length === 0 ? (
-              activeFilterCount > 0 ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Try clearing filters or opening another folder." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
+              // Inside a folder, the project scope Cluster applies on open isn't a user filter.
+              activeFilterCount > (currentFolder && filters.projectId ? 1 : 0) ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Try clearing filters or opening another folder." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
               : currentFolder ? <ClusterEmptyState kind="empty" icon="folder" className="library-empty-v217" title="This folder is empty" description="Upload files or add a link when this folder has something worth keeping with the project." actions={<ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton>} />
               : <ClusterEmptyState kind="first-use" icon="library" className="library-empty-v217" title="Add the first Library item" description="Use Library for project files, references, links, media, and durable project context. Start with a file or link instead of building an empty taxonomy first." actions={<><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton><ClusterButton variant="secondary" onClick={() => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" })}>Add link</ClusterButton></>} />
-            ) : <div className={`library-result-groups-v11 layout-${layout}`} data-grouped={groupBy !== "none" ? "true" : "false"}>{groupedItems.map((group) => <section key={group.key} className="library-result-group-v11">{group.label ? <header className="library-result-group__header-v11"><strong>{group.label}</strong><span>{group.items.length}</span></header> : null}{layout === "list" || layout === "details" ? <div role="table" aria-label={group.label ? `${group.label} Library items` : "Library items"} className={layout === "list" ? "library-table-v11 is-simple" : "library-table-v11 is-details"}><div className="library-list-head-v217" role="row"><span role="columnheader" aria-label="Selection" /><span role="columnheader">Name</span><span role="columnheader">Project</span><span role="columnheader">Type</span><span role="columnheader">Size</span><span role="columnheader">Modified</span></div><LibraryListRows items={group.items} activeId={activeId} selectedIds={selectedIds} onSelect={toggleSelection} onOpen={(item) => void selectItem(item)} onPreview={(item) => void openItemViewer(item)} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} /></div> : <div className={`library-grid-v217${layout === "compact-grid" ? " is-compact-v11" : ""}`}>{group.items.map((item) => <LibraryGridCard key={item.id} item={item} active={activeId === item.id} selected={selectedIds.has(item.id)} onSelect={(checked) => toggleSelection(item, checked)} onOpen={() => void selectItem(item)} onPreview={() => void openItemViewer(item)} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} />)}</div>}</section>)}</div>}
+            ) : <div className={`library-result-groups-v11 layout-${layout}`} data-grouped={groupBy !== "none" ? "true" : "false"}>{groupedItems.map((group) => <section key={group.key} className="library-result-group-v11">{group.label ? <header className="library-result-group__header-v11"><strong>{group.label}</strong><span>{group.items.length}</span></header> : null}{layout === "list" || layout === "details" ? <div role="table" aria-label={group.label ? `${group.label} Library items` : "Library items"} className={layout === "list" ? "library-table-v11 is-simple" : "library-table-v11 is-details"}><div className="library-list-head-v217" role="row"><span role="columnheader" aria-label="Selection" /><span role="columnheader" aria-sort={filters.sort.startsWith("title") ? (filters.sort === "title-asc" ? "ascending" : "descending") : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: value.sort === "title-asc" ? "title-desc" : "title-asc" }))}>Name{filters.sort.startsWith("title") ? <ClusterIcon name={filters.sort === "title-asc" ? "chevron-up" : "chevron-down"} /> : null}</ClusterButton></span><span role="columnheader">Project</span><span role="columnheader">Type</span><span role="columnheader" aria-sort={filters.sort.startsWith("size") ? (filters.sort === "size-asc" ? "ascending" : "descending") : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: value.sort === "size-desc" ? "size-asc" : "size-desc" }))}>Size{filters.sort.startsWith("size") ? <ClusterIcon name={filters.sort === "size-asc" ? "chevron-up" : "chevron-down"} /> : null}</ClusterButton></span><span role="columnheader" aria-sort={filters.sort === "updated-desc" ? "descending" : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: "updated-desc" }))}>Modified{filters.sort === "updated-desc" ? <ClusterIcon name="chevron-down" /> : null}</ClusterButton></span></div><LibraryListRows items={group.items} activeId={activeId} selectedIds={selectedIds} onSelect={toggleSelection} interact={itemInteraction} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} /></div> : <div className={`library-grid-v217${layout === "compact-grid" ? " is-compact-v11" : ""}`}>{group.items.map((item) => <LibraryGridCard key={item.id} item={item} active={activeId === item.id} selected={selectedIds.has(item.id)} onSelect={(checked) => toggleSelection(item, checked)} interact={itemInteraction} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} />)}</div>}</section>)}</div>}
           </div>
           {pagination.hasMore && !loading ? <div ref={loadMoreSentinelRef} className="library-load-sentinel-v10" aria-live="polite"><span>{loadingMore ? "Loading more…" : "More items load as you scroll"}</span><ClusterButton unstyled type="button" className="library-load-more-v217" disabled={loadingMore} onClick={() => void loadWorkspace(false)}>{loadingMore ? "Loading…" : "Load more now"}</ClusterButton></div> : null}
         </main>}
@@ -2050,6 +2262,8 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       </ClusterResizableRail>
     </section>
 
+    <div ref={itemMenuAnchorRef} className="library-menu-anchor" aria-hidden="true" style={runtimeStyle({ left: `${itemMenu?.x || 0}px`, top: `${itemMenu?.y || 0}px` })} />
+    <ClusterContextMenuSurface id={itemMenuId} open={Boolean(itemMenu)} label={itemMenu?.item ? `${itemMenu.item.title} actions` : "Library actions"} items={itemMenu ? libraryMenuItems(itemMenu.item) : []} anchorRef={itemMenuAnchorRef} surfaceRef={itemMenuSurfaceRef} onDismiss={() => setItemMenu(null)} />
     <LibraryViewerModal
       item={viewerItem}
       items={viewerSequence}

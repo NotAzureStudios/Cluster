@@ -3,6 +3,8 @@
 // This is an advisory/protective decision, never a physical disposal permit.
 export const LIBRARY_RETENTION_ANCESTOR_LIMIT = 128;
 export class LibraryRetentionLineageError extends Error {
+  // A refused move or write, not a server fault: answer 409 with the reason.
+  readonly statusCode = 409;
   constructor(readonly code: string, message: string) { super(message); this.name = "LibraryRetentionLineageError"; }
 }
 export type LibraryRetentionEvidence = {
@@ -22,7 +24,7 @@ export async function resolveLibraryEffectiveRetention(tx: any, item: {
   for (let depth = 0; current; depth++) {
     if (depth >= LIBRARY_RETENTION_ANCESTOR_LIMIT) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_ANCESTOR_LIMIT", "Retention ancestry too deep to verify.");
     if (!current.id || visited.has(current.id)) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_CYCLE", "Retention ancestry contains a cycle.");
-    if ((current.projectId ?? null) !== project) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_PROJECT_BOUNDARY", "Retention ancestry crosses a Project boundary.");
+    if ((current.projectId ?? null) !== project) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_PROJECT_BOUNDARY", "Items can only move within the same project. Transfer the item to that project first.");
     visited.add(current.id);
     const hold = Boolean(current.legalHold);
     const raw = current.retentionUntil;
