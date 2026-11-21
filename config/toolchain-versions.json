@@ -1,5 +1,5 @@
 {
-  "cluster": "1.2.3",
+  "cluster": "1.2.4",
   "node": {
     "channel": "lts",
     "version": "24.20.0"
@@ -30,7 +30,7 @@
   },
   "desktop": {
     "parityVersionHold": "1.2.2",
-    "versionHoldReason": "Desktop 1.2.2 is the last published native Qt Windows build; Server installer maintenance 1.2.3 does not automatically rebuild the independent Desktop product."
+    "versionHoldReason": "Desktop 1.2.2 is the last published native Qt Windows build; Server releases 1.2.3 and 1.2.4 do not automatically rebuild the independent Desktop product."
   },
   "updatePolicy": {
     "security": "immediate-reviewed",

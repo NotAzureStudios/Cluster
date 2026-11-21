@@ -174,7 +174,7 @@ func TestOfficialReleaseRequiresExactProjectTagAndServerInstallerReceipt(t *test
 		},
 		{
 			name: "other product release",
-			payload: `{"tag_name":"v2.0.0","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/v2.0.0","assets":[{"name":"Cluster-Installer.exe"},{"name":"Cluster-server-build-receipt.json"}]}`,
+			payload: `{"tag_name":"desktop-v1.2.2","html_url":"https://github.com/NotAzureStudios/Cluster/releases/tag/desktop-v1.2.2","assets":[{"name":"Cluster-Installer.exe"},{"name":"Cluster-server-build-receipt.json"}]}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

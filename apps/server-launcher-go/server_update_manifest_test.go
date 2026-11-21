@@ -251,7 +251,11 @@ func TestStableServerReleaseSequenceAcrossMinorVersionBoundary(t *testing.T) {
 		{"1.0.10001", "main", 0, false},
 		{"1.1.100000", "main", 0, false},
 		{"1.01.0", "main", 0, false},
-		{"2.0.0", "main", 0, false},
+		{"2.0.0", "main", 200000000, true},
+		{"2.1.3", "main", 200100003, true},
+		{"2.1000.0", "main", 0, false},
+		{"21.0.0", "main", 0, false},
+		{"02.0.0", "main", 0, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.release+"-"+tc.channel, func(t *testing.T) {
