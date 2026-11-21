@@ -1,6 +1,7 @@
 // Desktop 1.2.2 must be a genuinely rebuilt Qt application, never renamed 0.482.0 bytes.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {stableServerSequence} from './cluster-server-release-sequence.mjs';
 const read=p=>fs.readFileSync(p,'utf8');
 const identity=JSON.parse(read('config/release-candidate.json'));
 const toolchains=JSON.parse(read('config/toolchain-versions.json'));
@@ -9,8 +10,8 @@ const cmake=read('apps/desktop-qt/CMakeLists.txt');
 const desktop=profiles.profiles['desktop-windows-x64'];
 const workflow=read('.github/workflows/desktop-qt-candidate.yml');
 const nativeVersion=toolchains.desktop?.parityVersionHold;
-assert.equal(identity.release,'1.2.3');
-assert.equal(identity.sequence,200003);
+assert.equal(identity.release,toolchains.cluster);
+assert.equal(identity.sequence,stableServerSequence(identity.release));
 assert.equal(nativeVersion,'1.2.2','Installer maintenance must preserve the independently released Qt Desktop version');
 assert.notEqual(nativeVersion,identity.release,'Server installer patch should not relabel/repackage the Desktop build');
 assert.equal(desktop.desktopNativeVersion,nativeVersion,'Profile cannot reuse old binaries');

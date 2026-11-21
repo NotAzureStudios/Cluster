@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
+import {stableServerSequence} from './cluster-server-release-sequence.mjs';
 const read=(p)=>readFileSync(path.join(process.cwd(),p),'utf8');
 const metadata=JSON.parse(read('config/release-candidate.json'));
 const toolchain=JSON.parse(read('config/toolchain-versions.json'));
@@ -13,8 +14,8 @@ const publisher=read('.github/workflows/cluster-server-signed-main-publish.yml')
 const manual=read('.github/workflows/publish-cluster-1-2-3-manual.yml');
 const goTests=read('apps/server-launcher-go/server_update_manifest_test.go');
 const feed='https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json';
-assert.equal(metadata.release,'1.2.3');
-assert.equal(metadata.sequence,200003);
+assert.equal(metadata.release,toolchain.cluster);
+assert.equal(metadata.sequence,stableServerSequence(metadata.release));
 assert.equal(metadata.sourceVersion,toolchain.cluster);
 assert.match(installer,/defaultOfficialMainServerUpdateFeedURL\s*=\s*"https:\/\/github\.com\/NotAzureStudios\/Cluster\/raw\/refs\/heads\/server-update-feed\/cluster-server-main\.json"/);
 assert.ok(publisher.includes("'"+feed+"'"),'publisher must sign from the same exact public Server feed');

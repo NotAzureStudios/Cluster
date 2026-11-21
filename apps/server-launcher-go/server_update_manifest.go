@@ -27,7 +27,7 @@ import (
 var serverUpdatePublicKeyPEM string
 
 var serverReleasePattern = regexp.MustCompile(`^1\.0\.0-rc\.([1-9][0-9]*)$`)
-var serverStableReleasePattern = regexp.MustCompile(`^1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var serverStableReleasePattern = regexp.MustCompile(`^([1-9][0-9]?)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
  
 // Server-only rolling signed release pointer. It does NOT depend on GitHub's
@@ -36,15 +36,22 @@ const defaultOfficialMainServerUpdateFeedURL = "https://github.com/NotAzureStudi
 const officialServerGitHubReleaseAssetPrefix = "/github-production-release-asset/1431753697/"
 
 // 1.0.x retains its existing sequence (50 + patch). Starting with 1.1.0,
-// each minor release occupies a nonoverlapping 100000-sequence range.
+// each minor release occupies a nonoverlapping 100000-sequence range, and
+// each major release from 2 occupies a 100000000-sequence range.
 // This preserves upgrades from 1.0.5 and avoids sequence collisions.
 func serverUpdateSequence(release, channel string) (int, bool) {
 	if channel == "main" {
 		match := serverStableReleasePattern.FindStringSubmatch(release)
 		if match == nil { return 0, false }
-		minor, minorErr := strconv.Atoi(match[1])
-		patch, patchErr := strconv.Atoi(match[2])
-		if minorErr != nil || patchErr != nil { return 0, false }
+		major, majorErr := strconv.Atoi(match[1])
+		minor, minorErr := strconv.Atoi(match[2])
+		patch, patchErr := strconv.Atoi(match[3])
+		if majorErr != nil || minorErr != nil || patchErr != nil { return 0, false }
+		// Major 2+ starts above every 1.x sequence and stays within int32.
+		if major >= 2 {
+			if major > 20 || minor > 999 || patch > 99999 { return 0, false }
+			return major*100000000 + minor*100000 + patch, true
+		}
 		if minor == 0 {
 			if patch < 1 || patch > 10000 { return 0, false }
 			return 50 + patch, true
