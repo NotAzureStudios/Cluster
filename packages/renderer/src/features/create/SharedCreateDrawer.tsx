@@ -1652,20 +1652,6 @@ ${bugActual}`,
                       }))}
                     />
                   </div>
-                  <div className="field">
-                    <label>Ticket destination Board</label>
-                    <ClusterNativeSelect value={ticketTargetBoardId} onChange={(event) => { setTicketTargetBoardId(event.target.value); setTicketTargetListId(""); }}>
-                      <option value="">Choose Board...</option>
-                      {boards.filter((board) => board.projectId === selectedProject?.id).map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
-                    </ClusterNativeSelect>
-                  </div>
-                  <div className="field">
-                    <label>Ticket destination List</label>
-                    <ClusterNativeSelect value={ticketTargetListId} disabled={!ticketTargetBoardId} onChange={(event) => setTicketTargetListId(event.target.value)}>
-                      <option value="">Choose active List...</option>
-                      {boards.find((board) => board.id === ticketTargetBoardId)?.lists?.filter((list) => !list.isDone).map((list) => <option key={list.id} value={list.id}>{list.title}</option>)}
-                    </ClusterNativeSelect>
-                  </div>
                   {showAdvanced && <>
                   <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={createPeople} label="Assignee" ariaLabel="Card assignee" />
                   <div className="field">
@@ -1699,6 +1685,20 @@ ${bugActual}`,
                         label: option.label,
                       }))}
                     />
+                  </div>
+                  <div className="field">
+                    <label>Board</label>
+                    <ClusterNativeSelect aria-label="Ticket board" value={ticketTargetBoardId} onChange={(event) => { setTicketTargetBoardId(event.target.value); setTicketTargetListId(""); }}>
+                      <option value="">Choose Board...</option>
+                      {boards.filter((board) => board.projectId === selectedProject?.id).map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
+                    </ClusterNativeSelect>
+                  </div>
+                  <div className="field">
+                    <label>List</label>
+                    <ClusterNativeSelect aria-label="Ticket list" value={ticketTargetListId} disabled={!ticketTargetBoardId} onChange={(event) => setTicketTargetListId(event.target.value)}>
+                      <option value="">Choose active List...</option>
+                      {boards.find((board) => board.id === ticketTargetBoardId)?.lists?.filter((list) => !list.isDone).map((list) => <option key={list.id} value={list.id}>{list.title}</option>)}
+                    </ClusterNativeSelect>
                   </div>
                   {showAdvanced && <>
                   <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={createPeople} label="Assignee" ariaLabel="Ticket assignee" />

@@ -540,3 +540,9 @@
 .shared-create-workspace-v254 .shared-create-header-v254{align-items:center}
 
 @media(min-width:761px){.shared-create-workspace-v254:has(.shared-create-title-icon-v448[data-create-mode="project"]){height:min(475px,calc(100dvh - 36px))!important}}
+/* Forms size to their fields instead of a fixed tall sheet; long forms still scroll. */
+@media (min-width: 761px) {
+  .shared-create-workspace-v254.form-mode-v455 { height: auto !important; max-height: calc(100dvh - 40px) !important; }
+  .shared-create-workspace-v254.form-mode-v455 .shared-create-main-v254 { height: auto !important; min-height: 0; }
+  .shared-create-workspace-v254.form-mode-v455 .shared-create-scroll-v254 { height: auto !important; max-height: calc(100dvh - 200px); min-height: 160px; }
+}

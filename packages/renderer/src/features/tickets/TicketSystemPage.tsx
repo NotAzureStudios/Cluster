@@ -1009,9 +1009,9 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
             incremental={{ hasMore: ticketCursor.hasMore, loading: ticketCursor.loading, prefetchRows: 24, loadLabel: "Load 80 more tickets", onLoadMore: ticketCursor.loadMore }}
             empty={hasTicketFilters ? <ClusterEmptyState compact kind="filtered" icon="ticket" title="No tickets match these filters" description="The queue still exists. Clear the current search and filters to widen the result set." actions={<ClusterButton variant="secondary" size="compact" onClick={clearTicketFilters}>Clear filters</ClusterButton>} /> : tickets.length === 0 ? <ClusterEmptyState compact kind="first-use" icon="ticket" title="No tickets yet" description="Create the first ticket when work needs tracking outside the normal board flow." actions={<ClusterButton variant="primary" size="compact" onClick={() => setShowCreate(true)}>New ticket</ClusterButton>} /> : <ClusterEmptyState compact kind="empty" icon="ticket" title="No tickets in this queue" description="New tickets that belong in this queue will appear here." />}
           /></> : <>
-            <label className="tickets-select-all-v184">
+{orderedTickets.length > 0 && <label className="tickets-select-all-v184">
               <ClusterInput type="checkbox" checked={allVisibleSelected} onChange={(e) => setSelectedIds(e.target.checked ? unique([...selectedIds, ...orderedTickets.map((card) => card.id)]) : selectedIds.filter((id) => !orderedTickets.some((card) => card.id === id)))} /> Select visible
-            </label>
+            </label>}
             <VirtualTicketList
               items={orderedTickets}
               selectedIds={selectedIdSet}
