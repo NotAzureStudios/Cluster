@@ -106,9 +106,9 @@ export function ClusterContextMenuSurface({
   >
     {items.map((item, index) => <div key={item.id} className="cluster-action-menu-entry-v428">
       {actionMenuSeparatorBefore(items, index) ? <div role="separator" className="cluster-action-menu-separator-v428" /> : null}
-      <ClusterButton unstyled type="button" role="menuitem" disabled={item.disabled || actionExecution.busy} aria-busy={actionExecution.pendingId === item.id} className={item.danger ? "danger" : ""} onClick={() => actionExecution.execute(item.id, item.onSelect, onDismiss)}>
+      <ClusterButton unstyled type="button" role="menuitem" disabled={item.disabled || actionExecution.busy} aria-busy={actionExecution.pendingId === item.id} className={item.danger ? "danger" : ""} title={item.description || undefined} onClick={() => actionExecution.execute(item.id, item.onSelect, onDismiss)}>
         {item.icon ? <ClusterIcon name={item.icon} /> : null}
-        <span><strong>{item.label}</strong>{item.description ? <small>{item.description}</small> : null}</span>
+        <span><strong>{item.label}</strong></span>
       </ClusterButton>
     </div>)}
     {actionExecution.error ? <p role="alert" className="cluster-menu-execution-error">{actionExecution.error}</p> : null}

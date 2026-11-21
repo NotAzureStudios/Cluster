@@ -621,3 +621,27 @@ svg.cluster-icon--unified {
 .cluster-domain-help-rc46{padding:7px 0;color:var(--muted);font-size:.76rem}
 .cluster-domain-help-rc46 summary{color:var(--text);cursor:pointer}
 .cluster-domain-help-rc46 p{line-height:1.45;margin:8px 0 0}
+
+/* v2 menus: one skin for every floating menu, select list and overflow menu.
+   Same radius, padding, item height, type size and shadow everywhere. */
+.cluster-floating-surface-v504 { scrollbar-gutter: auto; scrollbar-width: thin; }
+.cluster-floating-surface-v504:is(.cluster-action-menu-panel-v428, .cluster-select-menu-v227, .compact-section-menu-v204) {
+  padding: 4px; border: 1px solid var(--cluster-border-strong, var(--line-strong)); border-radius: 10px;
+  background: var(--cluster-surface-1, var(--panel));
+  box-shadow: 0 14px 34px rgb(0 0 0 / .34), 0 2px 8px rgb(0 0 0 / .18) !important;
+}
+.cluster-action-menu-panel-v428 { min-width: 200px; }
+.cluster-action-menu-entry-v428 > button,
+.cluster-floating-surface-v504.cluster-select-menu-v227 > :is(button, .cluster-select-option-v370),
+.cluster-floating-surface-v504.cluster-select-menu-v227 > [role="listbox"] > .cluster-select-option-v370 {
+  min-height: 32px; padding: 6px 10px; gap: 8px; border-radius: 6px;
+  font-size: .8125rem; font-weight: 500; line-height: 1.3;
+}
+.cluster-action-menu-entry-v428 strong { font-size: .8125rem; font-weight: 500; }
+.cluster-action-menu-entry-v428 small { font-size: .6875rem; color: var(--muted); font-weight: 400; }
+.cluster-action-menu-entry-v428 svg, .cluster-select-menu-v227 .cluster-select-option-v370 > svg { width: 15px; height: 15px; opacity: .8; }
+.cluster-action-menu-separator-v428 { margin: 4px 6px; }
+.cluster-select-menu-v227 > [role="listbox"] { gap: 1px; padding: 0; }
+@media (pointer: coarse) {
+  .cluster-action-menu-entry-v428 > button, .cluster-select-menu-v227 .cluster-select-option-v370 { min-height: 44px; }
+}

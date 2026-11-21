@@ -84,10 +84,11 @@ export function ClusterActionMenu({
               disabled={item.disabled || actionExecution.busy}
               aria-busy={actionExecution.pendingId === item.id}
               className={item.danger ? "danger" : ""}
+              title={item.description || undefined}
               onClick={() => actionExecution.execute(item.id, item.onSelect, () => setOpen(false))}
             >
               {item.icon ? <ClusterIcon name={item.icon} /> : null}
-              <span><strong>{item.label}</strong>{item.description ? <small>{item.description}</small> : null}</span>
+              <span><strong>{item.label}</strong></span>
             </ClusterButton>
           </div>
         ))}
