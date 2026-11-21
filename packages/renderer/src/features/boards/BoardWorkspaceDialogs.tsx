@@ -1045,272 +1045,268 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
   return (
     <ClusterModal open onClose={() => { void requestClose(); }} busy={saving} backdropClassName="workspace-detail-backdrop-v254 card-editor-backdrop-v254" className="modal panel card-editor card-editor-fullscreen-v254" labelledBy="card-editor-title-v393">
         <div className="modal-header">
-          <div>
-            <p className="eyebrow">{mode === "create" ? "New card" : "Edit card"}</p>
-            <h2 id="card-editor-title-v393">{mode === "create" ? "Create card" : "Card details"}</h2>
-          </div>
+          <h2 id="card-editor-title-v393" className="sr-only-v370">{mode === "create" ? "Create card" : "Card details"}</h2>
+          <ClusterTextInput className="ce-title" aria-label="Card title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Card title" />
           <div className="button-row">{card ? <ResourceSyncBadge resourceKind="card" resourceId={card.id} /> : null}{card ? <WorkActionMenu context={{ source: { kind: "card", id: card.id, projectId, label: title || card.title }, navigation: { screen: "board", projectId, boardId, inspectScope: "card", inspectId: card.id }, projectId, boardId, assigneeId: assigneeId || null, dueDate: dueDate || null }} label={`${title || card.title} work actions`} allowAssign allowMention onAssign={() => document.querySelector<HTMLElement>('[aria-label="Card assignee"]')?.focus()} onMention={() => document.querySelector<HTMLTextAreaElement>('[data-work-mention-target="card"]')?.focus()} /> : null}<ClusterIconButton label="Close card editor" type="button" onClick={() => { void requestClose(); }} title="Close"><ClusterIcon name="close" /></ClusterIconButton></div>
         </div>
 
-        <div className="editor-grid">
-          <div className="field span-2">
-            <label>Title</label>
-            <ClusterTextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Fix inventory crash" />
-          </div>
-
-          <div className="field span-2">
-            <label>Description</label>
-            <ClusterTextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What needs to happen? Include scope, acceptance notes, and references." />
-          </div>
-
-          <div className="field">
-            <label>Priority</label>
-            <ClusterNativeSelect value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </ClusterNativeSelect>
-          </div>
-
-          <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={users} label="Assignee" ariaLabel="Card assignee" />
-
-          <BoardCardPlanningFields
-            category={category}
-            onCategoryChange={setCategory}
-            startDate={startDate}
-            onStartDateChange={setStartDate}
-            dueDate={dueDate}
-            onDueDateChange={setDueDate}
-            deferredUntil={deferredUntil}
-            onDeferredUntilChange={setDeferredUntil}
-            completionCriteria={completionCriteria}
-            onCompletionCriteriaChange={setCompletionCriteria}
-            estimatePoints={estimatePoints}
-            onEstimatePointsChange={setEstimatePoints}
-            coverColor={coverColor}
-            onCoverColorChange={setCoverColor}
-            coverImage={coverImage}
-            onCoverImageChange={setCoverImage}
-            memberIds={memberIds}
-            onMemberIdsChange={setMemberIds}
-            watching={watching}
-            onWatchingChange={setWatching}
-            users={users}
-          />
-
-          <div className="field span-2">
-            <label>Colored board labels</label>
-            <div className="board-card-label-picker-v308">
-              {labelDefinitions.map((definition) => {
-                const selected = labelArray.some((label) => label.toLowerCase() === definition.name.toLowerCase());
-                return <ClusterButton unstyled key={definition.id} type="button" className={selected ? "selected" : ""} style={runtimeStyle({ "--label-color": definition.color })} onClick={() => setLabels(selected ? labelArray.filter((label) => label.toLowerCase() !== definition.name.toLowerCase()).join(", ") : unique([...labelArray, definition.name]).join(", "))}><span />{definition.name}</ClusterButton>;
-              })}
+        <div className="ce">
+          <div className="ce-main">
+            <div className="ce-meta">
+              <div className="field">
+                <label>Priority</label>
+                <ClusterNativeSelect value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </ClusterNativeSelect>
+              </div>
+              <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={users} label="Assignee" ariaLabel="Card assignee" />
             </div>
-            <label>Additional tags</label>
-            <ClusterTextInput value={labels} onChange={(e) => setLabels(e.target.value)} placeholder="bug, ui, high-risk" />
-            {tagPresets.length > 0 && (
-              <div className="chip-picker tag-preset-picker">
-                {tagPresets.map((label) => (
-                  <ClusterButton unstyled type="button" key={`preset-${label}`} onClick={() => addLabel(label)}>
-                    {label}
+            <div className="field span-2">
+              <label>Colored board labels</label>
+              <div className="board-card-label-picker-v308">
+                {labelDefinitions.map((definition) => {
+                  const selected = labelArray.some((label) => label.toLowerCase() === definition.name.toLowerCase());
+                  return <ClusterButton unstyled key={definition.id} type="button" className={selected ? "selected" : ""} style={runtimeStyle({ "--label-color": definition.color })} onClick={() => setLabels(selected ? labelArray.filter((label) => label.toLowerCase() !== definition.name.toLowerCase()).join(", ") : unique([...labelArray, definition.name]).join(", "))}><span />{definition.name}</ClusterButton>;
+                })}
+              </div>
+              <label>Additional tags</label>
+              <ClusterTextInput value={labels} onChange={(e) => setLabels(e.target.value)} placeholder="bug, ui, high-risk" />
+              {tagPresets.length > 0 && (
+                <div className="chip-picker tag-preset-picker">
+                  {tagPresets.map((label) => (
+                    <ClusterButton unstyled type="button" key={`preset-${label}`} onClick={() => addLabel(label)}>
+                      {label}
+                    </ClusterButton>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="field span-2">
+              <label>Description</label>
+              <ClusterTextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What needs to happen? Include scope, acceptance notes, and references." />
+            </div>
+            {card && <div className="card-subsections">
+              <section>
+                <h3>Checklist</h3>
+                <div className="checklist">
+                  {card.checklistItems.map((item) => (
+                    <div key={item.id} className="check-item">
+                      <label>
+                        <ClusterInput type="checkbox" checked={item.completed} onChange={() => toggleChecklistItem(item)} />
+                        <span className={item.completed ? "done" : ""}>{item.text}</span>
+                      </label>
+                      <div className="button-row">
+                        <ClusterButton type="button" className="" onClick={() => void promoteChecklistItem(item)} variant="quiet" size="compact">Promote</ClusterButton>
+                        <ClusterButton type="button" className="" onClick={() => deleteChecklistItem(item)} variant="quiet" size="compact">Delete</ClusterButton>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="inline-form">
+                  <ClusterTextInput value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} placeholder="Add checklist item" />
+                  <ClusterButton type="button" className="" onClick={addChecklistItem} variant="secondary">
+                    Add
                   </ClusterButton>
+                </div>
+              </section>
+              <section className="span-2 card-discussion-v227">
+                <div className="card-discussion-head-v227">
+                  <div className="collaboration-title-icon-v227">
+                    <ClusterIcon name="comment" />
+                  </div>
+                  <div>
+                    <h3>Comments</h3>
+                  </div>
+                </div>
+                <div className="card-comment-compose-v227">
+                  <PresenceAvatar userId={currentUser.id} imageUrl={currentUser.avatarUrl} label={displayUserName(currentUser)} fallback={userInitial(currentUser)} state={presenceState(currentUser)} title={presenceLabel(currentUser)} className="comment-avatar-v227" />
+                  <ClusterTextArea
+                    data-work-mention-target="card"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Add context, a decision, or a question…"
+                    onKeyDown={(event) => {
+                      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void addComment();
+                    }}
+                  />
+                  <ClusterButton type="button" className="" onClick={addComment} disabled={!newComment.trim()} variant="primary">
+                    Post
+                  </ClusterButton>
+                </div>
+                <div className="card-comment-list-v227">
+                  {card.comments.map((comment) => {
+                    const author = comment.user;
+                    return (
+                      <article key={comment.id}>
+                        <PresenceAvatar userId={author?.id} imageUrl={author?.avatarUrl} label={displayUserName(author)} fallback={userInitial(author || ({ username: "Cluster" } as User))} state={author ? presenceState(author) : "offline"} title={author ? presenceLabel(author) : "Former user"} className="comment-avatar-v227" />
+                        <div>
+                          <header>
+                            <strong>{displayUserName(author)}</strong>
+                            <span>{new Date(comment.createdAt).toLocaleString()}</span>
+                          </header>
+                          <p>{comment.body}</p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {!card.comments.length && <p className="card-comments-empty-v227">No comments on this card yet.</p>}
+                </div>
+              </section>
+              <details className="ce-more">
+                <summary>Activity</summary>
+                <section className="span-2">
+                  <h3>Activity</h3>
+                  <div className="activity-list">
+                    {(card.activity || []).length ? (
+                      (card.activity || []).map((item) => (
+                        <article key={item.id} className="activity-item">
+                          <span>{item.type}</span>
+                          <strong>{item.message}</strong>
+                          <em>{new Date(item.createdAt).toLocaleString()}</em>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="muted">No activity yet.</p>
+                    )}
+                  </div>
+                </section>
+              </details>
+            </div>}
+          </div>
+          <aside className="ce-side">
+            <BoardCardPlanningFields
+              category={category}
+              onCategoryChange={setCategory}
+              startDate={startDate}
+              onStartDateChange={setStartDate}
+              dueDate={dueDate}
+              onDueDateChange={setDueDate}
+              deferredUntil={deferredUntil}
+              onDeferredUntilChange={setDeferredUntil}
+              completionCriteria={completionCriteria}
+              onCompletionCriteriaChange={setCompletionCriteria}
+              estimatePoints={estimatePoints}
+              onEstimatePointsChange={setEstimatePoints}
+              coverColor={coverColor}
+              onCoverColorChange={setCoverColor}
+              coverImage={coverImage}
+              onCoverImageChange={setCoverImage}
+              memberIds={memberIds}
+              onMemberIdsChange={setMemberIds}
+              watching={watching}
+              onWatchingChange={setWatching}
+              users={users}
+            />
+            <div className="field span-2 compact-field">
+              <label>External link</label>
+              <ClusterTextInput value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="Design doc, asset folder, reference link..." />
+            </div>
+            {card && <details className="ce-more">
+              <summary>Linked issue</summary>
+            {card && sourceIssueProviderAvailable ? <div className="field span-2">
+              <label>External issue link</label>
+              <ClusterNativeSelect
+                value={sourceIssueId}
+                onChange={(event) => {
+                  const issue = sourceIssues.find((item) => String(item.id) === String(event.target.value));
+                  if (issue) void linkSourceIssue(issue);
+                }}
+              >
+                <option value="">No linked external issue</option>
+                {sourceIssues.map((issue) => (
+                  <option key={issue.id} value={issue.id}>
+                    {issue.number ? `#${issue.number} ` : ""}[{issue.state}] {issue.title}
+                  </option>
                 ))}
-              </div>
-            )}
-          </div>
+              </ClusterNativeSelect>
+            </div> : null}
 
-          {card && sourceIssueProviderAvailable ? <div className="field span-2">
-            <label>External issue link</label>
-            <ClusterNativeSelect
-              value={sourceIssueId}
-              onChange={(event) => {
-                const issue = sourceIssues.find((item) => String(item.id) === String(event.target.value));
-                if (issue) void linkSourceIssue(issue);
-              }}
-            >
-              <option value="">No linked external issue</option>
-              {sourceIssues.map((issue) => (
-                <option key={issue.id} value={issue.id}>
-                  {issue.number ? `#${issue.number} ` : ""}[{issue.state}] {issue.title}
-                </option>
-              ))}
-            </ClusterNativeSelect>
-          </div> : null}
-
-          {card && sourceIssueId ? (
-            <div className="issue-panel span-2">
-              <div>
-                <strong>{sourceIssueNumber ? `#${sourceIssueNumber} ` : ""}{sourceIssueTitle || "External issue"}</strong>
-                <span>
-                  {sourceIssueState || "open"}
-                  {sourceIssueAssignee ? ` · assigned to ${sourceIssueAssignee}` : ""}
-                  {sourceIssueUpdatedAt ? ` · updated ${new Date(sourceIssueUpdatedAt).toLocaleDateString()}` : ""}
-                </span>
+            {card && sourceIssueId ? (
+              <div className="issue-panel span-2">
+                <div>
+                  <strong>{sourceIssueNumber ? `#${sourceIssueNumber} ` : ""}{sourceIssueTitle || "External issue"}</strong>
+                  <span>
+                    {sourceIssueState || "open"}
+                    {sourceIssueAssignee ? ` · assigned to ${sourceIssueAssignee}` : ""}
+                    {sourceIssueUpdatedAt ? ` · updated ${new Date(sourceIssueUpdatedAt).toLocaleDateString()}` : ""}
+                  </span>
+                </div>
+                <div className="label-row">
+                  {sourceIssueLabels.map((label) => <span className="label git" key={label}>{label}</span>)}
+                </div>
+                <div className="button-row">
+                  {sourceIssueUrl ? <ClusterLinkButton href={sourceIssueUrl} target="_blank" variant="secondary" size="compact">Open issue</ClusterLinkButton> : null}
+                  <ClusterButton type="button" onClick={() => void syncSourceIssue()} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Refresh</ClusterButton>
+                  <ClusterButton type="button" onClick={() => void setLinkedSourceIssueState("closed")} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Close issue</ClusterButton>
+                  <ClusterButton type="button" onClick={() => void setLinkedSourceIssueState("open")} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Reopen issue</ClusterButton>
+                  <ClusterButton type="button" onClick={() => void unlinkSourceIssue()} variant="quiet" size="compact">Unlink</ClusterButton>
+                </div>
               </div>
-              <div className="label-row">
-                {sourceIssueLabels.map((label) => <span className="label git" key={label}>{label}</span>)}
+            ) : card && sourceIssueProviderAvailable === false ? (
+              <div className="issue-panel span-2">
+                <strong>No issue provider connected</strong>
               </div>
-              <div className="button-row">
-                {sourceIssueUrl ? <ClusterLinkButton href={sourceIssueUrl} target="_blank" variant="secondary" size="compact">Open issue</ClusterLinkButton> : null}
-                <ClusterButton type="button" onClick={() => void syncSourceIssue()} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Refresh</ClusterButton>
-                <ClusterButton type="button" onClick={() => void setLinkedSourceIssueState("closed")} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Close issue</ClusterButton>
-                <ClusterButton type="button" onClick={() => void setLinkedSourceIssueState("open")} disabled={!sourceIssueProviderAvailable} variant="secondary" size="compact">Reopen issue</ClusterButton>
-                <ClusterButton type="button" onClick={() => void unlinkSourceIssue()} variant="quiet" size="compact">Unlink</ClusterButton>
+            ) : card ? (
+              <div className="issue-panel span-2">
+                <strong>No issue linked</strong>
+                <ClusterTextArea value={createIssueExtra} onChange={(event) => setCreateIssueExtra(event.target.value)} placeholder="Optional additional issue context" />
+                <ClusterButton type="button" onClick={() => void createSourceIssueFromCard()} variant="secondary" size="compact">Create external issue</ClusterButton>
               </div>
-            </div>
-          ) : card && sourceIssueProviderAvailable === false ? (
-            <div className="issue-panel span-2">
-              <strong>External issue linking is off</strong>
-              <span>Cluster Source Control works without an external Git provider. Configure an optional remote/provider in Tool Infrastructure only if this project needs external issue linking.</span>
-            </div>
-          ) : card ? (
-            <div className="issue-panel span-2">
-              <strong>No external issue linked</strong>
-              <span>Create an issue through the configured external provider and link it to this card. The card remains the Cluster source of truth.</span>
-              <ClusterTextArea value={createIssueExtra} onChange={(event) => setCreateIssueExtra(event.target.value)} placeholder="Optional additional issue context" />
-              <ClusterButton type="button" onClick={() => void createSourceIssueFromCard()} variant="secondary" size="compact">Create external issue</ClusterButton>
-            </div>
-          ) : null}
-
-          <div className="field span-2 compact-field">
-            <label>External link</label>
-            <ClusterTextInput value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="Design doc, asset folder, reference link..." />
-          </div>
-        </div>
-
-        {card && (
-          <div className="card-subsections">
-            <section>
-              <h3>Checklist</h3>
-              <div className="checklist">
-                {card.checklistItems.map((item) => (
-                  <div key={item.id} className="check-item">
-                    <label>
-                      <ClusterInput type="checkbox" checked={item.completed} onChange={() => toggleChecklistItem(item)} />
-                      <span className={item.completed ? "done" : ""}>{item.text}</span>
-                    </label>
+            ) : null}
+              <div className="card-subsections">
+              <section>
+                <h3>External issue</h3>
+                <div className="inline-form">
+                  <ClusterTextInput value={sourceIssueComment} onChange={(event) => setSourceIssueComment(event.target.value)} placeholder="Comment on linked issue" disabled={!sourceIssueId || !sourceIssueProviderAvailable} />
+                  <ClusterButton type="button" onClick={() => void postCommentToSourceIssue()} disabled={!sourceIssueId || !sourceIssueProviderAvailable || !sourceIssueComment.trim()} variant="secondary">Post</ClusterButton>
+                </div>
+              </section>
+              </div>
+            </details>}
+            {card && <div className="card-subsections ce-side-sections">
+              <details className="ce-more">
+                <summary>Relationships</summary>
+                <section className="span-2">
+                  <div className="panel-title-row">
+                    <div><h3>Relationships</h3></div>
                     <div className="button-row">
-                      <ClusterButton type="button" className="" onClick={() => void promoteChecklistItem(item)} variant="quiet" size="compact">Promote</ClusterButton>
-                      <ClusterButton type="button" className="" onClick={() => deleteChecklistItem(item)} variant="quiet" size="compact">Delete</ClusterButton>
+                      <ClusterButton size="compact" variant="secondary" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "depends_on", targetKind: "card" })}>Add dependency</ClusterButton>
+                      <ClusterButton size="compact" variant="quiet" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "ships_in", targetKind: "release" })}>Associate release</ClusterButton>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="inline-form">
-                <ClusterTextInput value={newChecklistItem} onChange={(e) => setNewChecklistItem(e.target.value)} placeholder="Add checklist item" />
-                <ClusterButton type="button" className="" onClick={addChecklistItem} variant="secondary">
-                  Add
-                </ClusterButton>
-              </div>
-            </section>
-
-            <section>
-              <h3>External issue</h3>
-              <p className="muted tight">Optional provider issue linked to this card. Native Cluster Source Control does not depend on it.</p>
-              <div className="inline-form">
-                <ClusterTextInput value={sourceIssueComment} onChange={(event) => setSourceIssueComment(event.target.value)} placeholder="Comment on linked issue" disabled={!sourceIssueId || !sourceIssueProviderAvailable} />
-                <ClusterButton type="button" onClick={() => void postCommentToSourceIssue()} disabled={!sourceIssueId || !sourceIssueProviderAvailable || !sourceIssueComment.trim()} variant="secondary">Post</ClusterButton>
-              </div>
-            </section>
-
-            <section className="span-2 card-discussion-v227">
-              <div className="card-discussion-head-v227">
-                <div className="collaboration-title-icon-v227">
-                  <ClusterIcon name="comment" />
-                </div>
-                <div>
-                  <h3>Card discussion</h3>
-                  <p>
-                    {card.comments.length} comment
-                    {card.comments.length === 1 ? "" : "s"} attached to this card
-                  </p>
-                </div>
-              </div>
-              <div className="card-comment-compose-v227">
-                <PresenceAvatar userId={currentUser.id} imageUrl={currentUser.avatarUrl} label={displayUserName(currentUser)} fallback={userInitial(currentUser)} state={presenceState(currentUser)} title={presenceLabel(currentUser)} className="comment-avatar-v227" />
-                <ClusterTextArea
-                  data-work-mention-target="card"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add context, a decision, or a question…"
-                  onKeyDown={(event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void addComment();
-                  }}
-                />
-                <ClusterButton type="button" className="" onClick={addComment} disabled={!newComment.trim()} variant="primary">
-                  Post
-                </ClusterButton>
-              </div>
-              <div className="card-comment-list-v227">
-                {card.comments.map((comment) => {
-                  const author = comment.user;
-                  return (
-                    <article key={comment.id}>
-                      <PresenceAvatar userId={author?.id} imageUrl={author?.avatarUrl} label={displayUserName(author)} fallback={userInitial(author || ({ username: "Cluster" } as User))} state={author ? presenceState(author) : "offline"} title={author ? presenceLabel(author) : "Former user"} className="comment-avatar-v227" />
-                      <div>
-                        <header>
-                          <strong>{displayUserName(author)}</strong>
-                          <span>{new Date(comment.createdAt).toLocaleString()}</span>
-                        </header>
-                        <p>{comment.body}</p>
-                      </div>
-                    </article>
-                  );
-                })}
-                {!card.comments.length && <p className="card-comments-empty-v227">No comments on this card yet.</p>}
-              </div>
-            </section>
-
-            <section className="span-2">
-              <div className="panel-title-row">
-                <div><h3>Planning relationships</h3><p className="muted tight">Dependencies and release association use Cluster's canonical work graph.</p></div>
-                <div className="button-row">
-                  <ClusterButton size="compact" variant="secondary" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "depends_on", targetKind: "card" })}>Add dependency</ClusterButton>
-                  <ClusterButton size="compact" variant="quiet" onClick={() => requestLinkedWorkManager({ source: { kind: "card", id: card.id, projectId, label: card.title }, projectId, boardId, relationship: "ships_in", targetKind: "release" })}>Associate release</ClusterButton>
-                </div>
-              </div>
-              <LinkedWorkPanel projectId={projectId} kind="card" entityId={card.id} compact title="Dependencies & linked work" />
-              <CardProjectionPanel projectId={projectId} currentBoardId={boardId} card={card} boards={projectBoards} />
-              <SharedWorkEvidencePanel projectId={projectId} kind="card" entityId={card.id} label={card.title} compact />
-              <SharedWorkWatchControl entity={{ kind: "card", id: card.id, projectId, label: card.title }} compact />
-            </section>
-
-            <section className="span-2">
-              <CustomFieldValuesPanel compact entity="card" entityId={card.id} projectId={projectId} title="Card fields" />
-            </section>
-
-            <section className="span-2 board-recurring-card-v495">
-              <div className="board-recurring-card-head-v495">
-                <div><h3>Recurring card</h3><p>Create future copies through the project automation engine. The original card stays untouched.</p></div>
-                <ClusterButton variant="secondary" size="compact" busy={recurringBusy} busyLabel="Creating…" onClick={() => void createRecurringCardRule()}>Create recurrence</ClusterButton>
-              </div>
-              <div className="board-recurring-card-fields-v495">
-                <div className="field compact-field"><label>Repeat every</label><NumberStepper min={1} max={90} value={repeatEvery} onValueChange={(value) => setRepeatEvery(Math.max(1, Number(value) || 1))} ariaLabel="Recurring card interval" /></div>
-                <div className="field compact-field"><label>Unit</label><ClusterSelect value={repeatUnit} onChange={(value) => setRepeatUnit(value as "day" | "week")} ariaLabel="Recurring card unit" options={[{ value: "day", label: "Days" }, { value: "week", label: "Weeks" }]} /></div>
-                <div className="field compact-field"><label>Due after</label><NumberStepper min={0} max={3650} value={repeatDueInDays} onValueChange={(value) => setRepeatDueInDays(Math.max(0, Number(value) || 0))} ariaLabel="Recurring card due offset in days" /></div>
-                <span className="muted">days after each copy is created</span>
-              </div>
-            </section>
-
-            <section className="span-2">
-              <h3>Activity</h3>
-              <div className="activity-list">
-                {(card.activity || []).length ? (
-                  (card.activity || []).map((item) => (
-                    <article key={item.id} className="activity-item">
-                      <span>{item.type}</span>
-                      <strong>{item.message}</strong>
-                      <em>{new Date(item.createdAt).toLocaleString()}</em>
-                    </article>
-                  ))
-                ) : (
-                  <p className="muted">No activity yet.</p>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
+                  <LinkedWorkPanel projectId={projectId} kind="card" entityId={card.id} compact title="Dependencies & linked work" />
+                  <CardProjectionPanel projectId={projectId} currentBoardId={boardId} card={card} boards={projectBoards} />
+                  <SharedWorkEvidencePanel projectId={projectId} kind="card" entityId={card.id} label={card.title} compact />
+                  <SharedWorkWatchControl entity={{ kind: "card", id: card.id, projectId, label: card.title }} compact />
+                </section>
+              </details>
+              <details className="ce-more">
+                <summary>Fields</summary>
+                <section className="span-2">
+                  <CustomFieldValuesPanel compact entity="card" entityId={card.id} projectId={projectId} title="Card fields" />
+                </section>
+              </details>
+              <details className="ce-more">
+                <summary>Repeat</summary>
+                <section className="span-2 board-recurring-card-v495">
+                  <div className="board-recurring-card-head-v495">
+                    <div><h3>Repeat</h3></div>
+                    <ClusterButton variant="secondary" size="compact" busy={recurringBusy} busyLabel="Creating…" onClick={() => void createRecurringCardRule()}>Create recurrence</ClusterButton>
+                  </div>
+                  <div className="board-recurring-card-fields-v495">
+                    <div className="field compact-field"><label>Repeat every</label><NumberStepper min={1} max={90} value={repeatEvery} onValueChange={(value) => setRepeatEvery(Math.max(1, Number(value) || 1))} ariaLabel="Recurring card interval" /></div>
+                    <div className="field compact-field"><label>Unit</label><ClusterSelect value={repeatUnit} onChange={(value) => setRepeatUnit(value as "day" | "week")} ariaLabel="Recurring card unit" options={[{ value: "day", label: "Days" }, { value: "week", label: "Weeks" }]} /></div>
+                    <div className="field compact-field"><label>Due after</label><NumberStepper min={0} max={3650} value={repeatDueInDays} onValueChange={(value) => setRepeatDueInDays(Math.max(0, Number(value) || 0))} ariaLabel="Recurring card due offset in days" /></div>
+                    <span className="muted">days after each copy is created</span>
+                  </div>
+                </section>
+              </details>
+            </div>}
+          </aside>
+        </div>
 
         {saveError ? <RequestErrorState compact error={saveError} title={saveError instanceof ApiError && saveError.status === 409 ? "Card changed on another client" : "Card was not saved"} onRetry={saveError instanceof ApiError && saveError.status === 409 ? () => void fetchConflictVersion() : () => void saveCard()} retryLabel={saveError instanceof ApiError && saveError.status === 409 ? "Refresh conflict review" : "Try saving again"} /> : null}
         {saveError instanceof ApiError && saveError.status === 409 && !conflictCard ? <ClusterButton type="button" variant="secondary" disabled={conflictLoading} onClick={() => void fetchConflictVersion()}>{conflictLoading ? "Loading latest Card…" : "Compare with latest Card"}</ClusterButton> : null}

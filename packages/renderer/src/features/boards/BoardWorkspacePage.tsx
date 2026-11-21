@@ -1498,7 +1498,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
                         <div><ClusterButton type="button" className="small" onClick={() => void quickCreateCard(list.id)} disabled={quickAdding || !quickCardTitle.trim()} variant="primary">{quickAdding ? "Adding…" : "Add card"}</ClusterButton><ClusterButton type="button" className="" onClick={() => { setNewCardListId(list.id); setQuickCardListId(null); }} variant="quiet" size="compact">Details</ClusterButton><ClusterButton type="button" className="" onClick={() => { setQuickCardListId(null); setQuickCardTitle(""); }} variant="quiet" size="compact">Cancel</ClusterButton></div>
                       </div>
                     ) : (
-                      <ClusterButton unstyled type="button" className="add-card-button" onClick={() => { setQuickCardListId(list.id); setQuickCardTitle(""); }}>+ Add card</ClusterButton>
+                      <ClusterButton unstyled type="button" className="add-card-button" onClick={() => { setQuickCardListId(list.id); setQuickCardTitle(""); }}><ClusterIcon name="plus" />Add a card</ClusterButton>
                     )}
                   </>
                 ) : (
