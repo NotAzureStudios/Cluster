@@ -48,7 +48,7 @@ const authorization: any = {
 };
 
 const app = Fastify();
-app.setErrorHandler((error, request, reply) => { console.error("SERVER", request.method, request.url, error.message); void reply.code(500).send(error.message); });
+app.setErrorHandler((error, request, reply) => { const message = error instanceof Error ? error.message : String(error); console.error("SERVER", request.method, request.url, message); void reply.code(500).send(message); });
 registerGitHttpRoutes({
   app, prisma, authorization, getCurrentUser: async () => null, readSettings: async () => ({}),
   repositoryRoot: async () => rt.repositoryPath("r1"),

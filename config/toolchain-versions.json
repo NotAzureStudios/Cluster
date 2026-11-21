@@ -10,7 +10,7 @@
     "installerRevision": 1
   },
   "prisma": {
-    "version": "7.9.1"
+    "version": "7.10.1"
   },
   "qt": {
     "majorMinor": "6.11",
