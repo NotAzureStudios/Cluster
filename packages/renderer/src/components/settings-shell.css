@@ -21,10 +21,11 @@
 
 .st-nav {
   position: sticky;
-  top: calc(var(--cl-titlebar-h, 44px) + var(--space-2));
+  /* Sticks inside the content scroller, which already starts below the title bar. */
+  top: var(--space-2);
   display: grid;
   gap: var(--space-3);
-  max-height: calc(100dvh - var(--cl-titlebar-h, 44px) - var(--space-6));
+  max-height: calc(100dvh - var(--cl-titlebar-h, 44px) - var(--space-4));
   overflow-y: auto;
   scrollbar-width: thin;
 }
