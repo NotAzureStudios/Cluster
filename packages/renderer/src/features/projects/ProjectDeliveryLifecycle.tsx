@@ -5,6 +5,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { subscribeProjectWorkflowUpdate } from "../../core/project-workflow-storage";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
+import "./delivery.css";
 
 type DeliveryStageState = "pending" | "active" | "complete" | "blocked";
 type DeliveryStage = { id: string; label: string; state: DeliveryStageState; detail: string; target?: ClusterResourceAddress | null };
@@ -26,39 +27,43 @@ export function ProjectDeliveryLifecycle({ projectId, compact = false, canContri
     catch (error) { setStatus(error instanceof Error ? error.message : "Delivery scheduling failed."); }
     finally { setBusy(false); }
   }
-  if (!snapshot && !status) return <section className={`project-delivery-lifecycle-v492 ${compact ? "compact" : ""}`}><p className="muted tight">Loading delivery lifecycle…</p></section>;
-  if (!snapshot) return <section className={`project-delivery-lifecycle-v492 ${compact ? "compact" : ""}`}><p className="muted tight">{status}</p><ClusterButton type="button" className="" onClick={() => void load()} variant="quiet" size="compact">Retry</ClusterButton></section>;
-  return <section className={`project-delivery-lifecycle-v492 ${compact ? "compact" : ""}`}>
-    <div className="project-delivery-lifecycle-head-v492"><div><p className="eyebrow">Delivery lifecycle</p><strong>{snapshot.recommendedAction}</strong></div><span className={`soft-pill ${snapshot.releaseReady ? "good" : ""}`}>{snapshot.releaseReady ? "Release ready" : snapshot.readiness?.blocked ? `${snapshot.readiness.blocked} blocked gate${snapshot.readiness.blocked === 1 ? "" : "s"}` : "Readiness incomplete"}</span></div>
-    <div className="project-delivery-lifecycle-actions-v492">
-      {snapshot.readiness ? <span>{snapshot.readiness.passed}/{snapshot.readiness.required} gates · {snapshot.orchestration?.conflicts.length || 0} schedule conflict{(snapshot.orchestration?.conflicts.length || 0) === 1 ? "" : "s"}</span> : null}
-      <div>
-        {clusterResourceNavigation(snapshot.orchestration?.calendarEvents[0]?.resource) ? <ClusterButton size="compact" variant="quiet" onClick={() => { const target = clusterResourceNavigation(snapshot.orchestration?.calendarEvents[0]?.resource); if (target) openClusterWorkNavigation(target); }}>Calendar</ClusterButton> : null}
-        {clusterResourceNavigation(snapshot.orchestration?.scheduleBlocks[0]?.resource) ? <ClusterButton size="compact" variant="quiet" onClick={() => { const target = clusterResourceNavigation(snapshot.orchestration?.scheduleBlocks[0]?.resource); if (target) openClusterWorkNavigation(target); }}>Scheduler</ClusterButton> : null}
-        {canContribute ? <ClusterButton size="compact" busy={busy} onClick={() => void orchestrate()}>{snapshot.orchestration?.calendarEvents.length ? "Resync gates" : "Schedule gates"}</ClusterButton> : null}
-      </div>
-    </div>
-    {status ? <p className="project-delivery-lifecycle-status-v492">{status}</p> : null}
-    {snapshot.readiness?.evidenceComplete === false ? <p role="alert" className="project-delivery-lifecycle-status-v492">Release blocked: delivery evidence is incomplete ({snapshot.readiness.incompleteEvidence?.join(", ") || "bounded history"}).</p> : null}
-    {!snapshot.releaseReady && snapshot.readiness?.gates?.some((gate) => gate.required && !gate.passed) ? <div className="project-delivery-lifecycle-blockers-v492" aria-label="Blocking delivery gates">
-      <strong>Before publishing</strong>
-      {snapshot.readiness.gates.filter((gate) => gate.required && !gate.passed).slice(0, 5).map((gate) => <ClusterButton key={gate.id} size="compact" variant="quiet" disabled={!clusterResourceNavigation(gate.resource)} title={gate.detail} onClick={() => { const target = clusterResourceNavigation(gate.resource); if (target) openClusterWorkNavigation(target); }}>{gate.label}: {gate.detail}</ClusterButton>)}
+  if (!snapshot && !status) return <section className="dl" aria-busy="true"><p className="dl-muted">Loading delivery…</p></section>;
+  if (!snapshot) return <section className="dl"><p className="dl-muted">{status}</p><ClusterButton type="button" onClick={() => void load()} variant="quiet" size="compact">Retry</ClusterButton></section>;
+  const go = (resource?: ClusterResourceAddress | null) => { const target = clusterResourceNavigation(resource); if (target) openClusterWorkNavigation(target); };
+  const blocking = snapshot.releaseReady ? [] : (snapshot.readiness?.gates || []).filter((gate) => gate.required && !gate.passed).slice(0, 5);
+  const openWork = compact ? [] : (snapshot.issues.items || []).filter((issue) => !issue.done).slice(0, 5);
+  const tone = snapshot.releaseReady ? "good" : blocking.length || snapshot.readiness?.evidenceComplete === false ? "danger" : "warning";
+  const conflicts = snapshot.orchestration?.conflicts.length || 0;
+  const calendar = snapshot.orchestration?.calendarEvents[0]?.resource;
+  const scheduler = snapshot.orchestration?.scheduleBlocks[0]?.resource;
+  /* Delivery at a glance: the next action, gates passed, the stage track,
+     then what blocks publishing and what work is still open. */
+  return <section className="dl" data-tone={tone} data-compact={compact || undefined}>
+    <header className="dl-head">
+      <i className="dl-dot" aria-hidden="true" />
+      <strong>{snapshot.recommendedAction}</strong>
+      {snapshot.readiness ? <span className="dl-gates" data-blocked={snapshot.readiness.blocked ? true : undefined} title={`${snapshot.readiness.passed} of ${snapshot.readiness.required} required gates passed`}>{snapshot.readiness?.blocked ? `${snapshot.readiness.blocked} blocked gate${snapshot.readiness.blocked === 1 ? "" : "s"}` : <><b>{snapshot.readiness.passed}</b>/{snapshot.readiness.required} gates</>}</span> : null}
+      {conflicts ? <span className="dl-flag" title="Schedule conflicts">{conflicts} conflict{conflicts === 1 ? "" : "s"}</span> : null}
+      <span className="dl-head__actions">
+        {clusterResourceNavigation(calendar) ? <ClusterButton size="compact" variant="quiet" onClick={() => go(calendar)}>Calendar</ClusterButton> : null}
+        {clusterResourceNavigation(scheduler) ? <ClusterButton size="compact" variant="quiet" onClick={() => go(scheduler)}>Scheduler</ClusterButton> : null}
+        {canContribute ? <ClusterButton size="compact" variant="secondary" busy={busy} onClick={() => void orchestrate()}>{snapshot.orchestration?.calendarEvents.length ? "Resync gates" : "Schedule gates"}</ClusterButton> : null}
+      </span>
+    </header>
+    <ol className="dl-track">{snapshot.stages.map((item) => <li key={item.id} data-state={item.state}>
+      <ClusterButton unstyled type="button" disabled={!clusterResourceNavigation(item.target)} onClick={() => go(item.target)} title={item.detail}><i aria-hidden="true" /><span>{item.label}</span></ClusterButton>
+    </li>)}</ol>
+    {status ? <p className="dl-muted">{status}</p> : null}
+    {snapshot.readiness?.evidenceComplete === false ? <p role="alert" className="dl-alert">Evidence incomplete{snapshot.readiness.incompleteEvidence?.length ? `: ${snapshot.readiness.incompleteEvidence.join(", ")}` : ""}</p> : null}
+    {blocking.length || openWork.length ? <div className="dl-lists">
+      {blocking.length ? <div aria-label="Blocking delivery gates">
+        <h4>Blocking release</h4>
+        <ul>{blocking.map((gate) => <li key={gate.id}><ClusterButton unstyled type="button" className="dl-row" data-tone="danger" disabled={!clusterResourceNavigation(gate.resource)} onClick={() => go(gate.resource)}><i aria-hidden="true" /><strong>{gate.label}</strong><small>{gate.detail}</small></ClusterButton></li>)}</ul>
+      </div> : null}
+      {openWork.length ? <div aria-label="Unresolved delivery work">
+        <h4>Open work <span>{snapshot.issues.open}</span></h4>
+        <ul>{openWork.map((issue) => <li key={`${issue.kind}:${issue.id}`}><ClusterButton unstyled type="button" className="dl-row" data-tone="warning" disabled={!clusterResourceNavigation(issue.resource)} onClick={() => go(issue.resource)}><i aria-hidden="true" /><strong>{issue.title}</strong><small>{issue.kind === "ticket" ? (issue.ticketStage || "new").replaceAll("_", " ") : issue.listTitle || "Open"}</small></ClusterButton></li>)}</ul>
+      </div> : null}
     </div> : null}
-    {!compact && snapshot.issues.items?.some((issue) => !issue.done) ? (
-      <div className="project-delivery-open-fixes-g25" aria-label="Unresolved delivery work">
-        <strong>Unresolved linked work</strong>
-        <div>
-          {snapshot.issues.items.filter((issue) => !issue.done).slice(0, 4).map((issue) => (
-            <ClusterButton key={`${issue.kind}:${issue.id}`} type="button" size="compact" variant="quiet" disabled={!clusterResourceNavigation(issue.resource)}
-              title={`${issue.title}: ${issue.kind === "ticket" ? `Ticket stage ${issue.ticketStage || "new"}` : `Board List ${issue.listTitle || "Open"}`}`}
-              onClick={() => { const target = clusterResourceNavigation(issue.resource); if (target) openClusterWorkNavigation(target); }}>
-              {issue.title} · {issue.kind === "ticket" ? `Ticket: ${(issue.ticketStage || "new").replaceAll("_", " ")}` : issue.listTitle || "Open"}
-            </ClusterButton>
-          ))}
-        </div>
-        {snapshot.issues.open > 4 ? <small>Showing the first four of {snapshot.issues.open} unresolved linked items.</small> : null}
-      </div>
-    ) : null}
-    <div className="project-delivery-stage-track-v492">{snapshot.stages.map((item, index) => <ClusterButton unstyled key={item.id} type="button" className={`project-delivery-stage-v492 state-${item.state}`} disabled={!clusterResourceNavigation(item.target)} onClick={() => { const target = clusterResourceNavigation(item.target); if (target) openClusterWorkNavigation(target); }} title={item.detail}><span>{index + 1}</span><div><strong>{item.label}</strong><em>{item.detail}</em></div></ClusterButton>)}</div>
   </section>;
 }

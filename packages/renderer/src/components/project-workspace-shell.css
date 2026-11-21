@@ -1,0 +1,58 @@
+/* Project tool shell (pw-*): one header line, then the workspace. */
+.pw { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
+.pw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.pw-head { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-1) 0 var(--space-2); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.pw-project { display: inline-flex; align-items: center; gap: 6px; max-width: 220px; height: 28px; padding: 0 var(--space-1-5); border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-sm); cursor: pointer; }
+button.pw-project:hover { background: var(--cluster-button-fill); color: var(--text); }
+.pw-project > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pw-project > i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.pw-project > i[data-tone="warning"] { background: var(--warning, #f0b429); }
+.pw-project > i[data-tone="danger"] { background: var(--danger); }
+.pw-project > i[data-tone="muted"] { background: var(--muted); }
+.pw-project--static { cursor: default; }
+.pw-sep.cluster-icon-svg { flex: none; inline-size: 12px; block-size: 12px; color: var(--muted); }
+.pw-icon.cluster-icon-svg { flex: none; inline-size: 15px; block-size: 15px; color: var(--accent); }
+.pw-resource { display: flex; align-items: center; min-width: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
+.pw-resource strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The resource switcher reads as the title. */
+.pw-resource .project-resource-switcher-v489 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.pw-resource .project-resource-switcher-v489 > :is(span, label):first-child:not(:only-child) { display: none; }
+.pw-resource .cluster-select-trigger-v227 { min-height: 30px !important; height: 30px; max-width: 360px; padding-inline: 8px !important; border-color: transparent !important; background: transparent !important; box-shadow: none !important; font-size: var(--cluster-font-size-md) !important; font-weight: 600; }
+.pw-resource .cluster-select-trigger-v227:hover { background: var(--cluster-button-fill) !important; }
+.pw-resource select { height: 30px; border-color: transparent; background-color: transparent; font-size: var(--cluster-font-size-md); font-weight: 600; }
+
+.pw-metrics { display: inline-flex; gap: var(--space-2-5); padding-left: var(--space-1); color: var(--muted); font-size: var(--cluster-font-size-xs); white-space: nowrap; }
+.pw-metrics b { margin-right: 4px; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pw-metrics [data-tone="warning"] b { color: var(--warning, #f0b429); }
+.pw-metrics [data-tone="danger"] b { color: var(--danger); }
+
+.pw-links { display: inline-flex; gap: 2px; padding-left: var(--space-1); border-left: 1px solid var(--cluster-workbench-border); }
+.pw-links > button { height: 26px; padding: 0 8px; border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.pw-links > button:hover { background: var(--cluster-button-fill); color: var(--text); }
+
+.pw-end { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+.pw-end > .cluster-button-v425, .pw-end > button { white-space: nowrap; }
+
+/* Presence: avatars and connection only, no activity sentence. */
+.pw-live .collaboration-strip-v193 { display: flex; align-items: center; gap: 6px; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.pw-live .collaboration-strip-v193 .eyebrow,
+.pw-live .collaboration-strip-v193 .muted,
+.pw-live .collaboration-actions-v193 { display: none; }
+.pw-live .collaboration-avatar-v193 { width: 24px; height: 24px; border-radius: 7px; font-size: 11px; }
+
+.pw-status { padding: 6px var(--space-3); border-radius: var(--cluster-radius-control); background: var(--cluster-workbench-panel); color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.pw-body { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--space-2); min-height: 0; min-width: 0; }
+
+@media (max-width: 1100px) {
+  .pw-metrics, .pw-links { display: none; }
+}
+.pw-end .cluster-button-v425 { min-height: 30px !important; height: 30px; padding-inline: 10px; font-size: var(--cluster-font-size-sm); }
+.pw-end .cluster-icon-button-v425, .pw-end button[aria-label]:has(> svg:only-child) { width: 30px; padding: 0 !important; }
+.pw-resource .cluster-select-trigger-v227 > em { display: none; }
+.pw-live .collaboration-presence-v193 { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+.pw-live .collaboration-avatar-row-v193 { display: flex; gap: 2px; }
+.pw-live .collaboration-presence-v193 > strong { display: none; }
+.pw-live .collaboration-transport-v201:not(.offline):not(.reconnecting) { display: none; }
+.pw-live .collaboration-transport-v201 { font-size: var(--cluster-font-size-2xs); color: var(--warning, #f0b429); }

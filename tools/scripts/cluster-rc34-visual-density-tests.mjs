@@ -21,6 +21,6 @@ check('packages/renderer/src/features/projects/ProjectPortfolioItem.tsx', ['Clus
 check('packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx', ['ClusterVisualBars label="Next 6 weeks"'], ['label: "Cadence"']);
 check('packages/renderer/src/features/settings/StudioInventoryVaultPanel.tsx', ['ClusterVisualMeter label="Available"','ClusterVisualComposition label="Stock"']);
 check('packages/renderer/src/features/people/PeoplePages.tsx', ['ClusterVisualComposition label="Capacity configured"','ClusterVisualComposition label="Availability"','ClusterVisualMeter label="Allocated"']);
-check('packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx', ['ClusterVisualComposition label="Project health"','ClusterVisualComposition label="Build health"','ClusterVisualComposition label="Release health"','ClusterVisualMeter label="Capacity configured"']);
+check('packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx', ['ClusterVisualComposition label="Health"','ClusterVisualComposition label="Builds"','ClusterVisualComposition label="Release health"','ClusterVisualMeter label="Capacity set"']);
 check('packages/renderer/src/components/ClusterVisualMetrics.tsx', ['role="progressbar"','role="img"','aria-label','visualBarHeight']);
 console.log('RC34 visual metric math and UI integration checks passed');

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PRODUCT_CONNECTION_STATES, PRODUCT_OPERATION_STATES } from "@cluster/shared";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
@@ -17,6 +18,9 @@ import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh
 import { useVisibleRefresh } from "../../core/visible-refresh";
 import { IntegrationProvidersPanel } from "./IntegrationProvidersPanel";
 import "./admin.css";
+import "./source-control-admin.css";
+import "./admin-ops.css";
+import { useGitCloneUrl } from "../settings/GitAccessPanel";
 
 type Provider = {
   id: string;
@@ -110,6 +114,7 @@ function repositoryStateLabel(repository: Repository) {
 type Repository = {
   id: string;
   name: string;
+  slug?: string | null;
   hostingMode: string;
   remoteUrl?: string | null;
   defaultBranch: string;
@@ -119,6 +124,8 @@ type Repository = {
   healthState: string;
   healthMessage?: string | null;
   connection?: Connection | null;
+  metadata?: Record<string, unknown> | null;
+  projects?: Array<{ projectId: string; isPrimary?: boolean; project?: { id: string; name: string } | null }>;
   _count?: { projects: number; branches?: number; commits?: number; changes?: number; operations?: number };
 };
 
@@ -151,11 +158,9 @@ function AdminSurface({ title, description, status, children, embedded = false }
   );
 }
 
-function SummaryCard({ title, value, detail }: { title: string; value: string; detail: string }) {
-  return <article className="admin-summary-card-v243"><span>{title}</span><strong>{value}</strong><small>{detail}</small></article>;
-}
-
-export function SourceControlAdminPage({ embedded = false }: { embedded?: boolean } = {}) {
+/* Admin → Repositories. Repositories (list + detail) and provider
+   connections, styled only by source-control-admin.css (scm-*). */
+export function SourceControlAdminPage(_props: { embedded?: boolean } = {}) {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -172,6 +177,7 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
   const [remoteUrl, setRemoteUrl] = useState("");
   const [defaultBranch, setDefaultBranch] = useState("main");
   const [repositoryConnectionId, setRepositoryConnectionId] = useState("");
+  const [repositoryTemplate, setRepositoryTemplate] = useState<"unreal" | "software" | "generic">("unreal");
   const [sourceView, setSourceView] = useState<"repositories" | "connections">("repositories");
   const [connectionFormOpen, setConnectionFormOpen] = useState(false);
   const [repositoryFormOpen, setRepositoryFormOpen] = useState(false);
@@ -179,7 +185,7 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
   const [repositoryScope, setRepositoryScope] = useState<"all" | "attention" | "linked">("all");
   const [repositorySort, setRepositorySort] = useState<"name" | "recent">("name");
   const [selectedRepositoryId, setSelectedRepositoryId] = useState("");
-  const [status, setStatus] = useState("Loading Source Control…");
+  const [status, setStatus] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
   const [repositoryDetail, setRepositoryDetail] = useState<{ repositoryId: string; data: RepositoryStateDetail } | null>(null);
   const [repositoryDetailLoading, setRepositoryDetailLoading] = useState(false);
@@ -241,10 +247,11 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
       setProviders(nextProviders);
       setConnections(nextConnections);
       setRepositories(repositoryResult.repositories || []);
+      setSelectedRepositoryId((current) => current || repositoryResult.repositories?.[0]?.id || "");
       if (!editingConnectionId && !nextProviders.some((provider) => provider.id === providerId && provider.category === "source-control" && provider.implementation === "active")) {
         setProviderId(nextProviders.find((provider) => provider.category === "source-control" && provider.implementation === "active")?.id || "source.gitea");
       }
-      setStatus(`${repositoryResult.repositories?.length || 0} repositories · ${nextConnections.length} connections`);
+      
     } catch (error) {
       setStatus(formatApiError(error));
     } finally {
@@ -339,7 +346,7 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
     }
     setBusy(true);
     try {
-      await api("/api/admin/source-control/repositories", {
+      const created = await api<{ repository: Repository }>("/api/admin/source-control/repositories", {
         method: "POST",
         body: JSON.stringify({
           name: repositoryName.trim(),
@@ -348,6 +355,7 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
           remoteUrl: repositoryConnectionId ? remoteUrl.trim() || null : null,
           cloneUrl: repositoryConnectionId ? remoteUrl.trim() || null : null,
           defaultBranch: defaultBranch.trim() || "main",
+          ...(repositoryConnectionId ? {} : { template: repositoryTemplate }),
         }),
       });
       setRepositoryName("");
@@ -355,7 +363,10 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
       setDefaultBranch("main");
       setRepositoryFormOpen(false);
       await load(true);
-      setStatus("Repository added.");
+      if (created.repository?.id) setSelectedRepositoryId(created.repository.id);
+      setStatus(`${created.repository?.name || "Repository"} created.`);
+      // Index the new repository's first commit right away.
+      if (created.repository?.id) void api(`/api/admin/source-control/repositories/${created.repository.id}/sync`, { method: "POST" }).then(() => load(true)).catch(() => undefined);
     } catch (error) { setStatus(formatApiError(error)); }
     finally { setBusy(false); }
   }
@@ -370,120 +381,135 @@ export function SourceControlAdminPage({ embedded = false }: { embedded?: boolea
     finally { setBusy(false); }
   }
 
+  async function removeRepository(repository: Repository) {
+    const linked = repository._count?.projects || 0;
+    if (!await confirmCluster({ title: `Remove ${repository.name}?`, message: linked ? `It is linked to ${linked} project${linked === 1 ? "" : "s"}; they will lose their repository link. Stored Git history is kept on the server.` : "Stored Git history is kept on the server.", confirmLabel: "Remove", tone: "danger" })) return;
+    setBusy(true);
+    try {
+      await api(`/api/admin/source-control/repositories/${repository.id}`, { method: "DELETE", body: "{}" });
+      if (selectedRepositoryId === repository.id) setSelectedRepositoryId("");
+      await load(true);
+      setStatus(`${repository.name} removed.`);
+    } catch (error) { setStatus(formatApiError(error)); }
+    finally { setBusy(false); }
+  }
+
   const isEditingConnection = Boolean(editingConnectionId);
-  const connectionColumns = useMemo<ClusterDataTableColumn<Connection>[]>(() => [
-    { id: "connection", header: "Connection", hideable: false, pinnable: true, defaultWidth: 230, sortValue: (connection) => connection.displayName, cell: (connection) => <span><strong>{connection.displayName}</strong><small>{providerLabel(connection.providerId)}</small></span> },
-    { id: "health", header: "Health", defaultWidth: 160, sortValue: (connection) => connection.healthState || connection.status, cell: (connection) => <span className={`soft-pill ${connection.healthState === "healthy" ? "good" : connection.healthState === "failed" ? "warning" : ""}`}>{connectionStateLabel(connection.healthState || connection.status)}</span> },
-    { id: "endpoint", header: "Endpoint", defaultWidth: 280, sortValue: (connection) => connection.configuration?.baseUrl || connection.configuration?.apiBaseUrl || "", cell: (connection) => connection.configuration?.baseUrl || connection.configuration?.apiBaseUrl || "Provider default" },
-    { id: "credentials", header: "Credentials", defaultWidth: 150, sortValue: (connection) => Boolean(connection.configuration?.tokenConfigured), cell: (connection) => connection.configuration?.tokenConfigured ? "Token configured" : "No token" },
-    { id: "checked", header: "Last check", defaultWidth: 220, sortValue: (connection) => connection.lastCheckedAt || "", cell: (connection) => <span>{connection.lastCheckedAt ? new Date(connection.lastCheckedAt).toLocaleString() : "Not checked"}<small>{connection.healthMessage || "No health message"}</small></span> },
-    { id: "actions", header: "Actions", hideable: false, pinnable: false, defaultWidth: 300, cell: (connection) => <div className="button-row"><ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => editConnection(connection)}>Edit</ClusterButton><ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void checkConnection(connection)}>Check</ClusterButton><ClusterButton size="compact" variant="danger" disabled={busy} onClick={() => void archiveConnection(connection)}>Remove</ClusterButton></div> },
-  ], [busy, sourceProviders]);
-  const repositoryColumns = useMemo<ClusterDataTableColumn<Repository>[]>(() => [
-    { id: "repository", header: "Repository", hideable: false, pinnable: true, defaultWidth: 240, sortValue: (repository) => repository.name, cell: (repository) => <span><strong>{repository.name}</strong><small>{repository.connection ? `${repository.connection.displayName} · ${providerLabel(repository.connection.providerId)}` : "Cluster native"}</small></span> },
-    { id: "state", header: "State", defaultWidth: 160, sortValue: (repository) => repository.syncState || repository.healthState, cell: (repository) => <span className={`soft-pill ${repository.syncState === "failed" || repository.healthState === "failed" ? "warning" : repository.healthState === "healthy" ? "good" : ""}`}>{repositoryStateLabel(repository)}</span> },
-    { id: "branch", header: "Default branch", defaultWidth: 160, sortValue: (repository) => repository.defaultBranch, cell: (repository) => repository.defaultBranch },
-    { id: "head", header: "Head revision", defaultWidth: 180, sortValue: (repository) => repository.headRevision || "", cell: (repository) => repository.headRevision ? repository.headRevision.slice(0, 12) : "—" },
-    { id: "contents", header: "Repository data", defaultWidth: 220, sortValue: (repository) => (repository._count?.commits || 0), cell: (repository) => `${repository._count?.branches || 0} branches · ${repository._count?.commits || 0} commits` },
-    { id: "projects", header: "Project links", defaultWidth: 130, sortValue: (repository) => repository._count?.projects || 0, cell: (repository) => repository._count?.projects || 0 },
-    { id: "sync", header: "Last sync", defaultWidth: 240, sortValue: (repository) => repository.lastSyncedAt || "", cell: (repository) => repository.lastSyncedAt ? new Date(repository.lastSyncedAt).toLocaleString() : repository.remoteUrl || "Not synchronized" },
-    { id: "actions", header: "Actions", hideable: false, pinnable: false, defaultWidth: 150, cell: (repository) => <ClusterButton size="compact" variant="secondary" disabled={busy || repository.syncState === "syncing"} onClick={() => void syncRepository(repository)}>{repository.syncState === "syncing" ? PRODUCT_OPERATION_STATES.running : repository.connection ? "Sync" : "Check"}</ClusterButton> },
-  ], [busy, sourceProviders]);
+  const repoTone = (repository: Repository) => repository.syncState === "syncing" ? "running" : repository.syncState === "failed" || repository.healthState === "failed" ? "failed" : repository.healthState === "healthy" ? "ready" : "pending";
+  const connectionTone = (connection: Connection) => connection.healthState === "healthy" ? "ready" : connection.healthState === "failed" ? "failed" : "pending";
+  const attentionCount = repositories.filter((repository) => repoTone(repository) === "failed").length;
+  const detail = selectedRepository && repositoryDetail?.repositoryId === selectedRepository.id ? repositoryDetail.data : null;
+  const cloneUrl = useGitCloneUrl(selectedRepository);
 
   return (
-    <AdminSurface title="Source Control" status={status} embedded={embedded}>
-      <div className="source-control-overview-v524">
-        <SummaryCard title="Repositories" value={String(repositories.length)} detail={`${repositories.filter((repository) => repository.healthState === "healthy").length} healthy`} />
-        <SummaryCard title="Connections" value={String(connections.length)} detail={connections.some((connection) => connection.healthState === "failed") ? "Needs attention" : "Ready"} />
-        <div className="button-row source-control-overview-actions-v524">
-          <ClusterButton variant={sourceView === "repositories" ? "primary" : "secondary"} onClick={() => setSourceView("repositories")}><ClusterIcon name="code" /> Repositories</ClusterButton>
-          <ClusterButton variant={sourceView === "connections" ? "primary" : "secondary"} onClick={() => setSourceView("connections")}><ClusterIcon name="link" /> Connections</ClusterButton>
-          <ClusterButton variant="primary" onClick={() => { setSourceView("repositories"); setRepositoryFormOpen((open) => !open); }}><ClusterIcon name="plus" />{repositoryFormOpen && sourceView === "repositories" ? "Close" : "New repository"}</ClusterButton>
-        </div>
-      </div>
+    <section className="scm" aria-label="Repositories">
+      <header className="scm-bar">
+        <ClusterSegmentedControl value={sourceView} onChange={(value) => setSourceView(value)} label="Source control view" options={[{ value: "repositories", label: `Repositories ${repositories.length}` }, { value: "connections", label: `Connections ${connections.length}` }]} />
+        {sourceView === "repositories" && repositories.length ? <>
+          <label className="scm-search"><ClusterIcon name="search" aria-hidden="true" /><input type="search" value={repositoryQuery} onChange={(event) => setRepositoryQuery(event.target.value)} placeholder="Find a repository" aria-label="Search repositories" /></label>
+          <ClusterSegmentedControl value={repositoryScope} onChange={(value) => setRepositoryScope(value)} label="Filter repositories" options={[{ value: "all", label: "All" }, { value: "attention", label: attentionCount ? `Attention ${attentionCount}` : "Attention" }, { value: "linked", label: "Linked" }]} />
+        </> : null}
+        {status && !initialLoading ? <span className="scm-msg" role="status">{status}</span> : null}
+        <span className="scm-bar__end">
+          {sourceView === "repositories"
+            ? <ClusterButton size="compact" variant={repositoryFormOpen ? "quiet" : "primary"} onClick={() => setRepositoryFormOpen((open) => !open)}><ClusterIcon name={repositoryFormOpen ? "close" : "plus"} />{repositoryFormOpen ? "Cancel" : "New repository"}</ClusterButton>
+            : <ClusterButton size="compact" variant={connectionFormOpen ? "quiet" : "primary"} onClick={() => { if (connectionFormOpen) { resetConnectionForm(providerId); setConnectionFormOpen(false); } else { resetConnectionForm(providerId); setConnectionFormOpen(true); } }}><ClusterIcon name={connectionFormOpen ? "close" : "plus"} />{connectionFormOpen ? "Cancel" : "Add connection"}</ClusterButton>}
+        </span>
+      </header>
 
-      {sourceView === "connections" && <div className="source-control-mode-header"><strong>Connections</strong><ClusterButton variant="secondary" size="compact" onClick={() => { resetConnectionForm(providerId); setConnectionFormOpen(true); }}><ClusterIcon name="plus" /> Add connection</ClusterButton></div>}
-      {sourceView === "connections" && connectionFormOpen ? <section className="admin-panel-v243 source-control-editor-v524">
-        <div className="admin-section-heading-v243"><div><h3>{isEditingConnection ? "Edit connection" : "New connection"}</h3><p>Provider, endpoint, and credentials.</p></div><ClusterButton variant="quiet" size="compact" disabled={busy} onClick={() => { resetConnectionForm(providerId); setConnectionFormOpen(false); }}>Close</ClusterButton></div>
-        <div className="admin-tool-field-grid-v232 source-control-form-grid-v524">
-          <label><span>Provider</span><ClusterSelect ariaLabel="Source Control provider" value={providerId} onChange={(value) => { if (!isEditingConnection) setProviderId(value); }} options={providerOptions} disabled={isEditingConnection} /></label>
-          <label><span>Name</span><ClusterTextInput value={connectionName} onChange={(event) => setConnectionName(event.target.value)} placeholder="Studio Source Control" /></label>
-          <label><span>Server URL</span><ClusterTextInput value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={providerId === "source.github" ? "https://github.com" : providerId === "source.gitlab" ? "https://gitlab.com" : "https://git.example.com"} /></label>
-          <label><span>API URL <small>optional</small></span><ClusterTextInput value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} placeholder="Auto-detect when possible" /></label>
-          <label><span>Access token</span><ClusterTextInput type="password" value={sourceToken} onChange={(event) => { setSourceToken(event.target.value); if (event.target.value) setClearSourceToken(false); }} placeholder={sourceTokenConfigured ? "Configured · type to replace" : "Access token"} /></label>
-          <div className="source-control-boolean-v524"><span>Private-network server</span><ClusterSegmentedControl value={allowPrivateNetwork ? "allow" : "block"} onChange={(value) => setAllowPrivateNetwork(value === "allow")} label="Private network access" options={[{ value: "block", label: "Block" }, { value: "allow", label: "Allow" }]} /></div>
-          {isEditingConnection && sourceTokenConfigured ? <div className="source-control-boolean-v524"><span>Stored token</span><ClusterSegmentedControl value={clearSourceToken ? "remove" : "keep"} onChange={(value) => { setClearSourceToken(value === "remove"); if (value === "remove") setSourceToken(""); }} label="Stored token action" options={[{ value: "keep", label: "Keep" }, { value: "remove", label: "Remove" }]} /></div> : null}
-          <div className="button-row source-control-form-actions-v524"><ClusterButton variant="primary" disabled={busy || !connectionName.trim() || !providerId} onClick={() => void saveSourceConnection()}>{busy ? "Saving…" : isEditingConnection ? "Save changes" : "Add connection"}</ClusterButton></div>
-        </div>
-      </section> : null}
+      {sourceView === "repositories" && repositoryFormOpen ? <div className="scm-form" aria-label="New repository">
+        <label className="scm-field scm-field--grow"><span>Name</span><ClusterTextInput value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="Game" autoFocus /></label>
+        <label className="scm-field"><span>Hosted by</span><ClusterSelect ariaLabel="Repository host" value={repositoryConnectionId} onChange={(id) => { setRepositoryConnectionId(id); if (!id) setRemoteUrl(""); }} options={[{ value: "", label: "Cluster" }, ...connections.map((connection) => ({ value: connection.id, label: connection.displayName }))]} /></label>
+        {repositoryConnectionId
+          ? <label className="scm-field scm-field--grow"><span>Remote URL</span><ClusterTextInput value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} placeholder="https://…/studio/game.git" /></label>
+          : <div className="scm-field"><span>Template</span><ClusterSegmentedControl value={repositoryTemplate} onChange={setRepositoryTemplate} label="Repository template" options={[{ value: "unreal", label: "Unreal", title: "LFS, lockable .uasset/.umap, Unreal .gitignore" }, { value: "software", label: "Software" }, { value: "generic", label: "Generic" }]} /></div>}
+        <label className="scm-field scm-field--narrow"><span>Branch</span><ClusterTextInput value={defaultBranch} onChange={(event) => setDefaultBranch(event.target.value)} placeholder="main" /></label>
+        <ClusterButton size="compact" variant="primary" busy={busy} busyLabel="Creating…" disabled={busy || !repositoryName.trim() || Boolean(repositoryConnectionId && !remoteUrl.trim())} onClick={() => void addRepository()}>Create</ClusterButton>
+      </div> : null}
 
-      {sourceView === "connections" && <section className="admin-panel-v243 source-control-list-v524">
-        <div className="admin-section-heading-v243"><div><h3>Provider connections</h3></div></div>
-        <ClusterDataTable rows={connections} columns={connectionColumns} rowKey={(connection) => connection.id} rowLabel={(connection) => connection.displayName} label="Source Control connections" configurableColumns persistKey="admin-source-control-connections" empty={<p className="muted">No connections. Add a provider only if you need remote hosting.</p>} />
-      </section>}
+      {sourceView === "repositories" ? (initialLoading ? <p className="scm-empty">Loading…</p> : !repositories.length && !repositoryFormOpen ? <div className="scm-none">
+        <ClusterIcon name="code" aria-hidden="true" />
+        <b>No repositories</b>
+        <span>Create one here, then link it from a project's settings.</span>
+        <ClusterButton size="compact" variant="primary" onClick={() => setRepositoryFormOpen(true)}><ClusterIcon name="plus" />New repository</ClusterButton>
+      </div> : repositories.length ? <div className="scm-split">
+        <ul className="scm-list" aria-label="Repositories">
+          {visibleRepositories.map((repository) => <li key={repository.id}>
+            <button type="button" className="scm-repo" aria-current={selectedRepositoryId === repository.id || undefined} onClick={() => setSelectedRepositoryId(repository.id)}>
+              <i data-state={repoTone(repository)} aria-hidden="true" />
+              <span className="scm-repo__name"><b>{repository.name}</b><small>{repository.connection ? repository.connection.displayName : "Cluster"} · {repository.defaultBranch}</small></span>
+              <span className="scm-repo__nums"><span title="Commits indexed">{repository._count?.commits || 0}<small>commits</small></span><span title="Linked projects">{repository._count?.projects || 0}<small>projects</small></span></span>
+            </button>
+          </li>)}
+          {!visibleRepositories.length ? <li className="scm-empty">No matches.</li> : null}
+        </ul>
+        <section className="scm-detail" aria-label="Repository details">
+          {selectedRepository ? <>
+            <header className="scm-detail__head">
+              <i data-state={repoTone(selectedRepository)} aria-hidden="true" />
+              <h3>{selectedRepository.name}</h3>
+              <span className="scm-pill" data-state={repoTone(selectedRepository)}>{repositoryStateLabel(selectedRepository)}</span>
+              <span className="scm-detail__actions">
+                <ClusterButton size="compact" variant="secondary" disabled={busy || selectedRepository.syncState === "syncing"} onClick={() => void syncRepository(selectedRepository)}><ClusterIcon name="sync" />{selectedRepository.syncState === "syncing" ? "Syncing…" : "Sync"}</ClusterButton>
+                <ClusterIconButton size="compact" label="Remove repository" disabled={busy} onClick={() => void removeRepository(selectedRepository)}><ClusterIcon name="trash" /></ClusterIconButton>
+              </span>
+            </header>
+            {selectedRepository.healthMessage && repoTone(selectedRepository) !== "ready" ? <p className="scm-notice" data-state={repoTone(selectedRepository)}>{selectedRepository.healthMessage}</p> : null}
+            <dl className="scm-facts">
+              <div><dt>Hosted by</dt><dd>{selectedRepository.connection ? `${selectedRepository.connection.displayName} · ${providerLabel(selectedRepository.connection.providerId)}` : "Cluster"}</dd></div>
+              {!selectedRepository.connection && selectedRepository.metadata?.template ? <div><dt>Template</dt><dd>{String(selectedRepository.metadata.template).replace(/^./, (c) => c.toUpperCase())}</dd></div> : null}
+              <div><dt>Default branch</dt><dd>{selectedRepository.defaultBranch}</dd></div>
+              <div><dt>Head</dt><dd><code title={selectedRepository.headRevision || undefined}>{selectedRepository.headRevision?.slice(0, 10) || "—"}</code></dd></div>
+              <div><dt>Last sync</dt><dd>{selectedRepository.lastSyncedAt ? new Date(selectedRepository.lastSyncedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never"}</dd></div>
+              <div><dt>Projects</dt><dd>{selectedRepository.projects?.length ? selectedRepository.projects.map((link) => link.project?.name || link.projectId).join(", ") : "None"}</dd></div>
+              {cloneUrl ? <div className="scm-facts__wide"><dt>Clone</dt><dd><code>{cloneUrl}</code><ClusterIconButton size="compact" label="Copy clone URL" onClick={() => void copyClusterText(cloneUrl).then((copied) => setStatus(copied ? "Clone URL copied." : "Clipboard unavailable."))}><ClusterIcon name="link" /></ClusterIconButton></dd></div> : null}
+              {selectedRepository.remoteUrl ? <div className="scm-facts__wide"><dt>Remote</dt><dd><code>{selectedRepository.remoteUrl}</code><ClusterIconButton size="compact" label="Copy remote URL" onClick={() => void copyClusterText(selectedRepository.remoteUrl!).then((copied) => setStatus(copied ? "Remote URL copied." : "Clipboard unavailable."))}><ClusterIcon name="link" /></ClusterIconButton></dd></div> : null}
+            </dl>
+            {repositoryDetailError ? <p className="scm-notice" data-state="failed">{repositoryDetailError}</p> : null}
+            {detail ? <>
+              <h4 className="scm-sub">Branches <small>{detail.branches.length}</small></h4>
+              {detail.branches.length ? <div className="scm-chips">{detail.branches.slice(0, 24).map((branch) => <span key={branch.id || branch.name} data-default={branch.isDefault || undefined} title={branch.headRevision || undefined}>{branch.name}</span>)}</div> : <p className="scm-empty">Sync to load branches.</p>}
+              <h4 className="scm-sub">Recent commits</h4>
+              {detail.commits.length ? <ul className="scm-commits">{detail.commits.slice(0, 10).map((commit) => <li key={commit.id || commit.revision}>
+                <code title={commit.revision}>{commit.revision.slice(0, 8)}</code>
+                <b title={commit.message}>{commit.message.split("\n")[0]}</b>
+                <small>{[commit.authorName, commit.committedAt ? new Date(commit.committedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""].filter(Boolean).join(" · ")}</small>
+              </li>)}</ul> : <p className="scm-empty">No commits indexed yet.</p>}
+            </> : repositoryDetailLoading ? <p className="scm-empty">Loading…</p> : null}
+          </> : <div className="scm-detail__empty"><ClusterIcon name="code" aria-hidden="true" /><span>Select a repository</span></div>}
+        </section>
+      </div> : null) : null}
 
-      {sourceView === "repositories" && repositoryFormOpen ? <section className="admin-panel-v243 source-control-editor-v524">
-        <div className="admin-section-heading-v243"><div><h3>New repository</h3><p>Create once, then attach it to projects.</p></div><ClusterButton variant="quiet" size="compact" onClick={() => setRepositoryFormOpen(false)}>Close</ClusterButton></div>
-        <div className="admin-tool-field-grid-v232 source-control-form-grid-v524">
-          <label><span>Name</span><ClusterTextInput value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="Game repository" /></label>
-          <label><span>Connection</span><ClusterSelect ariaLabel="Repository Source Control connection" value={repositoryConnectionId} onChange={(id) => { setRepositoryConnectionId(id); if (!id) setRemoteUrl(""); }} placeholder="Cluster native" options={[{ value: "", label: "Cluster native" }, ...connections.map((connection) => ({ value: connection.id, label: `${connection.displayName} · ${providerLabel(connection.providerId)}` }))]} /></label>
-          <label><span>Remote URL <small>{repositoryConnectionId ? "required" : "requires connection"}</small></span><ClusterTextInput value={remoteUrl} onChange={(event) => setRemoteUrl(event.target.value)} disabled={!repositoryConnectionId} placeholder={repositoryConnectionId ? "https://…" : "Select a remote connection"} /></label>
-          <label><span>Default branch</span><ClusterTextInput value={defaultBranch} onChange={(event) => setDefaultBranch(event.target.value)} placeholder="main" /></label>
-          <div className="button-row source-control-form-actions-v524"><ClusterButton variant="primary" disabled={busy || !repositoryName.trim() || Boolean(repositoryConnectionId && !remoteUrl.trim()) || Boolean(remoteUrl.trim() && !repositoryConnectionId)} onClick={() => void addRepository()}>Add repository</ClusterButton></div>
-        </div>
-      </section> : null}
+      {sourceView === "connections" && connectionFormOpen ? <div className="scm-form" aria-label={isEditingConnection ? "Edit connection" : "New connection"}>
+        <label className="scm-field"><span>Provider</span><ClusterSelect ariaLabel="Source Control provider" value={providerId} onChange={(value) => { if (!isEditingConnection) setProviderId(value); }} options={providerOptions} disabled={isEditingConnection} /></label>
+        <label className="scm-field scm-field--grow"><span>Name</span><ClusterTextInput value={connectionName} onChange={(event) => setConnectionName(event.target.value)} placeholder="Studio Git" /></label>
+        <label className="scm-field scm-field--grow"><span>Server URL</span><ClusterTextInput value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={providerId === "source.github" ? "https://github.com" : providerId === "source.gitlab" ? "https://gitlab.com" : "https://git.example.com"} /></label>
+        <label className="scm-field scm-field--grow"><span>API URL</span><ClusterTextInput value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} placeholder="Auto" /></label>
+        <label className="scm-field scm-field--grow"><span>Access token</span><ClusterTextInput type="password" value={sourceToken} onChange={(event) => { setSourceToken(event.target.value); if (event.target.value) setClearSourceToken(false); }} placeholder={sourceTokenConfigured ? "Saved · type to replace" : "Token"} /></label>
+        <div className="scm-field"><span>Private network</span><ClusterSegmentedControl value={allowPrivateNetwork ? "allow" : "block"} onChange={(value) => setAllowPrivateNetwork(value === "allow")} label="Private network access" options={[{ value: "block", label: "Block" }, { value: "allow", label: "Allow" }]} /></div>
+        {isEditingConnection && sourceTokenConfigured ? <div className="scm-field"><span>Saved token</span><ClusterSegmentedControl value={clearSourceToken ? "remove" : "keep"} onChange={(value) => { setClearSourceToken(value === "remove"); if (value === "remove") setSourceToken(""); }} label="Stored token action" options={[{ value: "keep", label: "Keep" }, { value: "remove", label: "Remove" }]} /></div> : null}
+        <ClusterButton size="compact" variant="primary" busy={busy} busyLabel="Saving…" disabled={busy || !connectionName.trim() || !providerId} onClick={() => void saveSourceConnection()}>{isEditingConnection ? "Save" : "Add"}</ClusterButton>
+      </div> : null}
 
-      {sourceView === "repositories" && <section className="admin-panel-v243 source-control-list-v524 source-control-repository-browser">
-        <header className="source-control-mode-header"><strong>Repositories</strong><span>{visibleRepositories.length} shown / {repositories.length}</span></header>
-        {repositories.length > 0 && <div className="source-control-repository-toolbar" role="group" aria-label="Find repositories">
-          <ClusterTextInput value={repositoryQuery} onChange={(event) => setRepositoryQuery(event.target.value)} placeholder="Repository, branch or remote…" aria-label="Search repositories" />
-          <ClusterSelect ariaLabel="Filter repositories" value={repositoryScope} onChange={(value) => setRepositoryScope(value as "all" | "attention" | "linked")} options={[{value:"all", label:"All"}, {value:"attention", label:"Needs attention"}, {value:"linked", label:"Linked"}]} />
-          <ClusterSelect ariaLabel="Sort repositories" value={repositorySort} onChange={(value) => setRepositorySort(value as "name" | "recent")} options={[{value:"name", label:"Name"}, {value:"recent", label:"Recently synced"}]} />
-        </div>}
-        {initialLoading ? <div role="status" aria-label="Loading repositories" className="source-control-skeleton-grid">{[1,2,3].map((item) => <div className="source-control-skeleton-card" key={item}><span/><strong/><small/><small/></div>)}</div> : visibleRepositories.length ? <div className="source-control-repository-layout">
-          <div className="source-control-repository-grid" role="list">
-          {visibleRepositories.map((repository) => <article key={repository.id} className={`source-control-repository-card${selectedRepositoryId === repository.id ? " is-selected" : ""}`} role="listitem">
-            <div className="source-control-repository-card__top"><ClusterIcon name="code" treatment="duotone" /><div><h3>{repository.name}</h3><small>{repository.connection?.displayName || "Cluster native"}</small></div><span className={`soft-pill ${repository.healthState === "healthy" ? "good" : repository.healthState === "failed" ? "warning" : ""}`}>{repositoryStateLabel(repository)}</span></div>
-            <div className="source-control-repository-card__metrics"><span><ClusterIcon name="timeline" /> {repository.defaultBranch}</span><span>{repository._count?.branches || 0} branches</span><span>{repository._count?.commits || 0} commits</span></div>
-            <div className="source-control-repository-card__footer"><code>{repository.headRevision?.slice(0, 10) || "No commits"}</code><ClusterButton size="compact" variant={selectedRepositoryId === repository.id ? "primary" : "secondary"} onClick={() => setSelectedRepositoryId(repository.id)} aria-pressed={selectedRepositoryId === repository.id}><ClusterIcon name="list" /> Inspect</ClusterButton></div>
-          </article>)}
-          </div>
-          <aside className="source-control-repository-inspector" aria-label="Repository details">
-            {selectedRepository && visibleRepositories.some((repository) => repository.id === selectedRepository.id) ? <>
-              <header><ClusterIcon name="code" treatment="duotone" /><div><small>REPOSITORY</small><h3>{selectedRepository.name}</h3></div></header>
-              <dl>
-                <div><dt>Health</dt><dd>{repositoryStateLabel(selectedRepository)}</dd></div>
-                <div><dt>Default branch</dt><dd>{selectedRepository.defaultBranch}</dd></div>
-                <div><dt>Projects</dt><dd>{selectedRepository._count?.projects || 0}</dd></div>
-                <div><dt>Branches</dt><dd>{selectedRepository._count?.branches || 0}</dd></div>
-                <div><dt>Commits</dt><dd>{selectedRepository._count?.commits || 0}</dd></div>
-                <div><dt>Last sync</dt><dd>{selectedRepository.lastSyncedAt ? new Date(selectedRepository.lastSyncedAt).toLocaleString() : "Not yet"}</dd></div>
-              </dl>
-              {selectedRepository.healthMessage && <p role="status" className="source-control-repository-health">{selectedRepository.healthMessage}</p>}
-              {selectedRepository.remoteUrl && <div className="source-control-repository-remote"><small>Remote</small><code>{selectedRepository.remoteUrl}</code><ClusterButton size="compact" variant="secondary" onClick={() => void copyClusterText(selectedRepository.remoteUrl!).then((copied) => setStatus(copied ? "Remote URL copied." : "Clipboard unavailable."))}>Copy URL</ClusterButton></div>}
-              {selectedRepository.headRevision && <div className="source-control-repository-remote"><small>HEAD</small><code>{selectedRepository.headRevision}</code></div>}
-              <section className="source-control-repository-history" aria-label="Repository branch and commit history">
-                <header><strong>History</strong><ClusterButton variant="quiet" size="compact" disabled={repositoryDetailLoading} onClick={() => setRepositoryDetailRefresh((value) => value + 1)}><ClusterIcon name="refresh" /> Refresh</ClusterButton></header>
-                {repositoryDetailLoading && <p role="status" className="source-control-repository-health">Loading history…</p>}
-                {repositoryDetailError && <p role="alert" className="source-control-repository-health">{repositoryDetailError}</p>}
-                {repositoryDetail?.repositoryId === selectedRepository.id && <>
-                  <div className="source-control-repository-branches" aria-label="Repository branches">
-                    <small>Branches · {repositoryDetail.data.branches.length}</small>
-                    {repositoryDetail.data.branches.length ? <div>{repositoryDetail.data.branches.slice(0, 10).map((branch) => <span key={branch.id || branch.name} className={branch.isDefault ? "is-default" : ""} title={branch.headRevision || branch.name}>{branch.name}</span>)}</div> : <p className="muted">No branches indexed yet.</p>}
-                  </div>
-                  <div className="source-control-repository-commits" aria-label="Recent commits">
-                    <small>Recent commits</small>
-                    {repositoryDetail.data.commits.length ? repositoryDetail.data.commits.slice(0, 8).map((commit) => <div key={commit.id || commit.revision} className="source-control-repository-commit"><code title={commit.revision}>{commit.shortRevision || commit.revision.slice(0, 10)}</code><div><strong title={commit.message}>{commit.message.split("\n")[0]}</strong><small>{[commit.authorName, commit.committedAt ? new Date(commit.committedAt).toLocaleDateString() : ""].filter(Boolean).join(" · ")}</small></div></div>) : <p className="muted">No commits indexed yet.</p>}
-                  </div>
-                </>}
-              </section>
-              <ClusterButton variant="primary" disabled={busy || selectedRepository.syncState === "syncing"} onClick={() => void syncRepository(selectedRepository)}><ClusterIcon name="sync" /> {selectedRepository.syncState === "syncing" ? "Syncing…" : selectedRepository.connection ? "Sync repository" : "Check local repository"}</ClusterButton>
-            </> : <div className="source-control-repository-inspector__empty"><ClusterIcon name="code" treatment="duotone" /><strong>Inspect a repository</strong><span>Choose a repository to see status, history and remote.</span></div>}
-          </aside>
-        </div> : repositories.length ? <div className="source-control-empty"><ClusterIcon name="search" /><strong>No matches</strong><ClusterButton size="compact" variant="secondary" onClick={() => { setRepositoryQuery(""); setRepositoryScope("all"); }}>Clear filters</ClusterButton></div> : <div className="source-control-empty"><ClusterIcon name="code" treatment="duotone" /><strong>No repositories</strong><span>Create a native repository, then attach it to projects.</span><ClusterButton variant="primary" size="compact" onClick={() => setRepositoryFormOpen(true)}><ClusterIcon name="plus" /> New repository</ClusterButton></div>}
-        {repositories.length > 0 && <details className="source-control-advanced-table"><summary><ClusterIcon name="list" /> Detailed table</summary><ClusterDataTable rows={repositories} columns={repositoryColumns} rowKey={(repository) => repository.id} rowLabel={(repository) => repository.name} label="Source Control repositories" configurableColumns persistKey="admin-source-control-repositories" /></details>}
-      </section>}
-    </AdminSurface>
+      {sourceView === "connections" ? (connections.length ? <ul className="scm-conns" aria-label="Connections">
+        {connections.map((connection) => <li key={connection.id}>
+          <i data-state={connectionTone(connection)} aria-hidden="true" />
+          <span className="scm-repo__name"><b>{connection.displayName}</b><small>{providerLabel(connection.providerId)}</small></span>
+          <span className="scm-conns__url">{connection.configuration?.baseUrl || connection.configuration?.apiBaseUrl || "Provider default"}</span>
+          <span className="scm-conns__token" data-on={connection.configuration?.tokenConfigured || undefined}><ClusterIcon name="lock" aria-hidden="true" />{connection.configuration?.tokenConfigured ? "Token" : "No token"}</span>
+          <span className="scm-conns__check" title={connection.healthMessage || undefined}>{connection.lastCheckedAt ? `Checked ${new Date(connection.lastCheckedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Not checked"}</span>
+          <span className="scm-detail__actions">
+            <ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => void checkConnection(connection)}>Check</ClusterButton>
+            <ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => editConnection(connection)}>Edit</ClusterButton>
+            <ClusterIconButton size="compact" label="Remove connection" disabled={busy} onClick={() => void archiveConnection(connection)}><ClusterIcon name="trash" /></ClusterIconButton>
+          </span>
+        </li>)}
+      </ul> : !connectionFormOpen ? <div className="scm-none">
+        <ClusterIcon name="link" aria-hidden="true" />
+        <b>No connections</b>
+        <span>Only needed for repositories hosted on GitHub, GitLab or Gitea.</span>
+      </div> : null) : null}
+    </section>
   );
 }
 
@@ -508,7 +534,7 @@ export function IntegrationsAdminPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [botTokenConfigured, setBotTokenConfigured] = useState(false);
   const [webhookConfigured, setWebhookConfigured] = useState(false);
-  const [status, setStatus] = useState("Loading integrations…");
+  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [integrationView, setIntegrationView] = useState<"connected" | "catalog" | "discord">("connected");
   const [discordBotState, setDiscordBotState] = useState<{ state: string; managed: boolean; message: string | null } | null>(null);
@@ -556,7 +582,7 @@ export function IntegrationsAdminPage() {
       setWebhookConfigured(Boolean(configurationResult.configuration?.webhookConfigured));
       setBotToken("");
       setWebhookUrl("");
-      setStatus(`${externalConnections.length} connected integration${externalConnections.length === 1 ? "" : "s"}`);
+      setStatus("");
     } catch (error) { setStatus(formatApiError(error)); }
   }
 
@@ -743,46 +769,45 @@ export function IntegrationsAdminPage() {
   ], [busy]);
 
   return (
-    <AdminSurface title="Integrations" description="Connect external services around Cluster. Native Source Control stays inside Projects and Tool Infrastructure." status={status}>
-      <div className="admin-integration-nav-v535"><ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} /></div>
-      {integrationView !== "discord" ? <ClusterMetricStrip label="Integration summary" items={[{ label: "Connected", value: connections.length, detail: "external service connections" }, { label: "Providers", value: integrationProviders.filter((provider) => provider.implementation === "active").length, detail: "active providers" }, { label: "Discord provider", value: discordProvider?.implementation === "active" ? "Available" : "Unavailable", detail: botTokenConfigured || webhookConfigured ? "Credentials configured · health unverified" : "Setup available", tone: discordProvider?.implementation === "active" ? "neutral" : "warning" }, { label: "Project routes", value: deliverySummary?.routeCount || 0, detail: `${deliverySummary?.projectCount || 0} linked projects` }]} /> : null}
-      {integrationView === "connected" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3><ClusterIcon name="link" aria-hidden="true" /> Connected integrations</h3><p>Saved connections and the latest observed health. A configured integration isn't necessarily reachable.</p></div><ClusterButton variant="secondary" size="compact" onClick={() => setIntegrationView("catalog")}><ClusterIcon name="plus" aria-hidden="true" /> Browse catalog</ClusterButton></div><ClusterDataTable rows={connections} columns={connectedIntegrationColumns} rowKey={(connection) => connection.id} rowLabel={(connection) => connection.displayName} label="Connected integrations" configurableColumns persistKey="admin-connected-integrations" onRowActivate={(connection) => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }} empty={<ClusterEmptyState title="No integrations connected" description="Open the catalog to see available external providers." actions={<ClusterButton variant="primary" onClick={() => setIntegrationView("catalog")}>Open catalog</ClusterButton>} />} /></section> : null}
+    <section className="ao admin-integrations" aria-label="Integrations">
+      <div className="ao-bar">
+        <ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: connections.length ? `Connected ${connections.length}` : "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} />
+        {integrationView === "discord" ? <ClusterSegmentedControl value={discordWorkspaceView} onChange={(next) => setDiscordWorkspaceView(next as typeof discordWorkspaceView)} label="Discord management views" options={[
+          { value: "dashboard", label: "Overview" }, { value: "configuration", label: "Setup" }, { value: "bot", label: "Bot & servers" }, { value: "delivery", label: deliverySummary?.deliveries.failed ? `Deliveries ${deliverySummary.deliveries.failed}` : "Deliveries" },
+        ]} /> : null}
+        <span className="ao-bar__end">
+          {status ? <span className="ao-msg" role="status">{status}</span> : null}
+          <ClusterIconButton size="compact" label="Refresh" disabled={busy} onClick={() => void load(true)}><ClusterIcon name="refresh" /></ClusterIconButton>
+        </span>
+      </div>
+      {integrationView === "connected" ? <section className="ao-card" aria-label="Connected integrations">
+        {connections.length ? <ul className="ao-rows">{connections.map((connection) => <li key={connection.id}>
+          <button type="button" className="ao-row ao-row--button" data-tone={connection.healthState === "healthy" ? "good" : connection.healthState === "failed" || connection.healthState === "degraded" ? "danger" : "warning"} onClick={() => { if (connection.providerId === "communication.discord") setIntegrationView("discord"); }}>
+            <i className="ao-dot" aria-hidden="true" />
+            <span className="ao-row__main"><b>{connection.displayName}</b><small>{providerLabel(connection.providerId)}{connection.healthMessage ? ` · ${connection.healthMessage}` : ""}</small></span>
+            <span className="ao-row__end"><small>{connection.lastCheckedAt ? `Checked ${new Date(connection.lastCheckedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Not checked"}</small><span className="ao-pill" data-tone={connection.status === "active" ? "good" : "warning"}>{connectionStateLabel(connection.status)}</span></span>
+          </button>
+        </li>)}</ul> : <div className="ao-row ao-row--plain">
+          <span className="ao-row__main"><b>No integrations</b><small>Discord, delivery providers and more are in the catalog.</small></span>
+          <span className="ao-row__end"><ClusterButton size="compact" variant="secondary" onClick={() => setIntegrationView("catalog")}>Catalog</ClusterButton><ClusterButton size="compact" variant="primary" onClick={() => setIntegrationView("discord")}>Set up Discord</ClusterButton></span>
+        </div>}
+      </section> : null}
       {integrationView === "catalog" ? <IntegrationProvidersPanel excludeCategories={["source-control"]} /> : null}
       {integrationView === "discord" ? <>
-      <section className="admin-panel-v243 cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
-        <div className="admin-section-heading-v243"><div><h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord management</h3><p>Bot runtime, account linking, approved servers and delivery health.</p></div>
-          <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void load(true)}><ClusterIcon name="refresh" /> Refresh</ClusterButton></div>
-        <ClusterSegmentedControl value={discordWorkspaceView} onChange={(next) => setDiscordWorkspaceView(next as typeof discordWorkspaceView)} label="Discord management views" options={[
-          { value: "dashboard", label: "Dashboard" }, { value: "configuration", label: "Setup" }, { value: "bot", label: "Bot & servers" }, { value: "delivery", label: "Deliveries" },
-        ]} />
-        {discordWorkspaceView === "dashboard" ? <>
-          <div className="cluster-discord-health-grid-v548">
-            <div><span><ClusterIcon name="cloud" aria-hidden="true" /> Gateway</span><SettingsStateChip tone={discordBotState?.state === "connected" ? "success" : discordBotState?.state === "failed" ? "danger" : "neutral"} icon={discordBotState?.state === "connected" ? "check" : "activity"}>{discordBotState?.state === "connected" ? "Last check connected" : discordBotState?.state || "Not checked"}</SettingsStateChip><small>{discordBotState?.managed ? "Managed by Cluster" : "Not running under Cluster"}</small></div>
-            <div><span><ClusterIcon name="lock" aria-hidden="true" /> OAuth linking</span><SettingsStateChip tone={discordOAuthReady && discordOAuthAppMatches ? "info" : "warning"} icon="lock">{discordOAuthReady && discordOAuthAppMatches ? "Configured" : "Needs setup"}</SettingsStateChip><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID mismatch" : discordOAuthReady ? "Configuration present · test account linking" : "Identity linking unavailable"}</small></div>
-            <div><span><ClusterIcon name="users" aria-hidden="true" /> Approved servers</span><strong>{discordGuilds.length}</strong><SettingsStateChip tone={discordGuilds.some((g) => g.reachable === false) ? "warning" : "neutral"}>{discordGuilds.filter((g) => g.reachable === false).length} reported unreachable</SettingsStateChip></div>
-            <div><span><ClusterIcon name="link" aria-hidden="true" /> Project routes</span><strong>{deliverySummary?.routeCount ?? "—"}</strong><small>{deliverySummary?.projectCount ?? 0} linked projects</small></div>
-          </div>
-          {discordLinkCoverage ? <ClusterVisualComposition label="Active accounts linked to Discord" total={discordLinkCoverage.active} parts={[
-            { label: "Linked", value: discordLinkCoverage.linked, tone: "good" },
-            { label: "Not linked", value: discordLinkCoverage.unlinked, tone: "neutral" },
-          ]} /> : <p className="muted">Account linking coverage not yet available.</p>}
-          {deliverySummary ? <ClusterVisualComposition label="Notification delivery" total={deliverySummary.deliveries.completed + deliverySummary.deliveries.pending + deliverySummary.deliveries.running + deliverySummary.deliveries.failed} parts={[
-            { label: "Delivered", value: deliverySummary.deliveries.completed, tone: "good" },
-            { label: "Queued", value: deliverySummary.deliveries.pending, tone: "neutral" },
-            { label: "Running", value: deliverySummary.deliveries.running, tone: "accent" },
-            { label: "Failed", value: deliverySummary.deliveries.failed, tone: "danger" },
-          ]} /> : null}
-          <div className="button-row">
-            <ClusterButton type="button" variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}><ClusterIcon name="play" /> Start / restart</ClusterButton>
-            <ClusterButton type="button" variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop bot</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("configuration")}>Configure OAuth</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("bot")}>Manage servers</ClusterButton>
-            <ClusterButton type="button" variant="secondary" onClick={() => setDiscordWorkspaceView("delivery")}>Delivery details</ClusterButton>
-          </div>
-          {!discordOAuthReady || !discordOAuthAppMatches ? <p className="warning" role="status">Discord bot credentials and user OAuth are separate. Complete OAuth setup before anyone can link an account.</p> : null}
-          {deliverySummary?.deliveries.failed ? <p role="alert" className="warning">{deliverySummary.deliveries.failed} Discord deliveries need attention. Open Deliveries to inspect and retry.</p> : null}
-        </> : null}
-      </section>
+      {discordWorkspaceView === "dashboard" ? <section className="ao-card cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
+        <h3 className="ao-card__title">Discord
+          <span className="ao-inline">
+            <ClusterButton type="button" size="compact" variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}><ClusterIcon name="play" />{discordBotState?.managed ? "Restart" : "Start"}</ClusterButton>
+            <ClusterButton type="button" size="compact" variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop</ClusterButton>
+          </span>
+        </h3>
+        <ul className="ao-rows">
+          <li className="ao-row" data-tone={discordBotState?.state === "connected" ? "good" : discordBotState?.state === "failed" ? "danger" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Bot</b><small>{discordBotState?.managed ? "Run by Cluster" : "Not running under Cluster"}</small></span><span className="ao-row__end"><small>{discordBotState?.state || "Not checked"}</small></span></li>
+          <li className="ao-row" data-tone={discordOAuthReady && discordOAuthAppMatches ? "good" : "warning"}><i className="ao-dot" /><span className="ao-row__main"><b>Account linking</b><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID doesn't match the bot" : discordOAuthReady ? "Configured · test by linking an account" : "OAuth not configured"}</small></span><span className="ao-row__end">{!discordOAuthReady || !discordOAuthAppMatches ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("configuration")}>Set up</ClusterButton> : <small>{discordLinkCoverage ? `${discordLinkCoverage.linked}/${discordLinkCoverage.active} linked` : "Ready"}</small>}</span></li>
+          <li className="ao-row" data-tone={discordGuilds.some((guild) => guild.reachable === false) ? "warning" : discordGuilds.length ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Servers</b><small>{discordGuilds.length ? discordGuilds.map((guild) => guild.name || guild.id).join(", ") : "None approved"}</small></span><span className="ao-row__end"><ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("bot")}>Manage</ClusterButton></span></li>
+          <li className="ao-row" data-tone={deliverySummary?.deliveries.failed ? "danger" : deliverySummary ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Deliveries</b><small>{deliverySummary ? `${deliverySummary.deliveries.completed} delivered · ${deliverySummary.deliveries.pending + deliverySummary.deliveries.running} queued · ${deliverySummary.deliveries.failed} failed` : "No data"}</small></span><span className="ao-row__end"><small>{deliverySummary?.routeCount ?? 0} project routes</small>{deliverySummary?.deliveries.failed ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("delivery")}>Review</ClusterButton> : null}</span></li>
+        </ul>
+      </section> : null}
       {discordWorkspaceView === "configuration" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Discord</h3><p>Studio connection and credentials. Project routing remains attached to each project.</p></div><span className={`soft-pill ${discordProvider?.implementation === "active" ? "good" : "warning"}`}>{discordProvider?.implementation === "active" ? "Available" : "Unavailable"}</span></div><div className="admin-tool-field-grid-v232"><label><span>Connection name</span><ClusterTextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Studio Discord" /></label><label><span>Server ID</span><ClusterTextInput value={guildId} onChange={(event) => setGuildId(event.target.value)} placeholder="Discord server ID" /></label><label><span>Bot token</span><ClusterTextInput type="password" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Configured · enter a value to replace" : "Bot token"} /></label><label><span>Webhook URL</span><ClusterTextInput type="password" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Configured · enter a value to replace" : "Optional Discord webhook URL"} /></label><label><span>Forum channel ID</span><ClusterTextInput value={forumChannelId} onChange={(event) => setForumChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Chat channel ID</span><ClusterTextInput value={chatChannelId} onChange={(event) => setChatChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Admin role ID</span><ClusterTextInput value={adminRoleId} onChange={(event) => setAdminRoleId(event.target.value)} placeholder="Optional" /></label><label><span>Message prefix</span><ClusterTextInput value={messagePrefix} onChange={(event) => setMessagePrefix(event.target.value)} placeholder="Cluster" /></label><label><span>Application ID</span><ClusterTextInput value={applicationId} onChange={(event) => setApplicationId(event.target.value)} placeholder="Required for Discord actions" /></label><label><span>Application public key</span><ClusterTextInput type="password" value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Configured · enter a value to replace" : "Required for signed Discord actions"} /></label></div>{!discordOAuthReady ? <p className="warning" role="status">Discord account linking is not configured. Add DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI to the server environment, then restart Cluster. Bot installation alone does not enable user linking.</p> : !discordOAuthAppMatches ? <p className="warning" role="status">Discord OAuth uses a different Application ID than the configured bot. Verify that both settings refer to the intended Discord application.</p> : <p className="muted">Discord account linking is available.</p>}
         <details className="cluster-visual-advanced"><summary>Set up account linking (OAuth)</summary><div className="cluster-visual-advanced__body">
           <p>1. In the Discord Developer Portal, open your application's OAuth2 settings. Add the public callback URL below as a redirect.</p>
@@ -855,7 +880,7 @@ export function IntegrationsAdminPage() {
 ]} />}
 {deliverySummary?.deliveries.failed ? <p role="alert" className="warning">{deliverySummary.deliveries.failed} failed deliveries. {deliverySummary.healthMessage || "Review the failures below."}</p> : null}
 <details className="cluster-visual-advanced"><summary>Exact delivery counts</summary><div className="cluster-visual-advanced__body"><ClusterMetricStrip label="Discord delivery summary" items={[{ label: PRODUCT_OPERATION_STATES.completed, value: deliverySummary?.deliveries.completed || 0, detail: "deliveries completed", tone: "good" }, { label: PRODUCT_OPERATION_STATES.queued, value: deliverySummary?.deliveries.pending || 0, detail: "waiting for worker" }, { label: PRODUCT_OPERATION_STATES.running, value: deliverySummary?.deliveries.running || 0, detail: "attempts in progress" }, { label: PRODUCT_OPERATION_STATES.failed, value: deliverySummary?.deliveries.failed || 0, detail: deliverySummary?.healthMessage || "No connection health message", tone: deliverySummary?.deliveries.failed ? "warning" : "good" }]} /></div></details><ClusterDataTable rows={deliverySummary?.recentFailures || []} columns={discordFailureColumns} rowKey={(failure) => failure.id} rowLabel={(failure) => failure.error} label="Recent Discord delivery failures" configurableColumns persistKey="admin-discord-delivery-failures" empty={<p className="muted">No failed deliveries.</p>} /></section> : null}</> : null}
-    </AdminSurface>
+    </section>
   );
 }
 

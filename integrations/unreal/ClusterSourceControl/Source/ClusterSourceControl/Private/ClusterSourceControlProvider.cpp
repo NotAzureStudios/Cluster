@@ -27,6 +27,14 @@ bool IsTerminalOperationState(const FString& State)
     return State == TEXT("succeeded") || State == TEXT("failed") || State == TEXT("cancelled");
 }
 
+// How long the editor waits on a blocking Workstation call. Sized for Unreal
+// content: a status over a large Content tree, the LFS clean filter while
+// staging, a push of new assets. Async operations have no editor deadline.
+constexpr float StatusTimeoutSeconds = 120.0f;
+constexpr float LocalWriteTimeoutSeconds = 600.0f;
+constexpr float NetworkShortTimeoutSeconds = 120.0f;
+constexpr float NetworkLongTimeoutSeconds = 3600.0f;
+
 void FinishAsyncCommand(
     const TSharedRef<FClusterAsyncSourceControlCommand, ESPMode::ThreadSafe>& Command,
     ECommandResult::Type Result,
@@ -53,8 +61,13 @@ void RunAsyncWorkstationCommand(const TSharedRef<FClusterAsyncSourceControlComma
         Command->WorkstationOperationId = Snapshot.Id;
     }
 
-    constexpr int32 MaxPolls = 3600; // 15 minutes at 250 ms. Long operations should surface as explicit failures instead of hanging forever.
-    for (int32 Poll = 0; Poll < MaxPolls; ++Poll)
+    // No editor-side deadline: a check-in can push gigabytes of LFS content
+    // and must not be cancelled for being slow. The Workstation enforces its
+    // own ceiling and the user can cancel. Only a Workstation that stops
+    // answering ends the wait.
+    constexpr int32 MaxConsecutiveStatusFailures = 20;
+    int32 StatusFailures = 0;
+    for (;;)
     {
         bool bCancelRequested = false;
         bool bCancelSent = false;
@@ -98,17 +111,18 @@ void RunAsyncWorkstationCommand(const TSharedRef<FClusterAsyncSourceControlComma
         }
 
         FPlatformProcess::Sleep(0.25f);
-        if (!Command->Client.GetOperationStatusBlocking(Command->RepositoryId, Snapshot.Id, Snapshot, Error))
+        FClusterWorkstationOperationSnapshot Next;
+        if (Command->Client.GetOperationStatusBlocking(Command->RepositoryId, Snapshot.Id, Next, Error))
         {
-            FinishAsyncCommand(Command, ECommandResult::Failed, Error);
+            Snapshot = Next;
+            StatusFailures = 0;
+        }
+        else if (++StatusFailures >= MaxConsecutiveStatusFailures)
+        {
+            FinishAsyncCommand(Command, ECommandResult::Failed, Error.IsEmpty() ? TEXT("Cluster Workstation stopped responding.") : Error);
             return;
         }
     }
-
-    FClusterWorkstationOperationSnapshot CancelSnapshot;
-    FString CancelError;
-    Command->Client.CancelOperationBlocking(Command->RepositoryId, Snapshot.Id, CancelSnapshot, CancelError);
-    FinishAsyncCommand(Command, ECommandResult::Failed, TEXT("Cluster Workstation source-control operation exceeded the editor safety timeout."));
 }
 }
 
@@ -251,7 +265,7 @@ bool FClusterSourceControlProvider::RefreshStatesBlocking(const TArray<FString>&
     if (RepoPaths.IsEmpty()) return true;
 
     FClusterWorkstationActionResponse Response;
-    if (!Client.RequestActionBlocking(TEXT("files.status"), RepositoryId, RepoPaths, MakeShared<FJsonObject>(), Response, 10.0f) || !Response.Result.IsValid())
+    if (!Client.RequestActionBlocking(TEXT("files.status"), RepositoryId, RepoPaths, MakeShared<FJsonObject>(), Response, StatusTimeoutSeconds) || !Response.Result.IsValid())
     {
         LastError = Response.ErrorMessage;
         return false;
@@ -395,7 +409,7 @@ void FClusterSourceControlProvider::ReleaseOwnedLocks(const TArray<FString>& Fil
         const FString Relative = ToRepositoryRelativePath(File);
         if (Relative.IsEmpty()) continue;
         FClusterWorkstationActionResponse Response;
-        Client.RequestActionBlocking(TEXT("locks.release"), RepositoryId, {Relative}, MakeShared<FJsonObject>(), Response, 15.0f);
+        Client.RequestActionBlocking(TEXT("locks.release"), RepositoryId, {Relative}, MakeShared<FJsonObject>(), Response, NetworkShortTimeoutSeconds);
     }
 }
 
@@ -428,15 +442,15 @@ ECommandResult::Type FClusterSourceControlProvider::ExecuteSynchronously(
     }
     else if (OperationIs(InOperation, TEXT("MarkForAdd")))
     {
-        bSuccess = ExecuteWorkstationAction(TEXT("files.add"), InFiles, MakeShared<FJsonObject>());
+        bSuccess = ExecuteWorkstationAction(TEXT("files.add"), InFiles, MakeShared<FJsonObject>(), LocalWriteTimeoutSeconds);
     }
     else if (OperationIs(InOperation, TEXT("Delete")))
     {
-        bSuccess = ExecuteWorkstationAction(TEXT("files.delete"), InFiles, MakeShared<FJsonObject>());
+        bSuccess = ExecuteWorkstationAction(TEXT("files.delete"), InFiles, MakeShared<FJsonObject>(), LocalWriteTimeoutSeconds);
     }
     else if (OperationIs(InOperation, TEXT("Revert")))
     {
-        bSuccess = ExecuteWorkstationAction(TEXT("files.revert"), InFiles, MakeShared<FJsonObject>());
+        bSuccess = ExecuteWorkstationAction(TEXT("files.revert"), InFiles, MakeShared<FJsonObject>(), LocalWriteTimeoutSeconds);
         if (bSuccess) ReleaseOwnedLocks(InFiles);
     }
     else if (OperationIs(InOperation, TEXT("CheckOut")))
@@ -450,7 +464,7 @@ ECommandResult::Type FClusterSourceControlProvider::ExecuteSynchronously(
                 if (!State->IsLockable() || State->IsCheckedOut()) continue;
                 TSharedPtr<FJsonObject> Input = MakeShared<FJsonObject>();
                 Input->SetBoolField(TEXT("lock"), true);
-                if (!ExecuteWorkstationAction(TEXT("files.checkout"), {File}, Input))
+                if (!ExecuteWorkstationAction(TEXT("files.checkout"), {File}, Input, NetworkShortTimeoutSeconds))
                 {
                     bSuccess = false;
                     break;
@@ -463,15 +477,18 @@ ECommandResult::Type FClusterSourceControlProvider::ExecuteSynchronously(
         const TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckIn = StaticCastSharedRef<FCheckIn>(InOperation);
         TSharedPtr<FJsonObject> Input = MakeShared<FJsonObject>();
         Input->SetStringField(TEXT("message"), CheckIn->GetDescription().ToString());
-        Input->SetBoolField(TEXT("push"), false);
-        bSuccess = ExecuteWorkstationAction(TEXT("changes.commit"), InFiles, Input, 60.0f);
+        // Check In publishes. Locks are released only after the push lands, so
+        // nobody can lock and edit an asset whose new version isn't on the
+        // server yet. A failed push keeps the locks; checking in again retries.
+        Input->SetBoolField(TEXT("push"), true);
+        bSuccess = ExecuteWorkstationAction(TEXT("changes.commit"), InFiles, Input, NetworkLongTimeoutSeconds);
         if (bSuccess && !CheckIn->GetKeepCheckedOut()) ReleaseOwnedLocks(InFiles);
     }
     else if (OperationIs(InOperation, TEXT("Sync")))
     {
         TSharedPtr<FJsonObject> Input = MakeShared<FJsonObject>();
-        Input->SetStringField(TEXT("mode"), TEXT("pull"));
-        bSuccess = ExecuteWorkstationAction(TEXT("repository.sync"), {}, Input, 90.0f);
+        Input->SetStringField(TEXT("mode"), TEXT("rebase"));
+        bSuccess = ExecuteWorkstationAction(TEXT("repository.sync"), {}, Input, NetworkLongTimeoutSeconds);
     }
 
     if (bSuccess && InFiles.Num() > 0) RefreshStatesBlocking(InFiles);
@@ -498,13 +515,13 @@ ECommandResult::Type FClusterSourceControlProvider::QueueAsyncWorkstationOperati
         const TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckIn = StaticCastSharedRef<FCheckIn>(InOperation);
         Input->SetStringField(TEXT("action"), TEXT("changes.commit"));
         Input->SetStringField(TEXT("message"), CheckIn->GetDescription().ToString());
-        Input->SetBoolField(TEXT("push"), false);
+        Input->SetBoolField(TEXT("push"), true);
         bReleaseLocks = !CheckIn->GetKeepCheckedOut();
     }
     else if (OperationIs(InOperation, TEXT("Sync")))
     {
         Input->SetStringField(TEXT("action"), TEXT("repository.sync"));
-        Input->SetStringField(TEXT("mode"), TEXT("pull"));
+        Input->SetStringField(TEXT("mode"), TEXT("rebase"));
     }
     else
     {

@@ -1,6 +1,7 @@
 import { ClusterNativeSelect } from "../../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
-import { ClusterButton } from "../../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../../components/ClusterButton";
+import "../../admin/admin-ops.css";
 import { ClusterIcon } from "../../../components/ClusterIcon";
 
 import { lazy, useEffect, useState } from "react";
@@ -113,7 +114,7 @@ export function PersistenceBridgePanel() {
       setSummary(nextSummary);
       setRecords(nextRecords);
       setIntegrity(nextIntegrity);
-      setStatus("Persistence registry loaded.");
+      setStatus("");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Persistence registry failed to load.");
     } finally {
@@ -172,46 +173,41 @@ export function PersistenceBridgePanel() {
     }
   }
   return (
-    <section className="panel persistence-panel-v137">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Persistence registry</p>
-          <h2>Server-backed workflow records</h2>
-          <p className="muted tight">Inspect, validate, lock, repair, and export authoritative server records. Browser-store import controls were retired after automatic migrations replaced them.</p>
+    <section className="ao persistence-panel-v137" aria-label="Data persistence">
+      <div className="ao-bar">
+        <div className="ao-chips">
+          <span className="ao-chip" title={`${summary?.archivedRecords || 0} archived`}><span>Records</span><b>{summary?.totalRecords ?? records.length}</b></span>
+          <span className="ao-chip"><span>Kinds</span><b>{kinds.length}</b></span>
+          <span className="ao-chip"><span>Locked</span><b>{integrity?.lockedCount || 0}</b></span>
+          <span className="ao-chip" data-tone={!integrity ? undefined : integrity.ok ? "good" : integrity.issueCounts.fail ? "danger" : "warning"} title={integrity ? `${integrity.scanned} scanned · ${integrity.checksumMismatches} checksum mismatches · ${integrity.issueCounts.warn} warnings` : undefined}><span>Integrity</span><b>{integrity ? integrity.ok ? "Pass" : `${integrity.issueCounts.fail} fail` : "—"}</b></span>
+          <span className="ao-chip"><span>Schema</span><b>{summary?.version || "—"}</b></span>
         </div>
-        <div className="button-row">
-          <ClusterButton type="button" className="" onClick={loadPersistence} disabled={loading} variant="secondary">Refresh</ClusterButton>
-          <ClusterButton type="button" className="" onClick={() => runRepair(true)} disabled={loading} variant="secondary">Preview repair</ClusterButton>
-          <ClusterButton type="button" className="" onClick={() => runRepair(false)} disabled={loading} variant="secondary">Apply validation</ClusterButton>
-          <ClusterButton type="button" className="" onClick={downloadPersistenceExport} variant="secondary">Export JSON</ClusterButton>
-        </div>
+        <span className="ao-bar__end">
+          {status ? <span className="ao-msg" role="status">{status}</span> : null}
+          <ClusterButton type="button" size="compact" variant="quiet" onClick={downloadPersistenceExport}>Export</ClusterButton>
+          <ClusterButton type="button" size="compact" variant="quiet" onClick={() => runRepair(true)} disabled={loading}>Preview repair</ClusterButton>
+          <ClusterButton type="button" size="compact" variant="secondary" onClick={() => runRepair(false)} disabled={loading}>Repair</ClusterButton>
+        </span>
       </div>
-      <div className="stat-strip persistence-stats-v137">
-        <div className="stat-card panel"><span>Active records</span><strong>{summary?.totalRecords ?? records.length}</strong><em>{summary?.archivedRecords || 0} archived</em></div>
-        <div className="stat-card panel"><span>Record kinds</span><strong>{kinds.length}</strong><em>server models</em></div>
-        <div className="stat-card panel"><span>Locked</span><strong>{integrity?.lockedCount || 0}</strong><em>protected from repair</em></div>
-        <div className="stat-card panel"><span>Backend integrity</span><strong>{integrity ? `${integrity.issueCounts.fail} fail` : "--"}</strong><em>{integrity ? `${integrity.issueCounts.warn} warnings` : "not loaded"}</em></div>
-        <div className="stat-card panel"><span>Schema version</span><strong>{summary?.version || "current"}</strong><em>{summary?.generatedAt ? compactDateTime(summary.generatedAt) : "not loaded"}</em></div>
-      </div>
-      {integrity && (
-        <div className="control-domain-list-v136 persistence-integrity-v138">
-          <article className={`control-domain-card-v136 ${integrity.ok ? "good" : integrity.issueCounts.fail ? "danger" : "warning"}`}>
-            <div><strong>Integrity scan</strong><span>{integrity.scanned} records scanned · {integrity.checksumMismatches} checksum mismatch(es)</span></div><em>{integrity.ok ? "pass" : integrity.issueCounts.fail ? "fail" : "warn"}</em>
-          </article>
-          {integrity.issues.slice(0, 4).map((issue, index) => <article className={`control-domain-card-v136 ${issue.severity === "fail" ? "danger" : "warning"}`} key={`${issue.code}-${index}`}><div><strong>{issue.code.split("_").join(" ")}</strong><span>{issue.message}</span></div><em>{issue.kind || "record"}</em></article>)}
-        </div>
-      )}
-      <div className="persistence-records-v137">
-        <div className="management-header-row">
-          <div><h3>Persisted records</h3><p className="muted tight">Authoritative records that survive refreshes and device changes.</p></div>
-          <ClusterNativeSelect value={selectedKind} onChange={(event) => setSelectedKind(event.target.value as PersistenceKind | "all")}><option value="all">All kinds</option>{kinds.map((kind) => <option key={kind} value={kind}>{levelLabel(kind)}</option>)}</ClusterNativeSelect>
-        </div>
-        <div className="persistence-record-list-v137">
-          {visibleRecords.slice(0, 80).map((record) => <article className="persistence-record-row-v137" key={record.id}><div><strong>{record.locked ? <ClusterIcon name="lock" /> : null}{record.title}</strong><span>{record.kind} · {record.status || "active"} · {record.validationState || "unchecked"} · {record.sourceKey || "manual"}</span></div><div className="persistence-record-meta-v137"><em>{record.projectId ? `Project ${record.projectId.slice(0, 8)}` : "workspace"}</em><em>{compactDateTime(record.updatedAt)}</em></div><ClusterButton type="button" className="" onClick={() => validateRecord(record)} variant="secondary" size="compact">Validate</ClusterButton><ClusterButton type="button" className="" onClick={() => toggleRecordLock(record)} variant="secondary" size="compact">{record.locked ? "Unlock" : "Lock"}</ClusterButton><ClusterButton type="button" className="" onClick={() => archiveRecord(record)} variant="secondary" size="compact">Archive</ClusterButton></article>)}
-          {!visibleRecords.length && <div className="empty-state small-empty-v092"><strong>No persisted records yet.</strong><span>Create records through server-backed tools.</span></div>}
-        </div>
-      </div>
-      {status && <div className="status-box">{status}</div>}
+      {integrity?.issues.length ? <section className="ao-card" aria-label="Integrity issues">
+        <h3 className="ao-card__title">Issues <small>{integrity.issues.length}</small></h3>
+        <ul className="ao-rows">{integrity.issues.slice(0, 8).map((issue, index) => <li key={`${issue.code}-${index}`} className="ao-row" data-tone={issue.severity === "fail" ? "danger" : "warning"}>
+          <i className="ao-dot" aria-hidden="true" /><span className="ao-row__main"><b>{issue.code.split("_").join(" ").toLowerCase()}</b><small title={issue.message}>{issue.message}</small></span><span className="ao-row__end"><small>{issue.kind || "record"}</small></span>
+        </li>)}</ul>
+      </section> : null}
+      <section className="ao-card" aria-label="Persisted records">
+        <h3 className="ao-card__title">Records <small>{visibleRecords.length}</small>
+          <ClusterNativeSelect aria-label="Record kind" value={selectedKind} onChange={(event) => setSelectedKind(event.target.value as PersistenceKind | "all")}><option value="all">All kinds</option>{kinds.map((kind) => <option key={kind} value={kind}>{levelLabel(kind)}</option>)}</ClusterNativeSelect>
+        </h3>
+        {visibleRecords.length ? <ul className="ao-rows">{visibleRecords.slice(0, 80).map((record) => <li key={record.id} className="ao-row ao-row--plain">
+          <span className="ao-row__main"><b>{record.locked ? <ClusterIcon name="lock" aria-label="Locked" /> : null} {record.title}</b><small>{levelLabel(record.kind)} · {record.validationState || "unchecked"} · {record.projectId ? `project ${record.projectId.slice(0, 8)}` : "workspace"} · {compactDateTime(record.updatedAt)}</small></span>
+          <span className="ao-row__end">
+            <ClusterButton type="button" size="compact" variant="quiet" onClick={() => validateRecord(record)}>Validate</ClusterButton>
+            <ClusterButton type="button" size="compact" variant="quiet" onClick={() => toggleRecordLock(record)}>{record.locked ? "Unlock" : "Lock"}</ClusterButton>
+            <ClusterIconButton size="compact" label={`Archive ${record.title}`} onClick={() => archiveRecord(record)}><ClusterIcon name="archive" /></ClusterIconButton>
+          </span>
+        </li>)}</ul> : <p className="ao-empty">No records.</p>}
+      </section>
     </section>
   );
 }
@@ -681,7 +677,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
       <div className="section-heading">
         <div>
           <p className="eyebrow">Work links</p>
-          <h2>Canonical relationship map</h2>
+          <h2>Relationship map</h2>
           <p className="muted tight">Project relationships now write to Cluster's shared Resource Graph. Loose text-only links are retired; every new edge points at a real resource ID.</p>
         </div>
         <span className="soft-pill">{projectLinks.length} linked</span>
@@ -728,7 +724,7 @@ export function WorkLinkManager({ projects }: { projects: Project[] }) {
             <small>{compactDateTime(link.updatedAt || link.createdAt)}</small>
             <ClusterButton type="button" className="" onClick={() => setLinks(links.filter((item) => item.id !== link.id))} variant="quiet" size="compact">Remove</ClusterButton>
           </article>
-        )) : <div className="empty-state compact-empty">No canonical work links yet.</div>}
+        )) : <div className="empty-state compact-empty">No work links yet.</div>}
       </div>
     </section>
   );

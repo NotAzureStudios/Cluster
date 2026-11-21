@@ -151,6 +151,6 @@ await check('review of earlier imported values excludes absent and unsafe fields
 await check('first-run import invalidates late file reads when changing mode', () => {
   const ui=text('packages/renderer/src/features/application/modules/ApplicationSetupWizard.tsx');
   assert.match(ui, /generation !== importGeneration\.current/);
-  assert.match(ui, /\+\+importGeneration\.current; setMode/);
+  assert.match(ui, /\+\+importGeneration\.current; setImporting/);
 });
 console.log(`G09 first-run & configuration integration: ${checks}/${checks} passed`);

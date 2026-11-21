@@ -1,6 +1,8 @@
 import { DomainSetupContinuation } from "../domains/DomainSetupContinuation";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import "./admin-dashboard.css";
 import { api, apiErrorPresentation } from "../../core/api";
 import { useClusterActionFlight } from "../../components/useClusterActionFlight";
 import { createClusterLatestResponse } from "../../components/cluster-action-flight";
@@ -280,6 +282,50 @@ export function AdminSetupChecklist({ onOpenStudioSettings, onOpenServerConfig, 
     } catch (cause) { setError(apiErrorPresentation(cause).message || "Could not update checklist. Check its current state before retrying."); }
     finally { finishAction(`skip:${id}`); }
   }
+  const destinations: Record<string, (() => void) | undefined> = {
+    "studio-identity": onOpenStudioSettings,
+    "studio-timezone": onOpenStudioSettings,
+    "backups": onOpenServerConfig,
+    "second-admin": onOpenUserAdmin,
+    "first-project": onOpenProjects,
+    "domains": () => setDomainGuideOpen(true),
+    "owner-passkey": onOpenUserAdmin,
+    "recovery-codes": onOpenUserAdmin,
+  };
+  const open = state ? state.items.filter((item) => item.status === "recommended") : [];
+  const settled = state ? state.items.filter((item) => item.status !== "recommended") : [];
+  const row = (item: ChecklistEntry) => <li className="adm-setup__row" key={item.id} data-status={item.status}>
+    <span className="adm-setup__mark" aria-hidden="true">{item.status === "complete" ? <ClusterIcon name="check" /> : item.status === "skipped" ? <ClusterIcon name="minus" /> : null}</span>
+    <span className="adm-setup__label" title={`${item.detail} ${item.nextStep}`.trim()}>{item.label}</span>
+    {item.required && item.status === "recommended" ? <em>Required</em> : null}
+    <span className="adm-setup__actions">
+      {item.status === "recommended" && destinations[item.id] ? <ClusterButton type="button" variant="quiet" size="compact" onClick={destinations[item.id]}>Set up</ClusterButton> : null}
+      {!item.required && item.status !== "complete" ? <ClusterButton type="button" variant="quiet" size="compact" disabled={busyId !== null} aria-busy={busyId === `skip:${item.id}`}
+        onClick={() => void updateSkip(item.id, item.status !== "skipped")}>{busyId === `skip:${item.id}` ? "Saving…" : item.status === "skipped" ? "Restore" : "Skip"}</ClusterButton> : null}
+    </span>
+  </li>;
+  return <section className="adm-card adm-setup" aria-label="Setup">
+    <header className="adm-card__head">
+      <h2>Setup</h2>
+      {state ? <span className="adm-setup__meter" role="progressbar" aria-label="Setup checks done" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.complete}>
+        <i style={{ width: `${state.total ? (100 * state.complete / state.total) : 0}%` }} />
+      </span> : null}
+      <span className="adm-card__meta">{state ? `${state.complete}/${state.total}` : "…"}</span>
+      <ClusterIconButton size="compact" label="Refresh setup" onClick={() => void reload()} disabled={busyId !== null}><ClusterIcon name="refresh" /></ClusterIconButton>
+    </header>
+    {error ? <p role="alert" className="adm-card__error">{error}</p> : null}
+    {state && !state.security.ready ? <p className="adm-setup__warn" role="status"><ClusterIcon name="lock" />Owner recovery isn't set up</p> : null}
+    {state ? open.length ? <ul className="adm-setup__list">{open.map(row)}</ul> : <p className="adm-card__empty"><ClusterIcon name="check" />All set</p> : null}
+    {settled.length ? <details className="adm-setup__done"><summary>{settled.length} done or skipped</summary><ul className="adm-setup__list">{settled.map(row)}</ul></details> : null}
+    {domainGuideOpen && <DomainSetupContinuation onRefresh={() => void reload()} onClose={() => setDomainGuideOpen(false)} />}
+  </section>;
+}
+
+/** Studio configuration as a file: export the safe settings, or import one
+    through the server's preview → apply flow. Lives with Server backups. */
+export function AdminConfigurationTransfer() {
+  const [error, setError] = useState("");
+  const { pending: busyId, begin: beginAction, finish: finishAction } = useClusterActionFlight();
   async function exportConfiguration() {
     if (!beginAction("export")) return;
     try {
@@ -295,54 +341,14 @@ export function AdminSetupChecklist({ onOpenStudioSettings, onOpenServerConfig, 
     finally { finishAction("export"); }
   }
 
-  const destinations: Record<string, (() => void) | undefined> = {
-    "studio-identity": onOpenStudioSettings,
-    "studio-timezone": onOpenStudioSettings,
-    "backups": onOpenServerConfig,
-    "second-admin": onOpenUserAdmin,
-    "first-project": onOpenProjects,
-    "domains": () => setDomainGuideOpen(true),
-    "owner-passkey": onOpenUserAdmin,
-    "recovery-codes": onOpenUserAdmin,
-  };
-  return <section className="panel admin-setup-checklist-v506" aria-label="Cluster setup checklist">
+  return <section className="panel admin-config-transfer">
     <div className="section-heading">
-      <div><p className="eyebrow">Getting started</p><h3>Setup checklist</h3>
-        <p className="muted tight">Live server status, not manually marked completion. Optional items can be deferred.</p></div>
-      <span className="soft-pill">{state ? `${state.complete}/${state.total} ready` : "Checking…"}</span>
-    </div>
-    {error && <p role="alert" className="muted">{error}</p>}
-    {!state && !error && <p className="muted">Checking setup status…</p>}
-    {state && <>
-      <p className="muted tight" role="status">{state.security.ready
-        ? "Owner recovery requirements are configured."
-        : `Owner security needs attention: ${state.security.missingPasskeys} Owner(s) without passkeys and ${state.security.missingRecovery} without unused recovery codes.`}
-        {" "}Optional checks never override these requirements.</p>
-      <div className="admin-setup-progress-v509" role="progressbar" aria-label="Configured setup checks" aria-valuemin={0} aria-valuemax={state.total} aria-valuenow={state.complete}>
-        <span style={{ width: `${state.total ? (100 * state.complete / state.total) : 0}%` }} />
-      </div>
-      {(["Security", "Studio", "Infrastructure", "Workspace"] as const).map((group) => <div key={group} className="admin-setup-group-v509">
-        <h4>{group}</h4>
-        <div className="admin-setup-items-v506">{state.items.filter((item) => item.group === group).map((item) => <div className="admin-setup-item-v506" key={item.id}>
-          <span aria-hidden="true">{item.status === "complete" ? "✓" : item.status === "skipped" ? "−" : "○"}</span>
-          <div><strong>{item.label}</strong><small>{item.status === "complete" ? "Configured" : item.status === "skipped" ? "Deferred" : item.required ? "Required for Owner security" : "Recommended"}</small>
-            <details className="admin-setup-guidance-v509"><summary>Why this matters</summary><p>{item.detail}</p><p>{item.nextStep}</p></details>
-          </div>
-          <div className="admin-setup-actions-v506">
-            {item.status === "recommended" && destinations[item.id] && <ClusterButton type="button" variant="quiet" size="compact" onClick={destinations[item.id]}>Configure</ClusterButton>}
-            {!item.required && item.status !== "complete" && <ClusterButton type="button" variant="quiet" size="compact" disabled={busyId !== null} aria-busy={busyId === `skip:${item.id}`}
-              onClick={() => void updateSkip(item.id, item.status !== "skipped")}>{busyId === `skip:${item.id}` ? "Saving…" : item.status === "skipped" ? "Restore" : "Skip"}</ClusterButton>}
-          </div>
-        </div>)}</div>
-      </div>)}
-    </>}
-    <div className="button-row">
-      <ClusterButton type="button" variant="quiet" size="compact" onClick={() => void reload()} disabled={busyId !== null}>Refresh</ClusterButton>
+      <h2>Studio configuration file</h2>
       <ClusterButton type="button" variant="secondary" size="compact" disabled={busyId !== null} aria-busy={busyId === "export"} onClick={() => void exportConfiguration()}>
-        {busyId === "export" ? "Exporting…" : "Export safe configuration"}
+        {busyId === "export" ? "Exporting…" : "Export"}
       </ClusterButton>
     </div>
-    {domainGuideOpen && <DomainSetupContinuation onRefresh={() => void reload()} onClose={() => setDomainGuideOpen(false)} />}
-    <AdminConfigurationImport onApplied={() => void reload()} />
+    {error ? <p role="alert" className="muted">{error}</p> : null}
+    <AdminConfigurationImport onApplied={() => undefined} />
   </section>;
 }

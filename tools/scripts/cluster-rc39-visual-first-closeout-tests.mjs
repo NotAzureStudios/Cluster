@@ -24,10 +24,10 @@ check('packages/renderer/src/features/time/TimeWorkspacePage.tsx', [
   'ClusterVisualRankedBars label="Logged time by project"', 'formatValue={durationLabel}',
 ]);
 check('packages/renderer/src/features/projects/ProjectQAPanel.tsx', [
-  'ClusterVisualComposition label="QA reports"', 'needsRepro.length > 0',
+  'ProjectSegmentedControl label="QA views"', 'count:needsRepro.length',
 ]);
 check('packages/renderer/src/features/projects/ProjectBuildsPanel.tsx', [
-  'ClusterVisualMeter label="Release readiness"', 'shipGates.filter((gate) => gate.ready).length',
+  'className="bd-pipe"', 'shipGates.filter((gate) => gate.ready).length',
 ]);
 check('packages/renderer/src/features/operations/ClientPerformancePanel.tsx', [
   '<summary>Detailed client metrics</summary>', 'Client latency by activity', 'Performance budgets (',

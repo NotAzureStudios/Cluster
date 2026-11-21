@@ -57,9 +57,14 @@ function batchUserStateRead<T>(key: string): Promise<StateResponse<T>> {
         const keys = [...byKey.keys()];
         for (let offset = 0; offset < keys.length; offset += 24) {
           const selection = keys.slice(offset, offset + 24);
+          // No force: batching only collapses the readers that land in the same
+          // microtask, so a second mount wave a few hundred milliseconds later
+          // used to re-request the identical key set. staleMs is what makes
+          // that second wave free, and writeServerState invalidates the
+          // "client-state" tag, so an edit still refreshes immediately.
           void queryApi<{ records: ServerStateRecord<unknown>[] }>(
             `/api/client-state/user?keys=${selection.map(encodeURIComponent).join(",")}`,
-            { force: true, staleMs: 10_000, tags: ["client-state", "user-preferences"] },
+            { staleMs: 10_000, tags: ["client-state", "user-preferences"] },
           ).then((result) => {
             const records = new Map((result.records || []).map((record) => [record.key, record]));
             for (const name of selection) for (const item of byKey.get(name) || [])

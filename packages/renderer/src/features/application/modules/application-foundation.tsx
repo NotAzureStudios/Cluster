@@ -32,7 +32,9 @@ import { accessTargetLabel, canUseEntityAccess, canUseLibraryItem, canUseProject
 import { normalizeCorrectionRequest, readShiftRules, shiftRuleWarnings, timeCorrectionIssueLabel } from "../../operations/modules/operations-admin";
 import { ClusterTextArea } from "../../../components/ClusterTextArea";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
-import { ClusterButton } from "../../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../../components/ClusterButton";
+import { ClusterIcon } from "../../../components/ClusterIcon";
+import "../../admin/admin-ops.css";
 
 export const LazyBoardWorkspacePage = lazy(() => import("../../boards/BoardWorkspacePage").then((module) => ({ default: module.BoardWorkspacePage })));
 export const LazyWhiteboardWorkspacePage = lazy(() => import("../../whiteboards/WhiteboardWorkspacePage").then((module) => ({ default: module.WhiteboardWorkspacePage })));
@@ -152,7 +154,7 @@ export function withoutServerManagedSettings(settings: Settings) {
   return payload;
 }
 
-export const USER_PREFERENCE_SETTING_KEYS: Array<keyof Settings> = ["interfaceDensity", "sidebarStyle", "sidebarSurface", "taskbarSurface", "taskbarLayout", "sidebarLayout", "sidebarItemStyle", "surfaceDepth", "surfaceTexture", "surfaceTextureIntensity", "iconSize", "panelBorders", "scrollbarStyle", "projectTabStyle", "fontFamily", "cornerRadius", "glassStrength", "backgroundStyle", "backgroundBaseStyle", "backgroundPattern", "backgroundPatternIntensity", "backgroundPatternScale", "cardStyle", "surfaceStyle", "motionLevel", "userStartScreen", "userTaskbarLabels", "userCommandSearchScope", "userSearchContextAware", "userSearchLockCurrentPage", "userQuickCreateTarget", "userShowHelpText", "userAutoSaveDrafts", "userCalendarDefaultView", "userTimeTrackingDefault", "userQuietHoursEnabled", "userQuietHoursStart", "userQuietHoursEnd", "userDigestCadence", "userUiSoundsEnabled", "userUiSoundVolume", "userNotificationSoundsEnabled", "userNotificationSoundVolume", "browserNotifications", "userShortcutProfile", "userCommandPaletteHotkey", "userPinnedToolsCsv", "userReducedContrast", "userMotionPreference", "userContrastPreference", "userTransparencyPreference", "userFocusIndicator", "userTextScale", "userLargeClickTargets", "userStatusPalette", "userFocusModeDefault", "userDashboardDensity", "userHomeMobileLayout", "userDefaultFilterScope", "notifyCardCreated", "notifyCardMoved", "notifyCardCompleted", "notifyGitEvents", "notifyWhiteboardUpdates", "notifyUpcomingEvents", "notifyDueDates", "notificationLookaheadDays", "notificationProjectModes", "notificationCategoryDelivery", "notificationQuietHoursBehavior", "notificationDiscordDelivery", "desktopLaunchAtStartup", "desktopMinimizeToTray", "desktopCloseBehavior", "desktopNotificationDelivery", "desktopOpenExternalLinksInBrowser"];
+export const USER_PREFERENCE_SETTING_KEYS: Array<keyof Settings> = ["interfaceDensity", "sidebarStyle", "sidebarSurface", "taskbarSurface", "taskbarLayout", "sidebarLayout", "sidebarItemStyle", "surfaceDepth", "surfaceTexture", "surfaceTextureIntensity", "iconSize", "panelBorders", "scrollbarStyle", "projectTabStyle", "fontFamily", "cornerRadius", "glassStrength", "backgroundStyle", "backgroundBaseStyle", "backgroundPattern", "backgroundPatternIntensity", "backgroundPatternScale", "cardStyle", "surfaceStyle", "motionLevel", "userStartScreen", "userTaskbarLabels", "userCommandSearchScope", "userSearchContextAware", "userSearchLockCurrentPage", "userQuickCreateTarget", "userShowHelpText", "userAutoSaveDrafts", "userCalendarDefaultView", "userTimeTrackingDefault", "userQuietHoursEnabled", "userQuietHoursStart", "userQuietHoursEnd", "userDigestCadence", "userUiSoundsEnabled", "userUiSoundVolume", "userNotificationSoundsEnabled", "userNotificationSoundVolume", "userToastPosition", "browserNotifications", "userShortcutProfile", "userCommandPaletteHotkey", "userPinnedToolsCsv", "userReducedContrast", "userMotionPreference", "userContrastPreference", "userTransparencyPreference", "userFocusIndicator", "userTextScale", "userLargeClickTargets", "userStatusPalette", "userFocusModeDefault", "userDashboardDensity", "userHomeMobileLayout", "userDefaultFilterScope", "notifyCardCreated", "notifyCardMoved", "notifyCardCompleted", "notifyGitEvents", "notifyWhiteboardUpdates", "notifyUpcomingEvents", "notifyDueDates", "notificationLookaheadDays", "notificationProjectModes", "notificationCategoryDelivery", "notificationQuietHoursBehavior", "notificationDiscordDelivery", "desktopLaunchAtStartup", "desktopMinimizeToTray", "desktopCloseBehavior", "desktopNotificationDelivery", "desktopOpenExternalLinksInBrowser"];
 
 export function userPreferenceSettingsPayload(settings: Settings, theme: AppTheme) {
   const preferences: Partial<Settings> = { themePreference: theme };
@@ -233,106 +235,60 @@ export function TemplateStudioPanel({ projects, users }: { projects: Project[]; 
     );
     setForm((prev) => ({ ...prev, name: "", body: "", checklist: "" }));
   }
-  const counts = templates.reduce<Record<string, number>>(
-    (acc, template) => ({
-      ...acc,
-      [template.type]: (acc[template.type] || 0) + 1,
-    }),
-    {},
-  );
+  const [typeFilter, setTypeFilter] = useState<"all" | StudioTemplateRecord["type"]>("all");
+  const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const types = ["card", "ticket", "build", "meeting", "milestone", "whiteboard", "library"] as const;
+  const counts = templates.reduce<Record<string, number>>((acc, template) => ({ ...acc, [template.type]: (acc[template.type] || 0) + 1 }), {});
+  const visible = templates.filter((template) => typeFilter === "all" || template.type === typeFilter);
+  void projects; void users;
   return (
-    <section className="panel template-studio-v122">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Templates</p>
-          <h2>Reusable workflow templates</h2>
-          <p className="muted tight">Card, ticket, build, meeting, milestone, whiteboard, and Library starters.</p>
+    <section className="ao template-studio-v122" aria-label="Templates">
+      <div className="ao-bar">
+        <div className="ao-chips">
+          <button type="button" className="ao-chip" aria-pressed={typeFilter === "all"} onClick={() => setTypeFilter("all")}><span>All</span><b>{templates.length}</b></button>
+          {types.filter((type) => counts[type]).map((type) => <button key={type} type="button" className="ao-chip" aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}><span>{levelLabel(type)}</span><b>{counts[type]}</b></button>)}
         </div>
-        <span className="soft-pill">{templates.length} templates</span>
+        <span className="ao-bar__end">
+          {templateState.saving ? <span className="ao-msg">Saving…</span> : null}
+          <ClusterButton type="button" size="compact" variant={adding ? "quiet" : "primary"} onClick={() => setAdding((open) => !open)}><ClusterIcon name={adding ? "close" : "plus"} />{adding ? "Cancel" : "New template"}</ClusterButton>
+        </span>
       </div>
-      <div className="template-stats-v122">
-        {["card", "ticket", "build", "meeting", "milestone", "whiteboard", "library"].map((type) => (
-          <span key={type}>
-            {levelLabel(type)}
-            <strong>{counts[type] || 0}</strong>
-          </span>
-        ))}
-      </div>
-      <div className="template-form-v122">
-        <div className="field">
-          <label>Type</label>
-          <ClusterNativeSelect
-            value={form.type}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                type: event.target.value as StudioTemplateRecord["type"],
-              }))
-            }
-          >
-            <option value="card">Card</option>
-            <option value="ticket">Ticket</option>
-            <option value="build">Build</option>
-            <option value="meeting">Meeting</option>
-            <option value="milestone">Milestone</option>
-            <option value="whiteboard">Whiteboard</option>
-            <option value="library">Library item/folder</option>
-          </ClusterNativeSelect>
+      {adding ? <div className="ao-card">
+        <div className="ao-form">
+          <label className="ao-field"><span>Type</span><ClusterNativeSelect value={form.type} onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value as StudioTemplateRecord["type"] }))}>
+            {types.map((type) => <option key={type} value={type}>{type === "library" ? "Library item" : levelLabel(type)}</option>)}
+          </ClusterNativeSelect></label>
+          <label className="ao-field ao-field--grow"><span>Name</span><ClusterTextInput value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Feature card" autoFocus /></label>
+          <label className="ao-field"><span>Priority</span><ClusterNativeSelect value={form.defaultPriority} onChange={(event) => setForm((prev) => ({ ...prev, defaultPriority: event.target.value as StudioTemplateRecord["defaultPriority"] }))}>
+            <option value="none">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+          </ClusterNativeSelect></label>
+          <label className="ao-field ao-field--grow"><span>Body</span><ClusterTextArea rows={4} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} placeholder={"Goal:\nAcceptance criteria:"} /></label>
+          <label className="ao-field ao-field--grow"><span>Checklist</span><ClusterTextArea rows={4} value={form.checklist} onChange={(event) => setForm((prev) => ({ ...prev, checklist: event.target.value }))} placeholder="One item per line" /></label>
+          <ClusterButton type="button" size="compact" variant="primary" disabled={!form.name.trim()} onClick={() => { addTemplate(); setAdding(false); }}>Save</ClusterButton>
         </div>
-        <div className="field">
-          <label>Name</label>
-          <ClusterTextInput value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Template name" />
-        </div>
-        <div className="field">
-          <label>Default priority</label>
-          <ClusterNativeSelect
-            value={form.defaultPriority}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                defaultPriority: event.target.value as StudioTemplateRecord["defaultPriority"],
-              }))
-            }
-          >
-            <option value="none">None</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </ClusterNativeSelect>
-        </div>
-        <div className="field full">
-          <label>Body</label>
-          <ClusterTextArea value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} placeholder="Default body, acceptance criteria, release notes, meeting agenda..." />
-        </div>
-        <div className="field full">
-          <label>Checklist</label>
-          <ClusterTextArea value={form.checklist} onChange={(event) => setForm((prev) => ({ ...prev, checklist: event.target.value }))} placeholder="One checklist item per line" />
-        </div>
-        <ClusterButton type="button" className="" onClick={addTemplate} variant="primary">
-          Save template
-        </ClusterButton>
-      </div>
-      <div className="template-list-v122">
-        {templates.map((template) => (
-          <article key={template.id}>
-            <div>
-              <strong>{template.name}</strong>
-              <span>
-                {levelLabel(template.type)} · {template.defaultPriority === "none" ? "No priority" : levelLabel(template.defaultPriority)}
-              </span>
-              <p>{template.body || "No body."}</p>
-            </div>
-            <em>{template.checklist.split("\n").filter(Boolean).length} checks</em>
-            <ClusterButton type="button" className="" onClick={() => setTemplates(templates.filter((item) => item.id !== template.id))} variant="quiet" size="compact">
-              Remove
-            </ClusterButton>
-          </article>
-        ))}
-      </div>
-      <p className="muted tight">
-        Templates are stored on the server and shared across the studio. {projects.length} projects and {users.length} users can use the current catalog.{templateState.saving ? " Saving changes…" : ""}
-      </p>
+      </div> : null}
+      <section className="ao-card">
+        {visible.length ? <ul className="ao-rows">
+          {visible.map((template) => {
+            const checks = template.checklist.split("\n").filter(Boolean);
+            const open = openId === template.id;
+            return <li key={template.id}>
+              <div className="ao-row ao-row--plain">
+                <button type="button" className="ao-row__main ao-row__toggle" aria-expanded={open} onClick={() => setOpenId(open ? null : template.id)}>
+                  <b>{template.name}</b>
+                  <small>{levelLabel(template.type)} · {template.defaultPriority === "none" ? "No priority" : levelLabel(template.defaultPriority)} · {checks.length} checks</small>
+                </button>
+                <span className="ao-row__end"><ClusterIconButton size="compact" label={`Remove ${template.name}`} onClick={() => setTemplates(templates.filter((item) => item.id !== template.id))}><ClusterIcon name="trash" /></ClusterIconButton></span>
+              </div>
+              {open ? <div className="ao-detail">
+                <pre>{template.body || "No body."}</pre>
+                {checks.length ? <ul>{checks.map((check) => <li key={check}>{check}</li>)}</ul> : null}
+              </div> : null}
+            </li>;
+          })}
+        </ul> : <p className="ao-empty">No templates.</p>}
+      </section>
     </section>
   );
 }

@@ -50,8 +50,8 @@ test('Local preview invalidation skips late server replies after SSE delivery',(
  const gate=createTaskbarActionRequestGate();const before=gate.beginRead();gate.invalidateReads();
  assert.equal(gate.currentRead(before),false);
 });
-test('Taskbar preserves My Work, Tickets, Transfer Center and project tabs',()=>{
- for(const token of ['TaskbarProjectTabs','TaskbarTransferCenter','My Work','Tickets','commandPaletteOpen'])assert.ok(source.includes(token),token);
+test('Taskbar keeps Tickets, Transfer Center and project tabs; My Work is in the sidebar',()=>{
+ for(const token of ['TaskbarProjectTabs','TaskbarTransferCenter','Tickets','commandPaletteOpen'])assert.ok(source.includes(token),token); assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');
 });
 test('Notification read writes use a single guarded path and report server failures',()=>{
  assert.match(source,/async function markNotificationPreviewRead\(ids: string\[\]\)/);

@@ -77,7 +77,7 @@ test('Shared action gate maintains separate UI feedback and synchronous lock own
  assert.match(flight,/gate.current.leave\(id\)/);
 });
 test('Confirmed mutations retain status while a silent health refresh runs',()=>{
- assert.match(incidents,/if \(!silent\) setStatus\(`Operational evidence refreshed/);
+ assert.match(incidents,/if \(!silent\) setStatus\(""\)/);
  assert.match(incidents,/if \(!silent\) setStatus\(error instanceof Error/);
 });
 test('Admin actions expose busy state and suppress stale reads during checklist changes',()=>{
@@ -92,7 +92,7 @@ test('Configuration history only applies the latest revision response',()=>{
 });
 test('Taskbar and People preservation remain in source',()=>{
  const taskbar=src('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
- for(const token of ['TaskbarProjectTabs','TaskbarTransferCenter','My Work','Tickets'])assert.ok(taskbar.includes(token),token);
+ for(const token of ['TaskbarProjectTabs','TaskbarTransferCenter','Tickets'])assert.ok(taskbar.includes(token),token); assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');
  const avatar=src('packages/renderer/src/components/PresenceAvatar.tsx');
  for(const token of ['accentColor','cluster-presence-indicator-v227'])assert.ok(avatar.includes(token),token);
 });

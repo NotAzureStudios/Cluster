@@ -2,7 +2,9 @@ import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-ty
 
 import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { setToastPosition } from "../../core/toasts";
+import { AdminFrame, ADMIN_FRAME_SCREENS } from "../admin/AdminFrame";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useWindowEvent } from "../../core/window-events";
 import "./styles/application-shell.css";
 import "./styles/application-controls.css";
@@ -49,6 +51,8 @@ import "./styles/mobile-runtime-v495.css";
 import "../shell/sidebar.css";
 import "../shell/shell-v2.css";
 import "../shell/shell-spatial-rc27.css";
+// Last on purpose: the frame (title bar, sidebar, page edges) is owned here.
+import "../shell/shell-frame.css";
 import "../../styles/visual-system.css";
 import { useRoutePerformance, useRouteScrollRestoration, useShellKeyboardShortcuts, useUserHeartbeat } from "../shell/runtime-hooks";
 import { importantBuildEntries, projectCompleteness, projectHealth, projectStatusLabel } from "../projects/projects-utils";
@@ -65,13 +69,13 @@ import { isStandaloneToolRoute, StandaloneToolRoute } from "./modules/applicatio
 import { CalendarPage, ChangelogPage, PublicSharePage } from "./application-entrypoints";
 import type { User, Project, WhiteboardSummary, Board, AppTheme, SetupStatus, Settings, SettingsSection, ServerConfigSection, RecentNavigation } from "./application-models";
 import { boardOptions, projectTypeBadge, writeProjectTypePresetsCache } from "./modules/project-shell-helpers";
-import { ClusterBootError, NavigationOperationalStatus, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
+import { ClusterBootError, NavigationOperationalStatus, ServerStatusPill, normalizeAccountSettingsSection, normalizeServerConfigSection, usePersistentNavigationSidebarClose, useSettingsSectionNavigation, loadClusterStartup, initialNavigationRecoveryNotice, publicShareToken, type NavigationRecoveryNotice } from "./application-runtime-ux";
 import { canUseProject, getProjectPermission } from "../projects/project-access-policy";
 
 import { MAX_PROJECT_TABS, THEME_STORAGE_KEY, applyCustomization, applyTheme, getStoredTheme, userPreferencesFromUser } from "./modules/application-shell-runtime";
 import { openSharedCreate } from "../create/shared-create-handoff";
 import { clearIncompatibleRouteContext, clearProjectSwitchRouteContext, nextOpenProjectTabs } from "./modules/project-tab-workspace";
-import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
+import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazySourceControlAdminPage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
 import { toolConfigSettingsPatch } from "./modules/tool-config-settings";
 import { Sidebar } from "./modules/ApplicationSidebar";
 
@@ -127,6 +131,11 @@ export default function App() {
   const [routeSubsection, setRouteSubsection] = useState<string | null>(() => initialNavigation.state.subsection);
   const historyRestoreRef = useRef(false);
   const interactiveNavigationEpochRef = useRef(0);
+  /* Admin screens render inside one Admin workspace frame (single nav). */
+  function adminFramed(node: ReactNode, framed = true) {
+    if (!framed || !user?.isAdmin) return node;
+    return <AdminFrame screen={screen} section={routeSection} onNavigate={(next, section) => void setScreen(next as AppScreen, section ? { section } : {})}>{node}</AdminFrame>;
+  }
   async function setScreen(next: AppScreen, options: { section?: string | null; subsection?: string | null } = {}) {
     // Explicit navigation supersedes any outstanding asynchronous Back/Forward
     // admission, even if the user ultimately returns to the same route.
@@ -664,6 +673,7 @@ export default function App() {
   useEffect(() => {
     applyCustomization(appSettings, user?.personalAccentColor);
     configureClusterSounds(appSettings);
+    setToastPosition(appSettings?.userToastPosition);
   }, [appSettings, user?.personalAccentColor]);
   useEffect(() => {
     const preferredTheme = userPreferencesFromUser(user).themePreference;
@@ -1300,14 +1310,17 @@ export default function App() {
   const entryScreen = authenticatedEntryScreen({ user, onUserUpdated: (next) => setUser(next as User), onRefresh: loadMe, onLogout: logout });
   if (entryScreen) return entryScreen;
   return (
-    <StudioPolicyGate onLogout={logout}><div className={`app-shell shell-unified-v3430 visual-overhaul-v139 visual-declutter-v140 visual-card-diet-v141 builds-folded-v157 accessibility-pass-v204 ${resourceWindow ? "cluster-resource-window-v489" : ""}`}>
+    <StudioPolicyGate onLogout={logout}><div className={`cl-shell ${resourceWindow ? "cluster-resource-window-v489" : ""}`.trim()}>
       {desktopHost && !resourceWindow && !signedOutKiosk ? <Suspense fallback={null}><LazyDesktopPresencePublisher enabled navigation={currentNavigation} projects={projects} /></Suspense> : null}
-      {!resourceWindow && <Sidebar screen={screen} currentRoute={currentNavigationRoute} setScreen={setScreen} user={activeUser} settings={appSettings} projects={projects} currentProjectId={projectId} onOpenProject={openProject} onOpenChangelog={() => setScreen("changelog")} open={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />}
-      {!resourceWindow && <ClusterButton unstyled type="button" className="mobile-sidebar-trigger-v289" data-drawer-open={mobileSidebarOpen ? "true" : "false"} onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-controls="cluster-sidebar" aria-expanded={mobileSidebarOpen}>
+      {!resourceWindow && <Sidebar status={<ServerStatusPill model={operationalStatus} />} screen={screen} currentRoute={currentNavigationRoute} setScreen={setScreen} user={activeUser} settings={appSettings} projects={projects} currentProjectId={projectId} onOpenProject={openProject} onOpenChangelog={() => setScreen("changelog")} open={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />}
+      {!resourceWindow && <ClusterButton unstyled type="button" className="mobile-sidebar-trigger-v289" data-drawer-open={mobileSidebarOpen ? "true" : "false"} onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" aria-controls="cl-sidebar" aria-expanded={mobileSidebarOpen}>
         <ClusterIcon name="menu" />
       </ClusterButton>}
-      {!resourceWindow && mobileSidebarOpen && <div className="sidebar-backdrop-v289" data-cluster-backdrop-for="cluster-sidebar" role="presentation" aria-hidden="true" onPointerDown={() => setMobileSidebarOpen(false)} />}
-      <main id="cluster-main-content" ref={mainContentRef} className="content-shell" tabIndex={-1} aria-label={`${accessibleRouteLabel} workspace`}>
+      {!resourceWindow && mobileSidebarOpen && <div className="sidebar-backdrop-v289" data-cluster-backdrop-for="cl-sidebar" role="presentation" aria-hidden="true" onPointerDown={() => setMobileSidebarOpen(false)} />}
+      {/* The page-scoping classes live on <main>, not the window root: about a hundred
+          page rules hang off them, but rules aimed at the root itself forced the
+          window grid with !important. On <main> they scope pages and nothing else. */}
+      <main id="cluster-main-content" ref={mainContentRef} className="content-shell visual-overhaul-v139 visual-declutter-v140 visual-card-diet-v141 builds-folded-v157 accessibility-pass-v204" tabIndex={-1} aria-label={`${accessibleRouteLabel} workspace`}>
         <div className="sr-only-v204" role="status" aria-live="polite" aria-atomic="true">
           Opened {accessibleRouteLabel}
         </div>
@@ -1322,7 +1335,7 @@ export default function App() {
             if (!await copyClusterText(window.location.href)) throw new Error("Clipboard access was denied.");
           }} workingLabel="Copying…" successLabel="Copied" errorLabel="Copy failed">Copy link</ClusterActionButton>
         </nav>}
-        {!resourceWindow && screen !== "project" && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
+        {!resourceWindow && screen !== "project" && screen !== "settings" && screen !== "board" && screen !== "whiteboard" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && (routeSection === "admin" || routeSection === "account")))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
           <ClusterButton type="button" className="" onClick={openContextualParent} variant="quiet" size="compact">
             <ClusterIcon name="chevron-left" />
             <span>{contextualParentLabel}</span>
@@ -1351,7 +1364,12 @@ export default function App() {
           </div>
         )}
         <Suspense fallback={<ScreenLoadingState screen={screen} />}>
-        {screen === "people" && <LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "admin" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "admin" && activeUser.isAdmin} /></section></LazyFeatureBoundary>}
+        {screen === "people" && routeSection === "admin" && activeUser.isAdmin ? adminFramed(<LazyFeatureBoundary label="Users"><LazyAdminUsersPage currentUser={activeUser} startCreating={routeSubsection === "create"} onOpenPerson={(id) => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("inspect", `person:${id}`);
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+          void setScreen("people", { section: "account" });
+        }} /></LazyFeatureBoundary>) : screen === "people" && adminFramed(<LazyFeatureBoundary label="People"><section className={`people-unified-workspace-v535 ${routeSection === "account" && activeUser.isAdmin ? "is-admin-mode" : "is-directory-mode"}`}><LazyProfilesPage currentUser={activeUser} projects={visibleProjects} onOpenProject={openProject} onEditProfile={() => { setSettingsInitialSection("profile"); void setScreen("settings", { section: "profile" }); }} adminMode={routeSection === "account" && activeUser.isAdmin} onBack={routeSection === "account" ? () => { const url = new URL(window.location.href); url.searchParams.delete("inspect"); window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`); void setScreen("people", { section: "admin" }); } : undefined} onCreateAccount={activeUser.isAdmin ? () => void setScreen("people", { section: "admin", subsection: "create" }) : undefined} /></section></LazyFeatureBoundary>, routeSection === "account")}
         {screen === "dashboard" && (
           <LazyDashboard
             key={activeUser.id}
@@ -1534,12 +1552,12 @@ export default function App() {
           ) : (
             <ToolDisabledPage label="Packets" />
           ))}
-        {isStandaloneToolRoute(screen) && <StandaloneToolRoute screen={screen} context={{
+        {isStandaloneToolRoute(screen) && adminFramed(<StandaloneToolRoute screen={screen} context={{
           isAdmin: Boolean(activeUser.isAdmin),
           pinConfigured: Boolean(activeUser.pinConfigured),
-        }} />}
-        {screen === "toolInfrastructure" && user.isAdmin && <LazyToolInfrastructurePage projects={projects} settings={appSettings} initialSection={routeSection} />}
-        {screen === "admin" && user.isAdmin && (
+        }} />, ADMIN_FRAME_SCREENS.includes(screen))}
+        {screen === "toolInfrastructure" && user.isAdmin && adminFramed(routeSection === "source-control" ? <LazySourceControlAdminPage /> : <LazyToolInfrastructurePage projects={projects} settings={appSettings} initialSection={routeSection} />)}
+        {screen === "admin" && user.isAdmin && adminFramed(
           <LazyAdminPage
             projects={projects}
             whiteboards={whiteboards}
@@ -1604,7 +1622,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "studioSettings" && user.isAdmin && (
+        {screen === "studioSettings" && user.isAdmin && adminFramed(
           <LazyStudioSettingsPage
             currentUser={user}
             initialSection={routeSection}
@@ -1631,7 +1649,7 @@ export default function App() {
             }}
           />
         )}
-        {screen === "serverConfig" && user.isAdmin && (
+        {screen === "serverConfig" && user.isAdmin && adminFramed(
           <LazyServerConfigPage
             currentUser={user}
             initialSection={serverConfigInitialSection}

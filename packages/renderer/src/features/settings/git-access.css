@@ -1,0 +1,35 @@
+/* Account → Git access — the only stylesheet for ga-*. */
+.ga { display: grid; gap: var(--space-2-5); }
+.ga code { font-family: var(--cluster-font-mono, ui-monospace, monospace); font-size: var(--cluster-font-size-xs); }
+.ga-card { display: grid; gap: var(--space-2); padding: var(--space-2-5) var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.ga-facts { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); margin: 0; }
+.ga-facts > div { display: grid; gap: 2px; min-width: 0; }
+.ga-facts dt { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 500; }
+.ga-facts dd { display: flex; align-items: center; gap: 4px; min-width: 0; margin: 0; font-size: var(--cluster-font-size-sm); }
+.ga-facts dd code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ga-hint, .ga-status { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.ga-hint code { color: var(--text); }
+
+.ga-once { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--cluster-radius-card); background: color-mix(in srgb, var(--accent) 12%, var(--cluster-workbench-panel)); }
+.ga-once > svg.cluster-icon-svg { flex: none; inline-size: 14px; block-size: 14px; color: var(--accent); }
+.ga-once code { flex: 1; min-width: 0; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; user-select: all; }
+.ga-once small { color: var(--muted); font-size: var(--cluster-font-size-2xs); white-space: nowrap; }
+
+.ga-new { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-1-5); }
+.ga-field { display: grid; gap: 3px; }
+.ga-field > span { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 500; }
+.ga-field--grow { flex: 1 1 200px; }
+.ga .ga-field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) { width: 100%; height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+
+.ga-tokens { display: grid; margin: 0; padding: 0; list-style: none; }
+.ga-tokens > li { display: grid; grid-template-columns: minmax(0, 1fr) 120px 140px auto; align-items: center; gap: var(--space-3); min-height: 44px; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.ga-tokens > li:last-child { box-shadow: none; }
+.ga-tokens__name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ga-tokens__name b { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ga-tokens__name code, .ga-tokens small { color: var(--muted); font-size: var(--cluster-font-size-xs); white-space: nowrap; }
+
+@media (max-width: 800px) {
+  .ga-facts { grid-template-columns: minmax(0, 1fr); }
+  .ga-tokens > li { grid-template-columns: minmax(0, 1fr) auto; }
+  .ga-tokens small { display: none; }
+}

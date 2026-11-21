@@ -227,9 +227,9 @@ export const CLUSTER_CREATE_MODE_MANIFEST = {
   ticket: { label: PRODUCT_TERMS.tickets.slice(0, -1), detail: "Work intake", keywords: ["request", "support", "incident"], group: "Deliver", primary: true, resourceKind: "ticket", lifecycle: "active" },
   bug: { label: "Bug", detail: "QA issue", keywords: ["qa", "defect", "issue", "repro"], group: "Deliver", primary: false, resourceKind: "ticket", lifecycle: "active" },
   build: { label: "Build", detail: "Project artifact", keywords: ["artifact", "release", "package", "publish"], group: "Deliver", primary: false, resourceKind: "build", lifecycle: "active" },
-  timeline: { label: "Timeline", detail: "Milestone or date", keywords: ["milestone", "deadline", "release"], group: "Plan", primary: true, resourceKind: "timeline", lifecycle: "active" },
+  timeline: { label: "Timeline", detail: "Upcoming milestones.", keywords: ["milestone", "deadline", "release"], group: "Plan", primary: true, resourceKind: "timeline", lifecycle: "active" },
   calendar: { label: "Calendar", detail: "Event", keywords: ["meeting", "event", "review"], group: "Coordinate", primary: true, resourceKind: "calendar", lifecycle: "active" },
-  scheduler: { label: "Schedule", detail: "Work block", keywords: ["focus", "availability", "time off"], group: "Coordinate", primary: true, resourceKind: "scheduler", lifecycle: "active" },
+  scheduler: { label: "Schedule", detail: "Clock status and hours this week.", keywords: ["focus", "availability", "time off"], group: "Coordinate", primary: true, resourceKind: "scheduler", lifecycle: "active" },
   meeting: { label: "Meeting", detail: "Planning session", keywords: ["session", "planning", "retro", "standup"], group: "Coordinate", primary: false, resourceKind: "meeting", lifecycle: "active" },
   whiteboard: { label: "Whiteboard", detail: "Planning canvas", keywords: ["canvas", "brainstorm", "diagram", "flow"], group: "Plan", primary: false, resourceKind: "whiteboard", lifecycle: "active" },
   packet: { label: "Packet", detail: "Knowledge bundle", keywords: ["knowledge", "training", "onboarding", "policy", "procedure", "handoff"], group: "Plan", primary: true, resourceKind: "packet", lifecycle: "active" },
@@ -264,8 +264,8 @@ export type ClusterProjectToolDefinition = {
 export const CLUSTER_PROJECT_TOOL_MANIFEST = {
   overview: { label: "Overview", mode: "Overview", order: 10, lifecycle: "active" },
   intelligence: { label: "Intelligence", mode: "Overview", order: 20, lifecycle: "active" },
-  plan: { label: "Plan", mode: "Plan & Control", order: 30, lifecycle: "active" },
-  control: { label: "Control", mode: "Plan & Control", order: 40, lifecycle: "active" },
+  plan: { label: "Details", mode: "Plan & Control", order: 30, lifecycle: "active" },
+  control: { label: "Plan", mode: "Plan & Control", order: 40, lifecycle: "active" },
   tickets: { label: PRODUCT_TERMS.tickets, mode: "Plan & Control", order: 50, lifecycle: "active" },
   source: { label: "Source Control", mode: "Produce & Validate", order: 55, lifecycle: "active" },
   builds: { label: PRODUCT_TERMS.builds, mode: "Produce & Validate", order: 60, lifecycle: "active" },
@@ -280,6 +280,7 @@ export const CLUSTER_PROJECT_TOOL_MANIFEST = {
   links: { label: "Integrations", mode: "People & Access", order: 150, lifecycle: "active" },
   access: { label: "Access", mode: "People & Access", order: 160, lifecycle: "active" },
   closeout: { label: "Closeout", mode: "Lifecycle", order: 170, lifecycle: "active" },
+  settings: { label: "Settings", mode: "Lifecycle", order: 200, lifecycle: "active" },
 } as const satisfies Record<string, ClusterProjectToolDefinition>;
 
 export type ClusterProjectToolId = keyof typeof CLUSTER_PROJECT_TOOL_MANIFEST;
@@ -293,7 +294,7 @@ export function clusterProjectToolDefinition(id: ClusterProjectToolId) {
 export type ClusterAppRouteGroup = "home" | "work" | "projects" | "planning" | "library" | "people" | "control" | "system" | "hidden";
 export type ClusterAppSidebarSection = "work" | "planning" | "library" | "people" | "administration" | "system";
 export type ClusterAppRouteFeatureFlag = "ticketsEnabled" | "timelineEnabled" | "calendarEnabled" | "schedulerEnabled" | "libraryEnabled" | "packetsEnabled";
-export type ClusterAppNavigationIcon = "activity" | "bell" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette";
+export type ClusterAppNavigationIcon = "activity" | "bell" | "grid" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette";
 export type ClusterApplicationActionGroup = "navigation" | "desktop";
 
 export type ClusterApplicationActionDescriptor = Readonly<{
@@ -342,7 +343,7 @@ export const CLUSTER_APP_ROUTE_MANIFEST = {
   inbox: { label: PRODUCT_TERMS.inbox, group: "work", tool: "inbox", startEligible: true, action: { id: "navigation.inbox", group: "navigation", description: "Assignments, mentions, approvals, reminders, and attention items.", aliases: ["in", "mentions", "notifications"], paletteKey: "page-inbox" } },
   projects: { label: PRODUCT_TERMS.projects, group: "projects", tool: "projects", startEligible: true, action: { id: "navigation.projects", group: "navigation", description: "Project directory.", aliases: ["p", "proj", "projects"], paletteKey: "page-projects" } },
   project: { label: "Project", group: "projects", tool: "projects", parent: "projects", projectContext: true },
-  board: { label: "Boards", group: "projects", tool: "boards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "work", order: 10, icon: "work" }, action: { id: "navigation.boards", group: "navigation", description: "Boards and cards.", aliases: ["board", "kanban"], paletteKey: "page-boards" } },
+  board: { label: "Boards", group: "projects", tool: "boards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "work", order: 10, icon: "grid" }, action: { id: "navigation.boards", group: "navigation", description: "Boards and cards.", aliases: ["board", "kanban"], paletteKey: "page-boards" } },
   whiteboard: { label: "Whiteboards", group: "projects", tool: "whiteboards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "work", order: 20, icon: "palette" }, action: { id: "navigation.whiteboards", group: "navigation", description: "Visual canvases and diagrams.", aliases: ["whiteboard", "canvas"], paletteKey: "page-whiteboards" } },
   calendar: { label: "Calendar", group: "planning", tool: "calendar", sidebar: { section: "planning", order: 10, icon: "calendar", featureFlag: "calendarEnabled" }, action: { id: "navigation.calendar", group: "navigation", description: "Schedule and recurring commitments.", aliases: ["cal", "schedule"], paletteKey: "page-calendar" } },
   timeline: { label: PRODUCT_TERMS.timeline, group: "planning", tool: "timeline", startEligible: true, sidebar: { section: "planning", order: 20, icon: "timeline", featureFlag: "timelineEnabled" }, action: { id: "navigation.timeline", group: "navigation", description: "Roadmap and milestones.", aliases: ["tl", "roadmap"], paletteKey: "page-timeline" } },
@@ -408,69 +409,69 @@ export type ClusterDashboardWidgetDefinition = {
  * parallel widget vocabularies.
  */
 export const CLUSTER_DASHBOARD_WIDGET_MANIFEST = {
-  brief: { label: "Priority brief", detail: "Highest-priority signal and immediate action.", group: "core", lifecycle: "active" },
-  roleFocus: { label: "My focus", detail: "Assigned work, overdue items, and today's schedule.", group: "core", lifecycle: "active", tool: "mywork" },
-  readiness: { label: "Project readiness", detail: "Recent projects, completeness, and setup gaps.", group: "core", lifecycle: "active", tool: "projects" },
+  brief: { label: "Priority", detail: "Top alert and what to do about it.", group: "core", lifecycle: "active" },
+  roleFocus: { label: "My work", detail: "Assigned, overdue and due today.", group: "core", lifecycle: "active", tool: "mywork" },
+  readiness: { label: "Readiness", detail: "Project completeness and setup gaps.", group: "core", lifecycle: "active", tool: "projects" },
 
-  projects: { label: "Project pulse", detail: "Project health, readiness, coverage, and recent delivery state.", group: "projects", lifecycle: "active", tool: "projects" },
-  control: { label: "Project controls", detail: "Dependencies, recurring work, and watched records.", group: "projects", lifecycle: "active", tool: "projects" },
-  workflow: { label: "Workflow operations", detail: "Recurring work, watchers, and cross-project dependencies.", group: "projects", lifecycle: "active", tool: "projects" },
-  closeout: { label: "Closeout", detail: "Archive readiness and external delivery records.", group: "projects", lifecycle: "active", tool: "projects" },
-  attachments: { label: "Attachments", detail: "Cross-project files and review state.", group: "projects", lifecycle: "active", tool: "projects" },
-  coverage: { label: "Project coverage", detail: "Source Control, Discord, board, and whiteboard coverage.", group: "projects", lifecycle: "active", tool: "projects" },
+  projects: { label: "Projects", detail: "Project health at a glance.", group: "projects", lifecycle: "active", tool: "projects" },
+  control: { label: "Controls", detail: "Dependencies, recurring work and watchers.", group: "projects", lifecycle: "active", tool: "projects" },
+  workflow: { label: "Workflows", detail: "Recurring work and dependencies.", group: "projects", lifecycle: "active", tool: "projects" },
+  closeout: { label: "Closeout", detail: "Archive and delivery status.", group: "projects", lifecycle: "active", tool: "projects" },
+  attachments: { label: "Attachments", detail: "Files across projects.", group: "projects", lifecycle: "active", tool: "projects" },
+  coverage: { label: "Coverage", detail: "Git, Discord, boards and whiteboards per project.", group: "projects", lifecycle: "active", tool: "projects" },
 
-  myWork: { label: "My Work summary", detail: "Assigned, overdue, and priority work.", group: "work", lifecycle: "active", tool: "mywork" },
-  upcoming: { label: "Upcoming work", detail: "Due cards and near-term work.", group: "work", lifecycle: "active", tool: "mywork" },
+  myWork: { label: "Assigned", detail: "Assigned, overdue and priority counts.", group: "work", lifecycle: "active", tool: "mywork" },
+  upcoming: { label: "Upcoming", detail: "Work due soon.", group: "work", lifecycle: "active", tool: "mywork" },
   scheduler: { label: "Scheduler", detail: "Clock state, weekly time, and today's schedule.", group: "work", lifecycle: "active", tool: "scheduler" },
-  today: { label: "Today", detail: "Today's schedule, due work, blockers, and personal execution focus.", group: "work", lifecycle: "active", tool: "mywork" },
-  needs: { label: "Needs attention", detail: "Signals that require a decision or follow-up.", group: "work", lifecycle: "active", tool: "inbox" },
+  today: { label: "Today", detail: "Today's schedule, due work and blockers.", group: "work", lifecycle: "active", tool: "mywork" },
+  needs: { label: "Needs attention", detail: "Items waiting on a decision.", group: "work", lifecycle: "active", tool: "inbox" },
 
-  inbox: { label: "Inbox", detail: "Attention and urgent Inbox counts.", group: "communication", lifecycle: "active", tool: "inbox" },
-  people: { label: "People", detail: "Active people and availability.", group: "communication", lifecycle: "active", tool: "people" },
-  peopleCapacity: { label: "People capacity", detail: "Configured capacity and current assignment pressure across the team.", group: "communication", lifecycle: "active", tool: "people" },
-  departments: { label: "Department pulse", detail: "Department coverage and active people distribution.", group: "communication", lifecycle: "active", tool: "people" },
-  activity: { label: "Activity", detail: "Recent studio changes.", group: "communication", lifecycle: "active", tool: "activity" },
-  digest: { label: "Session digest", detail: "Changes since this workspace was last opened.", group: "communication", lifecycle: "active", tool: "activity" },
+  inbox: { label: "Inbox", detail: "Unread and urgent counts.", group: "communication", lifecycle: "active", tool: "inbox" },
+  people: { label: "Team", detail: "Who's online.", group: "communication", lifecycle: "active", tool: "people" },
+  peopleCapacity: { label: "Capacity", detail: "Capacity and workload.", group: "communication", lifecycle: "active", tool: "people" },
+  departments: { label: "Departments", detail: "Staffing by department.", group: "communication", lifecycle: "active", tool: "people" },
+  activity: { label: "Activity", detail: "Recent changes.", group: "communication", lifecycle: "active", tool: "activity" },
+  digest: { label: "What's new", detail: "Changes since your last visit.", group: "communication", lifecycle: "active", tool: "activity" },
 
-  builds: { label: "Build health", detail: "Build readiness, failures, testing state, and approvals.", group: "production", lifecycle: "active", tool: "builds" },
-  qa: { label: "QA pulse", detail: "QA plans and active quality work.", group: "production", lifecycle: "active", tool: "qa" },
-  releaseReadiness: { label: "Release readiness", detail: "Draft and published releases with QA and approval readiness.", group: "production", lifecycle: "active", tool: "builds" },
-  sourceControl: { label: PRODUCT_TERMS.sourceControl, detail: "Repository synchronization, health, branches, and commit activity.", group: "production", lifecycle: "active", tool: "sourceControl" },
-  reviewQueue: { label: "Review queue", detail: "Open source reviews, readiness, and decisions across accessible projects.", group: "production", lifecycle: "active", tool: "sourceControl" },
-  integrationHealth: { label: "Integration health", detail: "Configured provider health and integration attention across the Studio.", group: "production", lifecycle: "active", tool: "integrations" },
+  builds: { label: "Builds", detail: "Status, failures and approvals.", group: "production", lifecycle: "active", tool: "builds" },
+  qa: { label: "QA", detail: "Plans and active testing.", group: "production", lifecycle: "active", tool: "qa" },
+  releaseReadiness: { label: "Releases", detail: "Drafts, published releases and sign-off.", group: "production", lifecycle: "active", tool: "builds" },
+  sourceControl: { label: PRODUCT_TERMS.sourceControl, detail: "Repositories, branches and commits.", group: "production", lifecycle: "active", tool: "sourceControl" },
+  reviewQueue: { label: "Reviews", detail: "Open code reviews.", group: "production", lifecycle: "active", tool: "sourceControl" },
+  integrationHealth: { label: "Integrations", detail: "Provider status.", group: "production", lifecycle: "active", tool: "integrations" },
   timeline: { label: PRODUCT_TERMS.timeline, detail: "Upcoming production milestones.", group: "production", lifecycle: "active", tool: "timeline" },
-  tickets: { label: PRODUCT_TERMS.tickets, detail: "Ticket and intake signals routed from project work.", group: "production", lifecycle: "active", tool: "tickets" },
-  deliveryAttention: { label: "Delivery attention", detail: "Ticket and review attention across projects.", group: "production", lifecycle: "active", tool: "tickets" },
+  tickets: { label: PRODUCT_TERMS.tickets, detail: "Open tickets.", group: "production", lifecycle: "active", tool: "tickets" },
+  deliveryAttention: { label: "Delivery", detail: "Tickets and reviews needing attention.", group: "production", lifecycle: "active", tool: "tickets" },
 
-  library: { label: PRODUCT_TERMS.library, detail: "Library item count and storage status.", group: "tools", lifecycle: "active", tool: "library" },
-  libraryActivity: { label: "Library activity", detail: "Recent Library changes, pinned items, and active asset types.", group: "tools", lifecycle: "active", tool: "library" },
-  watchlists: { label: "Watchlists", detail: "Canonical watched work grouped by scope and project context.", group: "tools", lifecycle: "active", tool: "projects" },
-  savedViews: { label: "Saved views", detail: "Reusable personal and Studio views across Cluster workspaces.", group: "tools", lifecycle: "active" },
-  quickCapture: { label: "Quick capture", detail: "Start common work through Cluster's canonical Create workflow.", group: "tools", lifecycle: "active" },
-  handoff: { label: "Handoff", detail: "Recent changes, attention items, and next work for resuming or transferring context.", group: "tools", lifecycle: "active", tool: "activity" },
-  pulse: { label: "Studio pulse", detail: "Compact cross-system operating metrics.", group: "tools", lifecycle: "active" },
-  clipboard: { label: "Clipboard", detail: "User-triggered safe clipboard reader for Desktop.", group: "tools", lifecycle: "active", route: "desktop", desktopOnly: true },
+  library: { label: PRODUCT_TERMS.library, detail: "Item count and storage.", group: "tools", lifecycle: "active", tool: "library" },
+  libraryActivity: { label: "Library activity", detail: "Recent changes and pinned items.", group: "tools", lifecycle: "active", tool: "library" },
+  watchlists: { label: "Watchlists", detail: "Work you're watching.", group: "tools", lifecycle: "active", tool: "projects" },
+  savedViews: { label: "Saved views", detail: "Your saved views.", group: "tools", lifecycle: "active" },
+  quickCapture: { label: "Quick create", detail: "Create common items.", group: "tools", lifecycle: "active" },
+  handoff: { label: "Resume", detail: "Where you left off.", group: "tools", lifecycle: "active", tool: "activity" },
+  pulse: { label: "Studio", detail: "Key studio numbers.", group: "tools", lifecycle: "active" },
+  clipboard: { label: "Clipboard", detail: "Read the clipboard. Desktop only.", group: "tools", lifecycle: "active", route: "desktop", desktopOnly: true },
 
-  opsHealth: { label: "Operations health", detail: "Maintenance queue and operating diagnostics.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
-  adminOverview: { label: "Admin overview", detail: "Studio setup gaps and policy-facing counts.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
-  adminHealth: { label: "Admin health", detail: "Maintenance, correction, and workflow exception counts.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
+  opsHealth: { label: "Operations", detail: "Maintenance queue and diagnostics.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
+  adminOverview: { label: "Admin", detail: "Setup gaps and counts.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
+  adminHealth: { label: "Admin health", detail: "Maintenance and exceptions.", group: "admin", lifecycle: "active", route: "admin", adminOnly: true },
 
   clock: { label: "Clock", detail: "Local time and date.", group: "decorative", lifecycle: "active" },
-  note: { label: "Editable note", detail: "A small personal text block stored with your user state.", group: "decorative", lifecycle: "active", configurable: true },
+  note: { label: "Note", detail: "A personal note.", group: "decorative", lifecycle: "active", configurable: true },
 } as const satisfies Record<string, ClusterDashboardWidgetDefinition>;
 
 export type ClusterDashboardWidgetKey = keyof typeof CLUSTER_DASHBOARD_WIDGET_MANIFEST;
 export const CLUSTER_DASHBOARD_WIDGET_KEYS = Object.freeze(Object.keys(CLUSTER_DASHBOARD_WIDGET_MANIFEST)) as readonly ClusterDashboardWidgetKey[];
 
 export const CLUSTER_DASHBOARD_WIDGET_GROUPS = [
-  { key: "core", label: "Core", detail: "Primary Home context" },
-  { key: "projects", label: "Projects", detail: "Project planning and delivery" },
-  { key: "work", label: "My work", detail: "Personal execution and schedule" },
-  { key: "communication", label: "Communication", detail: "Inbox, people, and activity" },
-  { key: "production", label: "Production", detail: "Builds, QA, Timeline, Tickets, and delivery attention" },
-  { key: "tools", label: "Tools", detail: "Library and Desktop utilities" },
-  { key: "admin", label: "Admin", detail: "Administrator-only operating widgets" },
-  { key: "decorative", label: "Utility", detail: "Clock and personal notes" },
+  { key: "core", label: "Core", detail: "Essentials" },
+  { key: "projects", label: "Projects", detail: "Planning and delivery" },
+  { key: "work", label: "My work", detail: "Your tasks and schedule" },
+  { key: "communication", label: "Team", detail: "Inbox, people and activity" },
+  { key: "production", label: "Production", detail: "Builds, QA, timeline and tickets" },
+  { key: "tools", label: "Tools", detail: "Library and desktop utilities" },
+  { key: "admin", label: "Admin", detail: "Admins only" },
+  { key: "decorative", label: "Utility", detail: "Clock and notes" },
 ] as const satisfies readonly { key: ClusterDashboardWidgetGroup; label: string; detail: string }[];
 
 export function clusterDashboardWidgetDefinition(id: ClusterDashboardWidgetKey) {

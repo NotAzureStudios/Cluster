@@ -28,6 +28,7 @@ function loadComponent(file) {
     if (id === "react") return React;
     if (id === "react/jsx-runtime") return require(id);
     if (id.endsWith(".css")) return {};
+    if (id === "./ClusterIcon") return { ClusterIcon: () => null };
     throw new Error("Unexpected component dependency: " + id);
   };
   new Function("exports", "module", "require", js)(mod.exports, mod, imports);
@@ -50,40 +51,45 @@ const base = {
 };
 const render = props => renderToStaticMarkup(React.createElement(ClusterPermissionMatrix, { ...base, ...props }));
 
-test("Every permission renders a native radio group with correct five-level states", () => {
+// One line per tool: a radiogroup of the four levels; the effective level is
+// the checked one, marked as inherited or override.
+test("Every permission renders a radiogroup whose checked level is the effective level", () => {
   const html = render({ value: { boards: "edit" } });
-  assert.equal((html.match(/type="radio"/g) || []).length, 10);
-  assert.equal((html.match(/checked=""/g) || []).length, 2);
-  assert.match(html, /aria-label="Boards: edit"/);
-  assert.match(html, /aria-label="Vault: inherit"/);
-  assert.match(html, /role="region"/);
-  assert.match(html, /scope="row"/);
-  assert.match(html, /scope="col"/);
+  assert.equal((html.match(/role="radio"/g) || []).length, 8);
+  assert.equal((html.match(/role="radiogroup"/g) || []).length, 2);
+  assert.equal((html.match(/aria-checked="true"/g) || []).length, 2);
+  assert.match(html, /aria-label="Boards access"/);
+  assert.match(html, /aria-checked="true" data-lit="override"[^>]*>edit</);
+  assert.match(html, /aria-checked="true" data-lit="inherited"[^>]*>none</);
 });
 test("Overrides and effective access distinguish explicit None from inherited None", () => {
   const html = render({ value: { boards: "none" } });
-  assert.match(html, /1 \/ 2 overrides/);
-  assert.match(html, /Explicit none/);
-  assert.match(html, /Inherited none/);
-  assert.match(html, /data-override="explicit"/);
-  assert.match(html, /data-override="inherited"/);
+  assert.match(html, /Overrides<b>1<\/b>/);
+  assert.equal((html.match(/data-lit="override"/g) || []).length, 1);
+  assert.equal((html.match(/data-lit="inherited"/g) || []).length, 1);
+  assert.equal((html.match(/data-override="true"/g) || []).length, 1);
+  assert.match(html, /aria-label="Reset Boards to inherited view"/);
 });
 test("Unknown baseline has a conservative no-access fallback", () => {
   const html = render({ inherited: {}, value: {} });
-  assert.match(html, /Inherited none/);
-  assert.doesNotMatch(html, /Inherited manage/);
+  assert.equal((html.match(/data-lit="inherited"[^>]*>none</g) || []).length, 2);
+  assert.doesNotMatch(html, /data-lit="[a-z]+"[^>]*>manage</);
 });
 test("Read-only mode disables all choices and displays state", () => {
   const html = render({ readOnly: true });
-  assert.equal((html.match(/disabled=""/g) || []).length, 10);
+  assert.equal((html.match(/role="radio"[^>]*disabled=""/g) || []).length, 8);
   assert.match(html, /Read only/);
+  assert.doesNotMatch(html, /Reset /);
 });
-test("Descriptive metadata is available to screen readers but not a wall of text", () => {
+test("Descriptions are available on hover, not as a wall of text", () => {
   const html = render({ value: { boards: "view" } });
-  assert.match(html, /aria-describedby="/);
-  assert.match(html, /Manage board cards/);
-  assert.match(html, /Baseline: view/);
-  assert.match(html, /Effective/);
+  assert.match(html, /title="Manage board cards"/);
+  assert.doesNotMatch(html, /Choose a level per tool/);
+});
+test("Choosing the inherited level returns the tool to inherit", () => {
+  const source = read("packages/renderer/src/components/ClusterPermissionMatrix.tsx");
+  assert.match(source, /onChange\(row\.key, level\.value === baseline \? inheritValue : level\.value\)/);
+  assert.match(source, /onChange\(row\.key, inheritValue\)/);
 });
 test("Studio permission editor preserves domain-owned writes and readonly guards", () => {
   const src = read("packages/renderer/src/features/application/modules/application-automation-settings.tsx");
@@ -116,10 +122,11 @@ test("Permission search and overrides filter are local controlled inputs", () =>
   const source = read("packages/renderer/src/components/ClusterPermissionMatrix.tsx");
   assert.match(source, /const \[search, setSearch\] = useState\(""/);
   assert.match(source, /const \[overridesOnly, setOverridesOnly\] = useState\(false\)/);
-  assert.match(source, /overridesOnly && \(value\?\.\[row\.key\] === undefined \|\| value\?\.\[row\.key\] === inheritValue\)/);
+  assert.match(source, /const isOverride = \(key: Key\) => value\?\.\[key\] !== undefined && value\?\.\[key\] !== inheritValue/);
+  assert.match(source, /overridesOnly && !isOverride\(row\.key\)/);
   assert.match(source, /type="search" value=\{search\}/);
-  assert.match(source, /type="checkbox" checked=\{overridesOnly\}/);
-  assert.match(source, /No permissions match the current filters/);
+  assert.match(source, /aria-pressed=\{overridesOnly\}/);
+  assert.match(source, /No tools match/);
   assert.doesNotMatch(source, /fetch\(|queryApi\(|setInterval/);
 });
 test("Design system gallery exercises inheritance without persisting a fake explicit override", () => {
@@ -131,6 +138,7 @@ test("Design system gallery exercises inheritance without persisting a fake expl
 });
 test("Matrix remains navigable on narrow displays with adequate touch targets", () => {
   const css = read("packages/renderer/src/components/cluster-permission-matrix.css");
-  for (const matcher of [/overflow-x: auto/, /position: sticky/, /:focus-visible/, /pointer: coarse/, /min-height: 48px/, /--accent/]) assert.match(css, matcher);
+  // Fixed-width level columns keep every row aligned; focus is visible; narrow screens shrink columns.
+  for (const matcher of [/grid-auto-columns: 64px/, /grid-template-columns: minmax\(120px, 1fr\) auto 26px/, /:focus-visible/, /@media \(max-width: 640px\)/, /--accent/]) assert.match(css, matcher);
 });
 console.log(passed + "/" + passed + " permission matrix regressions passed");

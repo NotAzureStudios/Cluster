@@ -19,3 +19,9 @@
 .workspace-directory-empty-v28{min-height:230px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);border:1px dashed var(--border);border-radius:13px;background:var(--panel);}
 .workspace-directory-empty-v28 strong{color:var(--text);}
 @media(max-width:620px){.workspace-directory-filters-v28{flex-wrap:wrap}.workspace-directory-filters-v28>input{flex-basis:100%;max-width:none}.workspace-directory-filters-v28>select{flex:1}.workspace-directory-view-v28{margin-left:0}}
+/* v2: page-title size, no decorative icon; wider cards so names fit. */
+.workspace-directory-header-v28 h1{font-size:var(--cluster-font-size-lg,18px);font-weight:600;}
+.workspace-directory-header-v28>div>svg{display:none;}
+.workspace-directory-results-v28{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));}
+.workspace-directory-item-v28{padding:10px 12px;border-radius:10px;}
+.workspace-directory-filters-v28>select{padding:6px 9px;}

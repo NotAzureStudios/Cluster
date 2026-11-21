@@ -16,10 +16,10 @@ const directory = read('packages/renderer/src/features/admin/ToolDirectoryPanel.
 const shell = read('packages/renderer/src/features/inventory/InventoryWorkspacePage.tsx');
 assert.doesNotMatch(studio, /<PipelineRail\b|import \{ PipelineRail \}/, 'Studio Settings must not show numbered workflow rail');
 assert.match(studio, /activeId=\{section\}/, 'Actual current section must be selected in nav, not group anchor');
-assert.match(studio, /STUDIO_SETTINGS_NAV_ICONS\[item\.key\]/, 'Each Studio Settings navigation item gets a semantic icon');
+assert.match(studio, /STUDIO_SETTINGS_NAV_ICONS\[(?:item\.)?key\]/, 'Each Studio Settings navigation item gets a semantic icon');
 assert.match(nav, /item\.icon && <ClusterIcon/, 'Navigation uses semantic icon boundary');
 assert.match(studioCss, /RC17 density/);
-assert.match(directory, /cluster-tool-hub__card/);
+assert.match(directory, /export const BUILTIN_TOOL_DIRECTORY/);
 assert.match(inv, /cluster-inventory-catalog/);
 assert.match(inv, /assetCreatorOpen && <div/, 'Asset creation should be on demand');
 assert.match(inv, /<details className="settings-card-v092 cluster-resource-disclosure"/, 'Asset edits should be on demand');
@@ -30,9 +30,9 @@ assert.match(vault, /rotationOpen && <div/, 'Secret rotation should be on demand
 assert.match(vault, /reviewsOpen && <>/, 'Review queue should be on demand');
 assert.match(vault, /\/api\/admin\/vault\/secrets/, 'Vault backend authority retained');
 assert.match(vault, /confirmCluster\(/, 'Security confirmations remain');
-assert.match(repo, /sourceView === "repositories" && <section/, 'Repositories-first page');
-assert.match(repo, /sourceView === "connections" && <section/, 'Provider connection secondary view');
-assert.match(repo, /source-control-repository-card/);
+assert.match(repo, /useState<"repositories" \| "connections">\("repositories"\)/, 'Repositories-first page');
+assert.match(repo, /sourceView === "connections" \? \(connections\.length/, 'Provider connection secondary view');
+assert.match(repo, /className="scm-repo"/);
 assert.doesNotMatch(shell, /cluster-vault-domains|DomainInventoryPanel/, 'Domain management is no longer duplicated in Vault');
 assert.ok(JSON.parse(read('config/release-candidate.json')).sequence >= 17, 'RC17 UI behavior is retained by later releases');
 console.log('RC17 workspace density and workflow checks: Studio Settings rail removed, icon-nav active state, repository-first, Inventory catalog, Vault secure progressive disclosure');

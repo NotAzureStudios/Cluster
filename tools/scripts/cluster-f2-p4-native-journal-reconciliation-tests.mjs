@@ -88,7 +88,7 @@ ok(routes.includes('const admin = await requireAdminUserForRequest(request, repl
 ok(routes.includes('select: { id: true, code: true, category: true, outcome: true'),'history returns a bounded allowlist, not raw journal files');
 const ui=read('packages/renderer/src/features/admin/OperationsIncidentsPanel.tsx');
 ok(ui.includes('onClick={() => void loadNativeHistory()}'),'native history fetched only upon user click');
-ok(ui.includes('Native supervisor recovery evidence'),'history visibly integrated into Operations');
+ok(ui.includes('Native events') && ui.includes('loadNativeHistory()'),'history visibly integrated into Operations');
 ok(server.includes('findUnreconciledNativeEvents(prisma, journal.events)'),'scheduler prevents old receipt starvation');
 console.log(`Cluster F2 P4 Native Incident Reconciliation: ${count}/${count} assertions passed`);
 await fsp.rm(temp,{recursive:true,force:true});

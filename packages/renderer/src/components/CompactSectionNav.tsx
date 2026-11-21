@@ -131,6 +131,7 @@ export function CompactSectionNav<Id extends string>({
             onClick={() => setMoreOpen((current) => !current)}>
             <span>{moreLabel}</span>
             {secondaryActive && activeSecondary ? <em>{activeSecondary.label}</em> : null}
+            <ClusterIcon name="chevron-down" className="compact-section-more-chevron" aria-hidden="true" />
           </ClusterButton>
           <ClusterFloatingSurface open={moreOpen} anchorRef={moreTriggerRef} surfaceRef={moreMenuRef}
             id={moreId} role="menu" label={`${moreLabel} ${label.toLowerCase()}`}

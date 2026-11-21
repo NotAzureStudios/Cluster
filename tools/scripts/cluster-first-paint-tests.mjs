@@ -12,8 +12,18 @@ const check = (name, condition) => { assert.ok(condition, name); passed += 1; co
 check("the document does not start in a theme the app will immediately change",
   /<html[^>]*data-theme="dark"/.test(html) && /<html[^>]*data-theme-mode="dark"/.test(html));
 
+// Compare against the canvas token rather than a literal, so a palette change
+// that forgets index.html fails here instead of flashing the old colour.
+const contract = readFileSync(new URL("../../packages/renderer/src/styles/application-theme-contract.css", import.meta.url), "utf8");
+const canvas = (theme) => contract.match(new RegExp(`:root\\[data-theme="${theme}"\\]\\s*\\{[^}]*--cluster-workbench-canvas:\\s*(#[0-9a-fA-F]{6})`))?.[1]?.toLowerCase();
+const inlineDark = html.match(/:root\s*\{[^}]*background-color:\s*(#[0-9a-fA-F]{6})/)?.[1]?.toLowerCase();
+const inlineLight = html.match(/\[data-theme="light"\][^}]*background-color:\s*(#[0-9a-fA-F]{6})/)?.[1]?.toLowerCase();
+
 check("a surface colour is inline, so the first paint is not a white flash",
-  /background-color:\s*#101214/.test(html) && /\[data-theme="light"\][^}]*background-color:\s*#f7f8f9/.test(html));
+  Boolean(inlineDark) && Boolean(inlineLight));
+
+check("the inline colours match the canvas the app paints once it mounts",
+  inlineDark === canvas("dark") && inlineLight === canvas("light"));
 
 check("the inline bootstrap reads the same storage key as the app",
   html.includes('"cluster-theme-mode"') && runtime.includes('THEME_STORAGE_KEY = "cluster-theme-mode"'));
@@ -34,4 +44,4 @@ check("it sets the same attributes the app sets",
 check("storage access is guarded, because it throws with site data blocked",
   /try\s*\{[\s\S]{0,200}localStorage[\s\S]{0,200}\}\s*catch/.test(html));
 
-console.log(`\n${passed}/7 first-paint checks passed`);
+console.log(`\n${passed}/8 first-paint checks passed`);

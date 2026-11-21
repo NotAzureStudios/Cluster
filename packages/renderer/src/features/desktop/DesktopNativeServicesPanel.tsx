@@ -449,7 +449,7 @@ export function DesktopNativeServicesPanel() {
 
 
       <article className="desktop-native-card span-2">
-        <header><div><h3>Quick Capture</h3><p>Capture native screen evidence, then hand it to Shared Create. The created work item remains canonical; the image uploads as a normal Project Asset and links as evidence after verification.</p></div></header>
+        <header><div><h3>Quick Capture</h3><p>Capture a screenshot, then create a work item from it. The image uploads as a normal Project Asset and is linked to the item after verification.</p></div></header>
         <div className="desktop-capture-actions">
           <ClusterButton type="button" busy={pendingUtilities.includes("quick:card:screen")} busyLabel="Capturing…" onClick={() => void runUtility("quick:card:screen", () => quickCapture("card", "screen"))} variant="primary">Screen → card</ClusterButton>
           <ClusterButton type="button" busy={pendingUtilities.includes("quick:ticket:screen")} busyLabel="Capturing…" onClick={() => void runUtility("quick:ticket:screen", () => quickCapture("ticket", "screen"))} variant="secondary">Screen → ticket</ClusterButton>

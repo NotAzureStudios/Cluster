@@ -59,7 +59,7 @@ const checks = [
   ["Workstation exposes SCM operation start/status/cancel", workstation.includes("sourceOperationStart") && workstation.includes("sourceOperationStatus") && workstation.includes("sourceOperationCancel")],
   ["SCM async operation lookup is repository-scoped", workstation.includes("op.RepositoryID != repo.ID")],
   ["SCM cancellation uses operation context cancellation", workstation.includes('op.State = "cancelling"') && workstation.includes("op.cancel()")],
-  ["SCM async commit/sync execute without shell invocation", workstation.includes("runGitCommand(ctx, repo.RootPath") && !workstation.includes('runCommand(ctx, repo.RootPath, "sh"')],
+  ["SCM async commit/sync execute without shell invocation", workstation.includes("s.gitCtx(ctx, repo,") && !workstation.includes('runCommand(ctx, repo.RootPath, "sh"')],
   ["Workstation tests cover SCM capability advertisement", workstationTests.includes("TestSourceControlRuntimeAdvertisesResolutionAndAsyncOperations")],
   ["Workstation tests cover repository-scoped operation status", workstationTests.includes("TestSourceOperationStatusIsRepositoryScoped")],
   ["Workstation tests cover cancellation", workstationTests.includes("TestSourceOperationCancelRequestsContextCancellation")],

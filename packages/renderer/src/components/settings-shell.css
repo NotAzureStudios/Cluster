@@ -1,0 +1,227 @@
+/* Settings layout — the only stylesheet for st-* and for the older section
+   markup when it renders inside a settings page. Account, project, studio,
+   server and admin settings all use it.
+
+   Shape: title row; a 220px grouped section list; content as cards of
+   rows. A row is label + hint on the left, control on the right. */
+
+.st { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-2); min-width: 0; padding: var(--space-2) 0 var(--space-6); }
+
+/* ---------- title row ---------- */
+.st-head { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; min-width: 0; }
+.st-head h1 { margin: 0; font-size: var(--cluster-font-size-lg, 18px); font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
+.st-head__crumb { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--cluster-font-size-sm); white-space: nowrap; }
+.st-head__crumb svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; opacity: .6; }
+.st-head__status { min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.st-head__status:empty { display: none; }
+.st-head__actions { display: flex; align-items: center; gap: var(--space-1-5); flex: none; margin-left: auto; }
+
+/* ---------- body ---------- */
+.st-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4); align-items: start; min-width: 0; }
+
+.st-nav {
+  position: sticky;
+  top: calc(var(--cl-titlebar-h, 44px) + var(--space-2));
+  display: grid;
+  gap: var(--space-3);
+  max-height: calc(100dvh - var(--cl-titlebar-h, 44px) - var(--space-6));
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.st-nav__group { display: grid; gap: 1px; }
+.st-nav__group > h2 { margin: 0 0 2px; padding: 0 var(--space-2); color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.st-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--cluster-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.st-nav__item:hover { background: var(--cluster-button-fill); color: var(--text); }
+.st-nav__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.st-nav__item.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font-weight: 600; }
+.st-nav__item svg.cluster-icon-svg { flex: none; inline-size: 15px; block-size: 15px; }
+.st-nav__item.is-active svg.cluster-icon-svg { color: var(--accent); }
+.st-nav__item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-nav__item > i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--warning); }
+.st-nav__item > i[data-tone="danger"] { background: var(--danger); }
+
+.st-main { display: grid; align-content: start; gap: var(--space-3); min-width: 0; max-width: 1080px; }
+
+/* ---------- settings search (in the nav) ---------- */
+.st-nav__top .cluster-settings-search-v11 { position: relative; display: block; margin: 0; padding: 0; border: 0; background: transparent; }
+.st-nav__top .cluster-settings-search-v11 > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.st-nav__top .cluster-settings-search-field-v11 { position: relative; }
+.st-nav__top .cluster-settings-search-v11 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  width: 100%; height: 30px !important; min-height: 0 !important; padding: 0 var(--space-2) 0 28px !important;
+  border: 0 !important; border-radius: var(--cluster-radius-control) !important; background: var(--cluster-recess) !important;
+  box-shadow: none !important; font-size: var(--cluster-font-size-sm) !important;
+}
+.st-nav__top .cluster-settings-search-symbol-v11 { position: absolute; top: 50%; left: 9px; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
+.st-nav__top .cluster-settings-search-results-v11 { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 320px; max-height: 360px; overflow-y: auto; padding: var(--space-1); border-radius: 10px; background: color-mix(in srgb, var(--cluster-workbench-panel) 94%, var(--text)); box-shadow: 0 10px 30px rgb(0 0 0 / .35); }
+
+/* ---------- section content (older markup, restyled here) ----------
+   Three levels only: the page (flat), cards (one surface each), rows inside
+   cards (label left, control right, hairline between). Anything that holds
+   other cards is a container and draws no chrome of its own. */
+
+/* Containers: flat. */
+.st-main :is(.settings-primary-layout-v469, .settings-content-v092, .settings-section-v092, .studio-settings-section-v272,
+  .admin-consolidated-stack-v15, .admin-reports-stack-v470, .server-config-groups-v238),
+.st-main .panel:has(.panel, .settings-card-v092, .cluster-visual-summary-grid, .server-config-group-v238) {
+  display: grid; align-content: start; gap: var(--space-3); min-width: 0; margin: 0; padding: 0 !important;
+  border: 0 !important; border-radius: 0; background: transparent !important; box-shadow: none !important;
+}
+.st-main .server-config-groups-v238 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+
+/* A heading that repeats the title row is hidden by the shell (data-st-dup). */
+.st-main [data-st-dup] { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238):not(:has(> :not([data-st-dup], .eyebrow, :empty))) { display: none; }
+.st-main .settings-panel-head-v092 > .eyebrow { display: none; }
+
+/* Section header: title left, actions right. */
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0; padding: 0; border: 0; background: transparent;
+}
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) :is(h2, h3) { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; text-align: left; }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) > :last-child:not(:first-child):not(h1, h2, h3) { margin-left: auto; }
+.st-main :is(.settings-panel-head-v092, .section-heading, .server-config-group-head-v238) p { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .server-config-group-head-v238 > span:last-child { color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+
+/* Hints: one muted line. */
+.st-main :is(.studio-explanation-v272, .studio-section-intro-v272, .hint-box) { margin: 0; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: var(--cluster-font-size-xs); line-height: 1.4; }
+.st-main .eyebrow { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.st-main .muted { color: var(--muted); }
+.st-main p.muted, .st-main small.muted { font-size: var(--cluster-font-size-xs); }
+
+/* Cards. */
+.st-main .settings-card-grid-v092 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; }
+.st-main :is(.settings-card-v092, .studio-settings-block-v272, .studio-editor-panel-v272, .panel) {
+  display: grid; align-content: start; gap: var(--space-2); min-width: 0; margin: 0;
+  padding: var(--space-3); border: 0; border-radius: var(--cluster-radius-card);
+  background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card);
+}
+.st-main .settings-card-v092 .settings-card-v092 { padding: 0; background: transparent; box-shadow: none; }
+.st-main .settings-card-head-v092 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+.st-main .settings-card-head-v092 :is(h3, h4, strong) { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
+.st-main .settings-card-head-v092 > span { margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+
+/* Rows: label left, control right. Wide controls (text areas, chip sets)
+   sit under their label. Multi-column field grids become one column. */
+.st-main :is(.compact-fields-v092, .settings-stack, .two-col, .studio-form-grid-v272, .server-config-fields-v238) { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+.st-main :is(.field, .server-config-field-v238).span-2 { grid-column: auto !important; }
+.st-main :is(.field, .server-config-field-v238) {
+  display: flex !important; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3);
+  min-width: 0; min-height: 40px; margin: 0; padding: var(--space-1) 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border) !important;
+}
+.st-main :is(.field, .server-config-field-v238):last-child { box-shadow: none !important; }
+/* Label takes ~40%, control the rest; a row narrower than both wraps to label-over-control. */
+.st-main .field > :first-child, .st-main .server-config-field-header-v11 { flex: 1 1 38%; min-width: 120px; }
+.st-main .field > :not(:first-child), .st-main .server-config-field-v238 > :not(.server-config-field-header-v11) { flex: 1 1 52%; min-width: 170px; }
+.st-main :is(.field, .server-config-field-v238) > :is(textarea, .chip-row, .cl-seg, .cluster-segmented-v11) { flex-basis: 100%; }
+.st-main .server-config-toggle-v238 > input[type="checkbox"], .st-main .field > input[type="checkbox"] { flex: 0 0 auto; min-width: 0; margin-left: auto; }
+.st-main .field > :first-child,
+.st-main .server-config-field-header-v11 label strong {
+  color: var(--text) !important; font-size: var(--cluster-font-size-sm) !important; font-weight: 500 !important;
+  letter-spacing: normal !important; text-transform: none !important;
+}
+.st-main .field > :is(small, .muted):not(:first-child) { flex-basis: 100%; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .server-config-field-header-v11 { display: flex; align-items: center; gap: var(--space-1-5); min-width: 0; }
+.st-main .server-config-field-header-v11 label { min-width: 0; }
+.st-main .server-config-field-actions-v11 { display: inline-flex; align-items: center; gap: var(--space-1); }
+.st-main .server-config-field-v238.is-dirty .server-config-field-header-v11 label strong { color: var(--warning) !important; }
+.st-main .server-config-toggle-v238 > input[type="checkbox"] { justify-self: end; }
+.st-restart { display: inline-grid; place-items: center; width: 18px; height: 18px; color: var(--muted); opacity: .7; }
+.st-restart svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+.st-main .span-2 { grid-column: 1 / -1; }
+
+/* Controls inside settings are 32px and body-sized. */
+.st-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) {
+  min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important;
+}
+.st-main textarea { min-height: 64px !important; }
+
+/* Toggle rows: label and hint left, switch right. */
+.st-main :is(.studio-setting-toggle-v272, .notification-delivery-row-v473, .info-row) {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 40px; margin: 0; padding: var(--space-1-5) 0; border: 0; border-radius: 0; background: transparent;
+  box-shadow: inset 0 -1px 0 var(--cluster-workbench-border);
+}
+.st-main :is(.studio-setting-toggle-v272, .notification-delivery-row-v473, .info-row):last-child { box-shadow: none; }
+.st-main :is(.studio-setting-toggle-v272, .notification-delivery-row-v473) > span:first-child { display: grid; gap: 1px; min-width: 0; }
+.st-main :is(.studio-setting-toggle-v272, .notification-delivery-row-v473) strong { font-size: var(--cluster-font-size-sm); font-weight: 600; }
+.st-main :is(.studio-setting-toggle-v272, .notification-delivery-row-v473) small { color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .notification-delivery-row-v473 > b { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.st-main :is(.studio-inline-check-v272, .tool-check) { display: flex; align-items: center; gap: var(--space-2); font-size: var(--cluster-font-size-sm); }
+
+/* Lists of things (roles, departments, packages): rows, not cards. */
+.st-main .studio-entity-list-v272 { display: grid; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.st-main .studio-entity-list-v272 > * { border: 0; border-radius: var(--cluster-radius-control); background: transparent; box-shadow: none; }
+.st-main .studio-entity-list-v272 > *:hover { background: var(--cluster-button-fill); }
+.st-main .studio-entity-list-copy-v272 strong { font-size: var(--cluster-font-size-sm); }
+.st-main .studio-entity-list-meta-v272 { color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.st-main .studio-create-strip-v272 { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: 0; border: 0; background: transparent; }
+
+.st-main .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); margin: 0; }
+.st-main .soft-pill { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font-size: var(--cluster-font-size-2xs); }
+.st-main .chip-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+/* ---------- inline (inside another page) ---------- */
+.st--inline { padding: 0; }
+.st--inline .st-body { grid-template-columns: 200px minmax(0, 1fr); }
+.st--inline .st-nav { top: calc(var(--cl-titlebar-h, 44px) + var(--space-3)); }
+.st-inline-bar { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; }
+.st-inline-bar .st-head__actions { margin-left: auto; }
+/* Panels shown as a settings section drop their own page-level chrome. */
+.st--inline .st-main > :is(.ps-page, .project-subpage-v312) { padding: 0; }
+
+/* ---------- narrow ---------- */
+@media (max-width: 960px) {
+  .st-body { grid-template-columns: minmax(0, 1fr); }
+  .st-nav { position: static; max-height: none; display: flex; gap: var(--space-1); overflow-x: auto; }
+  .st-nav__top { display: none; }
+  .st-nav__group { display: flex; gap: 2px; }
+  .st-nav__group > h2 { display: none; }
+  .st-nav__item { flex: none; width: auto !important; white-space: nowrap; }
+  .st-nav__group { flex: none; }
+  .st-nav { scrollbar-width: none; }
+  .st-head__crumb { display: none; }
+}
+
+/* Colour fields: the trigger already names itself, so the legend goes. */
+.st-main .cluster-color-field-v455 { min-width: 0; margin: 0; padding: var(--space-1) 0; border: 0; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.st-main .cluster-color-field-v455 > legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Number steppers: one 32px line, arrows side by side. */
+.st-main .number-stepper-v110 { height: 32px; }
+.st-main .number-stepper-v110 > input { height: 32px !important; }
+.st-main .number-stepper-controls-v110 { display: flex !important; flex-direction: row !important; height: 32px; }
+.st-main .number-stepper-controls-v110 > * { height: 100% !important; min-height: 0 !important; }
+
+/* Connection health in project integrations: a dot and a word. */
+.st-main .pc-health { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.st-main .pc-health::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.st-main .pc-health[data-tone="accent"]::before { background: var(--success); }
+.st-main .pc-health[data-tone="warning"]::before { background: var(--warning); }
+.st-main .pc-health[data-tone="danger"]::before { background: var(--danger); }
+.st-main .project-form-grid-v312 { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+.st-main .project-form-layout-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }
+.st-main .project-form-layout-v312 > .span-2 { grid-column: 1 / -1; }
+.st-main .project-connection-grid-v312 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: var(--space-3); align-items: start; margin: 0; padding: 0; border: 0; min-width: 0; }
+
+/* The studio/account content wrapper is a container, never a card. */
+.st .st-main .panel.settings-content-v092,
+.st .st-main .panel.settings-content-v092.studio-settings-content-v165 {
+  padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important; backdrop-filter: none !important;
+}
+.st .st-main .panel.settings-content-v092 > .settings-section-v092 { padding-bottom: 0; border-bottom: 0; }

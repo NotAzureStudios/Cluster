@@ -10,11 +10,11 @@ import { DataViewAggregationStrip, DataViewDerivedFieldBuilder, DataViewFacetBar
 import { ClusterTableToolbar } from "../../components/ClusterTableToolbar";
 import { ClusterDataView } from "../../components/ClusterDataView";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
-import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { resolveClusterResourceActions } from "../../core/resource-action-registry";
-import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { PEOPLE_DATA_FIELDS, clusterDataDerivedSemanticFields, clusterDataSelectionSetFilterGroup, createClusterDataViewLayout, evaluateClusterDataDerivedFields, mergeClusterDataFilterGroups, planClusterDataDerivedFields, type ClusterDataDerivedField, type ClusterDataExportDelivery, type ClusterDataExportFormat, type ClusterDataGroup, type ClusterDataProjection, type ClusterDataQuery, type ClusterDataSelection, type ClusterDataSelectionSet, type ClusterDataSort, type ClusterDataViewLayout, type ClusterSavedDataView, type ClusterSemanticField } from "@cluster/shared";
 import { ClusterDataTable, type ClusterDataTableColumn } from "../../components/ClusterDataTable";
 import { requestClusterDataExport } from "../../core/data-export-client";
@@ -24,7 +24,6 @@ import { ClusterSegmentedControl } from "../../components/ClusterSegmentedContro
 import { ToolPageHeader } from "../../components/ToolPageHeader";
 import { ClusterMasterDetail, readClusterDetailSelection, useClusterDetailHistory } from "../../components/ClusterMasterDetail";
 import { InspectorLoadingState, LoadingState } from "../../components/LoadingState";
-import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { PersonSummary } from "../../components/PersonSummary";
 import { DepartmentIdentityMark, type DepartmentIdentity } from "../../components/DepartmentIdentityMark";
 import { useProgressiveList } from "../../components/useProgressiveList";
@@ -40,7 +39,6 @@ import {
   displayUserName,
   presenceLabel,
   presenceState,
-  profileAvailabilityLabel,
   profileCapacityLabel,
   profileCompletionScore,
   profileLocalTime,
@@ -57,12 +55,8 @@ import { WorkforceAvailabilityExceptions, type WorkforceAvailabilityException } 
 import { CompanyGraphPanel } from "./CompanyGraphPanel";
 import { PersonEffectiveAccessPanel } from "./PersonEffectiveAccessPanel";
 import { PeopleUserEditor } from "./PeopleUserEditor";
-import { PeopleAccountManagementPanel } from "./PeopleAccountManagementPanel";
-import { PeopleAccountProvisioningWizard } from "./PeopleAccountProvisioningWizard";
-import { validatePeopleAccountCreation, firstPeopleAccountCreateError } from "./people-account-creation-validation";
 import { AccountCredentialHandoff } from "./AccountCredentialHandoff";
 import { AccountInvitationHandoff } from "./AccountInvitationHandoff";
-import { canChooseStudioRole, type StudioAssignableRoleChoice } from "./people-role-choice";
 
 const DEFAULT_PEOPLE_PROJECTIONS: ClusterDataProjection[] = [
   { id: "people_department", kind: "grouped", dimensions: ["department"], measures: [{ id: "count", kind: "count", label: "People" }], limit: 20, drilldown: { mode: "filter", presentation: "table" } },
@@ -129,26 +123,22 @@ function workingHoursSummary(hours?: User["workingHours"]) {
   return `${days.length} days${same && first?.[0] ? ` · ${first[0].start}–${first[0].end}` : " configured"}`;
 }
 
-export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfile, adminMode = false }: { currentUser: User; projects: Project[]; onOpenProject: (projectId: string) => void; onEditProfile?: () => void; adminMode?: boolean }) {
+export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfile, adminMode = false, onCreateAccount, onBack }: { onBack?: () => void; onCreateAccount?: () => void; currentUser: User; projects: Project[]; onOpenProject: (projectId: string) => void; onEditProfile?: () => void; adminMode?: boolean }) {
   const [assignments, setAssignments] = useState<TeamAssignment[]>([]);
   const [selectedUserId, setSelectedUserId] = useState(currentUser.id);
   const [selectedPeopleIds, setSelectedPeopleIds] = useState<Set<string>>(() => new Set());
   const [profile, setProfile] = useState<PeopleProfilePayload | null>(null);
   const [peopleContext, setPeopleContext] = useState<PeopleContext | null>(null);
   const [workforceContext, setWorkforceContext] = useState<WorkforceContext | null>(null);
-  const [workforceMode, setWorkforceMode] = useState<"directory" | "accounts" | "organization" | "teams" | "capacity" | "availability">(adminMode && currentUser.isAdmin && !readClusterDetailSelection("person") ? "accounts" : "directory");
-  const workforceModeRef = useRef(workforceMode);
-  workforceModeRef.current = workforceMode;
-  const previousWorkforceModeRef = useRef(workforceMode);
+  const [workforceMode, setWorkforceMode] = useState<"directory" | "organization" | "teams" | "capacity" | "availability">("directory");
   const [availabilityBusy, setAvailabilityBusy] = useState(false);
   const [teamNameDraft, setTeamNameDraft] = useState("");
   const [query, setQuery] = useState("");
   const deferredDirectoryQuery = useDeferredValue(query);
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "full" | "edit";
+  type ProfileView = "overview" | "work" | "calendar" | "activity" | "records" | "access" | "edit";
   const [profileView, setProfileViewState] = useState<ProfileView>("overview");
-  const pendingManagedAccountViewRef = useRef<{ id: string; view: "overview" | "edit" | "access" } | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const { confirmDiscard: confirmEditorDiscard } = useUnsavedChangesGuard({
     dirty: profileView === "edit" && editorDirty,
@@ -162,18 +152,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
     } else setProfileViewState(next);
   }
-  const [profileExpanded, setProfileExpanded] = useState(false);
-  const [accountsReturnAvailable, setAccountsReturnAvailable] = useState(false);
+  const [profileExpanded, setProfileExpanded] = useState(Boolean(adminMode));
+  const [showDataTools, setShowDataTools] = useState(false);
   async function changeWorkforceMode(next: typeof workforceMode) {
     if (next === workforceMode) return;
     if (profileView === "edit" && editorDirty) {
       if (!(await confirmEditorDiscard())) return;
       setEditorDirty(false);
       setProfileViewState("overview");
-    }
-    if (next === "accounts") {
-      setProfileExpanded(false);
-      setAccountsReturnAvailable(false);
     }
     setWorkforceMode(next);
   }
@@ -200,83 +186,17 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const [loadStatus, setLoadStatus] = useState("Loading people...");
   const [securityActionUserId, setSecurityActionUserId] = useState("");
   const effectiveAdminMode = Boolean(adminMode && currentUser.isAdmin);
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
-  const [createAccountBusy, setCreateAccountBusy] = useState(false);
-  type CreateRoleCatalog = {
-    actorRole: string;
-    workspaceId: string;
-    roles: StudioAssignableRoleChoice[];
-  };
-  const [createRoleCatalog, setCreateRoleCatalog] = useState<CreateRoleCatalog | null>(null);
-  const [createRoleError, setCreateRoleError] = useState("");
-  const [createRoleLoading, setCreateRoleLoading] = useState(false);
-  useEffect(() => {
-    if (!effectiveAdminMode || !createAccountOpen) {
-      setCreateRoleCatalog(null);
-      setCreateRoleError("");
-      return;
-    }
-    let cancelled = false;
-    setCreateRoleLoading(true);
-    setCreateRoleError("");
-    void queryApi<CreateRoleCatalog>("/api/admin/users/assignable-roles", {
-      force: true, staleMs: 0, persist: false, tags: ["roles", "users", "people"],
-    }).then((result) => {
-      if (cancelled) return;
-      setCreateRoleCatalog(result);
-      const canAssign = (id: string) => result.roles.some((role) =>
-        role.id === id && canChooseStudioRole(role, result.actorRole));
-      setCreateAccountDraft((draft) => canAssign(draft.role) ? draft : { ...draft, role: "member" });
-    }).catch((cause: unknown) => {
-      if (!cancelled) {
-        setCreateRoleCatalog(null);
-        setCreateRoleError(cause instanceof Error ? cause.message : "Could not load workspace roles.");
-      }
-    }).finally(() => { if (!cancelled) setCreateRoleLoading(false); });
-    return () => { cancelled = true; };
-  }, [effectiveAdminMode, createAccountOpen, currentUser.id]);
-  const accountCreateGateRef = useRef(false);
   const [adminActionBusy, setAdminActionBusy] = useState("");
   const [adminActionFeedback, setAdminActionFeedback] = useState<{ message: string; error: boolean } | null>(null);
   const accountStateActionGateRef = useRef(false);
   const accountScopeRef = useRef(currentUser.id);
   const [issuedCredential, setIssuedCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
   const [issuedActivationLink, setIssuedActivationLink] = useState<{ username: string; activationLink: string; expiresAt: string } | null>(null);
-  const [createAccountDraft, setCreateAccountDraft] = useState({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-  const [createAccountError, setCreateAccountError] = useState("");
-  const [onboardingFollowup, setOnboardingFollowup] = useState<{ userId: string; versionId: string; message: string } | null>(null);
-  const [onboardingRetryBusy, setOnboardingRetryBusy] = useState(false);
-  const creationRole = createRoleCatalog?.roles.find((role) => role.id === createAccountDraft.role);
-  const createAccountValidation = validatePeopleAccountCreation(createAccountDraft,
-    canChooseStudioRole(creationRole, createRoleCatalog?.actorRole));
-  const createAccountBlocker = firstPeopleAccountCreateError(createAccountValidation);
-  const createAccountDirty = Boolean(createAccountDraft.username.trim() || createAccountDraft.displayName.trim() ||
-    createAccountDraft.email.trim() || createAccountDraft.accessExpiresAt || createAccountDraft.onboardingVersionId || createAccountDraft.accountType !== "employee" || createAccountDraft.role !== "member");
-  const { confirmDiscard: confirmCreateAccountDiscard } = useUnsavedChangesGuard({
-    dirty: effectiveAdminMode && createAccountOpen && createAccountDirty,
-    title: "Discard account draft?",
-    message: "The new account has not been created. Closing will discard the entered information.",
-  });
-  function patchCreateAccountDraft(changes: Partial<typeof createAccountDraft>) {
-    setCreateAccountDraft((draft) => ({ ...draft, ...changes }));
-    setCreateAccountError("");
-  }
-  async function toggleCreateAccount() {
-    if (createAccountBusy) return;
-    if (createAccountOpen && createAccountDirty && !(await confirmCreateAccountDiscard())) return;
-    if (createAccountOpen) {
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-      setCreateAccountError("");
-    }
-    setCreateAccountOpen((open) => !open);
-  }
   const [directoryRefresh, setDirectoryRefresh] = useState(0);
   useEffect(() => {
     if (effectiveAdminMode) return;
-    setCreateAccountOpen(false);
     setIssuedCredential(null);
     setIssuedActivationLink(null);
-    setOnboardingFollowup(null);
   }, [effectiveAdminMode]);
   const profileRequestSequenceRef = useRef(0);
   const peopleLoadSequenceRef = useRef(0);
@@ -299,7 +219,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     setWorkforceContext(null);
     setIssuedCredential(null);
     setIssuedActivationLink(null);
-    setOnboardingFollowup(null);
   }, [currentUser.id]);
   const peopleServerGroups = useMemo<ClusterDataGroup[]>(() => directoryGroups.every((group) => group.fieldId === "department") ? directoryGroups.map((group) => ({ fieldId: "department", direction: group.direction })) : [], [directoryGroups]);
   const peopleServerDataQuery = useMemo<ClusterDataQuery>(() => ({
@@ -402,9 +321,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       });
       if (sequence !== peopleLoadSequenceRef.current) return;
     }
-    // Sensitive account administration needs only the selected profile. Avoid
-    // three heavyweight workforce calls until the user opens a workforce tab.
-    if (workforceModeRef.current === "accounts") return;
     const [assignmentResult, contextResult, workforceResult] = await Promise.all([
       queryApi<TeamAssignment[]>("/api/team/assignments", { force, staleMs: 10_000, maxAgeMs: 2 * 60_000, tags: ["work", "people"] }),
       queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(targetUserId || currentUser.id)}`, { force, staleMs: 20_000, maxAgeMs: 3 * 60_000, tags: ["users", "people", "teams"] }),
@@ -418,18 +334,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       await loadProfile(targetUserId, force);
     }
   }
-  useEffect(() => {
-    if (!effectiveAdminMode && workforceMode === "accounts") setWorkforceMode("directory");
-  }, [effectiveAdminMode, workforceMode]);
-  useEffect(() => {
-    const previous = previousWorkforceModeRef.current;
-    previousWorkforceModeRef.current = workforceMode;
-    if (previous === "accounts" && workforceMode !== "accounts") {
-      void loadProfiles(activeProfileIdRef.current, false, false, true).catch((error) => {
-        setLoadStatus(error instanceof Error ? error.message : "People context load failed");
-      });
-    }
-  }, [workforceMode]);
   useEffect(() => {
     const initialTarget = readClusterDetailSelection("person") || currentUser.id;
     activeProfileIdRef.current = initialTarget;
@@ -465,84 +369,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     } finally {
       setSecurityActionUserId("");
     }
-  }
-
-  async function createPersonAccount() {
-    if (!effectiveAdminMode || accountCreateGateRef.current) return;
-    const username = createAccountDraft.username.trim();
-    const onboardingVersionId = createAccountDraft.onboardingVersionId;
-    if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {
-      setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.");
-      return;
-    }
-    accountCreateGateRef.current = true;
-    const scope = currentUser.id;
-    setCreateAccountBusy(true);
-    setCreateAccountError("");
-    setOnboardingFollowup(null);
-    setLoadStatus("Creating account…");
-    try {
-      const created = await api<PeopleProfilePayload & { temporaryPassword: string }>("/api/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username,
-          displayName: createAccountDraft.displayName.trim() || null,
-          email: createAccountDraft.email.trim() || null,
-          accountType: createAccountDraft.accountType,
-          accessExpiresAt: createAccountDraft.accessExpiresAt ? new Date(`${createAccountDraft.accessExpiresAt}T23:59:59`).toISOString() : null,
-          role: createAccountDraft.role,
-        }),
-      });
-      if (accountScopeRef.current !== scope) return; // Never show another session's credential.
-      setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });
-      setCreateAccountDraft({ username: "", displayName: "", email: "", accountType: "employee", accessExpiresAt: "", role: "member", onboardingVersionId: "" });
-      setCreateAccountOpen(false);
-      setDirectoryRefresh((current) => current + 1);
-      setLoadStatus(`Account created for ${displayUserName(created)}. Copy the temporary password before leaving this view.`);
-      if (onboardingVersionId) {
-        try {
-          await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(onboardingVersionId)}/assign-person`, {
-            method: "POST", body: JSON.stringify({ userId: created.id }),
-          });
-          if (accountScopeRef.current === scope) setLoadStatus("Account created and onboarding assigned. Complete the private credential handoff.");
-        } catch (error) {
-          if (accountScopeRef.current === scope) {
-            const message = error instanceof Error ? error.message : "Onboarding could not be assigned.";
-            setOnboardingFollowup({ userId: created.id, versionId: onboardingVersionId, message });
-            setLoadStatus("Account created. Onboarding assignment needs a separate retry; do not create another account.");
-          }
-        }
-      }
-      // Creation already committed. A failed follow-up read must never invite a retry
-      // of the POST or falsely claim that the account was not created.
-      const refreshWarning = await reconcileAfterCommit(() => loadProfiles(created.id, true, true));
-      if (refreshWarning) setLoadStatus(`Account created for ${displayUserName(created)}, but the directory refresh failed. The temporary password above remains valid; refresh People manually. ${refreshWarning}`);
-    } catch (error) {
-      if (accountScopeRef.current === scope) {
-        const message = error instanceof Error ? error.message : "Account creation failed.";
-        setCreateAccountError(message);
-        setLoadStatus(message);
-      }
-    } finally { accountCreateGateRef.current = false; if (accountScopeRef.current === scope) setCreateAccountBusy(false); }
-  }
-  async function retryOnboardingFollowup() {
-    if (!effectiveAdminMode || !onboardingFollowup || onboardingRetryBusy) return;
-    const current = onboardingFollowup;
-    setOnboardingRetryBusy(true);
-    try {
-      await api(`/api/studio-systems/onboarding/versions/${encodeURIComponent(current.versionId)}/assign-person`, {
-        method: "POST", body: JSON.stringify({ userId: current.userId }),
-      });
-      if (accountScopeRef.current === currentUser.id) {
-        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? null : state);
-        setLoadStatus("Onboarding assigned to the existing account. No duplicate account was created.");
-      }
-    } catch (error) {
-      if (accountScopeRef.current === currentUser.id) {
-        const message = error instanceof Error ? error.message : "Onboarding assignment still unavailable.";
-        setOnboardingFollowup((state) => state?.userId === current.userId && state.versionId === current.versionId ? { ...state, message } : state);
-      }
-    } finally { setOnboardingRetryBusy(false); }
   }
 
   async function issueActivationInvitationForProfile() {
@@ -712,10 +538,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
 
   async function selectProfile(userId: string) {
     if (profileView === "edit" && editorDirty && userId !== activeProfileIdRef.current) {
-      if (!(await confirmEditorDiscard())) {
-        if (pendingManagedAccountViewRef.current?.id === userId) pendingManagedAccountViewRef.current = null;
-        return;
-      }
+      if (!(await confirmEditorDiscard())) return;
       setEditorDirty(false);
     }
     ++peopleLoadSequenceRef.current; // Cancel older directory loads selecting a stale target.
@@ -736,11 +559,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       if (sequence !== profileRequestSequenceRef.current || activeProfileIdRef.current !== userId) return;
       setProfile(profileResult);
       setLoadStatus("Profile loaded.");
-      const pending = pendingManagedAccountViewRef.current;
-      if (pending?.id === userId) {
-        pendingManagedAccountViewRef.current = null;
-        setProfileViewState(pending.view);
-      }
       void queryApi<PeopleContext>(`/api/team/context?limit=1000&historyUserId=${encodeURIComponent(userId)}`, {
         staleMs: 60_000, maxAgeMs: 3 * 60_000, tags: ["people", "teams", "profiles"],
       }).then((contextResult) => {
@@ -757,6 +575,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     else { ++profileRequestSequenceRef.current; ++peopleLoadSequenceRef.current; ++calendarRequestSequenceRef.current; activeProfileIdRef.current = ""; setSelectedUserId(""); setProfile(null); setProfileCalendar([]); setProfileCalendarLoading(false); setProfileExpanded(false); }
   }, []);
   const personDetailHistory = useClusterDetailHistory("person", selectedUserId || null, restorePersonDetail);
+  const inspectProfile = (userId: string) => {
+    setProfileExpanded(false);
+    personDetailHistory.openDetail(userId);
+  };
   const openFullProfile = (userId: string) => {
     setProfileExpanded(true);
     personDetailHistory.openDetail(userId);
@@ -780,10 +602,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
     step: 80,
     resetKey: `${query}|${departmentFilter}|${statusFilter}|${effectiveAdminMode}`,
   });
-  const activeProfiles = users.filter((person) => ["active", "recent", "focus"].includes(presenceState(person))).length;
   const assignmentByUserId = useMemo(() => new Map(assignments.map((item) => [item.user.id, item])), [assignments]);
-  const assignedCards = assignments.reduce((total, item) => total + item.cards.length, 0);
-  const teamCapacity = users.reduce((total, person) => total + (person.capacityHours || 0), 0);
   const profileAssignment = profile ? assignmentByUserId.get(profile.id) || null : null;
   const profileProjects = profileAssignment?.projects || [];
   const profileCards = profileAssignment?.cards || [];
@@ -1017,76 +836,43 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
   const sensitiveProfileMessage = profile?.id === currentUser.id ? "Your private contact record." : "Private contact data is limited to administrators.";
   return (
     <section className={`page cluster-page-shell people-page-v244${profileExpanded && profile ? " people-profile-expanded-rc46" : ""}`}>
-      <ToolPageHeader
+      {!(profileExpanded && profile) && <ToolPageHeader
         className="cluster-page-header"
         title="People"
+        description={workforceContext ? `${users.length} people` : undefined}
         actions={<>
-          <ClusterActionMenu iconOnly label="More people actions" items={[{ id: "refresh", label: workforceMode === "accounts" ? "Refresh accounts" : "Refresh people", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); if (workforceMode !== "accounts") void loadProfiles(); } }]} />
-          {effectiveAdminMode && workforceMode !== "accounts" && <ClusterButton variant="secondary" onClick={() => void toggleCreateAccount()} disabled={createAccountBusy}>{createAccountOpen ? "Close account form" : "Create account"}</ClusterButton>}
+          <ClusterSegmentedControl className="people-mode-v6" value={workforceMode} onChange={(value) => { void changeWorkforceMode(value as typeof workforceMode); }} label="People workspace" options={[
+            { value: "directory", label: "Directory" },
+            { value: "organization", label: "Org" },
+            { value: "teams", label: "Teams" },
+            { value: "capacity", label: "Capacity" },
+            { value: "availability", label: "Availability" },
+          ]} />
+          <ClusterActionMenu iconOnly label="More people actions" items={[
+            { id: "refresh", label: "Refresh", icon: "refresh", onSelect: () => { setDirectoryRefresh((current) => current + 1); void loadProfiles(); } },
+            { id: "data-tools", label: showDataTools ? "Hide data tools" : "Data tools", icon: "grid", onSelect: () => { setWorkforceMode("directory"); setShowDataTools((current) => !current); } },
+          ]} />
+          {onCreateAccount ? <ClusterButton variant="secondary" onClick={onCreateAccount}><ClusterIcon name="plus" /> Add</ClusterButton> : null}
           <ClusterButton variant="primary" onClick={() => { setWorkforceMode("directory"); openFullProfile(currentUser.id); }}>My profile</ClusterButton>
         </>}
-      />
-
-      <div className="people-workforce-modebar-v504">
-        <ClusterSegmentedControl value={workforceMode} onChange={(value) => { void changeWorkforceMode(value as typeof workforceMode); }} label="People workspace" options={[
-          { value: "directory", label: "Directory" },
-          ...(effectiveAdminMode ? [{ value: "accounts", label: "Accounts" }] : []),
-          { value: "organization", label: "Organization" },
-          { value: "teams", label: "Teams" },
-          { value: "capacity", label: "Capacity" },
-          { value: "availability", label: "Availability" },
-        ]} />
-        <span>{effectiveAdminMode ? "People administration" : workforceContext ? `${users.length} people` : "Loading…"}</span>
-      </div>
-
-      {effectiveAdminMode && createAccountOpen && <PeopleAccountProvisioningWizard
-        draft={createAccountDraft}
-        onPatch={patchCreateAccountDraft}
-        roleCatalog={createRoleCatalog}
-        rolesLoading={createRoleLoading}
-        rolesError={createRoleError}
-        creating={createAccountBusy}
-        actionError={createAccountError}
-        onCreate={createPersonAccount}
-        onCancel={() => { void toggleCreateAccount(); }}
       />}
 
       {effectiveAdminMode && issuedCredential && <AccountCredentialHandoff username={issuedCredential.username} temporaryPassword={issuedCredential.temporaryPassword} onDismiss={() => setIssuedCredential(null)} />}
       {effectiveAdminMode && issuedActivationLink && <AccountInvitationHandoff username={issuedActivationLink.username} activationLink={issuedActivationLink.activationLink} expiresAt={issuedActivationLink.expiresAt} onDismiss={() => setIssuedActivationLink(null)} />}
-      {effectiveAdminMode && onboardingFollowup && <div className="people-onboarding-followup-v11 panel" role="alert">
-        <strong>Account created, onboarding pending</strong>
-        <span>{onboardingFollowup.message}</span>
-        <ClusterButton type="button" variant="secondary" size="compact" disabled={onboardingRetryBusy} onClick={() => void retryOnboardingFollowup()}>
-          {onboardingRetryBusy ? "Retrying…" : "Retry onboarding only"}
-        </ClusterButton>
-      </div>}
 
-      {effectiveAdminMode && <div hidden={workforceMode !== "accounts"} className="people-accounts-workspace-v11"><PeopleAccountManagementPanel
-        active={workforceMode === "accounts"}
-        refreshVersion={directoryRefresh}
-        onOpenAccount={(id, view) => {
-          pendingManagedAccountViewRef.current = { id, view };
-          setAccountsReturnAvailable(true);
-          setWorkforceMode("directory");
-          openFullProfile(id);
-          if (profile?.id === id) { pendingManagedAccountViewRef.current = null; setProfileView(view); }
-        }}
-        accountCreationOpen={createAccountOpen}
-        onToggleCreateAccount={() => { void toggleCreateAccount(); }}
-      /></div>}
 
-      {workforceMode !== "directory" && workforceMode !== "accounts" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
+      {workforceMode !== "directory" && <section className="people-workforce-workspace-v504 panel" aria-label={`${workforceMode} workforce workspace`}>
         {!workforceContext ? <LoadingState label="Loading workforce" rows={6} compact /> : <>
           {workforceMode === "organization" && <>
-            <header><div><h2>Organization</h2></div><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
+            <header><h2 className="sr-only">Organization</h2><strong>{workforceContext.departments.length} departments · {workforceContext.jobRoles.length} roles</strong></header>
 <CompanyGraphPanel departments={workforceContext.departments} teams={workforceContext.teams} people={workforceContext.people} workspaceId={workforceContext.workspaceId || ""} canEdit={Boolean(currentUser.isAdmin)} onChanged={async () => { const refreshed = await queryApi<WorkforceContext>("/api/workforce/context", { force: true, staleMs: 0, tags: ["users", "people", "workforce"] }); setWorkforceContext(refreshed); }} onOpenPerson={openFullProfile} />
           </>}
           {workforceMode === "teams" && <>
-            <header><div><h2>Teams</h2></div><strong>{workforceContext.teams.length} teams</strong></header>
+            <header><h2 className="sr-only">Teams</h2><strong>{workforceContext.teams.length} teams</strong></header>
             <div className="people-workforce-card-grid-v504">{workforceContext.teams.map((team) => <article key={team.id}><div><strong>{team.name}</strong><span>{team.department?.name || "Cross-studio"}{team.description ? ` · ${team.description}` : ""}</span></div><small>{team.members.length} members · {team.members.reduce((sum, member) => sum + member.allocationPercent, 0)}% team allocation</small><div className="chip-row">{team.roles.slice(0, 8).map((role) => <span className="tag-chip" key={role.id}>{role.name}</span>)}</div></article>)}{!workforceContext.teams.length && <ClusterEmptyState compact kind="empty" icon="users" title="No teams yet" description="Teams can span departments without becoming another department field." />}</div>
           </>}
           {workforceMode === "capacity" && <>
-            <header><div><h2>Capacity</h2></div><strong>{Math.round(workforceAllocatedHours * 10) / 10}h allocated</strong></header>
+            <header><h2 className="sr-only">Capacity</h2><strong>{Math.round(workforceAllocatedHours * 10) / 10}h allocated</strong></header>
             <div className="people-capacity-visuals-v34" aria-label="Workforce capacity overview">
               <ClusterVisualComposition label="Capacity configured" total={workforceContext.people.length} parts={[
                 { label: "Configured", value: Math.min(workforceContext.people.length, workforceContext.capacity.configuredPeople), tone: "good" },
@@ -1098,7 +884,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
             <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const capacity = Number(person.employment?.capacityHours ?? 0); const allocation = (person.projectMemberships || []).reduce((sum, membership) => sum + Number(membership.allocationPercent || 0), 0); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.employment?.jobRole?.name || "No role"} · {person.employment?.department?.name || "No department"}</span></div><span>{capacity ? `${capacity}h capacity` : "Capacity unset"}</span><div className="people-capacity-person-v34"><ClusterVisualMeter label="Allocated" value={allocation} total={100} tone={allocation > 100 ? "danger" : "accent"} compact /></div></article>; })}</div>
           </>}
           {workforceMode === "availability" && <>
-            <header><div><h2>Availability</h2></div><strong>{workforceContext.capacity.available} available · {workforceContext.capacity.clockedIn} clocked in</strong></header>
+            <header><h2 className="sr-only">Availability</h2><strong>{workforceContext.capacity.available} available · {workforceContext.capacity.clockedIn} clocked in</strong></header>
             {myWorkforce && <div className="people-my-availability-v504"><div><strong>My availability</strong><span>Set availability and visibility without changing time records.</span></div><ClusterSegmentedControl className="people-availability-segmented-v528" value={String(myWorkforce.availability || "available")} onChange={(value) => void updateMyAvailability({ availability: value })} label="My availability" options={[{ value: "available", label: "Available" }, { value: "busy", label: "Busy" }, { value: "focus", label: "Focus" }, { value: "do_not_disturb", label: "Do Not Disturb" }, { value: "away", label: "Away" }]} /><div className="project-form-grid-v312"><label><span>Custom status</span><ClusterTextInput key={`declared-${myWorkforce.declaredStatus || ""}`} defaultValue={myWorkforce.declaredStatus || ""} maxLength={120} placeholder="Optional status" onBlur={(event) => void updateMyAvailability({ declaredStatus: event.target.value.trim() || null })} disabled={availabilityBusy} /></label><label><span>Status message</span><ClusterTextInput key={`message-${myWorkforce.availabilityMessage || ""}`} defaultValue={myWorkforce.availabilityMessage || ""} maxLength={160} placeholder="What teammates should know" onBlur={(event) => void updateMyAvailability({ message: event.target.value.trim() || null })} disabled={availabilityBusy} /></label><label><span>Presence detail</span><ClusterNativeSelect value={String(myWorkforce.presenceDisclosure || "work_state")} onChange={(event) => void updateMyAvailability({ presenceDisclosure: event.target.value as "connection" | "work_state" | "application" | "project" | "detailed" })} disabled={availabilityBusy}><option value="connection">Connection only</option><option value="work_state">Work state</option><option value="application">Application</option><option value="project">Project</option><option value="detailed">Detailed work context</option></ClusterNativeSelect></label></div><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={availabilityBusy} onClick={() => void updateMyAvailability({ connectionVisibility: myWorkforce.connectionVisibility === "invisible" ? "visible" : "invisible" })}>{myWorkforce.connectionVisibility === "invisible" ? "Become visible" : "Go invisible"}</ClusterButton><span className="muted">{myWorkforce.connectionVisibility === "invisible" ? "Invisible hides presence from ordinary viewers; time records stay unchanged." : "Availability does not change time records."}</span></div></div>}
             <div className="people-capacity-visuals-v34"><ClusterVisualComposition label="Availability" total={workforceContext.people.length} parts={[
               { label: "Available", value: Math.min(workforceContext.people.length, workforceContext.capacity.available), tone: "good" },
@@ -1111,19 +897,31 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
       </section>}
 
       <div hidden={workforceMode !== "directory"} className="people-directory-workspace-v504">
-      <ClusterMetricStrip
-        className="people-metrics-v244"
-        label="People summary and shortcuts"
-        items={[
-          { label: "People", value: users.length, detail: `${filteredUsers.length} shown`, onSelect: () => { setStatusFilter("all"); setDepartmentFilter("all"); } },
-          { label: "Available", value: activeProfiles, detail: "active or focus", tone: activeProfiles ? "good" : "neutral", selected: statusFilter === "active", onSelect: () => setStatusFilter("active") },
-          { label: "Assigned", value: assignedCards, detail: "cards", onSelect: () => setProfileView("work") },
-          { label: "Capacity", value: `${teamCapacity}h`, detail: "configured", onSelect: () => setProfileView("work") },
-        ]}
+      <ClusterTableToolbar
+        className="people-toolbar-v244"
+        query={query}
+        onQueryChange={setQuery}
+        placeholder="Name, role, team, skill, location"
+        countLabel={`${filteredUsers.length} shown`}
+        filters={
+          <>
+            <ClusterNativeSelect aria-label="Department" value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+              <option value="all">All departments</option>
+              {departments.map((department) => <option value={department} key={department}>{department}</option>)}
+            </ClusterNativeSelect>
+            <ClusterNativeSelect aria-label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">Any status</option>
+              <option value="active">Active</option>
+              <option value="available">Available</option>
+              <option value="focus">Focus</option>
+              <option value="away">Away</option>
+              <option value="offline">Offline</option>
+            </ClusterNativeSelect>
+          </>
+        }
+        actions={<><ClusterSegmentedControl value={directoryMode} onChange={setDirectoryMode} label="People directory layout" options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} /><DataExportBuilder fields={peopleExportFields} selectionCount={selectedPeopleIds.size} busy={peopleExporting} onExport={({ format, fieldIds, scope, delivery }) => exportPeople(format, fieldIds, scope, delivery)} /></>}
       />
-
-
-      <ClusterDisclosureGroup className="people-data-tools-v524" title="Data tools" summary="Saved views, analytics, layout" contentClassName="people-data-tools-body-v524">
+      {showDataTools && <ClusterDisclosureGroup className="people-data-tools-v524" title="Data tools" defaultOpen contentClassName="people-data-tools-body-v524">
         <>
           {peopleContext && <ClusterDisclosureGroup className="people-context-disclosure-v30d" title="Team & expertise context" summary="Allocation, working hours, teams, and searchable expertise" headerTrailing={<span className="people-context-count-v547">{peopleContext.teams.length} teams · {peopleContext.capacity.overallocatedPeople || 0} overallocated</span>}><section className="people-context-v495" aria-label="Team and expertise context">
         <div className="cluster-visual-summary-grid people-context-charts-v40">
@@ -1140,36 +938,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         {canManageTeams && <div className="people-team-create-v495"><ClusterTextInput value={teamNameDraft} onChange={(event) => setTeamNameDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void createTeam(); } }} disabled={teamCreateBusy} placeholder="New Studio team" /><ClusterButton type="button" className="" onClick={() => void createTeam()} disabled={teamCreateBusy || !teamNameDraft.trim()} busy={teamCreateBusy} busyLabel="Creating…" variant="secondary">Create team</ClusterButton></div>}
       </section></ClusterDisclosureGroup>}
 
-      <ClusterTableToolbar
-        className="people-toolbar-v244 panel"
-        query={query}
-        onQueryChange={setQuery}
-        placeholder="Name, role, team, skill, location"
-        countLabel={`${filteredUsers.length} shown`}
-        filters={
-          <>
-            <label className="field">
-              <span>Department</span>
-              <ClusterNativeSelect value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
-                <option value="all">All departments</option>
-                {departments.map((department) => <option value={department} key={department}>{department}</option>)}
-              </ClusterNativeSelect>
-            </label>
-            <label className="field">
-              <span>Status</span>
-              <ClusterNativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">All statuses</option>
-                <option value="active">Active</option>
-                <option value="available">Available</option>
-                <option value="focus">Focus</option>
-                <option value="away">Away</option>
-                <option value="offline">Offline</option>
-              </ClusterNativeSelect>
-            </label>
-          </>
-        }
-        actions={<DataExportBuilder fields={peopleExportFields} selectionCount={selectedPeopleIds.size} busy={peopleExporting} onExport={({ format, fieldIds, scope, delivery }) => exportPeople(format, fieldIds, scope, delivery)} />}
-      />
           <ClusterDataView scope="people.directory" label="People directory" resourceKind="user" current={peopleDataView} onApply={applySavedPeopleDataView} allowStudio={currentUser.isAdmin} summary="Save search, department, presence, sorting, grouping, analytical projections and drilldowns, presentation, and the exact directory table layout together." />
           {peopleAnalyticsExact && peopleServerAnalytics ? <>
             <DataViewAggregationStrip aggregations={peopleServerDataQuery.aggregations || []} values={peopleServerAnalytics.aggregations} fields={PEOPLE_DATA_FIELDS} label="Filtered directory totals" />
@@ -1182,14 +950,10 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
           {directoryMode === "table" ? <DataViewDerivedFieldBuilder fields={PEOPLE_DATA_FIELDS} derivedFields={peopleDerivedFields} onChange={(next) => { setPeopleDerivedFields(next); setDirectoryTableLayout(null); }} label="People formula columns" /> : null}
           {peopleExportStatus ? <p className="muted" aria-live="polite">{peopleExportStatus}</p> : null}
             </>
-      </ClusterDisclosureGroup>
+      </ClusterDisclosureGroup>}
       <DataExportOperationFeedback jobId={peopleExportJobId} onDismiss={() => setPeopleExportJobId("")} />
 
       <ClusterMasterDetail className="people-layout-v244" label="People directory and profile inspector" masterLabel="People directory" detailLabel="Person profile" detailOpen={Boolean(profile)} onCloseDetail={() => { setProfileExpanded(false); personDetailHistory.closeDetail(); }} detailSize="wide" persistKey="people" resizable={!profileExpanded} master={<aside className="panel people-directory-v244" aria-label="People directory">
-          <div className="people-directory-head-v244">
-            <div><strong>Directory</strong>{" "}<span>{filteredUsers.length}</span></div>
-            <ClusterSegmentedControl value={directoryMode} onChange={setDirectoryMode} label="People directory layout" options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} />
-          </div>
           {directoryMode === "table" ? (
             !users.length && loadStatus.startsWith("Loading") ? <LoadingState label="Loading people" rows={7} compact /> : <>
             <DataViewGroupControl fields={peopleDataFields} groups={directoryGroups} onChange={setDirectoryGroups} label="Group people" />
@@ -1203,7 +967,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
               onSortsChange={setDirectorySorts}
               selectedKeys={selectedPeopleIds}
               onSelectionChange={(keys) => setSelectedPeopleIds(new Set(keys))}
-              onRowActivate={(person) => openFullProfile(person.id)}
+              onRowActivate={(person) => inspectProfile(person.id)}
               configurableColumns
               persistKey="people-directory"
               controlledLayout={directoryTableLayout || undefined}
@@ -1219,7 +983,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
             /></>
           ) : <div className="people-list-v244">
             {!users.length && loadStatus.startsWith("Loading") ? <LoadingState label="Loading people" rows={7} compact /> : peopleProgress.visibleItems.map((person) => (
-              <ClusterButton unstyled type="button" className={selectedUserId === person.id ? "active" : ""} key={person.id} onClick={() => openFullProfile(person.id)}>
+              <ClusterButton unstyled type="button" className={selectedUserId === person.id ? "active" : ""} key={person.id} onClick={() => inspectProfile(person.id)} onDoubleClick={() => openFullProfile(person.id)}>
                 <PersonSummary person={person} compact profileAction={false} showCapacity departmentIdentity={departmentForPerson(person)} />
               </ClusterButton>
             ))}
@@ -1232,147 +996,86 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         detail={<main className="panel people-detail-v244">
           {profile ? (
             <>
-              {profileExpanded && <div className="people-profile-back-rc46"><ClusterButton variant="quiet" size="compact" onClick={() => setProfileExpanded(false)}>← Back to directory</ClusterButton><span>Person profile</span></div>}
-              <header className="people-detail-header-v244">
-                <PersonSummary person={profile} profileAction={false} showCapacity departmentIdentity={departmentForPerson(profile)} className="people-detail-person-summary-v493" />
-                <div className="people-detail-presence-v244">
-                  <strong>{profileAvailabilityLabel(profile)}</strong>
-                  <span>{profileLocalTime(profile.timezone)}{profile.lastSeenAt ? ` · Last seen ${formatRelativeTime(profile.lastSeenAt)}` : ""}</span>
-                  {profile.statusMessage ? <small>{profile.statusMessage}</small> : null}
-                </div>
-                <div className="button-row compact people-person-actions-v495">
-                  {accountsReturnAvailable && effectiveAdminMode && <ClusterButton size="compact" variant="secondary" onClick={() => { void changeWorkforceMode("accounts"); }}>Back to Accounts</ClusterButton>}
-                  {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant="secondary" onClick={() => setProfileView("edit")}>Edit user</ClusterButton>}
-                  <ClusterButton size="compact" variant="secondary" onClick={() => setProfileExpanded((current) => !current)} aria-label={profileExpanded ? "Return to People directory" : "Open full-page profile"}>{profileExpanded ? "Directory" : "Full page"}</ClusterButton>
-                  <ClusterActionMenu label={`${displayUserName(profile)} actions`} triggerLabel="Actions" items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
+              <header className="pp-head">
+                {profileExpanded && <ClusterIconButton size="compact" className="pp-back" label={adminMode && onBack ? "Back to users" : "Back to directory"} onClick={() => { if (adminMode && onBack) onBack(); else setProfileExpanded(false); }}><ClusterIcon name="chevron-left" /></ClusterIconButton>}
+                <PersonSummary person={profile} profileAction={false} avatarProfilePeek={false} showCapacity departmentIdentity={departmentForPerson(profile)} className="pp-identity" />
+                <div className="pp-actions">
+                  {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant={profileView === "edit" ? "primary" : "secondary"} onClick={() => setProfileView("edit")}>Edit</ClusterButton>}
+                  {profile.id === currentUser.id && onEditProfile && <ClusterButton size="compact" variant="secondary" onClick={onEditProfile}>Edit profile</ClusterButton>}
+                  {!(adminMode && onBack) && <ClusterIconButton size="compact" label={profileExpanded ? "Show in directory" : "Open full page"} onClick={() => setProfileExpanded((current) => !current)}><ClusterIcon name={profileExpanded ? "minimize" : "fullscreen"} /></ClusterIconButton>}
+                  <ClusterActionMenu iconOnly label={`${displayUserName(profile)} actions`} items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
                     { id: "copy-profile-link", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy profile link", icon: "link", onSelect: () => copyProfileLink(profile) },
                     { id: "mention-person", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy mention", icon: "comment", onSelect: () => copyProfileMention(profile) },
-                    { id: "view-activity", resourceKinds: ["user"] as const, allowed: () => true, label: "View activity", icon: "activity", onSelect: () => setProfileView("activity") },
                     ...(canOpenScheduler ? [{ id: "open-scheduler", resourceKinds: ["user"] as const, allowed: () => true, label: "Open scheduler", icon: "clock" as const, onSelect: () => { openClusterWorkNavigation({ screen: "scheduler" }); } }] : []),
-                    ...((currentUser.isAdmin || getToolLevel(currentUser, "people") === "edit") ? [{ id: "view-records", resourceKinds: ["user"] as const, allowed: () => true, label: "View records", icon: "library" as const, onSelect: () => setProfileView("records") }] : []),
-                    ...(profile.id === currentUser.id && onEditProfile ? [{ id: "edit-profile", resourceKinds: ["user"] as const, allowed: () => true, label: "Edit my profile", icon: "settings" as const, separatorBefore: true, onSelect: onEditProfile }] : []),
-                    ...(effectiveAdminMode && !profile.archived ? [{ id: "edit-user", resourceKinds: ["user"] as const, allowed: () => true, label: "Edit user", icon: "settings" as const, separatorBefore: true, onSelect: () => setProfileView("edit") }] : []),
                     ...(currentUser.isAdmin && profile.id !== currentUser.id ? [{ id: "manage-access", resourceKinds: ["user"] as const, allowed: () => true, label: effectiveAdminMode ? "Manage access" : "View access", icon: "lock" as const, separatorBefore: true, onSelect: () => setProfileView("access") }] : []),
                   ])} />
                 </div>
               </header>
 
-              <nav className="people-detail-tabs-v244" aria-label="Profile views">
-                <ClusterButton unstyled type="button" className={profileView === "overview" ? "active" : ""} onClick={() => setProfileView("overview")}>
-                  Overview
-                </ClusterButton>
-                <ClusterButton unstyled type="button" className={profileView === "work" ? "active" : ""} onClick={() => setProfileView("work")}>
-                  Work
-                </ClusterButton>
-                <ClusterButton unstyled type="button" className={profileView === "calendar" ? "active" : ""} onClick={() => setProfileView("calendar")}>
-                  Calendar
-                </ClusterButton>
-                <ClusterButton unstyled type="button" className={profileView === "activity" ? "active" : ""} onClick={() => setProfileView("activity")}>
-                  Activity
-                </ClusterButton>
-                {(currentUser.isAdmin || getToolLevel(currentUser, "people") === "edit") && <ClusterButton unstyled type="button" className={profileView === "records" ? "active" : ""} onClick={() => setProfileView("records")}>
-                  Records
-                </ClusterButton>}
-                <ClusterButton unstyled type="button" className={profileView === "access" ? "active" : ""} onClick={() => setProfileView("access")}>
-                  Access
-                </ClusterButton>
-                <ClusterButton unstyled type="button" className={profileView === "full" ? "active" : ""} onClick={() => setProfileView("full")}>
-                  Full profile
-                </ClusterButton>
+              <nav className="pp-tabs" aria-label="Profile views">
+                {([
+                  ["overview", "Overview"],
+                  ["work", "Work"],
+                  ["calendar", "Calendar"],
+                  ["activity", "Activity"],
+                  ...((currentUser.isAdmin || getToolLevel(currentUser, "people") === "edit") ? [["records", "Records"]] : []),
+                  ["access", "Access"],
+                ] as Array<[ProfileView, string]>).map(([id, label]) => <ClusterButton unstyled type="button" key={id} className={profileView === id ? "active" : ""} aria-current={profileView === id ? "page" : undefined} onClick={() => setProfileView(id)}>{label}</ClusterButton>)}
               </nav>
 
               <div className="people-detail-scroll-v244">
-                {profileExpanded && profileView === "overview" && <section className="people-profile-social-intro-rc46" aria-label="About this person">
-                  {profile.profileBio ? <p>{profile.profileBio}</p> : <span className="muted">{profile.title || "Studio member"}{profile.department ? ` · ${profile.department}` : ""}</span>}
-                  <div className="people-profile-social-stats-rc46"><span><strong>{profileProjects.length}</strong> Projects</span><span><strong>{profileTeams.length}</strong> Teams</span>{profile.recentActivity?.length ? <ClusterButton variant="quiet" size="compact" onClick={() => setProfileView("activity")}>Recent activity</ClusterButton> : null}</div>
-                </section>}
-                {profileView === "overview" && (
-                  <>
-                    <div className="people-profile-grid-v244">
-                      {profile.email ? <div>
-                        <span>Work email</span>
-                        <strong>{profile.email}</strong>
-                      </div> : null}
-                      {(profileTeams.length || profile.teamName) ? <div>
-                        <span>Team</span>
-                        <strong>{profileTeams.length ? profileTeams.map((team) => team.name).join(", ") : profile.teamName}</strong>
-                      </div> : null}
-                      {(profile.manager || profile.managerName) ? <div>
-                        <span>Manager</span>
-                        <strong>{profile.manager ? displayUserName(profile.manager as User) : profile.managerName}</strong>
-                      </div> : null}
-                      {(profile.hideLocation || profile.workLocation || profile.timezone) ? <div>
-                        <span>Location</span>
-                        <strong>{profile.hideLocation ? "Hidden" : profile.workLocation || profile.timezone}</strong>
-                      </div> : null}
-                      {profile.timezone ? <div>
-                        <span>Timezone</span>
-                        <strong>{profile.timezone}</strong>
-                      </div> : null}
-                      {profile.timezone ? <div>
-                        <span>Local time</span>
-                        <strong>{profileLocalTime(profile.timezone)}</strong>
-                      </div> : null}
-                      {profile.capacityHours != null ? <div>
-                        <span>Capacity</span>
-                        <strong>{profile.capacityHours}h/week</strong>
-                      </div> : null}
-                      <div>
-                        <span>Team allocation</span>
-                        <strong>{profileAllocation ? `${profileAllocation}% · ${profileAllocationState}` : "Unallocated"}</strong>
-                      </div>
+                {profileView === "overview" && (() => {
+                  const department = departmentForPerson(profile);
+                  const facts: Array<[string, React.ReactNode]> = [];
+                  const push = (label: string, value: React.ReactNode) => { if (value !== null && value !== undefined && value !== "" && value !== false) facts.push([label, value]); };
+                  push("Role", profile.title);
+                  push("Department", department ? <DepartmentIdentityMark department={department} label size={16} /> : profile.department);
+                  push("Team", profileTeams.length ? profileTeams.map((team) => team.name).join(", ") : profile.teamName);
+                  push("Manager", profile.manager ? displayUserName(profile.manager as User) : profile.managerName);
+                  push("Local time", profile.timezone ? <span title={profile.timezone}>{profileLocalTime(profile.timezone)}</span> : null);
+                  push("Location", profile.hideLocation ? null : profile.workLocation);
+                  push("Hours", profile.workingHours && Object.keys(profile.workingHours).length ? workingHoursSummary(profile.workingHours) : null);
+                  push("Capacity", profile.capacityHours != null ? `${profile.capacityHours}h / week` : null);
+                  push("Allocation", profileAllocation ? `${profileAllocation}% · ${profileAllocationState}` : null);
+                  push("Pronouns", profile.pronouns);
+                  push("Username", `@${profile.username}`);
+                  push("Access", profile.workspaceRole || (profile.isAdmin ? "admin" : null));
+                  push("Employment", profile.employmentType);
+                  push("Started", profile.startDate ? new Date(profile.startDate).toLocaleDateString() : null);
+                  push("Last seen", profile.lastSeenAt ? formatRelativeTime(profile.lastSeenAt) : null);
+                  for (const field of profile.profileFieldDefinitions || []) { const value = profile.customProfileFields?.[field.id]; push(field.label, Array.isArray(value) ? value.join(", ") : value == null ? null : String(value)); }
+                  const expertise = profile.expertise?.length ? profile.expertise : (profile.skills || []).map((name) => ({ name, level: "", years: null as number | null }));
+                  const hasContact = Boolean(profile.email || profile.phoneNumber || profile.profileDiscordUsername || profile.discordUsername || profile.profileWebsite);
+                  return <>
+                    {profile.profileBio ? <p className="pp-bio">{profile.profileBio}</p> : null}
+                    <div className="pp-stats" aria-label="Summary">
+                      <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileProjects.length}</strong> projects</ClusterButton>
+                      <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileCards.length}</strong> cards</ClusterButton>
+                      <span><strong>{profileTeams.length}</strong> teams</span>
+                      {directReports.length ? <span><strong>{directReports.length}</strong> reports</span> : null}
+                      {profileWork?.overdue ? <span className="warn"><strong>{profileWork.overdue}</strong> overdue</span> : null}
                     </div>
-                    {(profile.profileBio || profile.email || profile.phoneNumber || profile.profileDiscordUsername || profile.discordUsername || profile.profileWebsite) && (
-                      <section className="people-section-v244 people-profile-contact-v473">
-                        <header className="people-section-heading-v417"><div><h3>About & contact</h3><span>{profile.profilePreferredContact ? `Prefers ${profile.profilePreferredContact}` : "Shared by this person"}</span></div></header>
-                        {profile.profileBio && <p className="people-profile-bio-v473">{profile.profileBio}</p>}
-                        <ProfileContactActions user={profile as User} />
-                      </section>
-                    )}
-                    {(profile.expertise?.length || profile.workingHours) && <section className="people-section-v244 people-capability-context-v495"><header className="people-section-heading-v417"><div><h3>Expertise & availability</h3><span>{workingHoursSummary(profile.workingHours)}</span></div></header><div className="people-expertise-tags-v495">{(profile.expertise || []).map((item) => <span className="tag-chip" key={item.name}><strong>{item.name}</strong><small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small></span>)}</div></section>}
-                    {profileShowcaseProjects.length > 0 && <section className="people-section-v244"><header className="people-section-heading-v417"><div><h3>Showcase</h3><span>Pinned by this person</span></div><strong>{profileShowcaseProjects.length}</strong></header><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}
-                    {profileExpanded && <section className="people-section-v244 people-profile-feed-rc46" aria-label="Recent work activity">
-                      <header className="people-section-heading-v417"><h3>Activity</h3><ClusterButton size="compact" variant="quiet" onClick={() => setProfileView("activity")}>View all</ClusterButton></header>
-                      {profile.recentActivity?.length ? <ol>{profile.recentActivity.slice(0, 5).map((event) => <li key={event.id}><span className="people-profile-feed-dot-rc46" aria-hidden="true" /><div><strong>{event.title}</strong>{event.message && <p>{event.message}</p>}<time dateTime={event.createdAt}>{formatRelativeTime(event.createdAt)}</time></div></li>)}</ol> : <p className="muted">No recent work activity visible.</p>}
+                    {hasContact ? <ProfileContactActions user={profile as User} /> : null}
+                    <dl className="pp-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+                    {expertise.length ? <section className="pp-section"><h3>Skills</h3><div className="pp-chips">{expertise.map((item) => <span key={item.name}>{item.name}{item.level ? <small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small> : null}</span>)}</div></section> : null}
+                    {profileShowcaseProjects.length > 0 && <section className="pp-section"><h3>Showcase</h3><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}
+                    {directReports.length > 0 && <section className="pp-section"><h3>Reports</h3><div className="pp-chips">{directReports.map((person) => <ClusterButton unstyled type="button" key={person.id} onClick={() => inspectProfile(person.id)}>{displayUserName(person)}</ClusterButton>)}</div></section>}
+                    {canSeeSensitiveProfile && <section className="pp-section pp-private" aria-label={sensitiveProfileMessage}>
+                      <h3><ClusterIcon name="lock" /> Private</h3>
+                      <dl className="pp-facts">
+                        {!profile.hideLegalName && <div><dt>Legal name</dt><dd>{profile.legalName || "—"}</dd></div>}
+                        <div><dt>Email</dt><dd>{profile.email || "—"}</dd></div>
+                        <div><dt>Phone</dt><dd>{profile.phoneNumber || "—"}</dd></div>
+                        {profile.employeeNumber ? <div><dt>Employee #</dt><dd>{profile.employeeNumber}</dd></div> : null}
+                      </dl>
+                      {profile.notes ? <p className="pp-note">{profile.notes}</p> : null}
                     </section>}
-                    <section className="people-section-v244">
-                      <h3>Skills</h3>
-                      <div className="chip-row">
-                        {profile.skills?.length ? (
-                          profile.skills.map((skill) => (
-                            <span className="tag-chip" key={skill}>
-                              {skill}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="muted">No skills listed.</span>
-                        )}
-                      </div>
+                    <section className="pp-section people-profile-feed-rc46" aria-label="Recent work activity">
+                      <h3>Activity{profile.recentActivity?.length ? <ClusterButton size="compact" variant="quiet" onClick={() => setProfileView("activity")}>All</ClusterButton> : null}</h3>
+                      {profile.recentActivity?.length ? <ol>{profile.recentActivity.slice(0, 5).map((event) => <li key={event.id}><span className="people-profile-feed-dot-rc46" aria-hidden="true" /><div><strong>{event.title}</strong>{event.message && <p>{event.message}</p>}<time dateTime={event.createdAt}>{formatRelativeTime(event.createdAt)}</time></div></li>)}</ol> : <p className="muted">Nothing recent.</p>}
                     </section>
-                    {profile.profileFieldDefinitions?.length ? <section className="people-section-v244"><h3>Studio profile fields</h3><div className="people-profile-grid-v244">{profile.profileFieldDefinitions.map((field) => { const value = profile.customProfileFields?.[field.id]; return <div key={field.id}><span>{field.label}</span><strong>{Array.isArray(value) ? value.join(", ") : value == null || value === "" ? "Unset" : String(value)}</strong></div>; })}</div></section> : null}
-                                        {canSeeSensitiveProfile && (
-                      <section className="people-private-v244 open">
-                        <header><div><h3>Private account record</h3><span>{sensitiveProfileMessage}</span></div></header>
-                        <div className="people-profile-grid-v244">
-                          {!profile.hideLegalName && <div><span>Legal name</span><strong>{profile.legalName || "Unset"}</strong></div>}
-                          <div><span>Account email</span><strong>{profile.email || "Unset"}</strong></div>
-                          <div><span>Account phone</span><strong>{profile.phoneNumber || "Unset"}</strong></div>
-                          <div><span>Start date</span><strong>{profile.startDate ? new Date(profile.startDate).toLocaleDateString() : "Unset"}</strong></div>
-                        </div>
-                      </section>
-                    )}
-                    <section className="people-section-v244">
-                      <h3>Team context</h3>
-                      <div className="people-profile-grid-v244">
-                        <div><span>Profile completeness</span><strong>{profileCompletionScore(profile)}%</strong></div>
-                        <div><span>Direct reports</span><strong>{directReports.length}</strong></div>
-                        <div><span>Project involvement</span><strong>{profileProjects.length}</strong></div>
-                        <div><span>Current workload</span><strong>{profileWork ? profileWorkloadLabel(profileWork.cards, profile.capacityHours) : "No assignments"}</strong></div>
-                      </div>
-                      {directReports.length > 0 && <div className="chip-row people-report-chips-v417">{directReports.map((person) => <ClusterButton unstyled type="button" className="tag-chip" key={person.id} onClick={() => openFullProfile(person.id)}>{displayUserName(person)}</ClusterButton>)}</div>}
-                    </section>
-                  </>
-                )}
+                  </>;
+                })()}
 
                 {profileView === "work" && (
                   <>
@@ -1562,154 +1265,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   }}
                 />}
 
-                {profileView === "full" && (
-                  <div className="people-full-profile-v250">
-                    <section className="people-section-v244">
-                      <h3>Identity</h3>
-                      <div className="people-profile-grid-v244">
-                        <div>
-                          <span>Username</span>
-                          <strong>{profile.username}</strong>
-                        </div>
-                        <div>
-                          <span>Preferred name</span>
-                          <strong>{profile.preferredName || profile.displayName || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Pronouns</span>
-                          <strong>{profile.pronouns || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Workspace role</span>
-                          <strong>{profile.workspaceRole || "member"}</strong>
-                        </div>
-                        <div>
-                          <span>Employment</span>
-                          <strong>{profile.employmentType || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Employee number</span>
-                          <strong>{profile.employeeNumber || "Unset"}</strong>
-                        </div>
-                      </div>
-                    </section>
-                    <section className="people-section-v244">
-                      <h3>Presence</h3>
-                      <div className="people-profile-grid-v244">
-                        <div>
-                          <span>Status</span>
-                          <strong>{presenceLabel(profile)}</strong>
-                        </div>
-                        <div>
-                          <span>Custom status</span>
-                          <strong>{profile.statusMessage || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Last seen</span>
-                          <strong>{profile.lastSeenAt ? formatRelativeTime(profile.lastSeenAt) : "Never"}</strong>
-                        </div>
-                        <div>
-                          <span>Timezone</span>
-                          <strong>{profile.timezone || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Local time</span>
-                          <strong>{profileLocalTime(profile.timezone)}</strong>
-                        </div>
-                        {!profile.hideLocation && (
-                          <div>
-                            <span>Location</span>
-                            <strong>{profile.workLocation || "Unset"}</strong>
-                          </div>
-                        )}
-                        <div>
-                          <span>Capacity</span>
-                          <strong>{profile.capacityHours != null ? `${profile.capacityHours}h/week` : "Unset"}</strong>
-                        </div>
-                      </div>
-                    </section>
-                    <section className="people-section-v244">
-                      <h3>Organization</h3>
-                      <div className="people-profile-grid-v244">
-                        <div>
-                          <span>Title</span>
-                          <strong>{profile.title || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Department</span>
-                          <strong>{departmentForPerson(profile) ? <DepartmentIdentityMark department={departmentForPerson(profile)!} label size={22} /> : profile.department || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Team</span>
-                          <strong>{profileTeams.length ? profileTeams.map((team) => team.name).join(", ") : profile.teamName || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Manager</span>
-                          <strong>{profile.manager ? displayUserName(profile.manager as User) : profile.managerName || "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Start date</span>
-                          <strong>{profile.startDate ? new Date(profile.startDate).toLocaleDateString() : "Unset"}</strong>
-                        </div>
-                        <div>
-                          <span>Projects</span>
-                          <strong>{profileProjects.length}</strong>
-                        </div>
-                      </div>
-                    </section>
-                    {(profile.profileBio || profile.email || profile.phoneNumber || profile.profileDiscordUsername || profile.discordUsername || profile.profileWebsite) && (
-                      <section className="people-section-v244 people-profile-contact-v473">
-                        <h3>About & contact</h3>
-                        {profile.profileBio && <p className="people-profile-bio-v473">{profile.profileBio}</p>}
-                        <ProfileContactActions user={profile as User} />
-                      </section>
-                    )}
-                    {canSeeSensitiveProfile && (
-                      <section className="people-section-v244">
-                        <h3>Private account contact</h3>
-                        <div className="people-profile-grid-v244">
-                          <div>
-                            <span>Email</span>
-                            <strong>{profile.email || "Unset"}</strong>
-                          </div>
-                          <div>
-                            <span>Phone</span>
-                            <strong>{profile.phoneNumber || "Unset"}</strong>
-                          </div>
-                          {!profile.hideLegalName && (
-                            <div>
-                              <span>Legal name</span>
-                              <strong>{profile.legalName || "Unset"}</strong>
-                            </div>
-                          )}
-                        </div>
-                      </section>
-                    )}
-                    <section className="people-section-v244">
-                      <h3>Skills and notes</h3>
-                      <div className="chip-row">
-                        {profile.skills?.length ? (
-                          profile.skills.map((skill) => (
-                            <span className="tag-chip" key={skill}>
-                              {skill}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="muted">No skills listed.</span>
-                        )}
-                      </div>
-                      {profile.notes && <p className="people-profile-note-v250">{profile.notes}</p>}
-                    </section>
-                  </div>
-                )}
               </div>
             </>
           ) : selectedUserId && loadStatus.startsWith("Loading profile") ? (
             <InspectorLoadingState label="Loading person profile" compact />
           ) : (
-            <ClusterEmptyState compact kind="empty" icon="user" title="Select a person" description="Choose someone from the directory to inspect profile, workload, activity, and access details." />
+            <ClusterEmptyState compact kind="empty" icon="user" title="Select a person" />
           )}
-          <div className="people-load-status-v244">{loadStatus}</div>
+          <div className="people-load-status-v244" role="status" data-error={/fail|error|could not|unavailable/i.test(loadStatus) || undefined}>{loadStatus}</div>
         </main>}
       />
       </div>

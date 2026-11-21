@@ -7,6 +7,7 @@ import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import "./personnel-records.css";
+import { StatusNote } from "../../components/StatusNote";
 
 type RecordFieldDefinition = {
   key: string;
@@ -156,7 +157,7 @@ export function PersonnelRecordsPanel({ subjectUserId, canManage = false, compac
         : await api<{ records: PersonnelRecord[] }>("/api/my-records");
       setRecords(result.records || []);
       setSelectedId((current) => current && result.records.some((row) => row.id === current) ? current : result.records[0]?.id || "");
-      setStatus(result.records.length ? `${result.records.length} record${result.records.length === 1 ? "" : "s"}` : "No records");
+      setStatus("");
       if (adminMode) {
         const templateResult = await api<{ templates: PersonnelRecordTemplate[] }>("/api/personnel-record-templates");
         setTemplates(templateResult.templates || []);
@@ -238,7 +239,7 @@ export function PersonnelRecordsPanel({ subjectUserId, canManage = false, compac
 
   async function attachLibraryItem() {
     if (!selected || working) return;
-    const libraryItemId = (await promptCluster({ title: "Attach Library evidence", message: "Enter the Library item ID. Once attached, normal Library access is blocked and Personnel Records policy becomes authoritative.", label: "Library item ID", confirmLabel: "Attach" }))?.trim();
+    const libraryItemId = (await promptCluster({ title: "Attach Library evidence", message: "Enter the Library item ID. Once attached, normal Library access is blocked and Personnel Records policy applies instead.", label: "Library item ID", confirmLabel: "Attach" }))?.trim();
     if (!libraryItemId) return;
     const role = (await promptCluster({ title: "Attachment role", message: "Describe what this item represents in the record.", label: "Role", initialValue: "evidence", confirmLabel: "Attach" }))?.trim() || "evidence";
     setWorking(true);
@@ -281,11 +282,11 @@ export function PersonnelRecordsPanel({ subjectUserId, canManage = false, compac
 
   return <section className={`personnel-records-v9e3 ${compact ? "compact" : ""}`}>
     <header className="records-toolbar-v9e3">
-      <div><h3>Records</h3><p>{adminMode ? "Personnel evidence and acknowledgements." : "Your disclosed records and pending actions."}</p></div>
+      <h3>Records</h3>
       {adminMode && <ClusterButton variant="primary" size="compact" disabled={working} onClick={() => void createRecord()}>Create record</ClusterButton>}
     </header>
-    {status && <div className="records-status-v9e3">{status}</div>}
-    {!records.length ? <ClusterEmptyState compact kind="empty" icon="user" title="No personnel records" description={adminMode ? "Create a governed record when official evidence needs to be retained for this person." : "No records are currently disclosed to you."} /> : <div className="records-layout-v9e3">
+    {status && <StatusNote className="records-status-v9e3">{status}</StatusNote>}
+    {!records.length ? <ClusterEmptyState compact kind="empty" icon="user" title="No records" /> : <div className="records-layout-v9e3">
       <aside className="records-list-v9e3" aria-label="Personnel records">{records.map((record) => <ClusterButton unstyled type="button" className={record.id === selectedId ? "active" : ""} key={record.id} onClick={() => setSelectedId(record.id)}><strong>{record.title}</strong><span>{record.recordType} · {record.status}</span><small>{record.classification} · updated {formatDate(record.updatedAt)}</small></ClusterButton>)}</aside>
       <div className="records-detail-v9e3">{selected && draft ? <>
         <header><div><span className={`records-classification-v9e3 ${selected.classification}`}>{selected.classification}</span><h3>{selected.title}</h3><p>{selected.template?.description || selected.recordType}</p></div><div className="button-row">{adminMode && <><ClusterButton size="compact" variant="secondary" disabled={working} onClick={() => void attachLibraryItem()}>Attach Library item</ClusterButton>{selected.status === "draft" && <ClusterButton size="compact" variant="secondary" disabled={working} onClick={() => void finalizeRecord()}>Finalize</ClusterButton>}<ClusterButton size="compact" variant="primary" disabled={working || selected.status === "destroyed"} onClick={() => void saveRecord()}>Save</ClusterButton></>}</div></header>

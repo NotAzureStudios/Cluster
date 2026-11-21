@@ -25,38 +25,38 @@ export function TaskbarProjectTabs({ projects, openProjectIds, pinnedProjectIds,
   const openProjects = openProjectIds.map((id) => projects.find((project) => project.id === id)).filter((project): project is Project => Boolean(project)).sort((a, b) => Number(pinned.has(b.id)) - Number(pinned.has(a.id)));
 
   if (!openProjects.length) {
-    return <ClusterButton unstyled type="button" className="cluster-taskbar-projects__empty taskbar-empty-tabs-v073" onClick={canSeeProjects ? onOpenProjects : onOpenMyWork}>Open a project to pin it here</ClusterButton>;
+    return <ClusterButton unstyled type="button" className="cl-tb-projects__empty" onClick={canSeeProjects ? onOpenProjects : onOpenMyWork}>No open projects</ClusterButton>;
   }
 
-  return <div className="cluster-taskbar-projects">
-    <div className="cluster-taskbar-projects__scroll project-tabs-scroll-v047 taskbar-tabs-v073" role="tablist" aria-label="Open project tabs">
+  return <div className="cl-tb-projects">
+    <div className="cl-tb-projects__scroll" role="tablist" aria-label="Open project tabs">
       {openProjects.map((project, index) => {
         const active = isProjectContextScreen(screen) && activeProjectId === project.id;
         const health = projectHealth(project);
         const isPinned = pinned.has(project.id);
         const sourceIndex = openProjectIds.indexOf(project.id);
         const tabbable = active || (!isProjectContextScreen(screen) && index === 0);
-        return <div key={project.id} className={`cluster-taskbar-project ${active ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`.trim()} role="presentation">
-          <ClusterButton unstyled type="button" className="cluster-taskbar-project__main" role="tab" aria-selected={active} aria-current={active ? "page" : undefined} tabIndex={tabbable ? 0 : -1} onClick={() => onOpenProject(project.id)} onKeyDown={handleTabKey} title={project.name}>
-            <span className="cluster-taskbar-project__status" data-tone={health.tone} aria-hidden="true" />
-            <span className="cluster-taskbar-project__identity"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
-            {isPinned ? <ClusterIcon name="pin" className="cluster-taskbar-project__pin" aria-hidden="true" /> : null}
-            <span className="cluster-taskbar-project__title">{project.name}</span>
+        return <div key={project.id} className={`cl-tb-project ${active ? "is-active" : ""} ${isPinned ? "is-pinned" : ""}`.trim()} role="presentation">
+          <ClusterButton unstyled type="button" className="cl-tb-project__main" role="tab" aria-selected={active} aria-current={active ? "page" : undefined} tabIndex={tabbable ? 0 : -1} onClick={() => onOpenProject(project.id)} onKeyDown={handleTabKey} title={project.name}>
+            <span className="cl-tb-project__status" data-tone={health.tone} aria-hidden="true" />
+            <span className="cl-tb-project__identity"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
+            {isPinned ? <ClusterIcon name="pin" className="cl-tb-project__pin" aria-hidden="true" /> : null}
+            <span className="cl-tb-project__title">{project.name}</span>
             <span className="sr-only-v370">Health: {health.label}</span>
           </ClusterButton>
-          <div className="cluster-taskbar-project__actions">
-            <ClusterActionMenu label={`${project.name} tab actions`} iconOnly className="cluster-taskbar-project__menu" items={resolveClusterResourceActions({ kind: "project", id: project.id }, [
+          <div className="cl-tb-project__actions">
+            <ClusterActionMenu label={`${project.name} tab actions`} iconOnly className="cl-tb-project__menu" items={resolveClusterResourceActions({ kind: "project", id: project.id }, [
               { id: "pin", resourceKinds: ["project"], allowed: () => true, label: isPinned ? "Unpin tab" : "Pin tab", icon: "pin", onSelect: () => onToggleProjectPin(project.id) },
               { id: "left", resourceKinds: ["project"], allowed: () => true, label: "Move left", icon: "chevron-left", available: () => sourceIndex > 0, unavailableReason: "Already the first tab", onSelect: () => onMoveProjectTab(project.id, -1) },
               { id: "right", resourceKinds: ["project"], allowed: () => true, label: "Move right", icon: "chevron-right", available: () => sourceIndex >= 0 && sourceIndex < openProjectIds.length - 1, unavailableReason: "Already the last tab", onSelect: () => onMoveProjectTab(project.id, 1) },
               { id: "close-others", resourceKinds: ["project"], allowed: () => true, label: "Close other project tabs", icon: "close", available: () => openProjectIds.length > 1, separatorBefore: true, onSelect: () => onCloseOtherProjects(project.id) },
               { id: "close", resourceKinds: ["project"], allowed: () => true, label: "Close tab", icon: "close", onSelect: () => onCloseProject(project.id) },
             ])} />
-            <ClusterButton unstyled type="button" className="cluster-taskbar-project__close" aria-label={`Close ${project.name}`} onClick={() => onCloseProject(project.id)}><ClusterIcon name="close" /></ClusterButton>
+            <ClusterButton unstyled type="button" className="cl-tb-project__close" aria-label={`Close ${project.name}`} onClick={() => onCloseProject(project.id)}><ClusterIcon name="close" /></ClusterButton>
           </div>
         </div>;
       })}
     </div>
-    {openProjects.length > 1 ? <ClusterActionMenu label="Open project tabs" iconOnly align="end" className="cluster-taskbar-projects__overflow" items={openProjects.map((project) => ({ id: project.id, label: project.name, description: `${pinned.has(project.id) ? "Pinned · " : ""}${isProjectContextScreen(screen) && activeProjectId === project.id ? "Current project" : projectTypeBadge(project)}`, icon: "project", onSelect: () => onOpenProject(project.id) }))} /> : null}
+    {openProjects.length > 1 ? <ClusterActionMenu label="Open project tabs" iconOnly align="end" className="cl-tb-projects__overflow" items={openProjects.map((project) => ({ id: project.id, label: project.name, description: `${pinned.has(project.id) ? "Pinned · " : ""}${isProjectContextScreen(screen) && activeProjectId === project.id ? "Current project" : projectTypeBadge(project)}`, icon: "project", onSelect: () => onOpenProject(project.id) }))} /> : null}
   </div>;
 }

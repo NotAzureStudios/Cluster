@@ -60,21 +60,33 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .cluster-dialog-field-v389 strong { color: var(--text); }
 .cluster-dialog-v389 > footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); min-width: 0; padding: var(--space-3) var(--space-5); border-top: 1px solid var(--line); background: var(--panel-2); }
 
-.cluster-button-v425 { min-height: var(--cluster-control-height); max-width: 100%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--text); font: inherit; font-size: max(.8125rem, var(--cluster-font-size-sm)); font-weight: 600; line-height: 1.35; white-space: nowrap; cursor: pointer; transform: none; box-shadow: none; transition:background-color var(--cluster-motion-feedback) var(--cluster-ease-standard),border-color var(--cluster-motion-feedback) var(--cluster-ease-standard),color var(--cluster-motion-feedback) var(--cluster-ease-standard),box-shadow var(--cluster-motion-feedback) var(--cluster-ease-standard),transform var(--cluster-motion-feedback) var(--cluster-ease-standard);}
-.cluster-button-v425:hover:not(:disabled) { border-color: var(--line-strong); background: var(--cluster-interactive-hover); }
+.cluster-button-v425 { min-height: var(--cluster-control-height); max-width: 100%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-3); border: 1px solid transparent; border-radius: var(--cluster-radius-control); background: var(--cluster-button-fill); color: var(--text); font: inherit; font-size: var(--cluster-font-size-md); font-weight: 600; line-height: 1.35; white-space: nowrap; cursor: pointer; transform: none; box-shadow: none; transition:background-color var(--cluster-motion-feedback) var(--cluster-ease-standard),border-color var(--cluster-motion-feedback) var(--cluster-ease-standard),color var(--cluster-motion-feedback) var(--cluster-ease-standard),box-shadow var(--cluster-motion-feedback) var(--cluster-ease-standard),transform var(--cluster-motion-feedback) var(--cluster-ease-standard);}
+/* Tonal, not outlined: a secondary button is a filled shape a step above the
+   surface it sits on. The 1px border stays, transparent, so focus and selected
+   states can colour it without the control changing size. */
+.cluster-button-v425:hover:not(:disabled) { background: var(--cluster-button-fill-hover); }
 .cluster-button-v425:active:not(:disabled){background:var(--cluster-interactive-pressed);transform:translateY(1px) scale(.985)}
-.cluster-button-v425.primary { border-color: color-mix(in srgb, var(--accent) 78%, var(--line)); background: var(--accent); color: var(--accent-contrast); }
+.cluster-button-v425.primary { background: var(--accent); color: var(--accent-contrast); }
 .cluster-button-v425.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 90%, var(--text)); color: var(--accent-contrast); }
-.cluster-button-v425.danger { border-color: color-mix(in srgb, var(--danger) 72%, var(--line)); background: var(--danger); color: var(--danger-contrast); }
+.cluster-button-v425.danger { background: var(--danger); color: var(--danger-contrast); }
 .cluster-button-v425.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 90%, var(--text)); color: var(--danger-contrast); }
 .cluster-button-v425.quiet { background: transparent; color: var(--soft-text); }
+/* A text button with no fill is a plain button in the HIG sense: it takes the
+   tint so it reads as something you can press. Icon-only quiet buttons stay
+   neutral, or every row's menu would light up in accent. */
+.cluster-button-v425.quiet:not(.cluster-icon-button-v425) { color: var(--accent-text); }
 .cluster-button-v425.quiet:hover:not(:disabled) { background: var(--cluster-interactive-hover); color: var(--text); }
-.cluster-button-v425.compact { min-height: calc(var(--cluster-control-height) - var(--space-1)); padding-inline: var(--space-2); font-size: var(--cluster-font-size-xs); }
+.cluster-button-v425.compact { min-height: calc(var(--cluster-control-height) - var(--space-1)); padding-inline: var(--space-2-5); font-size: var(--cluster-font-size-sm); }
 .cluster-button-v425:disabled { opacity: var(--cluster-disabled-opacity); cursor: not-allowed; }
 .cluster-button-v425[aria-busy="true"] { cursor: progress; }
 .cluster-button-v425 > svg { display: block; width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; }
 .cluster-icon-svg { display: block; flex: 0 0 auto; overflow: visible !important; box-sizing: border-box; transform-origin: center; color: currentColor; }
-.cluster-icon-button-v425 > .cluster-icon-svg { max-width: calc(100% - 8px); max-height: calc(100% - 8px); }
+/* Icon size is set outright. This used to cap the icon at calc(100% - 8px),
+   but an icon button is an inline-grid whose track sizes to the icon itself
+   (1em from svg.cluster-icon--unified), so the cap resolved to 12px - 8px and
+   every icon button in the app drew a 4px speck. */
+.cluster-icon-button-v425 > svg.cluster-icon-svg { inline-size: var(--cluster-icon-md); block-size: var(--cluster-icon-md); max-width: none; max-height: none; }
+.cluster-icon-button-v425.compact > svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
 .cluster-icon-button-v425 { width: var(--cluster-control-height); padding: 0; flex: 0 0 var(--cluster-control-height); display: inline-grid; place-items: center; line-height: 0; overflow: visible; }
 .cluster-icon-button-v425.compact { width: calc(var(--cluster-control-height) - var(--space-1)); padding: 0; flex-basis: calc(var(--cluster-control-height) - var(--space-1)); }
 .cluster-action-group-v425 { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); width: fit-content; max-width: 100%; min-width: 0; }
@@ -89,7 +101,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
   .cluster-dialog-v389 > footer > .cluster-button-v425 { flex: 1 1 auto; }
 }
 
-.cluster-status-v425 { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 24px; max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--soft-text); font-size: var(--cluster-font-size-xs); font-weight: 650; line-height: 1.2; }
+/* justify-self keeps the badge hugging its text when it is a grid item: CSS
+   blockifies inline-flex there, so a pill stretched to the whole column — the
+   read-only banner showed a 609px outline around 114px of words. It has no
+   effect in flex or inline flow, where inline-flex already shrink-wraps. */
+.cluster-status-v425 { display: inline-flex; justify-self: start; align-items: center; gap: var(--space-1); min-height: 24px; max-width: 100%; padding: 0 var(--space-2); border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); color: var(--soft-text); font-size: var(--cluster-font-size-xs); font-weight: 650; line-height: 1.2; }
 .cluster-status-v425 > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cluster-status-v425.compact { min-height: 20px; padding-inline: var(--space-1); }
 .cluster-status-v425.info { border-color: color-mix(in srgb, var(--info) 36%, var(--line)); background: color-mix(in srgb, var(--info) 8%, var(--panel)); color: var(--info); }
@@ -284,6 +300,8 @@ button.cluster-metric-item-v427[data-cluster-state="selected"] { background: var
 .cluster-detail-resizer-v429:active::after { width: 3px; background: var(--accent); }
 .cluster-master-detail-v429.detail-narrow { grid-template-columns: minmax(300px, 1fr) minmax(320px, .68fr); }
 .cluster-master-detail-v429.detail-wide { grid-template-columns: minmax(300px, .88fr) minmax(420px, 1.12fr); }
+/* With nothing selected the list takes the whole width, wide detail or not. */
+.cluster-master-detail-v429.detail-empty.detail-empty { grid-template-columns: minmax(0, 1fr); }
 /* WIP28: when the resize handle is rendered it owns a real middle track. Without this,
    the third grid child (the detail pane) falls onto a second row and leaves half the workspace blank. */
 .cluster-master-detail-v429.detail-open.detail-resizable {
@@ -603,3 +621,35 @@ svg.cluster-icon--unified {
 .cluster-domain-help-rc46{padding:7px 0;color:var(--muted);font-size:.76rem}
 .cluster-domain-help-rc46 summary{color:var(--text);cursor:pointer}
 .cluster-domain-help-rc46 p{line-height:1.45;margin:8px 0 0}
+
+/* v2 menus: one skin for every floating menu, select list and overflow menu.
+   Same radius, padding, item height, type size and shadow everywhere. */
+.cluster-floating-surface-v504 { scrollbar-gutter: auto; scrollbar-width: thin; }
+.cluster-floating-surface-v504:is(.cluster-action-menu-panel-v428, .cluster-select-menu-v227, .compact-section-menu-v204) {
+  padding: 4px; border: 1px solid var(--cluster-border-strong, var(--line-strong)); border-radius: 10px;
+  background: var(--cluster-surface-1, var(--panel));
+  box-shadow: 0 14px 34px rgb(0 0 0 / .34), 0 2px 8px rgb(0 0 0 / .18) !important;
+}
+.cluster-action-menu-panel-v428 { min-width: 200px; }
+.cluster-action-menu-entry-v428 > button,
+.cluster-floating-surface-v504.cluster-select-menu-v227 > :is(button, .cluster-select-option-v370),
+.cluster-floating-surface-v504.cluster-select-menu-v227 > [role="listbox"] > .cluster-select-option-v370 {
+  min-height: 32px; padding: 6px 10px; gap: 8px; border-radius: 6px;
+  font-size: .8125rem; font-weight: 500; line-height: 1.3;
+}
+.cluster-action-menu-entry-v428 strong { font-size: .8125rem; font-weight: 500; }
+.cluster-action-menu-entry-v428 small { font-size: .6875rem; color: var(--muted); font-weight: 400; }
+.cluster-action-menu-entry-v428 svg, .cluster-select-menu-v227 .cluster-select-option-v370 > svg { width: 15px; height: 15px; opacity: .8; }
+.cluster-action-menu-separator-v428 { margin: 4px 6px; }
+.cluster-select-menu-v227 > [role="listbox"] { gap: 1px; padding: 0; }
+@media (pointer: coarse) {
+  .cluster-action-menu-entry-v428 > button, .cluster-select-menu-v227 .cluster-select-option-v370 { min-height: 44px; }
+}
+
+/* Floating surfaces are opaque: the 94% surface tint sits on the solid chrome
+   colour so page content never shows through a menu, palette or popover. */
+.cluster-floating-surface-v504 {
+  background-color: var(--cl-chrome, var(--app-bg, #15181b)) !important;
+  background-image: linear-gradient(var(--cluster-surface-1, transparent), var(--cluster-surface-1, transparent)) !important;
+}
+:root[data-theme="light"] .cluster-floating-surface-v504 { background-color: #fff !important; }

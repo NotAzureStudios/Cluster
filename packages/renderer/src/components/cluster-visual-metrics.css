@@ -88,3 +88,14 @@
 :root[data-density="dense"] .cluster-visual-summary-grid .cluster-visual-composition,:root[data-density="dense"] .cluster-visual-summary-grid .cluster-visual-meter { padding:7px 9px; }
 :root[data-density="comfortable"] .cluster-visual-summary-grid { gap:16px;margin:16px 0; }
 @media (max-width:640px) { .cluster-visual-summary-grid { grid-template-columns:1fr; } .cluster-vault-summary .cluster-vault-visual-status { flex-basis:100%; } }
+
+/* Mini ring — inline with text. */
+.cluster-mini-ring { --mini-ring: var(--accent); display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.cluster-mini-ring svg { width: 16px; height: 16px; flex: none; transform: rotate(-90deg); }
+.cluster-mini-ring circle { fill: none; stroke-width: 3; }
+.cluster-mini-ring .track { stroke: var(--cluster-button-fill-hover, color-mix(in srgb, currentColor 18%, transparent)); }
+.cluster-mini-ring .value { stroke: var(--mini-ring); stroke-linecap: round; }
+.cluster-mini-ring.tone-good { --mini-ring: var(--success); }
+.cluster-mini-ring.tone-warning { --mini-ring: var(--warning); }
+.cluster-mini-ring.tone-danger { --mini-ring: var(--danger); }
+.cluster-mini-ring.tone-neutral { --mini-ring: var(--muted); }

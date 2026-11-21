@@ -1,6 +1,7 @@
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLUSTER_PERSON_CHANGED_EVENT, CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, type ClusterPersonSummary, type ClusterAssignmentChange } from "@cluster/shared";
 import { api, queryApi, setApiQueryData } from "../../core/api";
@@ -34,6 +35,7 @@ import { calendarViewNeedsEvents, calendarViewNeedsTimeline } from "./calendar-v
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
+import { StatusNote } from "../../components/StatusNote";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: calendarDateInputValue(date) });
@@ -136,13 +138,13 @@ function CalendarTimelineOverlayPanel({ items }: { items: CalendarDisplayItem[] 
     <section className="panel calendar-sync-panel-v121">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Canonical planning</p>
+          <p className="eyebrow">Planning</p>
           <h2>Timeline overlays</h2>
           <p className="muted tight">Milestones, releases, deadlines, and Card due dates appear here as read-only views of their owning resources. Edit them at the source.</p>
         </div>
         <span className="soft-pill">{overlays.length} visible</span>
       </div>
-      <p className="muted tight">Calendar does not copy Timeline work into shadow events. Selecting an overlay opens its canonical Timeline item or Card.</p>
+      <p className="muted tight">Calendar shows Timeline work without copying it. Selecting an overlay opens its Timeline item or Card.</p>
     </section>
   );
 }
@@ -575,13 +577,12 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       />
       {projectFilter !== "all" && projectFilter !== "studio" ? <ProjectCollaborationStrip tool="calendar" projectId={projectFilter} activity={`Calendar · ${view}`} /> : null}
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
         <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["year", "month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
-        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong>
-          <label className="calendar-date-jump-v11">
-            <span>Go to date</span>
+        <div className="calendar-range-control-v189"><ClusterIconButton size="compact" label="Previous" title="Previous" onClick={() => moveWindow(-1)}><ClusterIcon name="chevron-left" /></ClusterIconButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterIconButton size="compact" label="Next" title="Next" onClick={() => moveWindow(1)}><ClusterIcon name="chevron-right" /></ClusterIconButton><strong>{rangeLabel}</strong>
+          <label className="calendar-date-jump-v11" title="Go to date">
             <ClusterInput type="date" aria-label="Jump to calendar date"
               value={calendarDateInputValue(anchorDate)}
               onChange={(event) => jumpToCalendarDate(event.target.value)} />
@@ -594,7 +595,6 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
           <ClusterSelect value={ownerFilter} onChange={setOwnerFilter} ariaLabel="Filter calendar by owner" options={[{ value: "all", label: "All owners" }, { value: "unassigned", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: displayUserName(user) }))]} />
         </div>
         {view !== "year" ? <div className="calendar-layer-controls-v11" role="group" aria-label="Calendar visibility layers">
-          <span>Show on calendar</span>
           {([
             ["events", "Events"],
             ["timeline", "Timeline"],
@@ -896,7 +896,7 @@ function EventEditor({ event, date, occurrenceStartsAt, projects, users, current
           <div className="field"><label>Library attachment IDs</label><ClusterTextInput value={attachmentIdsText} onChange={(e) => setAttachmentIdsText(e.target.value)} placeholder="id1, id2" /></div>
           <div className="field"><label>Decision IDs</label><ClusterTextInput value={decisionIdsText} onChange={(e) => setDecisionIdsText(e.target.value)} placeholder="id1, id2" /></div>
         </div>
-        <div className="field"><label>Action item IDs</label><ClusterTextInput value={actionItemIdsText} onChange={(e) => setActionItemIdsText(e.target.value)} placeholder="Canonical My Work / work-item IDs" /></div>
+        <div className="field"><label>Action item IDs</label><ClusterTextInput value={actionItemIdsText} onChange={(e) => setActionItemIdsText(e.target.value)} placeholder="My Work or work-item IDs" /></div>
       </div>
 
       <ClusterButton unstyled type="button" className="settings-disclosure-v190" onClick={() => setShowAdvanced((value) => !value)}>{showAdvanced ? "Hide recurrence and links" : "Recurrence and links"}</ClusterButton>

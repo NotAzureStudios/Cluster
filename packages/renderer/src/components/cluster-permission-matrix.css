@@ -1,119 +1,49 @@
-/* Shared access editor: a permission matrix is an interaction, not a
-   collection of twenty unrelated dropdowns. */
-.cluster-permission-matrix-v11 { display: grid; gap: 13px; min-width: 0; }
-.cluster-permission-matrix-intro-v11 {
-  display: flex; align-items: start; justify-content: space-between; gap: 12px;
-  font-size: .74rem; line-height: 1.5; color: var(--muted);
-}
-.cluster-permission-matrix-intro-v11 > strong {
-  font-size: .69rem; white-space: nowrap; border: 1px solid var(--border);
-  color: var(--text); border-radius: 7px; padding: 3px 7px;
-}
-.cluster-permission-matrix-group-v11 {
-  min-width: 0; border: 1px solid var(--border); border-radius: 12px;
-  overflow: hidden; background: var(--panel);
-}
-.cluster-permission-matrix-group-header-v11 {
-  display: flex; justify-content: space-between; align-items: start; gap: 9px;
-  padding: 11px 13px; background: var(--surface-soft);
-  border-bottom: 1px solid var(--border);
-}
-.cluster-permission-matrix-group-header-v11 h4 { font-size: .83rem; font-weight: 700; margin: 0; }
-.cluster-permission-matrix-group-header-v11 p { font-size: .72rem; line-height: 1.45; color: var(--muted); margin: 3px 0 0; }
-.cluster-permission-matrix-overrides-v11 {
-  white-space: nowrap; flex-shrink: 0; font-size: .69rem; color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.cluster-permission-matrix-scroll-v11 { min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
-.cluster-permission-matrix-scroll-v11:focus-visible {
-  outline: 2px solid var(--accent, #57c1ff); outline-offset: -2px;
-}
-.cluster-permission-matrix-scroll-v11 table {
-  width: 100%; min-width: 625px; border-spacing: 0; border-collapse: separate;
-  font: inherit; color: var(--text);
-}
-.cluster-permission-matrix-scroll-v11 thead th {
-  font-size: .69rem; color: var(--muted); font-weight: 700;
-  background: var(--panel); min-height: 42px; height: 42px;
-  padding: 5px 7px; text-align: center; border-bottom: 1px solid var(--border);
-}
-.cluster-permission-matrix-scroll-v11 th:first-child {
-  position: sticky; left: 0; z-index: 1; min-width: 145px; text-align: left;
-  padding-inline: 13px; background: var(--panel);
-}
-.cluster-permission-matrix-scroll-v11 thead th:first-child { z-index: 2; }
-.cluster-permission-matrix-scroll-v11 thead th:not(:first-child) { min-width: 66px; }
-.cluster-permission-matrix-scroll-v11 th:last-child { min-width: 92px; }
-.cluster-permission-matrix-scroll-v11 tbody th,
-.cluster-permission-matrix-scroll-v11 tbody td {
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 53%, transparent);
-}
-.cluster-permission-matrix-scroll-v11 tbody tr:last-child th,
-.cluster-permission-matrix-scroll-v11 tbody tr:last-child td { border-bottom: 0; }
-.cluster-permission-matrix-scroll-v11 tbody tr:hover,
-.cluster-permission-matrix-scroll-v11 tbody tr:hover th:first-child {
-  background: color-mix(in srgb, var(--accent, #57c1ff) 6%, var(--panel));
-}
-.cluster-permission-matrix-scroll-v11 tbody tr[data-override="explicit"] th:first-child {
-  box-shadow: inset 3px 0 0 var(--accent, #57c1ff);
-}
-.cluster-permission-matrix-scroll-v11 tbody th {
-  padding-block: 9px; vertical-align: middle; font-size: .76rem; font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.cluster-permission-matrix-tool-v11 { display: block; }
-.cluster-permission-matrix-cell-v11 { display: grid; place-items: center; min-height: 44px; min-width: 60px; cursor: pointer; }
-.cluster-permission-matrix-cell-v11 input {
-  appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0;
-  border-radius: 50%; border: 2px solid color-mix(in srgb, var(--text) 45%, var(--border));
-  cursor: pointer; background: transparent;
-}
-.cluster-permission-matrix-cell-v11 input:checked {
-  border-color: var(--accent, #57c1ff);
-  background: var(--accent, #57c1ff);
-  box-shadow: inset 0 0 0 4px var(--panel);
-}
-.cluster-permission-matrix-cell-v11 input:focus-visible {
-  outline: 3px solid var(--accent, #57c1ff); outline-offset: 3px;
-}
-.cluster-permission-matrix-cell-v11 input:disabled { opacity: .58; cursor: not-allowed; }
-.cluster-permission-matrix-effective-v11 { text-align: center; padding: 6px 10px; }
-.cluster-permission-matrix-effective-v11 strong { display: block; text-transform: capitalize; font-size: .74rem; font-weight: 650; }
-.cluster-permission-matrix-effective-v11 small { color: var(--muted); display: block; font-size: .64rem; margin-top: 2px; }
-.cluster-permission-matrix-sr-only-v11 {
-  position: absolute; height: 1px; width: 1px; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0;
-}
-@media (max-width: 580px) {
-  .cluster-permission-matrix-group-header-v11 { flex-wrap: wrap; }
-  .cluster-permission-matrix-scroll-v11 table { min-width: 605px; }
-}
-@media (pointer: coarse) {
-  .cluster-permission-matrix-cell-v11 { min-height: 48px; min-width: 58px; }
-}
+/* Permission matrix — the only stylesheet for pm-*. One 34px line per tool:
+   name, a four-step level control, a reset slot. Every row uses the same
+   columns, so the controls line up down the whole list. */
 
-.cluster-permission-matrix-filters-v11 {
-  display: flex; flex-wrap: wrap; align-items: end; gap: 9px 14px;
-  padding: 1px 0 3px;
+.pm { display: grid; gap: var(--space-2); min-width: 0; }
+.pm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); }
+.pm-search { display: flex; align-items: center; gap: var(--space-1-5); flex: 0 1 240px; height: 30px; padding: 0 var(--space-2); border-radius: var(--cluster-radius-control); background: var(--cluster-recess); color: var(--muted); }
+.pm-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
+.pm-search svg.cluster-icon-svg { flex: none; inline-size: 13px; block-size: 13px; }
+.pm .pm-search > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important;
+  background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm) !important;
 }
-.cluster-permission-matrix-filters-v11 > label:first-child {
-  display: grid; gap: 5px; flex: 1 1 220px; min-width: 0;
-}
-.cluster-permission-matrix-filters-v11 > label:first-child > span {
-  font-size: .69rem; font-weight: 650; color: var(--muted);
-}
-.cluster-permission-matrix-filters-v11 input[type="search"] {
-  min-width: 0; width: 100%; box-sizing: border-box; min-height: 42px; padding: 8px 11px;
-  font: inherit; font-size: .78rem; border: 1px solid var(--border); border-radius: 9px;
-  background: var(--panel); color: var(--text);
-}
-.cluster-permission-matrix-filter-check-v11 { display: flex; align-items: center; gap: 7px; min-height: 42px; font-size: .76rem; cursor: pointer; }
-.cluster-permission-matrix-filter-check-v11 input { width: 18px; height: 18px; accent-color: var(--accent, #57c1ff); }
-.cluster-permission-matrix-filters-v11 small { margin-left: auto; align-self: center; color: var(--muted); font-size: .68rem; white-space: nowrap; }
-.cluster-permission-matrix-filters-v11 :is(input[type="checkbox"], input[type="search"]):focus-visible {
-  outline: 2px solid var(--accent, #57c1ff); outline-offset: 3px;
-}
-.cluster-permission-matrix-empty-v11 { margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.4; }
-@media (pointer: coarse) {
-  .cluster-permission-matrix-filters-v11 input[type="search"], .cluster-permission-matrix-filter-check-v11 { min-height: 44px; }
-}
+.pm-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.pm-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--text); }
+.pm-chip:disabled { opacity: .5; cursor: default; }
+.pm-chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pm-readonly { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.pm-readonly svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+.pm-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-2xs); }
+.pm-legend i { width: 10px; height: 10px; margin-left: 6px; border-radius: 3px; }
+.pm-legend i[data-kind="inherited"] { background: color-mix(in srgb, var(--text) 16%, transparent); }
+.pm-legend i[data-kind="override"] { background: var(--accent); }
+.pm-empty { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-sm); }
+
+.pm-table { display: grid; gap: var(--space-2); }
+.pm-group { display: grid; padding: var(--space-1) var(--space-2-5); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.pm-group > h4 { margin: 0; padding: 6px 0 4px; color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.pm-row { display: grid; grid-template-columns: minmax(120px, 1fr) auto 26px; align-items: center; gap: var(--space-2); min-height: 34px; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.pm-row:last-child { box-shadow: none; }
+.pm-tool { overflow: hidden; font-size: var(--cluster-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.pm-row[data-override] .pm-tool { font-weight: 600; }
+
+.pm-levels { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 64px; padding: 2px; border-radius: 8px; background: var(--cluster-recess); }
+.pm-levels > button { position: relative; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
+.pm-levels > button:hover:not(:disabled):not([data-lit]) { color: var(--text); }
+.pm-levels > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pm-levels > button:disabled { cursor: default; }
+.pm-levels > button[data-lit="inherited"] { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
+.pm-levels > button[data-lit="override"] { background: var(--accent); color: #04121c; font-weight: 600; }
+/* The inherited level stays marked when an override replaces it. */
+.pm-row[data-override] .pm-levels > button[data-baseline]:not([data-lit])::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--muted); }
+
+.pm-reset { display: grid; place-items: center; }
+.pm-reset > button { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.pm-reset > button:hover { background: var(--cluster-button-fill); color: var(--text); }
+.pm-reset svg.cluster-icon-svg { inline-size: 13px; block-size: 13px; }
+
+@media (max-width: 640px) { .pm-levels { grid-auto-columns: 52px; } .pm-legend { display: none; } }

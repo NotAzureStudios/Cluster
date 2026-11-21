@@ -1,0 +1,96 @@
+/* Project tab chrome — the only stylesheet for the ps-* names.
+   Header: one row of indicator chips and actions. Surfaces: borderless
+   cards on the panel fill. Status: a tinted line with a tone dot. */
+
+.ps-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- header ---------- */
+.ps-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 36px; }
+.ps-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1-5); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.ps-chips > li { --ps-tone: var(--muted); display: flex; }
+.ps-chips > li[data-tone="good"] { --ps-tone: var(--success); }
+.ps-chips > li[data-tone="warning"] { --ps-tone: var(--warning); }
+.ps-chips > li[data-tone="danger"] { --ps-tone: var(--danger); }
+.ps-chips > li[data-tone="accent"] { --ps-tone: var(--accent); }
+.ps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--space-2-5);
+  border: 0;
+  border-radius: 999px;
+  background: var(--cluster-workbench-panel);
+  box-shadow: var(--cluster-elevation-card);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--cluster-font-size-sm);
+  white-space: nowrap;
+}
+button.ps-chip { cursor: pointer; }
+button.ps-chip:hover { color: var(--text); background: color-mix(in srgb, var(--cluster-workbench-panel) 88%, var(--text)); }
+button.ps-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ps-chip > i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--ps-tone); }
+.ps-chips > li[data-tone="neutral"] .ps-chip > i { background: color-mix(in srgb, var(--muted) 55%, transparent); }
+.ps-chip > strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ps-chips > li:is([data-tone="warning"], [data-tone="danger"]) .ps-chip > strong { color: var(--ps-tone); }
+
+.ps-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1-5); margin-left: auto; }
+
+/* ---------- status line ---------- */
+.ps-status {
+  --ps-tone: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--cluster-radius-control);
+  background: color-mix(in srgb, var(--ps-tone) 10%, var(--cluster-workbench-panel));
+  font-size: var(--cluster-font-size-sm);
+}
+.ps-status[data-tone="good"] { --ps-tone: var(--success); }
+.ps-status[data-tone="warning"] { --ps-tone: var(--warning); }
+.ps-status[data-tone="danger"] { --ps-tone: var(--danger); }
+.ps-status > i { flex: none; width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--ps-tone); }
+.ps-status > div { min-width: 0; }
+
+/* ---------- surface ---------- */
+.ps-surface {
+  --ps-tone: transparent;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-workbench-panel);
+  box-shadow: var(--cluster-elevation-card);
+}
+.ps-surface[data-tone="warning"] { --ps-tone: var(--warning); }
+.ps-surface[data-tone="danger"] { --ps-tone: var(--danger); }
+.ps-surface[data-tone="accent"] { --ps-tone: var(--accent); }
+.ps-surface__head { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.ps-surface__head h3 { display: flex; align-items: center; gap: var(--space-1-5); margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
+.ps-surface:is([data-tone="warning"], [data-tone="danger"], [data-tone="accent"]) .ps-surface__head h3::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ps-tone); }
+.ps-surface__action { display: flex; align-items: center; gap: var(--space-1-5); margin-left: auto; }
+.ps-surface__note { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-sm); }
+.ps-surface__body { display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
+/* Fieldsets inside a surface group fields without drawing a second box. */
+.ps-surface fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.ps-surface fieldset > legend { padding: 0; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--cluster-font-size-xs); font-weight: 600; }
+
+/* ---------- empty ---------- */
+.ps-empty { border: 0; background: transparent; }
+
+/* ---------- page ---------- */
+.ps-page { display: grid; align-content: start; gap: var(--space-3); min-width: 0; }

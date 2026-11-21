@@ -1,0 +1,183 @@
+/* Project overview — the only stylesheet for the pv-* names.
+   A row of indicator tiles (a dial, a tone dot or an icon beside one number),
+   then a two-by-two grid of cards. Tones carry the meaning; text stays short. */
+
+.pv { display: grid; gap: var(--space-3); min-width: 0; }
+
+/* ---------- pulse ---------- */
+.pv-pulse {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pv-tile {
+  --pv-tone: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  min-width: 0;
+  padding: var(--space-2-5) var(--space-3);
+  border: 0;
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-workbench-panel);
+  box-shadow: var(--cluster-elevation-card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .12s ease;
+}
+.pv-tile:hover { background: color-mix(in srgb, var(--cluster-workbench-panel) 88%, var(--text)); }
+.pv-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pv-tile[data-tone="good"] { --pv-tone: var(--success); }
+.pv-tile[data-tone="warning"] { --pv-tone: var(--warning); }
+.pv-tile[data-tone="danger"] { --pv-tone: var(--danger); }
+.pv-tile[data-tone="accent"] { --pv-tone: var(--accent); }
+
+.pv-tile__viz {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--pv-tone) 14%, transparent);
+  color: var(--pv-tone);
+}
+.pv-tile__viz > i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pv-tile__viz svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; }
+.pv-tile__viz .cluster-mini-ring svg { width: 22px; height: 22px; }
+.pv-tile[data-tone="accent"] .pv-tile__viz { background: transparent; }
+.pv-tile__viz .cluster-mini-ring .track { stroke: color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.pv-tile__copy { display: grid; min-width: 0; line-height: 1.2; }
+.pv-tile__copy strong {
+  overflow: hidden;
+  font-size: var(--cluster-font-size-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-tile__copy small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pv-tile__copy em { font-style: normal; }
+.pv-tile[data-tone="danger"] .pv-tile__copy em,
+.pv-tile[data-tone="warning"] .pv-tile__copy em { color: var(--pv-tone); }
+
+.pv-refresh.cluster-icon-button-v425 { margin-left: auto; color: var(--muted); }
+
+/* ---------- cards ---------- */
+.pv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.pv-card {
+  --pv-tone: transparent;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--cluster-radius-card);
+  background: var(--cluster-workbench-panel);
+  box-shadow: var(--cluster-elevation-card);
+}
+.pv-card > header { display: flex; align-items: center; gap: var(--space-2); min-height: 28px; }
+.pv-card > header h3 { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
+.pv-card > header > .cluster-button-v425 { margin-left: auto; }
+
+.pv-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--cluster-button-fill);
+  color: var(--muted);
+  font-size: var(--cluster-font-size-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pv-card[data-tone="danger"] .pv-count { background: color-mix(in srgb, var(--danger) 18%, transparent); color: var(--danger); }
+.pv-card[data-tone="warning"] .pv-count { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+
+.pv-note { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-sm); }
+.pv-empty { margin: 0; padding: var(--space-2) 0; color: var(--muted); font-size: var(--cluster-font-size-sm); }
+.pv-clear { display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-2) 0; color: var(--success); font-weight: 600; }
+.pv-clear svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; }
+
+/* Rows: dot or date, two lines of copy, optional chevron. */
+.pv-list { display: grid; gap: 1px; margin: 0 calc(-1 * var(--space-1-5)); padding: 0; list-style: none; }
+.pv-row {
+  --pv-tone: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-1-5);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pv-row:hover { background: var(--cluster-button-fill); }
+.pv-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pv-row[data-tone="danger"] { --pv-tone: var(--danger); }
+.pv-row[data-tone="warning"] { --pv-tone: var(--warning); }
+.pv-dot { flex: none; width: 8px; height: 8px; margin: 0 2px; border-radius: 50%; background: var(--pv-tone); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pv-tone) 22%, transparent); }
+.pv-row__copy { display: grid; flex: 1; min-width: 0; line-height: 1.25; }
+.pv-row__copy strong { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pv-row__copy small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pv-row__go.cluster-icon-svg { flex: none; inline-size: 14px; block-size: 14px; color: var(--muted); opacity: 0; transition: opacity .12s ease; }
+.pv-row:hover .pv-row__go,
+.pv-row:focus-visible .pv-row__go { opacity: 1; }
+.pv-date {
+  flex: none;
+  min-width: 56px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--cluster-recess);
+  color: var(--muted);
+  font-size: var(--cluster-font-size-2xs);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Team */
+.pv-facts { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; font-size: var(--cluster-font-size-sm); }
+.pv-facts > div { display: flex; gap: var(--space-1-5); min-width: 0; }
+.pv-facts dt { color: var(--muted); }
+.pv-facts dd { margin: 0; overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pv-facts dd[data-empty] { color: var(--warning); font-weight: 500; }
+.pv-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.pv-team li { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: 2px 0; font-size: var(--cluster-font-size-sm); }
+.pv-team li > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-team .presence-avatar,
+.pv-team [class*="avatar"] { --avatar-size: 24px; flex: none; border-radius: 7px; }
+
+/* Activity */
+.pv-feed { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.pv-feed li { display: flex; align-items: center; gap: var(--space-2-5); min-width: 0; padding: 3px 0; }
+.pv-feed img,
+.pv-feed__mark { flex: none; width: 24px; height: 24px; border-radius: 7px; object-fit: cover; }
+.pv-feed__mark { display: grid; place-items: center; background: var(--cluster-button-fill); color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 700; }
+.pv-feed p { display: grid; flex: 1; min-width: 0; margin: 0; line-height: 1.25; }
+.pv-feed strong { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pv-feed small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pv-feed time { flex: none; color: var(--muted); font-size: var(--cluster-font-size-2xs); white-space: nowrap; }
+
+@media (max-width: 860px) {
+  .pv-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.pv-col { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
+.pv > .project-secondary-details-v57 { border: 0; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }

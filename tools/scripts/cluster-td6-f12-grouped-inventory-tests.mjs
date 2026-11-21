@@ -125,7 +125,7 @@ await test('Inventory provides on-demand, secret-free deadline and custody summa
  assert.match(route,/app\.get\("\/api\/admin\/inventory\/attention"/);
  assert.match(route,/digitalSeatsPastDue, physicalCustodyOpen, keysExpiring, keysPastDue/);
  assert.ok(!route.includes('encryptedValue: true, firstRevealedAt'));
- assert.match(read('packages/renderer/src/features/settings/StudioInventoryVaultPanel.tsx'),/Refresh inventory attention/);
+ assert.match(read('packages/renderer/src/features/settings/StudioInventoryVaultPanel.tsx'),/Check expiring and overdue items/);
 });
 await test('Prisma migration and editor panels expose new lease/custody contracts',()=>{
  const schema=read('apps/server/prisma/schema.prisma');const mig=read('apps/server/prisma/migrations/20261019001500_td6_grouped_inventory_custody_leases/migration.sql');

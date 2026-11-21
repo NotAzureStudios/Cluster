@@ -1558,7 +1558,7 @@ export async function cloneNativeLocalRepository(workspaceId: string, remote: st
   const result = await requestNativeCapability<{ operation: ClusterLocalGitOperation }>("git.local.clone", { workspaceId, remote, destinationName, strategy });
   return result.operation;
 }
-export async function startNativeLocalGitOperation(workspaceId: string, repositoryId: string, action: "fetch" | "pull" | "push" | "lfs.fetch.current" | "lfs.fetch.recent" | "lfs.checkout" | "lfs.locks" | "lfs.lock" | "lfs.unlock", relativePath?: string) {
+export async function startNativeLocalGitOperation(workspaceId: string, repositoryId: string, action: "fetch" | "pull" | "rebase" | "push" | "lfs.fetch.current" | "lfs.fetch.recent" | "lfs.checkout" | "lfs.locks" | "lfs.lock" | "lfs.unlock", relativePath?: string) {
   const result = await requestNativeCapability<{ operation: ClusterLocalGitOperation }>("git.local.operation.start", { workspaceId, repositoryId, action, relativePath });
   return result.operation;
 }

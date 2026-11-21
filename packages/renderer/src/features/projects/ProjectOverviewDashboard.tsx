@@ -1,12 +1,11 @@
 import { CLUSTER_WORKFLOW_RELATIONSHIP_META, type ClusterProjectTypeDefinition, type ClusterWorkflowRelationship } from "@cluster/shared";
 import type { ComponentType } from "react";
-import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterActionMenu } from "../../components/ClusterContextActions";
-import { resolveClusterResourceActions } from "../../core/resource-action-registry";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { ClusterIcon } from "../../components/ClusterIcon";
-import { ClusterVisualRing } from "../../components/ClusterVisualMetrics";
+import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
+import "./project-overview.css";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { personPresence } from "../people/person-summary";
 import { formatRelativeTime } from "../../core/format";
@@ -96,136 +95,100 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   const ownerLabel = snapshot?.lead.displayName || snapshot?.lead.username || "Unassigned";
 
   const attentionItems: ProjectAttentionItem[] = [
-    ...(overdueWork ? [{ id: "overdue", label: `${overdueWork} overdue work item${overdueWork === 1 ? "" : "s"}`, detail: `${blockedWork} blocked · ${dashboard?.cards.urgent || 0} urgent`, tone: "danger" as const, action: onOpenTickets }] : []),
-    ...(blockedWork && !overdueWork ? [{ id: "blocked", label: `${blockedWork} blocked work item${blockedWork === 1 ? "" : "s"}`, detail: "Review blockers and ownership", tone: "danger" as const, action: onOpenTickets }] : []),
-    ...(supportsReview && reviewOpenNoteCount ? [{ id: "review", label: `${reviewOpenNoteCount} review note${reviewOpenNoteCount === 1 ? "" : "s"} unresolved`, detail: `${reviewAssetCount} review version${reviewAssetCount === 1 ? "" : "s"}`, tone: "warning" as const, action: () => onOpenSection("viewer") }] : []),
-    ...(supportsBuilds && buildFailures ? [{ id: "builds", label: `${buildFailures} build${buildFailures === 1 ? "" : "s"} need attention`, detail: delivery?.recommendedAction || "Review failed build output", tone: "danger" as const, action: () => onOpenSection("builds") }] : []),
-    ...(supportsQa && qaAttention ? [{ id: "qa", label: `${qaAttention} QA item${qaAttention === 1 ? "" : "s"} need review`, detail: `${qaTotal} QA records`, tone: "danger" as const, action: () => onOpenSection("qa") }] : []),
-    ...(relationshipBlockers ? [{ id: "relationships", label: `${relationshipBlockers} blocking dependenc${relationshipBlockers === 1 ? "y" : "ies"}`, detail: `${dashboard?.workflow.relationships.critical || 0} critical relationships`, tone: "warning" as const, action: () => onOpenSection("control") }] : []),
+    ...(overdueWork ? [{ id: "overdue", label: `${overdueWork} overdue`, detail: `${blockedWork} blocked · ${dashboard?.cards.urgent || 0} urgent`, tone: "danger" as const, action: onOpenTickets }] : []),
+    ...(blockedWork && !overdueWork ? [{ id: "blocked", label: `${blockedWork} blocked`, detail: "Cards", tone: "danger" as const, action: onOpenTickets }] : []),
+    ...(supportsReview && reviewOpenNoteCount ? [{ id: "review", label: `${reviewOpenNoteCount} open note${reviewOpenNoteCount === 1 ? "" : "s"}`, detail: `${reviewAssetCount} review version${reviewAssetCount === 1 ? "" : "s"}`, tone: "warning" as const, action: () => onOpenSection("viewer") }] : []),
+    ...(supportsBuilds && buildFailures ? [{ id: "builds", label: `${buildFailures} failed build${buildFailures === 1 ? "" : "s"}`, detail: delivery?.recommendedAction || "", tone: "danger" as const, action: () => onOpenSection("builds") }] : []),
+    ...(supportsQa && qaAttention ? [{ id: "qa", label: `${qaAttention} QA flag${qaAttention === 1 ? "" : "s"}`, detail: `${qaTotal} records`, tone: "danger" as const, action: () => onOpenSection("qa") }] : []),
+    ...(relationshipBlockers ? [{ id: "relationships", label: `${relationshipBlockers} blocking dependenc${relationshipBlockers === 1 ? "y" : "ies"}`, detail: dashboard?.workflow.relationships.critical ? `${dashboard.workflow.relationships.critical} critical` : "", tone: "warning" as const, action: () => onOpenSection("control") }] : []),
     ...(controlCenter?.summary.attention.slice(0, 2).map((item) => ({ id: `control-${item.id}`, label: item.title, detail: item.reason, tone: item.tone === "danger" ? "danger" as const : "warning" as const, action: () => onOpenSection("control") })) || []),
     ...readinessGaps.slice(0, attentionItemsRoom(overdueWork, supportsBuilds ? buildFailures : 0, supportsQa ? qaAttention : 0, relationshipBlockers, controlCenter?.summary.attention.length || 0)).map((gap: string, index: number) => ({ id: `setup-${index}`, label: gap, detail: "", tone: "warning" as const, action: onOpenPlan })),
   ].slice(0, 5);
 
+  const blockedTotal = blockedWork + relationshipBlockers;
+  const healthNote = project.healthNote || "";
+  const scheduleValue = schedule.label.replace(/^Due in /, "").replace(/^Overdue by /, "");
+  const scheduleCaption = /^Overdue/.test(schedule.label) ? "Overdue" : /^Due in /.test(schedule.label) ? "To target" : "Target";
+  const workSection = availableSections.includes("boards") ? () => (primaryBoard ? onOpenBoard(primaryBoard.id) : onOpenSection("boards")) : onOpenTickets;
+  const scheduleTone = schedule.tone === "danger" || schedule.tone === "warning" || schedule.tone === "good" ? schedule.tone : "neutral";
+  const pulse: Array<{ key: string; label: string; value: string | number; sub?: string; tone: "good" | "warning" | "danger" | "neutral" | "accent"; viz: "ring" | "dot" | "icon"; icon?: "calendar" | "clock"; onSelect: () => void }> = [
+    { key: "done", label: "Done", value: dashboard ? `${progress}%` : "—", sub: dashboard ? `${dashboard.cards.completed}/${dashboard.cards.total} cards` : undefined, tone: "accent", viz: "ring", onSelect: workSection },
+    { key: "schedule", label: scheduleCaption, value: scheduleValue, tone: scheduleTone, viz: "icon", icon: "calendar", onSelect: onOpenTimeline },
+    { key: "blocked", label: "Blocked", value: blockedTotal, sub: overdueWork ? `${overdueWork} overdue` : undefined, tone: blockedTotal ? "danger" : overdueWork ? "warning" : "good", viz: "dot", onSelect: onOpenTickets },
+    ...(supportsReview ? [{ key: "review", label: "Open notes", value: reviewOpenNoteCount, tone: reviewOpenNoteCount ? "warning" as const : "good" as const, viz: "dot" as const, onSelect: () => onOpenSection("viewer") }] : []),
+    ...(supportsBuilds ? [{ key: "builds", label: "Builds", value: dashboard?.workflow.builds.total || 0, sub: buildFailures ? `${buildFailures} failed` : delivery?.published ? "Published" : delivery?.ready ? "Ready" : undefined, tone: buildFailures || delivery?.blocked || delivery?.activeHold ? "danger" as const : delivery?.ready || delivery?.published ? "good" as const : "neutral" as const, viz: "dot" as const, onSelect: () => onOpenSection("builds") }] : []),
+    ...(supportsQa ? [{ key: "qa", label: projectType.terminology?.qa || "QA", value: qaTotal, sub: qaAttention ? `${qaAttention} flagged` : undefined, tone: qaAttention ? "danger" as const : qaTotal ? "good" as const : "neutral" as const, viz: "dot" as const, onSelect: () => onOpenSection("qa") }] : []),
+    { key: "time", label: "Logged", value: durationLabel(dashboard?.time.loggedMinutes || 0), tone: "neutral", viz: "icon", icon: "clock", onSelect: onOpenTime },
+  ];
+
+  /* Overview. One row of indicators, then four cards: what needs attention,
+     what's next, who's on it, what changed. Each fact appears once; the tabs
+     above are the way into each tool, so there's no launchpad here. */
   return (
-    <div className="project-subpage-v312 project-overview-v57">
-      <section className={`project-now-rc25 ${attentionCount ? "attention" : ""}`}>
-        <div className="project-now-copy-rc25">
-          <h2>{attentionCount ? `${attentionCount} item${attentionCount === 1 ? "" : "s"} need attention` : "Ready to work"}</h2>
-          {(project.healthNote || snapshot?.health.reasons[0]) && <p>{project.healthNote || snapshot?.health.reasons[0]}</p>}
-          <div className="project-now-actions-rc25">
-            {isVideoType && supportsReview && availableSections.includes("viewer")
-              ? <ClusterButton variant="primary" onClick={() => onOpenSection("viewer")}>Open review</ClusterButton>
-              : primaryBoard && availableSections.includes("boards")
-                ? <ClusterButton variant="primary" onClick={() => onOpenBoard(primaryBoard.id)}>Open board</ClusterButton>
-                : availableSections.includes("boards")
-                  ? <ClusterButton variant="primary" onClick={() => onOpenSection("boards")}>Boards</ClusterButton>
-                  : availableSections.includes("plan")
-                    ? <ClusterButton variant="primary" onClick={onOpenPlan}>Open plan</ClusterButton>
-                    : availableSections.includes("tickets")
-                      ? <ClusterButton variant="primary" onClick={onOpenTickets}>Tickets</ClusterButton>
-                      : null}
-          <ClusterActionMenu label="Project actions" triggerLabel="More" items={resolveClusterResourceActions({ kind: "project", id: project.id }, [
-            { id: "plan", resourceKinds: ["project"] as const, allowed: () => true, label: "Edit project plan", onSelect: onOpenPlan },
-            { id: "timeline", resourceKinds: ["project"] as const, allowed: () => true, label: "Open timeline", onSelect: onOpenTimeline },
-            { id: "tickets", resourceKinds: ["project"] as const, allowed: () => true, label: "Open project tickets", onSelect: onOpenTickets },
-            { id: "time", resourceKinds: ["project"] as const, allowed: () => true, label: "Open project time", onSelect: onOpenTime },
-            { id: "library", resourceKinds: ["project"] as const, allowed: () => true, label: "Open project library", onSelect: () => onOpenSection("library") },
-            ...(projectType.workspaceEntities?.length ? [{ id: "production", resourceKinds: ["project"] as const, allowed: () => true, label: `Open ${projectType.terminology?.production || "production"}`, onSelect: () => onOpenSection("production") }] : []),
-            primaryWhiteboard ? { id: "whiteboard", resourceKinds: ["project"] as const, allowed: () => true, label: "Open whiteboard", onSelect: () => onOpenWhiteboard(primaryWhiteboard.id) } : { id: "whiteboard", resourceKinds: ["project"] as const, allowed: () => true, label: "Add whiteboard", onSelect: () => onOpenSection("whiteboards") },
-            { id: "refresh", resourceKinds: ["project"] as const, allowed: () => true, label: loading ? "Refreshing…" : "Refresh project pulse", available: () => !loading, unavailableReason: "Project pulse refresh is already running", separatorBefore: true, onSelect: onRefresh },
-          ])} />
-
-          </div>
-        </div>
-        <div className="project-now-metrics-rc25">
-          <ClusterVisualRing label="Work complete" percent={dashboard ? progress : null} tone="accent" />
-          <ClusterVisualRing label="Setup ready" percent={readiness} tone={readiness < 50 ? "warning" : "good"} />
-          <div className="project-now-schedule-v34"><strong>{schedule.label}</strong><span>Schedule</span></div>
-        </div>
-      </section>
-      <nav className="project-launchpad-rc25" aria-label="Project tools">
-        {[
-          { id: "boards", label: "Boards", sub: "", icon: "project" as const },
-          { id: "plan", label: "Plan", sub: "", icon: "timeline" as const },
-          { id: "viewer", label: isVideoType ? "Video Review" : "Review", sub: reviewAssetCount ? `${reviewAssetCount} files` : "", icon: "video" as const },
-          { id: "builds", label: "Builds", sub: "", icon: "tools" as const },
-          { id: "qa", label: "QA", sub: "", icon: "check" as const },
-          { id: "library", label: "Library", sub: "", icon: "library" as const },
-          { id: "people", label: "Team", sub: teamMembers.length ? `${teamMembers.length} people` : "", icon: "users" as const },
-          { id: "tickets", label: "Tickets", sub: "", icon: "ticket" as const },
-        ].filter((item) => availableSections.includes(item.id)).slice(0, 8).map((item) =>
-          <ClusterButton unstyled key={item.id} type="button" className="project-launchpad-tile-rc25" onClick={() => onOpenSection(item.id)}>
-            <ClusterIcon name={item.icon} /><span><strong>{item.label}</strong>{item.sub ? <small>{item.sub}</small> : null}</span><ClusterIcon name="chevron-right" />
-          </ClusterButton>)}
-      </nav>
-      <details className="project-overview-identity-details-rc25">
-        <summary>Project details <ClusterIcon name="chevron-down" /></summary>
-        <ClusterMetricStrip label="Project identity and state" className="project-identity-strip-v12" items={[
-          { key: "lifecycle", label: "Lifecycle", value: lifecycleLabel },
-          { key: "phase", label: "Production phase", value: productionPhaseLabel, onSelect: () => onOpenSection("control") },
-          { key: "health", label: "Health", value: healthLabel, tone: healthTone },
-          { key: "owner", label: "Owner", value: ownerLabel, onSelect: () => onOpenSection("people") },
-          { key: "integrations", label: "Integrations", value: integrationCount, onSelect: () => onOpenSection("links") },
-        ]} />
-      </details>
-
-      <ClusterMetricStrip label="Project pulse" className="project-pulse-v57" items={[
-        { key: "blockers", label: "Blockers", value: blockedWork + relationshipBlockers, detail: `${overdueWork} overdue`, tone: blockedWork + relationshipBlockers || overdueWork ? "danger" as const : "good" as const, onSelect: onOpenTickets },
-        ...(supportsReview ? [{ key: "review", label: isVideoType ? "Review" : "Media", value: reviewAssetCount, detail: reviewOpenNoteCount ? `${reviewOpenNoteCount} unresolved` : reviewAssetCount ? "Notes clear" : "No media", tone: reviewOpenNoteCount ? "warning" as const : reviewAssetCount ? "good" as const : "neutral" as const, onSelect: () => onOpenSection("viewer") }] : []),
-        ...(supportsBuilds ? [{ key: "builds", label: "Builds", value: dashboard?.workflow.builds.total || 0, detail: delivery?.published ? "Published" : delivery?.ready ? "Ready" : buildFailures ? `${buildFailures} failed` : "Pending", tone: buildFailures || delivery?.blocked || delivery?.activeHold ? "danger" as const : delivery?.ready || delivery?.published ? "good" as const : "neutral" as const, onSelect: () => onOpenSection("builds") }] : []),
-        ...(supportsQa ? [{ key: "qa", label: projectType.terminology?.qa || "QA", value: qaTotal, detail: qaAttention ? `${qaAttention} need attention` : qaTotal ? "Clear" : "Not started", tone: qaAttention ? "danger" as const : qaTotal ? "good" as const : "neutral" as const, onSelect: () => onOpenSection("qa") }] : []),
-        { key: "time", label: "Time", value: durationLabel(dashboard?.time.loggedMinutes || 0), detail: "Project logged", onSelect: onOpenTime },
-      ].slice(0, 6)} />
-
-      <section className="project-primary-grid-v57">
-        <article className={`project-focus-panel-v57 ${attentionItems.length ? "attention" : ""}`}>
-          <header><div><h3>{attentionItems.length ? "Needs attention" : "No active blockers"}</h3></div>{attentionItems.length ? <span>{attentionItems.length}</span> : null}</header>
-          {attentionItems.length ? (
-            <div className="project-attention-list-v57">{attentionItems.map((item) => <ClusterButton key={item.id} variant="quiet" state={item.tone === "danger" ? "error" : "warning"} onClick={item.action}><span><strong>{item.label}</strong>{item.detail ? <small>{item.detail}</small> : null}</span><b aria-hidden="true"><ClusterIcon name="chevron-right" /></b></ClusterButton>)}</div>
-          ) : (
-            <div className="project-clear-v57"><strong>No active blockers</strong></div>
-          )}
-        </article>
-
-        <article className="project-focus-panel-v57">
-          <header><div><p className="eyebrow">Next</p><h3>Upcoming milestones</h3></div><ClusterButton variant="quiet" size="compact" onClick={onOpenTimeline}>Timeline</ClusterButton></header>
-          <div className="project-upcoming-list-v57">{dashboard?.timeline.upcoming.length ? dashboard.timeline.upcoming.slice(0, 5).map((item) => <ClusterButton key={item.id} variant="quiet" onClick={onOpenTimeline}><span><strong>{item.title}</strong><small>{item.type || "milestone"}</small></span><time>{formatProjectDate(item.startsAt)}</time></ClusterButton>) : <div className="project-clear-v57"><strong>No upcoming milestones</strong></div>}</div>
-        </article>
+    <div className="pv">
+      <section className="pv-pulse" aria-label="Project pulse">
+        {pulse.map((item) => <ClusterButton unstyled type="button" key={item.key} className="pv-tile" data-tone={item.tone} onClick={item.onSelect}>
+          <span className="pv-tile__viz" aria-hidden="true">{item.viz === "ring" ? <ClusterMiniRing label={item.label} percent={dashboard ? progress : null} tone="accent" showValue={false} /> : item.viz === "icon" && item.icon ? <ClusterIcon name={item.icon} /> : <i />}</span>
+          <span className="pv-tile__copy"><strong>{item.value}</strong><small>{item.label}{item.sub ? <em> · {item.sub}</em> : null}</small></span>
+        </ClusterButton>)}
       </section>
 
-      <ClusterDisclosureGroup className="project-secondary-details-v57" contentClassName="project-secondary-grid-v57"
-        title="Team & activity"
-        headerTrailing={<em>{teamMembers.length} people · {dashboard?.activity.length || 0} updates</em>}>
-          <section>
-            <header><h3>Assigned team</h3><ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
-            {teamMembers.length ? <div className="project-team-summary-v57">{teamMembers.slice(0, 10).map((member) => <div key={member.id}><PresenceAvatar
-              userId={member.id}
-              imageUrl={member.avatarUrl}
-              label={member.name}
-              fallback={member.name.slice(0, 1).toUpperCase()}
-              accentColor={member.personalAccentColor}
-              state={member.connectionVisibility === "invisible" ? "offline" : personPresence(member)}
-              profilePeek={false}
-            /><strong>{member.name}</strong></div>)}</div> : <div className="project-clear-v57"><strong>No assigned team</strong></div>}
-          </section>
-          <section>
-            <header><h3>Recent activity</h3><span>{dashboard?.activity.length || 0}</span></header>
-            <div className="project-activity-list-v57">{dashboard?.activity.length ? dashboard.activity.slice(0, 6).map((item) => <div key={item.id}>{item.user?.avatarUrl ? <img loading="lazy" decoding="async" src={item.user.avatarUrl} alt="" /> : <span aria-hidden="true" />}<p><strong>{item.title}</strong><small>{item.message || item.entityType} · {formatRelativeTime(item.createdAt)}</small></p></div>) : <div className="project-clear-v57"><strong>No recent activity</strong></div>}</div>
-          </section>
-      </ClusterDisclosureGroup>
+      <div className="pv-grid">
+        <div className="pv-col">
+        <section className="pv-card" data-tone={attentionItems.length ? attentionItems.some((item) => item.tone === "danger") ? "danger" : "warning" : "good"}>
+          <header><h3>Attention</h3>{attentionItems.length ? <span className="pv-count">{attentionItems.length}</span> : null}<ClusterIconButton size="compact" className="pv-refresh" label={loading ? "Refreshing" : "Refresh"} disabled={loading} onClick={onRefresh}><ClusterIcon name="refresh" /></ClusterIconButton></header>
+          {healthNote && attentionItems.length ? <p className="pv-note">{healthNote}</p> : null}
+          {attentionItems.length
+            ? <ul className="pv-list">{attentionItems.map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" data-tone={item.tone} onClick={item.action}>
+                <i className="pv-dot" aria-hidden="true" />
+                <span className="pv-row__copy"><strong>{item.label}</strong>{item.detail ? <small>{item.detail}</small> : null}</span>
+                <ClusterIcon name="chevron-right" className="pv-row__go" />
+              </ClusterButton></li>)}</ul>
+            : <p className="pv-clear"><ClusterIcon name="check" />All clear</p>}
+        </section>
+        <section className="pv-card">
+          <header><h3>Team</h3>{teamMembers.length ? <span className="pv-count">{teamMembers.length}</span> : null}<ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
+          <dl className="pv-facts">
+            <div><dt>Lead</dt><dd data-empty={ownerLabel === "Unassigned" || undefined}>{ownerLabel}</dd></div>
+            <div><dt>Phase</dt><dd data-empty={!activePhase || undefined}>{productionPhaseLabel}</dd></div>
+            {integrationCount ? <div><dt>Links</dt><dd>{integrationCount}</dd></div> : null}
+          </dl>
+          {teamMembers.length
+            ? <ul className="pv-team">{teamMembers.slice(0, 12).map((member) => <li key={member.id} title={member.name}><PresenceAvatar
+                userId={member.id}
+                imageUrl={member.avatarUrl}
+                label={member.name}
+                fallback={member.name.slice(0, 1).toUpperCase()}
+                accentColor={member.personalAccentColor}
+                state={member.connectionVisibility === "invisible" ? "offline" : personPresence(member)}
+                profilePeek={false}
+              /><span>{member.name}</span></li>)}</ul>
+            : <p className="pv-empty">No one assigned</p>}
+        </section>
+        </div>
+        <div className="pv-col">
+        <section className="pv-card">
+          <header><h3>Milestones</h3><ClusterButton variant="quiet" size="compact" onClick={onOpenTimeline}>Timeline</ClusterButton></header>
+          {dashboard?.timeline.upcoming.length
+            ? <ul className="pv-list">{dashboard.timeline.upcoming.slice(0, 5).map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" onClick={onOpenTimeline}>
+                <time className="pv-date">{formatProjectDate(item.startsAt)}</time>
+                <span className="pv-row__copy"><strong>{item.title}</strong><small>{item.type || "Milestone"}</small></span>
+              </ClusterButton></li>)}</ul>
+            : <p className="pv-empty">Nothing scheduled</p>}
+        </section>
+        <section className="pv-card">
+          <header><h3>Activity</h3></header>
+          {dashboard?.activity.length
+            ? <ul className="pv-feed">{dashboard.activity.slice(0, 6).map((item) => <li key={item.id}>
+                {item.user?.avatarUrl ? <img loading="lazy" decoding="async" src={item.user.avatarUrl} alt="" /> : <span className="pv-feed__mark" aria-hidden="true">{(item.user?.displayName || item.user?.username || item.title || "•").slice(0, 1).toUpperCase()}</span>}
+                <p><strong>{item.title}</strong><small>{item.message || item.entityType}</small></p>
+                <time>{formatRelativeTime(item.createdAt)}</time>
+              </li>)}</ul>
+            : <p className="pv-empty">No activity yet</p>}
+        </section>
+        </div>
+      </div>
 
-      <ClusterDisclosureGroup className="project-secondary-details-v57" contentClassName="project-control-stack-v57"
-        title="Controls & data"
-        headerTrailing={<em>{controlCenter?.summary.attention.length || 0} attention</em>}>
-          {controlCenter?.records.length ? <ClusterMetricStrip label="Project control summary" items={[
-            { label: "Deliverables", value: controlCenter.summary.counts.deliverables, detail: `${controlCenter.summary.progress.deliverables}% complete`, progress: controlCenter.summary.progress.deliverables, onSelect: () => onOpenSection("control") },
-            { label: "High risks", value: controlCenter.summary.counts.highRisks, tone: controlCenter.summary.counts.highRisks ? "danger" : "good", onSelect: () => onOpenSection("control") },
-            { label: "Decisions", value: controlCenter.summary.counts.pendingDecisions, tone: controlCenter.summary.counts.pendingDecisions ? "warning" : "neutral", onSelect: () => onOpenSection("control") },
-            { label: "Dependencies", value: controlCenter.summary.counts.criticalDependencies, tone: controlCenter.summary.counts.criticalDependencies ? "warning" : "neutral", onSelect: () => onOpenSection("control") },
-            { label: "Linked work", value: projectRelationships.length, detail: projectRelationshipTypes.length ? projectRelationshipTypes.join(" · ") : "No relationships", tone: projectBlockingRelationships ? "warning" : projectRelationships.length ? "good" : "neutral", onSelect: () => onOpenSection("control") },
-          ]} /> : <div className="project-clear-v57"><strong>Project controls are not configured.</strong><ClusterButton size="compact" onClick={() => onOpenSection("control")}>Configure controls</ClusterButton></div>}
-          <div className="project-metadata-stack-v57"><RelatedRecordsPanel entity={{ kind: "project", id: project.id, label: project.name, projectId: project.id }} projectId={project.id} /><CustomFieldValuesPanel entity="project" entityId={project.id} projectId={project.id} title="Project fields" /><VersionHistoryPanel entityType="project" entityId={project.id} projectId={project.id} label={project.name} data={project} onRestore={onRestore} /></div>
-      </ClusterDisclosureGroup>
     </div>
   );
 }

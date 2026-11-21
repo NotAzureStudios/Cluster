@@ -41,7 +41,7 @@ test('full page profile is available and returnable',()=> {
 });
 test('private location remains hidden on public overview',()=>{
   const s=read('packages/renderer/src/features/people/PeoplePages.tsx');
-  assert.match(s,/profile\.hideLocation \? "Hidden"/);
+  assert.match(s,/profile\.hideLocation \? null : profile\.workLocation/);
 });
 test('board close returns to origin, not owning project unless opened from project',()=>{
  const s=read('packages/renderer/src/features/application/ClusterApplication.tsx');

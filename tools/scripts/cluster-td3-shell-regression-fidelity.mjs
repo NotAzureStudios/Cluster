@@ -13,11 +13,11 @@ const fixture=read('tools/fixtures/td3-pass7-workspace.html');
 const previews=read('tools/scripts/cluster-td3-pass11-previews.py');
 const search=read('packages/renderer/src/features/search/search.css');
 const cases = [
-  ['real taskbar mounts My Work',()=>assert.match(taskbar,/canSeeMyWork && \([\s\S]*?onClick=\{onOpenMyWork\}/)],
-  ['real taskbar mounts Tickets',()=>assert.match(taskbar,/canSeeTickets && \([\s\S]*?cluster-taskbar-action--icon tickets/)],
+  ['sidebar mounts My Work',()=>{assert.match(process.getBuiltinModule('node:fs').readFileSync(new URL('../../packages/renderer/src/features/application/modules/ApplicationSidebar.tsx', import.meta.url),'utf8'),/navigate\("mywork"\)/,'My Work is in the sidebar');}],
+  ['real taskbar mounts Tickets',()=>assert.match(taskbar,/canSeeTickets && \([\s\S]*?cl-tb-action--icon tickets/)],
   ['real taskbar mounts Transfer Center',()=>assert.match(taskbar,/<TaskbarTransferCenter\s*\/>/)],
   ['Transfer Center includes browser downloads',()=>assert.match(transfer,/browserDownloads\.map/)],
-  ['real taskbar mounts one search trigger',()=>assert.equal((taskbar.match(/className="cluster-taskbar-action cluster-taskbar-command"/g)||[]).length,1)],
+  ['real taskbar mounts one search trigger',()=>assert.equal((taskbar.match(/className="cl-tb-action cl-tb-command"/g)||[]).length,1)],
   ['taskbar tab component only maps project objects',()=>{assert.match(tabs,/openProjectIds\.map/);assert.doesNotMatch(tabs,/onOpenPeople\(/);}],
   ['People avatar has identity color data',()=>assert.match(avatar,/--user-avatar-accent/)],
   ['People avatar includes separate presence indicator',()=>assert.match(avatar,/cluster-presence-indicator-v227/)],

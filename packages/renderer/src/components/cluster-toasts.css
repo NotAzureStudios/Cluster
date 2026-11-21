@@ -1,0 +1,88 @@
+/* Toasts — the only stylesheet for ct-*. A stack of small cards in the
+   corner the user chose (top right by default). Tone tints the icon; a hairline at the bottom
+   shows the time left and stops while the toast is paused. */
+
+.ct-stack {
+  position: fixed;
+  z-index: 2147483000;
+  display: grid;
+  gap: var(--space-2);
+  width: min(380px, calc(100vw - 2 * var(--space-3)));
+  pointer-events: none;
+}
+/* Top corners sit under the title bar so they never cover its controls. */
+.ct-stack[data-position^="top"] { top: calc(var(--cl-titlebar-h, 44px) + var(--space-2)); align-content: start; }
+.ct-stack[data-position^="bottom"] { bottom: var(--space-3); align-content: end; }
+.ct-stack[data-position$="right"] { right: var(--space-3); justify-items: end; }
+.ct-stack[data-position$="left"] { left: var(--space-3); justify-items: start; }
+.ct-stack:empty { display: none; }
+.ct-more { padding: 2px 8px; border-radius: 999px; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); color: var(--muted); font-size: var(--cluster-font-size-2xs); pointer-events: auto; }
+
+.ct {
+  --ct-tone: var(--accent);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2-5) var(--space-1-5) var(--space-2-5) var(--space-2-5);
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cluster-workbench-panel) 92%, var(--text));
+  box-shadow: 0 10px 30px rgb(0 0 0 / .35), 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+  pointer-events: auto;
+  animation: ct-in .22s cubic-bezier(.2, .8, .2, 1);
+}
+.ct[data-tone="success"] { --ct-tone: var(--success); }
+.ct[data-tone="warning"] { --ct-tone: var(--warning); }
+.ct[data-tone="danger"] { --ct-tone: var(--danger); }
+@keyframes ct-in { from { opacity: 0; transform: translateY(var(--ct-enter, -8px)) scale(.98); } }
+.ct-stack[data-position^="bottom"] { --ct-enter: 8px; }
+@media (prefers-reduced-motion: reduce) { .ct { animation: none; } }
+
+.ct-body { display: flex; flex: 1; align-items: flex-start; gap: var(--space-2-5); min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; }
+button.ct-body { cursor: pointer; }
+button.ct-body:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.ct-icon { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 8px; background: color-mix(in srgb, var(--ct-tone) 18%, transparent); color: var(--ct-tone); }
+.ct-icon svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; }
+.ct-copy { display: grid; gap: 1px; min-width: 0; line-height: 1.3; }
+.ct-copy small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-2xs); text-overflow: ellipsis; white-space: nowrap; }
+.ct-copy strong { font-size: var(--cluster-font-size-sm); font-weight: 600; }
+.ct-copy span { display: -webkit-box; overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.ct-action { flex: none; align-self: center; }
+.ct-close { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; opacity: .6; }
+.ct:hover .ct-close, .ct-close:focus-visible { opacity: 1; }
+.ct-close:hover { background: var(--cluster-button-fill); color: var(--text); }
+.ct-close svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
+
+.ct-timer { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: color-mix(in srgb, var(--ct-tone) 70%, transparent); transform-origin: left; animation: ct-timer var(--ct-duration, 5s) linear forwards; animation-play-state: paused; }
+.ct-timer[data-running] { animation-play-state: running; }
+@keyframes ct-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (max-width: 640px) {
+  .ct-stack[data-position] { left: 50%; right: auto; transform: translateX(-50%); justify-items: center; }
+}
+
+/* Corner picker (Settings → Notifications): a small screen with a button
+   in each corner; the chosen corner shows a toast-shaped bar. */
+.ct-corner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  width: 112px;
+  height: 72px;
+  padding: 5px;
+  border-radius: 8px;
+  background: var(--cluster-recess);
+  box-shadow: inset 0 9px 0 color-mix(in srgb, var(--text) 6%, transparent);
+}
+.ct-corner > button { display: flex; padding: 3px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; }
+.ct-corner > button:hover { background: var(--cluster-button-fill); }
+.ct-corner > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ct-corner > button[data-corner^="top"] { align-items: flex-start; padding-top: 9px; }
+.ct-corner > button[data-corner^="bottom"] { align-items: flex-end; }
+.ct-corner > button[data-corner$="right"] { justify-content: flex-end; }
+.ct-corner > button > i { width: 26px; height: 8px; border-radius: 3px; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.ct-corner > button.is-active > i { background: var(--accent); }
+.ct-corner-row { align-items: center; }

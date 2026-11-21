@@ -1,0 +1,144 @@
+/* Project header — the only stylesheet for pj-head and the project tab row.
+   Row one is identity and facts; row two is the tabs, underlined rather than
+   boxed. Facts are short indicators (a ring, a date with days left, a head
+   count), not label/value pairs, and drop away as the window narrows. */
+
+.pj-head { display: grid; gap: var(--space-1); margin: 0; min-width: 0; }
+/* The page wrapper's own padding predates the frame gutter; the gutter is enough. */
+.project-page-v312:has(> .pj-head) { gap: var(--space-3); padding: var(--space-2) 0 var(--space-6); }
+
+.pj-head__row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: 40px; }
+.pj-head__back.cluster-icon-button-v425 { flex: none; margin-left: -6px; color: var(--muted); }
+.pj-head__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--project-detail-accent) 18%, transparent);
+  color: var(--project-detail-accent);
+}
+.pj-head__mark > * { max-width: 20px; max-height: 20px; }
+.pj-head h1 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--cluster-font-size-xl);
+  font-weight: 600;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pj-status {
+  --pj-tone: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pj-tone) 14%, transparent);
+  color: var(--pj-tone);
+  font-size: var(--cluster-font-size-xs);
+  font-weight: 600;
+}
+.pj-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pj-status[data-tone="good"] { --pj-tone: var(--success); }
+.pj-status[data-tone="warning"] { --pj-tone: var(--warning); }
+.pj-status[data-tone="danger"] { --pj-tone: var(--danger); }
+
+.pj-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0 0 0 var(--space-2);
+  padding: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--cluster-font-size-sm);
+  list-style: none;
+  white-space: nowrap;
+}
+.pj-facts li { display: inline-flex; align-items: center; gap: 5px; }
+.pj-facts svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
+.pj-facts small { font-size: var(--cluster-font-size-xs); opacity: .8; }
+.pj-facts li[data-tone="warning"] { color: var(--warning); }
+.pj-facts li[data-tone="danger"] { color: var(--danger); }
+
+.pj-head__actions { display: flex; align-items: center; gap: var(--space-1); flex: none; margin-left: auto; }
+
+@media (max-width: 1200px) { .pj-facts__soft { display: none; } }
+@media (max-width: 900px) { .pj-facts { display: none; } }
+
+/* Tabs, then the settings gear at the far right of the same line. */
+.pj-tabbar { display: flex; align-items: stretch; min-width: 0; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); }
+.pj-tabbar > .compact-section-nav-v204 { flex: 1; box-shadow: none !important; }
+.pj-tabbar__settings { align-self: center; margin-left: var(--space-1); color: var(--muted); }
+.pj-tabbar__settings:hover, .pj-tabbar__settings[data-active] { color: var(--text); }
+.pj-tabbar__settings[data-active] { background: var(--cluster-button-fill); }
+.pj-head .compact-section-nav-v204 {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--cluster-workbench-border);
+}
+.pj-head .compact-section-primary-v204 { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.pj-head .compact-section-primary-v204::-webkit-scrollbar { display: none; }
+.pj-head .compact-section-more-v204 { display: flex; flex: none; }
+.pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 var(--space-2-5);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--cluster-font-size-md);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button:hover { color: var(--text); }
+.pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button.active { color: var(--text); font-weight: 600; }
+.pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button.active::after {
+  content: "";
+  position: absolute;
+  inset: auto var(--space-2) 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.pj-head .compact-section-nav-v204 button strong { font: inherit; }
+/* A tab's detail (a count) reads as a small badge beside its name. */
+.pj-head .compact-section-primary-v204 > button > span[aria-hidden="true"] {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--cluster-button-fill);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.pj-head .compact-section-more-v204 em { color: var(--text); font-style: normal; }
+.pj-head .compact-section-more-chevron.cluster-icon-svg { inline-size: 12px; block-size: 12px; }

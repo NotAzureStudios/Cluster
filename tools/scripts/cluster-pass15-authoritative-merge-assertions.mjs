@@ -21,7 +21,7 @@ const checks = [
  ['Operations remains at five canonical main destinations', ['Command Center','Incidents','Governance','Systems','Data & Audit'].every(x=>read('packages/renderer/src/features/admin/admin-workspace-state.ts').includes(x))],
  ['Audit stream is preserved', ui.includes('<AdminAuditStreamPanel projects={projects} users={users} />')],
  ['Original Data & Audit import specialists restored', ui.includes('<ImportToolsPanel')],
- ['Original relationship controls restored', ui.includes('<DataModelStandardsPanel') && ui.includes('<WorkLinkManager')],
+ ['Relationship controls live with the project', read('packages/renderer/src/features/application/modules/application-project-delivery.tsx').includes('<WorkLinkManager')],
  ['Original template and changelog controls restored', ui.includes('<TemplateStudioPanel') && ui.includes('<ChangelogPage')],
  ['Admin command hub contains tool and configuration quick actions', ui.includes('admin-workspace-hub-v15') && ui.includes('onOpenToolInfrastructure?.()')],
  ['Server Configuration restores four authoritative domains', ['Runtime','Security & Access','Data & Recovery','Extensions'].every(x=>server.includes(`label: "${x}"`))],

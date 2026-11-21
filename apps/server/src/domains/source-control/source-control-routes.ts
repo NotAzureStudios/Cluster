@@ -162,7 +162,7 @@ async function projectSourceContext(deps: Dependencies, request: FastifyRequest,
   return { project, binding: project.sourceBindings[0] || null };
 }
 
-async function queueSync(deps: Dependencies, repositoryId: string, workspaceId: string, userId?: string | null, authorization?: { action: "contribute" | "manage"; resource: { kind: "project"; projectId: string } | { kind: "tool"; tool: string }; minimum: "contribute" | "manage"; tool?: string }) {
+export async function queueSync(deps: Pick<Dependencies, "prisma" | "sourceControl" | "queue">, repositoryId: string, workspaceId: string, userId?: string | null, authorization?: { action: "contribute" | "manage"; resource: { kind: "project"; projectId: string } | { kind: "tool"; tool: string }; minimum: "contribute" | "manage"; tool?: string }) {
   const active = await deps.prisma.sourceOperation.findFirst({
     where: { repositoryId, status: { in: ["queued", "running"] } },
     orderBy: { createdAt: "desc" },

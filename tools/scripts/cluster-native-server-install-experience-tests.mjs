@@ -57,7 +57,7 @@ check("First-run Owner uses the same password minimum as other accounts", () => 
   assert.match(owner, /!existingComplete && !isLoopbackAddress\(request\.ip\)/);
   assert.match(owner, /ownerPassword: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
   assert.match(owner, /validateNewPassword\(body\.ownerPassword, \{ username: ownerUsername, displayName: ownerUsername \}\)/);
-  assert.match(wizard, /All accounts, including the initial Owner, require 12–1024 character passwords/);
+  assert.match(wizard, /12–1024 characters/);
   assert.match(wizard, /minLength=\{12\}/);
   assert.doesNotMatch(owner + wizard, /PRIVILEGED_PASSWORD_MIN_LENGTH|allowPrivilegedShortPassword|Owner passwords may be 1/);
   assert.match(read("apps/server/src/core/auth.ts"), /export const PASSWORD_MIN_LENGTH = 12/);

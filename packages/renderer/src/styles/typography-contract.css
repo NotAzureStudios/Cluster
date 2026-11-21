@@ -1,4 +1,21 @@
-@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+/* Self-hosted. This was an @import of fonts.googleapis.com, which is
+   render-blocking and serialized — the browser had to parse this file, fetch
+   Google's stylesheet, then fetch the face from a second host before text
+   could paint. On a studio network without internet the request simply fails
+   and Cluster loses Comfortaa altogether, falling back to Segoe UI. It also
+   told Google the address of every person opening an internal tool.
+   Vite inlines these at build time and emits the woff2 as hashed assets, so
+   there is no round trip at all. Declaring a weight costs only the @font-face
+   bytes: a browser fetches the file only if rendered text actually uses it,
+   which is why Inter can sit here for the people who pick it without costing
+   anyone who does not. */
+@import "@fontsource/comfortaa/latin-400.css";
+@import "@fontsource/comfortaa/latin-500.css";
+@import "@fontsource/comfortaa/latin-600.css";
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
 /* Block 14: renderer typography SSOT. */
 :root{--cluster-font-stack:"Comfortaa","Segoe UI Variable","Segoe UI",ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,sans-serif;--cluster-active-font:var(--cluster-font-stack);--font-display:var(--cluster-active-font);font-family: var(--cluster-active-font);}:root[data-font="comfortaa"]{--cluster-active-font:var(--cluster-font-stack);}:root[data-font="inter"]{--cluster-active-font:"Inter","Segoe UI Variable","Segoe UI",ui-sans-serif,system-ui,sans-serif;}:root[data-font="system"]{--cluster-active-font:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}:root[data-font="mono"]{--cluster-active-font:"Cascadia Code","Fira Code",Consolas,monospace;}html,body,#root,button,input,textarea,select,option{font-family: var(--cluster-active-font);}code,pre,kbd,samp{font-family:"Cascadia Code","Fira Code",Consolas,monospace;}
 

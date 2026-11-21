@@ -93,6 +93,7 @@ await test('legacy AccessRule handlers reject direct individual issuance and ext
     './authorization.js':{ACCESS_RULE_TARGET_KINDS:['project'],AUTHORIZATION_RULE_SELECT:{}},
     './project-target-discovery.js':{discoverProjectAccessTargets:async()=>[],PROJECT_ACCESS_PICKER_KINDS:['project']},
     './project-rule-preview.js':{previewProjectRuleImpact:async()=>({})},
+    './project-access-people.js':{listProjectAccessPeople:async()=>({ok:true,people:[]})},
     '../workforce/workforce-user-authority.js':{WORKFORCE_USER_AUTHORITY_INCLUDE:{}},
   });
   const handlers={};const app={post:(url,fn)=>handlers[`POST ${url}`]=fn,get:(url,fn)=>handlers[`GET ${url}`]=fn,patch:(url,fn)=>handlers[`PATCH ${url}`]=fn,delete:(url,fn)=>handlers[`DELETE ${url}`]=fn};

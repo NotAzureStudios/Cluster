@@ -236,7 +236,7 @@ export function VaultManager() {
   }
 
   return <section className="cluster-resource-workspace__body" aria-label="Vault secret manager">
-    <div className="cluster-vault-summary" aria-label="Vault overview">
+    {records.length ? <div className="cluster-vault-summary" aria-label="Vault overview">
       <div className="cluster-vault-visual-status">
         <ClusterVisualComposition label={cursor ? "Loaded credentials · more available" : "Credential states"} total={records.length} parts={[
           { label: "Active", value: records.filter((record) => secretState(record) === "Active").length, tone: "good" },
@@ -244,19 +244,21 @@ export function VaultManager() {
           { label: "Revoked", value: records.filter((record) => secretState(record) === "Revoked").length, tone: "neutral" },
         ]} />
       </div>
-      {reviewsLoaded && rotationReviews.some((review) => review.status === "pending") && <span className="cluster-vault-review-indicator" role="status"><ClusterIcon name="bell" /> {rotationReviews.filter((review) => review.status === "pending").length} pending reviews</span>}
-      <ClusterButton size="compact" variant="secondary" onClick={() => { setReviewsOpen((open) => !open); setSelectedId(""); if (!reviewsOpen) void loadReviews(); }} aria-expanded={reviewsOpen}><ClusterIcon name="bell" /> Reviews</ClusterButton>
-      <ClusterButton variant="primary" size="compact" onClick={() => { setCreateOpen((open) => !open); setSelectedId(""); conceal(); }} aria-expanded={createOpen}><ClusterIcon name={createOpen ? "close" : "plus"} />{createOpen ? "Close" : "New secret"}</ClusterButton>
-    </div>
+    </div> : null}
+    {/* One toolbar: category, search, state and refresh; reviews and new secret on the right. */}
+    <div className="cluster-vault-toolbar">
     <nav className="cluster-vault-categories" aria-label="Credential categories">{([
       ["all", "All", "lock"], ["password", "Passwords", "lock"], ["integration", "Integrations", "link"], ["license_key", "Licenses", "game"], ["game_key", "Game keys", "game"], ["other", "Other", "file"]
-    ] as const).map(([id, label, icon]) => <ClusterButton key={id} size="compact" variant={kindFilter === id ? "primary" : "secondary"} aria-pressed={kindFilter === id} onClick={() => { conceal(); setSelectedId(""); setKindFilter(id); }}><ClusterIcon name={icon} /> {label}</ClusterButton>)}</nav>
-    <div className="cluster-vault-toolbar">
+    ] as const).map(([id, label, icon]) => <ClusterButton key={id} size="compact" variant="quiet" selected={kindFilter === id} aria-pressed={kindFilter === id} onClick={() => { conceal(); setSelectedId(""); setKindFilter(id); }}><ClusterIcon name={icon} /> {label}</ClusterButton>)}</nav>
       <ClusterInput aria-label="Search Vault metadata" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search labels or classifications…" />
       <ClusterNativeSelect aria-label="Filter Vault status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
         <option value="all">All states</option><option value="active">Active</option><option value="expired">Expired</option><option value="revoked">Revoked</option>
       </ClusterNativeSelect>
-      <ClusterButton disabled={busy || loading} variant="secondary" onClick={() => { conceal(); void load(); if (reviewsOpen || rotationOpen) void loadReviews(); }}><ClusterIcon name="refresh" /> Refresh</ClusterButton>
+      <ClusterButton size="compact" disabled={busy || loading} variant="quiet" aria-label="Refresh" title="Refresh" onClick={() => { conceal(); void load(); if (reviewsOpen || rotationOpen) void loadReviews(); }}><ClusterIcon name="refresh" /></ClusterButton>
+      <span className="cluster-vault-toolbar-spacer" />
+      {reviewsLoaded && rotationReviews.some((review) => review.status === "pending") && <span className="cluster-vault-review-indicator" role="status"><ClusterIcon name="bell" /> {rotationReviews.filter((review) => review.status === "pending").length} pending reviews</span>}
+      <ClusterButton size="compact" variant="secondary" onClick={() => { setReviewsOpen((open) => !open); setSelectedId(""); if (!reviewsOpen) void loadReviews(); }} aria-expanded={reviewsOpen}><ClusterIcon name="bell" /> Reviews</ClusterButton>
+      <ClusterButton variant="primary" size="compact" onClick={() => { setCreateOpen((open) => !open); setSelectedId(""); conceal(); }} aria-expanded={createOpen}><ClusterIcon name={createOpen ? "close" : "plus"} />{createOpen ? "Close" : "New secret"}</ClusterButton>
     </div>
     {error && <p role="alert" className="settings-card-v092">{error}</p>}
     {notice && <p role="status" className="settings-card-v092">{notice}</p>}

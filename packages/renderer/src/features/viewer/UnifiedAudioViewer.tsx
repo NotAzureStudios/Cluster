@@ -24,6 +24,7 @@ import { useTimedMediaController } from "./use-timed-media-controller";
 import { useTimedMediaSystemIntegration } from "./use-timed-media-system-integration";
 import { ViewerOverlayLayer } from "./ViewerOverlayLayer";
 import { ViewerShell } from "./ViewerShell";
+import { isOpenReviewComment, nextReviewAttention, reviewAttentionTone, reviewThreadRoots } from "./review-attention";
 import { ViewerState } from "./ViewerState";
 import { viewerOverlayCatalogForMedium } from "./viewer-overlay-catalog";
 import { absoluteViewerResourceUrl, resolveViewerResourceSource } from "./viewer-resource-loader";
@@ -43,6 +44,9 @@ type ReviewCommentRecord = {
   id: string;
   body?: string | null;
   status?: string | null;
+  priority?: string | null;
+  category?: string | null;
+  parentCommentId?: string | null;
   createdAt?: string | null;
   locator?: unknown;
   user?: { displayName?: string | null; username?: string | null } | null;
@@ -66,7 +70,6 @@ type AudioStemRuntime = ProductionAudioStemMetadata & {
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, Number.isFinite(value) ? value : min)); }
 function dbToGain(value: number) { return Math.pow(10, clamp(value, STEM_GAIN_MIN_DB, STEM_GAIN_MAX_DB) / 20); }
 function gainToDb(value: number) { return value > 0 ? 20 * Math.log10(value) : STEM_GAIN_MIN_DB; }
-function percent(value: number) { return `${Math.round(clamp(value, 0, 1) * 100)}%`; }
 
 function formatTime(seconds: number) {
   const safe = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
@@ -99,7 +102,8 @@ function parseTime(value: string) {
 }
 
 function readNumberPreference(key: string, fallback: number) {
-  const value = Number(readPreferenceStorage(key));
+  const raw = readPreferenceStorage(key);
+  const value = raw == null || raw === "" ? Number.NaN : Number(raw);
   return Number.isFinite(value) ? value : fallback;
 }
 
@@ -282,7 +286,7 @@ function AudioWaveformCanvas({
     onSeek(ratio * duration);
   }, [duration, onSeek]);
 
-  const markerComments = comments.map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item): item is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof audioLocator>> } => Boolean(item.locator));
+  const markerComments = reviewThreadRoots(comments).map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item): item is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof audioLocator>> } => Boolean(item.locator));
 
   return <div
     ref={hostRef}
@@ -307,8 +311,8 @@ function AudioWaveformCanvas({
   >
     <canvas ref={canvasRef} aria-hidden="true" />
     <div className="cluster-audio-buffer-ranges" aria-hidden="true">{snapshot.buffered.map((range, index) => duration > 0 ? <span key={`${range.start}:${range.end}:${index}`} style={runtimeStyle({ left: `${clamp(range.start / duration, 0, 1) * 100}%`, width: `${clamp((range.end - range.start) / duration, 0, 1) * 100}%` })} /> : null)}</div>
-    {showRegions ? <div className="cluster-audio-review-regions" aria-hidden="true">{markerComments.filter(({ locator }) => locator.endTimeSeconds != null && duration > 0).map(({ comment, locator }) => <span key={comment.id} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%`, width: `${clamp(((locator.endTimeSeconds || locator.timeSeconds) - locator.timeSeconds) / duration, 0, 1) * 100}%` })} />)}</div> : null}
-    {showMarkers ? <div className="cluster-audio-review-markers">{markerComments.map(({ comment, locator }) => duration > 0 ? <ClusterButton type="button" key={comment.id} variant="quiet" size="compact" className={`cluster-audio-review-marker${comment.status === "resolved" ? " resolved" : ""}`} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%` })} title={`${formatShortTime(locator.timeSeconds)} · ${comment.body || "Review note"}`} aria-label={`Review note at ${formatTime(locator.timeSeconds)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onSeek(locator.timeSeconds); }}><span /></ClusterButton> : null)}</div> : null}
+    {showRegions ? <div className="cluster-audio-review-regions" aria-hidden="true">{markerComments.filter(({ locator }) => locator.endTimeSeconds != null && duration > 0).map(({ comment, locator }) => <span key={comment.id} data-tone={reviewAttentionTone(comment)} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%`, width: `${clamp(((locator.endTimeSeconds || locator.timeSeconds) - locator.timeSeconds) / duration, 0, 1) * 100}%` })} />)}</div> : null}
+    {showMarkers ? <div className="cluster-audio-review-markers">{markerComments.map(({ comment, locator }) => duration > 0 ? <ClusterButton type="button" key={comment.id} variant="quiet" size="compact" className="cluster-audio-review-marker" data-tone={reviewAttentionTone(comment)} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%` })} title={`${formatShortTime(locator.timeSeconds)} · ${comment.priority || "medium"} · ${comment.body || "Review note"}`} aria-label={`Review note at ${formatTime(locator.timeSeconds)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onSeek(locator.timeSeconds); }}><span /></ClusterButton> : null)}</div> : null}
   </div>;
 }
 
@@ -416,6 +420,7 @@ function AudioReviewComposer({
 
 function AudioAdapter({
   session,
+  mode,
   compareSession,
   comparison,
   visibleOverlayIds,
@@ -459,6 +464,7 @@ function AudioAdapter({
   onMonitoringPreset: (value: AudioMonitoringPreset) => void;
   onActiveTrack: (value: string | null) => void;
   onStemState: (id: string, patch: Partial<StemMonitoringState>) => void;
+  mode: ViewerMode;
   onShowComposer: (value: boolean) => void;
   onReload: () => void;
   onDiagnostics: (value: Record<string, unknown>) => void;
@@ -534,9 +540,8 @@ function AudioAdapter({
   const compareWaveformSamples = compareWaveform.data?.channels[0]?.samples || [];
   const maxPeak = waveform.data?.channels.reduce((peak, channel) => Math.max(peak, Number(channel.peak || 0)), 0) || masterMeter.peak;
   const maxRms = waveform.data?.channels.reduce((peak, channel) => Math.max(peak, Number(channel.rms || 0)), 0) || masterMeter.rms;
-  const bufferAhead = snapshot.buffered.reduce((best, range) => range.start <= snapshot.currentTime && range.end >= snapshot.currentTime ? Math.max(best, range.end - snapshot.currentTime) : best, 0);
-  const trackSummary = selectedTrack ? trackLabel(selectedTrack) : "Container mix";
   const meterSummary = `${gainToDb(Math.max(masterMeter.rms, 0.00001)).toFixed(1)} dB RMS · ${gainToDb(Math.max(masterMeter.peak, 0.00001)).toFixed(1)} dB peak`;
+  const trackSummary = selectedTrack ? trackLabel(selectedTrack) : "Container mix";
   const values: Record<string, string> = {
     "audio.timecode": `${formatTime(snapshot.currentTime)} / ${formatTime(snapshot.duration)}`,
     "audio.tracks": `${trackSummary}${activeStemId ? ` · ${activeStemId}` : ""}`,
@@ -555,6 +560,17 @@ function AudioAdapter({
 
   if (snapshot.phase === "error") return <ViewerState compact tone="error" title="Audio playback failed" description={snapshot.errorMessage || "The authorized audio source could not be played."} actions={<ClusterButton size="compact" variant="secondary" onClick={onReload}>Retry</ClusterButton>} />;
 
+  // Review and technical modes show where notes need attention.
+  const showAttention = mode !== "view";
+  const noteMarkers = reviewThreadRoots(comments).map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item) => item.locator);
+  const openNoteTimes = noteMarkers.filter(({ comment }) => isOpenReviewComment(comment)).map(({ locator }) => locator!.timeSeconds);
+  const jumpToAttention = (direction: 1 | -1) => {
+    const target = nextReviewAttention(openNoteTimes, snapshot.currentTime, direction);
+    if (target == null) return;
+    controller.pause();
+    seek(target);
+  };
+
   return <div className="cluster-audio-adapter">
     <audio ref={setMainElement} src={selection.url} preload="metadata" crossOrigin="use-credentials" className="cluster-audio-hidden-media" aria-label={`${session.resource.source.title} audio`} />
     {compareSelection?.url ? <audio ref={setCompareElement} src={compareSelection.url} preload="metadata" crossOrigin="use-credentials" className="cluster-audio-hidden-media" aria-label="Comparison audio" /> : null}
@@ -565,46 +581,49 @@ function AudioAdapter({
     })}
 
     <div className="cluster-audio-main">
-      <div className="cluster-audio-stage-head">
-        <div><ClusterIcon name="audio" /><span><strong>{session.resource.source.title}</strong><small>{session.resource.source.mimeType} · {trackSummary}</small></span></div>
-        <Meter rms={masterMeter.rms} peak={masterMeter.peak} supported={masterMeter.supported} label="Master" />
-      </div>
-
-      <div className={compareSession ? "cluster-audio-waveform-compare" : ""}>
-        <AudioWaveformCanvas title={session.resource.source.title} samples={waveformSamples} snapshot={snapshot} comments={comments} showMarkers={visibleOverlayIds.includes("audio.waveform_markers") || visibleOverlayIds.includes("review.annotations")} showRegions={visibleOverlayIds.includes("audio.clip_regions")} onSeek={seek} />
+      <div className={compareSession ? "cluster-audio-waveform-compare" : "cluster-audio-waveform-single"}>
+        <AudioWaveformCanvas title={session.resource.source.title} samples={waveformSamples} snapshot={snapshot} comments={comments} showMarkers={showAttention || visibleOverlayIds.includes("audio.waveform_markers") || visibleOverlayIds.includes("review.annotations")} showRegions={showAttention || visibleOverlayIds.includes("audio.clip_regions")} onSeek={seek} />
         {compareSession ? <AudioWaveformCanvas title={compareSession.resource.source.title} samples={compareWaveformSamples} snapshot={snapshot} comments={[]} showMarkers={false} showRegions={false} onSeek={seek} /> : null}
       </div>
-      <div className="cluster-audio-waveform-meta"><span>{waveform.state === "ready" ? `${waveformSamples.length.toLocaleString()} canonical waveform bins` : waveform.state === "loading" ? "Loading canonical waveform…" : waveform.state === "error" ? "Waveform artifact unavailable" : "Waveform not generated; streamed transport remains available"}</span><span>{bufferAhead > 0 ? `${bufferAhead.toFixed(1)}s buffered ahead` : snapshot.phase}</span></div>
 
       <div className="cluster-audio-transport" role="group" aria-label="Audio transport controls">
-        <ClusterIconButton label={`Back ${skipSeconds} seconds`} variant="quiet" onClick={() => controller.jump(-skipSeconds)}><ClusterIcon name="rewind" /></ClusterIconButton>
-        <ClusterIconButton label={snapshot.phase === "playing" ? "Pause" : "Play"} variant="primary" onClick={() => void controller.toggle()}><ClusterIcon name={snapshot.phase === "playing" ? "pause" : "play"} /></ClusterIconButton>
-        <ClusterIconButton label={`Forward ${skipSeconds} seconds`} variant="quiet" onClick={() => controller.jump(skipSeconds)}><ClusterIcon name="forward" /></ClusterIconButton>
+        <ClusterIconButton label={snapshot.phase === "playing" ? "Pause" : "Play"} title={snapshot.phase === "playing" ? "Pause (Space)" : "Play (Space)"} variant="primary" onClick={() => void controller.toggle()}><ClusterIcon name={snapshot.phase === "playing" ? "pause" : "play"} /></ClusterIconButton>
+        <ClusterIconButton label={`Back ${skipSeconds} seconds`} size="compact" variant="quiet" onClick={() => controller.jump(-skipSeconds)}><ClusterIcon name="rewind" /></ClusterIconButton>
+        <ClusterIconButton label={`Forward ${skipSeconds} seconds`} size="compact" variant="quiet" onClick={() => controller.jump(skipSeconds)}><ClusterIcon name="forward" /></ClusterIconButton>
         <span className="cluster-audio-time-readout">{formatShortTime(snapshot.currentTime)} <small>/ {formatShortTime(snapshot.duration)}</small></span>
-        <form className="cluster-audio-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Seek to timecode" placeholder="mm:ss" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /><ClusterButton size="compact" variant="quiet" type="submit">Go</ClusterButton></form>
-        <label className="cluster-audio-master-volume"><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /><ClusterSlider aria-label="Master volume" min="0" max="1" step="0.01" value={snapshot.volume} onChange={(event) => { const value = Number(event.target.value); controller.setVolume(value); writePreferenceStorage("cluster-media-volume", String(value)); }} /><span>{percent(snapshot.volume)}</span></label>
-        <ClusterIconButton label={snapshot.muted ? "Unmute" : "Mute"} variant="quiet" selected={snapshot.muted} onClick={() => controller.setMuted(!snapshot.muted)}><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /></ClusterIconButton>
+        <form className="cluster-audio-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Seek to timecode" title="Type a time and press Enter" placeholder="Go to…" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /></form>
+        {showAttention && noteMarkers.length ? <span className="cluster-review-attention" data-open={openNoteTimes.length ? "true" : "false"}>
+          <ClusterIconButton size="compact" label="Previous open note" title="Previous open note" disabled={!openNoteTimes.length} onClick={() => jumpToAttention(-1)}><ClusterIcon name="chevron-left" /></ClusterIconButton>
+          <span title={`${openNoteTimes.length} open of ${noteMarkers.length} notes`}><b>{openNoteTimes.length}</b> open</span>
+          <ClusterIconButton size="compact" label="Next open note" title="Next open note" disabled={!openNoteTimes.length} onClick={() => jumpToAttention(1)}><ClusterIcon name="chevron-right" /></ClusterIconButton>
+        </span> : null}
+        <span className="cluster-audio-transport-spacer" />
+        <ClusterNativeSelect aria-label="Playback speed" value={playbackRate} onChange={(event) => onPlaybackRate(Number(event.target.value))}>{AUDIO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect>
+        <ClusterNativeSelect aria-label="Output" value={outputMode} onChange={(event) => onOutputMode(event.target.value as AudioOutputMode)}>{AUDIO_OUTPUT_MODES.map((mode) => <option key={mode} value={mode}>{outputLabel(mode)}</option>)}</ClusterNativeSelect>
+        <Meter rms={masterMeter.rms} peak={masterMeter.peak} supported={masterMeter.supported} label="Master" />
+        <span className="cluster-audio-master-volume">
+          <ClusterIconButton label={snapshot.muted ? "Unmute" : "Mute"} size="compact" variant="quiet" selected={snapshot.muted} onClick={() => controller.setMuted(!snapshot.muted)}><ClusterIcon name={snapshot.muted ? "mute" : "volume"} /></ClusterIconButton>
+          <ClusterSlider aria-label="Master volume" min="0" max="1" step="0.01" value={snapshot.volume} onChange={(event) => { const value = Number(event.target.value); controller.setVolume(value); writePreferenceStorage("cluster-media-volume", String(value)); }} />
+        </span>
       </div>
     </div>
 
-    <aside className="cluster-audio-mixer" aria-label="Audio monitoring mixer">
-      <section>
-        <header><div><strong>Monitoring</strong><span>Session-only mix state</span></div></header>
+    {/* The mixer only appears when there is something to mix. */}
+    {stems.length || tracks.length > 1 ? <aside className="cluster-audio-mixer" aria-label="Audio monitoring mixer">
+      {stems.length ? <section>
+        <header><strong>Monitoring</strong></header>
         <div className="cluster-audio-preset-grid">{AUDIO_MONITORING_PRESETS.filter((preset) => preset !== "custom").map((preset) => <ClusterButton key={preset} size="compact" variant="quiet" selected={monitoringPreset === preset} onClick={() => onMonitoringPreset(preset)}>{monitorPresetLabel(preset)}</ClusterButton>)}</div>
-        <label><span>Output</span><ClusterNativeSelect value={outputMode} onChange={(event) => onOutputMode(event.target.value as AudioOutputMode)}>{AUDIO_OUTPUT_MODES.map((mode) => <option key={mode} value={mode}>{outputLabel(mode)}</option>)}</ClusterNativeSelect></label>
-        <label><span>Playback</span><ClusterNativeSelect value={playbackRate} onChange={(event) => onPlaybackRate(Number(event.target.value))}>{AUDIO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect></label>
-        <label><span>Skip</span><ClusterNativeSelect value={skipSeconds} onChange={(event) => onSkipSeconds(Number(event.target.value))}>{AUDIO_SKIP_SECONDS.map((seconds) => <option key={seconds} value={seconds}>{seconds}s</option>)}</ClusterNativeSelect></label>
-      </section>
+      </section> : null}
 
-      <section>
-        <header><div><strong>Embedded tracks</strong><span>{tracks.length ? `${tracks.length} container stream${tracks.length === 1 ? "" : "s"}` : "No track metadata"}</span></div></header>
-        {tracks.length ? <ClusterNativeSelect aria-label="Embedded audio track" value={selectedTrack?.id || ""} onChange={(event) => onActiveTrack(event.target.value || null)}>{tracks.map((track) => <option key={track.id} value={track.id}>{trackLabel(track)}</option>)}</ClusterNativeSelect> : <p className="muted">No embedded-track metadata was reported by the media probe.</p>}
-        {tracks.length > 1 && snapshot.embeddedTrackControl === "metadata_only" ? <small className="cluster-audio-degraded-note">This runtime does not expose browser audio-track switching. The selected track is retained as review context, but playback remains the container default.</small> : null}
-      </section>
+      {tracks.length > 1 ? <section>
+        <header><strong>Track</strong><span>{tracks.length}</span></header>
+        <ClusterNativeSelect aria-label="Embedded audio track" value={selectedTrack?.id || ""} onChange={(event) => onActiveTrack(event.target.value || null)}>{tracks.map((track) => <option key={track.id} value={track.id}>{trackLabel(track)}</option>)}</ClusterNativeSelect>
+        {snapshot.embeddedTrackControl === "metadata_only" ? <small className="cluster-audio-degraded-note" title="This runtime cannot switch container audio tracks; playback uses the default track.">Plays the default track</small> : null}
+      </section> : null}
 
-      <section className="cluster-audio-stems-section">
-        <header><div><strong>Production stems</strong><span>{stems.length ? `${stems.length} available` : "No stem derivatives"}</span></div></header>
-        {stems.length ? <div className="cluster-audio-stem-list">{stems.map((stem) => {
+      {stems.length ? <section className="cluster-audio-stems-section">
+        <header><strong>Stems</strong><span>{stems.length}</span></header>
+        <div className="cluster-audio-stem-list">{stems.map((stem) => {
           const state = stemStates[stem.id] || { enabled: false, muted: false, solo: false, gainDb: stem.defaultGainDb || 0, meterRms: 0, meterPeak: 0, meterSupported: false };
           const unavailable = !stem.url;
           return <article key={stem.id} data-enabled={state.enabled ? "true" : "false"} data-unavailable={unavailable ? "true" : "false"}>
@@ -613,9 +632,9 @@ function AudioAdapter({
             <label className="cluster-audio-stem-gain"><span>Gain</span><ClusterSlider aria-label={`${stem.label} gain`} min={STEM_GAIN_MIN_DB} max={STEM_GAIN_MAX_DB} step="0.5" value={state.gainDb} disabled={unavailable} onChange={(event) => onStemState(stem.id, { gainDb: Number(event.target.value) })} /><output>{state.gainDb > 0 ? "+" : ""}{state.gainDb.toFixed(1)} dB</output></label>
             <Meter rms={state.meterRms} peak={state.meterPeak} supported={state.meterSupported && !unavailable} label={stem.label} />
           </article>;
-        })}</div> : <p className="muted">Full Mix uses the authorized source. Dialogue, music, effects, VO, and production stems appear here only when explicit stem derivatives exist.</p>}
-      </section>
-    </aside>
+        })}</div>
+      </section> : null}
+    </aside> : null}
 
     <ViewerOverlayLayer visibleIds={visibleOverlayIds} placements={overlayPlacements} values={values} />
     {showComposer && session.capabilities.comment && session.resource.source.locator.provider === "review_asset" ? <AudioReviewComposer session={session} snapshot={snapshot} activeTrackId={selectedTrack?.id || null} activeStemId={activeStemId} onReload={onReload} onClose={() => onShowComposer(false)} /> : null}
@@ -735,6 +754,7 @@ export function UnifiedAudioViewer({
       {compareAssetSession.session ? <ViewerComparisonBar session={comparisonSession} snapshot={comparison} primaryLabel={session.resource.source.title} secondaryLabel={compareAssetSession.session.resource.source.title} /> : null}
       <AudioAdapter
       session={session}
+      mode={mode}
       compareSession={compareAssetSession.session}
       comparison={comparison}
       visibleOverlayIds={visibleOverlayIds}

@@ -104,7 +104,7 @@ check('taskbar shell fidelity and animated replacement search are retained',()=>
  const slots=src('packages/renderer/src/features/shell/ShellPrimitives.tsx');
  assert.ok(projectTabs.length>100 && transfer.length>100 && shell.length>100);
  assert.match(projectTabs,/role="tablist" aria-label="Open project tabs"/);
- assert.match(slots,/cluster-taskbar-search-switch/);
+ assert.match(slots,/cl-tb__search-slot/);
  assert.match(shell,/onOpenTickets=|onOpenMyWork=/);
 });
 check('native Qt combo delegates have stable index authority and accessible tap height',()=>{

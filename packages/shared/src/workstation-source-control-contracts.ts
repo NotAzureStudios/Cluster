@@ -161,7 +161,9 @@ export type ClusterWorkstationSourceControlOperation = {
 
 export type ClusterWorkstationOperationStartInput = {
   action: "repository.sync" | "changes.commit";
-  mode?: "fetch" | "pull" | "push";
+  /** pull fast-forwards; rebase replays local commits on the remote (Unreal Sync).
+      Both stash and restore uncommitted work around the update. */
+  mode?: "fetch" | "pull" | "rebase" | "push";
   message?: string;
   push?: boolean;
 };

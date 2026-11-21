@@ -15,7 +15,7 @@ function load(name) {
   return mod.exports;
 }
 const releases = load("packages/renderer/src/features/changelog/data/cluster-changelog.ts").CLUSTER_CHANGELOG;
-assert.deepEqual(Array.from(releases, r => r.version), ["v1.0.5", "v1.0.4", "v1.0.2", "v1.0.1", "v1.0.0"]);
+assert.deepEqual(Array.from(releases, r => r.version), ["v1.2.3", "v1.2.2", "v1.2.1", "v1.2.0", "v1.1.2", "v1.1.1", "v1.1.0", "v1.0.5", "v1.0.4", "v1.0.2", "v1.0.1", "v1.0.0"]);
 for (const r of releases) {
   assert.match(r.version, /^v[1-9]\d*\.\d+\.\d+$/);
   assert.equal(r.sourceUrl, "https://github.com/NotAzureStudios/Cluster/releases/tag/" + r.version);
@@ -42,10 +42,14 @@ assert.doesNotMatch(handoff, /localStorage|sessionStorage|mailto:|fetch\(/);
 const auth = read("apps/server/src/domains/auth/auth-core-routes.ts");
 const userRoutes = read("apps/server/src/domains/users/user-directory-routes.ts");
 assert.match(auth, /app\.post\("\/api\/auth\/session-password"/);
+// A temporary-password account must be able to reach the endpoint that ends setup.
+const infra = read("apps/server/src/app/server-request-infrastructure.ts");
+assert.match(read("apps/server/src/core/auth.ts"), /ACCOUNT_SETUP_PATHS[^;]*"\/api\/auth\/session-password"/);
+assert.match(infra, /!accountStateAllowsWorkspace\(user\.accountState, requireDiscordLink\) && !ACCOUNT_SETUP_PATHS\.has\(policy\.pathname\)/);
 assert.match(userRoutes, /accountState: "PASSWORD_CHANGE_REQUIRED"/);
 const signIn = read("packages/renderer/src/features/auth/AuthScreens.tsx");
 assert.match(signIn, /First time signing in\?/);
-assert.match(signIn, /temporary password provided privately/);
+assert.match(signIn, /temporary password your administrator gave you/);
 const diagnostic = load("packages/renderer/src/features/admin/background-task-evidence.ts");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 2 }), "recent");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 3 }), "warning");

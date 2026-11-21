@@ -109,10 +109,10 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
   }
 
   if (step === "policies") {
-    return <StudioPolicyGate onLogout={onLogout}><AuthEntryLayout mode="setup"><StepHeader step={step} /><h1>Policies</h1><p className="muted">Required policies accepted.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></AuthEntryLayout></StudioPolicyGate>;
+    return <StudioPolicyGate onLogout={onLogout}><AuthEntryLayout><StepHeader step={step} /><h1>Policies</h1><p className="muted">Required policies accepted.</p><div className="login-actions"><ClusterButton type="button" variant="primary" onClick={() => void persistStep("onboarding")}>Continue</ClusterButton><ClusterButton type="button" variant="secondary" onClick={() => void persistStep("profile")}>Back</ClusterButton></div></AuthEntryLayout></StudioPolicyGate>;
   }
 
-  return <AuthEntryLayout mode="setup">
+  return <AuthEntryLayout>
     <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
     <StepHeader step={step} />
     {Boolean(loadError) && <RequestErrorState error={loadError} title="Account context could not be loaded" onRetry={() => void loadContext()} />}

@@ -66,7 +66,7 @@ export function MobilePrimaryNavigation({
         data-nav-icon="menu"
         onClick={onOpenNavigation}
         aria-haspopup="dialog"
-        aria-controls="cluster-sidebar"
+        aria-controls="cl-sidebar"
         aria-label={canSeeNotifications && notificationCount > 0 ? `More navigation, ${notificationCount > 99 ? "more than 99" : notificationCount} unread alerts` : "More navigation"}
       >
         <span className="mobile-primary-nav-icon-v495">

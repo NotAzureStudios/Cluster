@@ -1,3 +1,4 @@
+import { stableServerSequence } from "./cluster-server-release-sequence.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -99,16 +100,17 @@ test("Git provisioning failure retains its database repository binding and ID", 
 test("active manual publisher matches current monotonic stable release identity", () => {
   const release = JSON.parse(read("config/release-candidate.json"));
   const version = String(release.release || "");
-  assert.match(version, /^1\.[1-9][0-9]*\.(0|[1-9][0-9]*)$/);
+  assert.match(version, /^[1-9][0-9]?\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/);
   assert.equal(release.sourceVersion, version);
   assert.equal(release.channel, "stable");
-  const [major, minor, patch] = version.split(".").map(Number);
-  assert.equal(major, 1);
-  assert.equal(release.sequence, minor * 100000 + patch);
+  assert.equal(release.sequence, stableServerSequence(version));
   const prefix = ".github/workflows/publish-cluster-" + version.replaceAll(".", "-");
   const candidates = [prefix + "-manual.yml", prefix + "-full.yml"];
   const present = candidates.filter((file) => fs.existsSync(path.join(root, file)));
-  assert.equal(present.length, 1, "Exactly one current stable release publisher must exist");
+  // A version's one-time publisher is added when that version is released;
+  // an unreleased source version has none yet, and never more than one.
+  assert.ok(present.length <= 1, "At most one current stable release publisher may exist");
+  if (!present.length) return;
   const workflow = read(present[0]);
   assert.ok(workflow.includes("head_branch == 'main'"), "Publisher must only accept main build events");
   assert.ok(workflow.includes("assert metadata['sequence']==" + release.sequence));

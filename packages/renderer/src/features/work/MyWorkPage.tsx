@@ -8,6 +8,9 @@ import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterStatus } from "../../components/ClusterStatus";
+import { ToolPageHeader } from "../../components/ToolPageHeader";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
+import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { LoadingState } from "../../components/LoadingState";
 import { RequestErrorState } from "../../components/RequestState";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
@@ -21,6 +24,7 @@ import { MyEffectiveAccessPanel } from "./MyEffectiveAccessPanel";
 import { sourceReviewWorkTarget, sourceReviewNeedsAction } from "../projects/source-review-navigation";
 import type { ActivityEvent, Project, ProjectSnapshot, TeamAssignment, TimeEntry, TimeSummary, UpcomingPayload, User } from "../application/application-models";
 import "./my-work.css";
+import { StatusNote } from "../../components/StatusNote";
 
 type MyWorkSourceReview = {
   id: string;
@@ -345,57 +349,30 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
   if (loadError && !upcoming) return <section className="page cluster-page-shell mywork-page-v253 cluster-tool-page-v228 mywork-unified-v231"><RequestErrorState error={loadError} title="My Work unavailable" onRetry={() => void loadMyWork()} /></section>;
   return (
     <section className="page cluster-page-shell mywork-page-v253 cluster-tool-page-v228 mywork-unified-v231">
-      <header className="mywork-command-v253 cluster-page-header">
-        <div>
-          <span>Personal workspace</span>
-          <h1>My Work</h1>
+      <ToolPageHeader
+        className="cluster-page-header mywork-head-v2"
+        title="My Work"
+        metrics={[
+          { label: "assigned", value: assignedCount },
+          { label: "overdue", value: overdueCards.length, tone: overdueCards.length ? "danger" : "neutral" },
+          ...(relationshipBlockers ? [{ label: "blocked", value: relationshipBlockers, tone: "warning" as const }] : []),
+          ...(myProjects.some((project) => getProjectHealth(project).tone !== "good") ? [{ label: "projects at risk", value: myProjects.filter((project) => getProjectHealth(project).tone !== "good").length, tone: "warning" as const }] : []),
+          { label: "this week", value: minutesToHuman(timeSummary?.totalMinutes || 0) },
+        ]}
+        actions={<>
           {refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}
-        </div>
-        <div className="mywork-command-actions-v253">
-          <ClusterButton type="button" className="" onClick={() => void loadMyWork()} variant="secondary">
-            Refresh
-          </ClusterButton>
-          <ClusterButton type="button" className="" onClick={onOpenTime} variant="secondary">
-            Scheduler
-          </ClusterButton>
-          <ClusterButton type="button" className="" onClick={onOpenTimeline} variant="secondary">
-            Timeline
-          </ClusterButton>
-          <ClusterButton type="button" className="" onClick={onOpenProjects} variant="primary">
-            Projects
-          </ClusterButton>
-        </div>
-        <div className="mywork-stat-strip-v253">
-          <ClusterButton unstyled type="button" onClick={() => setView("assigned")}>
-            <span>Assigned</span>
-            <strong>{assignedCount}</strong>
-            <em>{relationshipBlockers ? `${relationshipBlockers} blockers` : `${linkedAssignments} linked`}</em>
-          </ClusterButton>
-          <ClusterButton unstyled type="button" onClick={() => setView("today")} data-tone={overdueCards.length ? "danger" : "good"}>
-            <span>Overdue</span>
-            <strong>{overdueCards.length}</strong>
-            {dueTodayCards.length > 0 && <em>{dueTodayCards.length} due today</em>}
-          </ClusterButton>
-          <ClusterButton unstyled type="button" onClick={() => setView("projects")}>
-            <span>Projects</span>
-            <strong>{myProjects.length}</strong>
-            {myProjects.some((project) => getProjectHealth(project).tone !== "good") && <em>{myProjects.filter((project) => getProjectHealth(project).tone !== "good").length} need attention</em>}
-          </ClusterButton>
-          <ClusterButton unstyled type="button" onClick={onOpenTime}>
-            <span>This week</span>
-            <strong>{minutesToHuman(timeSummary?.totalMinutes || 0)}</strong>
-            <em>{activeTimer ? "Clocked in" : "Clocked out"}</em>
-          </ClusterButton>
-        </div>
-      </header>
-      <nav className="mywork-tabs-v253" aria-label="My Work views">
-        {(["today", "attention", "assigned", "projects", "activity"] as const).map((item) => (
-          <ClusterButton unstyled type="button" key={item} className={view === item ? "active" : ""} onClick={() => setView(item)}>
-            {levelLabel(item)}
-            <span>{item === "today" ? dueMine.length : item === "attention" ? attentionItems.length : item === "assigned" ? assignedCount : item === "projects" ? myProjects.length : relevantActivity.length}</span>
-          </ClusterButton>
-        ))}
-      </nav>
+          <ClusterSegmentedControl value={view} onChange={(next) => setView(next as typeof view)} label="My Work views" options={(["today", "attention", "assigned", "projects", "activity"] as const).map((item) => {
+            const count = item === "today" ? dueMine.length : item === "attention" ? attentionItems.length : item === "assigned" ? assignedCount : item === "projects" ? myProjects.length : relevantActivity.length;
+            return { value: item, label: `${levelLabel(item)}${count ? ` ${count}` : ""}` };
+          })} />
+          <ClusterActionMenu iconOnly label="More My Work actions" items={[
+            { id: "refresh", label: "Refresh", icon: "refresh", onSelect: () => void loadMyWork() },
+            { id: "scheduler", label: "Scheduler", icon: "clock", onSelect: onOpenTime },
+            { id: "timeline", label: "Timeline", icon: "timeline", onSelect: onOpenTimeline },
+            { id: "projects", label: "Projects", icon: "project", onSelect: onOpenProjects },
+          ]} />
+        </>}
+      />
 
       {view === "today" && onboardingLoadFailed && <div className="mywork-attention-warning-v536" role="alert">Onboarding assignments could not be refreshed. Previously loaded steps remain visible. <ClusterButton type="button" size="compact" variant="secondary" onClick={() => void loadMyWork(true)}>Retry onboarding</ClusterButton></div>}
       {view === "today" && onboardingPlans.length > 0 && <MyOnboardingPanel plans={onboardingPlans} onRefresh={() => loadMyWork(true)} />}
@@ -423,8 +400,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
           <section className="mywork-panel-v253 mywork-priority-v253">
             <header>
               <div>
-                <h2>Daily focus plan</h2>
-                <span>Priority, deadline, then project context</span>
+                <h2>Focus</h2>
               </div>
               <ClusterButton unstyled type="button" onClick={() => setView("assigned")}>View all</ClusterButton>
             </header>
@@ -443,13 +419,13 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
                   </ClusterButton>
                 ))
               ) : (
-                <ClusterEmptyState compact kind="empty" icon="work" title="No assigned work" description="Nothing is currently assigned to you. Open Projects when you need to pick up or review project work." actions={<ClusterButton size="compact" variant="secondary" onClick={onOpenProjects}>Open Projects</ClusterButton>} />
+                <ClusterEmptyState compact kind="empty" icon="work" title="No assigned work" actions={<ClusterButton size="compact" variant="secondary" onClick={onOpenProjects}>Open Projects</ClusterButton>} />
               )}
             </div>
           </section>
           <aside className="mywork-side-stack-v253">
             <section className="mywork-panel-v253 mywork-execution-health-v414">
-              <header><div><h2>Execution health</h2><span>Your queue at a glance</span></div></header>
+              <header><div><h2>Queue</h2></div></header>
               <div className="mywork-health-grid-v414">
                 <ClusterButton unstyled type="button" onClick={() => setView("assigned")} data-tone={overdueCards.length ? "danger" : "good"}><strong>{overdueCards.length}</strong><span>Overdue</span></ClusterButton>
                 <ClusterButton unstyled type="button" onClick={() => setView("assigned")}><strong>{dueTodayCards.length}</strong><span>Due today</span></ClusterButton>
@@ -497,7 +473,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
                     </article>
                   ))
                 ) : (
-                  <ClusterEmptyState compact kind="empty" icon="calendar" title="No events today" description="Your calendar is clear for the rest of this view." />
+                  <ClusterEmptyState compact kind="empty" icon="calendar" title="No events today" />
                 )}
               </div>
             </section>
@@ -507,7 +483,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
 
       {view === "attention" && (
         <section className="mywork-panel-v253 mywork-browser-v253 mywork-attention-v9f">
-          <header><div><h2>Attention</h2><span>Reviews and required actions from canonical systems</span></div></header>
+          <header><div><h2>Attention</h2><span>Reviews and required actions from across Cluster</span></div></header>
           {attentionLoadIssues.length ? <div className="mywork-attention-warning-v536" role="alert">
             <span>Some work could not be refreshed: {attentionLoadIssues.join(", ")}. Previously loaded items are retained, but this queue may be incomplete.</span>
             <ClusterButton size="compact" variant="secondary" disabled={refreshing} onClick={() => void loadMyWork(true)}>Retry</ClusterButton>
@@ -635,7 +611,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
       )}
 
       {loadError && upcoming ? <RequestErrorState error={loadError} title="My Work refresh failed" onRetry={() => void loadMyWork()} compact /> : null}
-      {status && !loadError && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && !loadError && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }

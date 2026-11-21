@@ -1,3 +1,4 @@
+import { GitAccessPanel } from "./GitAccessPanel";
 import { reconcileAfterCommit } from "../../core/post-commit-reconciliation";
 import { decideDraftRecovery } from "./settings-draft-authority";
 import { AccountRequestAuthority, type AccountRequestTicket } from "./account-request-authority";
@@ -24,6 +25,7 @@ import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup"
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { configureClusterSounds, previewClusterNotificationSound, previewClusterUiSound } from "../../core/cluster-sounds";
+import { setToastPosition, showToast } from "../../core/toasts";
 import { DesignSystemPreview } from "../../components/DesignSystemPreview";
 import { AppearanceShellPreview } from "./AppearanceShellPreview";
 import { SyncSettingsPanel } from "../../components/SyncStatusIndicator";
@@ -599,6 +601,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       const next = { ...prev, [key]: value };
       if (appearanceKeys.has(key)) applyCustomization(next, personalAccentColor);
       if (["userUiSoundsEnabled", "userUiSoundVolume", "userNotificationSoundsEnabled", "userNotificationSoundVolume"].includes(String(key))) configureClusterSounds(next);
+      if (key === "userToastPosition") { setToastPosition(next.userToastPosition); showToast({ tone: "info", title: "Toasts appear here", duration: 2500 }); }
       persistAccountDraft(next);
       return next;
     });
@@ -1136,6 +1139,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     desktop: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "web preview",
     licenses: "assigned assets & keys",
     forms: "available forms",
+    git: "clone tokens",
   });
   const notificationCategoryDelivery = normalizedNotificationCategoryDelivery(settings);
   const notificationToolModes = normalizedNotificationToolModes(settings);
@@ -1150,7 +1154,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 settings-page-v092 account-settings-page-v267 account-settings-console-v271 settings-console-v269"
-      title="Account Settings"
+      title="Account"
       icon="user"
       description={`Personal preferences, performance, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
       metrics={[
@@ -1158,7 +1162,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
-      actions={section === "licenses" || section === "forms" || (section === "performance" && !dirty) ? null : section === "profile" ? (
+      actions={section === "licenses" || section === "forms" || section === "git" || (section === "performance" && !dirty) ? null : section === "profile" ? (
         <ClusterButton type="button" variant={profileDirty ? "primary" : "secondary"} onClick={() => void saveProfile()} disabled={profileSaving || !profileDirty}>
           {profileSaving ? "Saving…" : profileDirty ? "Save profile" : "Saved"}
         </ClusterButton>
@@ -1173,8 +1177,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       onChange={(nextSection) => { setSection(nextSection); onSectionChange?.(nextSection); }}
       primaryIds={["profile", "privacy", "pin", "notifications", "appearance", "performance", "navigation"] as SettingsSection[]}
       items={settingsSections.map((item) => ({ id: item.key, label: item.label, detail: item.meta, group: item.domain }))}
-    >
-      <ClusterSettingsSearch
+      navTop={<ClusterSettingsSearch
         label="Find account settings"
         entries={ACCOUNT_SETTINGS_SEARCH_ENTRIES}
         onNavigate={(entry) => {
@@ -1182,7 +1185,8 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           onSectionChange?.(entry.section);
           setSettingsSearchJump({ section: entry.section, targetId: entry.targetId || null });
         }}
-      />
+      />}
+    >
       {heldAccountDraft && <section className="settings-card-v092" role="alert" aria-label="Outdated account settings draft">
         <strong>Local draft needs review</strong>
         <p className="muted">This draft was saved under an earlier or unknown account preferences revision. It was not applied automatically. Restoring it may replace newer changes.</p>
@@ -1204,20 +1208,13 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
         <div id="account-settings-section-focus-v11" tabIndex={-1} className="settings-content panel settings-content-v092 settings-content-v267">
           {section === "profile" && (
             <div className="settings-section-v092 profile-editor-v473">
-              <div className="settings-panel-head-v092 profile-editor-head-v473">
-                <div>
-                  <p className="eyebrow">Your profile</p>
-                  <h2>Identity & contact</h2>
-                  <p className="muted tight">Choose how people recognize and contact you. Email and phone stay private unless you explicitly share them.</p>
-                </div>
-              </div>
+              <h2 className="sr-only">Profile</h2>
               <section className="profile-account-hero-v547">
                 <div className="profile-account-avatar-v547">
                   <PresenceAvatar userId={currentUser.id} imageUrl={profileAvatarUrl} accentColor={personalAccentColor} label={displayUserName(currentUser)} fallback={userInitial(currentUser)} state={presenceState(currentUser)} title={presenceLabel(currentUser)} />
                   <ClusterFileButton label="Change profile image" accept="image/png,image/jpeg,image/webp,image/gif" size="compact" busy={avatarUploading} busyLabel="Uploading…" onChange={uploadProfileAvatar}>Change image</ClusterFileButton>
                 </div>
                 <div className="profile-account-hero-copy-v547">
-                  <span className="eyebrow">Account identity</span>
                   <h3>{profileForm.preferredName || profileForm.displayName || currentUser.username}</h3>
                   <p>@{currentUser.username}{currentUser.title ? ` · ${currentUser.title}` : ""}{currentUser.department ? ` · ${currentUser.department}` : ""}</p>
                   <div className="profile-account-hero-meta-v547"><span>{presenceVisibility === "invisible" ? "Appearing offline" : presenceLabel({ ...currentUser, status: presenceAvailability })}</span><span>{profileForm.timezone || "Timezone not set"}</span><span>{profileSkills.length} skills</span></div>
@@ -1225,18 +1222,17 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                 <div className="profile-account-color-v547"><span>User color</span><ColorField label="User color" value={personalAccentColor} onChange={(next) => { setPersonalAccentColor(next); setProfileDirty(true); persistAccountDraft(settings, next, theme); applyCustomization(settings, next); }} /></div>
               </section>
               <section className="settings-card-v092 cluster-discord-identity-v548" aria-label="Discord account connection">
-                <div className="settings-card-head-v092"><h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord account</h3><span className={`soft-pill ${currentUser.discordUserId ? "good" : ""}`}>{currentUser.discordUserId ? "Linked" : "Not linked"}</span></div>
+                <h3><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Discord</h3>
                 {currentUser.discordUserId ? <div className="cluster-discord-identity-row-v548">
                   {currentUser.discordAvatar ? <img src={currentUser.discordAvatar} alt="" width={40} height={40} loading="lazy" /> : <ResourceIdentityMark iconId="brand:discord" label="Discord" />}
                   <div><strong>{currentUser.discordDisplayName || currentUser.discordUsername || "Discord account"}</strong><span>{currentUser.discordUsername ? `@${currentUser.discordUsername}` : "Connected identity"}{currentUser.discordLinkedAt ? ` · Linked ${compactDateTime(currentUser.discordLinkedAt)}` : ""}</span></div>
-                </div> : <p className="muted tight">Link your personal Discord identity to receive optional notifications and use authorized bot actions. Your Cluster password and permissions do not change.</p>}
-                {discordOAuthError ? <p role="status" className="muted">Connection readiness could not be checked. Retry by reopening Profile.</p> : !discordOAuth ? <span className="muted">Checking Discord linking…</span> : !discordOAuth.configured ? <p role="status" className="warning">Discord linking is not ready. An admin must finish the OAuth application setup under Integrations → Discord.</p> : null}
+                </div> : <span className="cluster-discord-state-v6" role="status" title={discordOAuth && !discordOAuth.configured ? "An admin must finish Discord setup under Integrations." : undefined}>{discordOAuthError ? "Unavailable" : !discordOAuth ? "Checking…" : !discordOAuth.configured ? "Not set up" : "Not linked"}</span>}
                 <div className="button-row">
-                  {discordOAuth?.configured && !currentUser.discordUserId ? <ClusterLinkButton variant="primary" href={discordLinkUrl}><ResourceIdentityMark iconId="brand:discord" label="Discord" /> Link Discord account</ClusterLinkButton> : null}
+                  {discordOAuth?.configured && !currentUser.discordUserId ? <ClusterLinkButton variant="primary" href={discordLinkUrl}>Link</ClusterLinkButton> : null}
                   {discordOAuth?.configured && currentUser.discordUserId ? <ClusterButton type="button" variant="secondary" onClick={async () => {
                     if (await confirmCluster({ title: "Change linked Discord account?", message: "This will verify a different Discord identity and rotate your Cluster sessions. Your Cluster access will not change.", confirmLabel: "Continue to Discord" })) window.location.assign(discordLinkUrl);
-                  }}>Change linked account</ClusterButton> : null}
-                  {currentUser.discordUserId ? <ClusterButton type="button" variant="quiet" onClick={() => { setSection("privacy"); onSectionChange?.("privacy"); }}>Disconnect / privacy controls</ClusterButton> : null}
+                  }}>Change</ClusterButton> : null}
+                  {currentUser.discordUserId ? <ClusterButton type="button" variant="quiet" onClick={() => { setSection("privacy"); onSectionChange?.("privacy"); }}>Privacy</ClusterButton> : null}
                 </div>
               </section>
               <div className="profile-editor-grid-v473">
@@ -1253,28 +1249,27 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   </div>
                 </section>
                 <section className="settings-card-v092 profile-editor-card-v473">
-                  <div className="settings-card-head-v092"><h3>Contact</h3><span>Optional</span></div>
+                  <div className="settings-card-head-v092"><h3>Contact</h3></div>
                   <div className="profile-fields-v473">
                     <label className="field"><span>Email</span><ClusterInput type="email" value={profileForm.email} onChange={(event) => patchProfile("email", event.target.value)} placeholder="name@example.com" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowEmail} disabled={!profileForm.email} onCheckedChange={(checked) => patchProfile("profileShowEmail", checked)} label="Show email" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowEmail} disabled={!profileForm.email} onCheckedChange={(checked) => patchProfile("profileShowEmail", checked)} label="Public" aria-label="Show email on profile" />
                     <label className="field"><span>Phone</span><ClusterInput inputMode="tel" value={profileForm.phoneNumber} onChange={(event) => patchProfile("phoneNumber", event.target.value)} placeholder="Optional" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowPhone} disabled={!profileForm.phoneNumber} onCheckedChange={(checked) => patchProfile("profileShowPhone", checked)} label="Show phone" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowPhone} disabled={!profileForm.phoneNumber} onCheckedChange={(checked) => patchProfile("profileShowPhone", checked)} label="Public" aria-label="Show phone on profile" />
                     <label className="field"><span>Discord username</span><ClusterInput value={profileForm.profileDiscordUsername} onChange={(event) => patchProfile("profileDiscordUsername", event.target.value)} placeholder="username" /></label>
-                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowDiscord} disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername} onCheckedChange={(checked) => patchProfile("profileShowDiscord", checked)} label="Show Discord" description="Visible on your Studio profile." />
+                    <ClusterToggle className="profile-visibility-toggle-v547" checked={profileForm.profileShowDiscord} disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername} onCheckedChange={(checked) => patchProfile("profileShowDiscord", checked)} label="Public" aria-label="Show Discord on profile" />
                     <label className="field span-2"><span>Website / portfolio</span><ClusterInput type="url" value={profileForm.profileWebsite} onChange={(event) => patchProfile("profileWebsite", event.target.value)} placeholder="https://..." /></label>
                     <label className="field span-2"><span>Preferred contact</span><ClusterNativeSelect value={profileForm.profilePreferredContact} onChange={(event) => patchProfile("profilePreferredContact", event.target.value as ProfileForm["profilePreferredContact"])}><option value="cluster">Cluster</option><option value="discord" disabled={!profileForm.profileDiscordUsername && !currentUser.discordUsername}>Discord</option><option value="email" disabled={!profileForm.email}>Email</option><option value="phone" disabled={!profileForm.phoneNumber}>Phone</option></ClusterNativeSelect></label>
                   </div>
                 </section>
                 <section className="settings-card-v092 profile-editor-card-v473 span-2 people-capability-editor-v495">
-                  <div className="settings-card-head-v092"><h3>Expertise & working hours</h3><span>{profileForm.expertise.length} expertise areas</span></div>
+                  <div className="settings-card-head-v092"><h3>Expertise & hours</h3></div>
                   <div className="people-expertise-editor-v495">
                     <div className="people-expertise-add-v495"><ClusterInput value={expertiseDraft} onChange={(event) => setExpertiseDraft(event.target.value)} placeholder="Expertise area" onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addExpertise(); } }} /><ClusterNativeSelect value={expertiseLevel} onChange={(event) => setExpertiseLevel(event.target.value as typeof expertiseLevel)}><option value="learning">Learning</option><option value="working">Working</option><option value="advanced">Advanced</option><option value="expert">Expert</option></ClusterNativeSelect><ClusterButton type="button" variant="secondary" onClick={addExpertise} disabled={!expertiseDraft.trim()}>Add</ClusterButton></div>
-                    <div className="people-expertise-tags-v495">{profileForm.expertise.map((item) => <ClusterButton type="button" key={item.name} className="tag-chip" onClick={() => removeExpertise(item.name)} title={`Remove ${item.name}`}><strong>{item.name}</strong><span>{item.level}</span><b aria-hidden="true"><ClusterIcon name="close" /></b></ClusterButton>)}{!profileForm.expertise.length && <span className="muted">Add proficiency levels for the skills teammates depend on.</span>}</div>
+                    <div className="people-expertise-tags-v495">{profileForm.expertise.map((item) => <ClusterButton type="button" key={item.name} className="tag-chip" onClick={() => removeExpertise(item.name)} title={`Remove ${item.name}`}><strong>{item.name}</strong><span>{item.level}</span><b aria-hidden="true"><ClusterIcon name="close" /></b></ClusterButton>)}</div>
                   </div>
                   <div className="people-working-hours-v495">
                     {workingDayKeys.map((day) => { const intervals = Array.isArray(profileForm.workingHours[day]) ? profileForm.workingHours[day] as Array<{ start: string; end: string }> : []; const first = intervals[0] || { start: "09:00", end: "17:00" }; const enabled = intervals.length > 0; return <div key={day}><label><ClusterInput type="checkbox" checked={enabled} onChange={(event) => patchWorkingDay(day, event.target.checked)} /><span>{day.slice(0,3).toUpperCase()}</span></label><ClusterInput type="time" value={first.start} disabled={!enabled} onChange={(event) => patchWorkingDay(day, true, event.target.value, first.end)} /><span>to</span><ClusterInput type="time" value={first.end} disabled={!enabled} onChange={(event) => patchWorkingDay(day, true, first.start, event.target.value)} /></div>; })}
                   </div>
-                  <small className="muted">Working hours are profile context, not a time-off authority. Scheduler availability and approved time off still win when planning work.</small>
                 </section>
                 {(settings.studioPeopleProfileFields || []).length > 0 && <section className="settings-card-v092 profile-editor-card-v473 span-2 people-custom-fields-v495">
                   <div className="settings-card-head-v092"><h3>Studio profile fields</h3><span>{(settings.studioPeopleProfileFields || []).length} configured</span></div>
@@ -1520,60 +1515,9 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                           ]}
                         />
                       </ClusterSettingsRow>
-                      <div className="field">
-                        <label>Sidebar surface</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Sidebar surface">
-                          {(["match", "solid", "glass"] as Array<NonNullable<Settings["sidebarSurface"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.sidebarSurface || "match") === option ? "active" : ""} onClick={() => patch("sidebarSurface", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="field sidebar-item-style-field-rc27">
-                        <label>Sidebar buttons</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Sidebar button separation">
-                          {(["soft", "divided", "outlined"] as Array<NonNullable<Settings["sidebarItemStyle"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.sidebarItemStyle || "outlined") === option} className={(settings.sidebarItemStyle || "outlined") === option ? "active" : ""} onClick={() => patch("sidebarItemStyle", option)}>{option === "soft" ? "Soft" : option === "divided" ? "Lines" : "Borders"}</ClusterButton>)}
-                        </div>
-                      </div>
-                      <div className="field sidebar-layout-field-v546">
-                        <label>Sidebar layout</label>
-                        <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Sidebar layout">
-                          {(["docked", "floating"] as Array<NonNullable<Settings["sidebarLayout"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.sidebarLayout || "docked") === option} className={(settings.sidebarLayout || "docked") === option ? "active" : ""} onClick={() => patch("sidebarLayout", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                        <small className="muted">Floating separates navigation from workspace content on large screens. Phones keep the existing drawer.</small>
-                      </div>
-                      <div className="field taskbar-layout-field-v546">
-                        <label>Top taskbar layout</label>
-                        <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Top taskbar layout">
-                          {(["floating", "full-width"] as Array<NonNullable<Settings["taskbarLayout"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" aria-pressed={(settings.taskbarLayout || "floating") === option} className={(settings.taskbarLayout || "floating") === option ? "active" : ""} onClick={() => patch("taskbarLayout", option)}>
-                              {option === "floating" ? "Floating" : "Full width"}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                        <small className="muted">Both stay visible while scrolling. Floating has inset edges; Full width spans the workspace.</small>
-                      </div>
-                      <div className="field">
-                        <label>Taskbar surface</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Taskbar surface">
-                          {(["match", "solid", "glass"] as Array<NonNullable<Settings["taskbarSurface"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.taskbarSurface || "match") === option ? "active" : ""} onClick={() => patch("taskbarSurface", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label>Taskbar labels</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Taskbar labels">
-                          {(["auto", "always", "icons"] as Array<NonNullable<Settings["userTaskbarLabels"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.userTaskbarLabels || "auto") === option ? "active" : ""} onClick={() => patch("userTaskbarLabels", option)}>
-                              {option === "icons" ? "Icons" : option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Sidebar and taskbar surface, layout, button style and label options
+                          were retired with the window frame rebuild: one flush title bar and
+                          one sidebar, styled by features/shell/shell-frame.css. */}
                       <div className="field">
                         <label>Project tabs</label>
                         <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Project tab style">
@@ -1766,6 +1710,15 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     <div className="notification-delivery-row-v473">
                       <span><strong>Native alerts</strong><small>Categories using Native push or Both require permission on each device.</small></span><b>{settings.browserNotifications ? "Ready" : "Permission needed"}</b>
                     </div>
+                    <div className="notification-delivery-row-v473 ct-corner-row">
+                      <span><strong>Toast position</strong><small>Where pop-up notifications appear.</small></span>
+                      <div className="ct-corner" role="radiogroup" aria-label="Toast position">
+                        {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((corner) => {
+                          const current = (settings.userToastPosition || "top-right") === corner;
+                          return <button key={corner} type="button" role="radio" aria-checked={current} data-corner={corner} className={current ? "is-active" : ""} title={corner.replace("-", " ")} aria-label={corner.replace("-", " ")} onClick={() => patch("userToastPosition", corner)}><i aria-hidden="true" /></button>;
+                        })}
+                      </div>
+                    </div>
                     <div className="cluster-sound-settings-v533">
                       <section className="cluster-sound-card-v533">
                         <header>
@@ -1813,7 +1766,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                         <option value="action-required">Mentions and action-required work</option>
                         <option value="all">All routed updates</option>
                       </ClusterNativeSelect>
-                      <small>Controls when Cluster may mention your linked Discord account. Your Cluster Inbox remains the canonical record.</small>
+                      <small>Controls when Cluster may mention your linked Discord account. Your Cluster Inbox remains the full record.</small>
                     </div>
                   </div>
                 </div>
@@ -2098,6 +2051,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           )}
 
           {section === "forms" && <MyFormsPanel key={currentUser.id} />}
+          {section === "git" && <GitAccessPanel key={currentUser.id} />}
           {section === "licenses" && <MyInventoryLicensesPanel key={currentUser.id} pinConfigured={Boolean(currentUser.pinConfigured)} />}
 
           {section === "desktop" && (
@@ -2199,38 +2153,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
             </div>
           )}
         </div>
-        <aside className="settings-context-v267 panel">
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Current profile</span>
-            <strong>{displayUserName(currentUser)}</strong>
-            <small>@{currentUser.username}</small>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Interface</span>
-            <div className="settings-context-chips-v267">
-              <span>{theme}</span>
-              <span>{settings.backgroundBaseStyle || "clean"}</span>
-              <span>{settings.backgroundPattern || "hex"}</span>
-              <span>{settings.surfaceStyle || "outlined"}</span>
-              <span>{settings.interfaceDensity || "compact"}</span>
-            </div>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Security</span>
-            <strong>{currentUser.pinConfigured ? "PIN configured" : "PIN required"}</strong>
-            <ClusterButton variant="secondary" type="button" onClick={() => void openSecurityPinPad()}>
-              Open PIN pad
-            </ClusterButton>
-          </div>
-          <div className="settings-context-block-v267">
-            <span className="eyebrow">Sync</span>
-            <strong>{section === "performance" ? (dirty ? "Other account changes not saved" : "Device-local preferences") : section === "profile" ? (profileDirty ? "Profile changes not saved" : "Profile synchronized") : (dirty ? "Changes not saved" : "Settings synchronized")}</strong>
-            <small>{section === "performance" ? "Performance changes apply immediately and remain on this device." : lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Changes are stored with your account."}</small>
-            {section === "forms" || section === "licenses" || section === "performance"
-              ? <small>{section === "performance" ? "Rendering settings stay on this device. Save any other pending account changes with the header action." : "Resources are saved in their own panels."}</small>
-              : <small>Save pending changes using the single action in the page header.</small>}
-          </div>
-        </aside>
       </div>
     </SettingsWorkspaceShell>
   );

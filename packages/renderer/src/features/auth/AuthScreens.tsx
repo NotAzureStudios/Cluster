@@ -76,7 +76,7 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 function AuthLegalLinks() {
-  return <div className="managed-auth-legal-v362"><span className="managed-auth-internal-v445">Authorized access only</span><a href="/legal/privacy">Privacy</a></div>;
+  return <div className="managed-auth-legal-v362"><a href="/legal/privacy">Privacy</a></div>;
 }
 
 function PasswordFields({
@@ -227,18 +227,15 @@ export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName, con
     finally { authActionRef.current = false; setBusy(false); }
   }
 
-  return <AuthEntryLayout studioName={studioName} mode={recoveryMode === "request" ? "recovery" : "signin"}>
-    <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />{typeof window !== "undefined" && window.clusterDesktop?.showConnection && <ClusterButton unstyled type="button" className="managed-auth-server-switch" onClick={() => { void window.clusterDesktop?.showConnection?.(); }}><span>Connected server</span><strong>{window.clusterDesktop.serverUrl || API_URL}</strong><em>Switch</em></ClusterButton>}</div>
-    <p className="eyebrow">{studioName || "Private studio"}</p>
-    <h1>{mfaChallenge ? "Verify your sign-in" : recoveryMode === "request" ? "Recover account access" : "Welcome back"}</h1>
-    <p className="muted">{mfaChallenge ? "Enter your second factor to finish signing in." : recoveryMode === "request" ? "Request a secure password reset from your administrator." : "Sign in with your Cluster account."}</p>
+  return <AuthEntryLayout>
+    <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /><span className="managed-auth-studio-v2">{studioName || "Cluster"}</span>{typeof window !== "undefined" && window.clusterDesktop?.showConnection && <ClusterButton unstyled type="button" className="managed-auth-server-switch" onClick={() => { void window.clusterDesktop?.showConnection?.(); }}><span>Connected server</span><strong>{window.clusterDesktop.serverUrl || API_URL}</strong><em>Switch</em></ClusterButton>}</div>
+    <h1>{mfaChallenge ? "Verify it's you" : recoveryMode === "request" ? "Reset password" : "Sign in"}</h1>
     {!config && <div className="error-box" role="alert">Could not reach the studio authentication service. <ClusterButton type="button" variant="secondary" size="compact" onClick={onRetryConfig}>Retry connection</ClusterButton></div>}
     {config && !config.passwordLoginEnabled && recoveryMode === "none" && !mfaChallenge && <p className="cluster-auth-inline-status-v11" role="status">Password sign-in is disabled by studio policy. Use an available passkey or contact an administrator.</p>}
     {recoveryMessage && <ClusterOperationalStatus model={{ state: "auth_expired", interactionState: operationalInteractionState("auth_expired"), label: "Authentication expired", detail: recoveryMessage }} className="managed-auth-recovery-v433" />}
     {config?.ownerSetupRequired && <div className="managed-auth-launcher-warning" role="status"><strong>No password-ready owner account was found.</strong><span>On the Cluster server, run <code>{config.setupLauncherName || "ClusterServer.exe"}</code> to repair owner access.</span></div>}
     {mfaChallenge ? <form className="managed-auth-form managed-auth-mfa-v495" onSubmit={submitMfa}>
-      <p className="cluster-auth-step-v11">Second step · Authenticator or recovery code</p>
-      {!mfaUseRecovery ? <div className="field"><label htmlFor={mfaFieldId}>Six-digit code</label><ClusterTextInput id={mfaFieldId} inputMode="numeric" enterKeyHint="done" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} autoFocus required /></div> : <div className="field"><label htmlFor={mfaFieldId}>Recovery code</label><ClusterTextInput id={mfaFieldId} enterKeyHint="done" autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={64} value={mfaRecoveryCode} onChange={(event) => setMfaRecoveryCode(event.target.value)} autoFocus required /></div>}
+            {!mfaUseRecovery ? <div className="field"><label htmlFor={mfaFieldId}>Six-digit code</label><ClusterTextInput id={mfaFieldId} inputMode="numeric" enterKeyHint="done" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} autoFocus required /></div> : <div className="field"><label htmlFor={mfaFieldId}>Recovery code</label><ClusterTextInput id={mfaFieldId} enterKeyHint="done" autoComplete="one-time-code" autoCapitalize="none" spellCheck={false} maxLength={64} value={mfaRecoveryCode} onChange={(event) => setMfaRecoveryCode(event.target.value)} autoFocus required /></div>}
       {error && <div className="error-box" role="alert">{error}</div>}
       <ClusterButton className="managed-auth-submit" disabled={busy || (mfaUseRecovery ? !mfaRecoveryCode.trim() : mfaCode.length !== 6)} type="submit" variant="primary">{busy ? "Verifying…" : "Verify and sign in"}</ClusterButton>
       {mfaPasskeyPublicKey && webAuthnAvailable() && <ClusterButton type="button" variant="secondary" disabled={busy} onClick={() => void submitPasskey()}>Use passkey or security key</ClusterButton>}
@@ -249,10 +246,10 @@ export function LoginScreen({ onLogin, recoveryMessage, onApply, studioName, con
       {error && <div className="error-box" role="alert">{error}</div>}
       <ClusterButton className="managed-auth-submit" disabled={busy || !config || !config.passwordLoginEnabled} type="submit" variant="primary">{busy ? "Signing in…" : "Sign in"}</ClusterButton>
       {webAuthnAvailable() && <ClusterButton className="cluster-auth-passkey-v11" type="button" variant="secondary" disabled={busy || !config} onClick={() => void submitPasswordlessPasskey()}>{busy ? "Waiting for authenticator…" : "Use a passkey"}</ClusterButton>}
-      <details className="managed-auth-first-use-v11"><summary>First time signing in?</summary><p>Use the one-time temporary password provided privately by your studio administrator. Cluster will ask you to choose your permanent password before entering the workspace. If you never received that credential, contact the administrator for a replacement.</p></details>
-      <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" disabled={busy} onClick={() => { setRecoveryMode("request"); setPassword(""); setError(""); }}>Forgot password?</ClusterButton>{onApply && <ClusterButton unstyled type="button" disabled={busy} onClick={onApply}>Not in the studio yet? Apply</ClusterButton>}</div>
+      <details className="managed-auth-first-use-v11"><summary>First time signing in?</summary><p>Use the temporary password your administrator gave you. You will choose your own next.</p></details>
+      <div className="managed-auth-help-v473"><ClusterButton unstyled type="button" disabled={busy} onClick={() => { setRecoveryMode("request"); setPassword(""); setError(""); }}>Forgot password?</ClusterButton>{onApply && <ClusterButton unstyled type="button" disabled={busy} onClick={onApply}>Apply to join</ClusterButton>}</div>
     </form> : <form className="managed-auth-form managed-auth-recovery-form-v473" onSubmit={requestReset}>
-      <p className="cluster-auth-step-v11">A studio administrator reviews recovery requests. Cluster does not reveal whether an account exists.</p>
+      <p className="cluster-auth-step-v11">An administrator reviews reset requests.</p>
       <div className="field"><label htmlFor={recoveryFieldId}>Username, email or phone</label><ClusterTextInput id={recoveryFieldId} autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint="send" value={identifier} onChange={(event) => setIdentifier(event.target.value)} required autoFocus /></div>
       {error && <div className="error-box" role="alert">{error}</div>}
       {recoveryStatus && <div className="hint-box" role="status">{recoveryStatus}</div>}
@@ -317,7 +314,7 @@ export function MfaEnrollmentScreen({ user, onComplete, onLogout }: { user: Clus
     finally { setBusy(false); }
   }
 
-  return <AuthEntryLayout mode="setup" cardClassName="managed-auth-mfa-enrollment-v495">
+  return <AuthEntryLayout cardClassName="managed-auth-mfa-enrollment-v495">
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Studio security policy</p>
     <h1>Set up multi-factor authentication.</h1>
@@ -361,7 +358,7 @@ export function PasswordMigrationScreen({ user, onComplete, onLogout }: { user: 
     }
   }
 
-  return <AuthEntryLayout mode="setup">
+  return <AuthEntryLayout>
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Password change required</p>
     <h1>Create your permanent password.</h1>
@@ -403,7 +400,7 @@ export function DiscordLinkScreen({ user, onRefresh, onLogout }: { user: Cluster
   const authOrigin = typeof window !== "undefined" && window.clusterDesktop?.serverUrl ? window.clusterDesktop.serverUrl : API_URL;
   const linkUrl = config ? `${authOrigin}${config.discordLinkUrl}` : "";
 
-  return <AuthEntryLayout mode="setup">
+  return <AuthEntryLayout>
     <img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" />
     <p className="eyebrow">Required identity link</p>
     <h1>Link Discord to continue.</h1>

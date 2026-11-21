@@ -102,6 +102,13 @@ func (h *host) handler(target *url.URL) http.Handler {
 				"apiRestarts": h.apiRestartCount.Load(), "apiRestartLimit": h.apiRestartLimit,
 				"uptimeMs": time.Since(h.startedAt).Milliseconds(),
 			})
+		case strings.HasPrefix(pathValue, "/git/"):
+			// Clones, pushes and LFS transfers of large Unreal projects run
+			// far past the listener's 10-minute read/write deadlines.
+			controller := http.NewResponseController(response)
+			_ = controller.SetReadDeadline(time.Time{})
+			_ = controller.SetWriteDeadline(time.Time{})
+			proxy.ServeHTTP(response, request)
 		case strings.HasPrefix(pathValue, "/health") || strings.HasPrefix(pathValue, "/api/") || pathValue == "/.well-known/security.txt" || pathValue == "/security.txt":
 			proxy.ServeHTTP(response, request)
 		default:

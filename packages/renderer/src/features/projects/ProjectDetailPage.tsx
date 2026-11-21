@@ -37,6 +37,12 @@ import { ProjectConnectionsPanel, type ProjectConnectionsDraft } from "./Project
 import { ProjectChangesPanel } from "./ProjectChangesPanel";
 import { ProjectResourceHubPanel } from "./ProjectResourceHubPanel";
 import { ProjectControlCenterPanel } from "./ProjectControlCenterPanel";
+import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
+
+/* Settings holds configuration only: details, integrations, access.
+   Plan (the control center) is work and has its own tab; Closeout is a
+   lifecycle step opened from the header menu. */
+const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "links", "access"];
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel";
 import { ProjectVideoWorkspace } from "./ProjectVideoWorkspace";
 import { ProjectAssetWorkspace } from "./ProjectAssetWorkspace";
@@ -373,22 +379,52 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     links: projectHasGit(project) ? "linked" : "",
     access: "",
     closeout: project.archived ? "archived" : "",
+    settings: "",
   };
   const tabLabelFallbacks: Partial<Record<ProjectWorkspaceTabId, string>> = { production: productionLabel };
-  const tabs = PROJECT_WORKSPACE_SECTIONS
-    .filter((item) => !hiddenToolIds.has(item.id as any) && (!projectToolIds.size || projectToolIds.has(item.id as any)) && (item.id !== "assets" || canUseTool(currentUser, "library", "view")) && (item.id !== "source" || canUseTool(currentUser, "sourceControl", "view")))
+  const allTabs = PROJECT_WORKSPACE_SECTIONS
+    .filter((item) => item.id === "settings" || !hiddenToolIds.has(item.id as any) && (!projectToolIds.size || projectToolIds.has(item.id as any) || PROJECT_SETTINGS_SECTION_IDS.includes(item.id)) && (item.id !== "assets" || canUseTool(currentUser, "library", "view")) && (item.id !== "source" || canUseTool(currentUser, "sourceControl", "view")))
     .map((item): ProjectDetailTab => ({
       id: item.id,
       label: toolLabel(item.id, tabLabelFallbacks[item.id] || item.defaultLabel),
       detail: tabDetails[item.id],
       group: item.mode,
     }));
-  const activeTab = tabs.some((item: ProjectDetailTab) => item.id === tab) ? tab : (tabs[0]?.id || "overview");
+  const settingsSections = allTabs.filter((item) => PROJECT_SETTINGS_SECTION_IDS.includes(item.id));
+  const settingsLabels: Partial<Record<ProjectWorkspaceTabId, string>> = { plan: "Details", links: "Integrations", access: "Access & sharing" };
+  const tabs = allTabs.filter((item) => !PROJECT_SETTINGS_SECTION_IDS.includes(item.id) && (item.id !== "settings" || settingsSections.length > 0) && (item.id !== "closeout" || tab === "closeout"));
+  const settingsSection = (settingsSections.some((item) => item.id === tab) ? tab : settingsSections[0]?.id) as ProjectWorkspaceTabId | undefined;
+  const activeTab = PROJECT_SETTINGS_SECTION_IDS.includes(tab) && settingsSection ? "settings" : tabs.some((item: ProjectDetailTab) => item.id === tab) ? tab : (tabs[0]?.id || "overview");
+  const view = activeTab === "settings" ? settingsSection : activeTab;
+  const restoreProjectSnapshot = async (snapshot: Project) => {
+                await api(`/api/projects/${project.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    name: snapshot.name,
+                    externalName: snapshot.externalName || null,
+                    codename: snapshot.codename || null,
+                    aliases: snapshot.aliases || [],
+                    description: snapshot.description || null,
+                    objective: snapshot.objective || null,
+                    clientName: snapshot.clientName || null,
+                    startDate: snapshot.startDate || null,
+                    targetDate: snapshot.targetDate || null,
+                    priority: snapshot.priority || "medium",
+                    tags: snapshot.tags || [],
+                    color: snapshot.color || null,
+                    healthNote: snapshot.healthNote || null,
+                    status: snapshot.status,
+                    projectType: snapshot.projectType,
+                    archived: Boolean(snapshot.archived),
+                  }),
+                });
+                await onReloadProjects();
+                await loadProjectDashboard();
+              };
   const primaryTabCandidates: ProjectWorkspaceTabId[] = isVideoType
-    ? ["overview", "plan", "viewer", "boards", "library", "people"]
-    : ["overview", "plan", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
+    ? ["overview", "control", "viewer", "boards", "library", "people"]
+    : ["overview", "control", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
   const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id)).slice(0, 6);
-  const showHealthStrip = ["intelligence", "control", "tickets", "builds", "qa"].includes(activeTab);
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
       <ProjectDetailHeader
@@ -405,10 +441,10 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
         onOpenBoard={onOpenBoard}
         onOpenTimeline={onOpenTimeline}
         onOpenTickets={() => onOpenTickets(project.id)}
+        allowCloseout={allTabs.some((item) => item.id === "closeout")}
       />
       {activeTab !== "source" ? <ProjectCollaborationStrip tool="project" projectId={project.id} activity={`Project · ${tabs.find((item: ProjectDetailTab) => item.id === activeTab)?.label || activeTab}`} /> : null}
 
-      {showHealthStrip ? <ProjectHealthStripAdapter project={project} ticketCount={projectTicketLinkCount} blockerCount={projectBlockerCount} failedBuilds={failedBuildCount} qaStatus={activeQaSessionCount ? `${activeQaSessionCount} active` : passedBuildCount ? `${passedBuildCount} passed` : projectQaPlanCount ? `${projectQaPlanCount} plans` : "setup"} qaLabel={toolLabel("qa", "QA")} overdue={projectOverdueLinkCount} showBuilds={supportsBuilds} showQa={supportsQa} onOpenTickets={() => onOpenTickets(project.id)} onOpenBuilds={supportsBuilds ? () => setTab("builds") : undefined} onOpenQa={supportsQa ? () => setTab("qa") : undefined} /> : null}
 
       <div className="project-workspace-v312">
         <main className="project-content-v312">
@@ -442,31 +478,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               RelatedRecordsPanel={RelatedRecordsPanel}
               CustomFieldValuesPanel={CustomFieldValuesPanel}
               VersionHistoryPanel={VersionHistoryPanel}
-              onRestore={async (snapshot) => {
-                await api(`/api/projects/${project.id}`, {
-                  method: "PATCH",
-                  body: JSON.stringify({
-                    name: snapshot.name,
-                    externalName: snapshot.externalName || null,
-                    codename: snapshot.codename || null,
-                    aliases: snapshot.aliases || [],
-                    description: snapshot.description || null,
-                    objective: snapshot.objective || null,
-                    clientName: snapshot.clientName || null,
-                    startDate: snapshot.startDate || null,
-                    targetDate: snapshot.targetDate || null,
-                    priority: snapshot.priority || "medium",
-                    tags: snapshot.tags || [],
-                    color: snapshot.color || null,
-                    healthNote: snapshot.healthNote || null,
-                    status: snapshot.status,
-                    projectType: snapshot.projectType,
-                    archived: Boolean(snapshot.archived),
-                  }),
-                });
-                await onReloadProjects();
-                await loadProjectDashboard();
-              }}
+              onRestore={restoreProjectSnapshot}
             />
             <ClusterDisclosureGroup
               className="project-secondary-details-v57"
@@ -482,9 +494,16 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
 
           {activeTab === "intelligence" && <ProjectIntelligencePanel project={project} projects={projects} users={projectUsers} snapshot={intelligence} loading={intelligenceLoading} canManage={capabilities.canManage} onRefresh={loadProjectIntelligence} onOpenSection={(section) => setTab(section as typeof tab)} />}
 
-          {activeTab === "plan" && (
+          {activeTab === "settings" && settingsSection ? <SettingsWorkspaceShell inline
+            className="project-settings"
+            title="Project settings"
+            navLabel="Project settings sections"
+            activeId={settingsSection}
+            onChange={(id) => setTab(id)}
+            items={settingsSections.map((item) => ({ id: item.id, label: settingsLabels[item.id] || item.label, detail: item.detail }))}>
+          {view === "plan" && (
             <>
-              <ProjectPlanningPanel project={project} setupChecklist={setupChecklist} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
+              <ProjectPlanningPanel project={project} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
               <ClusterDisclosureGroup className="project-secondary-details-v57 project-plan-handoff-v57"
                 contentClassName="project-plan-handoff-body-v57" title="Workflow handoff"
                 summary="Recurring work, dependencies, meetings, and ownership handoff">
@@ -496,10 +515,26 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
                     onOpenTime={() => onOpenTime(project.id)}
                   />
               </ClusterDisclosureGroup>
+              <ClusterDisclosureGroup title="Fields & related records">
+                <CustomFieldValuesPanel entity="project" entityId={project.id} projectId={project.id} title="Project fields" />
+                <RelatedRecordsPanel entity={{ kind: "project", id: project.id, label: project.name, projectId: project.id }} projectId={project.id} />
+              </ClusterDisclosureGroup>
+              <ClusterDisclosureGroup title="Version history">
+                <VersionHistoryPanel entityType="project" entityId={project.id} projectId={project.id} label={project.name} data={project} onRestore={restoreProjectSnapshot} />
+              </ClusterDisclosureGroup>
             </>
           )}
 
+          {view === "links" && (
+            <ProjectConnectionsPanel project={project} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
+          )}
+          {view === "access" && <ProjectAccessPanel project={project} media={{ reviewAssets: visibleVideos, files: visibleFiles }} currentUser={currentUser} />}
+          </SettingsWorkspaceShell> : null}
+
           {activeTab === "control" && <ProjectControlCenterPanel project={project} projects={projects} users={projectUsers} currentUser={currentUser} canManage={capabilities.canManage} permissionReason={capabilities.reason} data={controlCenter} loading={controlLoading} onReload={loadProjectControlCenter} onReloadProjectResources={async () => { await Promise.all([onReloadProjects(), onReloadWhiteboards(), loadProjectControlCenter()]); }} />}
+
+          {activeTab === "closeout" && <CloseoutPortalPanel project={project} projects={projects} media={media} currentUser={currentUser} onArchiveProject={refreshAfterCloseout} />}
+
 
           {activeTab === "tickets" && <ProjectIssuesPanel project={project} onOpenBoard={onOpenBoard} />}
 
@@ -565,13 +600,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             <ProjectChangesPanel project={project} users={projectUsers} currentUser={currentUser} canContribute={capabilities.canContribute && canUseTool(currentUser, "sourceControl", "edit")} canManage={capabilities.canManage && canUseTool(currentUser, "sourceControl", "edit")} permissionReason={capabilities.reason} onOpenConnections={() => setTab("links")} />
           )}
 
-          {activeTab === "links" && (
-            <ProjectConnectionsPanel project={project} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
-          )}
 
-          {activeTab === "access" && <ProjectAccessPanel project={project} media={{ reviewAssets: visibleVideos, files: visibleFiles }} currentUser={currentUser} />}
 
-          {activeTab === "closeout" && <CloseoutPortalPanel project={project} projects={projects} media={media} currentUser={currentUser} onArchiveProject={refreshAfterCloseout} />}
         </main>
       </div>
     </section>

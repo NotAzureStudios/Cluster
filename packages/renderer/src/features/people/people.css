@@ -318,7 +318,7 @@
     color: var(--text);
     cursor: pointer;
   }
-  .people-page-v244:not(.people-profile-expanded-rc46) .people-detail-header-v244 { padding-right: 47px; }
+  .people-page-v244:not(.people-profile-expanded-rc46) .pp-head { padding-right: 47px; }
 }
 .people-profile-expanded-rc46 .cluster-detail-close-v429 {display:none!important}
 
@@ -355,32 +355,80 @@
 
 /* Dedicated admin Accounts workspace. General People remains focused on
    presence, teams, collaboration and non-sensitive workforce discovery. */
-.people-account-management-v11{display:grid;gap:12px;min-width:0;padding:16px;color:var(--text)}
-.people-account-management-head-v11{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.people-account-management-head-v11 h2{font-size:1.1rem;line-height:1.3;margin:0 0 4px}
-.people-account-management-head-v11 span{color:var(--muted);font-size:.76rem}
-.people-account-management-head-actions-v11{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.people-account-management-filters-v11{display:grid;grid-template-columns:minmax(180px,1.5fr) repeat(3,minmax(130px,1fr)) auto;align-items:end;gap:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
-.people-account-management-filters-v11 .field{min-width:0;margin:0;display:grid;gap:5px}
-.people-account-management-filters-v11 .field>span{font-size:.72rem;color:var(--muted)}
-.people-account-management-table-wrap-v11{min-width:0;overflow-x:auto;border:1px solid var(--border);border-radius:12px}
-.people-account-management-table-v11{width:100%;min-width:860px;border-collapse:collapse;text-align:left;table-layout:auto}
-.people-account-management-table-v11 thead{background:color-mix(in srgb,var(--surface) 85%,transparent)}
-.people-account-management-table-v11 th{padding:10px 12px;font-size:.7rem;color:var(--muted);font-weight:600;text-transform:none;white-space:nowrap;border-bottom:1px solid var(--border)}
-.people-account-management-table-v11 td{padding:12px;border-bottom:1px solid var(--border);font-size:.78rem;vertical-align:middle}
-.people-account-management-table-v11 tbody tr:last-child td{border-bottom:0}
-.people-account-management-table-v11 tbody tr:hover{background:color-mix(in srgb,var(--accent,#57c1ff) 4%,transparent)}
-.people-account-management-table-v11 td strong{display:block;font-weight:600;line-height:1.4}
-.people-account-management-table-v11 td small{display:block;color:var(--muted);font-size:.69rem;line-height:1.4;margin-top:2px;overflow-wrap:anywhere}
-.people-account-state-v11{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
-.people-account-state-v11:before{content:"";width:6px;height:6px;flex:none;border-radius:50%;background:var(--accent,#57c1ff)}
-.people-account-state-v11.restricted:before{background:var(--muted)}
-.people-account-row-actions-v11{display:flex;gap:4px;flex-wrap:nowrap;justify-content:flex-end}
-.people-account-row-actions-v11>button{white-space:nowrap}
-.people-account-management-table-v11 .people-account-empty-v11{text-align:center;padding:26px 12px;color:var(--muted)}
-.people-account-loading-v11{padding:20px;text-align:center;font-size:.78rem;color:var(--muted)}
-.people-account-management-error-v11{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--danger,var(--text));font-size:.79rem;padding:10px}
-.people-account-management-footer-v11{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:.74rem;flex-wrap:wrap}
 @media(max-width:1180px){.people-account-management-filters-v11{grid-template-columns:repeat(3,minmax(130px,1fr))}.people-account-search-v11{grid-column:1/-1}}
 @media(max-width:670px){.people-account-management-v11{padding:10px}.people-account-management-filters-v11{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.people-account-management-filters-v11 .people-account-search-v11{grid-column:1/-1}.people-account-management-head-actions-v11{width:100%}}
 @media(max-width:400px){.people-account-management-filters-v11{grid-template-columns:minmax(0,1fr)}.people-account-management-filters-v11 .people-account-search-v11{grid-column:auto}}
+
+/* v6 People: one header row, quiet directory, compact identity, fact list. */
+.people-page-v244 .people-mode-v6 > button { padding-inline: 9px; }
+.people-directory-v244 { grid-template-rows: minmax(0,1fr) auto; }
+.people-toolbar-v244 { grid-template-columns: minmax(200px,1fr) auto auto auto; align-items: center; padding: 6px; }
+.people-toolbar-v244 select { min-width: 0; max-width: 180px; }
+.people-load-status-v244:not([data-error]) { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; padding:0; border:0; }
+.people-load-status-v244[data-error] { color: var(--danger); }
+.people-detail-v244 { grid-template-rows: auto auto minmax(0,1fr) auto; }
+.pp-head { display:flex; align-items:center; gap:10px; min-width:0; padding:10px 12px; border-bottom:1px solid var(--border); }
+.pp-head > .pp-identity { flex:1; min-width:0; }
+.pp-identity .cluster-presence-avatar-v227 { --avatar-size:44px; border-radius:12px; font-size:1rem; }
+.pp-identity .cluster-person-summary-copy-v493 > strong { font-size:.95rem; }
+.pp-actions { display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+.pp-tabs { display:flex; gap:2px; padding:0 8px; border-bottom:1px solid var(--border); overflow-x:auto; scrollbar-width:none; }
+.pp-tabs::-webkit-scrollbar { display:none; }
+.pp-tabs > button { flex:0 0 auto; padding:8px 8px 7px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--muted); font-size:.72rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+.pp-tabs > button:hover { color:var(--text); }
+.pp-tabs > button.active { color:var(--text); border-bottom-color:var(--accent,#57c1ff); }
+.pp-bio { margin:0; font-size:.8rem; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.pp-stats { display:flex; flex-wrap:wrap; align-items:center; gap:4px 16px; font-size:.72rem; color:var(--muted); }
+.pp-stats > * { display:inline-flex; align-items:baseline; gap:4px; padding:0; margin:0; min-height:0; border:0; background:none; color:inherit; font:inherit; line-height:1.4; }
+.pp-stats > button { cursor:pointer; }
+.pp-stats > button:hover { color:var(--text); }
+.pp-stats strong { color:var(--text); font-size:.86rem; }
+.pp-stats .warn strong { color:var(--warning); }
+.pp-facts { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:10px 18px; margin:0; }
+.pp-facts > div { display:grid; gap:2px; min-width:0; }
+.pp-facts dt { font-size:.62rem; color:var(--muted); }
+.pp-facts dd { margin:0; font-size:.74rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pp-section { display:grid; gap:7px; padding-top:12px; border-top:1px solid var(--border); min-width:0; }
+.pp-section > h3 { display:flex; align-items:center; justify-content:space-between; gap:6px; margin:0; font-size:.7rem; font-weight:700; color:var(--muted); }
+.pp-section > h3 svg { width:12px; height:12px; }
+.pp-private > h3 { justify-content:flex-start; }
+.pp-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.pp-chips > span, .pp-chips > button { display:inline-flex; align-items:baseline; gap:5px; padding:3px 8px; border:0; border-radius:6px; background:var(--surface-soft,var(--surface)); color:var(--text); font-size:.68rem; }
+.pp-chips > button { cursor:pointer; }
+.pp-chips > button:hover { background:color-mix(in srgb,var(--accent) 16%,var(--surface)); }
+.pp-chips small { color:var(--muted); font-size:.6rem; }
+.pp-note { margin:0; color:var(--muted); font-size:.7rem; line-height:1.5; white-space:pre-wrap; }
+.people-detail-scroll-v244 { gap:12px; }
+.people-detail-scroll-v244 > .people-contact-actions-v473 :where(a,button) { font-size:.68rem; }
+/* Full page: same anatomy, centred column, no banner. */
+.people-profile-expanded-rc46 .people-layout-v244 { min-height:calc(100dvh - 96px); }
+.people-profile-expanded-rc46 :is(.pp-head,.pp-tabs) { padding-inline:max(12px,calc((100% - 900px)/2)); }
+.people-profile-expanded-rc46 .pp-head { padding-block:14px; }
+.people-profile-expanded-rc46 .pp-identity .cluster-presence-avatar-v227 { --avatar-size:56px; border-radius:14px; font-size:1.2rem; }
+.people-profile-expanded-rc46 .pp-identity .cluster-person-summary-copy-v493 > strong { font-size:1.1rem; }
+.people-profile-expanded-rc46 .people-detail-scroll-v244 { width:min(100%,900px); padding:16px 12px 32px; gap:14px; }
+.people-workforce-workspace-v504 > header { justify-content:flex-end; }
+.pp-section > p.muted { margin:0; font-size:.7rem; }
+.pp-head .cluster-person-summary-copy-v493 > small { white-space:normal; }
+.people-toolbar-v244.cluster-data-toolbar-v289 { grid-template-columns:minmax(200px,1fr) auto auto auto; gap:8px; padding:6px; box-shadow:none; }
+.people-toolbar-v244 .cluster-data-filters-v289 { flex-wrap:nowrap; align-items:center; gap:6px; padding:0; border:0; background:none; }
+.people-toolbar-v244 .cluster-data-filters-v289 > * { width:auto; min-width:0; }
+.people-toolbar-v244 .cluster-data-filters-v289 select { min-height:30px; height:30px; padding-block:0; font-size:.72rem; max-width:170px; }
+.people-toolbar-v244 .cluster-data-count-v289 { font-size:.66rem; color:var(--muted); white-space:nowrap; }
+.people-layout-v244 :is(.people-directory-v244,.people-detail-v244) { --cluster-panel-pad:0px; padding:0 !important; }
+.pp-stats { align-items:baseline; }
+.people-profile-feed-rc46 li { padding:7px 0; gap:6px; }
+.people-profile-feed-rc46 li strong { font-size:.74rem; font-weight:600; }
+.people-profile-feed-rc46 li p { font-size:.66rem; }
+.people-profile-feed-rc46 li time { font-size:.62rem; }
+.people-profile-feed-dot-rc46 { width:6px; height:6px; margin:5px 4px; }
+.people-user-editor-v106 { gap:10px; padding-top:0; }
+.people-user-editor-section-v106 { padding:10px 12px; gap:9px; border-radius:10px; }
+.people-user-editor-grid-v106 { gap:9px 12px; }
+.people-user-editor-field-v106 > span { font-size:.64rem; color:var(--muted); font-weight:600; }
+@media (max-width: 640px) {
+  .people-toolbar-v244.cluster-data-toolbar-v289 { grid-template-columns: minmax(0,1fr) auto; }
+  .people-toolbar-v244 .cluster-data-filters-v289 { grid-column: 1 / -1; display: flex !important; overflow-x: auto; }
+  .people-toolbar-v244 .cluster-data-count-v289 { display: none; }
+  .pp-head { flex-wrap: wrap; }
+}

@@ -41,7 +41,8 @@ function missingJSXProps(source, component) {
 check(() => assert.deepEqual(missingJSXProps(parsed, 'AdminSurface'), []));
 check(() => {
   // Catch regression if description becomes required in the future while calls omit it.
-  const bad = ts.createSourceFile('bad.tsx', admin.replace('description?: string;', 'description: string;'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  // Every current call passes one, so drop it from one call to simulate an omission.
+  const bad = ts.createSourceFile('bad.tsx', admin.replace('description?: string;', 'description: string;').replace(/(<AdminSurface[^>]*?) description="[^"]*"/, '$1'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   assert.ok(missingJSXProps(bad, 'AdminSurface').some(x => x.prop === 'description'));
 });
 check(() => assert.match(admin, /description \? <p>\{description\}<\/p> : null/));

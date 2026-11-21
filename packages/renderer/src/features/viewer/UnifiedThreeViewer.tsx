@@ -481,6 +481,9 @@ const ThreeModelStage = forwardRef<StageHandle, {
         const key = new THREE.DirectionalLight(0xffffff, 3.0);
         key.position.set(4, 6, 5);
         key.castShadow = true;
+        // Without bias, self-shadowing draws stripes (shadow acne) across flat faces.
+        key.shadow.bias = -0.0005;
+        key.shadow.normalBias = 0.02;
         const fill = new THREE.DirectionalLight(0x77a7ff, 1.35);
         fill.position.set(-5, 2, -3);
         const rim = new THREE.DirectionalLight(0xd596ff, 0.9);
@@ -1184,35 +1187,38 @@ export const UnifiedThreeViewer = forwardRef<UnifiedThreeViewerHandle, {
           {loadState === "loading" ? <div className="cluster-three-state" role="status"><span className="cluster-viewer-spinner" /><strong>Preparing 3D scene</strong><p>Loading the declared source and bounded companion resources…</p></div> : null}
           {loadState === "error" ? <div className="cluster-three-state error" role="alert"><ClusterIcon name="warning" /><strong>3D preview unavailable</strong><p>{loadMessage}</p><ClusterButton size="compact" variant="secondary" onClick={assetSession.reload}>Retry</ClusterButton></div> : null}
           {annotationMode && !draftLocator ? <div className="cluster-three-annotation-hint"><ClusterIcon name="pin" />Click a model surface to place a review pin.</div> : null}
-          <div className="cluster-three-view-cube" aria-label="Standard 3D views">
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("top")}>Top</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("bottom")}>Bottom</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("front")}>Front</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("back")}>Back</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("left")}>Left</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("right")}>Right</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.setNamedView("isometric")}>Iso</ClusterButton>
-          </div>
           <ViewerOverlayLayer visibleIds={visibleOverlayIds} placements={overlayPlacements} values={overlayValues} />
         </div>
+        {/* One control row: framing and views, look, overlays, then review tools. */}
         <div className="cluster-three-controls">
           <div className="cluster-three-control-group">
-            <ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.fit()}><ClusterIcon name="home" />Fit</ClusterButton>
-            <ClusterNativeSelect aria-label="Projection" value={projection} onChange={(event) => setProjection(event.target.value as ProjectionMode)}><option value="perspective">Perspective</option><option value="orthographic">Orthographic</option></ClusterNativeSelect>
-            <ClusterNativeSelect aria-label="Lighting / environment" value={lighting} onChange={(event) => setLighting(event.target.value as LightingMode)}><option value="studio">Studio light</option><option value="neutral">Neutral light</option><option value="inspection">Inspection light</option></ClusterNativeSelect>
-            <ClusterButton size="compact" variant="quiet" selected={wireframe} onClick={() => setWireframe((value) => !value)}>Wireframe</ClusterButton>
+            <ClusterIconButton size="compact" variant="quiet" label="Fit model" title="Fit model (0)" onClick={() => stageRef.current?.fit()}><ClusterIcon name="home" /></ClusterIconButton>
+            <ClusterNativeSelect aria-label="Standard view" title="Standard view" value="" onChange={(event) => { if (event.target.value) stageRef.current?.setNamedView(event.target.value as NamedView); }}>
+              <option value="">View</option>
+              {(["isometric", "front", "back", "left", "right", "top", "bottom"] as const).map((view) => <option key={view} value={view}>{view === "isometric" ? "Iso" : view[0].toUpperCase() + view.slice(1)}</option>)}
+            </ClusterNativeSelect>
+            <ClusterNativeSelect aria-label="Projection" title="Projection (5)" value={projection} onChange={(event) => setProjection(event.target.value as ProjectionMode)}><option value="perspective">Perspective</option><option value="orthographic">Orthographic</option></ClusterNativeSelect>
+            <ClusterNativeSelect aria-label="Lighting" title="Lighting" value={lighting} onChange={(event) => setLighting(event.target.value as LightingMode)}><option value="studio">Studio</option><option value="neutral">Neutral</option><option value="inspection">Inspection</option></ClusterNativeSelect>
           </div>
           <div className="cluster-three-control-group technical">
+            <ClusterButton size="compact" variant="quiet" selected={wireframe} onClick={() => setWireframe((value) => !value)}>Wireframe</ClusterButton>
             <ClusterButton size="compact" variant="quiet" selected={grid} onClick={() => setGrid((value) => !value)}>Grid</ClusterButton>
             <ClusterButton size="compact" variant="quiet" selected={axes} onClick={() => setAxes((value) => !value)}>Axes</ClusterButton>
             <ClusterButton size="compact" variant="quiet" selected={bounds} onClick={() => setBounds((value) => !value)}>Bounds</ClusterButton>
             {stats.skins ? <ClusterButton size="compact" variant="quiet" selected={skeleton} onClick={() => setSkeleton((value) => !value)}>Skeleton</ClusterButton> : null}
             <ClusterButton size="compact" variant="quiet" selected={showObjectNames} onClick={() => setShowObjectNames((value) => !value)}>Names</ClusterButton>
           </div>
+          <span className="cluster-three-controls-spacer" />
+          <div className="cluster-three-control-group">
+            <ClusterIconButton size="compact" variant="quiet" label="Save viewpoint" title="Save viewpoint (V)" onClick={saveCurrentView}><ClusterIcon name="star" /></ClusterIconButton>
+            {assetSession.session?.capabilities.annotate && assetSession.session.resource.source.locator.provider === "review_asset" ? <ClusterButton size="compact" variant="quiet" selected={annotationMode} onClick={() => { setAnnotationMode((value) => !value); setDraftLocator(null); setMode("review"); }}><ClusterIcon name="pin" />{annotationMode ? "Stop pinning" : "Pin"}</ClusterButton> : null}
+          </div>
           {hierarchy.length ? <details className="cluster-three-hierarchy-tools">
             <summary>Hierarchy <span>{hierarchy.length >= MAX_HIERARCHY_ROWS ? `${MAX_HIERARCHY_ROWS}+` : hierarchy.length} nodes</span></summary>
+            <div className="cluster-three-hierarchy-pop">
             <div className="cluster-three-hierarchy-actions"><ClusterButton size="compact" variant="quiet" onClick={() => stageRef.current?.showAllObjects()}>Show all</ClusterButton></div>
             <div className="cluster-three-hierarchy-list">{hierarchy.slice(0, 80).map((node) => <div key={node.id} className="cluster-three-hierarchy-row"><span title={node.id}>{node.name}<small>{node.type}</small></span><ClusterButton size="compact" variant="quiet" selected={node.visible} onClick={() => stageRef.current?.setObjectVisible(node.id, !node.visible)}>{node.visible ? "Visible" : "Hidden"}</ClusterButton></div>)}</div>
+            </div>
           </details> : null}
           {animations.length ? <div className="cluster-three-animation-controls">
             <ClusterIconButton label={animationSnapshot.phase === "playing" ? "Pause animation" : "Play animation"} size="compact" variant="quiet" onClick={() => void animationController.toggle()}><ClusterIcon name={animationSnapshot.phase === "playing" ? "pause" : "play"} /></ClusterIconButton>

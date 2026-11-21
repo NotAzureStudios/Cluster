@@ -261,3 +261,25 @@
 .cluster-inventory-visual-details-rc41{min-width:0;border:1px solid var(--cluster-line,var(--border));border-radius:9px;padding:7px 9px}
 .cluster-inventory-visual-details-rc41>summary{cursor:pointer;font-size:.75rem;color:var(--cluster-muted,var(--muted))}
 .cluster-inventory-visual-details-rc41[open]>.cluster-visual-ranked{margin-top:8px}
+
+/* ---------- Density pass: compact header, one catalog toolbar ---------- */
+.cluster-resource-workspace { display: grid; gap: var(--space-2-5); }
+.cluster-resource-workspace .page-head.tph .cluster-resource-workspace__tabs { padding: 0; border: 0; }
+.cluster-inventory-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 0 var(--space-2); }
+.cluster-inventory-toolbar .cluster-inventory-category-nav { display: inline-flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 0; border: 0; }
+.cluster-inventory-toolbar .cluster-inventory-category-nav .cluster-button-v425 { min-height: 30px !important; height: 30px; font-size: var(--cluster-font-size-xs); }
+.cluster-inventory-toolbar .cluster-inventory-search { flex: 1 1 200px; margin: 0; }
+.cluster-inventory-toolbar .cluster-inventory-search input { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+.cluster-inventory-toolbar .cluster-inventory-filters { display: inline-flex; margin: 0; }
+.cluster-inventory-toolbar .cluster-inventory-filters select { width: auto !important; height: 32px; min-height: 32px; padding-block: 0; font-size: var(--cluster-font-size-sm); }
+.cluster-inventory-toolbar-spacer { flex: 1 0 0; }
+.cluster-inventory-toolbar .cluster-inventory-browser-actions { display: inline-flex; gap: 2px; }
+.cluster-inventory-toolbar .cluster-inventory-browser-actions .cluster-button-v425 { min-height: 32px !important; height: 32px; }
+.cluster-inventory-visual-summary-rc41:empty { display: none; }
+.vault-tool-workspace .cluster-vault-toolbar { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px; grid-template-columns: none !important; margin: 0; }
+.vault-tool-workspace .cluster-vault-toolbar > * { flex: none; min-width: 0; margin: 0; }
+.vault-tool-workspace .cluster-vault-toolbar .cluster-vault-categories { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 0; border: 0; }
+.vault-tool-workspace .cluster-vault-toolbar .cluster-button-v425 { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-xs); }
+.vault-tool-workspace .cluster-vault-toolbar > input { flex: 1 1 200px; height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+.vault-tool-workspace .cluster-vault-toolbar > select { width: auto !important; height: 32px; min-height: 32px; padding-block: 0; font-size: var(--cluster-font-size-sm); }
+.vault-tool-workspace .cluster-vault-toolbar-spacer { flex: 1 0 0 !important; }

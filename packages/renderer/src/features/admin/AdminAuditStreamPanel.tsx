@@ -86,9 +86,9 @@ export function AdminAuditStreamPanel({ projects, users }: { projects: Project[]
   return <section className="management-panel admin-resource-panel admin-audit-stream-v16c">
     <header className="admin-audit-stream-head-v16c">
       <div>
-        <p className="eyebrow">Authoritative evidence</p>
+        <p className="eyebrow">Audit log</p>
         <h2>Audit activity</h2>
-        <p className="muted tight">Admin-only activity evidence from the canonical audit endpoint. Ordinary Activity remains the human workspace history; this stream is for traceability and investigation.</p>
+        <p className="muted tight">Admin-only record of every audited action. Activity shows the everyday workspace history; use this log to trace and investigate.</p>
       </div>
       <ClusterButton type="button" variant="secondary" disabled={loading} onClick={() => void load(true)}>{loading ? "Refreshing…" : "Refresh"}</ClusterButton>
     </header>
@@ -119,7 +119,7 @@ export function AdminAuditStreamPanel({ projects, users }: { projects: Project[]
         </dl>
         {event.metadata && Object.keys(event.metadata).length ? <ClusterDisclosureGroup title="Evidence / metadata"><pre>{JSON.stringify(event.metadata, null, 2)}</pre></ClusterDisclosureGroup> : null}
       </article>)}
-      {!loading && !events.length ? <div className="admin-audit-empty-v16c"><strong>No audit activity matches these filters.</strong><span>Broaden the filters or verify that the relevant action emits canonical activity evidence.</span></div> : null}
+      {!loading && !events.length ? <div className="admin-audit-empty-v16c"><strong>No audit activity matches these filters.</strong><span>Broaden the filters, or check that this action is audited.</span></div> : null}
     </div>
   </section>;
 }

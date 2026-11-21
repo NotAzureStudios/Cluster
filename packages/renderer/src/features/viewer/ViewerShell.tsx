@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useViewerHostToolbar } from "./viewer-host";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterDockedInspector, ClusterInspectorPanel } from "../../components/ClusterWorkspacePanel";
@@ -253,7 +255,7 @@ export function ViewerShell({
     {
       id: "viewer.system.export-custom",
       label: "Export · Custom metadata",
-      description: "Choose which canonical metadata categories may accompany a sanitized derivative.",
+      description: "Choose which metadata categories may accompany a sanitized derivative.",
       icon: "settings",
       priority: 77,
       group: "system",
@@ -264,7 +266,7 @@ export function ViewerShell({
         if (!session) return;
         const raw = await promptCluster({
           title: "Custom metadata export",
-          message: "Enter canonical metadata categories to retain, separated by commas. Normal categories are identity, production, review, and derived. Sensitive categories use sensitive.<category> and still require sensitive-metadata permission. Embedded private metadata is never re-injected into sanitized bytes.",
+          message: "Enter metadata categories to retain, separated by commas. Normal categories are identity, production, review, and derived. Sensitive categories use sensitive.<category> and still require sensitive-metadata permission. Embedded private metadata is never re-injected into sanitized bytes.",
           label: "Categories",
           initialValue: "production",
           placeholder: "production, identity",
@@ -383,6 +385,9 @@ export function ViewerShell({
     adapter: { ...adapterDiagnostics, hardening },
   }) : null, [session, commandContext, fullscreen, mode, panel, registry, conflicts.length, availableOverlays.length, visibleOverlayIds.length, viewport, adapterDiagnostics, hardening]);
 
+  // undefined: standalone. null: hosted, toolbar element not mounted yet.
+  const hostToolbar = useViewerHostToolbar();
+  const hosted = hostToolbar !== undefined;
   if (assetSession.state === "idle") return null;
   if (assetSession.state === "loading" || !session) {
     if (assetSession.state === "error") return <ViewerState tone="error" title="Viewer could not open this asset" description={assetSession.error instanceof Error ? assetSession.error.message : String(assetSession.error || "The asset could not be opened safely.")} actions={<ClusterButton type="button" variant="secondary" onClick={assetSession.reload}>Retry</ClusterButton>} />;
@@ -394,8 +399,17 @@ export function ViewerShell({
   const resourceKey = `${session.resource.source.provider}:${session.resource.source.id}:${session.resource.source.versionId || ""}`;
 
   return <ViewerResourceScopeProvider resourceKey={resourceKey}>
-    <section ref={rootRef} className="cluster-viewer-shell" data-medium={session.resource.source.medium} data-mode={mode} data-panel={panel} data-fullscreen={fullscreen ? "true" : "false"} onKeyDownCapture={(event) => { if (commandContext) void registry.handleKeyDown(event, commandContext).catch(() => { setSystemStatusError(true); setSystemStatus("Viewer command failed. Check the current result before retrying."); }); }}>
-      <header className="cluster-viewer-header">
+    <section ref={rootRef} className="cluster-viewer-shell" data-hosted={hosted ? "true" : undefined} data-medium={session.resource.source.medium} data-mode={mode} data-panel={panel} data-fullscreen={fullscreen ? "true" : "false"} onKeyDownCapture={(event) => { if (commandContext) void registry.handleKeyDown(event, commandContext).catch(() => { setSystemStatusError(true); setSystemStatus("Viewer command failed. Check the current result before retrying."); }); }}>
+      {hostToolbar ? createPortal(<>
+          {onModeChange ? <div className="cluster-viewer-mode-switch" role="group" aria-label="Viewer mode">{(["view", "review", "technical"] as ViewerMode[]).map((value) => <ClusterButton key={value} size="compact" variant="quiet" selected={mode === value} onClick={() => onModeChange(value)}>{value[0].toUpperCase() + value.slice(1)}</ClusterButton>)}</div> : null}
+          {headerActions}
+          {session.resource.source.locator.provider === "review_asset" && session.capabilities.downloadOriginal ? <ClusterIconButton label="Drag original out" title="Drag original out through the authorized download endpoint" size="compact" variant="quiet" draggable onDragStart={(event) => { if (!populateViewerDragTransfer(event.nativeEvent, session)) event.preventDefault(); }}><ClusterIcon name="drag" /></ClusterIconButton> : null}
+          {session.capabilities.viewReviewHistory ? <ClusterIconButton label="Review" size="compact" variant="quiet" selected={panel === "comments"} onClick={() => invokeViewerCommand("viewer.shell.review")}><ClusterIcon name="comment" /></ClusterIconButton> : null}
+          <ClusterIconButton className="cluster-viewer-shortcuts-button" label="Keyboard shortcuts" title="Keyboard shortcuts (?)" size="compact" variant="quiet" selected={panel === "shortcuts"} onClick={() => invokeViewerCommand("viewer.shell.shortcuts")}><ClusterIcon name="keyboard" /></ClusterIconButton>
+          <ClusterIconButton label="Overlays" size="compact" variant="quiet" selected={panel === "overlays"} onClick={() => invokeViewerCommand("viewer.shell.overlays")}><ClusterIcon name="grid" /></ClusterIconButton>
+          <ClusterIconButton label="Inspector" size="compact" variant="quiet" selected={panel === "inspector"} onClick={() => invokeViewerCommand("viewer.shell.inspector")}><ClusterIcon name="panel-open" /></ClusterIconButton>
+          <ClusterIconButton label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} size="compact" variant="quiet" disabled={!fullscreenSupported} onClick={() => invokeViewerCommand("viewer.shell.fullscreen")}><ClusterIcon name={fullscreen ? "minimize" : "fullscreen"} /></ClusterIconButton>
+      </>, hostToolbar) : hosted ? null : <header className="cluster-viewer-header">
         <div className="cluster-viewer-identity">
           <ClusterIcon name={session.resource.source.medium === "3d" ? "model" : session.resource.source.medium} />
           <div><strong title={title}>{title}</strong><span>{session.resource.source.originalName} · {session.resource.source.support}</span></div>
@@ -405,12 +419,12 @@ export function ViewerShell({
           {headerActions}
           {session.resource.source.locator.provider === "review_asset" && session.capabilities.downloadOriginal ? <ClusterIconButton label="Drag original out" title="Drag original out through the authorized download endpoint" size="compact" variant="quiet" draggable onDragStart={(event) => { if (!populateViewerDragTransfer(event.nativeEvent, session)) event.preventDefault(); }}><ClusterIcon name="drag" /></ClusterIconButton> : null}
           {session.capabilities.viewReviewHistory ? <ClusterIconButton label="Review" size="compact" variant="quiet" selected={panel === "comments"} onClick={() => invokeViewerCommand("viewer.shell.review")}><ClusterIcon name="comment" /></ClusterIconButton> : null}
-          <ClusterIconButton label="Keyboard shortcuts" title="Keyboard shortcuts (?)" size="compact" variant="quiet" selected={panel === "shortcuts"} onClick={() => invokeViewerCommand("viewer.shell.shortcuts")}><ClusterIcon name="keyboard" /></ClusterIconButton>
+          <ClusterIconButton className="cluster-viewer-shortcuts-button" label="Keyboard shortcuts" title="Keyboard shortcuts (?)" size="compact" variant="quiet" selected={panel === "shortcuts"} onClick={() => invokeViewerCommand("viewer.shell.shortcuts")}><ClusterIcon name="keyboard" /></ClusterIconButton>
           <ClusterIconButton label="Overlays" size="compact" variant="quiet" selected={panel === "overlays"} onClick={() => invokeViewerCommand("viewer.shell.overlays")}><ClusterIcon name="grid" /></ClusterIconButton>
           <ClusterIconButton label="Inspector" size="compact" variant="quiet" selected={panel === "inspector"} onClick={() => invokeViewerCommand("viewer.shell.inspector")}><ClusterIcon name="panel-open" /></ClusterIconButton>
           <ClusterIconButton label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} size="compact" variant="quiet" disabled={!fullscreenSupported} onClick={() => invokeViewerCommand("viewer.shell.fullscreen")}><ClusterIcon name={fullscreen ? "minimize" : "fullscreen"} /></ClusterIconButton>
         </div>
-      </header>
+      </header>}
       {commandContext ? <ViewerCommandBar registry={registry} context={commandContext} /> : null}
       {systemStatus ? <p className="muted tight" role={systemStatusError ? "alert" : "status"} aria-live={systemStatusError ? "assertive" : "polite"}>{systemStatus}</p> : null}
       {supportMessage ? <div className="cluster-viewer-degradation" role="status"><ClusterIcon name="warning" /><span><strong>{assetSession.state === "unsupported" ? "Unsupported source" : "Degraded viewer path"}</strong>{supportMessage}</span></div> : null}
@@ -423,7 +437,10 @@ export function ViewerShell({
         minWidth={280}
         maxWidth={560}
         defaultWidth={360}
-        inspector={<>
+        // null, not an empty fragment, when no panel is open: the split counts a
+        // fragment as a second pane and reserved an empty 360px column beside the
+        // picture.
+        inspector={panel === "none" ? null : <>
           {panel === "overlays" ? <ViewerOverlayDrawer overlays={availableOverlays} visibleIds={visibleOverlayIds} preferences={overlayPreferences} onChange={setOverlayPreferences} onClose={() => setPanel("none")} onDetach={canDetachCurrentViewer() && commandContext ? () => invokeViewerCommand("viewer.system.detach") : undefined} /> : null}
           {panel === "inspector" && diagnostics ? <ViewerInspector session={session} diagnostics={diagnostics} onLoadSensitiveMetadata={assetSession.loadSensitiveMetadata} adapterSections={[...adapterInspectorSections, ...hardeningInspectorSections, ...accessibilityInspectorSections]} onClose={() => setPanel("none")} onDetach={canDetachCurrentViewer() && commandContext ? () => invokeViewerCommand("viewer.system.detach") : undefined} /> : null}
           {panel === "comments" && session.capabilities.viewReviewHistory ? <ViewerReviewPanel session={session} onNavigate={onReviewNavigate} onReload={assetSession.reload} onClose={() => setPanel("none")} /> : null}

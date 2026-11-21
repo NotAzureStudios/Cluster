@@ -18,7 +18,7 @@ test('Inbox and Taskbar retain the same exact-target rule',()=>{
  assert.match(routing,/if \(source \|\| stringValue\(item.entityId\) \|\| stringValue\(item.cardId\)\) return null/);
 });
 test('Paged Inbox never promises to mark more than its loaded unread items',()=>{
- assert.match(inbox,/>Mark loaded read<\/ClusterButton>/);
+ assert.match(inbox,/>Mark \{unread\.length\} read<\/ClusterButton>/);
  assert.doesNotMatch(inbox,/>Mark all read<\/ClusterButton>/);
  const mutation=inbox.slice(inbox.indexOf('async function setRead('),inbox.indexOf('async function dismiss('));
  assert.match(mutation,/ids, read/);

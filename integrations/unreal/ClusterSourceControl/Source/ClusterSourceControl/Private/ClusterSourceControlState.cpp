@@ -69,8 +69,11 @@ bool FClusterSourceControlState::IsCheckedOut() const
 
 bool FClusterSourceControlState::IsCheckedOutOther(FString* Who) const
 {
-    const bool bOther = LockOwnership == TEXT("theirs");
-    if (bOther && Who) *Who = LockOwner;
+    // "unknown": the LFS server listed the lock but could not say whose it is
+    // (no lock verification). Treat it as held, so nobody edits an asset that
+    // may be someone else's.
+    const bool bOther = LockOwnership == TEXT("theirs") || LockOwnership == TEXT("unknown");
+    if (bOther && Who) *Who = LockOwnership == TEXT("unknown") ? FString::Printf(TEXT("%s (unverified)"), *LockOwner) : LockOwner;
     return bOther;
 }
 

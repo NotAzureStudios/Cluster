@@ -68,7 +68,7 @@ try {
  const runtime=fs.readFileSync(path.join(root,'apps/server/src/core/acceleration/cluster-acceleration-runtime.ts'),'utf8');
  for(const phrase of ['async checkConfiguredCompatibility()', 'if (!snapshot.distributed || !this.command)','if (this.compatibilityPromise)','< 120_000','this.compatibilityCached = null','runRedisProtocolCompatibility({command, prefix:this.keyPrefix})'])yes(runtime.includes(phrase),'bounded runtime '+phrase);
  const ui=fs.readFileSync(path.join(root,'packages/renderer/src/features/admin/OperationsSystemsPanel.tsx'),'utf8');
- yes(ui.includes('Check configured backend'),'explicit check button');
+ yes(ui.includes('Test Redis'),'explicit check button');
  yes(ui.includes('does not identify the server product'),'product identification not implied');
  yes(ui.includes('/api/admin/operations/acceleration/compatibility-check'),'frontend wired');
  const fence=fs.readFileSync(path.join(root,'apps/server/src/core/runtime-access-state.ts'),'utf8');

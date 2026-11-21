@@ -384,11 +384,9 @@ body,
   color: var(--text) ;
 }
 
-body {
-  background-image: var(--cluster-background-image) ;
-
-  background-attachment: fixed ;
-}
+/* --cluster-background-image is the older of the two background systems and
+   has been dead since visual-system.css began painting the workbench; the
+   surface is owned there now. */
 
 .content-shell {
   position: relative;

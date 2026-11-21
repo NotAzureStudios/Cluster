@@ -277,6 +277,8 @@ body,
   min-width: 0;
 }
 .cluster-data-cell-value-v504 { min-width: 0; }
+/* Table text at one size; some cells inherited the larger body size. */
+.data-table-shell td[data-cluster-data-cell="true"] { font-size: var(--cluster-font-size-sm); }
 .cluster-data-expanded-row-v504 > td {
   padding: var(--space-3) var(--space-4);
   background: var(--surface-subtle);

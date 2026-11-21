@@ -405,13 +405,10 @@ export function OperationsCenterPanel() {
   }
 
   return (
-    <section className="panel background-jobs-v384" aria-labelledby="operations-center-title-v384">
+    <section className="panel background-jobs-v384" aria-label="Jobs">
       <header>
         <div className="jobs-header-title-v12">
-          <span className="jobs-header-icon-v12"><ClusterIcon name="work" treatment="duotone" aria-hidden="true" /></span>
-          <span><strong id="operations-center-title-v384">Jobs</strong>
-            <small>{worker ? `${worker.running}/${worker.concurrency} workers · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</small>
-          </span>
+          <small>{worker ? `${worker.running}/${worker.concurrency} workers · ${ageLabel(payload?.pressure?.oldestQueuedAgeMs)}` : "Worker status unavailable"}</small>
         </div>
         <div className="button-row">
           <SettingsStateChip tone={!payload ? "neutral" : unhealthy ? "danger" : (payload.pressure?.stalledLeases || 0) ? "warning" : "success"}>
@@ -419,7 +416,6 @@ export function OperationsCenterPanel() {
           </SettingsStateChip>
           {unhealthy ? <ClusterButton type="button" onClick={() => void runBulkRetry()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Retry failed</ClusterButton> : null}
           <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showAdvancedAnalytics} onClick={() => setShowAdvancedAnalytics((value) => !value)}><ClusterIcon name="grid" aria-hidden="true" /> {showAdvancedAnalytics ? "Hide insights" : "Insights"}</ClusterButton>
-          <ClusterButton type="button" onClick={() => void loadJobs()} disabled={Boolean(actionJobId)} variant="quiet" size="compact"><ClusterIcon name="refresh" aria-hidden="true" /> Refresh</ClusterButton>
         </div>
       </header>
 
@@ -469,7 +465,7 @@ export function OperationsCenterPanel() {
         placeholder="Search jobs, queues or IDs"
         countLabel={`${payload?.jobs.length || 0} loaded`}
         filters={<>
-          <label>Queue<ClusterNativeSelect value={filterQueue} onChange={(event) => setFilterQueue(event.target.value)}><option value="">All queues</option>{queues.map((queue) => <option key={queue} value={queue}>{queue}</option>)}</ClusterNativeSelect></label>
+          <label><ClusterNativeSelect aria-label="Queue" value={filterQueue} onChange={(event) => setFilterQueue(event.target.value)}><option value="">All queues</option>{queues.map((queue) => <option key={queue} value={queue}>{queue}</option>)}</ClusterNativeSelect></label>
           {showAdvancedAnalytics ? <DataViewGroupControl fields={payload?.dataView?.fields || []} groups={groups} onChange={setGroups} /> : null}
         </>}
         actions={<div className="button-row"><DataExportBuilder fields={payload?.dataView?.fields || []} visibleFieldIds={effectiveJobLayout.visibleFieldIds} selectionCount={selectedJobIds.size} busy={exporting || !payload} onExport={({ format, fieldIds, scope, delivery }) => exportJobs(format, fieldIds, scope, delivery)} /></div>}

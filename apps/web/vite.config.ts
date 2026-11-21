@@ -36,12 +36,58 @@ function clusterServiceWorkerBuildIdentity() {
   };
 }
 
+/**
+ * The application shell is a lazy chunk, so the browser only learns about it
+ * after the entry script has downloaded, parsed and run. Declare it (and the
+ * chunks and stylesheets it statically needs) in index.html so they download
+ * alongside the entry instead of after it. The hints add no code to the page:
+ * the import the entry performs later is served from these requests.
+ */
+function clusterApplicationShellPreload() {
+  const shellModule = "/packages/renderer/src/features/application/ClusterApplication.tsx";
+  let base = "/";
+  return {
+    name: "cluster-application-shell-preload",
+    apply: "build" as const,
+    configResolved(config: { base: string }) { base = config.base; },
+    transformIndexHtml: {
+      order: "post" as const,
+      handler(html: string, context: { bundle?: Record<string, any> }) {
+        const bundle = context.bundle;
+        if (!bundle) return html;
+        const chunks = Object.values(bundle).filter((item: any) => item.type === "chunk");
+        // Match on the modules a chunk contains: Rollup only sets facadeModuleId
+        // when the module is the chunk's sole entry point.
+        const shell = chunks.find((chunk: any) => Object.keys(chunk.modules || {}).some((id) => id.replaceAll("\\", "/").endsWith(shellModule)));
+        if (!shell) throw new Error("cluster-application-shell-preload: the application shell chunk was not found; update shellModule.");
+        const scripts = new Set<string>();
+        const styles = new Set<string>();
+        const visit = (fileName: string) => {
+          if (scripts.has(fileName)) return;
+          const chunk = bundle[fileName];
+          if (!chunk || chunk.type !== "chunk") return;
+          scripts.add(fileName);
+          for (const style of chunk.viteMetadata?.importedCss || []) styles.add(style);
+          for (const imported of chunk.imports || []) visit(imported);
+        };
+        visit(shell.fileName);
+        // Skip anything index.html already references (the entry's own imports).
+        const fresh = (fileName: string) => !html.includes(`${base}${fileName}"`);
+        return [
+          ...[...scripts].filter(fresh).map((fileName) => ({ tag: "link", attrs: { rel: "modulepreload", crossorigin: true, href: `${base}${fileName}` }, injectTo: "head" as const })),
+          ...[...styles].filter(fresh).map((fileName) => ({ tag: "link", attrs: { rel: "preload", as: "style", crossorigin: true, href: `${base}${fileName}` }, injectTo: "head" as const })),
+        ];
+      },
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [react({
     babel: {
       generatorOpts: { compact: true }
     }
-  }), clusterServiceWorkerBuildIdentity()],
+  }), clusterServiceWorkerBuildIdentity(), clusterApplicationShellPreload()],
   server: {
     proxy: {
       "/api": "http://127.0.0.1:4000",

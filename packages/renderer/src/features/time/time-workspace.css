@@ -557,3 +557,31 @@
 .time-planning-readiness-v16b > header span { color: var(--muted); }
 .time-planning-readiness-v16b article { border: 1px solid color-mix(in srgb, var(--success) 28%, var(--border)); border-radius: 8px; padding: 8px 10px; background: var(--surface-soft); display: grid; gap: 2px; }
 .time-planning-readiness-v16b article span { color: var(--muted); font-size: .74rem; }
+
+/* ---------- Density pass ---------- */
+.time-workspace-v212 .time-week-label-v212 { height: 32px; padding: 0 8px; border-radius: var(--cluster-radius-control); font-size: var(--cluster-font-size-sm); }
+.time-workspace-v212 .time-week-label-v212 strong { font-size: var(--cluster-font-size-sm); font-weight: 600; }
+/* Clock: one row — state and time, what/where, then the action. */
+.time-workspace-v212 .time-clock-dock-v212 { grid-template-columns: 150px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 56px; padding: 8px var(--space-3); }
+.time-workspace-v212 .time-clock-state-v212 { display: grid; gap: 0; }
+.time-workspace-v212 .time-clock-state-v212 > span { color: var(--muted); font-size: var(--cluster-font-size-2xs); letter-spacing: 0; text-transform: none; }
+.time-workspace-v212 .time-clock-state-v212 > strong { font-size: var(--cluster-font-size-lg, 18px); line-height: 1.2; }
+.time-workspace-v212 .time-clock-state-v212 > :is(p, small) { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.time-workspace-v212 .time-clock-composer-v212 { grid-template-columns: minmax(200px, 1fr) minmax(140px, 200px) minmax(110px, 150px); align-items: center; gap: 6px; }
+.time-workspace-v212 .time-clock-composer-v212 label { display: block; }
+.time-workspace-v212 .time-clock-composer-v212 label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.time-workspace-v212 .time-clock-composer-v212 :is(input, .cluster-select-trigger-v227) { height: 34px !important; min-height: 34px !important; font-size: var(--cluster-font-size-sm) !important; }
+/* Tabs */
+.time-workspace-v212 .time-view-tabs-unified-v229 { min-height: 0; }
+.time-workspace-v212 .time-view-tab-list-v229 > button { height: 40px; font-size: var(--cluster-font-size-sm); }
+.time-workspace-v212 .time-view-toolbar-v229 .cluster-select-trigger-v227 { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+/* Days: an empty day is one line. */
+.time-workspace-v212 .time-day-ledger-v212 { gap: 6px; align-content: start; }
+.time-workspace-v212 .time-day-card-v212 > header { min-height: 40px; padding-block: 6px; }
+.time-workspace-v212 .time-day-card-v212[data-empty="true"] > :not(header) { display: none; }
+.time-workspace-v212 .time-day-card-v212[data-empty="true"] > header { border-bottom: 0; }
+.time-workspace-v212 .time-day-card-v212[data-empty="true"] { opacity: .8; }
+/* Side cards: sentence-case titles. */
+.time-workspace-v212 .time-summary-card-v212 :is(h2, h3, .eyebrow, header > span) { font-size: var(--cluster-font-size-xs); letter-spacing: 0; text-transform: none; }
+.time-workspace-v212 .page-head-actions .time-week-label-v212 { display: inline-flex; align-items: center; border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.time-workspace-v212 .page-head-actions .time-week-label-v212:hover { background: var(--cluster-button-fill); }

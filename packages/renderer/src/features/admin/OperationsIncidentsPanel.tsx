@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterEmptyState } from "../../components/ClusterEmptyState";
-import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
-import { ClusterVisualComposition } from "../../components/ClusterVisualMetrics";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterToggle } from "../../components/ClusterToggle";
 import { ClusterInput, ClusterNativeSelect, ClusterTextarea } from "../../components/ClusterNativeControls";
-import { RequestStatusLine } from "../../components/RequestState";
 import { api, queryApi } from "../../core/api";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { useVisibleRefresh } from "../../core/visible-refresh";
@@ -12,6 +10,7 @@ import { useClusterActionFlight } from "../../components/useClusterActionFlight"
 import { createClusterLatestResponse } from "../../components/cluster-action-flight";
 import { createClusterCreateIntentControl } from "../create/create-intent-control";
 import { incidentIdFromInspect } from "./incident-link";
+import "./admin-ops.css";
 
 type OperationalState = "healthy" | "degraded" | "maintenance" | "draining" | "restarting" | "restoring" | "read-only" | "offline" | string;
 type IncidentSeverity = "low" | "medium" | "high" | "critical";
@@ -55,6 +54,8 @@ export function OperationsIncidentsPanel() {
   const [nativeHistory, setNativeHistory] = useState<NativeEmergencyReceipt[] | null>(null);
   const [nativeHistoryBusy, setNativeHistoryBusy] = useState(false);
   const [selectedId, setSelectedId] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [selected, setSelected] = useState<OperationsIncident | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -102,7 +103,7 @@ export function OperationsIncidentsPanel() {
       setHealth(nextHealth);
       setTransitions(nextTransitions);
       setIncidents(nextIncidents.incidents || []);
-      if (!silent) setStatus(`Operational evidence refreshed ${timeLabel(nextHealth.generatedAt)}.`);
+      if (!silent) setStatus("");
     } catch (error) {
       if (!silent) setStatus(error instanceof Error ? error.message : "Operational evidence could not be loaded.");
     } finally { loadingRef.current = false; }
@@ -272,144 +273,131 @@ export function OperationsIncidentsPanel() {
   const jobReview = (health?.durableJobs?.counts?.failed || 0) + (health?.durableJobs?.counts?.deadLetter || 0);
   const current = transitions?.current || health?.operational?.state || "unknown";
 
+  const highIncidents = activeIncidents.filter((incident) => incident.severity === "high").length;
+  const alertsInvalid = alertPolicies.some((policy) => (policy.recipientType !== "admins" && !policy.recipientId) || (policy.escalationType !== "admins" && !policy.escalationId));
+  const statusAction = selected ? ({ open: ["investigating", "Investigate"], investigating: ["mitigating", "Mitigating"], mitigating: ["monitoring", "Monitor"] } as Record<string, [IncidentStatus, string]>)[selected.status] : undefined;
+
+  const targetSelect = (policy: AlertPolicy, stage: "recipient" | "escalation") => {
+    const typeKey = stage === "recipient" ? "recipientType" : "escalationType";
+    const idKey = stage === "recipient" ? "recipientId" : "escalationId";
+    return <>
+      <ClusterNativeSelect aria-label={`${ALERT_POLICY_LABELS[policy.key] || policy.key} ${stage === "recipient" ? "owner" : "escalation"}`} value={policy[typeKey]} onChange={(event) => editAlertPolicy(policy.key, stage === "recipient" ? { recipientType: event.target.value as AlertTargetType, recipientId: null } : { escalationType: event.target.value as AlertTargetType, escalationId: null })}>
+        <option value="admins">Admins</option><option value="user">Person</option><option value="team">Team</option><option value="department">Department</option>
+      </ClusterNativeSelect>
+      {policy[typeKey] !== "admins" ? <ClusterNativeSelect aria-label={`${stage} target`} value={policy[idKey] || ""} onChange={(event) => editAlertPolicy(policy.key, stage === "recipient" ? { recipientId: event.target.value || null } : { escalationId: event.target.value || null })}>
+        <option value="">Choose…</option>
+        {targetOptions(policy[typeKey]).map((target) => <option value={target.id} key={target.id}>{target.name}</option>)}
+      </ClusterNativeSelect> : null}
+    </>;
+  };
+
   return (
-    <section className="panel operations-incidents-v510" aria-labelledby="operations-incidents-title-v510">
-      <div className="section-heading">
-        <div><p className="eyebrow">Operations 2.0</p><h2 id="operations-incidents-title-v510">Incidents & health</h2></div>
-        <ClusterButton type="button" variant="secondary" onClick={() => void load()} disabled={loadingRef.current}>Refresh</ClusterButton>
-      </div>
-
-      <div className="cluster-visual-summary-grid" aria-label="Incident and health overview">
-        <div className={`cluster-visual-posture tone-${operationalTone(current)}`}><span>Server</span><strong>{stateLabel(current)}</strong></div>
-        <ClusterVisualComposition label="Open incident severity" total={activeIncidents.length} parts={[
-          { label: "Critical", value: criticalIncidents, tone: "danger" },
-          { label: "High", value: activeIncidents.filter((incident) => incident.severity === "high").length, tone: "warning" },
-          { label: "Other", value: Math.max(0, activeIncidents.length - criticalIncidents - activeIncidents.filter((incident) => incident.severity === "high").length), tone: "neutral" },
-        ]} />
-        <ClusterVisualComposition label="Operational checks" total={checks.length} parts={[
-          { label: "Passing", value: Math.max(0, checks.length - unhealthyChecks.length), tone: "good" },
-          { label: "Needs review", value: unhealthyChecks.length, tone: "warning" },
-        ]} />
-        {(jobReview > 0 || (health?.performanceBudgets?.failures || 0) > 0) && <div className="cluster-visual-signal-list" role="status">
-          {jobReview > 0 && <span className="danger">{jobReview} failed jobs</span>}
-          {(health?.performanceBudgets?.failures || 0) > 0 && <span className="danger">{health?.performanceBudgets?.failures} performance failures</span>}
-        </div>}
-      </div>
-      <details className="cluster-visual-advanced"><summary>Exact incident & diagnostic counts</summary><div className="cluster-visual-advanced__body">
-      <ClusterMetricStrip label="Operational incident summary" items={[
-        { label: "Current state", value: stateLabel(current), tone: operationalTone(current) as "good" | "warning" | "danger" },
-        { label: "Open incidents", value: activeIncidents.length, detail: `${criticalIncidents} critical`, tone: criticalIncidents ? "danger" : activeIncidents.length ? "warning" : "good" },
-        { label: "Health checks", value: checks.length, detail: `${unhealthyChecks.length} need review`, tone: unhealthyChecks.length ? "warning" : "good" },
-        { label: "Job failures", value: jobReview, detail: `${health?.durableJobs?.counts?.running || 0} running`, tone: jobReview ? "danger" : "good" },
-        { label: "Performance", value: health?.performanceBudgets?.failures || 0, detail: `${health?.performanceBudgets?.warnings || 0} warnings`, tone: health?.performanceBudgets?.failures ? "danger" : health?.performanceBudgets?.warnings ? "warning" : "good" },
-      ]} />
-      </div></details>
-
-      <section className="panel" aria-label="Automated incident alert routing">
-        <header className="section-heading"><div><h3>System incident alerts</h3></div></header>
-        <div className="admin-split-grid">
-          {alertPolicies.map((policy) => <div className="panel" key={policy.key}>
-            <h4>{ALERT_POLICY_LABELS[policy.key] || policy.key}</h4>
-            <label><ClusterInput type="checkbox" checked={policy.enabled} onChange={(event) => editAlertPolicy(policy.key, { enabled: event.target.checked })} /> Automated alerts enabled</label>
-            {(["recipient", "escalation"] as const).map((stage) => {
-              const typeKey = stage === "recipient" ? "recipientType" : "escalationType";
-              const idKey = stage === "recipient" ? "recipientId" : "escalationId";
-              return <div className="form-grid" key={stage}>
-                <label><span>{stage === "recipient" ? "Primary responsibility" : "Escalate to"}</span>
-                  <ClusterNativeSelect value={policy[typeKey]} onChange={(event) => editAlertPolicy(policy.key, stage === "recipient" ? { recipientType: event.target.value as AlertTargetType, recipientId: null } : { escalationType: event.target.value as AlertTargetType, escalationId: null })}>
-                    <option value="admins">All administrators</option><option value="user">Specific administrator</option><option value="team">Team</option><option value="department">Department</option>
-                  </ClusterNativeSelect>
-                </label>
-                {policy[typeKey] !== "admins" ? <label><span>{stage === "recipient" ? "Assigned target" : "Escalation target"}</span>
-                  <ClusterNativeSelect value={policy[idKey] || ""} onChange={(event) => editAlertPolicy(policy.key, stage === "recipient" ? { recipientId: event.target.value || null } : { escalationId: event.target.value || null })}>
-                    <option value="">Choose target</option>
-                    {targetOptions(policy[typeKey]).map((target) => <option value={target.id} key={target.id}>{target.name}</option>)}
-                  </ClusterNativeSelect>
-                </label> : null}
-              </div>;
-            })}
-            <div className="form-grid">
-              <label><span>Remind after (minutes)</span><ClusterInput type="number" min={2} max={1440} value={policy.reminderMinutes} onChange={(event) => editAlertPolicy(policy.key, { reminderMinutes: Number(event.target.value) })} /></label>
-              <label><span>Escalate after (minutes)</span><ClusterInput type="number" min={2} max={1440} value={policy.acknowledgeMinutes} onChange={(event) => editAlertPolicy(policy.key, { acknowledgeMinutes: Number(event.target.value) })} /></label>
-            </div>
-          </div>)}
+    <section className="ao operations-incidents-v510" aria-label="Incidents">
+      <div className="ao-bar">
+        <div className="ao-chips">
+          <span className="ao-chip" data-tone={operationalTone(current)}><span>Server</span><b>{stateLabel(current)}</b></span>
+          <span className="ao-chip" data-tone={criticalIncidents ? "danger" : highIncidents ? "warning" : activeIncidents.length ? "accent" : "good"} title={`${criticalIncidents} critical · ${highIncidents} high`}><span>Open</span><b>{activeIncidents.length}</b></span>
+          <span className="ao-chip" data-tone={unhealthyChecks.length ? "warning" : "good"}><span>Checks</span><b>{checks.length - unhealthyChecks.length}/{checks.length}</b></span>
+          {jobReview ? <span className="ao-chip" data-tone="danger"><span>Failed jobs</span><b>{jobReview}</b></span> : null}
+          {health?.performanceBudgets?.failures ? <span className="ao-chip" data-tone="danger"><span>Slow</span><b>{health.performanceBudgets.failures}</b></span> : null}
         </div>
-        <ClusterButton type="button" variant="primary" disabled={Boolean(busy) || !alertPolicies.length || alertPolicies.some((policy) => (policy.recipientType !== "admins" && !policy.recipientId) || (policy.escalationType !== "admins" && !policy.escalationId))} onClick={() => void saveAlertPolicies()}>Save alert settings</ClusterButton>
-      </section>
-
-      <section className="panel" aria-label="Native emergency reconciliation history">
-        <header className="section-heading"><div><h3>Native supervisor recovery evidence</h3></div>
-          <ClusterButton type="button" variant="secondary" disabled={nativeHistoryBusy} onClick={() => void loadNativeHistory()}>{nativeHistoryBusy ? "Loading…" : "Inspect recent native events"}</ClusterButton>
-        </header>
-        {nativeHistory !== null ? <div className="control-domain-list-v136">
-          {nativeHistory.map((item) => <article className="control-domain-card-v136" key={item.id}>
-            <div><strong>{stateLabel(item.code)}</strong><span>{stateLabel(item.outcome)} · {stateLabel(item.category)} · occurred {timeLabel(item.occurredAt)}</span><small>Native event {item.id} · imported {timeLabel(item.processedAt)}</small></div>
-            <em>{item.incidentId ? "Linked incident" : "Evidence only"}</em>
-          </article>)}
-          {!nativeHistory.length ? <ClusterEmptyState compact kind="empty" title="No reconciled native events" description="No native emergency records have been imported into the canonical database yet." /> : null}
-        </div> : null}
-      </section>
-
-      <div className="admin-split-grid">
-        <section className="panel">
-          <header className="section-heading"><div><h3>Open incident</h3></div></header>
-          <div className="form-grid">
-            <label><span>Title</span><ClusterInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Short summary of what is wrong" /></label>
-            <label><span>Severity</span><ClusterNativeSelect value={severity} onChange={(event) => setSeverity(event.target.value as IncidentSeverity)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></ClusterNativeSelect></label>
-            <label className="wide"><span>Summary</span><ClusterTextarea rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Observed impact and current evidence." /></label>
-            <label className="wide"><span>Correlation / trace ID</span><ClusterInput value={correlationId} onChange={(event) => setCorrelationId(event.target.value)} placeholder="Optional operation, request, or event correlation ID" /></label>
-          </div>
-          <ClusterButton type="button" variant="primary" disabled={Boolean(busy) || !title.trim()} aria-busy={busy === "create"} onClick={() => void createIncident()}>{busy === "create" ? "Opening…" : "Open incident"}</ClusterButton>
-        </section>
-
-        <section className="panel">
-          <header className="section-heading"><div><h3>Registered health checks</h3><p className="muted tight">Current evidence from the canonical operational health runtime.</p></div></header>
-          <div className="control-domain-list-v136">
-            {checks.map((check) => { const healthy = ["pass", "healthy", "ok", "ready"].includes(String(check.status || "").toLowerCase()); return <article className={`control-domain-card-v136 ${healthy ? "good" : "warning"}`} key={check.key}><div><strong>{check.label || stateLabel(check.key)}</strong><span>{check.message || `Status: ${stateLabel(check.status)}`}</span></div><em>{stateLabel(check.status)}</em></article>; })}
-            {!checks.length ? <ClusterEmptyState compact kind="empty" title="No health-check evidence" description="Registered server checks will appear after the operational health runtime reports a sample." /> : null}
-          </div>
-        </section>
+        <span className="ao-bar__end">
+          {status ? <span className="ao-msg" role="status">{status}</span> : null}
+          <ClusterButton type="button" size="compact" variant={alertsOpen ? "secondary" : "quiet"} onClick={() => setAlertsOpen((open) => !open)}><ClusterIcon name="bell" />Alerts</ClusterButton>
+          <ClusterButton type="button" size="compact" variant={creating ? "quiet" : "primary"} onClick={() => setCreating((open) => !open)}><ClusterIcon name={creating ? "close" : "plus"} />{creating ? "Cancel" : "Open incident"}</ClusterButton>
+        </span>
       </div>
 
-      <div className="admin-split-grid">
-        <section className="panel">
-          <header className="section-heading"><div><h3>Incident queue</h3><p className="muted tight">Durable operational incidents ordered by active state and most recent work.</p></div></header>
-          <div className="control-domain-list-v136">
-            {incidents.map((incident) => <button type="button" className={`control-domain-card-v136 ${severityTone(incident.severity)} ${selectedId === incident.id ? "selected" : ""}`} key={incident.id} onClick={() => chooseIncident(incident.id)}>
-              <div><strong>{incident.title}</strong><span>{stateLabel(incident.status)} · owner {incident.ownerName || "Unassigned"} · updated {timeLabel(incident.updatedAt)}</span><small>{incident.resources.map((resource) => resource.label || `${resource.kind}:${resource.resourceId}`).join(" · ") || "No affected resources recorded"}</small></div><em>{incident.severity}</em>
-            </button>)}
-            {!incidents.length ? <ClusterEmptyState compact kind="empty" title="No durable incidents" description="Operational state changes remain visible below, but only operator-owned incidents appear in this queue." /> : null}
-          </div>
+      {creating ? <div className="ao-card" aria-label="Open incident">
+        <div className="ao-form">
+          <label className="ao-field ao-field--grow"><span>Title</span><ClusterInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What is wrong" autoFocus /></label>
+          <label className="ao-field"><span>Severity</span><ClusterNativeSelect value={severity} onChange={(event) => setSeverity(event.target.value as IncidentSeverity)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></ClusterNativeSelect></label>
+          <label className="ao-field"><span>Trace ID</span><ClusterInput value={correlationId} onChange={(event) => setCorrelationId(event.target.value)} placeholder="Optional" /></label>
+          <label className="ao-field ao-field--wide"><span>Impact</span><ClusterTextarea rows={2} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="What people see, what you know so far" /></label>
+          <ClusterButton type="button" size="compact" variant="primary" disabled={Boolean(busy) || !title.trim()} aria-busy={busy === "create"} onClick={() => void createIncident().then(() => setCreating(false))}>{busy === "create" ? "Opening…" : "Open"}</ClusterButton>
+        </div>
+      </div> : null}
+
+      {alertsOpen ? <section className="ao-card" aria-label="Automated incident alert routing">
+        <h3 className="ao-card__title">Alerts <small>who is notified when a system check fails</small>
+          <ClusterButton type="button" size="compact" variant="primary" disabled={Boolean(busy) || !alertPolicies.length || alertsInvalid} onClick={() => void saveAlertPolicies()}>Save</ClusterButton>
+        </h3>
+        <ul className="ao-rows">
+          {alertPolicies.map((policy) => <li key={policy.key} className="ao-row ao-alert">
+            <ClusterToggle checked={policy.enabled} aria-label={`${ALERT_POLICY_LABELS[policy.key] || policy.key} alerts`} onCheckedChange={(checked) => editAlertPolicy(policy.key, { enabled: checked })} />
+            <span className="ao-row__main"><b>{ALERT_POLICY_LABELS[policy.key] || policy.key}</b></span>
+            <span className="ao-inline">
+              <label>Notify</label>{targetSelect(policy, "recipient")}
+              <label>remind</label><ClusterInput type="number" aria-label="Remind after minutes" min={2} max={1440} value={policy.reminderMinutes} onChange={(event) => editAlertPolicy(policy.key, { reminderMinutes: Number(event.target.value) })} /><label>min · escalate to</label>
+              {targetSelect(policy, "escalation")}
+              <label>after</label><ClusterInput type="number" aria-label="Escalate after minutes" min={2} max={1440} value={policy.acknowledgeMinutes} onChange={(event) => editAlertPolicy(policy.key, { acknowledgeMinutes: Number(event.target.value) })} /><label>min</label>
+            </span>
+          </li>)}
+        </ul>
+      </section> : null}
+
+      <div className="ao-grid">
+        <section className="ao-card" aria-label="Incident queue">
+          <h3 className="ao-card__title">Incidents <small>{incidents.length}</small></h3>
+          {incidents.length ? <ul className="ao-rows">
+            {incidents.map((incident) => <li key={incident.id}>
+              <button type="button" className="ao-row ao-row--button" aria-pressed={selectedId === incident.id} data-tone={severityTone(incident.severity) || "accent"} onClick={() => chooseIncident(incident.id)}>
+                <i className="ao-dot" aria-hidden="true" />
+                <span className="ao-row__main"><b>{incident.title}</b><small>{stateLabel(incident.status)} · {incident.ownerName || "Unassigned"} · {timeLabel(incident.updatedAt)}</small></span>
+                <span className="ao-pill">{incident.severity}</span>
+              </button>
+            </li>)}
+          </ul> : <p className="ao-empty">No incidents.</p>}
         </section>
 
-        <section className="panel">
-          <header className="section-heading"><div><h3>Investigation</h3><p className="muted tight">Incident timeline, correlation evidence, and controlled status transitions.</p></div></header>
+        <section className="ao-card" aria-label="Investigation">
           {selected ? <>
-            <div className="status-box"><strong>{selected.title}</strong><span>{selected.summary || "No summary recorded."}</span><small>{selected.severity.toUpperCase()} · {stateLabel(selected.status)} · owner {selected.ownerName || "Unassigned"} · opened {timeLabel(selected.openedAt)} · {selected.acknowledgedAt ? `acknowledged ${timeLabel(selected.acknowledgedAt)}` : "awaiting acknowledgement"}{selected.correlationId ? ` · trace ${selected.correlationId}` : ""}</small></div>
-            <div className="control-domain-list-v136">{selected.timeline.map((entry) => <article className="control-domain-card-v136" key={entry.id}><div><strong>{stateLabel(entry.kind)}</strong><span>{entry.message}</span><small>{entry.actorName || "System"}{entry.correlationId ? ` · trace ${entry.correlationId}` : ""}</small></div><em>{timeLabel(entry.createdAt)}</em></article>)}</div>
-            <label><span>Investigation note</span><ClusterTextarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Evidence, mitigation, decision, or handoff note" /></label>
-            <div className="button-row">
-              <ClusterButton type="button" variant="secondary" disabled={Boolean(busy) || !note.trim()} aria-busy={busy === "note"} onClick={() => void addNote()}>{busy === "note" ? "Adding…" : "Add note"}</ClusterButton>
-              {activeIncident(selected.status) && !selected.acknowledgedAt ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} aria-busy={busy === "acknowledge"} onClick={() => void acknowledgeIncident()}>Acknowledge response</ClusterButton> : null}
-              {selected.status === "open" ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} aria-busy={busy === "update"} onClick={() => void updateIncident("investigating")}>Investigate</ClusterButton> : null}
-              {selected.status === "investigating" ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} aria-busy={busy === "update"} onClick={() => void updateIncident("mitigating")}>Mitigating</ClusterButton> : null}
-              {selected.status === "mitigating" ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} aria-busy={busy === "update"} onClick={() => void updateIncident("monitoring")}>Monitor</ClusterButton> : null}
-              {activeIncident(selected.status) ? <ClusterButton type="button" variant="primary" disabled={Boolean(busy)} aria-busy={busy === "update"} onClick={() => void updateIncident("resolved")}>Resolve</ClusterButton> : null}
-              {selected.status === "resolved" ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} aria-busy={busy === "update"} onClick={() => void updateIncident("closed")}>Close</ClusterButton> : null}
+            <h3 className="ao-card__title">{selected.title} <span className="ao-pill" data-tone={severityTone(selected.severity) || "accent"}>{stateLabel(selected.status)}</span></h3>
+            <p className="ao-sub">{selected.summary || "No summary."} · {selected.ownerName || "Unassigned"} · opened {timeLabel(selected.openedAt)}{selected.acknowledgedAt ? "" : " · not acknowledged"}{selected.correlationId ? ` · trace ${selected.correlationId}` : ""}</p>
+            <ul className="ao-rows">{selected.timeline.map((entry) => <li key={entry.id} className="ao-row ao-row--plain">
+              <span className="ao-row__main"><b>{stateLabel(entry.kind)}</b><small className="ao-wrap">{entry.message}</small></span>
+              <span className="ao-row__end"><small>{entry.actorName || "System"} · {timeLabel(entry.createdAt)}</small></span>
+            </li>)}</ul>
+            <div className="ao-form">
+              <label className="ao-field ao-field--grow"><span>Note</span><ClusterInput value={note} onChange={(event) => setNote(event.target.value)} placeholder="Evidence, mitigation, handoff" /></label>
+              <ClusterButton type="button" size="compact" variant="secondary" disabled={Boolean(busy) || !note.trim()} aria-busy={busy === "note"} onClick={() => void addNote()}>{busy === "note" ? "Adding…" : "Add note"}</ClusterButton>
             </div>
-          </> : <ClusterEmptyState compact kind="empty" title="Select an incident" description="Choose an incident to inspect its owner, affected resources, trace ID, and investigation timeline." />}
+            <div className="ao-bar">
+              {activeIncident(selected.status) && !selected.acknowledgedAt ? <ClusterButton type="button" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void acknowledgeIncident()}>Acknowledge</ClusterButton> : null}
+              {statusAction ? <ClusterButton type="button" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void updateIncident(statusAction[0])}>{statusAction[1]}</ClusterButton> : null}
+              {activeIncident(selected.status) ? <ClusterButton type="button" size="compact" variant="primary" disabled={Boolean(busy)} onClick={() => void updateIncident("resolved")}>Resolve</ClusterButton> : null}
+              {selected.status === "resolved" ? <ClusterButton type="button" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void updateIncident("closed")}>Close</ClusterButton> : null}
+            </div>
+          </> : <><h3 className="ao-card__title">Investigation</h3><p className="ao-empty">Select an incident.</p></>}
+        </section>
+
+        <section className="ao-card" aria-label="Health checks">
+          <h3 className="ao-card__title">Checks <small>{checks.length}</small></h3>
+          {checks.length ? <ul className="ao-rows">{checks.map((check) => {
+            const healthy = ["pass", "healthy", "ok", "ready"].includes(String(check.status || "").toLowerCase());
+            return <li key={check.key} className="ao-row" data-tone={healthy ? "good" : "warning"}>
+              <i className="ao-dot" aria-hidden="true" />
+              <span className="ao-row__main"><b>{check.label || stateLabel(check.key)}</b>{check.message ? <small title={check.message}>{check.message}</small> : null}</span>
+              <span className="ao-row__end"><small>{stateLabel(check.status)}</small></span>
+            </li>;
+          })}</ul> : <p className="ao-empty">No checks reported yet.</p>}
+        </section>
+
+        <section className="ao-card" aria-label="State changes">
+          <h3 className="ao-card__title">State changes <small>{recentTransitions.length}</small>
+            <ClusterButton type="button" size="compact" variant="quiet" disabled={nativeHistoryBusy} onClick={() => void loadNativeHistory()}>{nativeHistoryBusy ? "Loading…" : "Native events"}</ClusterButton>
+          </h3>
+          {recentTransitions.length ? <ul className="ao-rows">{recentTransitions.slice(0, 12).map((transition, index) => <li key={`${transition.at}:${transition.to}:${index}`} className="ao-row" data-tone={operationalTone(transition.to)}>
+            <i className="ao-dot" aria-hidden="true" />
+            <span className="ao-row__main"><b>{stateLabel(transition.from || "startup")} → {stateLabel(transition.to)}</b>{transition.reasons.length ? <small title={transition.reasons.join(" · ")}>{transition.reasons.join(" · ")}</small> : null}</span>
+            <span className="ao-row__end"><small>{timeLabel(transition.at)}</small></span>
+          </li>)}</ul> : <p className="ao-empty">No changes.</p>}
+          {nativeHistory !== null ? <ul className="ao-rows">{nativeHistory.map((item) => <li key={item.id} className="ao-row ao-row--plain">
+            <span className="ao-row__main"><b>{stateLabel(item.code)}</b><small>{stateLabel(item.outcome)} · {stateLabel(item.category)} · {timeLabel(item.occurredAt)}</small></span>
+            <span className="ao-row__end"><small>{item.incidentId ? "Incident" : "Evidence"}</small></span>
+          </li>)}{!nativeHistory.length ? <li className="ao-empty">No native events.</li> : null}</ul> : null}
         </section>
       </div>
-
-      <section className="panel">
-        <header className="section-heading"><div><h3>Health-state transition evidence</h3><p className="muted tight">The health authority retains bounded transitions separately from operator-managed incidents.</p></div><span className="soft-pill">{recentTransitions.length} retained</span></header>
-        <div className="control-domain-list-v136">
-          {recentTransitions.map((transition, index) => <article className={`control-domain-card-v136 ${operationalTone(transition.to)}`} key={`${transition.at}:${transition.to}:${index}`}><div><strong>{stateLabel(transition.from || "startup")} → {stateLabel(transition.to)}</strong><span>{transition.reasons.length ? transition.reasons.join(" · ") : "No additional reason was recorded."}</span></div><em>{timeLabel(transition.at)}</em></article>)}
-          {!recentTransitions.length ? <ClusterEmptyState compact kind="empty" title="No operational transitions retained" description="The server has not changed operational state during the retained history window." /> : null}
-        </div>
-      </section>
-
-      <RequestStatusLine>{status}</RequestStatusLine>
     </section>
   );
 }

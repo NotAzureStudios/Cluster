@@ -13,9 +13,9 @@ const resultsCss=read('packages/renderer/src/features/search/search.css');
 const people=read('packages/renderer/src/components/PresenceAvatar.tsx');
 let count=0;
 function check(label,fn){fn();count++;console.log('PASS',label)}
-check('Taskbar keeps independent left/tabs/utility slots',()=>{assert.match(shell,/cluster-taskbar__left/);assert.match(shell,/cluster-taskbar__utilities/)});
-check('Search is contained in Project Tabs slot',()=>assert.match(shell,/cluster-taskbar__tabs[^\n]+data-search-open/));
-check('Inactive project tabs stay mounted',()=>assert.match(shell, /className="cluster-taskbar-search-switch__projects"[^>]*>\{tabs\}/));
+check('Taskbar keeps independent left/tabs/utility slots',()=>{assert.match(shell,/cl-tb__start/);assert.match(shell,/cl-tb__end/)});
+check('Search is contained in Project Tabs slot',()=>assert.match(shell,/cl-tb__center[^\n]+data-search-open/));
+check('Inactive project tabs stay mounted',()=>assert.match(shell, /className="cl-tb__tabs"[^>]*>\{tabs\}/));
 check('Inactive project tabs are inert and screen-reader hidden',()=>assert.match(shell,/aria-hidden=\{searchOpen\} inert=\{searchOpen\}/));
 check('Closed search stage is inert',()=>assert.match(shell,/aria-hidden=\{!searchOpen\} inert=\{!searchOpen\}/));
 check('Search slot has one stable portal host',()=>assert.equal((shell.match(/id="cluster-taskbar-search-slot"/g)||[]).length,1));

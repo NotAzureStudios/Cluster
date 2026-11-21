@@ -133,62 +133,56 @@
   --cluster-workbench-muted: #535b61;
   --cluster-workbench-veil: rgb(225 229 231 / 54%);
 }
+/* Light runs the same idea inverted: a canvas with enough tone that a white
+   panel reads as raised without being outlined. Keep the canvas in step with
+   the pre-mount colour in apps/web/index.html. */
 :root[data-theme="light"] {
-  --cluster-workbench-canvas: #f7fafb;
+  --cluster-workbench-canvas: #eef1f4;
   --cluster-workbench-panel: #ffffff;
-  --cluster-workbench-panel-raised: #fbfcfd;
-  --cluster-workbench-panel-muted: #f2f4f5;
+  --cluster-workbench-panel-raised: #ffffff;
+  --cluster-workbench-panel-muted: #f5f7f9;
   --cluster-workbench-control: #ffffff;
-  --cluster-workbench-hover: rgb(244 247 248 / 94%);
-  --cluster-workbench-selected: rgb(237 242 244 / 94%);
-  --cluster-workbench-border: rgb(8 12 16 / 15%);
-  --cluster-workbench-border-strong: rgb(8 12 16 / 28%);
-  --cluster-workbench-text: #0b0d0f;
-  --cluster-workbench-muted: var(--cluster-neutral-600);
+  --cluster-workbench-hover: #e9edf1;
+  --cluster-workbench-selected: #dfe5ea;
+  --cluster-workbench-border: rgb(8 12 16 / 9%);
+  --cluster-workbench-border-strong: rgb(8 12 16 / 20%);
+  --cluster-workbench-text: #11151a;
+  --cluster-workbench-soft: #39424a;
+  --cluster-workbench-muted: #646d75;
   --cluster-workbench-veil: color-mix(in srgb, var(--cluster-white) 12%, transparent);
 }
+/* Dark surfaces carry hierarchy themselves.
+   The ramp used to run #16181a / #1a1c1e / #1e2023 over a #101214 canvas —
+   two to eight units apart, far too close to read as separate planes. Every
+   card therefore needed a 1px outline to be visible at all, which is how the
+   app ended up framed in lines on every side. These steps are spaced far
+   enough to separate on their own, so a border becomes a deliberate divider
+   rather than the only thing holding a surface together.
+   Keep the canvas in step with the pre-mount colour in apps/web/index.html. */
 :root[data-theme="dark"] {
-  --cluster-workbench-canvas: #101214;
+  --cluster-workbench-canvas: #0c0e10;
   --cluster-workbench-grid: color-mix(in srgb, var(--cluster-white) 4%, transparent);
-  --cluster-workbench-panel: #16181a;
-  --cluster-workbench-panel-raised: #1e2023;
-  --cluster-workbench-panel-muted: #1a1c1e;
-  --cluster-workbench-control: #1d1f21;
-  --cluster-workbench-hover: #33373a;
-  --cluster-workbench-selected: var(--cluster-neutral-800);
-  --cluster-workbench-border: color-mix(in srgb, var(--cluster-white) 13%, transparent);
-  --cluster-workbench-border-strong: color-mix(in srgb, var(--cluster-white) 24%, transparent);
-  --cluster-workbench-text: var(--cluster-white);
-  --cluster-workbench-soft: #e7e9ea;
-  --cluster-workbench-muted: #abb1b5;
-  --cluster-workbench-veil: rgb(12 14 15 / 48%);
+  --cluster-workbench-panel: #15181b;
+  --cluster-workbench-panel-raised: #1f2428;
+  --cluster-workbench-panel-muted: #191d20;
+  --cluster-workbench-control: #1c2024;
+  --cluster-workbench-hover: #262c31;
+  --cluster-workbench-selected: #2d343a;
+  --cluster-workbench-border: color-mix(in srgb, var(--cluster-white) 8%, transparent);
+  --cluster-workbench-border-strong: color-mix(in srgb, var(--cluster-white) 18%, transparent);
+  --cluster-workbench-text: #f2f4f6;
+  --cluster-workbench-soft: #d7dbdf;
+  --cluster-workbench-muted: #9aa3aa;
+  --cluster-workbench-veil: rgb(8 10 12 / 52%);
 }
-:root[data-theme="light"][data-background="clean"] {
-  --cluster-workbench-background: linear-gradient(145deg,var(--cluster-white) 0%,#f6f7f8 58%,#eef1f3 100%);
-}
-:root[data-theme="light"][data-background="grid"] {
-  --cluster-workbench-background: linear-gradient(rgb(10 18 24 / 5%) 1px,transparent 1px),linear-gradient(90deg,rgb(10 18 24 / 5%) 1px,transparent 1px),linear-gradient(145deg,var(--cluster-white) 0%,#f7f8f9 64%,#eef1f3 100%);
-  --cluster-workbench-background-size: 28px 28px,28px 28px,auto;
-}
-:root[data-theme="light"][data-background="aurora"] {
-  --cluster-workbench-background: radial-gradient(circle at 14% 4%,color-mix(in srgb,var(--studio-primary) 20%,transparent),transparent 34%),radial-gradient(circle at 88% 12%,color-mix(in srgb,var(--studio-secondary) 17%,transparent),transparent 32%),linear-gradient(145deg,var(--cluster-white) 0%,#f8f9fa 62%,#eff2f4 100%);
-}
-:root[data-theme="light"][data-background="midnight"] {
-  --cluster-workbench-background: radial-gradient(circle at 16% 0%,color-mix(in srgb, var(--cluster-black) 8%, transparent),transparent 34%),linear-gradient(145deg,#f8f9fa 0%,#eef1f3 64%,#e6eaed 100%);
-}
-:root[data-theme="dark"][data-background="clean"] {
-  --cluster-workbench-background: linear-gradient(145deg,#111315,#0d0f10 65%,#17191b);
-}
-:root[data-theme="dark"][data-background="grid"] {
-  --cluster-workbench-background: linear-gradient(var(--cluster-workbench-grid) 1px,transparent 1px),linear-gradient(90deg,var(--cluster-workbench-grid) 1px,transparent 1px),linear-gradient(145deg,#121416,#0c0e0f 64%,#181a1c);
-  --cluster-workbench-background-size: 28px 28px,28px 28px,auto;
-}
-:root[data-theme="dark"][data-background="aurora"] {
-  --cluster-workbench-background: radial-gradient(circle at 12% 4%,color-mix(in srgb,var(--studio-primary) 14%,transparent),transparent 34%),radial-gradient(circle at 88% 12%,color-mix(in srgb,var(--studio-secondary) 10%,transparent),transparent 31%),linear-gradient(145deg,#121416,#0c0e0f 62%,#181a1c);
-}
-:root[data-theme="dark"][data-background="midnight"] {
-  --cluster-workbench-background: radial-gradient(circle at 16% 0%,color-mix(in srgb, var(--cluster-white) 5%, transparent),transparent 32%),linear-gradient(145deg,#070809,#0c0e0f 62%,#141618);
-}
+/* The eight rules that sat here painted --cluster-workbench-background a
+   second time, keyed on data-background. They outranked the composed value
+   in styles/visual-system.css on specificity whatever the load order, so the
+   Appearance picker's base and pattern choices were resolved and then thrown
+   away. visual-system.css composes the surface from data-background-base and
+   data-background-pattern and is the only thing that paints it now.
+   data-background itself stays: AccountSettingsPage reads it back to populate
+   the settings form. */
 :root {
   --bg: var(--cluster-bg);
   --bg-2: var(--cluster-bg-2);

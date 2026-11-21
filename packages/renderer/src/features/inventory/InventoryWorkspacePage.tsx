@@ -5,7 +5,8 @@ import { MyInventoryLicensesPanel } from "../settings/MyInventoryLicensesPanel";
 import { StudioInventoryKeyPools, StudioInventoryPanel } from "../settings/StudioInventoryVaultPanel";
 import { StudioInventoryApprovalPanel } from "../settings/StudioInventoryApprovalPanel";
 import { VaultManager } from "./VaultManager";
-import { ClusterIcon } from "../../components/ClusterIcon";
+import { ToolPageHeader } from "../../components/ToolPageHeader";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import "./inventory-workspace.css";
 
 type InventorySection = "mine" | "assets" | "keys" | "approvals";
@@ -26,15 +27,14 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
   }, [isAdmin, section]);
 
   return <main className="cluster-resource-workspace inventory-tool-workspace" aria-label="Inventory workspace">
-    <header className="cluster-resource-workspace__header">
-      <div><h1><ClusterIcon name="inventory" treatment="duotone" /> Inventory</h1></div>
-    </header>
-    <nav className="cluster-resource-workspace__tabs" aria-label="Inventory sections">
-      <ClusterButton variant={section === "mine" ? "primary" : "secondary"} onClick={() => setSection("mine")}><ClusterIcon name="user" /> My items</ClusterButton>
-      {isAdmin && <ClusterButton variant={section === "assets" ? "primary" : "secondary"} onClick={() => setSection("assets")}><ClusterIcon name="inventory" /> Catalog</ClusterButton>}
-      {isAdmin && <ClusterButton variant={section === "keys" ? "primary" : "secondary"} onClick={() => setSection("keys")}><ClusterIcon name="lock" /> Key pools</ClusterButton>}
-      {isAdmin && <ClusterButton variant={section === "approvals" ? "primary" : "secondary"} onClick={() => setSection("approvals")}><ClusterIcon name="check" /> Approvals</ClusterButton>}
-    </nav>
+    <ToolPageHeader title="Inventory" icon="inventory" actions={
+      <nav className="cluster-resource-workspace__tabs" aria-label="Inventory sections">
+        <ClusterSegmentedControl value={section} onChange={(value) => setSection(value as InventorySection)} label="Inventory sections" size="compact" options={[
+          { value: "mine", label: "My items" },
+          ...(isAdmin ? [{ value: "assets", label: "Catalog" }, { value: "keys", label: "Key pools" }, { value: "approvals", label: "Approvals" }] : []),
+        ]} />
+      </nav>
+    } />
     <section className="cluster-resource-workspace__body" aria-live="off">
       {section === "mine" && <MyInventoryLicensesPanel pinConfigured={pinConfigured} />}
       {section === "assets" && isAdmin && <StudioInventoryPanel includeKeyPools={false} />}
@@ -49,9 +49,7 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
 
 export function VaultWorkspacePage() {
   return <main className="cluster-resource-workspace vault-tool-workspace" aria-label="Vault workspace">
-    <header className="cluster-resource-workspace__header">
-      <div><h1><ClusterIcon name="lock" treatment="duotone" /> Vault</h1></div>
-    </header>
+    <ToolPageHeader title="Vault" icon="lock" />
     <VaultManager />
   </main>;
 }

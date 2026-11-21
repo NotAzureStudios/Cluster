@@ -319,7 +319,7 @@ export function StudioOffboardingPanel() {
   return <div className="studio-systems-layout-v34f">
     <aside className="studio-systems-list-v34f">
       <div className="studio-create-strip-v272 studio-systems-create-v34f">
-        <div><strong>New offboarding case</strong><span>Preview live responsibilities before revoking anything. Cluster transfers canonical ownership instead of copying a checklist snapshot and hoping reality follows it.</span></div>
+        <div><strong>New offboarding case</strong><span>Preview current responsibilities before revoking anything. Cluster transfers the real ownership, not a copied checklist.</span></div>
         <label><span>Person</span><ClusterNativeSelect value={subjectUserId} disabled={busy} onChange={(event) => setSubjectUserId(event.target.value)}><option value="">Choose person…</option>{users.map((user) => <option key={user.id} value={user.id}>{user.displayName} · {user.username}</option>)}</ClusterNativeSelect></label>
         <label><span>Responsibility handoff</span><ClusterNativeSelect value={handoffUserId} disabled={busy} onChange={(event) => setHandoffUserId(event.target.value)}><option value="">No handoff owner yet</option>{availableHandoffs.map((user) => <option key={user.id} value={user.id}>{user.displayName} · {user.username}</option>)}</ClusterNativeSelect></label>
         <label><span>Last day</span><ClusterInput type="date" value={scheduledFor} disabled={busy} onChange={(event) => setScheduledFor(event.target.value)} /></label>

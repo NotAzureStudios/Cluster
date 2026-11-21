@@ -1,0 +1,18 @@
+/* Tool page header (tph): one compact line, no paragraph under the title. */
+.page .page-head.tph, .page-head.tph { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-height: 52px; margin: 0; padding: 6px var(--space-2) 6px var(--space-3); border: 0; border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.page-head.tph .tph-main { display: flex; flex: 1 1 auto; align-items: center; gap: var(--space-3); min-width: 0; }
+.page-head.tph .page-head-title { display: flex; flex-direction: column; min-width: 0; margin: 0; }
+.page-head.tph .page-head-eyebrow { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.page-head.tph h1 { margin: 0; overflow: hidden; font-size: var(--cluster-font-size-lg, 18px); font-weight: 600; line-height: 1.2; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
+.page-head.tph .page-head-icon { display: inline-grid; flex: none; place-items: center; width: 28px; height: 28px; color: var(--accent); }
+.page-head.tph .page-head-icon svg { width: 18px; height: 18px; }
+.page-head.tph .tph-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.page-head.tph .page-head-stats { display: flex; flex-wrap: wrap; gap: 4px var(--space-2-5); margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.page-head.tph .page-head-stat { display: inline-flex; flex-direction: row; align-items: baseline; gap: 4px; margin: 0; padding: 0; border: 0; background: none; }
+.page-head.tph .page-head-stat dd { margin: 0; color: var(--text); font-size: var(--cluster-font-size-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.page-head.tph .page-head-stat dt { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.page-head.tph .page-head-stat[data-tone="warning"] dd { color: var(--warning, #f0b429); }
+.page-head.tph .page-head-stat[data-tone="danger"] dd { color: var(--danger); }
+.page-head.tph .page-head-actions { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: 0 0 0 auto; }
+.page-head.tph .page-head-actions .cluster-button-v425 { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-sm); }
+.page-head.tph .page-head-context { flex: 1 1 100%; min-width: 0; }

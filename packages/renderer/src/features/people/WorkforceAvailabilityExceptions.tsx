@@ -152,7 +152,7 @@ export function WorkforceAvailabilityExceptions({ currentUser, people, canManage
         <div className="kind"><strong>{kindLabel(item.kind)}</strong><span>{item.source === "manager" ? "Manager set" : item.source === "self_service" ? "Self set" : item.source}</span></div>
         <div><strong>{new Date(item.startsAt).toLocaleString()} → {new Date(item.endsAt).toLocaleString()}</strong><span>{item.reason || (item.reasonRestricted ? "Reason hidden by privacy policy" : "No note")}</span></div>
         <ClusterButton variant="quiet" size="compact" disabled={busy} onClick={() => void cancelException(item)}>Cancel</ClusterButton>
-      </article>) : <div className="people-availability-empty-v16b"><strong>No availability windows</strong><span>Recurring working hours remain authoritative when no exception overrides them.</span></div>}
+      </article>) : <div className="people-availability-empty-v16b"><strong>No availability windows</strong><span>Recurring working hours apply when no exception overrides them.</span></div>}
     </div>
   </section>;
 }

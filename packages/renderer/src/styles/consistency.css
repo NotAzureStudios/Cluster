@@ -16,9 +16,8 @@
 .timeline-workflow-actions-v155 > *, .tickets-control-bar-v184 > .field, .calendar-toolbar-v189 > * { min-width: 0; }
 
 /* Time, Library, and Calendar page diet. */
-.time-workspace-v212, .library-workspace-v217, .calendar-page-v189 { padding-top: 15px !important; }
+.time-workspace-v212, .library-workspace-v217, .calendar-page-v189 { padding-top: var(--space-3) !important; }
 
-.library-workspace-v217 h1, .calendar-page-v189 h1 { font-size: clamp(25px, 2.5vw, 34px) !important; }
 
 
 /* Library alignment and slightly denser chrome. */

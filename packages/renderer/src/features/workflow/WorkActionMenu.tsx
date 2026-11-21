@@ -26,7 +26,7 @@ const ACTION_META: Record<ClusterWorkActionId, { label: string; description: str
   assign: { label: "Assign", description: "Open the assignment control for this work.", icon: "user" },
   mention: { label: "Mention", description: "Mention this person or work context.", icon: "comment" },
   copy_link: { label: "Copy link", description: "Copy a durable link to this exact work.", icon: "work" },
-  copy_id: { label: "Copy ID", description: "Copy the canonical resource identifier.", icon: "work" },
+  copy_id: { label: "Copy ID", description: "Copy the resource identifier.", icon: "work" },
   view_activity: { label: "View activity", description: "Open activity filtered to this work item.", icon: "activity" },
 };
 

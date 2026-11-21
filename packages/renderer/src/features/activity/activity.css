@@ -173,3 +173,7 @@
 :root[data-text-scale="largest"] .activity-filterbar-v245>*{flex:0 0 min(240px,72vw)}
 :root[data-text-scale="largest"] .activity-filterbar-v245>button{flex-basis:auto}
 :root[data-text-scale="largest"] .activity-row-copy-v245 strong,:root[data-text-scale="largest"] .activity-row-copy-v245 em,:root[data-text-scale="largest"] .activity-row-context-v245 b,:root[data-text-scale="largest"] .activity-row-context-v245 em,:root[data-text-scale="largest"] .activity-detail-v245 dd{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+/* v2: one filter row, compact avatar column. */
+.activity-filterbar-v245 { grid-template-columns:minmax(200px,1fr) repeat(5,minmax(100px,.2fr)) auto; align-items:center; }
+.activity-row-v245 { grid-template-columns:62px 26px minmax(0,1fr) minmax(150px,.42fr); }
+.activity-row-v245 .cluster-presence-avatar-v227 { --avatar-size:26px; border-radius:7px; font-size:.7rem; }

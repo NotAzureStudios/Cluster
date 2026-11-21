@@ -638,3 +638,9 @@
     min-height: 54px;
   }
 }
+/* v2 result row: kind, copy, optional hint, chevron — one line. */
+.search-command-results-v294 > button { display: flex !important; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; }
+.search-command-results-v294 > button > .search-kind-v294 { flex: 0 0 64px; text-align: center; }
+.search-command-results-v294 > button > .search-result-copy-v495 { flex: 1 1 auto; min-width: 0; }
+.search-command-results-v294 > button > .search-command-hint-v495 { flex: 0 1 auto; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-command-results-v294 > button > svg { flex: none; width: 14px; height: 14px; opacity: .5; }

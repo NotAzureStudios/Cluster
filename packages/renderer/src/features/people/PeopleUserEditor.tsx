@@ -114,14 +114,6 @@ export function PeopleUserEditor({
     </label>
   );
   return <section className="people-user-editor-v106" aria-label={`Edit user ${person.displayName || person.username}`}>
-    <header className="people-user-editor-head-v106">
-      <div>
-        <p className="eyebrow">Account administration</p>
-        <h3>Edit user</h3>
-        
-      </div>
-      <ClusterButton size="compact" variant="quiet" type="button" onClick={() => void cancel()} disabled={saving}>Close</ClusterButton>
-    </header>
     <div className="people-user-editor-section-v106">
       <h4>Identity</h4>
       <div className="people-user-editor-grid-v106">

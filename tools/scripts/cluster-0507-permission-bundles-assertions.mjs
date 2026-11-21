@@ -57,7 +57,7 @@ pass(source.route.includes('authorization.requireAdmin(request, reply)'), 'dry-r
 pass(source.route.includes('Cache-Control", "private, no-store'), 'preview not cacheable');
 pass(source.studioWriter.includes('validateClusterBundleRevisionChanges(previous, bundles)'), 'publisher enforces revisions');
 pass(source.studioWriter.includes('validateClusterBundleAssignments(entry?.permissionBundleIds'), 'publisher denies dangling role and department assignment');
-pass(source.ui.includes('Preview effective-access changes'), 'effective preview has UI entry');
+pass(source.ui.includes('Preview who this changes'), 'effective preview has UI entry');
 pass(source.ui.includes('LoadedRawSettingsRef') === false && source.ui.includes('loadedRawSettingsRef.current.studioPermissionBundles'), 'edit revisions compare against published snapshot');
 pass(source.types.includes('studioPermissionBundles?: ClusterPermissionBundle[]'), 'typed studio bundles');
 console.log(`${count}/${count} permission bundle assertions passed`);

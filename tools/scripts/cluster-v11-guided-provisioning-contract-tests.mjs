@@ -5,7 +5,7 @@ import { validatePeopleAccountCreation } from "../../packages/renderer/src/featu
 
 const source=(path)=>readFileSync(path,"utf8");
 const wizard=source("packages/renderer/src/features/people/PeopleAccountProvisioningWizard.tsx");
-const pages=source("packages/renderer/src/features/people/PeoplePages.tsx");
+const pages=source("packages/renderer/src/features/admin/AdminUsersPage.tsx")+source("packages/renderer/src/features/people/use-account-provisioning.ts");
 const route=source("apps/server/src/domains/users/people-provisioning-preview-routes.ts");
 const registry=source("apps/server/src/domains/users/user-directory-routes.ts");
 const roleGovernance=source("apps/server/src/domains/users/people-role-governance.ts");
@@ -72,10 +72,10 @@ check("Preview represents policy-derived initial tool matrix, not a resource gra
 });
 check("Committed account still uses the existing one-time credential handoff",()=>{
   assert.ok(pages.includes('<PeopleAccountProvisioningWizard'));
-  assert.ok(pages.includes('onCreate={createPersonAccount}'));
+  assert.ok(pages.includes('onCreate={provisioning.create}'));
   assert.ok(pages.includes('setIssuedCredential({ username: created.username, temporaryPassword: created.temporaryPassword });'));
   assert.ok(pages.includes('<AccountCredentialHandoff'));
-  assert.ok(pages.includes('setCreateAccountOpen(false);'));
+  assert.ok(pages.includes('setOpen(false);'));
 });
 check("Creation does not silently add Project grants, team membership, or bypass scope",()=>{
   assert.ok(registry.includes('SCOPED_GRANT_REVIEW_REQUIRED'));

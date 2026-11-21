@@ -27,14 +27,12 @@ import type {
 } from "../application/application-models";
 import { ProjectBuildArtifactWorkbench, ProjectBuildMatrix } from "./ProjectBuildArtifactWorkbench";
 import { ProjectBuildComposer, type ProjectBuildComposerForm, type ProjectBuildSourceOptions } from "./ProjectBuildComposer";
-import { ProjectSectionHeader, ProjectSectionStatus } from "./ProjectWorkspacePrimitives";
-import { ClusterVisualMeter } from "../../components/ClusterVisualMetrics";
-import { HealthStrip, PipelineRail } from "../../components/ClusterVisualIntelligence";
-import type { VisualDatum } from "../../components/visual-intelligence";
+import { ProjectSectionHeader, ProjectSectionStatus, ProjectSegmentedControl, ProjectSurface } from "./ProjectWorkspacePrimitives";
 import { nextBuildChannel } from "./project-quality-models";
 import { BUILD_PLATFORM_PROFILES, buildPlatformLaneLabel, defaultPlatformMeta, isProjectBuildEntry, platformMetaSummary, projectBuildLaneFromText, projectHasBuildSignals } from "./project-build-domain";
 export { BUILD_PLATFORM_PROFILES, buildPlatformLaneLabel, defaultPlatformMeta, isProjectBuildEntry, platformMetaSummary, projectBuildLaneFromText, projectHasBuildSignals } from "./project-build-domain";
 import "./project-operations.css";
+import "./delivery.css";
 import "./project-quality.css";
 
 export function splitReleaseNoteLines(text: string, fallback: string): string[] {
@@ -311,196 +309,94 @@ export function ProjectBuildsPanelFeature({ project, projects, onOpenTimeline, o
     setBuildView("notes");
   }
   return (
-    <section className="project-subpage-v312 project-release-workspace-v159 project-release-workspace-v160 project-builds-v312">
-      <ProjectSectionHeader eyebrow={`Builds · ${buildProfile.label}`} title={`${buildProfile.artifactLabel} track`} metrics={[{ label: "Stage", value: releaseStage, tone: blockers.length ? "danger" : approvedArtifacts.length ? "good" : "accent" }, { label: "Artifacts", value: projectArtifacts.length }, { label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning" }, { label: "Blockers", value: blockers.length, tone: blockers.length ? "danger" : "good" }]} actions={<><ClusterButton type="button" className="" onClick={onOpenTimeline} variant="secondary">Roadmap</ClusterButton>{onOpenQa ? <ClusterButton type="button" className="" onClick={onOpenQa} variant="secondary">QA evidence</ClusterButton> : null}<ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setArtifactComposerOpen((open) => !open); setComposerOpen(false); }} variant="secondary">{buildProfile.artifactLabel}</ClusterButton><ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setComposerOpen((open) => !open); setArtifactComposerOpen(false); }} variant="primary">Build beat</ClusterButton></>} />
+    <section className="ps-page bd">
+      <ProjectSectionHeader eyebrow={`Builds · ${buildProfile.label}`} title={`${buildProfile.artifactLabel} track`} metrics={[{ label: releaseStage === "Blocked" ? "stage" : "", value: releaseStage, tone: blockers.length ? "danger" : approvedArtifacts.length ? "good" : "accent" }, { label: projectArtifacts.length === 1 ? "artifact" : "artifacts", value: projectArtifacts.length }, { label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning" }, { label: blockers.length === 1 ? "blocker" : "blockers", value: blockers.length, tone: blockers.length ? "danger" : "good" }]} actions={<>{onOpenQa ? <ClusterButton type="button" onClick={onOpenQa} variant="quiet" size="compact">QA</ClusterButton> : null}<ClusterButton type="button" onClick={onOpenTimeline} variant="quiet" size="compact">Roadmap</ClusterButton><ClusterButton type="button" size="compact" disabled={!canContribute} onClick={() => { setArtifactComposerOpen((open) => !open); setComposerOpen(false); }} variant="secondary">{buildProfile.artifactLabel}</ClusterButton><ClusterButton type="button" size="compact" disabled={!canContribute} onClick={() => { setComposerOpen((open) => !open); setArtifactComposerOpen(false); }} variant="primary">Build beat</ClusterButton></>} />
       <ProjectCollaborationStrip tool="build" projectId={project.id} activity={`Builds · ${buildView}`} />
-      <ProjectDeliveryLifecycle projectId={project.id} canContribute={canContribute} />
       <ProjectSectionStatus tone={!canContribute ? "warning" : status.toLowerCase().includes("failed") ? "danger" : "neutral"}>{!canContribute ? permissionReason : status}</ProjectSectionStatus>
-      {loadError ? <RequestErrorState error={loadError} title="Build workspace could not be loaded" onRetry={() => void loadProjectBuilds().catch(setLoadError)} compact /> : null}
+      {loadError ? <RequestErrorState error={loadError} title="Builds could not be loaded" onRetry={() => void loadProjectBuilds().catch(setLoadError)} compact /> : null}
 
-      <ClusterDisclosureGroup className="project-release-context-disclosure-v30d" title="Release context" summary="Platform gates, QA, candidates, and next delivery beat" headerTrailing={<span className={blockers.length ? "warning" : verifiedArtifacts.length ? "good" : ""}>{releaseStage} · {blockers.length ? `${blockers.length} blocker${blockers.length === 1 ? "" : "s"}` : `${verifiedArtifacts.length} QA passed`}</span>}>
-        <div className="project-release-context-v159 platform-build-context-v160">
-        <div>
-          <span>Platform</span>
-          <strong>{buildProfile.label}</strong>
-        </div>
-        <div>
-          <span>Stage</span>
-          <strong>{releaseStage}</strong>
-        </div>
-        <div>
-          <span>Next beat</span>
-          <strong>{nextBuild ? compactDateTime(nextBuild.startsAt) : "None"}</strong>
-        </div>
-        <div>
-          <span>Latest artifact</span>
-          <strong>{latestArtifact ? latestArtifact.version : "None"}</strong>
-        </div>
-        <div className={verifiedArtifacts.length ? "good" : "warn"}><span>QA passed</span><strong>{verifiedArtifacts.length}</strong></div>
-        <div><span>Release candidates</span><strong>{releaseCandidates.length}</strong></div>
-        <div><span>Active QA</span><strong>{activeQaSessions.length}</strong></div>
-        <div className={platformReadyCount >= buildProfile.gates.length ? "good" : "warn"}>
-          <span>Platform gates</span>
-          <strong>
-            {platformReadyCount}/{buildProfile.gates.length}
-          </strong>
-        </div>
-        <div className={blockers.length ? "warn" : "good"}>
-          <span>Blockers</span>
-          <strong>{blockers.length}</strong>
-        </div>
+      <ProjectBuildComposer
+        open={composerOpen || artifactComposerOpen}
+        artifactMode={artifactComposerOpen}
+        profile={buildProfile}
+        form={form}
+        setForm={setForm}
+        platformMeta={platformMeta}
+        patchMeta={patchMeta}
+        sourceOptions={sourceOptions}
+        sourceLoading={sourceLoading}
+        onSubmit={artifactComposerOpen ? saveArtifact : createBuildBeat}
+        onCancel={() => { setComposerOpen(false); setArtifactComposerOpen(false); }}
+      />
+
+      {/* Pipeline: one step per lane, the count of artifacts in it and what's
+          latest or next. This is the only lane summary on the page. */}
+      <ol className="bd-pipe" aria-label={`${buildProfile.label} pipeline`}>
+        {laneRows.map((row) => <li key={row.lane} data-state={row.state === "blocked" ? "blocked" : row.artifacts ? "done" : row.entries ? "active" : "empty"} title={row.hint}>
+          <span className="bd-pipe__dot" aria-hidden="true" />
+          <span className="bd-pipe__copy"><strong>{row.label}</strong><small>{row.next ? compactDateTime(row.next.startsAt) : row.latest ? row.latest.version : "—"}</small></span>
+          {row.artifacts ? <em>{row.artifacts}</em> : null}
+        </li>)}
+      </ol>
+
+      <ProjectDeliveryLifecycle projectId={project.id} canContribute={canContribute} />
+
+      <div className="bd-views">
+        <ProjectSegmentedControl label="Build views" activeId={buildView} onChange={setBuildView} items={[
+          { id: "flow", label: "Overview" },
+          { id: "artifacts", label: buildProfile.artifactLabel === "Artifact" ? "Artifacts" : `${buildProfile.artifactLabel}s`, count: projectArtifacts.length },
+          { id: "matrix", label: "Matrix" },
+          { id: "notes", label: "Notes", count: projectNotes.length },
+        ]} />
+        <span className="bd-profile" title={buildProfile.summary}>{buildProfile.label}</span>
       </div>
-      </ClusterDisclosureGroup>
 
-      <ClusterDisclosureGroup title="Build fields" summary="Custom build metadata" className="project-tool-meta-v195 build-fields-v206">
+      {buildView === "flow" && (
+        <div className="bd-grid">
+          <ProjectSurface title={<>Ship gates <span className="bd-count">{shipGates.filter((gate) => gate.ready).length}/{shipGates.length}</span></>}>
+            <ul className="bd-gates">
+              {shipGates.map((gate) => <li key={gate.label} data-ready={gate.ready || undefined} title={gate.detail}>
+                <ClusterIcon name={gate.ready ? "check" : "minus"} /><span>{gate.label}</span>
+              </li>)}
+            </ul>
+          </ProjectSurface>
+          <ProjectSurface title={`Recent ${buildProfile.artifactLabel === "Artifact" ? "artifacts" : `${buildProfile.artifactLabel.toLowerCase()}s`}`} action={projectArtifacts.length ? <ClusterButton type="button" onClick={() => setBuildView("artifacts")} variant="quiet" size="compact">All</ClusterButton> : undefined}>
+            {projectArtifacts.length ? <ul className="bd-builds">
+              {projectArtifacts.slice(0, 5).map((artifact) => <li key={artifact.id} data-qa={artifact.qaStatus}>
+                <i aria-hidden="true" title={`QA ${artifact.qaStatus}`} />
+                <strong>{artifact.version}</strong>
+                <span>{artifact.platform}</span>
+                <em>{buildPlatformLaneLabel(buildProfile.lanes, artifact.lane || "internal")}</em>
+                <small>{artifact.qaStatus === "passed" ? "QA passed" : artifact.qaStatus === "failed" ? "QA failed" : artifact.qaStatus === "testing" ? "Testing" : "Untested"}</small>
+              </li>)}
+            </ul> : <p className="bd-empty">No {buildProfile.artifactLabel.toLowerCase()}s yet</p>}
+          </ProjectSurface>
+        </div>
+      )}
+
+      {buildView === "artifacts" && (
+        <ProjectSurface title={`${buildProfile.artifactLabel}s`} action={<ClusterButton type="button" disabled={!canContribute} onClick={() => { setArtifactComposerOpen(true); setComposerOpen(false); }} variant="secondary" size="compact">Add</ClusterButton>}>
+          <ProjectBuildArtifactWorkbench projectId={project.id} artifacts={projectArtifacts} profile={buildProfile} users={users} currentUser={currentUser || null} readOnly={!canContribute} canPromote={canManage} onPatch={patchArtifact} onPromote={promoteArtifact} onStartQa={startArtifactQa} onCreateRebuild={createRebuild} />
+        </ProjectSurface>
+      )}
+
+      {buildView === "matrix" && <ProjectBuildMatrix artifacts={projectArtifacts} profile={buildProfile} />}
+
+      {buildView === "notes" && (
+        <ProjectSurface title="Release notes" action={<ClusterButton type="button" disabled={!canContribute} onClick={generateReleaseNoteDraft} variant="secondary" size="compact">Generate draft</ClusterButton>}>
+          {projectNotes.length ? <ul className="bd-builds">
+            {projectNotes.map((note) => <li key={note.id} data-qa={note.status === "published" ? "passed" : "untested"}>
+              <ClusterButton unstyled type="button" className="bd-note" data-cluster-state={selectedRelease?.id === note.id ? "selected" : undefined} onClick={() => releaseDetailHistory.openDetail(note.id)}>
+                <i aria-hidden="true" /><strong>{note.title}</strong><span>{note.buildVersion} · {note.platform}</span><em>{note.status}</em><small>{note.updatedAt ? compactDateTime(note.updatedAt) : "Draft"}</small>
+              </ClusterButton>
+            </li>)}
+          </ul> : <p className="bd-empty">No release notes yet</p>}
+        </ProjectSurface>
+      )}
+
+      <ClusterDisclosureGroup title="Build fields" className="project-tool-meta-v195 build-fields-v206">
         <CustomFieldsPanel compact entity="build" entityId={latestArtifact?.id || nextBuild?.id || `${project.id}-build-workspace`} projectId={project.id} title={latestArtifact ? `${latestArtifact.title} fields` : nextBuild ? `${nextBuild.title} fields` : "Build workspace fields"} />
       </ClusterDisclosureGroup>
-
-      <div className="platform-build-shell-v160">
-        <aside className="platform-build-guide-v160">
-          <div>
-            <p className="eyebrow">Platform profile</p>
-            <h3>{buildProfile.label}</h3>
-            <p>{buildProfile.summary}</p>
-          </div>
-          <div className="platform-guide-list-v160">
-            {buildProfile.tips.slice(0, 3).map((tip) => (
-              <span key={tip}>{tip}</span>
-            ))}
-          </div>
-        </aside>
-        <main>
-          <div className="project-tab-switcher-v159">
-            {(["flow", "artifacts", "matrix", "notes"] as const).map((view) => (
-              <ClusterButton unstyled type="button" key={view} className={buildView === view ? "active" : ""} onClick={() => setBuildView(view)}>
-                {view === "flow" ? "Flow" : view === "artifacts" ? "Artifacts" : view === "matrix" ? "Matrix" : "Notes"}
-              </ClusterButton>
-            ))}
-          </div>
-
-          <ProjectBuildComposer
-            open={composerOpen || artifactComposerOpen}
-            artifactMode={artifactComposerOpen}
-            profile={buildProfile}
-            form={form}
-            setForm={setForm}
-            platformMeta={platformMeta}
-            patchMeta={patchMeta}
-            sourceOptions={sourceOptions}
-            sourceLoading={sourceLoading}
-            onSubmit={artifactComposerOpen ? saveArtifact : createBuildBeat}
-            onCancel={() => { setComposerOpen(false); setArtifactComposerOpen(false); }}
-          />
-
-          {buildView === "flow" && (
-            <div className="project-release-flow-v159">
-              <section className="panel flat-panel-v159 cluster-visual-consumer-panel">
-                <div className="section-heading"><div><h3>Delivery overview</h3></div></div>
-                <HealthStrip label="Build health" items={[
-                  { id: "artifacts", label: "Artifacts", value: projectArtifacts.length, tone: projectArtifacts.length ? "accent" : "neutral", detail: latestArtifact?.version || "None yet" },
-                  { id: "qa", label: "QA passed", value: verifiedArtifacts.length, tone: verifiedArtifacts.length ? "good" : "warning", detail: `${activeQaSessions.length} active sessions` },
-                  { id: "candidates", label: "Release candidates", value: releaseCandidates.length, tone: releaseCandidates.length ? "accent" : "neutral", detail: releaseStage },
-                  { id: "blockers", label: "Blockers", value: blockers.length, tone: blockers.length ? "danger" : "good", detail: blockers.length ? "Delivery attention required" : "Clear" },
-                ] satisfies VisualDatum[]} />
-                <PipelineRail label="Build delivery pipeline" items={laneRows.map((row) => ({ id: row.lane, label: row.label, value: row.artifacts, tone: row.state === "blocked" ? "danger" : row.artifacts ? "good" : row.entries ? "accent" : "neutral", detail: row.next ? compactDateTime(row.next.startsAt) : row.latest ? row.latest.version : row.hint }))} />
-              </section>
-              <section className="release-lane-strip-v159 platform-lane-strip-v160">
-                {laneRows.map((row, index) => (
-                  <div key={row.lane} className={`release-lane-v159 state-${row.state}`}>
-                    <span className="lane-step-v159">{index + 1}</span>
-                    <strong>{row.label}</strong>
-                    <em>{row.next ? compactDateTime(row.next.startsAt) : row.latest ? row.latest.version : row.hint}</em>
-                    <small>
-                      {row.entries} beats · {row.artifacts} artifacts
-                    </small>
-                  </div>
-                ))}
-              </section>
-              <div className="project-release-grid-v159 platform-build-grid-v160">
-                <section className="panel flat-panel-v159">
-                  <div className="section-heading"><div><h3>Ship gates</h3></div></div>
-                  <ClusterVisualMeter label="Release readiness" value={shipGates.filter((gate) => gate.ready).length} total={shipGates.length} tone={blockers.length ? "danger" : "good"} />
-                  <div className="gate-row-list-v159 platform-gate-list-v160">
-                    {shipGates.map((gate) => (
-                      <div key={gate.label} className={gate.ready ? "ready" : "needs-work"}>
-                        <span>{gate.ready ? <ClusterIcon name="check" /> : <ClusterIcon name="minus" />}</span>
-                        <div>
-                          <strong>{gate.label}</strong>
-                          <em>{gate.detail}</em>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <section className="panel flat-panel-v159">
-                  <div className="section-heading">
-                    <div>
-                      <h3>Recent artifacts</h3>
-                      <p className="muted tight">{buildProfile.artifactLabel}s tied to this project.</p>
-                    </div>
-                    <ClusterButton type="button" className="" onClick={() => setBuildView("artifacts")} variant="quiet" size="compact">
-                      View all
-                    </ClusterButton>
-                  </div>
-                  <div className="compact-record-list-v159">
-                    {projectArtifacts.length ? (
-                      projectArtifacts.slice(0, 5).map((artifact) => (
-                        <div key={artifact.id}>
-                          <strong>{artifact.title}</strong>
-                          <span>
-                            {artifact.version} · {artifact.platform} · {buildPlatformLaneLabel(buildProfile.lanes, artifact.lane || "internal")}
-                          </span>
-                          <em>{platformMetaSummary(buildProfile, artifact.metadata)}</em>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="muted">No artifacts yet.</p>
-                    )}
-                  </div>
-                </section>
-              </div>
-            </div>
-          )}
-
-          {buildView === "artifacts" && (
-            <section className="panel flat-panel-v159">
-              <div className="section-heading"><div><h3>Artifact workbench</h3><p className="muted tight">Packages, release readiness, QA state, promotion, and comparison.</p></div><ClusterButton type="button" className="" disabled={!canContribute} onClick={() => { setArtifactComposerOpen(true); setComposerOpen(false); }} variant="secondary" size="compact">Add artifact</ClusterButton></div>
-              <ProjectBuildArtifactWorkbench projectId={project.id} artifacts={projectArtifacts} profile={buildProfile} users={users} currentUser={currentUser || null} readOnly={!canContribute} canPromote={canManage} onPatch={patchArtifact} onPromote={promoteArtifact} onStartQa={startArtifactQa} onCreateRebuild={createRebuild} />
-            </section>
-          )}
-
-          {buildView === "matrix" && <ProjectBuildMatrix artifacts={projectArtifacts} profile={buildProfile} />}
-
-          {buildView === "notes" && (
-            <section className="panel flat-panel-v159">
-              <div className="section-heading">
-                <div>
-                  <h3>Release notes</h3>
-                  <p className="muted tight">Draft notes from this project release track.</p>
-                </div>
-                <ClusterButton type="button" className="" disabled={!canContribute} onClick={generateReleaseNoteDraft} variant="secondary" size="compact">
-                  Generate draft
-                </ClusterButton>
-              </div>
-              <div className="compact-record-list-v159 notes-list-v159">
-                {projectNotes.length ? (
-                  projectNotes.map((note) => (
-                    <ClusterButton unstyled type="button" key={note.id} className="compact-record-button-v491" data-cluster-state={selectedRelease?.id === note.id ? "selected" : undefined} onClick={() => releaseDetailHistory.openDetail(note.id)}>
-                      <strong>{note.title}</strong>
-                      <span>
-                        {note.buildVersion} · {note.platform} · {note.status}
-                      </span>
-                      <em>{note.updatedAt ? compactDateTime(note.updatedAt) : "Draft"}</em>
-                    </ClusterButton>
-                  ))
-                ) : (
-                  <p className="muted">No release notes yet.</p>
-                )}
-              </div>
-            </section>
-          )}
-        </main>
-      </div>
 
       <ClusterModal open={Boolean(selectedRelease)} onClose={releaseDetailHistory.closeDetail} backdropClassName="cluster-dialog-backdrop" className="cluster-dialog release-note-inspector-v491" ariaLabel={selectedRelease ? `Release note ${selectedRelease.title}` : "Release note"}>{selectedRelease && <><div className="section-heading"><div><p className="eyebrow">Release note</p><h3>{selectedRelease.title}</h3><p className="muted tight">{selectedRelease.buildVersion} · {selectedRelease.platform} · {selectedRelease.status}</p></div><span className="soft-pill">{selectedRelease.qaStatus}</span></div><dl className="quality-detail-list-v309"><div><dt>Source revision</dt><dd>{selectedRelease.sourceRevision || "Not linked"}</dd></div><div><dt>Build</dt><dd>{selectedRelease.buildVersion} · {selectedRelease.platform}</dd></div><div><dt>Features</dt><dd>{selectedRelease.features.length}</dd></div><div><dt>Fixes</dt><dd>{selectedRelease.fixes.length}</dd></div><div><dt>Known issues</dt><dd>{selectedRelease.knownIssues.length}</dd></div><div><dt>Updated</dt><dd>{compactDateTime(selectedRelease.updatedAt)}</dd></div></dl><pre className="release-note-body-v491">{selectedRelease.body}</pre><WorkActionMenu context={{ source: { kind: "release", id: selectedRelease.id, projectId: project.id, label: selectedRelease.title }, navigation: { screen: "project", projectId: project.id, projectTab: "builds", inspectScope: "release", inspectId: selectedRelease.id }, projectId: project.id }} label={`${selectedRelease.title} work actions`} /><LinkedWorkPanel projectId={project.id} kind="release" entityId={selectedRelease.id} compact /><div className="button-row"><ClusterButton type="button" className="" onClick={releaseDetailHistory.closeDetail} variant="secondary">Close</ClusterButton></div></>}</ClusterModal>
     </section>

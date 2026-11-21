@@ -1,3 +1,5 @@
+import { ToolPageHeader } from "../../../components/ToolPageHeader";
+import { ClusterEmptyState } from "../../../components/ClusterEmptyState";
 import "../styles/project-delivery.css";
 import { ClusterNativeSelect } from "../../../components/ClusterNativeControls";
 
@@ -34,6 +36,7 @@ import { fromDateTimeLocalInput } from "../../operations/modules/operations-foun
 import { RelatedRecordsPanel, VersionHistoryPanel, buildProjectLinkRows, openSharedCreate, reportLifecycleStage, LazyBoardWorkspacePage, LazyTicketSystemPageFeature, LazyWhiteboardWorkspacePage } from "./application-foundation";
 
 import { runtimeStyle } from "../../../core/runtime-style";
+import { StatusNote } from "../../../components/StatusNote";
 
 export function BuildsPage({ projects }: { projects: Project[] }) {
   const buildFilterId = useId();
@@ -594,7 +597,7 @@ export function BuildsPage({ projects }: { projects: Project[] }) {
       </div>
       <DetailDrawer item={selectedBuildDetail} onClose={() => setSelectedBuildDetail(null)} />
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }
@@ -1016,7 +1019,7 @@ export function QAPage({ projects, onOpenBoard }: { projects: Project[]; onOpenB
           </section>
         </aside>
       </div>
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }
@@ -1027,13 +1030,7 @@ export function QAFoldedIntoProjectsPage({ projects, onOpenProject }: { projects
   const plans = serverPlans.map(normalizeTestPlan);
   return (
     <section className="page qa-folded-page-v158">
-      <div className="page-header panel ops-hero-v072 qa-hero-v085 qa-folded-hero-v158">
-        <div>
-          <p className="eyebrow">QA moved</p>
-          <h1>QA lives inside Projects</h1>
-          <p className="muted">Open a project and use its QA tab for test plans, bug reports, runs, and release checks.</p>
-        </div>
-      </div>
+      <ToolPageHeader className="cluster-page-header" title="QA" description="QA lives in each project's QA tab." />
       {planSync.error && <div className="status-box error">{planSync.error}</div>}
       <div className="qa-project-launcher-v158">
         {projects.length ? (
@@ -1051,10 +1048,7 @@ export function QAFoldedIntoProjectsPage({ projects, onOpenProject }: { projects
             );
           })
         ) : (
-          <div className="empty-state panel">
-            <h2>No visible projects</h2>
-            <p>Create or restore a project before planning QA.</p>
-          </div>
+          <ClusterEmptyState compact kind="empty" icon="project" title="No projects" />
         )}
       </div>
     </section>
@@ -1440,7 +1434,7 @@ export function StatusPage({ projects, onOpenProject, onOpenTickets, onOpenQa, o
       </div>
       <ProjectBudgetPanel projects={projects} />
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }

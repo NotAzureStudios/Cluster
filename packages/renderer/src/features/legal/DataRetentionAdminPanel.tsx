@@ -5,6 +5,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton } from "../../components/ClusterButton";
 import "./data-retention-admin.css";
 import { ClusterInput } from "../../components/ClusterNativeControls";
+import { StatusNote } from "../../components/StatusNote";
 
 export type RetentionPolicyRow = {
   key: string;
@@ -113,7 +114,7 @@ export function DataRetentionAdminPanel() {
       <div>
         <p className="eyebrow">Data lifecycle</p>
         <h2>Inventory & retention</h2>
-        <p className="muted">Configure age-based cleanup only for operational data that Cluster can safely prune. Authoritative work, legal evidence, security audit events, and project files remain outside unattended deletion.</p>
+        <p className="muted">Configure age-based cleanup only for operational data that Cluster can safely prune. Work records, legal evidence, security audit events, and project files remain outside unattended deletion.</p>
       </div>
       <div className="button-row compact">
         <ClusterButton type="button" className="" onClick={() => void load()} disabled={busy} variant="secondary">Refresh dry run</ClusterButton>
@@ -121,7 +122,7 @@ export function DataRetentionAdminPanel() {
       </div>
     </div>
 
-    {status && <div className="status-box system-status-box-v053">{status}</div>}
+    {status && <StatusNote>{status}</StatusNote>}
 
     <div className="retention-summary-v365">
       <div><span>Configurable categories</span><strong>{policies.length}</strong></div>

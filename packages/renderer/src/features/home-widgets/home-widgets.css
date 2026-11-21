@@ -102,11 +102,12 @@
   min-height:170px;
   display:grid;
   align-content:start;
-  gap:12px;
-  padding:14px;
-  border:1px solid var(--cluster-compact-line,color-mix(in srgb,var(--cluster-slate-400) 18%,transparent));
-  border-radius:var(--cluster-radius-card,14px);
-  background:color-mix(in srgb,var(--surface,var(--panel)) 88%,transparent);
+  gap:var(--space-3);
+  padding:var(--space-3);
+  border:0;
+  border-radius:var(--cluster-radius-card);
+  background:var(--cluster-workbench-panel);
+  box-shadow:var(--cluster-elevation-card);
 }
 .home-widget-card-v484[data-widget-size="micro"]{min-height:112px;gap:8px;padding:10px;}
 .home-widget-card-v484[data-widget-size="compact"]{min-height:140px;}
@@ -137,8 +138,14 @@
 .home-widget-card-head-v484 > div { min-width:0; display:grid; gap:2px; }
 .home-widget-card-head-v484 h3 { margin:0; font-size:.94rem; line-height:1.2; }
 .home-widget-card-head-v484 > span { color:var(--muted); font-size:.72rem; white-space:nowrap; }
-.home-widget-metrics-v484 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
-.home-widget-metrics-v484 > div { min-width:0; display:grid; gap:2px; padding:8px 9px; border:1px solid var(--cluster-compact-line, var(--border)); border-radius:10px; background:color-mix(in srgb,var(--surface-soft,var(--panel-2)) 84%,transparent); }
+/* Counters fit to the width the widget actually has. This was a fixed two
+   columns at every size, so a six-column card spent three rows and ~370px of
+   height on five single-digit numbers while half of each tile sat empty. The
+   compact and detailed presentations below still pin the count by hand. */
+.home-widget-metrics-v484 { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:7px; }
+/* A counter inside a card is a recess, not another outlined box. Reading it as
+   a slightly sunken plane keeps the card from becoming a grid of frames. */
+.home-widget-metrics-v484 > div { min-width:0; display:grid; gap:var(--space-0-5); padding:var(--space-1-5) var(--space-2); border:0; border-radius:var(--cluster-radius-control); background:var(--cluster-recess); }
 .home-widget-metrics-v484 span,.home-widget-custom-metric-v484 span,.home-widget-custom-clock-v484 span { color:var(--muted); font-size:.67rem; }
 .home-widget-metrics-v484 strong { font-size:.94rem; }
 .home-widget-metrics-v484 em { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-style:normal; font-size:.64rem; }
@@ -242,9 +249,9 @@
 .home-widget-canvas-v484[data-density="expanded"] .home-widget-card-v484 { min-height: 190px; gap: 14px; padding: 17px; }
 .home-widget-canvas-v484[data-density="expanded"] .home-widget-card-v484[data-widget-size="compact"] { min-height: 156px; }
 .home-widget-canvas-v484[data-density="expanded"] .home-widget-card-v484[data-widget-size="large"],.home-widget-canvas-v484[data-density="expanded"] .home-widget-card-v484[data-widget-size="feature"] { min-height:340px; }
-.home-widget-empty-v485 { min-width:0; display:grid; gap:3px; align-content:center; padding:12px; border:1px dashed color-mix(in srgb,var(--cluster-compact-line,var(--border)) 78%,transparent); border-radius:10px; background:color-mix(in srgb,var(--surface-soft,var(--panel-2)) 54%,transparent); }
-.home-widget-empty-v485 strong { font-size:.73rem; }
-.home-widget-empty-v485 span { color:var(--muted); font-size:.66rem; line-height:1.35; }
+.home-widget-empty-v485 { min-width:0; display:grid; gap:var(--space-0-5); align-content:center; padding:var(--space-3); border:0; border-radius:var(--cluster-radius-control); background:var(--cluster-recess); }
+.home-widget-empty-v485 strong { font-size:var(--cluster-font-size-sm); }
+.home-widget-empty-v485 span { color:var(--muted); font-size:var(--cluster-font-size-xs); line-height:1.35; }
 .home-widget-state-v485 { min-height:108px; display:grid; align-content:center; gap:8px; }
 .home-widget-state-v485.error { justify-items:start; padding:11px; border:1px solid color-mix(in srgb,var(--danger) 30%,var(--cluster-compact-line,var(--border))); border-radius:10px; background:color-mix(in srgb,var(--danger) 6%,transparent); }
 .home-widget-state-v485.error strong { font-size:.78rem; }
@@ -674,14 +681,15 @@ overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vert
 .home-widget-action-grid-v484{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--cluster-space-2)}
 [data-widget-presentation="compact"] .home-widget-action-grid-v484{grid-template-columns:1fr}
 
-/* WIP22 readability floor for text-heavy Home widgets. */
-.home-widget-card-v484 {
-  background: color-mix(in srgb, var(--surface, var(--panel)) 92%, transparent);
-}
+/* The readability floor these rules propped up is gone: the card is an opaque
+   plane now, so there is no translucency to compensate for. An empty state is
+   a well inside that plane — the same recess the counters use, so a card never
+   contains two different kinds of inner box. */
 .home-widget-empty-v485,
 .home-widget-canvas-empty-v485,
 .home-widget-config-panel-v485 {
-  background-color: color-mix(in srgb, var(--surface, var(--panel)) 84%, transparent);
+  border: 0;
+  background-color: var(--cluster-recess);
 }
 
 /* WIP24 edit-mode geometry. */
@@ -818,12 +826,12 @@ overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vert
     grid-column-start:var(--cluster-home-column,1);
   }
 }
-@media (min-width: 1600px) {
-  .home-widget-canvas-v484 { --cluster-home-columns:16; }
-}
-@media (min-width: 2200px) {
-  .home-widget-canvas-v484 { --cluster-home-columns:20; }
-}
+/* The board stays twelve columns at every desktop width, so the columns grow
+   with the window instead of the board growing a gutter. It used to widen to
+   sixteen past 1600px and twenty past 2200px while widget spans and stored
+   start columns stayed sized for twelve, which left the last quarter — then
+   the last two fifths — of the workspace permanently empty, and made a saved
+   layout render differently on a different monitor. */
 .home-widget-canvas-v484[data-edit-mode="true"] {
   min-height:300px;
   position:relative;

@@ -1,8 +1,14 @@
-import { useId, useState } from "react";
+import { useState } from "react";
+import { ClusterIcon } from "./ClusterIcon";
 import "./cluster-permission-matrix.css";
 
 /** A presentation-only permission matrix. Role/department policy and allowed
- * transitions remain owned by the caller and verified by the server. */
+ * transitions remain owned by the caller and verified by the server.
+ *
+ * One line per tool: a level control where the lit segment is the effective
+ * level. Inherited levels are lit softly; overrides are lit in the accent and
+ * get a reset button. Clicking the inherited level, or reset, returns the
+ * tool to inherit. Styled by cluster-permission-matrix.css (pm-*) only. */
 export type ClusterPermissionMatrixGroup<Key extends string> = {
   id: string;
   label: string;
@@ -37,92 +43,64 @@ export function ClusterPermissionMatrix<Key extends string, Level extends string
   inheritValue: Level;
   fallbackEffective: Level;
 }) {
-  const id = useId();
   const [search, setSearch] = useState("");
   const [overridesOnly, setOverridesOnly] = useState(false);
+  const levels = choices.filter((choice) => choice.value !== inheritValue);
   const term = search.trim().toLocaleLowerCase();
+  const isOverride = (key: Key) => value?.[key] !== undefined && value?.[key] !== inheritValue;
   const visibleGroups = groups.map((group) => ({
     ...group,
     rows: group.rows.filter((row) => {
-      if (overridesOnly && (value?.[row.key] === undefined || value?.[row.key] === inheritValue)) return false;
+      if (overridesOnly && !isOverride(row.key)) return false;
       if (!term) return true;
-      const groupMatch = (group.label + " " + (group.description || "")).toLocaleLowerCase().includes(term);
-      return groupMatch || (row.label + " " + row.key + " " + (row.description || "")).toLocaleLowerCase().includes(term);
+      return (group.label + " " + row.label + " " + row.key + " " + (row.description || "")).toLocaleLowerCase().includes(term);
     }),
   })).filter((group) => group.rows.length > 0);
-  const totalTools = groups.reduce((count, group) => count + group.rows.length, 0);
-  const visibleTools = visibleGroups.reduce((count, group) => count + group.rows.length, 0);
-  return <div className="cluster-permission-matrix-v11" role="group" aria-label={label}>
-    <div className="cluster-permission-matrix-intro-v11">
-      <span>Choose a level per tool. Inherit keeps the existing baseline. Changes are reviewed and saved through the surrounding workspace.</span>
-      {readOnly ? <strong>Read only</strong> : null}
-    </div>
-    <div className="cluster-permission-matrix-filters-v11">
-      <label><span>Find tool access</span>
-        <input type="search" value={search} placeholder="Search permissions…" autoComplete="off"
-          onChange={(event) => setSearch(event.target.value)} />
+  const overrideCount = groups.reduce((count, group) => count + group.rows.filter((row) => isOverride(row.key)).length, 0);
+
+  return <div className="pm" role="group" aria-label={label}>
+    <div className="pm-bar">
+      <label className="pm-search">
+        <ClusterIcon name="search" aria-hidden="true" />
+        <input type="search" value={search} placeholder="Find a tool" aria-label="Find a tool" autoComplete="off" onChange={(event) => setSearch(event.target.value)} />
       </label>
-      <label className="cluster-permission-matrix-filter-check-v11">
-        <input type="checkbox" checked={overridesOnly} onChange={(event) => setOverridesOnly(event.target.checked)} />
-        Overrides only
-      </label>
-      <small role="status">{visibleTools} of {totalTools} tools</small>
+      <button type="button" className="pm-chip" aria-pressed={overridesOnly} disabled={!overrideCount && !overridesOnly} onClick={() => setOverridesOnly((current) => !current)}>
+        Overrides<b>{overrideCount}</b>
+      </button>
+      {readOnly ? <span className="pm-readonly"><ClusterIcon name="lock" aria-hidden="true" />Read only</span> : null}
+      <span className="pm-legend" aria-hidden="true"><i data-kind="inherited" />Inherited<i data-kind="override" />Override</span>
     </div>
-    {!visibleGroups.length ? <p className="cluster-permission-matrix-empty-v11">No permissions match the current filters.</p> : null}
-    {visibleGroups.map((group) => {
-      const overrides = group.rows.filter((row) => value?.[row.key] !== undefined && value?.[row.key] !== inheritValue).length;
-      const groupId = id + "-" + group.id;
-      return <section key={group.id} className="cluster-permission-matrix-group-v11" aria-labelledby={groupId + "-title"}>
-        <header className="cluster-permission-matrix-group-header-v11">
-          <div>
-            <h4 id={groupId + "-title"}>{group.label}</h4>
-            {group.description ? <p>{group.description}</p> : null}
-          </div>
-          <span className="cluster-permission-matrix-overrides-v11">{overrides} / {group.rows.length} overrides</span>
-        </header>
-        <div className="cluster-permission-matrix-scroll-v11" role="region" tabIndex={0}
-          aria-label={group.label + " permission choices. Scroll horizontally if necessary."}>
-          <table>
-            <thead><tr>
-              <th scope="col">Tool</th>
-              {choices.map((choice) => <th scope="col" key={choice.value} title={choice.description || choice.label}>{choice.label}</th>)}
-              <th scope="col">Effective</th>
-            </tr></thead>
-            <tbody>
-              {group.rows.map((row) => {
-                const selected = value?.[row.key] ?? inheritValue;
-                const baseline = inherited[row.key] ?? fallbackEffective;
-                const effective = selected === inheritValue ? baseline : selected;
-                const rowId = groupId + "-" + row.key;
-                const effectiveDescription = selected === inheritValue ? "Inherited " + baseline : "Explicit " + effective;
-                return <tr key={row.key} data-override={selected === inheritValue ? "inherited" : "explicit"}>
-                  <th scope="row">
-                    <span className="cluster-permission-matrix-tool-v11">{row.label}</span>
-                    <span className="cluster-permission-matrix-sr-only-v11" id={rowId + "-description"}>
-                      {row.description || row.label}. Baseline: {baseline}. {effectiveDescription}.
-                    </span>
-                  </th>
-                  {choices.map((choice) => <td key={choice.value}>
-                    <label className="cluster-permission-matrix-cell-v11">
-                      <input type="radio" name={rowId} value={choice.value}
-                        aria-label={row.label + ": " + choice.label}
-                        aria-describedby={rowId + "-description"}
-                        checked={selected === choice.value}
-                        disabled={readOnly}
-                        onChange={(event) => { if (event.target.checked && !readOnly) onChange(row.key, choice.value); }}
-                      />
-                    </label>
-                  </td>)}
-                  <td className="cluster-permission-matrix-effective-v11">
-                    <strong>{effective}</strong>
-                    <small>{selected === inheritValue ? "Inherited" : "Override"}</small>
-                  </td>
-                </tr>;
+    {!visibleGroups.length ? <p className="pm-empty">No tools match.</p> : null}
+    <div className="pm-table">
+      {visibleGroups.map((group) => <section key={group.id} className="pm-group" aria-label={group.label}>
+        <h4 title={group.description}>{group.label}</h4>
+        {group.rows.map((row) => {
+          const selected = value?.[row.key] ?? inheritValue;
+          const baseline = inherited[row.key] ?? fallbackEffective;
+          const overridden = selected !== inheritValue;
+          const effective = overridden ? selected : baseline;
+          const baselineLabel = levels.find((level) => level.value === baseline)?.label || baseline;
+          return <div key={row.key} className="pm-row" data-override={overridden || undefined}>
+            <span className="pm-tool" title={row.description}>{row.label}</span>
+            <span className="pm-levels" role="radiogroup" aria-label={`${row.label} access`}>
+              {levels.map((level) => {
+                const lit = effective === level.value;
+                return <button key={level.value} type="button" role="radio" aria-checked={lit}
+                  data-lit={lit ? (overridden ? "override" : "inherited") : undefined}
+                  data-baseline={baseline === level.value || undefined}
+                  disabled={readOnly}
+                  title={level.value === baseline ? `${level.label} — inherited` : level.label}
+                  onClick={() => onChange(row.key, level.value === baseline ? inheritValue : level.value)}>
+                  {level.label}
+                </button>;
               })}
-            </tbody>
-          </table>
-        </div>
-      </section>;
-    })}
+            </span>
+            <span className="pm-reset">
+              {overridden && !readOnly ? <button type="button" title={`Back to inherited (${baselineLabel})`} aria-label={`Reset ${row.label} to inherited ${baselineLabel}`} onClick={() => onChange(row.key, inheritValue)}><ClusterIcon name="refresh" aria-hidden="true" /></button> : null}
+            </span>
+          </div>;
+        })}
+      </section>)}
+    </div>
   </div>;
 }

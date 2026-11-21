@@ -68,10 +68,6 @@ export function BoardCardPlanningFields(props: BoardCardPlanningFieldsProps) {
   return (
     <section className="card-planning-fields-v300 span-2">
       <div className="card-planning-heading-v300">
-        <div>
-          <h3>Planning and presentation</h3>
-          <p>Use categories, dates, points, members, and a cover to make the card readable without opening it.</p>
-        </div>
         <label className="card-watch-toggle-v300">
           <ClusterInput type="checkbox" checked={props.watching} onChange={(event) => props.onWatchingChange(event.target.checked)} />
           Watch updates
@@ -95,9 +91,8 @@ export function BoardCardPlanningFields(props: BoardCardPlanningFieldsProps) {
           <ClusterTextInput type="date" value={props.dueDate} onChange={(event) => props.onDueDateChange(event.target.value)} />
         </div>
         <div className="field">
-          <label>Defer until</label>
-          <ClusterTextInput type="date" value={props.deferredUntil} onChange={(event) => props.onDeferredUntilChange(event.target.value)} />
-          <small className="muted">Deferred Cards stay visible but are excluded from active WIP/capacity pressure until this date.</small>
+          <label title="Deferred cards stay visible but don't count toward WIP until this date.">Defer until</label>
+          <ClusterTextInput type="date" value={props.deferredUntil} onChange={(event) => props.onDeferredUntilChange(event.target.value)} title="Deferred cards stay visible but don't count toward WIP until this date." />
         </div>
         <div className="card-cover-color-v300">
           <ColorField value={props.coverColor || "#3b82f6"} onChange={props.onCoverColorChange} label="Cover color" />

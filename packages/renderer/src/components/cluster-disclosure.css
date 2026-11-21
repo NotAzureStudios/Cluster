@@ -1,0 +1,28 @@
+/* Disclosure — the only stylesheet for cl-disc. A slim row: chevron, title,
+   optional muted summary, trailing count on the right. Opening it reveals
+   the body under the title, with no box drawn around either. */
+.cl-disc { min-width: 0; margin: 0; padding: 0; border: 0; background: transparent; }
+.cl-disc > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 32px;
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border-radius: var(--cluster-radius-control);
+  color: var(--text);
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.cl-disc > summary::-webkit-details-marker { display: none; }
+.cl-disc > summary:hover { background: var(--cluster-button-fill); }
+.cl-disc > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.cl-disc[data-cluster-state="disabled"] > summary { cursor: default; opacity: .55; }
+.cl-disc__chevron.cluster-icon-svg { flex: none; inline-size: 14px; block-size: 14px; color: var(--muted); transition: transform .15s ease; }
+.cl-disc[open] > summary .cl-disc__chevron { transform: rotate(90deg); }
+.cl-disc__title { display: flex; flex: 1; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.cl-disc__title strong { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.cl-disc__title small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.cl-disc__trailing { flex: none; margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+.cl-disc__body { display: grid; gap: var(--space-2); min-width: 0; padding: var(--space-2) var(--space-1) var(--space-2) calc(var(--space-1) + 14px + var(--space-1-5)); }
+@media (prefers-reduced-motion: reduce) { .cl-disc__chevron.cluster-icon-svg { transition: none; } }

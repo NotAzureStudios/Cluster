@@ -8,6 +8,7 @@ import { compactDateTime } from "../../core/date-time";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
+import { AdminConfigurationTransfer } from "../admin/AdminSetupChecklist";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 import { ClusterSettingsChangeReview, ClusterSettingsHelp } from "../../components/ClusterSettingsPrimitives";
@@ -1389,8 +1390,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     const inputId = "server-config-field-" + String(field.key);
     const className = "server-config-field-v238 server-config-compact-field-v11" + (field.wide ? " span-2" : "") + (changed ? " is-dirty" : "");
     const help = SERVER_CONFIG_HELP[field.key] || "Controls this server setting.";
-    const status = field.restart
-      ? <SettingsStateChip tone={changed ? "warning" : "neutral"} icon="refresh">{changed ? "Restart after save" : "Restart on change"}</SettingsStateChip>
+    const status = field.restart && changed ? <SettingsStateChip tone="warning" icon="refresh">Restart after save</SettingsStateChip>
+      : field.restart ? <span className="st-restart" title="Takes effect after the server restarts" aria-label="Takes effect after the server restarts"><ClusterIcon name="refresh" aria-hidden="true" /></span>
       : changed ? <SettingsStateChip tone="warning" icon="note">Unsaved</SettingsStateChip> : null;
     const header = <span className="server-config-field-header-v11">
       <label htmlFor={inputId}><strong>{field.label}</strong></label>
@@ -1443,7 +1444,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   }> = [
     { id: "overview", label: "Overview", group: "Runtime", icon: "home" },
     { id: "performance", label: "Performance & resources", group: "Runtime", icon: "settings", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "performance").length },
-    { id: "maintenance", label: "Maintenance", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
+    { id: "maintenance", label: "Updates", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
     { id: "network", label: "Network", group: "Runtime", icon: "cloud", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
     { id: "domains", label: "Domains & gateways", group: "Runtime", icon: "link" },
     { id: "advanced", label: "All settings", group: "Runtime", icon: "settings", count: serverManagedKeys.length },
@@ -1461,8 +1462,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "integrations" as const, label: "Extensions" },
   ];
   const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
-  const activeServerGroupId = serverGroupForSection(section);
-  const activeServerGroup = serverConfigGroups.find((group) => group.id === activeServerGroupId) || serverConfigGroups[0];
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
@@ -1484,28 +1483,15 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         </>
       }
       status={status}
-      navLabel="Server configuration categories"
-      activeId={activeServerGroupId}
+      navLabel="Server settings sections"
+      activeId={section}
       onChange={(value) => selectSection(value as ServerConfigSection)}
-      primaryIds={serverConfigGroups.map((group) => group.id)}
-      items={serverConfigGroups.map((group) => ({
-        id: group.id, label: group.label,
-        icon: sectionLabels.find((item) => item.id === group.id)?.icon || "settings",
-        detail: group.id === "network" && networkDeploymentPending ? "Restart" : undefined,
-        detailTone: group.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
-      }))}
+      items={serverConfigGroups.flatMap((group) => sectionLabels.filter((item) => serverGroupForSection(item.id) === group.id).map((item) => ({
+        id: item.id, label: item.label, icon: item.icon, group: group.label,
+        detail: item.id === "network" && networkDeploymentPending ? "Restart pending" : undefined,
+        detailTone: item.id === "network" && networkDeploymentPending ? "warning" as const : "neutral" as const,
+      })))}
     >
-      <nav className="settings-subsection-tabs-v11" aria-label={`${activeServerGroup.label} settings`}>
-        {sectionLabels.filter((item) => serverGroupForSection(item.id) === activeServerGroupId).map((item) => (
-          <ClusterButton key={item.id} type="button" size="compact"
-            variant="quiet" aria-pressed={section === item.id}
-            onClick={() => selectSection(item.id)}>
-            <ClusterIcon name={item.icon} aria-hidden="true" />
-            <span>{item.label}</span>
-          </ClusterButton>
-        ))}
-      </nav>
-
       {networkDeploymentPending && (
         <section className="panel server-config-rollout-guard-v103" aria-label="Network deployment awaiting managed restart" role="status">
           <div className="server-config-section-status-v103"><h2>Network change awaiting restart</h2><SettingsStateChip tone="warning" icon="refresh">Staged · action needed</SettingsStateChip></div>
@@ -1530,14 +1516,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             : field.restart ? "restart" : "protected",
         }))}
       />}
-      <section className="studio-settings-context-v15 server-config-context-v15" aria-label={`${activeServerGroup.label} server configuration`}>
-        <div className="studio-settings-context-head-v15 settings-section-context-v12">
-          <h2 className="server-config-section-title-v103"><span className="settings-context-icon-v12"><ClusterIcon name={sectionLabels.find((item) => item.id === section)?.icon || "settings"} treatment="duotone" aria-hidden="true" /></span>{sectionLabels.find((item) => item.id === section)?.label || activeServerGroup.label}</h2>
-          {section === "security" && securityPosture ? <SettingsStateChip tone={securityPosture.healthy ? "success" : "warning"}>{securityPosture.healthy ? "Healthy" : "Needs review"}</SettingsStateChip> : null}
-          {section === "sessions" ? <SettingsStateChip tone="neutral" icon="users">{serverSessions.length} sessions</SettingsStateChip> : null}
-          {section === "backups" ? <SettingsStateChip tone="neutral" icon="archive">{serverBackups.length} backups</SettingsStateChip> : null}
-        </div>
-      </section>
 
       {section === "overview" && (
         <div className="server-config-overview-v238">
@@ -1849,7 +1827,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           <section className="panel server-config-group-v238" aria-label="Resource governor safety policy">
             <div className="server-config-group-head-v238"><h2>Automatic overload protection</h2></div>
             <p className="muted tight">The governor continuously evaluates CPU, event-loop delay, database pressure and request latency. Busy, saturated and critical states still reduce background admission regardless of profile. The background worker cap cannot increase the server's physical capacity.</p>
-            <p className="muted tight">Saved configuration is authoritative. Changing these controls does not start or cancel a job.</p>
+            <p className="muted tight">Only saved configuration takes effect. Changing these controls does not start or cancel a job.</p>
           </section>
           <section className="panel server-config-group-v238" aria-label="Resource governor runtime diagnostics">
             <div className="server-config-group-head-v238">
@@ -2073,6 +2051,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
           </section>
         </div>
       )}
+      {section === "backups" && <AdminConfigurationTransfer />}
       {section === "integrations" && (
         <div className="server-config-groups-v238 server-config-integrations-v241">
           <section className="panel server-config-operations-v238 integration-mail-v512">

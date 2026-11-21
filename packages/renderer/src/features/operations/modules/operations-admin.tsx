@@ -23,116 +23,6 @@ import { ClusterOverlayDrawer } from "../../../components/ClusterWorkspacePanel"
 import { ATTACHMENT_ENTITY_OPTIONS, LazySharedCreateDrawerFeature, PRIORITY_CREATE_OPTIONS, attachmentNeedsReview, attachmentProjectName, buildOpsDiagnosticChecks, entityKindLabel } from "./operations-workflows";
 import { boardOptions, fromDateTimeLocalInput, projectBuildProfile, projectTypeBadge, projectTypeMeta, projectTypePresetsFromSettings, quickCreateModeFromSetting } from "./operations-foundation";
 
-export function DataModelStandardsPanel({ projects, users, whiteboards }: { projects: Project[]; users: Array<User | UserActivitySummary>; whiteboards: WhiteboardSummary[] }) {
-  const cards = projects.flatMap((project) =>
-    project.boards.flatMap((board) =>
-      (board.lists || []).flatMap((list) =>
-        ("cards" in list ? (list as any).cards || [] : []).map((card: Card) => ({
-          ...card,
-          projectId: project.id,
-          projectName: project.name,
-        })),
-      ),
-    ),
-  );
-  const libraryItems = projects.flatMap((project) =>
-    (project.libraryItems || []).map((item) => ({
-      ...item,
-      projectName: project.name,
-    })),
-  );
-  const summaries: NormalizedEntitySummary[] = [
-    {
-      kind: "project",
-      label: "Projects",
-      total: projects.length,
-      withProject: projects.length,
-      withOwner: projects.filter((project) => projectAssignedIds(project).length).length,
-      archived: projects.filter((project) => project.archived).length,
-      updated: projects.filter((project) => project.updatedAt).length,
-    },
-    {
-      kind: "board",
-      label: "Boards",
-      total: projects.reduce((total, project) => total + project.boards.length, 0),
-      withProject: projects.reduce((total, project) => total + project.boards.length, 0),
-      withOwner: projects.reduce((total, project) => total + project.boards.filter((board) => (board.assignedUserIds || []).length).length, 0),
-      archived: 0,
-      updated: projects.reduce((total, project) => total + project.boards.filter((board) => board.updatedAt).length, 0),
-    },
-    {
-      kind: "whiteboard",
-      label: "Whiteboards",
-      total: whiteboards.length,
-      withProject: whiteboards.filter((item) => item.projectId).length,
-      withOwner: 0,
-      archived: 0,
-      updated: whiteboards.filter((item) => item.updatedAt).length,
-    },
-    {
-      kind: "library",
-      label: "Library docs",
-      total: libraryItems.length,
-      withProject: libraryItems.filter((item) => item.projectId).length,
-      withOwner: libraryItems.filter((item) => item.ownerId).length,
-      archived: libraryItems.filter((item) => item.status === "archived").length,
-      updated: libraryItems.filter((item) => item.updatedAt).length,
-    },
-    {
-      kind: "card",
-      label: "Cards",
-      total: cards.length,
-      withProject: cards.length,
-      withOwner: cards.filter((card: any) => card.assigneeId).length,
-      archived: 0,
-      updated: 0,
-    },
-    {
-      kind: "user",
-      label: "Users",
-      total: users.length,
-      withProject: users.filter((user) => Object.keys((user as User).projectPermissions || {}).length).length,
-      withOwner: users.length,
-      archived: users.filter((user) => (user as User).archived).length,
-      updated: users.filter((user) => (user as User).lastSeenAt).length,
-    },
-  ];
-  const health = summaries.reduce((total, item) => total + (item.total ? Math.round(((item.withProject + item.withOwner + item.updated) / Math.max(1, item.total * 3)) * 100) : 100), 0);
-  const score = summaries.length ? Math.round(health / summaries.length) : 100;
-  const standardFields = ["id", "title/name", "description/body", "projectId", "owner/assignee", "status", "priority", "createdAt", "updatedAt", "archived", "external/visibility", "linkedItems"];
-  return (
-    <section className="panel data-model-panel-v125">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Data model</p>
-          <h2>Entity standards</h2>
-          <p className="muted tight">A boring readout for whether the main objects share the same spine. Boring foundations beat glamorous wreckage.</p>
-        </div>
-        <span className="soft-pill">{score}% normalized</span>
-      </div>
-      <div className="data-model-fields-v125">
-        {standardFields.map((field) => (
-          <span key={field}>{field}</span>
-        ))}
-      </div>
-      <div className="data-model-grid-v125">
-        {summaries.map((summary) => (
-          <article key={summary.kind}>
-            <div>
-              <strong>{summary.label}</strong>
-              <span>{entityKindLabel(summary.kind)}</span>
-            </div>
-            <b>{summary.total}</b>
-            <p>
-              {summary.withProject} linked · {summary.withOwner} owned · {summary.archived} archived · {summary.updated} updated
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function DetailDrawer({ item, onClose, children }: { item: DetailDrawerItem | null; onClose: () => void; children?: ReactNode }) {
   if (!item) return null;
   return (
@@ -687,11 +577,11 @@ export function AdminMaintenanceToolsPanel({ onOpenOperationsCenter }: { project
 
   const actions = [
     { key: "search-rebuild", label: "Rebuild search index", detail: "Preview the current index posture, then queue a cancellable durable rebuild in Operations Center.", run: queueSearchRebuild, queued: true },
-    { key: "storage-verify", label: "Verify storage", detail: "Verify authoritative storage and surface integrity findings without deleting files.", run: verifyStorageIntegrity },
+    { key: "storage-verify", label: "Verify storage", detail: "Verify server storage and report integrity findings without deleting files.", run: verifyStorageIntegrity },
     { key: "data-integrity", label: "Scan data integrity", detail: "Refresh registered data-integrity evidence, including orphan/missing managed-data findings.", run: refreshDataIntegrity },
     { key: "storage-lifecycle", label: "Run storage lifecycle", detail: "Run the bounded storage lifecycle authority and refresh its health evidence.", run: runStorageLifecycle },
-    { key: "backup-create", label: "Create backup", detail: "Create an authoritative server backup now, using the same verified backup authority exposed by Server Configuration.", run: createBackupNow },
-    { key: "backup-verify", label: "Verify latest backup", detail: "Cryptographically and structurally verify the newest authoritative server backup.", run: verifyLatestBackup },
+    { key: "backup-create", label: "Create backup", detail: "Create a server backup now, the same way Server Configuration does.", run: createBackupNow },
+    { key: "backup-verify", label: "Verify latest backup", detail: "Verify the newest server backup, cryptographically and structurally.", run: verifyLatestBackup },
     { key: "restore-drill", label: "Validate restore", detail: "Run an isolated restore drill against the newest backup without replacing live workspace data.", run: runLatestRestoreDrill },
     { key: "retry-failed", label: "Retry failed operations", detail: "Preview and reauthorize a bounded batch of failed/dead-letter durable jobs through the operation retry command.", run: retryFailedOperations, queued: true },
     { key: "media-reprocess", label: "Reprocess failed media", detail: "Preview and requeue failed/dead-letter/cancelled media jobs through the existing durable media worker authority.", run: reprocessFailedMedia, queued: true },
@@ -703,7 +593,7 @@ export function AdminMaintenanceToolsPanel({ onOpenOperationsCenter }: { project
 
   return (
     <section className="panel maintenance-tools">
-      <div className="section-heading"><div><p className="eyebrow">Guarded maintenance</p><h3>Real server maintenance authorities</h3><p className="muted tight">Browser-only staged runs are retired. Actions call authoritative server workflows, use impact preview/confirmation when appropriate, and durable work remains traceable in Operations Center.</p></div>{onOpenOperationsCenter ? <ClusterButton type="button" variant="secondary" onClick={onOpenOperationsCenter}>Open Operations Center</ClusterButton> : null}</div>
+      <div className="section-heading"><div><p className="eyebrow">Guarded maintenance</p><h3>Real server maintenance authorities</h3><p className="muted tight">Browser-only staged runs are retired. Actions run on the server, use impact preview/confirmation when appropriate, and durable work remains traceable in Operations Center.</p></div>{onOpenOperationsCenter ? <ClusterButton type="button" variant="secondary" onClick={onOpenOperationsCenter}>Open Operations Center</ClusterButton> : null}</div>
       <div className="maintenance-actions">
         {actions.map((action) => <article key={action.key}><div><strong>{action.label}</strong><span>{action.detail}</span></div><ClusterButton type="button" variant="secondary" disabled={Boolean(busy)} onClick={() => void action.run()}>{busy.startsWith(action.key) ? "Working…" : action.queued ? "Preview & run" : "Run"}</ClusterButton></article>)}
       </div>

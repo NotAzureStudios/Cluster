@@ -4,6 +4,7 @@ import { SecurityPinHost } from "./components/SecurityPinHost";
 import { ReauthenticationHost } from "./components/ReauthenticationHost";
 import { AccessibilityManager } from "./components/AccessibilityManager";
 import { ClusterDialogHost } from "./components/ClusterDialogHost";
+import { ClusterToasts } from "./components/ClusterToasts";
 
 const ClusterApplication = lazy(
   () => import("./features/application/ClusterApplication"),
@@ -22,6 +23,7 @@ export default function App() {
       <SecurityPinHost />
       <ReauthenticationHost />
       <ClusterDialogHost />
+      <ClusterToasts />
     </>
   );
 }

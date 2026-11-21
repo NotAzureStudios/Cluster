@@ -1,6 +1,6 @@
 {
   "name": "@cluster/server",
-  "version": "1.2.3",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "setup:instance": "tsx src/scripts/setup-instance.ts",
     "setup:status": "tsx src/scripts/setup-status.ts",
     "storage:sync": "tsx src/scripts/sync-storage.ts",
+    "source-control:check": "tsx src/scripts/source-control-check.ts",
     "storage:verify": "tsx src/scripts/verify-storage.ts",
     "media:worker": "node dist/workers/media-worker.js",
     "media:worker:dev": "tsx src/workers/media-worker.ts",
@@ -24,7 +25,9 @@
     "recovery:verify": "tsx src/scripts/recovery.ts verify",
     "recovery:apply": "tsx src/scripts/recovery.ts apply",
     "recovery:migrate": "tsx src/scripts/recovery.ts migrate",
-    "storage:move": "tsx src/scripts/move-data-root.ts"
+    "storage:move": "tsx src/scripts/move-data-root.ts",
+    "git-http:check": "tsx src/scripts/git-http-check.ts",
+    "runtime-config:check": "tsx src/scripts/runtime-config-check.ts"
   },
   "dependencies": {
     "@cluster/shared": "*",

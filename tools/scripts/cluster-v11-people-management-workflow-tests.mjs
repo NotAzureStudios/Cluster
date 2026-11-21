@@ -5,6 +5,8 @@ import { resolveAdminActivationState } from "../../apps/server/src/domains/auth/
 
 const source = (path) => readFileSync(path, "utf8");
 const people = source("packages/renderer/src/features/people/PeoplePages.tsx");
+const provisioning = source("packages/renderer/src/features/people/use-account-provisioning.ts");
+const usersPage = source("packages/renderer/src/features/admin/AdminUsersPage.tsx");
 const handoff = source("packages/renderer/src/features/people/AccountCredentialHandoff.tsx");
 const auth = source("apps/server/src/domains/auth/auth-admin-routes.ts");
 const css = source("packages/renderer/src/features/people/account-credential-handoff.css");
@@ -53,16 +55,16 @@ check("real activation route uses password-state policy", () => {
   assert.ok(auth.includes('PEOPLE_LIFECYCLE_GOVERNED'));
 });
 check("account form shows why provision is disabled", () => {
-  assert.ok(people.includes('validatePeopleAccountCreation(createAccountDraft,'));
-  assert.ok(people.includes('onCreate={createPersonAccount}'));
-  assert.ok(people.includes('if (createAccountBlocker || createRoleLoading || createRoleError || !createRoleCatalog) {'));
-  assert.ok(people.includes('setCreateAccountError(createAccountBlocker || createRoleError || "Workspace roles are still loading.")'));
-  assert.ok(people.includes('actionError={createAccountError}'));
+  assert.ok(provisioning.includes('validatePeopleAccountCreation(draft,'));
+  assert.ok(usersPage.includes('onCreate={provisioning.create}'));
+  assert.ok(provisioning.includes('if (blocker || rolesLoading || rolesError || !roleCatalog) {'));
+  assert.ok(provisioning.includes('setError(blocker || rolesError || "Workspace roles are still loading.")'));
+  assert.ok(usersPage.includes('actionError={provisioning.error}'));
 });
 check("account drafts require confirmation before deliberate close", () => {
-  assert.ok(people.includes('async function toggleCreateAccount()'));
-  assert.ok(people.includes('await confirmCreateAccountDiscard()'));
-  assert.ok(people.includes('dirty: effectiveAdminMode && createAccountOpen && createAccountDirty'));
+  assert.ok(provisioning.includes('async function setOpenGuarded(next: boolean)'));
+  assert.ok(provisioning.includes('!(await confirmDiscard())'));
+  assert.ok(provisioning.includes('dirty: enabled && open && dirty'));
 });
 check("one-time password cannot be dismissed without an acknowledgment", () => {
   assert.ok(handoff.includes('checked={handoffAcknowledged}'));

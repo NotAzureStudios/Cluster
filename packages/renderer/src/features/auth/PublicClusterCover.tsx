@@ -80,9 +80,9 @@ export function PublicClusterCover({ onLogin, recoveryMessage, authConfig, appli
     ? { form: { id: selected.id, key: selected.key, title: selected.title, description: selected.description }, version }
     : null;
 
-  if (mode === "apply") return <AuthEntryLayout studioName={studioName} mode="setup" cardClassName="cluster-auth-application-v11">
-    <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /></div>
-    <p className="eyebrow">{studioName}</p><h1>Apply</h1>
+  if (mode === "apply") return <AuthEntryLayout cardClassName="cluster-auth-application-v11">
+    <div className="managed-auth-brand-row"><img className="cluster-brand-logo" src="/cluster-logo.png" alt="Cluster" /><span className="managed-auth-studio-v2">{studioName}</span></div>
+    <h1>Apply</h1>
     {applicationError && <div className="error-box" role="alert">{applicationError}</div>}
     {!applications && !applicationError && <p className="cluster-auth-inline-status-v11" role="status">Loading the application form…</p>}
     {applications && applications.length > 1 && <div className="button-row">{applications.map((application) => <ClusterButton type="button" variant={application.key === applicationKey ? "primary" : "secondary"} key={application.key} onClick={() => { setApplicationKey(application.key); setPrivacyAccepted(false); }}>{application.title}</ClusterButton>)}</div>}

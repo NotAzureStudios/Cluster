@@ -125,6 +125,7 @@ export type Settings = {
   userUiSoundsEnabled?: boolean;
   userUiSoundVolume?: number;
   userNotificationSoundsEnabled?: boolean;
+  userToastPosition?: "top-right" | "top-left" | "bottom-right" | "bottom-left";
   userNotificationSoundVolume?: number;
   browserNotifications?: boolean;
   userShortcutProfile?: "default" | "editor" | "producer" | "qa" | "custom";

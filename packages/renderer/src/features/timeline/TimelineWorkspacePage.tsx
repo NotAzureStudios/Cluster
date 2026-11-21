@@ -11,7 +11,7 @@ import { api, mutateApi, queryApi, peekApiQuery, setApiQueryData } from "../../c
 import { addDays, compactDateTime, toDateTimeLocalInput } from "../../core/date-time";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterVisualBars } from "../../components/ClusterVisualMetrics";
-import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
@@ -30,6 +30,7 @@ import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { WorkActionMenu } from "../workflow/WorkActionMenu";
 import { ProjectCollaborationStrip } from "../collaboration";
 import { removeTimelineItem, upsertTimelineItem } from "./timeline-workspace-state";
+import { StatusNote } from "../../components/StatusNote";
 
 export interface TimelineWorkspacePageProps { projects: Project[]; currentUser: User }
 
@@ -55,6 +56,9 @@ function timelineQueryPath(start: string, end: string, projectId: string, typeFi
 function fromDateTimeLocalInput(value: string) {
   return new Date(value).toISOString();
 }
+
+const MAP_ROW_HEIGHT = 36;
+const MAP_ITEM_WIDTH = 190;
 
 export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspacePageProps) {
   const now = new Date();
@@ -372,6 +376,27 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
   }, [start, end]);
   const todayPosition = Math.max(0, Math.min(100, ((todayMs - rangeStartMs) / rangeSpan) * 100));
   const entriesInRange = entries.filter((entry) => new Date(entry.startsAt).getTime() >= rangeStartMs && new Date(entry.startsAt).getTime() <= rangeEndMs);
+  // Roadmap layout: each lane packs its items into as few rows as fit without
+  // overlapping labels, so items on nearby dates never cover each other.
+  const mapLanes = useMemo(() => {
+    const groups = new Map<number, TimelineEntry[]>();
+    entriesInRange.forEach((entry, index) => {
+      const lane = laneMode === "auto" ? 0 : timelineLane(entry, index);
+      groups.set(lane, [...(groups.get(lane) || []), entry]);
+    });
+    return [...groups.entries()].sort((a, b) => a[0] - b[0]).map(([lane, items]) => {
+      const rowEnds: number[] = [];
+      const placed = [...items].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).map((entry) => {
+        const x = (entryPosition(entry) / 100) * graphicWidth;
+        let row = rowEnds.findIndex((end) => end <= x);
+        if (row < 0) { row = rowEnds.length; rowEnds.push(0); }
+        rowEnds[row] = x + MAP_ITEM_WIDTH + 8;
+        return { entry, x, row };
+      });
+      return { key: String(lane), label: laneMode === "auto" ? "" : timelineLaneLabels[lane] || "", rows: Math.max(1, rowEnds.length), placed };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entriesInRange, laneMode, graphicWidth, rangeStartMs, rangeSpan]);
   const upcomingEntries = entries.filter((entry) => new Date(entry.startsAt).getTime() >= todayMs).slice(0, 8);
   const overdueEntries = entries.filter((entry) => new Date(entry.startsAt).getTime() < todayMs && ["deadline", "release", "milestone"].includes(entry.type || "")).slice(0, 8);
   const projectCoverage = new Set(entries.map((entry) => entry.project?.id).filter(Boolean)).size;
@@ -535,7 +560,8 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
                 value: `${new Date(`${start}T00:00:00`).toLocaleDateString()} – ${new Date(`${end}T23:59:59`).toLocaleDateString()}`,
               },
             ]}
-            context={
+            actions={
+              <>
               <ClusterSegmentedControl
                 value={timelineView}
                 onChange={setTimelineView}
@@ -546,12 +572,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
                   { value: "list", label: "List" },
                 ]}
               />
-            }
-            actions={
-              <>
-                <ClusterButton type="button" className="" onClick={() => void loadTimeline()} variant="secondary">
-                  Refresh
-                </ClusterButton>
+                <ClusterIconButton label="Refresh" title="Refresh" size="compact" onClick={() => void loadTimeline()}><ClusterIcon name="refresh" /></ClusterIconButton>
                 <ClusterButton type="button" className="" onClick={() => openTimelineComposer("milestone")} variant="primary">
                   <ClusterIcon name="plus" /> New item
                 </ClusterButton>
@@ -559,22 +580,19 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
             }
           />
           <div className="timeline-header-filters-v254 cluster-dense-toolbar">
-            <div className="timeline-preset-row-v154">
+            <div className="timeline-preset-row-v154" role="group" aria-label="Range presets">
               <ClusterButton unstyled type="button" onClick={() => setTimelineRangePreset("month")}>Month</ClusterButton>
               <ClusterButton unstyled type="button" onClick={() => setTimelineRangePreset("quarter")}>Quarter</ClusterButton>
               <ClusterButton unstyled type="button" onClick={() => setTimelineRangePreset("half")}>6mo</ClusterButton>
               <ClusterButton unstyled type="button" onClick={() => setTimelineRangePreset("year")}>Year</ClusterButton>
             </div>
             <div className="field compact">
-              <label>Start</label>
-              <ClusterTextInput type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <ClusterTextInput type="date" aria-label="Start date" value={start} onChange={(e) => setStart(e.target.value)} />
             </div>
             <div className="field compact">
-              <label>End</label>
-              <ClusterTextInput type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <ClusterTextInput type="date" aria-label="End date" value={end} onChange={(e) => setEnd(e.target.value)} />
             </div>
             <div className="field compact timeline-project-filter-v154">
-              <label>Project</label>
               <ClusterSelect
                 value={projectId}
                 onChange={setProjectId}
@@ -589,7 +607,6 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
               />
             </div>
             <div className="field compact">
-              <label>Type</label>
               <ClusterSelect
                 value={typeFilter}
                 onChange={setTypeFilter}
@@ -605,7 +622,6 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
               />
             </div>
             <div className="field compact">
-              <label>Lanes</label>
               <ClusterSelect
                 value={laneMode}
                 onChange={(value) => setLaneMode(value as typeof laneMode)}
@@ -621,81 +637,37 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
         </header>
         {projectId !== "all" ? <ProjectCollaborationStrip tool="timeline" projectId={projectId} activity={`Timeline · ${timelineView}`} /> : null}
 
-        <section className="timeline-brief-v153" aria-label="Timeline summary">
-          {timelineTools.map((tool) => (
-            <ClusterButton unstyled type="button" key={tool.label} className="timeline-brief-cell-v153" onClick={() => (tool.label === "Overdue" ? setTimelineView("list") : undefined)}>
-              <span>{tool.label}</span>
-              <strong>{tool.value}</strong>
-            </ClusterButton>
-          ))}
-          {weeklyBuckets.some((bucket) => bucket.items.length > 0) && <div className="timeline-brief-chart-v34"><ClusterVisualBars label="Next 6 weeks" buckets={weeklyBuckets.map((bucket) => ({ label: `${bucket.first.getMonth() + 1}/${bucket.first.getDate()}`, value: bucket.items.length }))} /></div>}
-        </section>
 
         <div className="timeline-layout-v154">
           <main className="timeline-main-v153">
             {timelineView === "map" && (
-              <section className="panel timeline-map-panel-v153">
-                <div className="timeline-panel-header-v154">
-                  <div>
-                    <h2>Roadmap</h2>
-                    
-                  </div>
-                  <span className="soft-pill">{typeSummary.find((row) => row.value === typeFilter)?.label || "All"}</span>
-                </div>
-                <div className="timeline-graphic-scroll timeline-graphic-scroll-v119 timeline-map-scroll-v153">
-                  <div className="timeline-graphic timeline-graphic-v153" style={runtimeStyle({ minWidth: graphicWidth })}>
-                    <div className="timeline-rail" />
-                    {todayMs >= rangeStartMs && todayMs <= rangeEndMs && (
-                      <div className="timeline-today-v059" style={runtimeStyle({ left: `${todayPosition}%` })}>
-                        <span>Today</span>
-                      </div>
-                    )}
-                    {tickDates.map((tick) => {
-                      const left = Math.max(0, Math.min(100, ((tick.getTime() - rangeStartMs) / rangeSpan) * 100));
-                      return (
-                        <div className="timeline-tick" key={tick.toISOString()} style={runtimeStyle({ left: `${left}%` })}>
-                          <span>
-                            {tick.toLocaleDateString([], {
-                              month: "short",
-                              year: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {entriesInRange.length ? (
-                      entriesInRange.map((entry, index) => {
-                        const left = entryPosition(entry);
-                        const lane = timelineLane(entry, index);
-                        const manual = manualItems.find((item) => item.id === entry.id);
-                        return (
-                          <ClusterButton unstyled
-                            type="button"
-                            className={`timeline-point source-${entry.source} type-${entry.type}`}
-                            key={`${entry.source}-${entry.id}`}
-                            style={
-                              {
-                                left: `${left}%`,
-                                "--point-color": entry.color || "#3b82f6",
-                                "--lane-offset": String(lane),
-                              } as CSSProperties
-                            }
+              <section className="panel tl-map" aria-label="Roadmap">
+                <div className="tl-map__scroll">
+                  <div className="tl-map__canvas" style={runtimeStyle({ width: graphicWidth })}>
+                    <div className="tl-map__axis" aria-hidden="true">
+                      {tickDates.map((tick) => (
+                        <span key={tick.toISOString()} style={runtimeStyle({ left: `${Math.max(0, Math.min(100, ((tick.getTime() - rangeStartMs) / rangeSpan) * 100))}%` })}>
+                          {tick.toLocaleDateString([], { month: "short", year: "2-digit" })}
+                        </span>
+                      ))}
+                    </div>
+                    {todayMs >= rangeStartMs && todayMs <= rangeEndMs && <div className="tl-map__today" style={runtimeStyle({ left: `${todayPosition}%` })}><span>Today</span></div>}
+                    {mapLanes.length ? mapLanes.map((lane) => (
+                      <div className="tl-map__lane" key={lane.key} style={runtimeStyle({ height: `${lane.rows * MAP_ROW_HEIGHT + (lane.label ? 30 : 12)}px` })}>
+                        {lane.label ? <span className="tl-map__lane-label">{lane.label}</span> : null}
+                        {lane.placed.map(({ entry, x, row }) => (
+                          <ClusterButton unstyled type="button" key={`${entry.source}-${entry.id}`}
+                            className={`tl-map__item source-${entry.source} type-${entry.type}`}
+                            style={{ left: `${x}px`, top: `${(lane.label ? 26 : 6) + row * MAP_ROW_HEIGHT}px`, "--point-color": entry.color || "#3b82f6" } as CSSProperties}
                             onClick={() => timelineDetailHistory.openDetail(entry.id)}
-                            title={`${entry.title} · ${compactDateTime(entry.startsAt)}`}
-                          >
-                            <span className="timeline-point-dot" />
-                            <span className="timeline-point-card timeline-point-card-v153">
-                              <strong>{entry.title}</strong>
-                              <small>
-                                {compactDateTime(entry.startsAt)} · {timelineTypeLabel(entry.type)}
-                              </small>
-                            </span>
+                            title={`${entry.title} · ${compactDateTime(entry.startsAt)} · ${timelineTypeLabel(entry.type)}`}>
+                            <i aria-hidden="true" />
+                            <strong>{entry.title}</strong>
+                            <small>{new Date(entry.startsAt).toLocaleDateString([], { month: "short", day: "numeric" })}</small>
                           </ClusterButton>
-                        );
-                      })
-                    ) : (
-                      <div className="timeline-empty-graphic">No timeline items in this range.</div>
-                    )}
+                        ))}
+                      </div>
+                    )) : <div className="tl-map__empty">No items in this range</div>}
                   </div>
                 </div>
               </section>
@@ -794,117 +766,6 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
           </main>
         </div>
 
-        <section className="timeline-support-row-v155">
-          <article className="panel timeline-focus-v153 timeline-support-card-v154 timeline-nextbeat-v155">
-            <span className="eyebrow">Next beat</span>
-            {focusEntry ? (
-              <>
-                <strong>{focusEntry.title}</strong>
-                <em>
-                  {compactDateTime(focusEntry.startsAt)} · {focusEntry.project?.name || timelineSourceLabel(focusEntry.source)}
-                </em>
-                <ClusterButton type="button" className="" onClick={() => timelineDetailHistory.openDetail(focusEntry.id)} variant="quiet" size="compact">
-                  Open
-                </ClusterButton>
-              </>
-            ) : (
-              <p className="muted tight">No upcoming timeline items.</p>
-            )}
-          </article>
-
-          <article className="panel timeline-support-card-v154 timeline-attention-v155">
-            <div className="timeline-support-title-v155">
-              <span className="eyebrow">Attention</span>
-              <b>{timelineAttentionItems.length}</b>
-            </div>
-            <div className="timeline-support-list-v155">
-              {timelineAttentionItems.length ? (
-                timelineAttentionItems.map((item) => (
-                  <ClusterButton unstyled type="button" key={item.title} onClick={() => setTimelineView("list")}>
-                    <strong>{item.title}</strong>
-                    <em>{item.meta}</em>
-                  </ClusterButton>
-                ))
-              ) : (
-                <p className="muted tight">No urgent roadmap issues.</p>
-              )}
-            </div>
-          </article>
-
-          <article className="panel timeline-support-card-v154 timeline-coverage-v155">
-            <div className="timeline-support-title-v155">
-              <span className="eyebrow">Coverage</span>
-              <b>{projectRows.length}</b>
-            </div>
-            <div className="timeline-source-mini-v155">
-              {sourceSummary.map((row) => (
-                <span key={row.source}>
-                  {row.label}
-                  <strong>{sourceCounts[row.source] || 0}</strong>
-                </span>
-              ))}
-            </div>
-            <div className="timeline-project-mini-v155">
-              {projectRows.length ? (
-                projectRows.slice(0, 3).map((row) => (
-                  <ClusterButton unstyled type="button" key={row.project.id} onClick={() => setProjectId(row.project.id)}>
-                    <strong>{row.project.name}</strong>
-                    <span>{row.count} items</span>
-                    <em>{row.next ? compactDateTime(row.next.startsAt) : row.overdue ? `${row.overdue} overdue` : "No upcoming"}</em>
-                  </ClusterButton>
-                ))
-              ) : (
-                <ClusterEmptyState compact kind="empty" icon="timeline" title="No project timeline coverage yet" description="Project milestones and scheduled work will appear here once they exist." />
-              )}
-            </div>
-          </article>
-        </section>
-
-        <section className="panel timeline-workflow-strip-v155">
-          <div className="timeline-workflow-header-v155">
-            <div>
-              <span className="eyebrow">Sync & workflow</span>
-              <h2>Roadmap tools</h2>
-            </div>
-            <span className="soft-pill">{entriesInRange.length} visible</span>
-          </div>
-          <div className="timeline-workflow-actions-v155">
-            <ClusterButton unstyled type="button" onClick={() => setTimelineView("list")}>
-              <strong>Saved views</strong>
-              <span>Use current filters for roadmap review.</span>
-            </ClusterButton>
-            <ClusterButton unstyled type="button"
-              onClick={() =>
-                openTimelineComposer("milestone", {
-                  title: "Meeting milestone",
-                  details: "Meeting agenda, owner, capacity, decisions, review date, and follow-up rules.",
-                })
-              }
-            >
-              <strong>Meeting milestone</strong>
-              <span>Create the next planning beat.</span>
-            </ClusterButton>
-            <ClusterButton unstyled type="button" onClick={() => setTimelineRangePreset("quarter")}>
-              <strong>Dependency review</strong>
-              <span>Focus the next quarter before handoff.</span>
-            </ClusterButton>
-            <ClusterButton unstyled type="button" onClick={() => void loadTimeline()}>
-              <strong>Calendar sync</strong>
-              <span>Refresh imported roadmap dates.</span>
-            </ClusterButton>
-          </div>
-          <div className="timeline-workflow-mini-v155">
-            <span>
-              <b>{phaseCards.filter((phase) => phase.count).length}</b> phases mapped
-            </span>
-            <span>
-              <b>{weeklyBuckets.reduce((total, bucket) => total + bucket.items.length, 0)}</b> items in 6 weeks
-            </span>
-            <span>
-              <b>{overdueEntries.length}</b> overdue
-            </span>
-          </div>
-        </section>
 
         <ClusterModal
           open={timelineComposerOpen}
@@ -1087,7 +948,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
           </>}
         </ClusterModal>
         {loadError && payload ? <RequestErrorState error={loadError} title="Timeline refresh failed" onRetry={() => void loadTimeline()} compact /> : null}
-        {status && !loadError && <div className="status-box system-status-box-v053 timeline-status-v153">{status}</div>}
+        {status && !loadError && <StatusNote className="timeline-status-v153">{status}</StatusNote>}
       </div>
     </section>
   );

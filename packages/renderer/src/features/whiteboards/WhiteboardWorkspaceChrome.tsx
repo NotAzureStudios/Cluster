@@ -1,5 +1,5 @@
-import type { ChangeEvent, RefObject } from "react";
-import { ClusterButton } from "../../components/ClusterButton";
+import type { ChangeEvent, ReactNode, RefObject } from "react";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { formatRelativeTime } from "../../core/format";
 import { ClusterInput } from "../../components/ClusterNativeControls";
@@ -8,9 +8,8 @@ import { ClusterActionMenu } from "../../components/ClusterContextActions";
 export function WhiteboardZoomControls({ zoom, onZoomOut, onZoomIn, onReset }: { zoom: number; onZoomOut: () => void; onZoomIn: () => void; onReset: () => void }) {
   return <div className="zoom-pill">
     <ClusterButton size="compact" variant="quiet" onClick={onZoomOut} aria-label="Zoom out"><ClusterIcon name="minus" /></ClusterButton>
-    <span>{Math.round(zoom * 100)}%</span>
+    <ClusterButton size="compact" variant="quiet" onClick={onReset} title="Reset to 100%">{Math.round(zoom * 100)}%</ClusterButton>
     <ClusterButton size="compact" variant="quiet" onClick={onZoomIn} aria-label="Zoom in"><ClusterIcon name="plus" /></ClusterButton>
-    <ClusterButton size="compact" variant="quiet" onClick={onReset}>100</ClusterButton>
   </div>;
 }
 
@@ -91,33 +90,33 @@ export function WhiteboardCommandBar({
   imageInputRef,
   onImageInput,
   onFit,
-  onResetZoom,
   onToggleOutline,
   onAddImage,
   onToggleCategories,
   onToggleNavigator,
   onAutoSave,
+  tools,
 }: {
   dirty: boolean; saving: boolean; lastSavedAt: string | null; autoSave: boolean; outline: boolean; categories: boolean; navigator: boolean;
   imageInputRef: RefObject<HTMLInputElement | null>;
   onImageInput: (event: ChangeEvent<HTMLInputElement>) => void;
-  onFit: () => void; onResetZoom: () => void; onToggleOutline: () => void; onAddImage: () => void; onToggleCategories: () => void; onToggleNavigator: () => void; onAutoSave: (enabled: boolean) => void;
+  onFit: () => void; onToggleOutline: () => void; onAddImage: () => void; onToggleCategories: () => void; onToggleNavigator: () => void; onAutoSave: (enabled: boolean) => void;
+  tools?: ReactNode;
 }) {
+  const state = saving ? "Saving…" : "Unsaved";
   return <div className="whiteboard-commandbar-v299">
-    <div className="whiteboard-save-state-v299">
-      <span className={`save-dot-v299 ${dirty ? "dirty" : "clean"}`} />
-      <strong>{saving ? "Saving" : dirty ? "Unsaved changes" : "Up to date"}</strong>
-      <span>{lastSavedAt ? `Last save ${formatRelativeTime(lastSavedAt)}` : autoSave ? "Autosave ready" : "Manual save"}</span>
-    </div>
+    {tools}
     <div className="whiteboard-view-actions-v299">
-      <ClusterButton size="compact" variant="quiet" onClick={onFit}>Fit content</ClusterButton>
-      <ClusterButton size="compact" variant="quiet" onClick={onResetZoom}>100%</ClusterButton>
+      <ClusterButton size="compact" variant="quiet" onClick={onFit}>Fit</ClusterButton>
       <ClusterButton size="compact" variant="quiet" selected={outline} onClick={onToggleOutline}>Outline</ClusterButton>
-      <input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onImageInput} />
-      <ClusterButton size="compact" variant="quiet" onClick={onAddImage}>Add image</ClusterButton>
       <ClusterButton size="compact" variant="quiet" selected={categories} onClick={onToggleCategories}>Layers</ClusterButton>
       <ClusterButton size="compact" variant="quiet" selected={navigator} onClick={onToggleNavigator}>Navigator</ClusterButton>
+      <input ref={imageInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onImageInput} />
+      <ClusterIconButton size="compact" label="Add image" onClick={onAddImage}><ClusterIcon name="image" /></ClusterIconButton>
       <label className="whiteboard-autosave-toggle-v299"><ClusterInput type="checkbox" checked={autoSave} onChange={(event) => onAutoSave(event.target.checked)} /> Autosave</label>
+      {(dirty || saving) && <span className="whiteboard-save-state-v299" title={lastSavedAt ? `Last saved ${formatRelativeTime(lastSavedAt)}` : autoSave ? "Autosave on" : "Manual save"}>
+        <span className={`save-dot-v299 ${dirty ? "dirty" : "clean"}`} />{state}
+      </span>}
     </div>
   </div>;
 }

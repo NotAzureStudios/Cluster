@@ -1,0 +1,493 @@
+/* The window frame — title bar, sidebar, main column and page edges.
+   The only stylesheet for the cl-shell / cl-tb / cl-sb names.
+
+   Layout: one grid. The sidebar runs the full height in the first column; the
+   main column scrolls, and the title bar is pinned to its top. Sidebar and
+   title bar share one surface tone, and the canvas sits inset inside that L.
+   Planes separate by tone, so there are no frame lines anywhere. The title bar
+   is the same height as the sidebar's header row, so the top of the window
+   reads as one continuous strip.
+
+   Edges: the title bar's contents and every page share one gutter, so there is
+   a single left and a single right edge down the whole window. Before this, the
+   floating taskbar, the status banner and the page each had their own. */
+
+:root {
+  --cl-titlebar-h: 44px;
+  --cl-sidebar-w: var(--cluster-sidebar-current-width, 192px);
+  --cl-gutter: 20px;
+  --cl-chrome: var(--cluster-workbench-panel);
+  --cl-row-h: 32px;
+}
+
+@media (max-width: 1199px) { :root { --cl-gutter: 16px; } }
+@media (max-width: 899px) { :root { --cl-gutter: 12px; } }
+
+/* ---------- grid ---------- */
+
+.cl-shell {
+  display: grid;
+  grid-template-columns: var(--cl-sidebar-w) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  transition: grid-template-columns var(--cluster-motion-feedback, .14s) var(--cluster-ease-standard, ease);
+}
+
+.cl-shell > .content-shell {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0 var(--cl-gutter) var(--space-6);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The main column carries the gutter as padding, so every page inherits the
+   same edges without setting margins of its own; the title bar bleeds back out
+   across it to run the full width. */
+.cl-shell > .content-shell > .page,
+.cl-shell > .content-shell > section.page {
+  padding-inline: 0;
+  padding-top: var(--space-4);
+}
+
+/* ---------- title bar ---------- */
+
+.cl-tb {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--cl-titlebar-h);
+  margin: 0 calc(-1 * var(--cl-gutter));
+  padding: 0 var(--cl-gutter);
+  border: 0;
+  border-radius: 0;
+  background: var(--cl-chrome);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.cl-tb__start,
+.cl-tb__end { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+
+.cl-tb__center { position: relative; display: grid; align-items: center; min-width: 0; height: 100%; }
+.cl-tb__center > * { grid-area: 1 / 1; min-width: 0; }
+.cl-tb__center[data-search-open="true"] > .cl-tb__tabs { visibility: hidden; }
+.cl-tb__center[data-search-open="false"] > .cl-tb__search-slot { visibility: hidden; }
+.cl-tb__search-slot:empty { pointer-events: none; }
+
+/* Every control in the bar is one size: 30px tall, quiet until hovered. */
+.cl-tb-action,
+.cl-tb-history__button,
+.cl-tb-profile,
+.cl-tb-resume__main,
+.cl-tb-resume__clear {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  height: 30px;
+  min-width: 30px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--cluster-font-size-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--cluster-motion-feedback, .14s) var(--cluster-ease-standard, ease), color var(--cluster-motion-feedback, .14s) var(--cluster-ease-standard, ease);
+}
+.cl-tb-action:hover,
+.cl-tb-history__button:hover,
+.cl-tb-profile:hover,
+.cl-tb-resume__main:hover,
+.cl-tb-resume__clear:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-tb-action.is-active,
+.cl-tb-profile.active { background: var(--cluster-workbench-selected); color: var(--text); }
+
+.cl-tb-action--icon,
+.cl-tb-history__button { width: 30px; padding: 0; }
+/* Icons are sized by inline-size/block-size on purpose: svg.cluster-icon--unified
+   sets inline-size: 1em, which would otherwise shrink every icon to the text. */
+.cl-tb svg.cluster-icon-svg { inline-size: 18px; block-size: 18px; flex: none; }
+.cl-tb .cl-tb-resume__clear svg.cluster-icon-svg,
+.cl-tb .cl-tb-profile__chevron { inline-size: 14px; block-size: 14px; }
+.cl-tb .cl-tb-project svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+
+.cl-tb-history { display: flex; gap: 2px; margin-right: var(--space-1); }
+.cl-tb-resume { display: flex; align-items: center; gap: 2px; }
+.cl-tb-resume__clear { width: 24px; min-width: 24px; padding: 0; }
+
+
+.cl-tb-menu { position: relative; display: flex; }
+
+/* Counts sit on the icon's corner and disappear at zero. */
+.cl-tb-badge,
+.cl-tb-action__badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+.cl-tb-badge.empty { display: none; }
+.cl-tb-badge.severity-critical,
+.cl-tb-badge.severity-high { background: var(--danger); color: var(--danger-contrast); }
+
+/* Search: the one control with a visible shape, because it is the primary way
+   to move around. */
+.cl-tb-command {
+  justify-content: flex-start;
+  width: clamp(150px, 18vw, 240px);
+  padding: 0 var(--space-1-5) 0 var(--space-2);
+  background: var(--cluster-button-fill);
+  color: var(--muted);
+}
+.cl-tb-command .cl-tb-action__label { flex: 1; text-align: left; font-weight: 500; }
+.cl-tb-action__hotkey {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--cluster-recess);
+  color: var(--muted);
+  font: 600 10px/1.4 var(--cluster-font-mono);
+}
+
+.cl-tb-profile { gap: var(--space-2); padding: 0 var(--space-1) 0 3px; }
+/* Avatars are rounded squares everywhere in Cluster (9px at People's 34px);
+   7px keeps that proportion at the title bar's 26px. Children inherit it, so
+   the presence dot keeps its own round shape. */
+.cl-tb-profile .cl-tb-profile__avatar { --avatar-size: 26px; flex: none; border-radius: 7px; font-size: var(--cluster-font-size-xs); }
+.cl-tb-profile__copy { display: grid; text-align: left; line-height: 1.15; }
+.cl-tb-profile__copy strong { color: var(--text); font-size: var(--cluster-font-size-sm); font-weight: 600; }
+.cl-tb-profile__copy small { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 500; }
+.cl-tb-profile__chevron { color: var(--muted); }
+@media (max-width: 1199px) { .cl-tb-profile__copy, .cl-tb-profile__chevron { display: none; } .cl-tb-profile { padding: 0 3px; } }
+
+.cluster-transfer-trigger__counts { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-variant-numeric: tabular-nums; }
+
+/* Project tabs */
+.cl-tb-projects { display: flex; align-items: center; gap: var(--space-1); min-width: 0; height: 100%; }
+.cl-tb-projects__scroll { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.cl-tb-projects__scroll::-webkit-scrollbar { display: none; }
+.cl-tb-project { position: relative; display: flex; align-items: center; flex: none; height: 30px; max-width: 220px; border-radius: var(--cluster-radius-control); color: var(--muted); }
+.cl-tb-project:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-tb-project.is-active { background: var(--cluster-workbench-selected); color: var(--text); }
+.cl-tb-project__main { display: flex; align-items: center; gap: var(--space-1-5); min-width: 0; height: 100%; padding: 0 var(--space-1) 0 var(--space-2); border: 0; background: transparent; color: inherit; font: inherit; font-size: var(--cluster-font-size-sm); font-weight: 600; cursor: pointer; }
+.cl-tb-project__status { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--muted); }
+.cl-tb-project__status[data-tone="good"] { background: var(--success); }
+.cl-tb-project__status[data-tone="warning"] { background: var(--warning); }
+.cl-tb-project__status[data-tone="danger"] { background: var(--danger); }
+.cl-tb-project__identity { display: inline-flex; flex: none; width: 16px; height: 16px; }
+.cl-tb-project__identity > * { width: 100%; height: 100%; }
+.cl-tb-project__pin { flex: none; color: var(--muted); }
+.cl-tb-project__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-tb-project__actions { display: flex; align-items: center; padding-right: 2px; opacity: 0; transition: opacity var(--cluster-motion-feedback, .14s); }
+.cl-tb-project:hover .cl-tb-project__actions,
+.cl-tb-project.is-active .cl-tb-project__actions,
+.cl-tb-project:focus-within .cl-tb-project__actions { opacity: 1; }
+.cl-tb-project__actions :where(button) { width: 20px; min-width: 20px; height: 20px; min-height: 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); }
+.cl-tb-project__actions :where(button):hover { background: var(--cluster-button-fill-hover); color: var(--text); }
+
+.cl-tb-projects__empty {
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--cluster-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cl-tb-projects__empty:hover { color: var(--text); background: var(--cluster-button-fill); }
+
+/* Server status — bottom of the sidebar, full width, above the version. Shown for
+   informational states (read-only, offline, degraded, restarting) and whenever
+   something is affected; one icon per cause. Blocking states get the strip. */
+.cl-sb__status { flex: none; padding: var(--space-2) var(--space-2) 0; }
+.cl-sb__status > * { width: 100%; }
+.cl-sb-status {
+  --cl-status: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-2-5);
+  border-radius: var(--cluster-radius-control);
+  background: color-mix(in srgb, var(--cl-status) 14%, transparent);
+  color: var(--cl-status);
+  font-size: var(--cluster-font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+}
+.cl-sb-status[data-cluster-state="warning"],
+.cl-sb-status[data-cluster-state="stale"] { --cl-status: var(--warning); }
+.cl-sb-status[data-cluster-state="error"],
+.cl-sb-status[data-cluster-state="conflict"] { --cl-status: var(--danger); }
+.cl-sb-status[data-cluster-state="loading"] { --cl-status: var(--accent-text); }
+.cl-sb-status__dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cl-sb-status__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cl-sb-status__causes { display: inline-flex; gap: 4px; margin-left: auto; }
+.cl-sb-status__causes svg.cluster-icon-svg { inline-size: 13px; block-size: 13px; }
+.cl-sb[data-collapsed="true"] .cl-sb-status { flex-direction: column; justify-content: center; height: auto; padding: 6px 0; }
+.cl-sb[data-collapsed="true"] .cl-sb-status__label { display: none; }
+.cl-sb[data-collapsed="true"] .cl-sb-status__causes { flex-direction: column; margin: 0; }
+
+/* Blocking status strip — slim, tinted, no frame. */
+.cl-status-strip.cluster-operational-status-v433 {
+  --cl-status: var(--warning);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: color-mix(in srgb, var(--cl-status) 12%, transparent);
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--cluster-font-size-sm);
+}
+.cl-status-strip[data-cluster-state="error"],
+.cl-status-strip[data-cluster-state="conflict"] { --cl-status: var(--danger); }
+.cl-status-strip .cluster-operational-status-main-v433 { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.cl-status-strip .cluster-operational-status-meta-v433 { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--cluster-font-size-xs); }
+
+/* ---------- sidebar ---------- */
+
+.cl-sb {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  width: var(--cl-sidebar-w);
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--cl-chrome);
+  box-shadow: none;
+  color: var(--text);
+}
+
+.cl-sb__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  height: var(--cl-titlebar-h);
+  padding: 0 var(--space-1) 0 var(--space-2-5);
+}
+.cl-sb__logo { width: 22px; height: 22px; flex: none; object-fit: contain; }
+.cl-sb__brand { flex: 1; min-width: 0; overflow: hidden; font-size: var(--cluster-font-size-md); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.cl-sb__toggle,
+.cl-sb__close {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.cl-sb__toggle:hover,
+.cl-sb__close:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-sb__toggle svg.cluster-icon-svg,
+.cl-sb__close svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; }
+/* !important only to beat a global accessibility rule that force-shows every
+   button labelled "Close" with !important; the drawer turns this back on. */
+.cl-sb .cl-sb__close { display: none !important; }
+
+.cl-sb__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  min-height: 0;
+  padding-top: var(--space-1);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.cl-sb__section { display: flex; flex-direction: column; gap: 1px; }
+.cl-sb__section-label,
+.cl-sb__sublabel {
+  padding: var(--space-1) var(--space-2-5) var(--space-1);
+  color: var(--muted);
+  font-size: var(--cluster-font-size-2xs);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cl-sb__sublabel { padding-top: var(--space-2); }
+
+.cl-sb-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2-5);
+  width: 100%;
+  height: var(--cl-row-h);
+  margin: 0;
+  padding: 0 var(--space-2-5);
+  border: 0;
+  border-radius: var(--cluster-radius-control);
+  background: transparent;
+  color: var(--soft-text, var(--text));
+  font: inherit;
+  font-size: var(--cluster-font-size-md);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--cluster-motion-feedback, .14s) var(--cluster-ease-standard, ease);
+}
+.cl-sb-item:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-sb-item.is-active { background: var(--cluster-workbench-selected); color: var(--text); font-weight: 600; }
+.cl-sb-item > .cl-sb-item__icon { inline-size: 18px; block-size: 18px; color: var(--muted); }
+.cl-sb-item.is-active > .cl-sb-item__icon { color: var(--accent-text); }
+.cl-sb-item__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-sb-item__badge { color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+.cl-sb-item__trailing { display: inline-flex; color: var(--muted); }
+.cl-sb-item__trailing svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
+.cl-sb-item.is-nested { height: 30px; font-size: var(--cluster-font-size-sm); }
+
+.cl-sb__subnav { display: flex; flex-direction: column; gap: 1px; padding-left: var(--space-2); }
+.cl-sb__more.cluster-button-v425 { justify-content: flex-start; width: 100%; padding-inline: var(--space-2-5); color: var(--muted); }
+.cl-sb__more.cluster-button-v425:hover { color: var(--text); }
+
+.cl-sb__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  flex: none;
+  padding: var(--space-1) var(--space-1) 0;
+}
+.cl-sb__footer > .cluster-button-v425 { color: var(--muted); gap: var(--space-1-5); }
+.cl-sb__footer > .cluster-button-v425:hover { color: var(--text); }
+.cl-sb__footer > .cluster-button-v425 svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; }
+
+/* Icon rail */
+.cl-sb[data-collapsed="true"] { padding-inline: var(--space-1-5); }
+.cl-sb[data-collapsed="true"] .cl-sb__header { justify-content: center; padding: 0; }
+.cl-sb[data-collapsed="true"] :where(.cl-sb__logo, .cl-sb__brand, .cl-sb__section-label, .cl-sb__sublabel, .cl-sb-item__label, .cl-sb-item__badge, .cl-sb-item__trailing) { display: none; }
+.cl-sb[data-collapsed="true"] .cl-sb-item { grid-template-columns: 1fr; justify-items: center; padding: 0; }
+.cl-sb[data-collapsed="true"] .cl-sb__footer { flex-direction: column; align-items: stretch; }
+.cl-sb[data-collapsed="true"] .cl-sb__footer > .cluster-button-v425 { justify-content: center; padding: 0; font-size: 0; }
+
+/* Drawer — below the persistent-navigation breakpoint the sidebar leaves the
+   grid and slides in over the page. */
+@media (max-width: 899px) {
+  .cl-shell { grid-template-columns: minmax(0, 1fr); }
+  .cl-shell > .content-shell { grid-column: 1; }
+  .cl-sb {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 80;
+    width: min(280px, 86vw);
+    transform: translateX(-100%);
+    box-shadow: var(--cluster-elevation-raised);
+    transition: transform .2s var(--cluster-ease-standard, ease);
+  }
+  .cl-sb[data-open="true"] { transform: none; }
+  .cl-sb__toggle { display: none; }
+  .cl-sb .cl-sb__close { display: inline-grid !important; }
+  .cl-tb { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--space-2); }
+  .cl-tb-command { width: 30px; padding: 0; justify-content: center; }
+  .cl-tb-command :where(.cl-tb-action__label, .cl-tb-action__hotkey) { display: none; }
+}
+
+/* Sidebar footer status: the version pill sits on the chrome without a frame. */
+.cl-sb__footer .app-version-footer-v201 { border: 0; background: transparent; box-shadow: none; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.cl-sb__footer .app-version-footer-v201:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cl-sb[data-collapsed="true"] .cl-sb__footer .app-version-name-v201,
+.cl-sb[data-collapsed="true"] .cl-sb__footer .app-version-footer-v201 > :not(.app-version-dot-v201) { display: none; }
+
+.cl-shell > .content-shell { scrollbar-width: thin; scrollbar-color: var(--cluster-button-fill-hover) transparent; }
+
+/* Route changes move focus to the content region (and to section anchors) for
+   screen readers. Those programmatic targets are not controls: no ring. */
+main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabindex="-1"]:focus { outline: none; }
+
+/* Context back link: a quiet line above the page, not a framed button. */
+.contextual-navigation-v396 { min-height:0; padding:0 0 2px; border:0 !important; background:none !important; box-shadow:none !important; }
+.contextual-navigation-v396 > .cluster-button-v425 { min-height:26px; height:26px; padding:0 8px 0 4px; border:0 !important; background:none !important; box-shadow:none !important; color:var(--muted); font-size:.74rem; }
+.contextual-navigation-v396 > .cluster-button-v425:hover { color:var(--text); }
+.contextual-navigation-v396 > span { display:none; }
+
+/* Phones: the bottom bar already carries Create and Search, so the title bar
+   keeps only the current page, notifications, transfers and the account. */
+@media (max-width: 640px) {
+  .cl-tb { gap: var(--space-1); }
+  .cl-tb-history, .cl-tb-action.tickets, .cl-tb-create, .cl-tb-command, .cl-tb-projects__empty { display: none !important; }
+  .cl-tb__start { min-width: 0; overflow: hidden; padding-left: 42px; }
+  .cl-tb-resume { min-width: 0; }
+  .cl-tb-resume__main { min-width: 0; max-width: 46vw; }
+  .cl-tb-resume__main .cl-tb-action__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page-head.tph { flex-wrap: wrap; }
+  .page-head.tph .page-head-actions { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .page-head.tph .page-head-actions::-webkit-scrollbar { display: none; }
+  .page-head.tph .page-head-actions > * { flex: 0 0 auto; }
+  .page-head.tph .cl-seg { flex-wrap: nowrap; }
+}
+
+/* Account menu: the same row rhythm as every other menu — 32px rows, small icons, no subtitles. */
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 { gap: 1px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button,
+.taskbar-account-menu-v546 .taskbar-account-signout-v546 { min-height: 32px !important; padding: 4px 8px !important; gap: 8px !important; border-radius: 6px; }
+.taskbar-account-menu-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; border: 0; background: none; }
+.taskbar-account-menu-v546 .taskbar-account-action-icon-v546 svg { width: 15px; height: 15px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 strong, .taskbar-account-menu-v546 .taskbar-account-signout-v546 strong { font-size: .8125rem; font-weight: 500; }
+.taskbar-account-menu-v546 .taskbar-account-action-chevron-v546 { width: 13px; height: 13px; opacity: .5; }
+.taskbar-account-menu-v546 .taskbar-presence-options-v546 > button, .taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { min-height: 32px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button, .taskbar-account-menu-v546 .taskbar-account-signout-v546, .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { grid-template-columns: 22px minmax(0, 1fr) auto !important; }
+.taskbar-ticket-empty-v254 { display: block !important; padding: 14px 10px; text-align: center; }
+.taskbar-ticket-empty-v254 span { font-size: .74rem !important; }
+@media (min-width: 641px) { .cl-tb-command, .cl-tb-command[aria-expanded="true"] { display: inline-flex !important; flex-wrap: nowrap; } }

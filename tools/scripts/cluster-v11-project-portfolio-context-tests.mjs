@@ -30,7 +30,7 @@ function stubRequire(request) {
   if (request.includes("ClusterButton")) return { ClusterButton: Button, ClusterIconButton: Button };
   if (request.includes("ClusterIcon")) return { ClusterIcon: ({ name }) => React.createElement("span", { "data-icon": name }) };
   if (request.includes("ResourceIdentityMark")) return { ResourceIdentityMark: ({ label }) => React.createElement("span", { "data-project-mark": label }) };
-  if (request.includes("ClusterVisualMetrics")) return { ClusterVisualRing: ({ label, percent }) => React.createElement("span", null, label, " ", percent, "%") };
+  if (request.includes("ClusterVisualMetrics")) return { ClusterMiniRing: ({ label, percent }) => React.createElement("span", { "data-ring": label }, percent, "%") };
   if (request.includes("ClusterContextActions")) return {
     ClusterRowActions: ({ children, label }) => React.createElement("div", { "aria-label": label }, children),
   };
@@ -54,23 +54,25 @@ const render = (changes = {}) => renderToStaticMarkup(React.createElement(Projec
 let count = 0;
 function test(label, check) { check(); count++; console.log("PASS", label); }
 
-test("Comfortable project card visibly exposes type, objective and gaps", () => {
+test("Comfortable project card shows type, objective and indicators", () => {
   const html = render();
   assert.match(html, /Unreal Engine/);
   assert.match(html, /Create a responsive and accessible ecosystem simulation/);
   assert.doesNotMatch(html, /Alternate project description/);
-  assert.match(html, /2 setup gaps/);
+  // Gaps are an indicator (count) with the gap names in the tooltip.
+  assert.match(html, /title="Add team members · Set target date"/);
+  assert.match(html, /data-icon="warning"[^>]*><\/span>2</);
   assert.match(html, /Planning/);
-  assert.match(html, /Due in 9d/);
-  assert.match(html, /3<\/span>/);
+  assert.match(html, /9d/);
+  assert.match(html, /title="3 people"/);
+  assert.match(html, /data-ring="Ready">68/);
 });
 
-test("Compact density retains identity but avoids a wall of detail", () => {
+test("Compact density keeps identity and drops the objective", () => {
   const html = render({ density: "compact" });
   assert.match(html, /Unreal Engine/);
-  assert.doesNotMatch(html, /project-tile-summary-rc25/);
-  assert.doesNotMatch(html, /setup gaps/);
-  assert.doesNotMatch(html, /<footer/);
+  assert.doesNotMatch(html, /pl-card__summary/);
+  assert.doesNotMatch(html, /aria-describedby=/);
 });
 
 test("Description is shown only when an objective is absent", () => {
@@ -81,28 +83,26 @@ test("Description is shown only when an objective is absent", () => {
 
 test("Missing descriptions remain empty, not invented", () => {
   const html = render({ project: { ...project, objective: null, description: null }, gaps: [] });
-  assert.doesNotMatch(html, /project-tile-summary-rc25/);
-  assert.doesNotMatch(html, /setup gap/);
+  assert.doesNotMatch(html, /pl-card__summary/);
+  assert.doesNotMatch(html, /data-icon="warning"/);
   assert.doesNotMatch(html, /aria-describedby=/);
 });
 
-test("Keyboard selection includes project type and actual visible brief", () => {
+test("Keyboard selection includes project type and the visible objective", () => {
   const html = render();
   assert.match(html, /aria-labelledby="project-portfolio-title-test-project project-portfolio-type-test-project"/);
   assert.match(html, /aria-describedby="project-portfolio-summary-test-project"/);
   assert.match(html, /id="project-portfolio-type-test-project"/);
   assert.match(html, /id="project-portfolio-summary-test-project"/);
-  const compact = render({ density: "compact" });
-  assert.doesNotMatch(compact, /aria-describedby=/);
 });
 
 test("Portfolio selection, inspection and pin actions are preserved", () => {
   const html = render({ selected: true, pinned: true });
-  assert.match(html, /project-row-select-v370/);
-  assert.match(html, /project-tile-identity-rc25/);
+  assert.match(html, /class="pl-card__hit"/);
+  assert.match(html, /data-selected="true"/);
+  assert.match(html, /data-pinned="true"/);
   assert.match(html, /Unstar Wildlife Simulator/);
-  assert.match(html, /Details/);
-  assert.match(html, /project-tile-rc25 selected pinned/);
+  assert.match(html, /Details for Wildlife Simulator/);
 });
 
 test("Source reuses already-supplied portfolio information without fetching or mutation", () => {
@@ -110,15 +110,12 @@ test("Source reuses already-supplied portfolio information without fetching or m
   const item = read(file);
   for (const prop of ["typeLabel={projectTypeBadge(fact.project)}", "gaps={fact.gaps}", "stageLabel={fact.stage.label}", "density={density}"]) assert.ok(page.includes(prop), prop);
   assert.doesNotMatch(item, /\bfetch\(|\bapi\(|\bqueryApi\(/);
-  assert.match(item, /density === "comfortable" && summary/);
-  assert.match(item, /gaps.length > 0/);
 });
 
-test("Styles clamp long summaries and prevent type overflow", () => {
-  const css = read("packages/renderer/src/features/projects/projects.css");
-  assert.match(css, /\.project-tile-summary-rc25\{[^}]*-webkit-line-clamp:2/);
-  assert.match(css, /\.project-tile-identity-rc25 \.project-tile-type-rc25/);
-  assert.match(css, /\.project-tile-tags-rc25 \.project-tile-gaps-rc25/);
-  assert.match(css, /\.project-list-list-v307 \.project-tile-summary-rc25/);
+test("Styles clamp long text and keep the list layout to one line", () => {
+  const css = read("packages/renderer/src/features/projects/projects-list.css");
+  assert.match(css, /\.pl-card__summary \{[^}]*-webkit-line-clamp: 2/);
+  assert.match(css, /\.pl-card__id strong \{[^}]*text-overflow: ellipsis/);
+  assert.match(css, /\.pl-list--list \.pl-card__summary \{ display: none; \}/);
 });
 console.log(`${count}/${count} project portfolio context tests passed`);

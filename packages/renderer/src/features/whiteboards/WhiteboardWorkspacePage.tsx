@@ -12,7 +12,7 @@ import { readPreferenceStorage, writePreferenceStorage } from "../../core/prefer
 import { NumberStepper } from "../../components/NumberStepper";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { CompactColorField } from "../../components/ColorField";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterRecoveryNotice } from "../../components/ClusterContextActions";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
@@ -23,7 +23,7 @@ import { ProjectWorkspaceShell } from "../../components/ProjectWorkspaceShell";
 import { CanvasLoadingState } from "../../components/LoadingState";
 import { RequestErrorState } from "../../components/RequestState";
 import { openDesktopWorkspaceWindow } from "../../core/desktop";
-import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { collaborationColor, CollaborationQueuePanel, CollaborationStrip, useToolCollaboration } from "../collaboration";
 import { projectStatusLabel, projectStatusMeta } from "../projects/projects-utils";
@@ -49,7 +49,7 @@ import type {
   CommandSearchResult,
 } from "../application/application-models";
 import { createWhiteboardImageElement } from "./whiteboard-media";
-import { arrowHeadPoints, calloutPoints, cloudPath, diamondPoints, eraseWhiteboardElementsAt, getElementText, isShapeElement, makeWhiteboardId, moveWhiteboardElement, normalizeWhiteboardBox, pathFromPoints, reflowWhiteboardConnectors, updateWhiteboardElementStyle, whiteboardElementBounds } from "./whiteboard-elements";
+import { arrowHeadPoints, calloutPoints, cloudPath, defaultWhiteboardShapeSize, diamondPoints, eraseWhiteboardElementsAt, parseWhiteboardChart, getElementText, isShapeElement, makeWhiteboardId, moveWhiteboardElement, normalizeWhiteboardBox, pathFromPoints, reflowWhiteboardConnectors, updateWhiteboardElementStyle, whiteboardElementBounds } from "./whiteboard-elements";
 import { buildWhiteboardTemplate, flowTemplateArrow, flowTemplateElement } from "./whiteboard-templates";
 import { boundsIntersectWhiteboardViewport, useWhiteboardViewport } from "./use-whiteboard-viewport";
 import { useWhiteboardMobileTouchNavigation } from "./whiteboard-mobile-touch";
@@ -78,6 +78,7 @@ import { useVisibleTicker } from "../../core/visible-ticker";
 import { useProjectWorkflowList } from "../../core/project-workflow-storage";
 import { CollaborationPanel } from "../../components/CollaborationPanel";
 import { SavedViewsToolbar } from "../../components/SavedViewsToolbar";
+import { StatusNote } from "../../components/StatusNote";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 import { buildWhiteboardSpatialIndex, queryWhiteboardSpatialIndex } from "./whiteboard-spatial-index";
@@ -157,13 +158,112 @@ const WHITEBOARD_TOOL_META: Record<WhiteboardTool, { label: string; shortcut: st
   frame: { label: "Frame", shortcut: "F" },
   callout: { label: "Callout", shortcut: "Q" },
   swimlane: { label: "Swimlane", shortcut: "S" },
+  chart: { label: "Chart", shortcut: "G" },
+  comment: { label: "Comment", shortcut: "Y" },
   card: { label: "Card", shortcut: "K" },
   text: { label: "Text", shortcut: "T" },
   eraser: { label: "Erase", shortcut: "E" },
 };
 const WHITEBOARD_BASIC_TOOLS: WhiteboardTool[] = ["select", "pen", "eraser", "text", "card"];
 const WHITEBOARD_CONNECTOR_TOOLS: WhiteboardTool[] = ["line", "arrow"];
-const WHITEBOARD_SHAPE_TOOLS: WhiteboardTool[] = ["box", "ellipse", "diamond", "sticky", "process", "terminator", "database", "cloud", "actor", "frame", "callout", "swimlane"];
+const WHITEBOARD_SHAPE_TOOLS: WhiteboardTool[] = ["box", "ellipse", "diamond", "sticky", "process", "terminator", "database", "cloud", "actor", "frame", "callout", "swimlane", "chart", "comment"];
+const WHITEBOARD_CHART_COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777", "#65a30d"];
+
+/** A bar, line or pie chart drawn from the shape's "Label: value" lines. */
+function WhiteboardChartGraphic({ element, rect }: { element: WhiteboardShapeElement; rect: { x: number; y: number; width: number; height: number } }) {
+  const { title, data } = parseWhiteboardChart(element.text);
+  const kind = element.chartKind || "bar";
+  const pad = 16;
+  const top = rect.y + (title ? 40 : 16);
+  const bottom = rect.y + rect.height - 28;
+  const left = rect.x + pad + 24;
+  const right = rect.x + rect.width - pad;
+  const max = Math.max(1, ...data.map((datum) => datum.value));
+  const plotH = Math.max(10, bottom - top);
+  const plotW = Math.max(10, right - left);
+  const step = data.length ? plotW / data.length : plotW;
+  const textColor = element.textColor || "#0f172a";
+  const yFor = (value: number) => bottom - (Math.max(0, value) / max) * plotH;
+  let pie: React.ReactElement[] = [];
+  if (kind === "pie" && data.length) {
+    const total = data.reduce((sum, datum) => sum + Math.max(0, datum.value), 0) || 1;
+    const radius = Math.max(10, Math.min(rect.height - (title ? 56 : 32), rect.width * 0.55) / 2);
+    const cx = rect.x + pad + radius;
+    const cy = top + (rect.y + rect.height - top) / 2 - 4;
+    let angle = -Math.PI / 2;
+    pie = data.map((datum, index) => {
+      const slice = (Math.max(0, datum.value) / total) * Math.PI * 2;
+      const end = angle + slice;
+      const large = slice > Math.PI ? 1 : 0;
+      const d = slice >= Math.PI * 2 - 0.0001
+        ? `M ${cx - radius} ${cy} a ${radius} ${radius} 0 1 0 ${radius * 2} 0 a ${radius} ${radius} 0 1 0 ${-radius * 2} 0`
+        : `M ${cx} ${cy} L ${cx + radius * Math.cos(angle)} ${cy + radius * Math.sin(angle)} A ${radius} ${radius} 0 ${large} 1 ${cx + radius * Math.cos(end)} ${cy + radius * Math.sin(end)} Z`;
+      angle = end;
+      return <path key={`slice-${index}`} d={d} fill={WHITEBOARD_CHART_COLORS[index % WHITEBOARD_CHART_COLORS.length]} stroke="#fff" strokeWidth="1.5" />;
+    });
+    const legendX = cx + radius + 18;
+    pie.push(...data.slice(0, 10).map((datum, index) => <g key={`legend-${index}`}>
+      <rect x={legendX} y={top + index * 18} width="10" height="10" rx="2" fill={WHITEBOARD_CHART_COLORS[index % WHITEBOARD_CHART_COLORS.length]} />
+      <text x={legendX + 16} y={top + index * 18 + 9} fill={textColor} fontSize="11">{datum.label.slice(0, 18)} · {datum.value}</text>
+    </g>));
+  }
+  return <g>
+    <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx="12" fill={element.fill === "transparent" ? "#ffffff" : element.fill} stroke="rgba(15,23,42,.14)" strokeWidth="1" />
+    {title ? <text x={rect.x + pad} y={rect.y + 26} fill={textColor} fontSize="14" fontWeight="700">{title.slice(0, 48)}</text> : null}
+    {!data.length ? <text x={rect.x + pad} y={rect.y + rect.height / 2} fill="#64748b" fontSize="12">Add lines like "Mon: 4" to plot</text> : null}
+    {kind !== "pie" && data.length ? <g>
+      {[0, 0.5, 1].map((fraction) => <g key={fraction}>
+        <line x1={left} y1={bottom - plotH * fraction} x2={right} y2={bottom - plotH * fraction} stroke="rgba(15,23,42,.08)" />
+        <text x={left - 6} y={bottom - plotH * fraction + 4} textAnchor="end" fill="#64748b" fontSize="10">{Math.round(max * fraction)}</text>
+      </g>)}
+      {kind === "bar" ? data.map((datum, index) => {
+        const barW = Math.max(4, step * 0.62);
+        const x = left + index * step + (step - barW) / 2;
+        return <g key={`bar-${index}`}>
+          <rect x={x} y={yFor(datum.value)} width={barW} height={Math.max(0, bottom - yFor(datum.value))} rx="3" fill={element.stroke || WHITEBOARD_CHART_COLORS[0]} opacity={0.88} />
+          <text x={x + barW / 2} y={yFor(datum.value) - 4} textAnchor="middle" fill={textColor} fontSize="10">{datum.value}</text>
+        </g>;
+      }) : <g>
+        <polyline points={data.map((datum, index) => `${left + index * step + step / 2},${yFor(datum.value)}`).join(" ")} fill="none" stroke={element.stroke || WHITEBOARD_CHART_COLORS[0]} strokeWidth="2.5" strokeLinejoin="round" />
+        {data.map((datum, index) => <circle key={`dot-${index}`} cx={left + index * step + step / 2} cy={yFor(datum.value)} r="3.5" fill={element.stroke || WHITEBOARD_CHART_COLORS[0]} />)}
+      </g>}
+      {data.map((datum, index) => <text key={`label-${index}`} x={left + index * step + step / 2} y={bottom + 16} textAnchor="middle" fill="#64748b" fontSize="10">{datum.label.slice(0, Math.max(3, Math.floor(step / 7)))}</text>)}
+    </g> : null}
+    {pie}
+  </g>;
+}
+
+/** A comment pinned to the canvas: author, text, and a resolved state. */
+function WhiteboardCommentGraphic({ element, rect }: { element: WhiteboardShapeElement; rect: { x: number; y: number; width: number; height: number } }) {
+  const author = element.author || "Comment";
+  const lines = String(element.text || "").split("\n").flatMap((line) => line.match(/.{1,34}(\s|$)|.{1,34}/g) || [""]).slice(0, Math.max(1, Math.floor((rect.height - 34) / 16)));
+  return <g>
+    <path d={`M ${rect.x + 10} ${rect.y} H ${rect.x + rect.width - 10} Q ${rect.x + rect.width} ${rect.y} ${rect.x + rect.width} ${rect.y + 10} V ${rect.y + rect.height - 10} Q ${rect.x + rect.width} ${rect.y + rect.height} ${rect.x + rect.width - 10} ${rect.y + rect.height} H ${rect.x + 30} L ${rect.x + 12} ${rect.y + rect.height + 14} L ${rect.x + 16} ${rect.y + rect.height} H ${rect.x + 10} Q ${rect.x} ${rect.y + rect.height} ${rect.x} ${rect.y + rect.height - 10} V ${rect.y + 10} Q ${rect.x} ${rect.y} ${rect.x + 10} ${rect.y} Z`} fill={element.fill} stroke={element.stroke} strokeWidth="1.5" />
+    <rect x={rect.x + 10} y={rect.y + 9} width="18" height="18" rx="5" fill={element.stroke} />
+    <text x={rect.x + 19} y={rect.y + 22} textAnchor="middle" fill="#fff" fontSize="11" fontWeight="700">{author.slice(0, 1).toUpperCase()}</text>
+    <text x={rect.x + 34} y={rect.y + 22} fill={element.textColor} fontSize="11" fontWeight="700">{author.slice(0, 24)}{element.resolved ? " · resolved" : ""}</text>
+    <text x={rect.x + 10} y={rect.y + 44} fill={element.textColor} fontSize="12">
+      {lines.map((line, index) => <tspan key={index} x={rect.x + 10} dy={index === 0 ? 0 : 16}>{line.trim()}</tspan>)}
+    </text>
+  </g>;
+}
+
+/* Paint-style rail: the everyday tools as icons; everything else under More. */
+const WHITEBOARD_RAIL_TOOLS: Array<{ tool: WhiteboardTool; icon: ClusterIconName }> = [
+  { tool: "select", icon: "pointer" }, { tool: "pen", icon: "pen" }, { tool: "eraser", icon: "eraser" }, { tool: "text", icon: "type" },
+  { tool: "sticky", icon: "sticky" }, { tool: "box", icon: "square" }, { tool: "ellipse", icon: "circle" }, { tool: "diamond", icon: "diamond" },
+  { tool: "arrow", icon: "arrow" }, { tool: "line", icon: "line" }, { tool: "chart", icon: "chart" }, { tool: "comment", icon: "comment" },
+  { tool: "frame", icon: "frame" }, { tool: "card", icon: "pages" },
+];
+const WHITEBOARD_SWATCHES = ["#0f172a", "#64748b", "#dc2626", "#f97316", "#eab308", "#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#db2777"];
+/** Light tint of a swatch for fills (sticky notes, shapes). */
+function whiteboardTint(hex: string, amount = 0.78) {
+  const value = /^#([0-9a-f]{6})$/i.exec(hex)?.[1];
+  if (!value) return hex;
+  const channel = (offset: number) => Math.round(parseInt(value.slice(offset, offset + 2), 16) + (255 - parseInt(value.slice(offset, offset + 2), 16)) * amount);
+  return `#${[0, 2, 4].map((offset) => channel(offset).toString(16).padStart(2, "0")).join("")}`;
+}
+
 export type WhiteboardWorkspaceComponents = {
   RelatedRecordsPanel: React.ComponentType<any>;
   CustomFieldValuesPanel: React.ComponentType<any>;
@@ -256,6 +356,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
   const mobileTouchNavigation = useWhiteboardMobileTouchNavigation({ canvasWrapRef, zoom, setZoom, onBlankTap: () => setSelectedId(null) });
   const [eraserCursor, setEraserCursor] = useState<WhiteboardPoint | null>(null);
   const [labelText, setLabelText] = useState("New idea");
+  const [inlineEdit, setInlineEdit] = useState<{ id: string; value: string } | null>(null);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [gridSize, setGridSize] = useState(32);
@@ -931,23 +1032,13 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         const resolved = await api<Whiteboard>(`/api/whiteboards/${selectedWhiteboardId}`);
         if (cancelled) return;
         setActiveWhiteboard(resolved);
-        setWhiteboardName(resolved.name);
-        setWhiteboardDescription(resolved.description || "");
-        setWhiteboardProjectId(resolved.projectId || "");
-        setElements(resolved.elements || []);
-        setCategories(resolved.categories || []);
-        setLabels(resolved.labels?.length ? resolved.labels : DEFAULT_WHITEBOARD_LABELS);
-        setBackgroundColor(resolved.backgroundColor || "#f8fafc");
-        setGridColor(resolved.gridColor || "#cbd5e1");
-        setGridStyle(resolved.gridStyle || "lines");
-        setCanvasWidth(resolved.canvasWidth || 1800);
-        setCanvasHeight(resolved.canvasHeight || 950);
+        // Sets the saved baseline with the working copy, so a fresh open is clean.
+        applyWhiteboardWorkingCopy(resolved);
         setHistory([]);
         setRedoHistory([]);
         // Saved history is fetched by the active-id effect and must survive
         // refreshed workspace props. A full reload must not erase the controls.
         setSelectedId(null);
-        setProductionMap(resolved.productionLinks || {});
         const firstList = projects.find((project) => project.id === (resolved.projectId || ""))?.boards?.[0]?.lists?.[0]?.id || productionListOptions[0]?.list.id || "";
         setProductionTargetListId(firstList);
         // Account-scoped recovery is loaded separately when authentication
@@ -1065,6 +1156,16 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         categoryId: activeCategoryId || null,
         labelIds: activeLabelId ? [activeLabelId] : [],
       };
+    if (tool === "chart" || tool === "comment") {
+      const chart = tool === "chart";
+      return {
+        id, type: tool, x: point.x, y: point.y, width: 1, height: 1,
+        text: chart ? "Sprint velocity\nWk 1: 18\nWk 2: 24\nWk 3: 21\nWk 4: 30\nWk 5: 27" : "",
+        stroke: chart ? strokeColor : "#f59e0b", strokeWidth: 2, fill: chart ? "#ffffff" : "#fffbeb", textColor: "#1f2937",
+        opacity: 1, ...(chart ? { chartKind: "bar" as const } : { author: (whiteboardCollaboration.me as { userName?: string } | null)?.userName || null, createdAt: new Date().toISOString(), resolved: false }),
+        categoryId: activeCategoryId || null, labelIds: activeLabelId ? [activeLabelId] : [],
+      };
+    }
     if (WHITEBOARD_SHAPE_TOOLS.includes(tool)) {
       return {
         id,
@@ -1073,11 +1174,13 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         y: point.y,
         width: 1,
         height: 1,
-        text: labelText,
+        // Text is written in place after the shape is placed (double-click edits it).
+        text: "",
         stroke: strokeColor,
         strokeWidth,
-        fill: fillEnabled ? fillColor : "transparent",
-        textColor,
+        // Sticky notes are paper: a light tint (yellow until a colour is picked) with dark ink.
+        fill: tool === "sticky" ? (fillEnabled && fillColor.toLowerCase() !== "#0f172a" ? fillColor : "#fef3c7") : fillEnabled ? fillColor : "transparent",
+        textColor: tool === "sticky" ? "#1f2937" : textColor,
         opacity: shapeOpacity / 100,
         dashed: dashedStroke,
         shadow: shapeShadow,
@@ -1707,6 +1810,50 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
     });
     eraserLastPointRef.current = point;
   }
+  function startInlineEdit(element: WhiteboardElement) {
+    if (element.locked || element.type === "path" || element.type === "image" || element.type === "line" || element.type === "arrow") return false;
+    if (element.type === "card" && element.resource) return false;
+    setSelectedId(element.id);
+    setInlineEdit({ id: element.id, value: element.type === "card" ? [element.title, element.text].filter(Boolean).join("\n") : element.text || "" });
+    return true;
+  }
+  function commitInlineEdit() {
+    const edit = inlineEdit;
+    setInlineEdit(null);
+    if (!edit) return;
+    const current = elements.find((element) => element.id === edit.id);
+    if (!current) return;
+    const before = current.type === "card" ? [current.title, current.text].filter(Boolean).join("\n") : "text" in current ? current.text : "";
+    if (before === edit.value) return;
+    pushHistory();
+    setElements((previous) => previous.map((element) => {
+      if (element.id !== edit.id) return element;
+      if (element.type === "card") { const [title, ...rest] = edit.value.split("\n"); return { ...element, title: title || "Card", text: rest.join("\n") }; }
+      if ("text" in element) return { ...element, text: edit.value } as WhiteboardElement;
+      return element;
+    }));
+  }
+  function patchSelectedShape(patch: Partial<WhiteboardShapeElement>) {
+    if (!selectedElement || !isShapeElement(selectedElement) || selectedElement.locked) return;
+    pushHistory();
+    setElements((previous) => previous.map((element) => element.id === selectedElement.id ? { ...element, ...patch } as WhiteboardElement : element));
+  }
+  /** One click colours the next object, and recolours the selection if there is one. */
+  function applySwatch(color: string) {
+    setStrokeColor(color);
+    setFillColor(whiteboardTint(color));
+    setFillEnabled(true);
+    if (!selectedIds.size) return;
+    pushHistory();
+    setElements((previous) => previous.map((element) => {
+      if (!selectedIds.has(element.id) || element.locked) return element;
+      if (element.type === "path" || element.type === "line" || element.type === "arrow") return { ...element, stroke: color };
+      if (element.type === "text") return { ...element, stroke: color };
+      if (element.type === "card") return { ...element, accent: color };
+      if (isShapeElement(element)) return element.type === "sticky" || element.type === "comment" ? { ...element, fill: whiteboardTint(color), stroke: color, textColor: "#1f2937" } : element.type === "chart" ? { ...element, stroke: color } : { ...element, stroke: color, fill: element.fill === "transparent" ? "transparent" : whiteboardTint(color) };
+      return element;
+    }));
+  }
   function handlePointerDown(event: React.PointerEvent<SVGSVGElement>) {
     if (event.button !== 0 || !activeWhiteboard) return;
     if (tool === "select" && mobileTouchNavigation.pointerDown(event)) return;
@@ -1823,6 +1970,14 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
     eraserLastPointRef.current = null;
     const completed = interaction;
     setInteraction(null);
+    // A click (no drag) places the shape at a usable default size.
+    if (completed?.mode === "create") {
+      const createdId = completed.id;
+      setElements((previous) => previous.map((element) => element.id === createdId && isShapeElement(element) && Math.abs(element.width) < 8 && Math.abs(element.height) < 8 ? { ...element, ...defaultWhiteboardShapeSize(element.type) } : element));
+      // Notes and comments are for writing: start typing straight away.
+      const created = elements.find((element) => element.id === createdId);
+      if (created && (created.type === "sticky" || created.type === "comment")) { setSelectedId(createdId); setInlineEdit({ id: createdId, value: "" }); }
+    }
     if (completed)
       whiteboardCollaboration
         .publish(
@@ -2251,6 +2406,8 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         k: "card",
         t: "text",
         e: "eraser",
+        g: "chart",
+        y: "comment",
       };
       const nextTool = shortcuts[event.key.toLowerCase()];
       if (nextTool) {
@@ -2299,7 +2456,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
       className: `whiteboard-element ${selectedIds.has(element.id) ? "selected" : ""} ${element.locked ? "is-locked-v300" : ""} ${liveEditor ? "remote-editing-v196" : ""} ${remoteSelector ? "remote-selected-v196" : ""}`,
       "data-element-type": element.type,
       onPointerDown: (event: React.PointerEvent<SVGElement>) => handleElementPointerDown(event, element),
-      onDoubleClick: () => { if (openWhiteboardElementResource(element)) setStatus("Opened the linked Cluster resource."); },
+      onDoubleClick: () => { if (openWhiteboardElementResource(element)) { setStatus("Opened the linked Cluster resource."); return; } startInlineEdit(element); },
     };
     if (element.type === "path") {
       const pressureAware = element.points.length > 1 && element.points.some((point) => typeof point.pressure === "number");
@@ -2360,7 +2517,9 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
     }
     if (!isShapeElement(element)) return null;
     const rect = normalizeWhiteboardBox(element);
-    const shapeFill = element.type === "sticky" && element.fill === "transparent" ? "#f8fafc" : element.fill;
+    if (element.type === "chart") return <g key={element.id} {...common} opacity={element.opacity ?? 1} filter="url(#softShadow)"><WhiteboardChartGraphic element={element} rect={rect} /></g>;
+    if (element.type === "comment") return <g key={element.id} {...common} opacity={element.resolved ? 0.55 : element.opacity ?? 1} filter="url(#softShadow)"><WhiteboardCommentGraphic element={element} rect={rect} /></g>;
+    const shapeFill = element.type === "sticky" && element.fill === "transparent" ? "#fef3c7" : element.fill;
     const textX = rect.x + 14;
     const textY = element.type === "frame" ? rect.y + 25 : rect.y + 30;
     const swimlaneDividerX = rect.x + rect.width * 0.34;
@@ -2368,7 +2527,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
     return (
       <g key={element.id} {...common} opacity={element.opacity ?? 1} filter={element.shadow ? "url(#softShadow)" : undefined}>
         {(element.type === "box" || element.type === "process") && <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={element.type === "process" ? "8" : "3"} fill={shapeFill} stroke={element.stroke} strokeWidth={element.strokeWidth} strokeDasharray={element.dashed ? "10 8" : undefined} />}
-        {element.type === "sticky" && <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx="10" fill={shapeFill} stroke={element.stroke} strokeWidth={element.strokeWidth} strokeDasharray={element.dashed ? "10 8" : undefined} />}
+        {element.type === "sticky" && <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx="6" fill={shapeFill} stroke={element.stroke} strokeOpacity={0.35} strokeWidth={1} strokeDasharray={element.dashed ? "10 8" : undefined} />}
         {element.type === "terminator" && <rect x={rect.x} y={rect.y} width={rect.width} height={rect.height} rx={Math.max(18, Math.min(rect.height / 2, 38))} fill={shapeFill} stroke={element.stroke} strokeWidth={element.strokeWidth} strokeDasharray={element.dashed ? "10 8" : undefined} />}
         {element.type === "ellipse" && <ellipse cx={rect.x + rect.width / 2} cy={rect.y + rect.height / 2} rx={rect.width / 2} ry={rect.height / 2} fill={shapeFill} stroke={element.stroke} strokeWidth={element.strokeWidth} strokeDasharray={element.dashed ? "10 8" : undefined} />}
         {element.type === "diamond" && <polygon points={diamondPoints(rect)} fill={shapeFill} stroke={element.stroke} strokeWidth={element.strokeWidth} strokeDasharray={element.dashed ? "10 8" : undefined} />}
@@ -2429,14 +2588,14 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
       description={undefined}
       metrics={activeWhiteboard ? [{ label: "Objects", value: elements.length }] : []}
       headerActions={<>
-        {activeWhiteboard && <ClusterButton variant="secondary" onClick={() => void selectWhiteboardSafely(null)}>All whiteboards</ClusterButton>}
-        <ClusterButton variant="primary" onClick={activeWhiteboard ? () => void saveWhiteboard() : () => void createWhiteboard()} busy={isSaving} busyLabel="Saving…">
+        {activeWhiteboard && <ClusterIconButton size="compact" label="All whiteboards" onClick={() => void selectWhiteboardSafely(null)}><ClusterIcon name="grid" /></ClusterIconButton>}
+        <ClusterButton size="compact" variant={activeWhiteboard && !localWhiteboardDirty && !reviewedMergeAwaitingSave ? "quiet" : "primary"} onClick={activeWhiteboard ? () => void saveWhiteboard() : () => void createWhiteboard()} busy={isSaving} busyLabel="Saving…">
           {activeWhiteboard ? (reviewedMergeAwaitingSave ? "Save reviewed merge" : localWhiteboardDirty ? "Save changes" : "Saved") : "Create"}
         </ClusterButton>
-        {canOpenWorkspaceWindow && <ClusterButton variant="secondary" onClick={() => void openWhiteboardInNewWindow()} disabled={!activeWhiteboard}>Open window</ClusterButton>}
-        <ClusterButton variant="secondary" onClick={focusSelectedElement} disabled={!selectedElements.length}>Focus</ClusterButton>
-        <ClusterButton variant="secondary" onClick={() => void undo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: history.length, savedAvailable: savedHistory.some((entry) => entry.state === "applied"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={history.length ? "Undo an unsaved canvas edit" : "Undo your latest saved operation after resolving local drafts and conflicts"}>Undo</ClusterButton>
-        <ClusterButton variant="secondary" onClick={() => void redo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: redoHistory.length, savedAvailable: savedHistory.some((entry) => entry.state === "undone"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={redoHistory.length ? "Redo an unsaved canvas edit" : "Redo your latest saved operation after resolving local drafts and conflicts"}>Redo</ClusterButton>
+        {canOpenWorkspaceWindow && <ClusterIconButton size="compact" label="Open in new window" onClick={() => void openWhiteboardInNewWindow()} disabled={!activeWhiteboard}><ClusterIcon name="panel-open" /></ClusterIconButton>}
+        <ClusterIconButton size="compact" label="Focus selection" onClick={focusSelectedElement} disabled={!selectedElements.length}><ClusterIcon name="search" /></ClusterIconButton>
+        <ClusterIconButton size="compact" label="Undo" onClick={() => void undo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: history.length, savedAvailable: savedHistory.some((entry) => entry.state === "applied"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={history.length ? "Undo an unsaved canvas edit" : "Undo your latest saved operation after resolving local drafts and conflicts"}><ClusterIcon name="undo" /></ClusterIconButton>
+        <ClusterIconButton size="compact" label="Redo" onClick={() => void redo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: redoHistory.length, savedAvailable: savedHistory.some((entry) => entry.state === "undone"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={redoHistory.length ? "Redo an unsaved canvas edit" : "Redo your latest saved operation after resolving local drafts and conflicts"}><ClusterIcon name="redo" /></ClusterIconButton>
         <WhiteboardZoomControls zoom={zoom} onZoomOut={zoomOut} onZoomIn={zoomIn} onReset={resetZoom} />
         <WhiteboardMoreMenu
           active={Boolean(activeWhiteboard)} selectedCount={selectedIds.size} groupCount={selectionGroupIds.length}
@@ -2450,6 +2609,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         />
       </>}
       projectName={activeWhiteboardProject?.name}
+      onOpenProject={!resourceWindow && activeWhiteboardProject ? () => onOpenProject(activeWhiteboardProject.id) : undefined}
       projectStatus={activeWhiteboardProject ? projectStatusLabel(activeWhiteboardProject) : null}
       projectStatusTone={activeWhiteboardProject ? projectStatusMeta(activeWhiteboardProject).tone : "muted"}
       toolLabel="Whiteboard"
@@ -2464,14 +2624,6 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
           onOpenWindow={openWhiteboardResourceWindow}
         />
       }
-      projectActions={!resourceWindow ? (
-        <>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenProject(activeWhiteboardProject.id)}>Project</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTickets(activeWhiteboardProject.id)}>Tickets</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTimeline(activeWhiteboardProject.id)}>Timeline</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTime(activeWhiteboardProject.id)}>Scheduler</ClusterButton>
-        </>
-      ) : undefined}
       collaboration={<CollaborationStrip presence={whiteboardCollaboration.presence} actions={whiteboardCollaboration.actions} currentUserId={whiteboardCollaboration.me?.id} followedUserId={followedUserId} onFollowUser={(person) => setFollowedUserId((current) => (current === person.userId ? null : person.userId))} connection={whiteboardCollaboration.connection} />}
       notices={<>
         {facilitatorMode ? <div className="inline-status" role="status">Facilitator session active. Collaborators can follow your cursor and presentation frames from the presence bar.</div> : null}
@@ -2558,14 +2710,14 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         onDiscard={() => { clearWhiteboardRecovery(activeWhiteboard?.id || selectedWhiteboardId || ""); setRecoveryDraft(null); }}
       />
       {recoverableEdit ? <ClusterRecoveryNotice message={recoverableEdit} onAction={undo} onDismiss={() => setRecoverableEdit(null)} /> : null}
-      <WhiteboardRelationshipsPanel
+      {showWhiteboardDetails ? <WhiteboardRelationshipsPanel
         activeWhiteboard={activeWhiteboard} whiteboardName={whiteboardName} whiteboardProjectId={whiteboardProjectId}
         RelatedRecordsPanel={RelatedRecordsPanel} CustomFieldValuesPanel={CustomFieldValuesPanel}
         collaborationUsers={collaborationUsers as any} currentUser={whiteboardCollaboration.me as any} selectedCount={selectedElements.length} showSelectionDiscussion={showSelectionDiscussion} selectionAnchor={whiteboardSelectionAnchor}
         dirty={localWhiteboardDirty}
         onServerRestore={(restored, restoredSequence) => { applyRemoteWhiteboard(restored, `Restored authoritative Whiteboard snapshot from sequence ${restoredSequence}.`); setHistory([]); setRedoHistory([]); setSavedHistory([]); setRecoverableEdit(null); setPendingRemote(null); setSelectedIds(new Set()); setSelectedId(null); setShowSelectionDiscussion(false); setLastSavedAt(new Date().toISOString()); clearWhiteboardRecovery(restored.id); setRecoveryDraft(null); void onReloadWhiteboards(); }}
         onAnchorSelect={(anchor) => { const ids = (anchor.ids || []).filter((id: string) => elements.some((element) => element.id === id)); if (ids.length) { setSelectedIds(new Set(ids)); setSelectedId(ids[0]); setShowSelectionDiscussion(true); } if (typeof anchor.x === "number" && typeof anchor.y === "number" && canvasWrapRef.current) canvasWrapRef.current.scrollTo({ left: Math.max(0, anchor.x * zoom - canvasWrapRef.current.clientWidth / 2), top: Math.max(0, anchor.y * zoom - canvasWrapRef.current.clientHeight / 2), behavior: "smooth" }); }}
-      />
+      /> : null}
 
 
       <WhiteboardDetailsPanel visible={showWhiteboardDetails || !activeWhiteboard} activeWhiteboard={activeWhiteboard} projects={projects} name={whiteboardName} projectId={whiteboardProjectId} description={whiteboardDescription} onNameChange={setWhiteboardName} onProjectChange={setWhiteboardProjectId} onDescriptionChange={setWhiteboardDescription} onSave={() => void saveWhiteboard()} onCreate={() => void createWhiteboard()} />
@@ -2594,7 +2746,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
           <WhiteboardCommandBar
             dirty={localWhiteboardDirty} saving={isSaving} lastSavedAt={lastSavedAt} autoSave={autoSaveEnabled}
             outline={showOutline} categories={showCategories} navigator={showNavigator} imageInputRef={imageInputRef}
-            onImageInput={handleImageInput} onFit={fitToContent} onResetZoom={resetZoom} onToggleOutline={() => setShowOutline((value) => !value)}
+            onImageInput={handleImageInput} onFit={fitToContent} onToggleOutline={() => setShowOutline((value) => !value)}
             onAddImage={() => imageInputRef.current?.click()} onToggleCategories={() => setShowCategories((value) => !value)}
             onToggleNavigator={() => setShowNavigator((value) => !value)} onAutoSave={setAutoSaveEnabled}
           />
@@ -2735,15 +2887,6 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
             </div>
           </div>}
 
-          <div className="whiteboard-quick-tools-v28" role="toolbar" aria-label="Whiteboard tools">
-            {WHITEBOARD_BASIC_TOOLS.map((item) => <ClusterButton key={item} size="compact" variant="quiet" selected={tool === item} title={`${WHITEBOARD_TOOL_META[item].label} (${WHITEBOARD_TOOL_META[item].shortcut})`} onClick={() => setTool(item)}>{WHITEBOARD_TOOL_META[item].label}</ClusterButton>)}
-            {tool === "eraser" && <div className="whiteboard-eraser-modes-rc46" role="group" aria-label="Eraser mode">
-              <ClusterButton size="compact" variant="quiet" selected={eraserMode === "brush"} title="Erase only the portion of freehand strokes and unanchored lines under the brush" onClick={() => setEraserMode("brush")}>Brush</ClusterButton>
-              <ClusterButton size="compact" variant="quiet" selected={eraserMode === "object"} title="Delete an entire object touched by the eraser" onClick={() => setEraserMode("object")}>Object</ClusterButton>
-            </div>}
-            <ClusterButton size="compact" variant="quiet" selected={showToolLibrary} onClick={() => setShowToolLibrary((value) => !value)}>More tools</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" selected={showCanvasStyle} onClick={() => setShowCanvasStyle((value) => !value)}>Style</ClusterButton>
-          </div>
           {showToolLibrary && <div className="whiteboard-toolbar expanded cluster-dense-toolbar">
             <div className="tool-block">
               <span className="tool-block-title">Core tools</span>
@@ -3035,6 +3178,20 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
           )}
 
           <div id="whiteboard-keyboard-instructions-v370" className="sr-only-v370">Use the Object outline to select a whiteboard item with the keyboard. Arrow keys move the selected item by one pixel, Shift plus an arrow key moves it by ten pixels, and Delete removes an unlocked selection. Use Add image as the keyboard alternative to dropping an image onto the canvas.</div>
+          <div className="wb-stage">
+          <div className="whiteboard-quick-tools-v28 wb-rail" role="toolbar" aria-label="Whiteboard tools" aria-orientation="vertical">
+            {WHITEBOARD_RAIL_TOOLS.map(({ tool: item, icon }) => <ClusterIconButton key={item} size="compact" label={`${WHITEBOARD_TOOL_META[item].label} (${WHITEBOARD_TOOL_META[item].shortcut})`} title={`${WHITEBOARD_TOOL_META[item].label} (${WHITEBOARD_TOOL_META[item].shortcut})`} selected={tool === item} onClick={() => setTool(item)}><ClusterIcon name={icon} /></ClusterIconButton>)}
+            <ClusterIconButton size="compact" label="More shapes and templates" title="More shapes and templates" selected={showToolLibrary} onClick={() => setShowToolLibrary((value) => !value)}><ClusterIcon name="shapes" /></ClusterIconButton>
+            <ClusterIconButton size="compact" label="Style" title="Stroke, fill and canvas style" selected={showCanvasStyle} onClick={() => setShowCanvasStyle((value) => !value)}><ClusterIcon name="palette" /></ClusterIconButton>
+            <span className="wb-rail__sep" aria-hidden="true" />
+            <div className="wb-swatches" role="group" aria-label="Colour">
+              {WHITEBOARD_SWATCHES.map((color) => <button key={color} type="button" className="wb-swatch" aria-label={`Colour ${color}`} aria-pressed={strokeColor === color} style={runtimeStyle({ background: color })} onClick={() => applySwatch(color)} />)}
+            </div>
+          </div>
+          {tool === "eraser" && <div className="whiteboard-eraser-modes-rc46 wb-eraser-modes" role="group" aria-label="Eraser mode">
+            <ClusterButton size="compact" variant="quiet" selected={eraserMode === "brush"} title="Erase only the portion of freehand strokes and unanchored lines under the brush" onClick={() => setEraserMode("brush")}>Brush</ClusterButton>
+            <ClusterButton size="compact" variant="quiet" selected={eraserMode === "object"} title="Delete an entire object touched by the eraser" onClick={() => setEraserMode("object")}>Object</ClusterButton>
+          </div>}
           <div className={`whiteboard-canvas-wrap ${imageDropActive ? "is-image-drop-target-v300" : ""}`} ref={canvasWrapRef} onDragEnter={(event) => { if (Array.from(event.dataTransfer.items).some((item) => item.type.startsWith("image/"))) { event.preventDefault(); setImageDropActive(true); } }} onDragOver={(event) => { if (Array.from(event.dataTransfer.items).some((item) => item.type.startsWith("image/"))) event.preventDefault(); }} onDragLeave={() => setImageDropActive(false)} onDrop={(event) => { setImageDropActive(false); const file = Array.from(event.dataTransfer.files).find((item) => item.type.startsWith("image/")); if (file) { event.preventDefault(); void insertImageFile(file, canvasPointFromClient(event.clientX, event.clientY)); } }}>
             <svg ref={svgRef} className={`whiteboard-canvas ${tool === "eraser" ? "eraser-mode" : ""}`} data-whiteboard-tool={tool} width={Math.round(canvasWidth * zoom)} height={Math.round(canvasHeight * zoom)} viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} role="img" aria-label={`${whiteboardName || "Whiteboard"} canvas`} aria-describedby="whiteboard-keyboard-instructions-v370" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={(event) => { if (!mobileTouchNavigation.pointerEnd(event)) stopDrawing(); }} onPointerCancel={(event) => { mobileTouchNavigation.pointerEnd(event); mobileTouchNavigation.cancel(); stopDrawing(); }} onPointerLeave={(event) => { if (event.pointerType !== "touch") handleCanvasLeave(); }} xmlns="http://www.w3.org/2000/svg">
               <defs>
@@ -3065,6 +3222,16 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
               <WhiteboardRemotePresenceOverlay presence={remoteWhiteboardPresence} elements={elements} />
               {tool === "eraser" && eraserCursor && <circle className="eraser-cursor" cx={eraserCursor.x} cy={eraserCursor.y} r={eraserSize / 2} fill="rgba(37, 99, 235, 0.08)" stroke="#2563eb" strokeDasharray="5 4" strokeWidth="2" />}
             </svg>
+            {inlineEdit ? (() => { const target = elements.find((element) => element.id === inlineEdit.id); if (!target) return null; const b = whiteboardElementBounds(target); return <textarea className="wb-inline-edit" autoFocus aria-label="Edit text" value={inlineEdit.value} style={runtimeStyle({ left: `${b.x * zoom}px`, top: `${b.y * zoom}px`, width: `${Math.max(160, b.width * zoom)}px`, height: `${Math.max(60, b.height * zoom)}px` })} onChange={(event) => setInlineEdit({ id: inlineEdit.id, value: event.target.value })} onBlur={commitInlineEdit} onKeyDown={(event) => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); setInlineEdit(null); } if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); commitInlineEdit(); } }} />; })() : null}
+            {!inlineEdit && selectedElement && selectedIds.size === 1 && !interaction && tool === "select" ? (() => { const b = whiteboardElementBounds(selectedElement); const shape = isShapeElement(selectedElement) ? selectedElement : null; return <div className="wb-selbar" role="toolbar" aria-label="Selected object" style={runtimeStyle({ left: `${b.x * zoom}px`, top: `${Math.max(0, b.y * zoom - 44)}px` })} onPointerDown={(event) => event.stopPropagation()}>
+              {selectedElement.type !== "path" && selectedElement.type !== "image" && selectedElement.type !== "line" && selectedElement.type !== "arrow" ? <ClusterIconButton size="compact" label="Edit text" title="Edit text (double-click)" onClick={() => startInlineEdit(selectedElement)}><ClusterIcon name="type" /></ClusterIconButton> : null}
+              {shape?.type === "chart" ? (["bar", "line", "pie"] as const).map((kind) => <ClusterButton key={kind} size="compact" variant="quiet" selected={(shape.chartKind || "bar") === kind} onClick={() => patchSelectedShape({ chartKind: kind })}>{kind[0].toUpperCase() + kind.slice(1)}</ClusterButton>) : null}
+              {shape?.type === "comment" ? <ClusterButton size="compact" variant="quiet" selected={Boolean(shape.resolved)} onClick={() => patchSelectedShape({ resolved: !shape.resolved })}><ClusterIcon name="check" />{shape.resolved ? "Reopen" : "Resolve"}</ClusterButton> : null}
+              <span className="wb-selbar__swatches">{WHITEBOARD_SWATCHES.slice(2, 9).map((color) => <button key={color} type="button" className="wb-swatch" aria-label={`Colour ${color}`} style={runtimeStyle({ background: color })} onClick={() => applySwatch(color)} />)}</span>
+              <ClusterIconButton size="compact" label="Duplicate" title="Duplicate (Ctrl+D)" onClick={duplicateSelected}><ClusterIcon name="pages" /></ClusterIconButton>
+              <ClusterIconButton size="compact" label="Delete" title="Delete" onClick={deleteSelected}><ClusterIcon name="trash" /></ClusterIconButton>
+            </div>; })() : null}
+          </div>
           </div>
           {showNavigator && (
             <div className="whiteboard-navigator-v299">
@@ -3097,7 +3264,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         </span>
       </div>
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </ProjectWorkspaceShell>
   );
 }

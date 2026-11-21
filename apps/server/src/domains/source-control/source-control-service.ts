@@ -11,6 +11,7 @@ type SourceControlServiceInput = {
   gitRuntime?: {
     status: (repositoryId: string, repositoryPath?: string | null) => Promise<any>;
     syncMirror: (input: { repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null }) => Promise<any>;
+    readLocalHistory?: (input: { repositoryId: string; repositoryPath?: string | null; defaultBranch?: string | null; limit?: number; detailed?: number }) => Promise<{ defaultBranch: string; branches: any[]; commits: any[]; changes: Record<string, any[]> }>;
     inspectWorkingCopy: (workingCopyId: string) => Promise<any>;
     prepareWorkingCopy: (input: { workingCopyId: string; repositoryId: string; repositoryPath?: string | null; remoteUrl?: string | null; token?: string | null; providerId?: string | null; branchName: string; baseBranch: string; createBranch?: boolean; lfs?: boolean }) => Promise<any>;
     commitWorkingCopy: (input: { workingCopyId: string; message: string; authorName: string; authorEmail?: string | null }) => Promise<any>;
@@ -906,16 +907,66 @@ export function createSourceControlService(input: SourceControlServiceInput) {
     await reporter?.(bounded, message);
   }
 
+  /* Branch heads and commits into Cluster's index; branches that no longer
+     exist are archived. Shared by provider and Cluster-native syncs. */
+  async function indexHistory(repositoryId: string, branches: any[], commits: any[]) {
+    await input.prisma.$transaction(async (tx: any) => {
+      const names = branches.map((branch: any) => branch.name);
+      if (names.length) await tx.sourceBranch.updateMany({ where: { repositoryId, name: { notIn: names } }, data: { archived: true, isDefault: false } });
+      else await tx.sourceBranch.updateMany({ where: { repositoryId }, data: { archived: true, isDefault: false } });
+      for (const branch of branches) {
+        const commit = commits.find((item: any) => item.revision === branch.headRevision);
+        const data = { ...branch, lastCommitAt: branch.lastCommitAt || commit?.committedAt || null, lastSyncedAt: new Date(), archived: false };
+        await tx.sourceBranch.upsert({
+          where: { repositoryId_name: { repositoryId, name: branch.name } },
+          create: { repositoryId, ...data },
+          update: data,
+        });
+      }
+      for (const commit of commits) {
+        const data = { ...commit, parentRevisions: JSON.stringify(commit.parentRevisions || []), branchNames: JSON.stringify(commit.branchNames || []), metadata: JSON.stringify(commit.metadata || {}) };
+        await tx.sourceCommit.upsert({
+          where: { repositoryId_revision: { repositoryId, revision: commit.revision } },
+          create: { repositoryId, ...data },
+          update: data,
+        });
+      }
+    });
+  }
+
+  async function storeChanges(repositoryId: string, changesByRevision: Record<string, any[]>) {
+    for (const [revision, changes] of Object.entries(changesByRevision)) {
+      const storedCommit = await input.prisma.sourceCommit.findUnique({ where: { repositoryId_revision: { repositoryId, revision } } });
+      if (!storedCommit) continue;
+      await input.prisma.$transaction(async (tx: any) => {
+        await tx.sourceChange.deleteMany({ where: { repositoryId, revision } });
+        for (const change of changes) await tx.sourceChange.create({ data: { repositoryId, commitId: storedCommit.id, revision, ...change, metadata: "{}" } });
+      });
+    }
+  }
+
   async function syncRepository(repository: any, operationId: string, reporter?: ProgressReporter) {
     if (!repository.connection) {
       if (repository.hostingMode !== "cluster" || !input.gitRuntime) throw createHttpError("SOURCE_ADAPTER_UNAVAILABLE", "This repository does not have an active Source Control connection.", 409);
       await reportOperation(operationId, 30, "Checking Cluster-managed repository", reporter);
       const repositoryPath = await managedRepositoryPath(repository);
       const mirror = await input.gitRuntime.syncMirror({ repositoryId: repository.id, repositoryPath, remoteUrl: null });
+      let indexed = { branches: 0, commits: 0 };
+      let headRevision: string | null = repository.headRevision || null;
+      let defaultBranch: string = repository.defaultBranch || "main";
+      if (input.gitRuntime.readLocalHistory) {
+        await reportOperation(operationId, 50, "Reading branches and history", reporter);
+        const history = await input.gitRuntime.readLocalHistory({ repositoryId: repository.id, repositoryPath, defaultBranch: repository.defaultBranch, limit: 100, detailed: 20 });
+        await indexHistory(repository.id, history.branches, history.commits);
+        await storeChanges(repository.id, history.changes);
+        indexed = { branches: history.branches.length, commits: history.commits.length };
+        headRevision = history.branches.find((branch) => branch.isDefault)?.headRevision || history.commits[0]?.revision || null;
+        defaultBranch = history.defaultBranch || defaultBranch;
+      }
       const now = new Date();
-      await input.prisma.sourceRepository.update({ where: { id: repository.id }, data: { syncState: "idle", healthState: mirror.mirrorState === "ready" ? "healthy" : "warning", healthMessage: mirror.message || "Cluster-managed repository checked.", lastSyncedAt: now } });
+      await input.prisma.sourceRepository.update({ where: { id: repository.id }, data: { syncState: "idle", headRevision, defaultBranch, healthState: mirror.mirrorState === "ready" ? "healthy" : "warning", healthMessage: mirror.message || "Cluster-managed repository checked.", lastSyncedAt: now } });
       await reportOperation(operationId, 100, "Cluster-managed repository ready", reporter);
-      return { repositoryId: repository.id, native: true, mirror };
+      return { repositoryId: repository.id, native: true, mirror, ...indexed };
     }
     await reportOperation(operationId, 8, "Reading repository metadata", reporter);
     const snapshot = await input.providerService.repositorySnapshot(repository);
@@ -935,27 +986,7 @@ export function createSourceControlService(input: SourceControlServiceInput) {
     await reportOperation(operationId, 40, "Reading branches and recent commits", reporter);
     const headRevision = (branches as any[]).find((branch: any) => branch?.isDefault)?.headRevision || (commits as any[])[0]?.revision || null;
     await reportOperation(operationId, 54, "Updating branch and commit history", reporter);
-    await input.prisma.$transaction(async (tx: any) => {
-      const names = (branches as any[]).map((branch: any) => branch.name);
-      if (names.length) await tx.sourceBranch.updateMany({ where: { repositoryId: repository.id, name: { notIn: names } }, data: { archived: true, isDefault: false } });
-      else await tx.sourceBranch.updateMany({ where: { repositoryId: repository.id }, data: { archived: true, isDefault: false } });
-      for (const branch of branches as any[]) {
-        const commit = (commits as any[]).find((item: any) => item.revision === branch.headRevision);
-        await tx.sourceBranch.upsert({
-          where: { repositoryId_name: { repositoryId: repository.id, name: branch.name } },
-          create: { repositoryId: repository.id, ...branch, lastCommitAt: commit?.committedAt || null, lastSyncedAt: new Date(), archived: false },
-          update: { ...branch, lastCommitAt: commit?.committedAt || null, lastSyncedAt: new Date(), archived: false },
-        });
-      }
-      for (const commit of commits as any[]) {
-        const data = { ...commit, parentRevisions: JSON.stringify(commit.parentRevisions || []), branchNames: JSON.stringify(commit.branchNames || []), metadata: JSON.stringify(commit.metadata || {}) };
-        await tx.sourceCommit.upsert({
-          where: { repositoryId_revision: { repositoryId: repository.id, revision: commit.revision } },
-          create: { repositoryId: repository.id, ...data },
-          update: data,
-        });
-      }
-    });
+    await indexHistory(repository.id, branches as any[], commits as any[]);
 
     const detailed = (commits as any[]).slice(0, 12);
     let detailedCount = 0;
