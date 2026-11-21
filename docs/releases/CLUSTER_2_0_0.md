@@ -1,6 +1,6 @@
 # Cluster 2.0.0 — interface refinement
 
-**Status:** source version only. No installer, signed feed or GitHub release has been published for 2.0.0.
+**Status:** source version. The publisher (`publish-cluster-2-0-0-manual.yml`) runs when this reaches `main`.
 
 ## What changed
 
@@ -21,6 +21,12 @@ Stable 1.x sequences are unchanged. Major 2 and later start at `major × 1000000
 
 ## Upgrading
 
-Server launchers built before this change only recognise 1.x release identities, so an installed 1.x Server will not offer 2.0.0 as an update. Install 2.0.0 with the manual installer once it is published; later 2.x updates then flow normally. Add a `publish-cluster-2-0-0-*.yml` publisher when 2.0.0 is ready to release.
+Server launchers up to 1.2.3 only recognise 1.x release identities, so they will not offer 2.0.0. Server **1.2.4** (branch `release/1.2.4-bridge`) is the bridge: it is 1.2.3 with Cluster 2's launcher rule. Release order:
+
+1. Merge `release/1.2.4-bridge` into `main`; `publish-cluster-1-2-4-manual.yml` publishes v1.2.4 once the Windows build and release CI pass.
+2. Let installations reach 1.2.4 (signed channel or manual installer).
+3. Merge `development` into `main`; `publish-cluster-2-0-0-manual.yml` publishes v2.0.0 the same way.
+
+The manual 2.0.0 installer also works directly on any 1.x installation.
 
 The native Qt Desktop keeps its independent version (1.2.2).
