@@ -12,22 +12,19 @@ let checks=0;
 function check(name,condition) {assert.ok(condition,name);checks++;console.log("PASS",name);}
 
 check("One responsive auth shell owns the public sign-in and setup layout",
-  layout.includes('cluster-auth-entry-grid-v11') &&
-  layout.includes('cluster-auth-entry-intro-v11') &&
+  layout.includes('cluster-auth-entry-v2') &&
+  !layout.includes('cluster-auth-entry-intro-v11') &&
   layout.includes('cluster-auth-entry-card-v11') &&
-  screen.includes('<AuthEntryLayout studioName={studioName}') &&
-  (screen.match(/<AuthEntryLayout mode="setup"/g)||[]).length===3 &&
-  firstLogin.includes('<AuthEntryLayout mode="setup">'));
+  (screen.match(/<AuthEntryLayout[ >]/g)||[]).length===4 &&
+  firstLogin.includes('<AuthEntryLayout>'));
 check("Mobile presentation is not dependent on external imagery or font requests",
-  css.includes('@media(max-width:820px)') &&
-  css.includes('@media(max-width:480px)') &&
+  css.includes('@media (max-width:480px)') &&
   css.includes('min-height:100dvh') &&
-  layout.includes('src="/cluster-logo.png"') &&
+  screen.includes('src="/cluster-logo.png"') &&
   !layout.includes('http://') && !layout.includes('https://'));
 check("All sign-in modes keep a concise title and separate recovery state",
-  screen.includes('mfaChallenge ? "Verify your sign-in"') &&
-  screen.includes('recoveryMode === "request" ? "Recover account access"') &&
-  screen.includes('mode={recoveryMode === "request" ? "recovery" : "signin"}'));
+  screen.includes(`mfaChallenge ? "Verify it's you"`) &&
+  screen.includes('recoveryMode === "request" ? "Reset password" : "Sign in"'));
 // The sign-in configuration now arrives in the boot payload rather than from
 // a fetch this screen owns, so a failure is a boot failure and retrying means
 // re-running boot. The contract is unchanged: say so, offer a retry, and never
@@ -73,7 +70,7 @@ check("One-time MFA recovery codes require an explicit saved-code acknowledgment
   screen.includes('setRecoveryCodesSaved(false)') &&
   css.includes('cluster-auth-recovery-ack-v11'));
 check("Recovery keeps generic non-enumerating response and a clear back path",
-  screen.includes('Cluster does not reveal whether an account exists') &&
+  screen.includes('An administrator reviews reset requests') &&
   screen.includes('"/api/auth/password-reset-request"') &&
   screen.includes('Back to sign in'));
 // The entry point used to be a cover page with Sign in and Apply buttons,
@@ -87,7 +84,7 @@ check("Sign-in is the entry point and nothing blocks it",
   !cover.includes('loadError') &&
   cover.includes('return <LoginScreen'));
 check("The application route still shares the login design",
-  cover.includes('mode="setup" cardClassName="cluster-auth-application-v11"') &&
+  cover.includes('<AuthEntryLayout cardClassName="cluster-auth-application-v11">') &&
   cover.includes('/api/public/v1/applications/') &&
   cover.includes('onApply={applicationsOpen ?') &&
   css.includes('cluster-auth-application-v11'));

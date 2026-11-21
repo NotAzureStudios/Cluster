@@ -49,7 +49,7 @@ assert.match(infra, /!accountStateAllowsWorkspace\(user\.accountState, requireDi
 assert.match(userRoutes, /accountState: "PASSWORD_CHANGE_REQUIRED"/);
 const signIn = read("packages/renderer/src/features/auth/AuthScreens.tsx");
 assert.match(signIn, /First time signing in\?/);
-assert.match(signIn, /temporary password provided privately/);
+assert.match(signIn, /temporary password your administrator gave you/);
 const diagnostic = load("packages/renderer/src/features/admin/background-task-evidence.ts");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 2 }), "recent");
 assert.equal(diagnostic.classifyBackgroundTask({ consecutiveFailures: 3 }), "warning");
