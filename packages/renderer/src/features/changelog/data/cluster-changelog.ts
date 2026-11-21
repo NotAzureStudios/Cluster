@@ -13,6 +13,75 @@ export interface ClusterChangelogRelease {
 
 export const CLUSTER_CHANGELOG: readonly ClusterChangelogRelease[] = [
   {
+    version: "v1.2.3",
+    title: "Installer progress",
+    publishedOn: "2026-11-12",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.2.3",
+    changes: [
+      "The Windows installer no longer looks frozen while unpacking: it reports file count, elapsed time and verification progress.",
+      "Disk space is checked before unpacking; every original verification and rollback check still runs.",
+      "Desktop 1.2.2 is carried forward unchanged.",
+    ],
+  },
+  {
+    version: "v1.2.2",
+    title: "Server and native Desktop",
+    publishedOn: "2026-11-12",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.2.2",
+    changes: [
+      "First freshly compiled native Qt Desktop (1.2.2) with installer, portable ZIP and verified build receipt.",
+      "Includes the 1.2.1 Server, update broker and signed update path.",
+    ],
+  },
+  {
+    version: "v1.2.1",
+    title: "Signed update channel",
+    publishedOn: "2026-11-12",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.2.1",
+    changes: [
+      "Adds the ClusterStudioUpdateBroker Windows service and a PIN-authorized, publisher-signed update request path.",
+      "The signed server-main feed now publishes from a dedicated branch.",
+    ],
+  },
+  {
+    version: "v1.2.0",
+    title: "Operations and settings",
+    publishedOn: "2026-11-10",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.2.0",
+    changes: [
+      "Server Manager gains a GPU utilization meter.",
+      "Server Configuration can check for and download verified signed updates.",
+      "Operations has a visual Jobs page; Studio and Server settings share consolidated navigation with fewer background requests.",
+    ],
+  },
+  {
+    version: "v1.1.2",
+    title: "Update key rotation",
+    publishedOn: "2026-11-05",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.1.2",
+    changes: [
+      "Embeds the new Ed25519 key for signed Server updates. Install once manually after verifying backups.",
+    ],
+  },
+  {
+    version: "v1.1.1",
+    title: "Project data hotfix",
+    publishedOn: "2026-11-05",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.1.1",
+    changes: [
+      "Fixes a Project data-loss issue found in 1.1.0.",
+    ],
+  },
+  {
+    version: "v1.1.0",
+    title: "Dedicated signed updater",
+    publishedOn: "2026-11-05",
+    sourceUrl: "https://github.com/NotAzureStudios/Cluster/releases/tag/v1.1.0",
+    changes: [
+      "Server 1.1 with a dedicated signed updater, released as a verified manual Windows installer.",
+    ],
+  },
+  {
     version: "v1.0.5",
     title: "Windows Server release",
     publishedOn: "2026-11-04",

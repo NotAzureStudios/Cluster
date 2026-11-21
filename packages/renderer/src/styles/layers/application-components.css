@@ -911,3 +911,4 @@ color: var(--cluster-red-200);
 border-color: color-mix(in srgb, var(--cluster-red-500) 38%, transparent);
 background: color-mix(in srgb, var(--cluster-red-500) 10%, transparent);
 }
+.status-box[data-faded], .system-status-box-v053[data-faded] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

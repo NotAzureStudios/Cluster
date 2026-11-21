@@ -30,6 +30,7 @@ import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { WorkActionMenu } from "../workflow/WorkActionMenu";
 import { ProjectCollaborationStrip } from "../collaboration";
 import { removeTimelineItem, upsertTimelineItem } from "./timeline-workspace-state";
+import { StatusNote } from "../../components/StatusNote";
 
 export interface TimelineWorkspacePageProps { projects: Project[]; currentUser: User }
 
@@ -947,7 +948,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
           </>}
         </ClusterModal>
         {loadError && payload ? <RequestErrorState error={loadError} title="Timeline refresh failed" onRetry={() => void loadTimeline()} compact /> : null}
-        {status && !loadError && <div className="status-box system-status-box-v053 timeline-status-v153">{status}</div>}
+        {status && !loadError && <StatusNote className="timeline-status-v153">{status}</StatusNote>}
       </div>
     </section>
   );

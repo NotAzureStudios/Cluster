@@ -24,6 +24,7 @@ import { MyEffectiveAccessPanel } from "./MyEffectiveAccessPanel";
 import { sourceReviewWorkTarget, sourceReviewNeedsAction } from "../projects/source-review-navigation";
 import type { ActivityEvent, Project, ProjectSnapshot, TeamAssignment, TimeEntry, TimeSummary, UpcomingPayload, User } from "../application/application-models";
 import "./my-work.css";
+import { StatusNote } from "../../components/StatusNote";
 
 type MyWorkSourceReview = {
   id: string;
@@ -610,7 +611,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
       )}
 
       {loadError && upcoming ? <RequestErrorState error={loadError} title="My Work refresh failed" onRetry={() => void loadMyWork()} compact /> : null}
-      {status && !loadError && <div className={/fail|error|could not|unavailable/i.test(status) ? "status-box system-status-box-v053" : "sr-only"} role="status">{status}</div>}
+      {status && !loadError && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }

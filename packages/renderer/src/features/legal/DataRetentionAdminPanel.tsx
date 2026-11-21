@@ -5,6 +5,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton } from "../../components/ClusterButton";
 import "./data-retention-admin.css";
 import { ClusterInput } from "../../components/ClusterNativeControls";
+import { StatusNote } from "../../components/StatusNote";
 
 export type RetentionPolicyRow = {
   key: string;
@@ -121,7 +122,7 @@ export function DataRetentionAdminPanel() {
       </div>
     </div>
 
-    {status && <div className="status-box system-status-box-v053">{status}</div>}
+    {status && <StatusNote>{status}</StatusNote>}
 
     <div className="retention-summary-v365">
       <div><span>Configurable categories</span><strong>{policies.length}</strong></div>

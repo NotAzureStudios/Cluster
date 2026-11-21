@@ -78,6 +78,7 @@ import { useVisibleTicker } from "../../core/visible-ticker";
 import { useProjectWorkflowList } from "../../core/project-workflow-storage";
 import { CollaborationPanel } from "../../components/CollaborationPanel";
 import { SavedViewsToolbar } from "../../components/SavedViewsToolbar";
+import { StatusNote } from "../../components/StatusNote";
 import { clusterResourceNavigation } from "../workflow/resource-navigation";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
 import { buildWhiteboardSpatialIndex, queryWhiteboardSpatialIndex } from "./whiteboard-spatial-index";
@@ -3263,7 +3264,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         </span>
       </div>
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </ProjectWorkspaceShell>
   );
 }

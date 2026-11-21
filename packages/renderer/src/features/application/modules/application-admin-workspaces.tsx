@@ -50,6 +50,7 @@ import { getProjectPermission, projectPermissionReason } from "../../projects/pr
 import { DEFAULT_BUILD_STATUSES, DEFAULT_QA_CATEGORIES, DEFAULT_QA_CHECKLIST, DEFAULT_QA_SEVERITIES, DEFAULT_ROLE_CREATE_ROLES, DEFAULT_WEBHOOK_EVENTS, PROJECT_INTAKE_TEMPLATES, RelatedRecordsPanel, SERVER_MANAGED_SETTING_KEYS, TemplateStudioPanel, USER_DEPARTMENT_PRESETS, USER_EMPLOYMENT_PRESETS, USER_TEAM_PRESETS, USER_TITLE_PRESETS, appearanceKeys, applyCustomization, departmentPermissionsFromSettings, enabledStudioDepartmentsFromSettings, enabledStudioRolesFromSettings, mergeStudioDepartments, mergeStudioRoles, normalizeClusterAccent, normalizeRoleId, permissionTemplateTools, profileAddressLine, readFileAsDataUrl, roleLabelFromId, rolePermissionTemplateOptions, rolePermissionsFromSettings, rolesCsvFromIds, splitCsv, statusLabel, studioSlug, toDateInputValue, userPreferenceSettingsPayload, withoutServerManagedSettings, LazyTimelineWorkspacePage } from "./application-foundation";
 
 import { runtimeStyle } from "../../../core/runtime-style";
+import { StatusNote } from "../../../components/StatusNote";
 
 export function UserEditorForm({ form, setForm, settings, departmentOptions, users = [], editingUserId = "" }: { form: any; setForm: React.Dispatch<any>; settings?: Settings; departmentOptions?: string[]; users?: UserActivitySummary[]; editingUserId?: string }) {
   function patch(key: string, value: unknown) {
@@ -682,7 +683,7 @@ export function ImportToolsPanel({ projects, users, onReloadProjects }: { projec
           <div className="empty-state compact-empty">No imports run yet.</div>
         )}
       </section>
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }

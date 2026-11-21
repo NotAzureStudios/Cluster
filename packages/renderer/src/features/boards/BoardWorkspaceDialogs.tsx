@@ -52,6 +52,7 @@ import { getOfflineResourceSyncState, getOfflineSyncSnapshot, subscribeOfflineSy
 import { RequestErrorState } from "../../components/RequestState";
 import { ClusterOperationFeedback } from "../../components/ClusterOperationFeedback";
 import { ClusterModal } from "../../components/ClusterModal";
+import { StatusNote } from "../../components/StatusNote";
 
 
 type SourceIssue = {
@@ -187,7 +188,7 @@ export function ColumnSettingsModal({ list, users, onClose, onSave }: { list?: B
           </div>
         </div>
 
-        {status && <div className="status-box system-status-box-v053">{status}</div>}
+        {status && <StatusNote>{status}</StatusNote>}
         <div className="modal-actions column-modal-actions-v19">
           <ClusterButton type="button" className="" onClick={onClose} variant="secondary">
             Cancel
@@ -433,7 +434,7 @@ export function BoardManagerModal({ board, projects, currentBoardId, onSelectBoa
           </section>
         </div>
 
-        {status && <div className="status-box system-status-box-v053">{status}</div>}
+        {status && <StatusNote>{status}</StatusNote>}
     </ClusterModal>
   );
 }
@@ -465,7 +466,7 @@ export function BoardArchiveTray({ board, onClose, onChanged }: { board: Board; 
     <header className="modal-header"><div><p className="eyebrow">Recovery</p><h2 id="board-archive-title-v36">Archived cards</h2><p className="muted tight">Restore archived cards to the Board while preserving their existing history.</p></div><ClusterButton variant="quiet" onClick={onClose}>Close</ClusterButton></header>
     <div className="field"><label>Find archived card</label><ClusterTextInput type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, label, column…" /></div>
     {loading ? <div className="status-box">Loading archived cards…</div> : <div className="board-archive-list-v495">{visible.map((card) => <article key={card.id}><div><strong>{card.title}</strong><span>{card.listTitle || "Unknown column"} · {card.priority}</span><small>{card.listArchived ? "Restore this column from Board tools first" : card.labels?.slice(0, 4).join(" · ") || "No labels"}</small></div><ClusterButton size="compact" variant="secondary" disabled={Boolean(card.listArchived)} title={card.listArchived ? "Restore its archived column before restoring this Card" : "Restore Card"} busy={busyId === card.id} busyLabel="Restoring" onClick={() => void restore(card)}>Restore</ClusterButton></article>)}{!visible.length ? <ClusterEmptyState kind="empty" icon="work" title="No archived cards" description={query ? "Nothing in the archive matches this search." : "This board has no archived cards."} /> : null}</div>}
-    {status ? <div className="status-box system-status-box-v053">{status}</div> : null}
+    {status ? <StatusNote>{status}</StatusNote> : null}
   </ClusterModal>;
 }
 

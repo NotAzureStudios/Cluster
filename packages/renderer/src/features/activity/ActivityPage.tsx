@@ -7,7 +7,10 @@ import { CompactSectionNav, type CompactSectionNavItem } from "../../components/
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { LoadingState } from "../../components/LoadingState";
 import { RequestErrorState } from "../../components/RequestState";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ToolPageHeader } from "../../components/ToolPageHeader";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { useProgressiveList } from "../../components/useProgressiveList";
 import { useClusterDetailHistory } from "../../components/ClusterMasterDetail";
 import { WorkActionMenu } from "../workflow/WorkActionMenu";
@@ -18,6 +21,7 @@ import { projectMemberIds } from "../projects/projects-utils";
 import "./activity.css";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
+import { StatusNote } from "../../components/StatusNote";
 
 export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa, onOpenTime, projectTypeLabel, projectStatusLabel, adminMode = false, initialView, embedded = false }: { projects: Project[]; onOpenProject: (projectId: string) => void; onOpenTickets: () => void; onOpenQa: () => void; onOpenTime: () => void; projectTypeLabel: (project: Project) => string; projectStatusLabel: (project: Pick<Project, "status" | "archived">) => string; adminMode?: boolean; initialView?: ActivityViewMode; embedded?: boolean }) {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
@@ -339,31 +343,24 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
   }
   return (
     <section className={`${embedded ? "activity-embedded-v246" : "page cluster-page-shell"} activity-page-v245 ${adminMode ? "activity-admin-mode-v245" : ""}`}>
-      {!embedded && (
-        <header className="activity-topbar-v245 cluster-page-header">
-          <div>
-            <h1>{adminMode ? "Activity + Status" : "Activity"}</h1>
-            <span>
-              {visibleEvents.length} events · {activeNowUsers.length} active · {clockedInEntries.length} clocked in
-            </span>
-          </div>
-          <div className="button-row">
-            {riskEvents.length > 0 && (
-              <ClusterButton type="button" className="warning" onClick={() => setViewMode("audit")} variant="quiet" size="compact">
-                {riskEvents.length} attention
-              </ClusterButton>
-            )}
-            <ClusterButton type="button" className="" onClick={() => void loadActivity()} variant="secondary">
-              Refresh
-            </ClusterButton>
-          </div>
-        </header>
-      )}
-
-      {loading && !events.length ? <LoadingState label="Loading activity" rows={7} /> : null}
-      {loadError ? <RequestErrorState error={loadError} title="Activity unavailable" onRetry={() => void loadActivity()} compact /> : null}
-
-      <CompactSectionNav
+      {!embedded ? <ToolPageHeader
+        className="cluster-page-header activity-head-v2"
+        title={adminMode ? "Activity + Status" : "Activity"}
+        metrics={[
+          { label: "events", value: visibleEvents.length },
+          { label: "active", value: activeNowUsers.length, tone: activeNowUsers.length ? "good" : "neutral" },
+          { label: "clocked in", value: clockedInEntries.length },
+        ]}
+        actions={<>
+          <ClusterSegmentedControl value={viewMode === "pulse" || viewMode === "users" ? "feed" : viewMode} onChange={(next) => setViewMode(next as ActivityViewMode)} label="Activity views" options={[
+            { value: "feed", label: `Timeline ${filteredEvents.length}` },
+            { value: "presence", label: `People ${activeNowUsers.length}` },
+            { value: "status", label: `Projects ${projects.length}` },
+            { value: "audit", label: riskEvents.length ? `Audit ${riskEvents.length}` : "Audit" },
+          ]} />
+          <ClusterIconButton label="Refresh activity" onClick={() => void loadActivity()}><ClusterIcon name="refresh" /></ClusterIconButton>
+        </>}
+      /> : <CompactSectionNav
         className="activity-view-nav-v245"
         label="Activity views"
         activeId={viewMode === "pulse" || viewMode === "users" ? "feed" : viewMode}
@@ -371,21 +368,16 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
         primaryIds={["feed", "presence", "status", "audit"]}
         items={
           [
-            {
-              id: "feed",
-              label: "Timeline",
-              detail: `${filteredEvents.length}`,
-            },
-            {
-              id: "presence",
-              label: "People",
-              detail: `${activeNowUsers.length}`,
-            },
+            { id: "feed", label: "Timeline", detail: `${filteredEvents.length}` },
+            { id: "presence", label: "People", detail: `${activeNowUsers.length}` },
             { id: "status", label: "Projects", detail: `${projects.length}` },
             { id: "audit", label: "Audit", detail: `${riskEvents.length}` },
           ] as CompactSectionNavItem<ActivityViewMode>[]
         }
-      />
+      />}
+
+      {loading && !events.length ? <LoadingState label="Loading activity" rows={7} /> : null}
+      {loadError ? <RequestErrorState error={loadError} title="Activity unavailable" onRetry={() => void loadActivity()} compact /> : null}
 
       {(viewMode === "feed" || viewMode === "pulse" || viewMode === "users" || viewMode === "audit") && (
         <div className="activity-filterbar-v245">
@@ -399,10 +391,10 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
             ))}
           </ClusterNativeSelect>
           <ClusterNativeSelect aria-label="Activity source" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as "all" | "human" | "automation" | "system")}>
-            <option value="all">All sources</option>
-            <option value="human">People</option>
-            <option value="automation">Automation</option>
-            <option value="system">System</option>
+            <option value="all">All sources · {filteredEvents.length}</option>
+            <option value="human">People · {sourceCounts.human}</option>
+            <option value="automation">Automation · {sourceCounts.automation}</option>
+            <option value="system">System · {sourceCounts.system}</option>
           </ClusterNativeSelect>
           <ClusterNativeSelect aria-label="Time window" value={timeWindow} onChange={(event) => setTimeWindow(event.target.value)}>
             <option value="24h">24 hours</option>
@@ -551,15 +543,6 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
       )}
 
       {(viewMode === "feed" || viewMode === "pulse" || viewMode === "users" || viewMode === "audit") && (
-        <div className="activity-source-strip-v416" aria-label="Activity source summary">
-          <ClusterButton unstyled type="button" className={sourceFilter === "all" ? "active" : ""} onClick={() => setSourceFilter("all")}><strong>{filteredEvents.length}</strong><span>All</span></ClusterButton>
-          <ClusterButton unstyled type="button" className={sourceFilter === "human" ? "active" : ""} onClick={() => setSourceFilter("human")}><strong>{sourceCounts.human}</strong><span>People</span></ClusterButton>
-          <ClusterButton unstyled type="button" className={sourceFilter === "automation" ? "active" : ""} onClick={() => setSourceFilter("automation")}><strong>{sourceCounts.automation}</strong><span>Automation</span></ClusterButton>
-          <ClusterButton unstyled type="button" className={sourceFilter === "system" ? "active" : ""} onClick={() => setSourceFilter("system")}><strong>{sourceCounts.system}</strong><span>System</span></ClusterButton>
-        </div>
-      )}
-
-      {(viewMode === "feed" || viewMode === "pulse" || viewMode === "users" || viewMode === "audit") && (
         <>
         {sourceFocus ? <div className="activity-source-filter-v493" role="status"><span>Showing activity for one work item.</span><ClusterButton type="button" className="" onClick={sourceDetailHistory.closeDetail} variant="quiet" size="compact">Clear work filter</ClusterButton></div> : null}
         <div className={`activity-workspace-v245 ${selectedEvent ? "has-detail" : ""}`}>
@@ -660,7 +643,7 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
         </>
       )}
 
-      {status && !loadError && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && !loadError && <StatusNote>{status}</StatusNote>}
     </section>
   );
 }

@@ -453,3 +453,9 @@
 /* Route changes move focus to the content region (and to section anchors) for
    screen readers. Those programmatic targets are not controls: no ring. */
 main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabindex="-1"]:focus { outline: none; }
+
+/* Context back link: a quiet line above the page, not a framed button. */
+.contextual-navigation-v396 { min-height:0; padding:0 0 2px; border:0 !important; background:none !important; box-shadow:none !important; }
+.contextual-navigation-v396 > .cluster-button-v425 { min-height:26px; height:26px; padding:0 8px 0 4px; border:0 !important; background:none !important; box-shadow:none !important; color:var(--muted); font-size:.74rem; }
+.contextual-navigation-v396 > .cluster-button-v425:hover { color:var(--text); }
+.contextual-navigation-v396 > span { display:none; }

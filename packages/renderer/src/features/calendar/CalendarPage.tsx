@@ -35,6 +35,7 @@ import { calendarViewNeedsEvents, calendarViewNeedsTimeline } from "./calendar-v
 import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-event-visibility";
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
+import { StatusNote } from "../../components/StatusNote";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: calendarDateInputValue(date) });
@@ -576,7 +577,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       />
       {projectFilter !== "all" && projectFilter !== "studio" ? <ProjectCollaborationStrip tool="calendar" projectId={projectFilter} activity={`Calendar · ${view}`} /> : null}
 
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
+      {status && <StatusNote>{status}</StatusNote>}
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
         <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["year", "month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
