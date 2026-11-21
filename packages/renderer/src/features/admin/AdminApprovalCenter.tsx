@@ -200,11 +200,11 @@ export function AdminApprovalCenter({ projects = [] }: { projects?: ProjectOptio
   }
 
   return <section className="admin-approval-center-v249">
-    <header className="admin-approval-head-v249"><div><h2>Approvals</h2><span>Completion, time off, profile changes, and external release decisions.</span></div><div className="button-row">{selected && <ClusterButton type="button" variant="secondary" onClick={() => {
+    <header className="admin-approval-head-v249"><div className="button-row">{selected && <ClusterButton type="button" variant="secondary" onClick={() => {
       void copyWorkLink({ source: { kind: "approval", id: selected.id, label: selected.title }, navigation: { screen: "admin", inspectScope: "approval", inspectId: selected.id } })
         .then((copied) => setMessage(copied ? "Approval link copied." : "Could not copy approval link."))
         .catch(() => setMessage("Could not copy approval link."));
-    }}>Copy link</ClusterButton>}<ClusterButton type="button" className="" onClick={() => void load()} disabled={loading} variant="secondary">{loading ? "Loading" : "Refresh"}</ClusterButton></div></header>
+    }}>Copy link</ClusterButton>}</div></header>
     <div className="admin-approval-metrics-v249">
       <ClusterButton unstyled type="button" className={statusFilter === "pending" ? "active" : ""} onClick={() => { setStatusFilter("pending"); setAgingOnly(false); }}><strong>{counts.pending}</strong><span>Pending</span></ClusterButton>
       <ClusterButton unstyled type="button" className={priorityFilter === "urgent" ? "active attention" : counts.urgent ? "attention" : ""} onClick={() => { setStatusFilter("pending"); setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent"); setAgingOnly(false); }}><strong>{counts.urgent}</strong><span>Urgent</span></ClusterButton>

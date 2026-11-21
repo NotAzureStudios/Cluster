@@ -98,3 +98,4 @@ button.ao-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accen
 .ao-alert .ao-inline label { white-space: nowrap; }
 .ao .ao-card__title select.cluster-native-select-v495 { flex: none; width: auto !important; min-width: 120px; height: 28px; min-height: 28px; margin-left: auto; padding-block: 0; font-size: var(--cluster-font-size-xs); font-weight: 500; }
 .ao .ao-card__title > .cluster-segmented-v532, .ao .ao-card__title > [role="radiogroup"] { margin-left: auto; }
+.admin-approval-head-v249:not(:has(button)) { display: none; }
