@@ -449,3 +449,7 @@
 .cl-sb[data-collapsed="true"] .cl-sb__footer .app-version-footer-v201 > :not(.app-version-dot-v201) { display: none; }
 
 .cl-shell > .content-shell { scrollbar-width: thin; scrollbar-color: var(--cluster-button-fill-hover) transparent; }
+
+/* Route changes move focus to the content region (and to section anchors) for
+   screen readers. Those programmatic targets are not controls: no ring. */
+main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabindex="-1"]:focus { outline: none; }

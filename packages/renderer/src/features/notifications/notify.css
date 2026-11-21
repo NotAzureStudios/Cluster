@@ -78,7 +78,7 @@
 /* ---------- Inbox page ---------- */
 .nt-inbox { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr); gap: var(--space-2); min-width: 0; padding: var(--space-2) 0 var(--space-4); }
 .nt-inbox__head { display: flex; align-items: center; gap: var(--space-2); min-height: 40px; }
-.nt-inbox__head h1 { margin: 0; font-size: var(--cluster-font-size-2xl); font-weight: 600; letter-spacing: -.01em; }
+.nt-inbox__head h1 { margin: 0; font-size: var(--cluster-font-size-lg, 18px); font-weight: 600; letter-spacing: -.01em; }
 .nt-inbox__status { overflow: hidden; color: var(--warning); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
 .nt-inbox__tools { display: flex; align-items: center; gap: var(--space-1-5); margin-left: auto; }
 

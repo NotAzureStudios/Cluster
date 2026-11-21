@@ -66,8 +66,8 @@ requireText(prefix+'features/notifications/NotificationInboxPage.tsx', [
   'filter === "unread"',
 ]);
 requireText(prefix+'features/work/MyWorkPage.tsx', [
-  'relationshipBlockers ? `${relationshipBlockers} blockers`',
-  'dueTodayCards.length > 0',
+  'relationshipBlockers ? [{ label: "blocked", value: relationshipBlockers',
+  '<strong>{dueTodayCards.length}</strong><span>Due today</span>',
   'myProjects.some((project) => getProjectHealth(project).tone !== "good")',
 ]);
 requireText(prefix+'components/cluster-visual-metrics.css', [
