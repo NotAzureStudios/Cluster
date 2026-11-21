@@ -576,6 +576,13 @@
 .time-workspace-v212 .time-view-tabs-unified-v229 { min-height: 0; }
 .time-workspace-v212 .time-view-tab-list-v229 > button { height: 40px; font-size: var(--cluster-font-size-sm); }
 .time-workspace-v212 .time-view-toolbar-v229 .cluster-select-trigger-v227 { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+@media (max-width: 900px) {
+  .time-workspace-v212 .time-clock-dock-v212 { grid-template-columns: minmax(0, 1fr) auto; }
+  .time-workspace-v212 .time-clock-composer-v212 { grid-column: 1 / -1; grid-row: 2; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .time-workspace-v212 .time-clock-composer-v212 > .time-clock-title-v212 { grid-column: 1 / -1; }
+  .time-workspace-v212 .time-view-tab-list-v229 { display: flex; overflow-x: auto; scrollbar-width: none; }
+  .time-workspace-v212 .time-view-tab-list-v229 > button { flex: none; min-width: 0; }
+}
 /* Days: an empty day is one line. */
 .time-workspace-v212 .time-day-ledger-v212 { gap: 6px; align-content: start; }
 .time-workspace-v212 .time-day-card-v212 > header { min-height: 40px; padding-block: 6px; }
