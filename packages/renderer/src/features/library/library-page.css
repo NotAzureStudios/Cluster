@@ -80,3 +80,10 @@
 .cluster-library-workspace .library-sort-head { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
 .cluster-library-workspace .library-sort-head:hover { color: var(--text); }
 .cluster-library-workspace .library-sort-head svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+/* Phones: one scrolling filter row; the explorer is a short scrolling panel above the files. */
+@media (max-width: 640px) {
+  .cluster-library-workspace.library-workspace-v217 .library-filter-primary-v219 { display: flex !important; flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; gap: 6px; }
+  .cluster-library-workspace.library-workspace-v217 .library-filter-primary-v219 > * { flex: 0 0 auto !important; width: auto !important; }
+  .cluster-library-workspace.library-workspace-v217 .library-filter-primary-v219 .library-search-v219, .cluster-library-workspace.library-workspace-v217 .library-filter-primary-v219 label:has(input[type="search"]) { flex: 0 0 200px !important; }
+  .cluster-library-workspace.library-workspace-v217 .library-sidebar-v217 { max-height: 200px; overflow: auto; }
+}

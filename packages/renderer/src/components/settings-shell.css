@@ -191,7 +191,9 @@
   .st-nav__top { display: none; }
   .st-nav__group { display: flex; gap: 2px; }
   .st-nav__group > h2 { display: none; }
-  .st-nav__item { flex: none; }
+  .st-nav__item { flex: none; width: auto !important; white-space: nowrap; }
+  .st-nav__group { flex: none; }
+  .st-nav { scrollbar-width: none; }
   .st-head__crumb { display: none; }
 }
 

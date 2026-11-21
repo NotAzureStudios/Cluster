@@ -459,3 +459,19 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
 .contextual-navigation-v396 > .cluster-button-v425 { min-height:26px; height:26px; padding:0 8px 0 4px; border:0 !important; background:none !important; box-shadow:none !important; color:var(--muted); font-size:.74rem; }
 .contextual-navigation-v396 > .cluster-button-v425:hover { color:var(--text); }
 .contextual-navigation-v396 > span { display:none; }
+
+/* Phones: the bottom bar already carries Create and Search, so the title bar
+   keeps only the current page, notifications, transfers and the account. */
+@media (max-width: 640px) {
+  .cl-tb { gap: var(--space-1); }
+  .cl-tb-history, .cl-tb-action.tickets, .cl-tb-create, .cl-tb-command, .cl-tb-projects__empty { display: none !important; }
+  .cl-tb__start { min-width: 0; overflow: hidden; padding-left: 42px; }
+  .cl-tb-resume { min-width: 0; }
+  .cl-tb-resume__main { min-width: 0; max-width: 46vw; }
+  .cl-tb-resume__main .cl-tb-action__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page-head.tph { flex-wrap: wrap; }
+  .page-head.tph .page-head-actions { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .page-head.tph .page-head-actions::-webkit-scrollbar { display: none; }
+  .page-head.tph .page-head-actions > * { flex: 0 0 auto; }
+  .page-head.tph .cl-seg { flex-wrap: nowrap; }
+}

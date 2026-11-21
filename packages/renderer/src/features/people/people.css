@@ -426,3 +426,9 @@
 .people-user-editor-section-v106 { padding:10px 12px; gap:9px; border-radius:10px; }
 .people-user-editor-grid-v106 { gap:9px 12px; }
 .people-user-editor-field-v106 > span { font-size:.64rem; color:var(--muted); font-weight:600; }
+@media (max-width: 640px) {
+  .people-toolbar-v244.cluster-data-toolbar-v289 { grid-template-columns: minmax(0,1fr) auto; }
+  .people-toolbar-v244 .cluster-data-filters-v289 { grid-column: 1 / -1; display: flex !important; overflow-x: auto; }
+  .people-toolbar-v244 .cluster-data-count-v289 { display: none; }
+  .pp-head { flex-wrap: wrap; }
+}
