@@ -645,3 +645,10 @@ svg.cluster-icon--unified {
 @media (pointer: coarse) {
   .cluster-action-menu-entry-v428 > button, .cluster-select-menu-v227 .cluster-select-option-v370 { min-height: 44px; }
 }
+
+/* Floating surfaces are opaque: the 94% surface tint sits on the solid chrome
+   colour so page content never shows through a menu, palette or popover. */
+.cluster-floating-surface-v504 {
+  background-color: var(--cl-chrome, var(--app-bg, #15181b)) !important;
+  background-image: linear-gradient(var(--cluster-surface-1, transparent), var(--cluster-surface-1, transparent)) !important;
+}

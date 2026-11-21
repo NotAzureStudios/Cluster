@@ -967,7 +967,7 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
             <TaskbarTransferCenter />
             <ClusterButton unstyled type="button" id="cluster-taskbar-search-trigger" className="cl-tb-action cl-tb-command" onClick={onOpenCommandPalette} title={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-label={commandPaletteOpen ? "Close search" : "Search Cluster and run commands"} aria-expanded={commandPaletteOpen} aria-controls={commandPaletteOpen ? "cluster-command-palette" : undefined}>
               <ClusterIcon name={commandPaletteOpen ? "close" : "search"} className="cl-tb-action__icon" />
-              <span className="cl-tb-action__label">{commandPaletteOpen ? "Close" : "Search"}</span>
+              <span className="cl-tb-action__label">Search</span>
               <kbd className="cl-tb-action__hotkey">{settings.userCommandPaletteHotkey || "Ctrl+K"}</kbd>
             </ClusterButton>
             {taskbarUserMenu}
