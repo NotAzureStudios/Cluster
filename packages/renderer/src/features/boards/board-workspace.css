@@ -1071,3 +1071,18 @@
   .board-select-visible-v11{white-space:normal}
   .board-selection-hidden-v11{width:100%}
 }
+
+/* Inside the compact project shell: slim toolbar, quiet lane controls, lanes fill the window. */
+.pw .board-workspace-chrome-v257 .board-toolbar.panel { --cluster-panel-pad: 4px 6px; min-height: 40px; gap: var(--space-1-5); }
+.pw .board-search-field { flex: 1 1 260px; max-width: 420px; }
+.pw .board-search-field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) { height: 30px !important; min-height: 30px !important; font-size: var(--cluster-font-size-sm) !important; }
+.pw .board-workspace-chrome-v257 .control-result { color: var(--muted); font-size: var(--cluster-font-size-2xs); }
+.pw .board-view-mode-v489 { min-height: 0; padding: 2px; }
+.pw .board-view-mode-v489 .cluster-button-v425 { min-height: 28px !important; height: 28px; font-size: var(--cluster-font-size-xs); }
+.pw .board-columns.board-columns-v257 { align-items: stretch; height: calc(100dvh - 200px); min-height: 360px; padding-bottom: var(--space-1); }
+.pw .board-columns-v257 > .board-list { display: flex; flex-direction: column; max-height: 100%; }
+.pw .board-columns-v257 > .board-list > .list-cards { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.pw .board-list .list-header { min-height: 38px; padding-block: 2px; }
+.pw .board-list .list-title-editor :is(input, strong, h3, span) { font-size: var(--cluster-font-size-md); }
+.pw .board-list .add-card-button { flex: none; min-height: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); font-size: var(--cluster-font-size-sm); box-shadow: none; }
+.pw .board-list .add-card-button:hover { background: var(--cluster-button-fill); color: var(--text); }

@@ -12,7 +12,7 @@ import { readPreferenceStorage, writePreferenceStorage } from "../../core/prefer
 import { NumberStepper } from "../../components/NumberStepper";
 import { ClusterSlider } from "../../components/ClusterSlider";
 import { CompactColorField } from "../../components/ColorField";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterRecoveryNotice } from "../../components/ClusterContextActions";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
@@ -931,23 +931,13 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         const resolved = await api<Whiteboard>(`/api/whiteboards/${selectedWhiteboardId}`);
         if (cancelled) return;
         setActiveWhiteboard(resolved);
-        setWhiteboardName(resolved.name);
-        setWhiteboardDescription(resolved.description || "");
-        setWhiteboardProjectId(resolved.projectId || "");
-        setElements(resolved.elements || []);
-        setCategories(resolved.categories || []);
-        setLabels(resolved.labels?.length ? resolved.labels : DEFAULT_WHITEBOARD_LABELS);
-        setBackgroundColor(resolved.backgroundColor || "#f8fafc");
-        setGridColor(resolved.gridColor || "#cbd5e1");
-        setGridStyle(resolved.gridStyle || "lines");
-        setCanvasWidth(resolved.canvasWidth || 1800);
-        setCanvasHeight(resolved.canvasHeight || 950);
+        // Sets the saved baseline with the working copy, so a fresh open is clean.
+        applyWhiteboardWorkingCopy(resolved);
         setHistory([]);
         setRedoHistory([]);
         // Saved history is fetched by the active-id effect and must survive
         // refreshed workspace props. A full reload must not erase the controls.
         setSelectedId(null);
-        setProductionMap(resolved.productionLinks || {});
         const firstList = projects.find((project) => project.id === (resolved.projectId || ""))?.boards?.[0]?.lists?.[0]?.id || productionListOptions[0]?.list.id || "";
         setProductionTargetListId(firstList);
         // Account-scoped recovery is loaded separately when authentication
@@ -2429,14 +2419,14 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
       description={undefined}
       metrics={activeWhiteboard ? [{ label: "Objects", value: elements.length }] : []}
       headerActions={<>
-        {activeWhiteboard && <ClusterButton variant="secondary" onClick={() => void selectWhiteboardSafely(null)}>All whiteboards</ClusterButton>}
-        <ClusterButton variant="primary" onClick={activeWhiteboard ? () => void saveWhiteboard() : () => void createWhiteboard()} busy={isSaving} busyLabel="Saving…">
+        {activeWhiteboard && <ClusterIconButton size="compact" label="All whiteboards" onClick={() => void selectWhiteboardSafely(null)}><ClusterIcon name="grid" /></ClusterIconButton>}
+        <ClusterButton size="compact" variant={activeWhiteboard && !localWhiteboardDirty && !reviewedMergeAwaitingSave ? "quiet" : "primary"} onClick={activeWhiteboard ? () => void saveWhiteboard() : () => void createWhiteboard()} busy={isSaving} busyLabel="Saving…">
           {activeWhiteboard ? (reviewedMergeAwaitingSave ? "Save reviewed merge" : localWhiteboardDirty ? "Save changes" : "Saved") : "Create"}
         </ClusterButton>
-        {canOpenWorkspaceWindow && <ClusterButton variant="secondary" onClick={() => void openWhiteboardInNewWindow()} disabled={!activeWhiteboard}>Open window</ClusterButton>}
-        <ClusterButton variant="secondary" onClick={focusSelectedElement} disabled={!selectedElements.length}>Focus</ClusterButton>
-        <ClusterButton variant="secondary" onClick={() => void undo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: history.length, savedAvailable: savedHistory.some((entry) => entry.state === "applied"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={history.length ? "Undo an unsaved canvas edit" : "Undo your latest saved operation after resolving local drafts and conflicts"}>Undo</ClusterButton>
-        <ClusterButton variant="secondary" onClick={() => void redo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: redoHistory.length, savedAvailable: savedHistory.some((entry) => entry.state === "undone"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={redoHistory.length ? "Redo an unsaved canvas edit" : "Redo your latest saved operation after resolving local drafts and conflicts"}>Redo</ClusterButton>
+        {canOpenWorkspaceWindow && <ClusterIconButton size="compact" label="Open in new window" onClick={() => void openWhiteboardInNewWindow()} disabled={!activeWhiteboard}><ClusterIcon name="panel-open" /></ClusterIconButton>}
+        <ClusterIconButton size="compact" label="Focus selection" onClick={focusSelectedElement} disabled={!selectedElements.length}><ClusterIcon name="search" /></ClusterIconButton>
+        <ClusterIconButton size="compact" label="Undo" onClick={() => void undo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: history.length, savedAvailable: savedHistory.some((entry) => entry.state === "applied"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={history.length ? "Undo an unsaved canvas edit" : "Undo your latest saved operation after resolving local drafts and conflicts"}><ClusterIcon name="rewind" /></ClusterIconButton>
+        <ClusterIconButton size="compact" label="Redo" onClick={() => void redo()} disabled={!canUseWhiteboardHistory({ saving: isSaving, localCount: redoHistory.length, savedAvailable: savedHistory.some((entry) => entry.state === "undone"), localDirty: localWhiteboardDirty, pendingRemote: Boolean(pendingRemote), queuedSync: whiteboardHasQueuedSync })} title={redoHistory.length ? "Redo an unsaved canvas edit" : "Redo your latest saved operation after resolving local drafts and conflicts"}><ClusterIcon name="forward" /></ClusterIconButton>
         <WhiteboardZoomControls zoom={zoom} onZoomOut={zoomOut} onZoomIn={zoomIn} onReset={resetZoom} />
         <WhiteboardMoreMenu
           active={Boolean(activeWhiteboard)} selectedCount={selectedIds.size} groupCount={selectionGroupIds.length}
@@ -2450,6 +2440,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         />
       </>}
       projectName={activeWhiteboardProject?.name}
+      onOpenProject={!resourceWindow && activeWhiteboardProject ? () => onOpenProject(activeWhiteboardProject.id) : undefined}
       projectStatus={activeWhiteboardProject ? projectStatusLabel(activeWhiteboardProject) : null}
       projectStatusTone={activeWhiteboardProject ? projectStatusMeta(activeWhiteboardProject).tone : "muted"}
       toolLabel="Whiteboard"
@@ -2464,14 +2455,6 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
           onOpenWindow={openWhiteboardResourceWindow}
         />
       }
-      projectActions={!resourceWindow ? (
-        <>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenProject(activeWhiteboardProject.id)}>Project</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTickets(activeWhiteboardProject.id)}>Tickets</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTimeline(activeWhiteboardProject.id)}>Timeline</ClusterButton>
-          <ClusterButton size="compact" variant="quiet" disabled={!activeWhiteboardProject} onClick={() => activeWhiteboardProject && onOpenTime(activeWhiteboardProject.id)}>Scheduler</ClusterButton>
-        </>
-      ) : undefined}
       collaboration={<CollaborationStrip presence={whiteboardCollaboration.presence} actions={whiteboardCollaboration.actions} currentUserId={whiteboardCollaboration.me?.id} followedUserId={followedUserId} onFollowUser={(person) => setFollowedUserId((current) => (current === person.userId ? null : person.userId))} connection={whiteboardCollaboration.connection} />}
       notices={<>
         {facilitatorMode ? <div className="inline-status" role="status">Facilitator session active. Collaborators can follow your cursor and presentation frames from the presence bar.</div> : null}
@@ -2558,14 +2541,14 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         onDiscard={() => { clearWhiteboardRecovery(activeWhiteboard?.id || selectedWhiteboardId || ""); setRecoveryDraft(null); }}
       />
       {recoverableEdit ? <ClusterRecoveryNotice message={recoverableEdit} onAction={undo} onDismiss={() => setRecoverableEdit(null)} /> : null}
-      <WhiteboardRelationshipsPanel
+      {showWhiteboardDetails ? <WhiteboardRelationshipsPanel
         activeWhiteboard={activeWhiteboard} whiteboardName={whiteboardName} whiteboardProjectId={whiteboardProjectId}
         RelatedRecordsPanel={RelatedRecordsPanel} CustomFieldValuesPanel={CustomFieldValuesPanel}
         collaborationUsers={collaborationUsers as any} currentUser={whiteboardCollaboration.me as any} selectedCount={selectedElements.length} showSelectionDiscussion={showSelectionDiscussion} selectionAnchor={whiteboardSelectionAnchor}
         dirty={localWhiteboardDirty}
         onServerRestore={(restored, restoredSequence) => { applyRemoteWhiteboard(restored, `Restored authoritative Whiteboard snapshot from sequence ${restoredSequence}.`); setHistory([]); setRedoHistory([]); setSavedHistory([]); setRecoverableEdit(null); setPendingRemote(null); setSelectedIds(new Set()); setSelectedId(null); setShowSelectionDiscussion(false); setLastSavedAt(new Date().toISOString()); clearWhiteboardRecovery(restored.id); setRecoveryDraft(null); void onReloadWhiteboards(); }}
         onAnchorSelect={(anchor) => { const ids = (anchor.ids || []).filter((id: string) => elements.some((element) => element.id === id)); if (ids.length) { setSelectedIds(new Set(ids)); setSelectedId(ids[0]); setShowSelectionDiscussion(true); } if (typeof anchor.x === "number" && typeof anchor.y === "number" && canvasWrapRef.current) canvasWrapRef.current.scrollTo({ left: Math.max(0, anchor.x * zoom - canvasWrapRef.current.clientWidth / 2), top: Math.max(0, anchor.y * zoom - canvasWrapRef.current.clientHeight / 2), behavior: "smooth" }); }}
-      />
+      /> : null}
 
 
       <WhiteboardDetailsPanel visible={showWhiteboardDetails || !activeWhiteboard} activeWhiteboard={activeWhiteboard} projects={projects} name={whiteboardName} projectId={whiteboardProjectId} description={whiteboardDescription} onNameChange={setWhiteboardName} onProjectChange={setWhiteboardProjectId} onDescriptionChange={setWhiteboardDescription} onSave={() => void saveWhiteboard()} onCreate={() => void createWhiteboard()} />
@@ -2594,9 +2577,20 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
           <WhiteboardCommandBar
             dirty={localWhiteboardDirty} saving={isSaving} lastSavedAt={lastSavedAt} autoSave={autoSaveEnabled}
             outline={showOutline} categories={showCategories} navigator={showNavigator} imageInputRef={imageInputRef}
-            onImageInput={handleImageInput} onFit={fitToContent} onResetZoom={resetZoom} onToggleOutline={() => setShowOutline((value) => !value)}
+            onImageInput={handleImageInput} onFit={fitToContent} onToggleOutline={() => setShowOutline((value) => !value)}
             onAddImage={() => imageInputRef.current?.click()} onToggleCategories={() => setShowCategories((value) => !value)}
             onToggleNavigator={() => setShowNavigator((value) => !value)} onAutoSave={setAutoSaveEnabled}
+            tools={
+              <div className="whiteboard-quick-tools-v28" role="toolbar" aria-label="Whiteboard tools">
+                {WHITEBOARD_BASIC_TOOLS.map((item) => <ClusterButton key={item} size="compact" variant="quiet" selected={tool === item} title={`${WHITEBOARD_TOOL_META[item].label} (${WHITEBOARD_TOOL_META[item].shortcut})`} onClick={() => setTool(item)}>{WHITEBOARD_TOOL_META[item].label}</ClusterButton>)}
+                {tool === "eraser" && <div className="whiteboard-eraser-modes-rc46" role="group" aria-label="Eraser mode">
+                  <ClusterButton size="compact" variant="quiet" selected={eraserMode === "brush"} title="Erase only the portion of freehand strokes and unanchored lines under the brush" onClick={() => setEraserMode("brush")}>Brush</ClusterButton>
+                  <ClusterButton size="compact" variant="quiet" selected={eraserMode === "object"} title="Delete an entire object touched by the eraser" onClick={() => setEraserMode("object")}>Object</ClusterButton>
+                </div>}
+                <ClusterButton size="compact" variant="quiet" selected={showToolLibrary} onClick={() => setShowToolLibrary((value) => !value)}>More tools</ClusterButton>
+                <ClusterButton size="compact" variant="quiet" selected={showCanvasStyle} onClick={() => setShowCanvasStyle((value) => !value)}>Style</ClusterButton>
+              </div>
+            }
           />
           {facilitatorSessionActive ? (
             <div className="whiteboard-commandbar-v299 cluster-dense-toolbar" role="group" aria-label="Facilitator session controls">
@@ -2735,15 +2729,6 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
             </div>
           </div>}
 
-          <div className="whiteboard-quick-tools-v28" role="toolbar" aria-label="Whiteboard tools">
-            {WHITEBOARD_BASIC_TOOLS.map((item) => <ClusterButton key={item} size="compact" variant="quiet" selected={tool === item} title={`${WHITEBOARD_TOOL_META[item].label} (${WHITEBOARD_TOOL_META[item].shortcut})`} onClick={() => setTool(item)}>{WHITEBOARD_TOOL_META[item].label}</ClusterButton>)}
-            {tool === "eraser" && <div className="whiteboard-eraser-modes-rc46" role="group" aria-label="Eraser mode">
-              <ClusterButton size="compact" variant="quiet" selected={eraserMode === "brush"} title="Erase only the portion of freehand strokes and unanchored lines under the brush" onClick={() => setEraserMode("brush")}>Brush</ClusterButton>
-              <ClusterButton size="compact" variant="quiet" selected={eraserMode === "object"} title="Delete an entire object touched by the eraser" onClick={() => setEraserMode("object")}>Object</ClusterButton>
-            </div>}
-            <ClusterButton size="compact" variant="quiet" selected={showToolLibrary} onClick={() => setShowToolLibrary((value) => !value)}>More tools</ClusterButton>
-            <ClusterButton size="compact" variant="quiet" selected={showCanvasStyle} onClick={() => setShowCanvasStyle((value) => !value)}>Style</ClusterButton>
-          </div>
           {showToolLibrary && <div className="whiteboard-toolbar expanded cluster-dense-toolbar">
             <div className="tool-block">
               <span className="tool-block-title">Core tools</span>

@@ -237,3 +237,15 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 .whiteboard-page-v069 .whiteboard-toolbar.expanded button:hover{border-color:var(--accent);}
 .whiteboard-page-v069 .whiteboard-toolbar.expanded button.active{background:color-mix(in srgb,var(--accent) 16%,var(--surface-raised));border-color:var(--accent);}
 @media(max-width:700px){.whiteboard-page-v069 .whiteboard-canvas-wrap{min-height:66dvh}.whiteboard-page-v069 .whiteboard-quick-tools-v28{overflow-x:auto;flex-wrap:nowrap}}
+
+/* Inside the compact project shell: one tool row, then the canvas fills the window. */
+.pw.whiteboard-page-v069 .whiteboard-shell.whiteboard-workspace-v299.panel { gap: 0; padding: 0; overflow: hidden; border: 0; }
+.pw.whiteboard-page-v069 .whiteboard-commandbar-v299 { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-2); min-height: 40px; margin: 0; padding: 4px var(--space-2); border: 0; border-radius: 0; background: transparent; box-shadow: inset 0 -1px 0 var(--cluster-workbench-border); font-size: var(--cluster-font-size-sm); }
+.pw.whiteboard-page-v069 .whiteboard-commandbar-v299 .whiteboard-quick-tools-v28 { display: inline-flex; flex-wrap: wrap; gap: 2px; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.pw.whiteboard-page-v069 .whiteboard-view-actions-v299 { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: auto; }
+.pw.whiteboard-page-v069 .whiteboard-save-state-v299 { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; color: var(--muted); font-size: var(--cluster-font-size-xs); white-space: nowrap; }
+.pw.whiteboard-page-v069 .whiteboard-autosave-toggle-v299 { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.pw.whiteboard-page-v069 .whiteboard-shell .whiteboard-canvas-wrap { height: calc(100dvh - 160px); min-height: 420px; border-radius: 0; }
+.pw.whiteboard-page-v069 .whiteboard-shell.whiteboard-workspace-v299 { --cluster-panel-pad: 0px; }
+/* The canvas renders at its zoom and scrolls; never letterbox it to the column width. */
+.whiteboard-canvas-wrap > svg.whiteboard-canvas { max-width: none; }

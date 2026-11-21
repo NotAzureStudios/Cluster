@@ -1335,7 +1335,7 @@ export default function App() {
             if (!await copyClusterText(window.location.href)) throw new Error("Clipboard access was denied.");
           }} workingLabel="Copying…" successLabel="Copied" errorLabel="Copy failed">Copy link</ClusterActionButton>
         </nav>}
-        {!resourceWindow && screen !== "project" && screen !== "settings" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && (routeSection === "admin" || routeSection === "account")))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
+        {!resourceWindow && screen !== "project" && screen !== "settings" && screen !== "board" && screen !== "whiteboard" && !(user?.isAdmin && (ADMIN_FRAME_SCREENS.includes(screen) || (screen === "people" && (routeSection === "admin" || routeSection === "account")))) && contextualParent && contextualParentLabel && <nav className="contextual-navigation-v396" aria-label="Context navigation">
           <ClusterButton type="button" className="" onClick={openContextualParent} variant="quiet" size="compact">
             <ClusterIcon name="chevron-left" />
             <span>{contextualParentLabel}</span>

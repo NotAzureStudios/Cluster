@@ -119,6 +119,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
   const [showAdvancedView, setShowAdvancedView] = useState(false);
   const [showBoardManager, setShowBoardManager] = useState(false);
   const [showArchiveTray, setShowArchiveTray] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [planningPayload, setPlanningPayload] = useState<BoardPlanningPayload | null>(null);
   const [planningError, setPlanningError] = useState("");
@@ -1165,6 +1166,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             { id: "manage", label: "Manage boards", onSelect: () => setShowBoardManager(true) },
             { id: "archive", label: "Archived cards", onSelect: () => setShowArchiveTray(true) },
             { id: "stats", label: showInsights ? "Hide planning" : "Planning intelligence", onSelect: () => setShowInsights((value) => !value) },
+            { id: "details", label: showDetails ? "Hide details" : "Details, fields & history", onSelect: () => setShowDetails((value) => !value) },
             { id: "collapse", label: "Collapse all columns", separatorBefore: true, onSelect: () => setAllListsCollapsed(true) },
             { id: "expand", label: "Expand all columns", onSelect: () => setAllListsCollapsed(false) },
             { id: "empty", label: hideEmptyLists ? "Show empty columns" : "Hide empty columns", onSelect: () => setHideEmptyLists((value) => !value) },
@@ -1175,6 +1177,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
         />
       </>}
       projectName={board.project.name}
+      onOpenProject={!resourceWindow ? () => onOpenProject(board.project.id) : undefined}
       projectStatus={projectStatusLabel(board.project)}
       projectStatusTone={projectStatusMeta(board.project).tone}
       toolLabel="Board"
@@ -1191,7 +1194,6 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
       }
       projectActions={!resourceWindow ? (
         <>
-          <ClusterButton unstyled type="button" onClick={() => onOpenProject(board.project.id)}>Project</ClusterButton>
           <ClusterButton unstyled type="button" onClick={() => onOpenTickets(board.project.id)}>Tickets</ClusterButton>
           <ClusterButton unstyled type="button" onClick={() => onOpenTimeline(board.project.id)}>Timeline</ClusterButton>
           <ClusterButton unstyled type="button" onClick={() => onOpenTime(board.project.id)}>Scheduler</ClusterButton>
@@ -1202,7 +1204,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
       status={workspaceWindowStatus || undefined}
     >
       <div className="board-workspace-chrome-v257">
-        <ClusterDisclosureGroup title="Relationships, fields & history" className="project-tool-meta-v195" contentClassName="project-tool-meta-grid-v195">
+        {showDetails ? <ClusterDisclosureGroup title="Relationships, fields & history" className="project-tool-meta-v195" contentClassName="project-tool-meta-grid-v195" defaultOpen>
             <RelatedRecordsPanel
               compact
               entity={{
@@ -1218,8 +1220,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
             <CollaborationPanel entityType="board" entityId={board.id} title="Board discussion" users={users as any} currentUser={currentUser as any} compact onAnchorSelect={(anchor) => { const ids = (anchor.ids || []).filter((id) => cards.some((card) => card.id === id)); if (!ids.length) return; setSelectedCardIds(new Set(ids)); const first = cards.find((card) => card.id === ids[0]); if (first) openCardForEdit(first); }} />
             <SharedWorkWatchControl entity={{ kind: "board", id: board.id, projectId: board.project.id, label: board.name }} compact />
             <SharedWorkActivityPanel entity={{ kind: "board", id: board.id, projectId: board.project.id, label: board.name }} title="Board discussion activity" compact />
-          
-        </ClusterDisclosureGroup>
+        </ClusterDisclosureGroup> : null}
 
         {showBoardSetup && boardManagerPanel}
 
