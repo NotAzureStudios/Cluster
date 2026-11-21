@@ -14,7 +14,7 @@
 
 :root {
   --cl-titlebar-h: 44px;
-  --cl-sidebar-w: var(--cluster-sidebar-current-width, 208px);
+  --cl-sidebar-w: var(--cluster-sidebar-current-width, 192px);
   --cl-gutter: 20px;
   --cl-chrome: var(--cluster-workbench-panel);
   --cl-row-h: 32px;
@@ -234,17 +234,20 @@
 }
 .cl-tb-projects__empty:hover { color: var(--text); background: var(--cluster-button-fill); }
 
-/* Server status — bottom of the sidebar, above Help and the version. Shown for
+/* Server status — bottom of the sidebar, full width, above the version. Shown for
    informational states (read-only, offline, degraded, restarting) and whenever
    something is affected; one icon per cause. Blocking states get the strip. */
-.cl-sb__status { flex: none; padding: var(--space-2) var(--space-1) 0; }
+.cl-sb__status { flex: none; padding: var(--space-2) var(--space-2) 0; }
+.cl-sb__status > * { width: 100%; }
 .cl-sb-status {
   --cl-status: var(--muted);
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
   min-width: 0;
-  height: 28px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
   padding: 0 var(--space-2-5);
   border-radius: var(--cluster-radius-control);
   background: color-mix(in srgb, var(--cl-status) 14%, transparent);
@@ -400,10 +403,10 @@
 .cl-sb__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-1);
   flex: none;
-  padding: var(--space-2) var(--space-1) 0;
+  padding: var(--space-1) var(--space-1) 0;
 }
 .cl-sb__footer > .cluster-button-v425 { color: var(--muted); gap: var(--space-1-5); }
 .cl-sb__footer > .cluster-button-v425:hover { color: var(--text); }

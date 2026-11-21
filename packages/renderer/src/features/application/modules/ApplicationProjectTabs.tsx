@@ -47,6 +47,7 @@ import { TaskbarTransferCenter } from "../../shell/TaskbarTransferCenter";
 import { TaskbarProjectTabs } from "../../shell/TaskbarProjectTabs";
 import { createClusterCreateIntentControl } from "../../create/create-intent-control";
 import { createTaskbarActionRequestGate } from "./taskbar-action-requests";
+import { CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT } from "../../help/contextual-help";
 import { createClusterCommandInvocation } from "../../search/cluster-command-invocation";
 
 type NotificationPreview = NotificationItem;
@@ -713,6 +714,10 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
         <section className="taskbar-account-section-v546 taskbar-account-section-utility-v546" aria-labelledby="taskbar-utility-heading">
           <div className="taskbar-account-section-heading-v546"><span id="taskbar-utility-heading">Current workspace</span></div>
           <div className="taskbar-account-utility-actions-v546" aria-busy={accountUtilityBusy}>
+            <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); window.dispatchEvent(new Event(CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT)); }}>
+              <ClusterIcon name="book" />
+              <span>Info</span>
+            </ClusterButton>
             <ClusterButton unstyled type="button" disabled={accountUtilityBusy} onClick={() => { const shareable = `${window.location.origin}${window.location.pathname}${window.location.hash}`; invokeAccountUtility(() => copyClusterText(shareable), "Could not copy the workspace link. Check clipboard permissions and try again."); }}>
               <ClusterIcon name="link" />
               <span>Copy link to current view</span>

@@ -101,6 +101,7 @@ export type ClusterIconName =
   | "chart"
   | "type"
   | "undo"
+  | "book"
   | "redo"
   | "info"
   | "shapes"

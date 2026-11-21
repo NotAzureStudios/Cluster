@@ -6,7 +6,6 @@ import { ADAPTIVE_MEDIA } from "../../../core/adaptive-layout";
 import { AppVersionFooter } from "../../../components/AppVersionFooter";
 import { ClusterIcon, type ClusterIconName } from "../../../components/ClusterIcon";
 import { ClusterButton } from "../../../components/ClusterButton";
-import { CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT } from "../../help/contextual-help";
 import { scheduleFeaturePrefetch } from "../../shell/feature-prefetch";
 import { resolveSidebarCollapsed, nextSidebarMode } from "../../shell/sidebar-presentation";
 import type { User, Project, Settings } from "../application-models";
@@ -53,7 +52,7 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
   useEffect(() => {
     document.documentElement.dataset.sidebarCollapsed = effectiveCollapsed ? "true" : "false";
     document.documentElement.dataset.sidebarMode = sidebarMode;
-    document.documentElement.style.setProperty("--cluster-sidebar-current-width", effectiveCollapsed ? "56px" : "208px");
+    document.documentElement.style.setProperty("--cluster-sidebar-current-width", effectiveCollapsed ? "56px" : "192px");
     try { writePreferenceStorage("cluster.sidebar.mode", sidebarMode); } catch {}
     return () => {
       delete document.documentElement.dataset.sidebarCollapsed;
@@ -156,7 +155,6 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
       </nav>
       {status ? <div className="cl-sb__status">{status}</div> : null}
       <div className="cl-sb__footer">
-        <ClusterButton type="button" variant="quiet" size="compact" onClick={() => { window.dispatchEvent(new Event(CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT)); onClose?.(); }} aria-label="Help" title="Help"><ClusterIcon name="comment" />Help</ClusterButton>
         <AppVersionFooter onOpenChangelog={() => { onOpenChangelog(); onClose?.(); }} onOpenOperations={isAdmin ? () => navigate("admin") : undefined} /></div>
     </ClusterSidebarShell>
   );

@@ -20,12 +20,11 @@ export function ClusterHelpDialog({ open, screen, onClose, canAccess, onNavigate
     || results.find((topic) => topic.screen === screen) || results[0] || null;
   return <ClusterModal open={open} onClose={onClose} labelledBy="cluster-help-title" className="modal panel cluster-help-dialog">
     <header className="modal-header">
-      <div><p className="eyebrow">Cluster guidance</p><h2 id="cluster-help-title">Help & common tasks</h2></div>
+      <div><h2 id="cluster-help-title">Info</h2></div>
       <ClusterButton type="button" variant="quiet" size="compact" onClick={onClose}>Close</ClusterButton>
     </header>
     <div className="cluster-help-search">
-      <label htmlFor="cluster-help-filter">Find a tool or task</label>
-      <ClusterTextInput id="cluster-help-filter" type="search" value={query} onChange={(event) => { setQuery(event.target.value); setSelected(null); }} placeholder="Search Help" autoFocus />
+      <ClusterTextInput id="cluster-help-filter" type="search" aria-label="Search Info" value={query} onChange={(event) => { setQuery(event.target.value); setSelected(null); }} placeholder="Search tools and tasks" autoFocus />
     </div>
     <div className="cluster-help-layout">
       <nav className="cluster-help-topics" aria-label="Help topics">

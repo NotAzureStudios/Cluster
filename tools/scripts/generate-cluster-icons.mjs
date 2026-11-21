@@ -18,7 +18,7 @@ const names = [
   'play','playlist','plus','previous','print','project','refresh','reset','rewind','rotate','search','settings',
   'spark','speed','star','star-filled','sync','text','ticket','timeline','tools','trash','upload','user',
   'users','video','volume','warning','work','zoom-in','zoom-out',
-  'pointer','pen','eraser','square','circle','diamond','sticky','arrow','line','chart','type','undo','redo','info','shapes','frame',
+  'pointer','pen','eraser','square','circle','diamond','sticky','arrow','line','chart','type','undo','redo','book','info','shapes','frame',
 ];
 // Semantic, not arbitrary asset identifiers. Each glyph chooses its own
 // treatment at the application boundary (sidebar / action / workspace).
@@ -74,7 +74,7 @@ export const iconCandidates = {
     sync:'refresh-cw',text:'file-text',ticket:'ticket',timeline:'list-ordered',tools:'wrench',
     trash:'trash-2',upload:'upload',user:'user',users:'users',video:'video',volume:'volume-2',
     warning:'triangle-alert',work:'briefcase-business','zoom-in':'zoom-in','zoom-out':'zoom-out',
-    pointer:'mouse-pointer-2',pen:'pencil',eraser:'eraser',square:'square',circle:'circle',diamond:'diamond',sticky:'sticky-note',arrow:'arrow-up-right',line:'slash',chart:'chart-column',type:'type',undo:'undo-2',redo:'redo-2',info:'info',shapes:'shapes',frame:'frame',
+    pointer:'mouse-pointer-2',book:'book',pen:'pencil',eraser:'eraser',square:'square',circle:'circle',diamond:'diamond',sticky:'sticky-note',arrow:'arrow-up-right',line:'slash',chart:'chart-column',type:'type',undo:'undo-2',redo:'redo-2',info:'info',shapes:'shapes',frame:'frame',
   }
 };
 function getCollection(prefix) {

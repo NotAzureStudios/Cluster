@@ -9,3 +9,11 @@
 .cluster-help-footer{display:flex;justify-content:flex-end;padding:9px 16px}
 @media(max-width:620px){.cluster-help-dialog{max-height:90dvh}.cluster-help-layout{grid-template-columns:1fr;grid-template-rows:minmax(100px,30vh) minmax(0,1fr)}.cluster-help-topics{border-right:0;border-bottom:1px solid var(--border)}.cluster-help-article{padding:12px 16px}}
 @media(prefers-reduced-motion:reduce){.cluster-help-dialog *{scroll-behavior:auto}}
+
+/* Info: a plain topic list beside the article. */
+.cluster-help-dialog .cluster-help-topics { display: grid; gap: 1px; align-content: start; }
+.cluster-help-dialog .cluster-help-topics > button { display: flex; align-items: center; min-height: 30px; padding: 0 10px; border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-sm); text-align: left; cursor: pointer; }
+.cluster-help-dialog .cluster-help-topics > button:hover { background: var(--cluster-button-fill); color: var(--text); }
+.cluster-help-dialog .cluster-help-topics > button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
+.cluster-help-dialog .cluster-help-search { padding-block: var(--space-2); }
+.cluster-help-dialog .cluster-help-search input { height: 34px !important; min-height: 34px !important; font-size: var(--cluster-font-size-sm) !important; }

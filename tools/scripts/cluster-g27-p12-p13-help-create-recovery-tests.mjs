@@ -36,14 +36,15 @@ await check('Help topic visibility respects authorized route predicate',async()=
 });
 await check('Help has accessible modal, discoverable commands, and lazy component boundary',async()=>{
  const app=read('packages/renderer/src/features/application/ClusterApplication.tsx');
- const sidebar=read('packages/renderer/src/features/application/modules/ApplicationSidebar.tsx');
+ // Info (the help guide) is opened from the account menu.
+ const sidebar=read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
  const palette=read('packages/renderer/src/features/search/CommandPalette.tsx');
  const registry=read('packages/renderer/src/features/application/modules/application-lazy-workspaces.ts');
  const component=read('packages/renderer/src/features/help/ClusterHelpDialog.tsx');
  assert.match(registry,/LazyClusterHelpDialog = lazy\(/);
  assert.match(app,/contextualHelpOpen && <Suspense/);
  assert.match(app,/canAccess=\{\(candidate\) => canOpenScreen\(activeUser, candidate\)\}/);
- assert.match(sidebar,/aria-label="Help"/);
+ assert.match(sidebar,/CLUSTER_OPEN_CONTEXTUAL_HELP_EVENT\)\); \}\}>\s*<ClusterIcon name="book" \/>\s*<span>Info<\/span>/);
  assert.match(palette,/key: "action-help", title: "Help & common tasks"/);
  assert.match(component,/aria-label="Help topics"/);
  assert.match(component,/labelledBy="cluster-help-title"/);
