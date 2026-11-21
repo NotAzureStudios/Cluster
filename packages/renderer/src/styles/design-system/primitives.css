@@ -300,6 +300,8 @@ button.cluster-metric-item-v427[data-cluster-state="selected"] { background: var
 .cluster-detail-resizer-v429:active::after { width: 3px; background: var(--accent); }
 .cluster-master-detail-v429.detail-narrow { grid-template-columns: minmax(300px, 1fr) minmax(320px, .68fr); }
 .cluster-master-detail-v429.detail-wide { grid-template-columns: minmax(300px, .88fr) minmax(420px, 1.12fr); }
+/* With nothing selected the list takes the whole width, wide detail or not. */
+.cluster-master-detail-v429.detail-empty.detail-empty { grid-template-columns: minmax(0, 1fr); }
 /* WIP28: when the resize handle is rendered it owns a real middle track. Without this,
    the third grid child (the detail pane) falls onto a second row and leaves half the workspace blank. */
 .cluster-master-detail-v429.detail-open.detail-resizable {

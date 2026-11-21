@@ -48,7 +48,7 @@
 .tickets-workspace-v186 .tickets-composer-grid-v184 .span-2{grid-column:span 2;}
 .tickets-workspace-v186 .tickets-composer-v184 textarea{min-height:82px;}
 .tickets-workspace-v186 .tickets-control-bar-v184{padding:10px;grid-template-columns:minmax(240px,1.5fr) repeat(4,minmax(130px,.7fr)) auto;gap:8px;box-shadow:none;}
-.tickets-workspace-v186 .tickets-control-bar-v184 label{display:none;}
+.tickets-workspace-v186 .tickets-control-bar-v184 .field > span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
 .tickets-workspace-v186 .tickets-control-bar-v184 input,.tickets-workspace-v186 .tickets-control-bar-v184 select,.tickets-workspace-v186 .tickets-bulk-bar-v184 input,.tickets-workspace-v186 .tickets-bulk-bar-v184 select{min-height:38px;}
 .tickets-workspace-v186 .tickets-bulk-bar-v184{padding:9px 10px;gap:8px;box-shadow:none;}
 .tickets-workspace-v186 .tickets-queue-v184,.tickets-workspace-v186 .tickets-detail-v184{padding:14px;box-shadow:none;}
@@ -119,3 +119,19 @@
 /* G25 Ticket triage: compact semantic status without assigning color meaning to Board List names. */
 .ticket-stage-label-v550 { display:inline-flex;align-items:center;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--soft-text);font-weight:600;font-size:.78rem; }
 .tickets-detail-grid-v184 select[aria-label="Ticket triage stage"] {max-width:100%;min-width:0;font:inherit;font-weight:600;background:var(--surface-soft);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;}
+
+/* ---------- Density pass: queue strip under the header, slim filters ---------- */
+.tickets-workspace-v186 .tickets-queue-tabs-v216 { order: 0; display: flex; flex-wrap: wrap; gap: 2px; margin: 0; padding: 4px; border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+.tickets-workspace-v186 .tickets-queue-tabs-v216 > button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--cluster-radius-control); background: transparent; color: var(--muted); font: inherit; font-size: var(--cluster-font-size-sm); cursor: pointer; }
+.tickets-workspace-v186 .tickets-queue-tabs-v216 > button strong { color: var(--text); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; }
+.tickets-workspace-v186 .tickets-queue-tabs-v216 > button:hover { background: var(--cluster-button-fill); color: var(--text); }
+.tickets-workspace-v186 .tickets-queue-tabs-v216 > button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
+.tickets-workspace-v186 .tickets-queue-head { justify-content: flex-end; min-height: 0; margin: 0 0 6px; padding: 0; }
+.tickets-workspace-v186 .tickets-queue-head .soft-pill { display: none; }
+.tickets-workspace-v186 .tickets-control-bar-v184 { --cluster-panel-pad: 6px 8px; display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px; grid-template-columns: none !important; }
+.tickets-workspace-v186 .tickets-control-bar-v184 .cluster-data-search-v289 { flex: 1 1 240px; }
+.tickets-workspace-v186 .tickets-control-bar-v184 .cluster-data-filters-v289 { display: flex; flex-wrap: wrap; gap: 6px; }
+.tickets-workspace-v186 .tickets-control-bar-v184 .cluster-data-filters-v289 .field { display: block; margin: 0; }
+.tickets-workspace-v186 .tickets-control-bar-v184 :is(input, .cluster-select-trigger-v227) { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+.tickets-workspace-v186 .tickets-control-bar-v184 .cluster-select-trigger-v227 { min-width: 130px; }
+.tickets-workspace-v186 .tickets-control-bar-v184 .cluster-data-count-v289 { margin-left: auto; border: 0; background: none; color: var(--muted); font-size: var(--cluster-font-size-xs); }

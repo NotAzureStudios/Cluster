@@ -179,6 +179,7 @@ export function TicketSystemPageFeature({
   const [boards, setBoards] = useState<Board[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [queue, setQueue] = useState<"triage" | "open" | "urgent" | "waiting" | "review" | "resolved" | "rejected" | "all">("all");
+  const [showTicketAnalytics, setShowTicketAnalytics] = useState(false);
   const [queueView, setQueueView] = useState<"list" | "table">("list");
   const [ticketSorts, setTicketSorts] = useState<ClusterDataSort[]>([{ fieldId: "updated", direction: "desc" }]);
   const [ticketGroups, setTicketGroups] = useState<ClusterDataGroup[]>([]);
@@ -873,26 +874,13 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
         className="cluster-page-header"
         title="Tickets"
         description="Triage defects, requests, incidents, and follow-up work across projects from one production queue."
-        metrics={[
-          { label: "All", value: ticketQueueCounts.all },
-          { label: "Open", value: ticketQueueCounts.open },
-          {
-            label: "Urgent",
-            value: ticketQueueCounts.urgent,
-            tone: ticketQueueCounts.urgent ? "danger" : "neutral",
-          },
-          {
-            label: "Needs review",
-            value: ticketQueueCounts.triage,
-            tone: ticketQueueCounts.triage ? "warning" : "neutral",
-          },
-        ]}
         actions={
           <>
             <ClusterActionMenu
               label="More ticket actions"
               items={[
                 { id: "refresh", label: "Refresh tickets", icon: "refresh", onSelect: () => loadTickets(true) },
+                { id: "analytics", label: showTicketAnalytics ? "Hide analytics & saved views" : "Analytics & saved views", icon: "activity", onSelect: () => setShowTicketAnalytics((value) => !value) },
                               ]}
             />
             {currentUser.isAdmin ? <DataImportBuilder resourceKind="ticket" label="Tickets" /> : null}
@@ -933,7 +921,7 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
         </ClusterButton>
       </nav>
 
-      <ClusterDisclosureGroup className="tickets-advanced-tools" contentClassName="tickets-advanced-tools-body"
+      {showTicketAnalytics ? <ClusterDisclosureGroup defaultOpen className="tickets-advanced-tools" contentClassName="tickets-advanced-tools-body"
         title="Analytics & saved views" summary="Projections, formulas, facets, and reusable queue layouts" headerTrailing={<b>Advanced</b>}>
           <DataViewProjectionComposer fields={ticketAnalyticalFields} projections={ticketProjections} onChange={setTicketProjections} label="Ticket analytical projections" />
           {queueView === "table" ? <DataViewDerivedFieldBuilder fields={TICKET_DATA_FIELDS} derivedFields={ticketDerivedFields} onChange={(next) => { setTicketDerivedFields(next); setTicketTableLayout(null); }} label="Ticket formula columns" /> : null}
@@ -943,7 +931,7 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
             <DataViewFacetBar facets={ticketServerAnalytics.facets.filter((facet) => facet.fieldId === "queueLane" || facet.fieldId === "priority")} fields={TICKET_DATA_FIELDS} selectedValues={{ queueLane: queue !== "all" ? [queue] : [], priority: priorityFilter ? [priorityFilter] : [] }} onToggle={(fieldId, value) => { const next = String(value); if (fieldId === "queueLane") setQueue(queue === next ? "all" : next as typeof queue); if (fieldId === "priority") setPriorityFilter(priorityFilter === next ? "" : next); }} />
             {ticketServerAnalytics.projections?.length ? <div className="cluster-data-projections-v504">{ticketServerAnalytics.projections.map((projection) => <DataViewProjection key={projection.id} result={projection} fields={ticketAnalyticalFields} label={`Ticket ${projection.kind} projection`} selection={ticketAnalyticalSelection} selectionSet={ticketAnalyticalSelectionSet} onSelectionChange={applyTicketAnalyticalSelection} onSelectionSetChange={(next) => { if (!ticketAnalyticalSelectionSet.selections.length && next.selections.length) ticketDrilldown.capture(); setTicketAnalyticalSelection(null); setTicketAnalyticalSelectionSet(next); }} onDrilldown={(_selection, drilldown) => { if (drilldown?.presentation === "table") setQueueView("table"); }} />)}</div> : null}
           </> : null}
-      </ClusterDisclosureGroup>
+      </ClusterDisclosureGroup> : null}
       <DataViewSelectionBar selection={ticketAnalyticalSelection} fields={TICKET_DATA_FIELDS} historyDepth={ticketDrilldown.depth} onBack={ticketDrilldown.back} onExit={ticketDrilldown.exit} onClear={() => setTicketAnalyticalSelection(null)} label="Ticket analytical selection" />
       <DataViewSelectionSetBar selectionSet={ticketAnalyticalSelectionSet} fields={TICKET_DATA_FIELDS} onChange={(next) => { setTicketAnalyticalSelection(null); setTicketAnalyticalSelectionSet(next); }} label="Ticket cross-highlight selections" />
       {ticketExportStatus ? <p className="muted" aria-live="polite">{ticketExportStatus}</p> : null}
@@ -951,184 +939,6 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
 
 
 
-      {false && showCreate && (
-        <section className="panel tickets-composer-v184">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Create</p>
-              <h2>New ticket</h2>
-            </div>
-            <span className="soft-pill">{form.type}</span>
-          </div>
-          <div className="tickets-composer-grid-v184 tickets-composer-basic-v186">
-            <div className="field span-2">
-              <label>Title</label>
-              <ClusterTextInput value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="What needs attention?" />
-            </div>
-            <div className="field">
-              <label>Type</label>
-              <ClusterNativeSelect value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}>
-                {ticketTypes.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </ClusterNativeSelect>
-            </div>
-            <PeoplePicker value={form.assigneeId} onChange={(assigneeId) => setForm((prev) => ({ ...prev, assigneeId }))} people={users} label="Assignee" ariaLabel="New ticket assignee" />
-            <div className="field">
-              <label>Priority</label>
-              <ClusterNativeSelect
-                value={form.severity}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    severity: e.target.value as Priority,
-                  }))
-                }
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </ClusterNativeSelect>
-            </div>
-            <div className="field">
-              <label>Project</label>
-              <ClusterNativeSelect
-                value={projectId}
-                onChange={(e) => {
-                  setProjectId(e.target.value);
-                  setBoardId("");
-                  setListId("");
-                }}
-              >
-                <option value="">Studio Tickets queue</option>
-                {availableProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </ClusterNativeSelect>
-              <small>{projectId ? "Choose a Board and List below. Cluster won't populate an empty Board." : "Uses the managed Studio Tickets queue, without changing Project Boards."}</small>
-            </div>
-            <div className="field">
-              <label>Due date</label>
-              <ClusterTextInput type="date" value={form.dueDate} onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))} />
-            </div>
-            <div className="field span-2">
-              <label>Details</label>
-              <ClusterTextArea value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="Context, problem, requested outcome..." />
-            </div>
-            {projectId && (
-              <>
-                <div className="field">
-                  <label>Ticket destination Board</label>
-                  <ClusterNativeSelect
-                    value={boardId}
-                    onChange={(e) => {
-                      setBoardId(e.target.value);
-                      setListId("");
-                    }}
-                  >
-                    <option value="">Choose Board...</option>
-                    {visibleBoards.map((board) => (
-                      <option key={board.id} value={board.id}>
-                        {board.name}
-                      </option>
-                    ))}
-                  </ClusterNativeSelect>
-                </div>
-                <div className="field">
-                  <label>Ticket destination List</label>
-                  <ClusterNativeSelect value={listId} onChange={(e) => setListId(e.target.value)} disabled={!selectedBoard}>
-                    <option value="">Choose active List...</option>
-                    {visibleLists.filter((list) => !list.isDone).map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.title}
-                      </option>
-                    ))}
-                  </ClusterNativeSelect>
-                </div>
-              </>
-            )}
-            {showAdvancedCreate && (
-              <>
-                <div className="field">
-                  <label>Department</label>
-                  <ClusterTextInput
-                    value={form.department}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        department: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Component</label>
-                  <ClusterTextInput
-                    value={form.component}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        component: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Build/version</label>
-                  <ClusterTextInput
-                    value={form.buildNumber}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        buildNumber: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Labels</label>
-                  <ClusterTextInput value={form.labels} onChange={(e) => setForm((prev) => ({ ...prev, labels: e.target.value }))} placeholder="frontend, blocker, client" />
-                </div>
-                {visibleTicketCustomFields.map(ticketCustomFieldControl)}
-                <div className="field span-2">
-                  <label>Acceptance criteria</label>
-                  <ClusterTextArea
-                    value={form.acceptance}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        acceptance: e.target.value,
-                      }))
-                    }
-                    placeholder="What must be true before this can close?"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-          {createError && <div className="error-box slim tickets-create-error-v216">{createError}</div>}
-          <div className="button-row">
-            <ClusterButton type="button" className="" disabled={!form.title.trim()} onClick={createTicket} variant="primary">
-              Create ticket
-            </ClusterButton>
-            <ClusterButton type="button" className="" onClick={() => setShowAdvancedCreate((open) => !open)} variant="secondary">
-              {showAdvancedCreate ? "Hide optional fields" : "More fields"}
-            </ClusterButton>
-            <ClusterButton type="button"
-              className=""
-              onClick={() => {
-                setShowCreate(false);
-                setShowAdvancedCreate(false);
-              }}
-             variant="quiet" size="compact">
-              Cancel
-            </ClusterButton>
-          </div>
-        </section>
-      )}
 
       <ClusterTableToolbar
         className="tickets-control-bar-v184 panel"
@@ -1169,11 +979,8 @@ const ticketTypeSlugs = TICKET_TYPE_SLUGS;
         detailSize="wide"
         persistKey="tickets"
         master={<section className="panel tickets-queue-v184">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Queue</p>
-              <h2>{queue === "all" ? "All tickets" : queue === "triage" ? "Needs review" : queue[0].toUpperCase() + queue.slice(1)}</h2>
-            </div>
+          <div className="section-heading tickets-queue-head">
+            <h2 className="sr-only">{queue === "all" ? "All tickets" : queue === "triage" ? "Needs review" : queue[0].toUpperCase() + queue.slice(1)}</h2>
             <div className="button-row"><span className="soft-pill">{filteredTickets.length}</span><ClusterSegmentedControl value={queueView} onChange={setQueueView} label="Ticket queue layout" options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} /></div>
           </div>
           {queueView === "table" ? <>
