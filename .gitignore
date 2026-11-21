@@ -83,3 +83,7 @@ Thumbs.db
 
 # TypeScript incremental build metadata
 *.tsbuildinfo
+
+# Python bytecode cache
+__pycache__/
+*.pyc
