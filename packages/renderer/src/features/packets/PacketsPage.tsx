@@ -1,3 +1,4 @@
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { ClusterNativeSelect, ClusterInput } from "../../components/ClusterNativeControls";
@@ -755,9 +756,7 @@ export default function PacketsPage({ currentUser, settings, onOpenLibrary, onOp
     <header className="packets-header-v248">
       <div><h1>Packets</h1><span>{packets.length} packets · {totalResources} resources</span></div>
       <div className="button-row">
-        <ClusterButton type="button" variant={knowledgeView === "packets" ? "primary" : "quiet"} selected={knowledgeView === "packets"} onClick={() => { setKnowledgeView("packets"); setCatalogOpen(true); }}>Packets</ClusterButton>
-        <ClusterButton type="button" variant={knowledgeView === "records" ? "primary" : "quiet"} selected={knowledgeView === "records"} onClick={() => { setKnowledgeView("records"); setCatalogOpen(true); }}>Records</ClusterButton>
-        <ClusterButton type="button" variant={knowledgeView === "policies" ? "primary" : "quiet"} selected={knowledgeView === "policies"} onClick={() => { setKnowledgeView("policies"); setCatalogOpen(true); void loadPolicies(undefined, true); }}>Policies</ClusterButton>
+        <ClusterSegmentedControl value={knowledgeView} onChange={(value) => { const next = value as typeof knowledgeView; setKnowledgeView(next); setCatalogOpen(true); if (next === "policies") void loadPolicies(undefined, true); }} label="Packets view" options={[{ value: "packets", label: "Packets" }, { value: "records", label: "Records" }, { value: "policies", label: "Policies" }]} />
         {knowledgeView === "packets" && root && <ClusterButton type="button" className="" onClick={() => onOpenLibrary(root.id)} variant="secondary">Open in Library</ClusterButton>}
         {knowledgeView === "packets" && <ClusterButton type="button" className="" onClick={() => openSharedCreate("packet")} variant="primary"><ClusterIcon name="plus" />Create</ClusterButton>}
       </div>

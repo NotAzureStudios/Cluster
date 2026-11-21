@@ -23,6 +23,11 @@ const DEFAULT_ICONS: Record<ClusterEmptyStateKind, ClusterIconName> = {
   loading: "sync",
 };
 
+/** Long explanations on plain empty states read as clutter. They stay available
+ * as the tooltip and to assistive tech; short hints and every filtered,
+ * restricted or offline explanation stay visible. */
+const QUIET_KINDS = new Set<ClusterEmptyStateKind>(["empty", "first-use", "loading"]);
+
 export function ClusterEmptyState({
   title,
   description,
@@ -33,8 +38,10 @@ export function ClusterEmptyState({
   actions,
   eyebrow,
 }: ClusterEmptyStateProps) {
+  const quiet = typeof description === "string" && description.length > 64 && QUIET_KINDS.has(kind);
   return (
     <section
+      title={quiet ? description as string : undefined}
       className={`cluster-empty-state-v436 ${kind} ${compact ? "compact" : ""} ${className}`.trim()}
       data-empty-kind={kind}
       role={kind === "offline" || kind === "restricted" ? "status" : undefined}
@@ -43,7 +50,7 @@ export function ClusterEmptyState({
       <div className="cluster-empty-state-copy-v436">
         {eyebrow ? <small>{eyebrow}</small> : null}
         <strong>{title}</strong>
-        {description ? <p>{description}</p> : null}
+        {description ? <p className={quiet ? "sr-only" : undefined}>{description}</p> : null}
       </div>
       {actions ? <div className="cluster-empty-state-actions-v436">{actions}</div> : null}
     </section>
