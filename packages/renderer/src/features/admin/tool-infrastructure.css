@@ -16,3 +16,11 @@
 .ti-head .ao-row__main b { font-size: var(--cluster-font-size-md); }
 .ti-none { padding: var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); }
 @media (max-width: 900px) { .ti-split { grid-template-columns: minmax(0, 1fr); } .ti-list { position: static; } }
+
+/* The tool console inside Tool infrastructure: page-title sizes, left-aligned toggles. */
+.ti-detail .admin-tool-console-head-v232 h2 { font-size: var(--cluster-font-size-lg, 18px); margin: 0; }
+.ti-detail .admin-tool-mode-nav-v235 > button { font-size: var(--cluster-font-size-sm); padding: 6px 10px; }
+.ti-detail .admin-tool-editor-v232 h3 { font-size: var(--cluster-font-size-md); }
+.ti-detail .admin-tool-toggle-v232 { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 8px; text-align: left; padding: 8px 10px; }
+.ti-detail .admin-tool-toggle-v232 > input { flex: none; margin: 0; }
+.ti-detail .admin-tool-toggle-v232 > span { flex: 1; text-align: left; }
