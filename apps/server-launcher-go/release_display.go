@@ -8,7 +8,7 @@ import (
 )
 
 var rcDisplayPattern = regexp.MustCompile(`^1\.0\.0-rc\.[1-9][0-9]*$`)
-var stableDisplayPattern = regexp.MustCompile(`^1\.0\.[1-9][0-9]*$`)
+var stableDisplayPattern = regexp.MustCompile(`^([1-9][0-9]?)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
 
 // displayReleaseVersion reads the installer-managed identity from the installed
 // runtime marker. Never display a stale or cross-product release label.
