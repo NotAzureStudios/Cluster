@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ActivityRecordInput } from "../activity/activity-service.js";
 import { ACCESS_RULE_TARGET_KINDS, AUTHORIZATION_RULE_SELECT, type AuthorizationService } from "./authorization.js";
 import { discoverProjectAccessTargets } from "./project-target-discovery.js";
+import { listProjectAccessPeople } from "./project-access-people.js";
 import { previewProjectRuleImpact } from "./project-rule-preview.js";
 import { PROJECT_ACCESS_PICKER_KINDS, type ProjectAccessPickerKind } from "./project-target-discovery.js";
 import { WORKFORCE_USER_AUTHORITY_INCLUDE } from "../workforce/workforce-user-authority.js";
@@ -167,6 +168,16 @@ export function registerAccessRoutes(deps: AccessRouteDependencies) {
       effect: body.effect, level: body.effect === "deny" ? "none" : body.level,
       expiresAt: body.expiresAt || null,
     });
+  });
+
+  // Who can open this project and why. Project managers only; the levels
+  // come from the same check that guards project requests.
+  app.get("/api/projects/:projectId/access/people", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
+    const params = z.object({ projectId: z.string().min(1).max(128) }).parse(request.params);
+    const project = await authorization.requireProject(request, reply, params.projectId, "manage");
+    if (!project) return;
+    return listProjectAccessPeople({ prisma, authorization, project });
   });
 
   app.get("/api/access/targets", async (request, reply) => {

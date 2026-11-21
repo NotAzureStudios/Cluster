@@ -33,8 +33,9 @@ for(const f of ['createProjectDependency','ensureDeliveryPipeline','snapshot?.ac
 for(const field of ['digest?.rows.length','threadGroups.length','rules[kind] !== false'])test(`Inbox keeps ${field}`,()=>assert.ok(texts['notifications/NotificationInboxPage.tsx'].includes(field)));
 for(const field of ['viewSensitiveMetadata','onLoadSensitiveMetadata','session.sensitiveMetadata','accessDiagnostics'])test(`Viewer preserves ${field}`,()=>assert.ok(texts['viewer/ViewerInspector.tsx'].includes(field)));
 for(const field of ['preview.evidence.children','preview.evidence.versions','retention.reason'])test(`Library retains ${field}`,()=>assert.ok(texts['library/LibraryGovernancePanel.tsx'].includes(field)));
-test('Access sources shared with authorization evidence',()=>assert.match(texts['projects/ProjectAccessPanel.tsx'],/project-access-explain-disclosure-v546/));
-test('Access sources retains detailed contributors',()=>assert.match(texts['projects/ProjectAccessPanel.tsx'],/explanation\.tool\.contributors\.map/));
+// Each person row expands into the server's authorization explanation.
+test('Access sources shared with authorization evidence',()=>assert.match(texts['projects/ProjectAccessPanel.tsx'],/className="pa-explain"/));
+test('Access sources retains detailed contributors',()=>assert.match(texts['projects/ProjectAccessPanel.tsx'],/decision\.contributors\.map[\s\S]*title=\{contributor\.detail\}/));
 const disclosure=read('packages/renderer/src/components/ClusterDisclosureGroup.tsx');
 const css=read('packages/renderer/src/styles/design-system/primitives.css');
 test('Disclosure preserves controlled/uncontrolled state',()=>assert.match(disclosure,/controlled \? open : internalOpen/));

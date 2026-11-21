@@ -22,7 +22,7 @@ const source = (path) => readFileSync(path,'utf8');
 check(() => assert.ok(source('apps/server/src/domains/projects/project-routes.ts').indexOf('PROJECT_ROLE_INVALID') < source('apps/server/src/domains/projects/project-routes.ts').indexOf('updateMany({ where: { id: params.projectId, revision')), 'role validation before revision commit');
 check(() => assert.ok(source('apps/server/src/domains/access/access-routes.ts').includes('requireManageTarget(deps, request, reply, body.targetKind, body.targetId, body.projectId)')), 'preview requires same manage target check as mutation');
 check(() => assert.ok(source('apps/server/src/domains/access/access-routes.ts').includes('"private, no-store"')), 'preview responses are not cacheable');
-check(() => assert.ok(source('packages/renderer/src/features/projects/ProjectAccessPanel.tsx').includes('Preview impact')), 'Project Access UI exposes impact preview');
+check(() => assert.ok(source('packages/renderer/src/features/projects/ProjectAccessPanel.tsx').includes('onClick={() => void previewImpact()}')), 'Project Access UI exposes impact preview');
 check(() => assert.ok(source('apps/server/src/domains/access/access-routes.ts').includes('deps.canAccessLibraryItem(request, item, "manage")')), 'Library source policy still guards access-rule management and preview');
 // Exercise the actual ProjectMembership writer: scoped role/accessLevel must
 // persist canonically and cannot be inferred from arbitrary role labels.

@@ -1,27 +1,36 @@
-import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { CLUSTER_EXTERNAL_PORTAL_DEFAULT_SECTIONS } from "@cluster/shared";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterResourcePicker } from "../../components/ClusterResourcePicker";
 import { useAuthorizedProjectResources } from "../../components/useAuthorizedProjectResources";
 import { useClusterMutationGate } from "../../components/useClusterMutationGate";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { copyClusterText } from "../../core/clipboard";
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { api, queryApi, setApiQueryData } from "../../core/api";
 import { levelLabel } from "../../core/format";
 import { ProjectShareLinksSection } from "./ProjectShareLinksSection";
-import { ProjectSectionHeader } from "./ProjectWorkspacePrimitives";
 import { PROJECT_LEVEL_OPTIONS, type ProjectPermissionLevel } from "../../core/permissions";
 import { displayUserName } from "../people/people-utils";
 import type {
   AccessEffect, AccessRule, AccessSubjectKind, AccessTargetKind, ExternalPortalAccessLevel,
   Project, ProjectMediaPayload, ProjectShareLink, User,
 } from "../application/application-models";
-import "./project-operations.css";
+import "./project-access.css";
 
 type AccessExplainAction = "view" | "contribute" | "manage";
+type AccessPerson = {
+  userId: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+  role: string;
+  level: "manage" | "contribute" | "view" | "none";
+  reason: { kind: string; label: string; ruleId?: string };
+};
 type AccessExplainDecision = {
   allowed: boolean;
   code: string;
@@ -64,6 +73,22 @@ export interface ProjectAccessPanelHelpers {
   portalAccessLabel: (level: ExternalPortalAccessLevel) => string;
 }
 
+const EXPLAIN_SOURCE_LABELS: Record<string, string> = {
+  "workspace-role": "Studio role",
+  "tool-permission": "Tool permission",
+  "tool-cap": "Tool limit",
+  "project-policy": "Project limit",
+  "project-permission": "Project access",
+  "resource-permission": "Item access",
+  "access-rule": "Rule",
+  "resource-state": "Item state",
+  "account-lifecycle": "Account",
+  "account-inactive": "Account",
+  "user-access-expiry": "Access expired",
+  authentication: "Sign-in",
+  deployment: "Server",
+};
+
 export function ProjectAccessPanelFeature({ project, media, currentUser, helpers }: { project: Project; media: ProjectMediaPayload; currentUser: User; helpers: ProjectAccessPanelHelpers }) {
   const { canUseProject, accessTargetLabel, portalAccessLabel } = helpers;
   const [rules, setRules] = useState<AccessRule[]>([]);
@@ -80,6 +105,14 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
   const [impactPreview, setImpactPreview] = useState<AccessRuleImpactPayload | null>(null);
   const [impactBusy, setImpactBusy] = useState(false);
   const [impactError, setImpactError] = useState("");
+  const [people, setPeople] = useState<AccessPerson[] | null>(null);
+  const [peopleTruncated, setPeopleTruncated] = useState(false);
+  const [peopleError, setPeopleError] = useState("");
+  const [peopleFilter, setPeopleFilter] = useState<"access" | "none" | "all">("access");
+  const [peopleSearch, setPeopleSearch] = useState("");
+  const [addingRule, setAddingRule] = useState(false);
+  const [explainOpen, setExplainOpen] = useState<string | null>(null);
+  const peopleRequestSequence = useRef(0);
   const defaultTeamId = currentUser.studioTeams?.find((team) => team.primaryMembership)?.id || currentUser.studioTeams?.[0]?.id || "";
   const [shareForm, setShareForm] = useState({
     accessLevel: "viewer" as ExternalPortalAccessLevel,
@@ -121,17 +154,9 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
     }
     return Array.from(byId, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [currentUser, users]);
-  const explainUsers = useMemo(() => {
-    const byId = new Map<string, User>();
-    byId.set(currentUser.id, currentUser);
-    for (const user of users) byId.set(user.id, user);
-    return [...byId.values()].sort((a, b) => displayUserName(a).localeCompare(displayUserName(b)));
-  }, [currentUser, users]);
   const activeRules = rules.filter((rule) => rule.status !== "archived");
   const liveRules = activeRules.filter((rule) => rule.status === "active" && (!rule.expiresAt || new Date(rule.expiresAt).getTime() > Date.now()));
   const expiredRules = activeRules.filter((rule) => rule.status === "expired" || Boolean(rule.expiresAt && new Date(rule.expiresAt).getTime() <= Date.now()));
-  const projectRules = liveRules.filter((rule) => rule.targetKind === "project");
-  const restrictedTargets = new Set(liveRules.filter((rule) => rule.effect === "allow").map((rule) => `${rule.targetKind}:${rule.targetId}`));
   const accessRulePath = `/api/access-rules?projectId=${encodeURIComponent(project.id)}`;
   const shareLinksPath = `/api/projects/${encodeURIComponent(project.id)}/share-links`;
   async function loadRules(force = false) {
@@ -145,6 +170,19 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
       if (sequence !== ruleRequestSequence.current) return;
       setRules([]);
       setError(err instanceof Error ? err.message : "Access rules could not be loaded from the server.");
+    }
+  }
+  async function loadPeople() {
+    const sequence = ++peopleRequestSequence.current;
+    if (!isManager) { setPeople(null); return; }
+    try {
+      const result = await api<{ people: AccessPerson[]; truncated: boolean }>(`/api/projects/${encodeURIComponent(project.id)}/access/people`);
+      if (sequence !== peopleRequestSequence.current) return;
+      setPeople(result.people);
+      setPeopleTruncated(result.truncated);
+      setPeopleError("");
+    } catch (err) {
+      if (sequence === peopleRequestSequence.current) setPeopleError(err instanceof Error ? err.message : "Could not work out who has access.");
     }
   }
   async function loadUsers(force = false) {
@@ -175,7 +213,8 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
     shareRequestSequence.current += 1;
     void loadRules();
     void loadShareLinks();
-    return () => { ruleRequestSequence.current += 1; shareRequestSequence.current += 1; };
+    void loadPeople();
+    return () => { ruleRequestSequence.current += 1; shareRequestSequence.current += 1; peopleRequestSequence.current += 1; };
   }, [project.id, isManager]);
   useEffect(() => {
     setForm((current) => ({ ...current, targetKey: `project:${project.id}` }));
@@ -276,8 +315,10 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
       setRules(next);
       setApiQueryData(accessRulePath, next, { staleMs: 15_000, maxAgeMs: 5 * 60_000, tags: ["access-rules", `project:${project.id}`] });
       window.dispatchEvent(new CustomEvent("cluster-access-rules-changed", { detail: { projectId: project.id } }));
-      setStatus("Access rule saved.");
+      void loadPeople();
+      setStatus("Rule added.");
       setForm((prev) => ({ ...prev, expiresAt: "", notes: "" }));
+      setAddingRule(false);
     } catch (err) {
       setStatus("");
       setError(err instanceof Error ? err.message : "Access API unavailable. The rule was not saved.");
@@ -297,7 +338,8 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
       setRules(next);
       setApiQueryData(accessRulePath, next, { staleMs: 15_000, maxAgeMs: 5 * 60_000, tags: ["access-rules", `project:${project.id}`] });
       window.dispatchEvent(new CustomEvent("cluster-access-rules-changed", { detail: { projectId: project.id } }));
-      setStatus("Access rule updated.");
+      void loadPeople();
+      setStatus("Rule updated.");
     } catch (err) {
       setStatus("");
       setError(err instanceof Error ? err.message : "Could not update access rule. No local permission change was applied.");
@@ -314,7 +356,8 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
       setRules(next);
       setApiQueryData(accessRulePath, next, { staleMs: 15_000, maxAgeMs: 5 * 60_000, tags: ["access-rules", `project:${project.id}`] });
       window.dispatchEvent(new CustomEvent("cluster-access-rules-changed", { detail: { projectId: project.id } }));
-      setStatus("Access rule deleted.");
+      void loadPeople();
+      setStatus("Rule deleted.");
     } catch (err) {
       setStatus("");
       setError(err instanceof Error ? err.message : "Could not delete access rule. The server rule remains active.");
@@ -347,7 +390,7 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
         return next;
       });
       setNewShareUrl(created.shareUrl || "");
-      setStatus("Restricted share link created. The full URL is shown once, so copy it before navigating away.");
+      setStatus("Link created. Copy it now; it is shown once.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Share-link creation may have completed. Check the link list before retrying.");
     }
@@ -378,178 +421,140 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
       setStatus("Copy failed. Select the URL manually.");
     }
   }
+  const subjectReady = !((form.subjectKind === "member" || form.subjectKind === "team") && !form.subjectId);
+  // The server only accepts individual allows through a reviewed scoped grant.
+  const needsGrantReview = form.subjectKind === "member" && form.effect === "allow";
+  const counts = { manage: 0, contribute: 0, view: 0, none: 0 } as Record<AccessPerson["level"], number>;
+  for (const person of people || []) counts[person.level] += 1;
+  const term = peopleSearch.trim().toLocaleLowerCase();
+  const visiblePeople = (people || []).filter((person) =>
+    (peopleFilter === "all" || (peopleFilter === "none" ? person.level === "none" : person.level !== "none"))
+    && (!term || `${person.name} ${person.username || ""} ${person.role}`.toLocaleLowerCase().includes(term)));
+  const ruleTarget = (rule: AccessRule) => rule.targetKind === "project" ? null : (resourceCandidates.find((item) => item.kind === rule.targetKind && item.id === rule.targetId)?.label || "Unavailable item");
+  const openExplain = (userId: string) => {
+    if (explainOpen === userId) { setExplainOpen(null); return; }
+    setExplainOpen(userId);
+    setExplainUserId(userId);
+    setExplainAction("view");
+    patch("targetKey", `project:${project.id}`);
+  };
+  const decision = explanation?.target || explanation?.project || null;
+
   return (
-    <section className="project-subpage-v312 project-access-page-v152 project-access-v312">
-      <ProjectSectionHeader
-        eyebrow="Access control"
-        title="Project visibility"
-        description="Project rules are enforced across project discovery, boards, whiteboards, files, video, and shared links. Temporary access expires automatically instead of relying on an admin remembering three months later."
-        compact
-        metrics={[
-          { label: "Active", value: liveRules.length, tone: liveRules.length ? "accent" : "neutral" },
-          { label: "Expired", value: expiredRules.length, tone: expiredRules.length ? "warning" : "neutral" },
-          { label: "Share links", value: shareLinks.filter((link) => link.status === "active").length },
-        ]}
-      />
+    <section className="pa">
+      {isManager ? <div className="pa-summary" aria-label="Access summary">
+        {(["manage", "contribute", "view", "none"] as const).map((level) => <span key={level} data-level={level}><i />{people ? counts[level] : "–"}<small>{level === "none" ? "No access" : levelLabel(level)}</small></span>)}
+        <span className="pa-summary__links"><ClusterIcon name="link" aria-hidden="true" />{shareLinks.filter((link) => link.status === "active").length}<small>Share links</small></span>
+      </div> : <p className="pa-readonly"><ClusterIcon name="lock" aria-hidden="true" />Only project managers can change access.</p>}
 
-      <div className="access-layout-v152">
-        <section className="access-rule-builder-v152">
-          <div className="project-panel-head-v147">
-            <h3>Add rule</h3>
-            <span>{isManager ? "manager" : "read-only"}</span>
-          </div>
-          <div className="access-form-grid-v152">
-            <div className="field">
-              <label>Target</label>
-              <ClusterResourcePicker ariaLabel="Rule target" value={form.targetKey}
-                onChange={(value) => patch("targetKey", value)} projectId={project.id}
-                resources={resourceCandidates} allowedKinds={['project', 'board', 'whiteboard', 'library', 'review_asset']}
-                onSearchChange={setPickerQuery} emptyMessage={pickerLoading ? "Loading authorized targets…" : "No authorized targets found"}
-                disabled={!isManager || mutationGate.anyPending || (pickerLoading && resourceCandidates.length === 0)} />
-              {pickerNextCursor && <ClusterButton type="button" size="compact" variant="quiet" disabled={pickerLoading || pickerPaging} onClick={() => void loadMorePickerTargets()}>{pickerPaging ? "Loading more…" : "Load more authorized resources"}</ClusterButton>}
-            </div>
-            <div className="field">
-              <label>Who</label>
-              <ClusterNativeSelect value={form.subjectKind} onChange={(event) => {
-                const subjectKind = event.target.value as AccessSubjectKind;
-                setForm((prev) => ({ ...prev, subjectKind, subjectId: subjectKind === "team" ? defaultTeamId : "" }));
-              }}>
-                <option value="team">Team</option>
-                <option value="member">Member</option>
-                <option value="external">External</option>
-                <option value="all">Everyone</option>
-              </ClusterNativeSelect>
-            </div>
-            {form.subjectKind === "member" && (
-              <div className="field">
-                <label>Member</label>
-                <ClusterNativeSelect value={form.subjectId} onChange={(event) => patch("subjectId", event.target.value)}>
-                  <option value="">Choose member</option>
-                  {users.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {displayUserName(member)}
-                    </option>
-                  ))}
-                </ClusterNativeSelect>
-              </div>
-            )}
-            {form.subjectKind === "team" && (
-              <div className="field">
-                <label>Team</label>
-                <ClusterNativeSelect value={form.subjectId} onChange={(event) => patch("subjectId", event.target.value)}>
-                  <option value="">Choose team</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
-                  ))}
-                </ClusterNativeSelect>
-              </div>
-            )}
-            {form.subjectKind === "external" && (
-              <div className="field">
-                <label>External collaborators</label>
-                <span className="muted">Applies to all external collaborator accounts. Use Member for a specific person.</span>
-              </div>
-            )}
-            <div className="field">
-              <label>Effect</label>
-              <ClusterNativeSelect value={form.effect} onChange={(event) => patch("effect", event.target.value as AccessEffect)}>
-                <option value="allow">Allow</option>
-                <option value="deny">Deny</option>
-              </ClusterNativeSelect>
-            </div>
-            <div className="field">
-              <label>Level</label>
-              <ClusterNativeSelect value={form.level} onChange={(event) => patch("level", event.target.value as ProjectPermissionLevel)} disabled={form.effect === "deny"}>
-                {PROJECT_LEVEL_OPTIONS.filter((level) => level !== "none").map((level) => (
-                  <option key={level} value={level}>
-                    {levelLabel(level)}
-                  </option>
-                ))}
-              </ClusterNativeSelect>
-            </div>
-            <div className="field">
-              <label>Expires</label>
-              <ClusterTextInput type="date" value={form.expiresAt} onChange={(event) => patch("expiresAt", event.target.value)} />
-            </div>
-            <div className="field span-2">
-              <label>Notes</label>
-              <ClusterTextInput value={form.notes} onChange={(event) => patch("notes", event.target.value)} placeholder="Why this rule exists" />
-            </div>
-          </div>
-          <ClusterButton type="button" className="" onClick={() => void previewImpact()} busy={impactBusy} busyLabel="Evaluating…" disabled={!isManager || impactBusy || mutationGate.anyPending || !authorizedTarget(form.targetKey) || ((form.subjectKind === "member" || form.subjectKind === "team") && !form.subjectId)} variant="secondary">Preview impact</ClusterButton>
-          <ClusterButton type="button" className="" onClick={createRule} busy={mutationGate.isPending(`access:${project.id}:create`)} busyLabel="Saving…" disabled={!isManager || mutationGate.anyPending || !authorizedTarget(form.targetKey) || ((form.subjectKind === "member" || form.subjectKind === "team") && !form.subjectId)} variant="primary">
-            Add access rule
-          </ClusterButton>
-          {impactError ? <p role="alert" className="field-error-v199">{impactError}</p> : null}
-          {impactPreview ? <div className="project-rule-impact-v507" aria-live="polite">
-            <strong>Proposed access impact (no changes applied)</strong>
-            <span>{impactPreview.scope} · {impactPreview.evaluatedCount} evaluated{impactPreview.sampled ? " (sampled, more members exist)" : ""}</span>
-            <div><span>Gaining access: <b>{impactPreview.elevated}</b></span><span>Losing access: <b>{impactPreview.reduced}</b></span><span>Unchanged: <b>{impactPreview.unchanged}</b></span></div>
-            <table className="project-rule-impact-table-v507"><thead><tr><th scope="col">Effective access</th><th scope="col">Currently</th><th scope="col">Proposed</th></tr></thead><tbody>{(["none", "view", "contribute", "manage"] as const).map((level) => <tr key={level}><th scope="row">{levelLabel(level)}</th><td>{impactPreview.before[level] || 0}</td><td>{impactPreview.after[level] || 0}</td></tr>)}</tbody></table>
-            <small>{impactPreview.limitations}</small>
-          </div> : null}
-        </section>
+      {isManager ? <section className="pa-card" aria-label="Who has access">
+        <header className="pa-card__head">
+          <h3>People</h3>
+          <label className="pa-search"><ClusterIcon name="search" aria-hidden="true" /><input type="search" value={peopleSearch} placeholder="Find a person" aria-label="Find a person" onChange={(event) => setPeopleSearch(event.target.value)} /></label>
+          <ClusterSegmentedControl value={peopleFilter} onChange={setPeopleFilter} label="Show people"
+            options={[{ value: "access", label: "Has access" }, { value: "none", label: "No access" }, { value: "all", label: "All" }]} />
+        </header>
+        {peopleError ? <p className="pa-error" role="alert">{peopleError}</p> : null}
+        {!people && !peopleError ? <p className="pa-empty">Checking access…</p> : null}
+        {people && !visiblePeople.length ? <p className="pa-empty">Nobody here.</p> : null}
+        <ul className="pa-people">
+          {visiblePeople.map((person) => <li key={person.userId} data-open={explainOpen === person.userId || undefined}>
+            <button type="button" className="pa-person" aria-expanded={explainOpen === person.userId} onClick={() => openExplain(person.userId)}>
+              {person.avatarUrl ? <img src={person.avatarUrl} alt="" /> : <span className="pa-avatar" aria-hidden="true">{person.name.slice(0, 1).toUpperCase()}</span>}
+              <span className="pa-person__name"><b>{person.name}</b><small>{levelLabel(person.role)}</small></span>
+              <span className="pa-level" data-level={person.level}><i />{person.level === "none" ? "No access" : levelLabel(person.level)}</span>
+              <span className="pa-reason" data-kind={person.reason.kind}>{person.reason.label}</span>
+              <ClusterIcon name="chevron-down" aria-hidden="true" />
+            </button>
+            {explainOpen === person.userId ? <div className="pa-explain">
+              {explainLoading ? <p className="pa-empty">Checking…</p> : explainError ? <p className="pa-error">{explainError}</p> : decision ? <>
+                <p className="pa-explain__verdict" data-allowed={decision.allowed} title={decision.reason}>
+                  <ClusterIcon name={decision.allowed ? "check" : "close"} aria-hidden="true" />
+                  {decision.allowed ? "Can" : "Can't"} {explainAction}
+                </p>
+                {decision.contributors.length ? <ul className="pa-steps">{decision.contributors.map((contributor, index) => <li key={`${contributor.source}-${contributor.id || index}`} data-effect={contributor.effect} title={contributor.detail}>
+                  <ClusterIcon name={contributor.effect === "deny" ? "close" : contributor.effect === "limit" ? "minus" : "check"} aria-hidden="true" />{EXPLAIN_SOURCE_LABELS[contributor.source] || contributor.source.replace(/[-_]/g, " ")}
+                </li>)}</ul> : null}
+                <div className="pa-explain__check">
+                  <span>Check</span>
+                  <ClusterNativeSelect value={explainAction} aria-label="Action" onChange={(event) => setExplainAction(event.target.value as AccessExplainAction)}><option value="view">View</option><option value="contribute">Contribute</option><option value="manage">Manage</option></ClusterNativeSelect>
+                  <span>on</span>
+                  <ClusterResourcePicker ariaLabel="Access target" value={form.targetKey} onChange={(value) => patch("targetKey", value)} projectId={project.id} resources={resourceCandidates} onSearchChange={setPickerQuery} emptyMessage={pickerLoading ? "Loading…" : "Nothing found"} />
+                </div>
+              </> : null}
+            </div> : null}
+          </li>)}
+        </ul>
+        {peopleTruncated ? <p className="pa-empty">Showing the first 300 people.</p> : null}
+      </section> : null}
 
-        <section className="access-rules-list-v152">
-          <div className="project-panel-head-v147">
-            <h3>Rules</h3>
-            <span>{activeRules.length}</span>
+      <section className="pa-card" aria-label="Access rules">
+        <header className="pa-card__head">
+          <h3>Rules</h3>
+          <span className="pa-count">{liveRules.length} active{expiredRules.length ? ` · ${expiredRules.length} expired` : ""}</span>
+          {isManager ? <ClusterButton type="button" size="compact" variant={addingRule ? "quiet" : "secondary"} onClick={() => setAddingRule((open) => !open)}><ClusterIcon name={addingRule ? "close" : "plus"} />{addingRule ? "Cancel" : "Add rule"}</ClusterButton> : null}
+        </header>
+        {addingRule && isManager ? <div className="pa-add">
+          <ClusterSegmentedControl value={form.effect} onChange={(value) => patch("effect", value as AccessEffect)} label="Effect" options={[{ value: "allow", label: "Allow" }, { value: "deny", label: "Block" }]} />
+          <label className="pa-field"><span>Who</span><ClusterNativeSelect value={form.subjectKind} aria-label="Who" onChange={(event) => {
+            const subjectKind = event.target.value as AccessSubjectKind;
+            setForm((prev) => ({ ...prev, subjectKind, subjectId: subjectKind === "team" ? defaultTeamId : "" }));
+          }}>
+            <option value="team">Team</option>
+            <option value="member">Person</option>
+            <option value="external">External people</option>
+            <option value="all">Everyone</option>
+          </ClusterNativeSelect></label>
+          <label className="pa-field"><span>{form.subjectKind === "member" ? "Person" : form.subjectKind === "team" ? "Team" : "\u00a0"}</span>{form.subjectKind === "member" ? <ClusterNativeSelect value={form.subjectId} aria-label="Person" onChange={(event) => patch("subjectId", event.target.value)}>
+            <option value="">Choose…</option>
+            {users.map((member) => <option key={member.id} value={member.id}>{displayUserName(member)}</option>)}
+          </ClusterNativeSelect> : form.subjectKind === "team" ? <ClusterNativeSelect value={form.subjectId} aria-label="Team" onChange={(event) => patch("subjectId", event.target.value)}>
+            <option value="">Choose…</option>
+            {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+          </ClusterNativeSelect> : <span className="pa-field__none">{form.subjectKind === "all" ? "Everyone in the studio" : "Anyone outside the studio"}</span>}</label>
+          <label className="pa-field"><span>Level</span><ClusterNativeSelect value={form.level} aria-label="Level" onChange={(event) => patch("level", event.target.value as ProjectPermissionLevel)} disabled={form.effect === "deny"}>
+            {PROJECT_LEVEL_OPTIONS.filter((level) => level !== "none").map((level) => <option key={level} value={level}>{levelLabel(level)}</option>)}
+          </ClusterNativeSelect></label>
+          <label className="pa-field"><span>Expires</span><ClusterTextInput type="date" aria-label="Expires" value={form.expiresAt} onChange={(event) => patch("expiresAt", event.target.value)} /></label>
+          <div className="pa-field pa-add__target">
+            <span>Applies to</span>
+            <ClusterResourcePicker ariaLabel="Rule target" value={form.targetKey}
+              onChange={(value) => patch("targetKey", value)} projectId={project.id}
+              resources={resourceCandidates} allowedKinds={["project", "board", "whiteboard", "library", "review_asset"]}
+              onSearchChange={setPickerQuery} emptyMessage={pickerLoading ? "Loading…" : "Nothing found"}
+              disabled={mutationGate.anyPending || (pickerLoading && resourceCandidates.length === 0)} />
+            {pickerNextCursor ? <ClusterButton type="button" size="compact" variant="quiet" disabled={pickerLoading || pickerPaging} onClick={() => void loadMorePickerTargets()}>{pickerPaging ? "Loading…" : "More"}</ClusterButton> : null}
           </div>
-          {activeRules.length ? (
-            activeRules.map((rule) => {
-              const target = resourceCandidates.find((item) => item.kind === rule.targetKind && item.id === rule.targetId);
-              const expired = rule.status === "expired" || Boolean(rule.expiresAt && new Date(rule.expiresAt).getTime() <= Date.now());
-              return (
-                <article key={rule.id} className={`${rule.effect} ${expired ? "expired" : rule.status}`}>
-                  <div>
-                    <strong>
-                      {rule.effect === "deny" ? "Block" : "Allow"} {rule.subjectName}
-                    </strong>
-                    <span>
-                      {accessTargetLabel(rule.targetKind)} · {target?.label || "Restricted or unavailable target"} · {levelLabel(rule.level)}
-                      {rule.expiresAt ? ` · ${expired ? "expired" : "until"} ${new Date(rule.expiresAt).toLocaleDateString()}` : " · no expiry"}
-                    </span>
-                    {rule.notes && <em>{rule.notes}</em>}
-                  </div>
-                  <div className="button-row compact">
-                    {expired ? (
-                      <ClusterButton type="button"
-                        className=""
-                        onClick={() =>
-                          patchRule(rule.id, {
-                            status: "active",
-                            expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
-                          })
-                        }
-                       disabled={mutationGate.anyPending} busy={mutationGate.isPending(`access:${project.id}:rule:${rule.id}`)} variant="quiet" size="compact">
-                        Renew 30d
-                      </ClusterButton>
-                    ) : (
-                      <ClusterButton type="button"
-                        className=""
-                        onClick={() =>
-                          patchRule(rule.id, {
-                            status: rule.status === "active" ? "paused" : "active",
-                          })
-                        }
-                       disabled={mutationGate.anyPending} busy={mutationGate.isPending(`access:${project.id}:rule:${rule.id}`)} variant="quiet" size="compact">
-                        {rule.status === "active" ? "Pause" : "Activate"}
-                      </ClusterButton>
-                    )}
-                    <ClusterButton type="button" className="" onClick={() => deleteRule(rule.id)} busy={mutationGate.isPending(`access:${project.id}:rule:${rule.id}`)} disabled={mutationGate.anyPending} variant="danger" size="compact">
-                      Delete
-                    </ClusterButton>
-                  </div>
-                </article>
-              );
-            })
-          ) : (
-            <div className="empty-state compact-empty">No access rules yet. Default project permissions apply until you restrict a target.</div>
-          )}
-        </section>
-      </div>
+          <label className="pa-field pa-add__note"><span>Note</span><ClusterTextInput value={form.notes} aria-label="Note" onChange={(event) => patch("notes", event.target.value)} placeholder="Optional" /></label>
+          <div className="pa-add__actions">
+            {impactPreview ? <span className="pa-impact" aria-live="polite" title={impactPreview.limitations}>
+              <b data-tone="good">+{impactPreview.elevated}</b> gain · <b data-tone="danger">−{impactPreview.reduced}</b> lose · {impactPreview.unchanged} same{impactPreview.sampled ? " (sample)" : ""}
+            </span> : impactError ? <span className="pa-error" role="alert">{impactError}</span> : null}
+            {needsGrantReview ? <span className="pa-hint"><ClusterIcon name="user" aria-hidden="true" />One person? Use Studio Systems → Scoped grants.</span> : null}
+            <ClusterButton type="button" size="compact" variant="quiet" onClick={() => void previewImpact()} busy={impactBusy} busyLabel="Checking…" disabled={impactBusy || mutationGate.anyPending || !authorizedTarget(form.targetKey) || !subjectReady}>Preview</ClusterButton>
+            <ClusterButton type="button" size="compact" variant="primary" onClick={createRule} busy={mutationGate.isPending(`access:${project.id}:create`)} busyLabel="Adding…" disabled={mutationGate.anyPending || !authorizedTarget(form.targetKey) || !subjectReady || needsGrantReview}>Add</ClusterButton>
+          </div>
+        </div> : null}
+        {activeRules.length ? <ul className="pa-rules">
+          {activeRules.map((rule) => {
+            const expired = rule.status === "expired" || Boolean(rule.expiresAt && new Date(rule.expiresAt).getTime() <= Date.now());
+            const target = ruleTarget(rule);
+            const busy = mutationGate.isPending(`access:${project.id}:rule:${rule.id}`);
+            return <li key={rule.id} data-effect={rule.effect} data-state={expired ? "expired" : rule.status} title={rule.notes || undefined}>
+              <span className="pa-rule__effect"><ClusterIcon name={rule.effect === "deny" ? "close" : "check"} aria-hidden="true" />{rule.effect === "deny" ? "Block" : "Allow"}</span>
+              <span className="pa-rule__who"><b>{rule.subjectName}</b>{target ? <small>{accessTargetLabel(rule.targetKind)} · {target}</small> : null}</span>
+              {rule.effect === "deny" ? <span /> : <span className="pa-level" data-level={rule.level}><i />{levelLabel(rule.level)}</span>}
+              <span className="pa-rule__when">{expired ? "Expired" : rule.status === "paused" ? "Paused" : rule.expiresAt ? `Until ${new Date(rule.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "No expiry"}</span>
+              {isManager ? <span className="pa-rule__actions">
+                {expired
+                  ? <ClusterButton type="button" size="compact" variant="quiet" busy={busy} disabled={mutationGate.anyPending} onClick={() => patchRule(rule.id, { status: "active", expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() })}>Renew 30d</ClusterButton>
+                  : <ClusterButton type="button" size="compact" variant="quiet" busy={busy} disabled={mutationGate.anyPending} onClick={() => patchRule(rule.id, { status: rule.status === "active" ? "paused" : "active" })}>{rule.status === "active" ? "Pause" : "Resume"}</ClusterButton>}
+                <ClusterIconButton size="compact" label="Delete rule" disabled={mutationGate.anyPending} onClick={() => deleteRule(rule.id)}><ClusterIcon name="trash" /></ClusterIconButton>
+              </span> : null}
+            </li>;
+          })}
+        </ul> : addingRule ? null : <p className="pa-empty">No rules. Studio roles and the project crew decide access.</p>}
+      </section>
 
       <ProjectShareLinksSection
         isManager={isManager}
@@ -567,37 +572,8 @@ export function ProjectAccessPanelFeature({ project, media, currentUser, helpers
         copyShareUrl={copyShareUrl}
       />
 
-      <section className="access-preview-v152 access-explorer-v516">
-        <div className="project-panel-head-v147">
-          <div><h3>Access Explorer</h3><p className="muted tight">Uses the server authorization engine to explain the actual allow/deny result for a person and the selected target.</p></div>
-          <span>{explainLoading ? "evaluating…" : explanation ? "authoritative" : "unavailable"}</span>
-        </div>
-        <div className="access-explorer-controls-v516">
-          <label className="field"><span>Person</span><ClusterNativeSelect value={explainUserId} onChange={(event) => setExplainUserId(event.target.value)}>{explainUsers.map((member) => <option key={member.id} value={member.id}>{displayUserName(member)}</option>)}</ClusterNativeSelect></label>
-          <label className="field"><span>Action</span><ClusterNativeSelect value={explainAction} onChange={(event) => setExplainAction(event.target.value as AccessExplainAction)}><option value="view">View</option><option value="contribute">Contribute</option><option value="manage">Manage</option></ClusterNativeSelect></label>
-          <label className="field span-2"><span>Target</span><ClusterResourcePicker ariaLabel="Access target" value={form.targetKey} onChange={(value) => patch("targetKey", value)} projectId={project.id} resources={resourceCandidates} onSearchChange={setPickerQuery} emptyMessage={pickerLoading ? "Loading authorized targets…" : "No authorized targets found"} />{pickerNextCursor && <ClusterButton type="button" size="compact" variant="quiet" disabled={pickerLoading || pickerPaging} onClick={() => void loadMorePickerTargets()}>{pickerPaging ? "Loading more…" : "Load more authorized resources"}</ClusterButton>}</label>
-        </div>
-        {(() => {
-          const decision = explanation?.target || explanation?.project || null;
-          if (!decision) return explainError ? <div className="error-box slim">{explainError}</div> : <div className="empty-state compact-empty">{explainLoading ? "Evaluating effective access…" : "Choose a person and target to inspect effective access."}</div>;
-          return <div className={`access-explorer-result-v516 ${decision.allowed ? "allow" : "deny"}`}>
-            <header><div><span>{decision.allowed ? "Allowed" : "Denied"}</span><strong>{decision.reason}</strong></div><code>{decision.code}</code></header>
-            <div className="access-explorer-boundaries-v0507" aria-label="Independent authorization boundaries">
-              {([['Tool', explanation?.tool], ['Project', explanation?.project], ['Target', explanation?.target]] as const)
-                .map(([label, check]) => check ? <div key={label}><strong>{label}: {check.allowed ? "allowed" : "denied"}</strong><small>{check.reason}</small></div> : null)}
-              <p className="muted tight">Each boundary is evaluated independently. An allowed Tool or Project is not permission to bypass a target rule or Library source access.</p>
-            </div>
-            {explanation?.tool?.contributors?.length ? <ClusterDisclosureGroup title={`${explanation.toolKey || 'Tool'} inheritance and permission sources`} headerTrailing={<span>{explanation.tool.contributors.length}</span>} className="project-access-explain-disclosure-v546" contentClassName="access-explorer-contributors-v516">{explanation.tool.contributors.map((source, index) => <article key={`${source.source}-${index}`} className={source.effect}><strong>{source.source.replace(/[-_]/g, " ")}</strong><p>{source.detail}</p></article>)}
-            </ClusterDisclosureGroup> : null}
-            <div className="access-explorer-contributors-v516">{decision.contributors.length ? decision.contributors.map((contributor, index) => <article key={`${contributor.source}-${contributor.id || index}`} className={contributor.effect}><div><strong>{contributor.source.replace(/[-_]/g, " ")}</strong><span>{contributor.effect}</span></div><p>{contributor.detail}</p>{contributor.id ? <small>{contributor.id}</small> : null}</article>) : <p className="muted">The authorization engine returned no contributing rules.</p>}</div>
-            <small>Evaluated {new Date(decision.evaluatedAt).toLocaleString()} against {decision.resource.kind}{decision.resource.id ? ` · ${decision.resource.id}` : ""}.</small>
-          </div>;
-        })()}
-      </section>
-
-      {pickerError && <div className="error-box slim">Resource discovery failed: {pickerError}. No cached project resources are substituted.</div>}
-      {status && <div className="status-box system-status-box-v053">{status}</div>}
-      {error && <div className="error-box">{error}</div>}
+      {pickerError ? <p className="pa-error">Couldn't load project items: {pickerError}</p> : null}
+      {error ? <p className="pa-error" role="alert">{error}</p> : status ? <p className="pa-status" role="status">{status}</p> : null}
     </section>
   );
 }

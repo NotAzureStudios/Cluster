@@ -1,10 +1,9 @@
 import { CLUSTER_EXTERNAL_PORTAL_SECTIONS, CLUSTER_EXTERNAL_PORTAL_SECTION_LABELS } from "@cluster/shared";
-import { ClusterNativeSelect, ClusterInput } from "../../components/ClusterNativeControls";
+import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton } from "../../components/ClusterButton";
-import { ClusterEmptyState } from "../../components/ClusterEmptyState";
-import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
-import { useId, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { levelLabel } from "../../core/format";
 import type { ExternalPortalAccessLevel, ProjectShareLink } from "../application/application-models";
 
@@ -44,86 +43,53 @@ export function ProjectShareLinksSection({
   patchShareLink: (id: string, patch: Partial<ProjectShareLink>) => void;
   copyShareUrl: () => void;
 }) {
-  const id = useId();
+  const [creating, setCreating] = useState(false);
+  useEffect(() => { if (newShareUrl) setCreating(false); }, [newShareUrl]);
   if (!isManager) return null;
+  const active = shareLinks.filter((link) => link.status === "active").length;
   return (
-    <ClusterDisclosureGroup className="project-access-share-v197" contentClassName="project-access-share-body-v197"
-      defaultOpen title="Restricted share links" headerTrailing={`${shareLinks.filter((link) => link.status === "active").length} active`}>
-        <div className="share-link-builder-v197">
-          <div className="field">
-            <label htmlFor={`${id}-level`}>Access level</label>
-            <ClusterNativeSelect
-              id={`${id}-level`}
-              value={shareForm.accessLevel}
-              onChange={(event) => setShareForm((prev) => ({ ...prev, accessLevel: event.target.value as ExternalPortalAccessLevel }))}
-            >
-              <option value="viewer">Viewer</option>
-              <option value="commenter">Commenter</option>
-              <option value="reviewer">Reviewer</option>
-            </ClusterNativeSelect>
-          </div>
-          <div className="field">
-            <label htmlFor={`${id}-expires`}>Expires</label>
-            <ClusterTextInput id={`${id}-expires`} type="date" value={shareForm.expiresAt} onChange={(event) => setShareForm((prev) => ({ ...prev, expiresAt: event.target.value }))} />
-          </div>
-          <div className="field">
-            <label htmlFor={`${id}-opens`}>Maximum opens</label>
-            <ClusterTextInput
-              id={`${id}-opens`}
-              type="number"
-              min="1"
-              value={shareForm.maxUses}
-              onChange={(event) => setShareForm((prev) => ({ ...prev, maxUses: event.target.value }))}
-              placeholder="Unlimited"
-            />
-          </div>
-          <div className="share-section-options-v197">
-            {CLUSTER_EXTERNAL_PORTAL_SECTIONS.map((sectionName) => (
-              <label className="tool-check compact" key={sectionName}>
-                <ClusterInput type="checkbox" checked={shareForm.allowedSections.includes(sectionName)} onChange={() => toggleShareSection(sectionName)} /> {CLUSTER_EXTERNAL_PORTAL_SECTION_LABELS[sectionName]}
-              </label>
-            ))}
-          </div>
-          <ClusterButton type="button" className="" onClick={createShareLink} busy={busyCreate} busyLabel="Creating…" disabled={actionsBusy || !shareForm.allowedSections.length} variant="secondary">
-            Create share link
-          </ClusterButton>
+    <section className="pa-card" aria-label="Share links">
+      <header className="pa-card__head">
+        <h3>Share links</h3>
+        <span className="pa-count">{active} active</span>
+        <ClusterButton type="button" size="compact" variant={creating ? "quiet" : "secondary"} onClick={() => setCreating((open) => !open)}><ClusterIcon name={creating ? "close" : "plus"} />{creating ? "Cancel" : "New link"}</ClusterButton>
+      </header>
+      {creating ? <div className="pa-add pa-add--link">
+        <label className="pa-field"><span>Level</span><ClusterNativeSelect value={shareForm.accessLevel} aria-label="Link access" onChange={(event) => setShareForm((prev) => ({ ...prev, accessLevel: event.target.value as ExternalPortalAccessLevel }))}>
+          <option value="viewer">Viewer</option>
+          <option value="commenter">Commenter</option>
+          <option value="reviewer">Reviewer</option>
+        </ClusterNativeSelect></label>
+        <label className="pa-field"><span>Expires</span><ClusterTextInput type="date" aria-label="Expires" value={shareForm.expiresAt} onChange={(event) => setShareForm((prev) => ({ ...prev, expiresAt: event.target.value }))} /></label>
+        <label className="pa-field"><span>Max opens</span><ClusterTextInput type="number" min="1" aria-label="Maximum opens" value={shareForm.maxUses} onChange={(event) => setShareForm((prev) => ({ ...prev, maxUses: event.target.value }))} placeholder="Unlimited" /></label>
+        <div className="pa-field pa-add__sections"><span>Shows</span><span className="pa-chips" role="group" aria-label="Sections the link shows">
+          {CLUSTER_EXTERNAL_PORTAL_SECTIONS.map((sectionName) => {
+            const on = shareForm.allowedSections.includes(sectionName);
+            return <button type="button" key={sectionName} className="pa-chip" aria-pressed={on} onClick={() => toggleShareSection(sectionName)}>{on ? <ClusterIcon name="check" aria-hidden="true" /> : null}{CLUSTER_EXTERNAL_PORTAL_SECTION_LABELS[sectionName]}</button>;
+          })}
+        </span></div>
+        <div className="pa-add__actions">
+          <ClusterButton type="button" size="compact" variant="primary" onClick={() => { createShareLink(); }} busy={busyCreate} busyLabel="Creating…" disabled={actionsBusy || !shareForm.allowedSections.length}>Create link</ClusterButton>
         </div>
-        {newShareUrl && (
-          <div className="share-url-once-v197">
-            <div>
-              <strong>Copy this URL now</strong>
-              <span>The full token is only returned once.</span>
-            </div>
-            <ClusterTextInput aria-label="New restricted share link URL" readOnly value={newShareUrl} onFocus={(event) => event.currentTarget.select()} />
-            <ClusterButton type="button" className="" onClick={copyShareUrl} variant="secondary">Copy</ClusterButton>
-          </div>
-        )}
-        <div className="share-link-list-v197">
-          {shareLinks.length ? shareLinks.map((link) => (
-            <article key={link.id} className={link.status}>
-              <div>
-                <strong>{portalAccessLabel(link.accessLevel)} · {link.tokenPreview}</strong>
-                <span>{link.allowedSections.map(levelLabel).join(" · ") || "No sections"}</span>
-                <em>
-                  {link.expiresAt ? `${link.status === "expired" ? "Expired" : "Expires"} ${new Date(link.expiresAt).toLocaleDateString()}` : "No expiry"} · {link.useCount}
-                  {link.maxUses ? `/${link.maxUses}` : ""} opens
-                </em>
-              </div>
-              <div className="button-row compact">
-                {link.status === "active" && (
-                  <ClusterButton type="button" className="" busy={busyForLink(link.id)} disabled={actionsBusy} onClick={() => patchShareLink(link.id, { expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(), status: "active" })} variant="quiet" size="compact">
-                    Extend 30d
-                  </ClusterButton>
-                )}
-                <ClusterButton type="button" className="" disabled={actionsBusy || link.status === "revoked"} busy={busyForLink(link.id)} onClick={() => patchShareLink(link.id, { status: "revoked" })} variant="danger" size="compact">
-                  Revoke
-                </ClusterButton>
-              </div>
-            </article>
-          )) : (
-            <ClusterEmptyState compact kind="first-use" title="No share links" description="Create a link when temporary external project access is required." />
-          )}
-        </div>
-    </ClusterDisclosureGroup>
+      </div> : null}
+      {newShareUrl ? <div className="pa-once">
+        <ClusterIcon name="link" aria-hidden="true" />
+        <ClusterTextInput aria-label="New share link URL" readOnly value={newShareUrl} onFocus={(event) => event.currentTarget.select()} />
+        <ClusterButton type="button" size="compact" variant="primary" onClick={copyShareUrl}>Copy</ClusterButton>
+        <small>Shown once</small>
+      </div> : null}
+      {shareLinks.length ? <ul className="pa-rules">
+        {shareLinks.map((link) => <li key={link.id} data-state={link.status} title={link.allowedSections.map(levelLabel).join(" · ") || "No sections"}>
+          <span className="pa-rule__effect"><ClusterIcon name="link" aria-hidden="true" />{portalAccessLabel(link.accessLevel)}</span>
+          <span className="pa-rule__who"><b>{link.tokenPreview}</b><small>{link.allowedSections.length} section{link.allowedSections.length === 1 ? "" : "s"} · {link.useCount}{link.maxUses ? `/${link.maxUses}` : ""} opens</small></span>
+          <span />
+          <span className="pa-rule__when">{link.status === "revoked" ? "Revoked" : link.expiresAt ? `${link.status === "expired" ? "Expired" : "Until"} ${new Date(link.expiresAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "No expiry"}</span>
+          <span className="pa-rule__actions">
+            {link.status === "active" ? <ClusterButton type="button" size="compact" variant="quiet" busy={busyForLink(link.id)} disabled={actionsBusy} onClick={() => patchShareLink(link.id, { expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(), status: "active" })}>Extend 30d</ClusterButton> : null}
+            {link.status !== "revoked" ? <ClusterButton type="button" size="compact" variant="quiet" busy={busyForLink(link.id)} disabled={actionsBusy} onClick={() => patchShareLink(link.id, { status: "revoked" })}>Revoke</ClusterButton> : null}
+          </span>
+        </li>)}
+      </ul> : creating ? null : <p className="pa-empty">No links. Create one to give someone outside the studio temporary access.</p>}
+    </section>
   );
 }
