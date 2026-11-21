@@ -171,9 +171,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
 
   return <section className={`cluster-panel cluster-domains-rc46 ${surface === "server" ? "cluster-server-domains-v103" : "cluster-studio-domains-v103"}`} aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
     <header className="cluster-domain-header-v103">
-      <div><p className="eyebrow">{surface === "studio" ? "Studio ownership registry" : "Server Configuration / Connectivity"}</p>
-        <h2>{surface === "studio" ? "Studio domains" : "Connect a domain"}</h2>
-        <p>{surface === "studio" ? "Register domains, record ownership, and verify control with DNS TXT records." : "Bind a verified hostname to this installation, configure its gateway, and independently verify the live route."}</p>
+      <div>
+        <h2 title={surface === "studio" ? "Register domains and verify them with a DNS TXT record." : "Bind a verified hostname to this installation and verify the live route."}>{surface === "studio" ? "Domains" : "Connect a domain"}</h2>
       </div>
       {surface === "server" && <SettingsStateChip tone={bindingVerified ? "success" : "warning"} icon={bindingVerified ? "check" : "link"}>{bindingVerified ? "Hostname bound · public access unverified" : "Setup incomplete"}</SettingsStateChip>}
     </header>
@@ -190,7 +189,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     </div>}
     <div className="cluster-domain-browser-v103">
     <div className="cluster-form-row">
-      <label>Find domains <ClusterInput value={search} onChange={event => { setSearch(event.target.value); setCursor(""); setCursorHistory([]); }} placeholder="Search registered domains" /></label>
+      <label>Find domains <ClusterInput value={search} onChange={event => { setSearch(event.target.value); setCursor(""); setCursorHistory([]); }} placeholder="Search domains" /></label>
       <label>Managed domains
         <select value={selectedId} onChange={event => setSelectedId(event.target.value)}>
           <option value="">Select domain</option>
@@ -198,8 +197,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
           {domains.map(row => <option key={row.id} value={row.id}>{row.domain} · {row.verificationState}</option>)}
         </select>
       </label>
-      <ClusterButton disabled={!cursorHistory.length || busy || domainsLoading} onClick={() => { setCursor(cursorHistory.at(-1) || ""); setCursorHistory(previous => previous.slice(0, -1)); }}>Previous 50</ClusterButton>
-      <ClusterButton disabled={!nextCursor || busy || domainsLoading} onClick={() => { setCursorHistory(previous => [...previous, cursor]); setCursor(nextCursor || ""); }}>Next 50</ClusterButton>
+      <ClusterButton disabled={!cursorHistory.length || busy || domainsLoading} onClick={() => { setCursor(cursorHistory.at(-1) || ""); setCursorHistory(previous => previous.slice(0, -1)); }}>Previous</ClusterButton>
+      <ClusterButton disabled={!nextCursor || busy || domainsLoading} onClick={() => { setCursorHistory(previous => [...previous, cursor]); setCursor(nextCursor || ""); }}>Next</ClusterButton>
     </div>
     {domainsLoading && <p className="muted tight" role="status">Loading registered domains…</p>}
     {domainsLoadError && <div className="cluster-domain-message-v103 is-error" role="alert">
@@ -207,8 +206,8 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
       <ClusterButton type="button" variant="secondary" disabled={domainsLoading} onClick={() => void refreshPage().catch(() => undefined)}>Retry loading domains</ClusterButton>
     </div>}
     {!selected && !domainsLoading && !domainsLoadError && <div className="cluster-domain-empty-v103" role="status">
-      <h3>{search.trim() ? "No matching domains" : "No managed domain selected"}</h3>
-      <p>{surface === "server" ? "Register and verify your domain under Studio Settings → Domains first, then return here to bind it to this server." : "Register a domain above or adjust the search to find an existing entry."}</p>
+      <h3>{search.trim() ? "No matching domains" : surface === "server" ? "No domain selected" : "No domains yet"}</h3>
+      {surface === "server" ? <p>Register and verify a domain under Studio → Domains first.</p> : null}
     </div>}
     </div>
     {surface === "server" && selected && <div className="cluster-domain-progress-v103" aria-label="Domain setup status">

@@ -752,7 +752,8 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
       <MobileViewportRuntime />
       <ClusterTaskbar searchOpen={commandPaletteOpen}
         left={<>
-            <TaskbarHistory resumeContext={resumeContext} onResumeContext={onResumeContext} onClearResumeContext={onClearResumeContext} />
+            {/* The saved context follows you around, so offering it anywhere but Home just repeats the current page. */}
+            <TaskbarHistory resumeContext={screen === "dashboard" && resumeContext?.screen !== "dashboard" ? resumeContext : null} onResumeContext={onResumeContext} onClearResumeContext={onClearResumeContext} />
             {canSeeNotifications && (
               <div className="cl-tb-menu">
                 <ClusterButton ref={notificationMenuTriggerRef} unstyled type="button" className={`cl-tb-action cl-tb-action--icon notifications severity-${notificationSeverity} ${screen === "inbox" || notificationMenuOpen ? "is-active" : ""}`} onClick={() => { if (notificationRequestGateRef.current.isMutating()) return; setNotificationMenuOpen((open) => !open); setUserMenuOpen(false); setTicketMenuOpen(false); if (!notificationMenuOpen) void loadNotificationPreview(true); }} title={notificationBadgeLabel} aria-label={`Inbox, ${notificationBadgeLabel}`} aria-haspopup="dialog" aria-expanded={notificationMenuOpen}>

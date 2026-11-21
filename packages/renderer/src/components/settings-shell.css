@@ -226,3 +226,8 @@
   background: transparent !important; box-shadow: none !important; backdrop-filter: none !important;
 }
 .st .st-main .panel.settings-content-v092 > .settings-section-v092 { padding-bottom: 0; border-bottom: 0; }
+
+/* One-line count summary used by settings pages instead of stat cards. */
+.st-summary { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--muted); font-size: var(--cluster-font-size-sm); }
+.st-summary strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.st-summary [data-tone="warning"] strong { color: var(--warning, #f3b64c); }

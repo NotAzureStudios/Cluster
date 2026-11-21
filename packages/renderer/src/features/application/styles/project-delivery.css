@@ -512,3 +512,12 @@
 .qa-filter-panel-v118.cluster-field-v425 > summary { min-height: 42px; }
 .qa-filter-panel-v118.cluster-field-v425 > div[id$="-content"] { min-width: 0; padding-top: 10px; }
 .qa-filter-panel-v118.cluster-field-v425 .qa-filter-grid-v118 { min-width: 0; }
+
+/* Launcher rows read left-aligned; secondary buttons centre their content by default. */
+:is(.builds-folded-list-v157, .qa-project-launcher-v158) > button { justify-items: start; justify-content: stretch; text-align: left; }
+:is(.builds-folded-list-v157, .qa-project-launcher-v158) > button > * { text-align: left; }
+.qa-project-launcher-v158 button { padding: 12px 14px; gap: 4px; }
+@media (max-width: 640px) {
+  .builds-folded-list-v157 > button { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+  .builds-folded-list-v157 > button > :first-child { grid-column: 1 / -1; }
+}

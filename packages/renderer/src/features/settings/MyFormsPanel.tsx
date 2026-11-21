@@ -119,7 +119,7 @@ export function MyFormsPanel() {
 
   return <section className="settings-section-v092">
     <div className="settings-panel-head-v092"><div><p className="eyebrow">Studio resources</p><h2><ClusterIcon name="file" aria-hidden="true" /> My forms</h2><p className="muted tight">Forms currently published to your account. Only you can view your response status here.</p></div><ClusterButton type="button" size="compact" onClick={() => void refresh()} disabled={loading}><ClusterIcon name="refresh" aria-hidden="true" /> {loading ? "Refreshing…" : "Refresh"}</ClusterButton></div>
-    {forms.length > 0 || reviewForms.length > 0 ? <div className="my-forms-summary" aria-label="Your forms summary">
+    {forms.length > 0 || reviewForms.length > 0 ? <div className="st-summary" aria-label="Your forms summary">
       <span><strong>{forms.length}</strong> available</span>
       {forms.filter((item) => item.dueState === "overdue" && item.acceptingResponses).length > 0 ? <span data-tone="warning"><strong>{forms.filter((item) => item.dueState === "overdue" && item.acceptingResponses).length}</strong> overdue</span> : null}
       {reviewForms.length > 0 ? <span title="Separate permission"><strong>{reviewForms.length}</strong> to review</span> : null}

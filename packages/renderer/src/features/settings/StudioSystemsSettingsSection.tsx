@@ -248,10 +248,10 @@ export function StudioSystemsSettingsSection({ targetFormId = null, targetSubmis
       ]}
     />
     {status && <div className="studio-explanation-v272"><strong><ClusterIcon name="activity" aria-hidden="true" /> Status</strong><span>{status}</span></div>}
-    {(tab === "forms" || tab === "policies") && <div className="studio-systems-status-overview-v103" aria-label={tab === "forms" ? "Form publishing summary" : "Policy publishing summary"}>
-      <article><div><ClusterIcon name={tab === "forms" ? "file" : "lock"} aria-hidden="true" /><span>{tab === "forms" ? "Forms" : "Policies"}</span></div><strong>{tab === "forms" ? forms.length : policies.length}</strong><SettingsStateChip tone="neutral">Registered</SettingsStateChip></article>
-      <article><div><ClusterIcon name="check" aria-hidden="true" /><span>With published versions</span></div><strong>{tab === "forms" ? formsWithPublishedVersion : policiesWithPublishedVersion}</strong><SettingsStateChip tone="success">Version published</SettingsStateChip></article>
-      <article><div><ClusterIcon name="note" aria-hidden="true" /><span>No published version</span></div><strong>{tab === "forms" ? forms.length - formsWithPublishedVersion : policies.length - policiesWithPublishedVersion}</strong><SettingsStateChip tone="neutral">Draft or unpublished</SettingsStateChip></article>
+    {(tab === "forms" || tab === "policies") && (tab === "forms" ? forms.length : policies.length) > 0 && <div className="st-summary" aria-label={tab === "forms" ? "Form publishing summary" : "Policy publishing summary"}>
+      <span><strong>{tab === "forms" ? forms.length : policies.length}</strong> {tab === "forms" ? "forms" : "policies"}</span>
+      <span><strong>{tab === "forms" ? formsWithPublishedVersion : policiesWithPublishedVersion}</strong> published</span>
+      <span><strong>{tab === "forms" ? forms.length - formsWithPublishedVersion : policies.length - policiesWithPublishedVersion}</strong> draft</span>
     </div>}
 
     {tab === "forms" && <div className="studio-systems-layout-v34f">

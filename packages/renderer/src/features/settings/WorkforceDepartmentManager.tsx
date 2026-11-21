@@ -176,12 +176,12 @@ export function WorkforceDepartmentManager({ canEdit, onRowsLoaded }: { canEdit:
 
   return <section className="studio-workforce-department-manager-v11" aria-label="Workforce departments">
     <div className="studio-workforce-department-heading-v11">
-      <div><h3>Department directory</h3><p>Icons, colors and hierarchy are stored on the actual department and reused across Cluster.</p>{!canEdit && <p>Editing department identity requires administrator access.</p>}</div>
+      <div><h3>Departments</h3>{!canEdit && <p>Editing departments requires administrator access.</p>}</div>
       <ClusterButton size="compact" variant="primary" disabled={!canEdit || loading || saving} onClick={() => void beginCreate()}>New department</ClusterButton>
     </div>
     <div className="studio-workforce-department-layout-v11">
       <aside className="studio-workforce-department-list-v11">
-        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names and descriptions…" /></label>
+        <label><span>Search departments</span><ClusterTextInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search departments" /></label>
         <div className="studio-workforce-hierarchy-toolbar-v11">
           <span role="status">{search.trim()
             ? `${hierarchy.matches} match${hierarchy.matches === 1 ? "" : "es"} · ${hierarchy.total} departments`
