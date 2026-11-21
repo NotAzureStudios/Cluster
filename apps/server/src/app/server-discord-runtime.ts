@@ -50,8 +50,13 @@ export function createServerDiscordRuntime(input: {
     logger: { warn: (data, message) => input.app.log.warn(data, message) },
   });
   // Opt-in only. No scheduled or outbound requests when synchronization is off.
+  // A studio without a Discord connection is the normal case, not a failing
+  // task; counting it as a failure marked every such server degraded.
   input.backgroundTasks?.scheduleAdaptive("discord-role-projection", 5 * 60_000, async () => {
-    const result = await roleProjection.reconcile();
+    const result = await roleProjection.reconcile().catch((error: { code?: string }) => {
+      if (error?.code === "DISCORD_CONNECTION_NOT_FOUND") return { applied: 0 };
+      throw error;
+    });
     return { activity: result.applied ? "active" : "idle" };
   }, { runImmediately: false, maxBackoffMs: 30 * 60_000, workloadClass: "maintenance" });
   input.app.get("/api/admin/integrations/discord/roles", async (request: any, reply: any) => {
