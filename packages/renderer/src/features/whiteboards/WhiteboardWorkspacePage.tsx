@@ -304,6 +304,25 @@ type WhiteboardComponentRecord = {
   updatedAt?: string;
 };
 
+
+/** SVG text does not wrap. Break each typed line at word boundaries (and very
+ * long words at the limit) so notes and shapes keep their text inside. */
+function wrapWhiteboardText(text: string, maxChars: number): string[] {
+  const out: string[] = [];
+  for (const raw of text.split("\n")) {
+    let line = "";
+    for (const word of raw.split(/\s+/).filter(Boolean)) {
+      let rest = word;
+      while (rest.length > maxChars) { if (line) { out.push(line); line = ""; } out.push(rest.slice(0, maxChars)); rest = rest.slice(maxChars); }
+      if (!line) line = rest;
+      else if (line.length + 1 + rest.length <= maxChars) line += ` ${rest}`;
+      else { out.push(line); line = rest; }
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhiteboardId, onSelectWhiteboard, onReloadWhiteboards, onOpenProject, onOpenTickets, onOpenTimeline, onOpenTime, components }: WhiteboardWorkspacePageProps) {
   const { RelatedRecordsPanel: RelatedRecordsPanel, CustomFieldValuesPanel: CustomFieldValuesPanel } = components;
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -2560,9 +2579,8 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
         )}
         {element.text && (
           <text x={element.type === "actor" ? rect.x + rect.width / 2 : textX} y={element.type === "actor" ? rect.y + rect.height + 22 : textY} textAnchor={element.type === "actor" ? "middle" : "start"} fill={element.textColor} fontSize="14" fontWeight="850">
-            {element.text
-              .split("\n")
-              .slice(0, 6)
+            {wrapWhiteboardText(element.text, element.type === "actor" ? 24 : Math.max(6, Math.floor((rect.width - 28) / 7.8)))
+              .slice(0, Math.max(1, Math.min(12, Math.floor((element.type === "actor" ? 72 : rect.height - 20) / 18))))
               .map((line, index) => (
                 <tspan key={`${element.id}-line-${index}`} x={element.type === "actor" ? rect.x + rect.width / 2 : textX} dy={index === 0 ? 0 : 18}>
                   {line}
