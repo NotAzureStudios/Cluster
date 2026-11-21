@@ -473,7 +473,8 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
   .page-head.tph .page-head-actions { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
   .page-head.tph .page-head-actions::-webkit-scrollbar { display: none; }
   .page-head.tph .page-head-actions > * { flex: 0 0 auto; }
-  .page-head.tph .cl-seg { flex-wrap: nowrap; }
+  .page-head.tph .cl-seg { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .page-head.tph .cl-seg > button { flex: none; }
 }
 
 /* Account menu: the same row rhythm as every other menu — 32px rows, small icons, no subtitles. */

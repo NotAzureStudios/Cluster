@@ -2,6 +2,14 @@ import { CLUSTER_DOMAIN_EVENTS } from "@cluster/shared";
 import { createClusterDomainEvent } from "../../core/domain-events.js";
 import { dueCalendarReminderOccurrence, movedCalendarOccurrence } from "./calendar-reminder-occurrences.js";
 
+/** "Nov 21, 6:57 PM EST" in the event's own time zone; reminders are read later, so no raw ISO. */
+function reminderStartLabel(startsAt: Date, timeZone?: string | null) {
+  const options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" };
+  try { return new Intl.DateTimeFormat("en-US", { ...options, timeZone: timeZone || "UTC" }).format(startsAt); }
+  catch { return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "UTC" }).format(startsAt); }
+}
+
+
 /** Durable G08 Calendar reminders. Authorizable recipients are checked at
  * delivery time, not inferred from a stale attendee list or a cached UI view.
  * Occurrence identity is shared by recurring series and occurrence responses.
@@ -76,7 +84,7 @@ export function createCalendarReminderLifecycle(input: {
           const activity = await tx.activityEvent.create({ data: {
             userId: null, type: "due", entityType: "calendar_reminder", entityId: current.id,
             title: `Calendar reminder: ${current.title}`.slice(0, 220),
-            message: `Starts ${(movedCalendarOccurrence(current, occurrence)?.startsAt || occurrence).toISOString()}${current.location ? ` · ${current.location}` : ""}`.slice(0, 4000),
+            message: `Starts ${reminderStartLabel(movedCalendarOccurrence(current, occurrence)?.startsAt || occurrence, current.timezone)}${current.location ? ` · ${current.location}` : ""}`.slice(0, 4000),
             metadata: JSON.stringify({ userIds: [id], notifyInbox: true, notificationSignal: "due", notificationTool: "calendar", notificationGroupKey: `calendar-reminder:${current.id}:${current.revision}:${occurrence.toISOString()}:${id}`, calendarEventId: current.id, eventRevision: current.revision, occurrenceStartsAt: occurrence.toISOString() }),
           } });
           await tx.calendarEventReminderDispatch.create({ data: {

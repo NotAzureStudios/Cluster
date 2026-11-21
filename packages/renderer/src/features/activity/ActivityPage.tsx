@@ -1,7 +1,7 @@
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { queryApi } from "../../core/api";
-import { addDays, weekStart } from "../../core/date-time";
+import { addDays, weekStart, localizeTimestamps } from "../../core/date-time";
 import { formatRelativeTime } from "../../core/format";
 import { CompactSectionNav, type CompactSectionNavItem } from "../../components/CompactSectionNav";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
@@ -570,7 +570,7 @@ export function ActivityPage({ projects, onOpenProject, onOpenTickets, onOpenQa,
                         <PresenceAvatar userId={event.user?.id} imageUrl={event.user?.avatarUrl} label={event.user ? displayUserName(event.user) : "System"} fallback={event.user ? userInitial(event.user) : "S"} state={event.user ? presenceState(event.user) : "offline"} />
                         <span className="activity-row-copy-v245">
                           <strong>{event.title}</strong>
-                          {event.message && <em>{event.message}</em>}
+                          {event.message && <em>{localizeTimestamps(event.message)}</em>}
                         </span>
                         <span className="activity-row-context-v245">
                           <b>{event.project?.name || entityLabel(event.entityType)}</b>

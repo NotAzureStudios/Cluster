@@ -40,3 +40,5 @@
 .packets-page-v248 .packet-catalog-toolbar-v269 > div:first-child span { color: var(--muted); font-size: var(--cluster-font-size-xs); }
 .packets-page-v248 .packet-catalog-toolbar-v269 input { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
 .packets-page-v248 .packets-status-slot-v250:not(.has-message) { display: none; }
+.packet-catalog-grid-v269 .packet-card-v248 { text-align: left; justify-content: start; }
+.packet-catalog-grid-v269 .packet-card-v248 > span { justify-items: start; }

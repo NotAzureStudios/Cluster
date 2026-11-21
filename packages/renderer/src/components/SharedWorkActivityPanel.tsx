@@ -1,3 +1,4 @@
+import { localizeTimestamps } from "../core/date-time";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SharedWorkReference } from "@cluster/shared";
 import { formatRelativeTime } from "../core/format";
@@ -65,7 +66,7 @@ export function SharedWorkActivityPanel({
       {!loading && !error && events.length ? <ol className="shared-work-activity-list-v504">
         {events.map((event) => <li key={event.id}>
           <span aria-hidden="true" />
-          <div><strong>{event.title}</strong><small>{actorLabel(event)} · {formatRelativeTime(event.createdAt)}</small>{event.message ? <p>{event.message}</p> : null}</div>
+          <div><strong>{event.title}</strong><small>{actorLabel(event)} · {formatRelativeTime(event.createdAt)}</small>{event.message ? <p>{localizeTimestamps(event.message)}</p> : null}</div>
         </li>)}
       </ol> : null}
     </section>

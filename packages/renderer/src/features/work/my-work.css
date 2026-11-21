@@ -26,9 +26,9 @@
 .mywork-panel-v253 header span { color: var(--muted); font-size: .63rem; }
 .mywork-panel-v253 header > button { border: 0; background: transparent; color: var(--accent); font-size: .68rem; }
 .mywork-work-list-v253 { display: grid; gap: 5px; }
-.mywork-work-list-v253 > button { min-width: 0; display: grid; grid-template-columns: 4px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--cluster-border); border-radius: 8px; background: var(--cluster-surface-2); color: var(--text); text-align: left; }
+.mywork-work-list-v253 > button { min-width: 0; display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--cluster-border); border-radius: 8px; background: var(--cluster-surface-2); color: var(--text); text-align: left; }
 .mywork-work-list-v253 > button:hover { border-color: color-mix(in srgb,var(--accent) 48%,var(--cluster-border)); }
-.mywork-work-list-v253 > button i { width: 4px; height: 28px; border-radius: 999px; background: var(--cluster-slate-400); }
+.mywork-work-list-v253 > button i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--cluster-slate-400); color: #0b0f14; font-size: .62rem; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
 .mywork-work-list-v253 > button[data-priority="urgent"] i { background: var(--cluster-red-500); }
 .mywork-work-list-v253 > button[data-priority="high"] i { background: var(--cluster-amber-500); }
 .mywork-work-list-v253 > button[data-priority="medium"] i { background: var(--cluster-sky-400); }

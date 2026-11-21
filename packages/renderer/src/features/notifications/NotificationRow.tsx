@@ -1,3 +1,4 @@
+import { localizeTimestamps } from "../../core/date-time";
 import type { ReactNode } from "react";
 import type { NotificationCategory, NotificationItem } from "@cluster/shared";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -34,7 +35,7 @@ export function NotificationRow({ item, selected = false, compact = false, leadi
       <span className="nt-icon" data-category={item.category} aria-hidden="true"><ClusterIcon name={notificationCategoryIcon(item.category)} /></span>
       <span className="nt-row__copy">
         <strong>{item.title}</strong>
-        {item.message ? <span>{item.message}</span> : null}
+        {item.message ? <span>{localizeTimestamps(item.message)}</span> : null}
         {source && !compact ? <small>{source}</small> : null}
       </span>
       <span className="nt-row__side">

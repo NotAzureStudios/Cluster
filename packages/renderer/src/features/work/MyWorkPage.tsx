@@ -2,7 +2,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, type ClusterAssignmentChange } from "@cluster/shared";
 import { api, queryApi } from "../../core/api";
-import { addDays, minutesToHuman, weekStart } from "../../core/date-time";
+import { addDays, minutesToHuman, weekStart, localizeTimestamps } from "../../core/date-time";
 import { formatDueDate, formatRelativeTime, levelLabel } from "../../core/format";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterButton } from "../../components/ClusterButton";
@@ -596,7 +596,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
                     <i />
                     <span>
                       <strong>{event.title}</strong>
-                      <small>{event.message || event.type}</small>
+                      <small>{event.message ? localizeTimestamps(event.message) : event.type}</small>
                     </span>
                     <time>{formatRelativeTime(event.createdAt)}</time>
                   </ClusterButton>
