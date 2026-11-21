@@ -335,7 +335,7 @@ export function VaultManager() {
           </>}
         </div>
         {createOpen && <div className="settings-card-v092 cluster-vault-new-secret">
-          <h2>New secret</h2>
+          <h2 className="sr-only">New secret</h2>
           <label className="field"><span>Label</span><ClusterInput maxLength={160} value={createDraft.name} onChange={(event) => setCreateDraft((draft) => ({ ...draft, name: event.target.value }))} /></label>
           <label className="field"><span>Kind</span><ClusterNativeSelect value={createDraft.kind} onChange={(event) => setCreateDraft((draft) => ({ ...draft, kind: event.target.value }))}><option value="integration">Integration</option><option value="password">Password</option><option value="license_key">License key</option><option value="game_key">Game key</option><option value="other">Other</option></ClusterNativeSelect></label>
           <label className="field"><span>Secret value</span><ClusterInput type="password" autoComplete="new-password" maxLength={16384} value={createDraft.value} onChange={(event) => setCreateDraft((draft) => ({ ...draft, value: event.target.value }))} /></label>

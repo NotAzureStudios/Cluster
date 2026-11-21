@@ -174,7 +174,9 @@ export function StudioInventoryPanel({ includeKeyPools = true }: { includeKeyPoo
         <span className="cluster-inventory-item__stock"><ClusterVisualMeter label="Available" value={asset.available ?? null} total={asset.capacity} tone={asset.available === 0 ? "warning" : "good"} compact /></span>
       </ClusterButton>)}
       </div>
-      {!loading && !visibleAssets.length && <div className="cluster-inventory-mini-empty"><ClusterIcon name="archive" /><strong>No matching assets</strong><ClusterButton size="compact" variant="quiet" onClick={() => { setFilter(""); setAssetKindFilter("all"); setAssetStatusFilter("all"); }}>Clear filters</ClusterButton></div>}
+      {!loading && !visibleAssets.length && (filter.trim() || assetKindFilter !== "all" || assetStatusFilter !== "all"
+        ? <div className="cluster-inventory-mini-empty"><ClusterIcon name="archive" /><strong>No matching assets</strong><ClusterButton size="compact" variant="quiet" onClick={() => { setFilter(""); setAssetKindFilter("all"); setAssetStatusFilter("all"); }}>Clear filters</ClusterButton></div>
+        : <div className="cluster-inventory-mini-empty"><ClusterIcon name="archive" /><strong>No assets yet</strong></div>)}
       {error && !selected && !assetCreatorOpen && <p role="alert">{error}</p>}
       {message && !selected && !assetCreatorOpen && <p role="status">{message}</p>}
       {pageLoading && <p>Loading inventory records…</p>}
