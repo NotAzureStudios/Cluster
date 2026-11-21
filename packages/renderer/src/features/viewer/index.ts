@@ -32,3 +32,4 @@ export * from "./viewer-system-integration";
 export * from "./viewer-runtime-hardening";
 export * from "./viewer-accessibility";
 export * from "./viewer-host";
+export * from "./review-attention";

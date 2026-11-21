@@ -24,6 +24,7 @@ import { useTimedMediaController } from "./use-timed-media-controller";
 import { useTimedMediaSystemIntegration } from "./use-timed-media-system-integration";
 import { ViewerOverlayLayer } from "./ViewerOverlayLayer";
 import { ViewerShell } from "./ViewerShell";
+import { isOpenReviewComment, nextReviewAttention, reviewAttentionTone, reviewThreadRoots } from "./review-attention";
 import { ViewerState } from "./ViewerState";
 import { viewerOverlayCatalogForMedium } from "./viewer-overlay-catalog";
 import { absoluteViewerResourceUrl, resolveViewerResourceSource } from "./viewer-resource-loader";
@@ -43,6 +44,9 @@ type ReviewCommentRecord = {
   id: string;
   body?: string | null;
   status?: string | null;
+  priority?: string | null;
+  category?: string | null;
+  parentCommentId?: string | null;
   createdAt?: string | null;
   locator?: unknown;
   user?: { displayName?: string | null; username?: string | null } | null;
@@ -282,7 +286,7 @@ function AudioWaveformCanvas({
     onSeek(ratio * duration);
   }, [duration, onSeek]);
 
-  const markerComments = comments.map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item): item is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof audioLocator>> } => Boolean(item.locator));
+  const markerComments = reviewThreadRoots(comments).map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item): item is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof audioLocator>> } => Boolean(item.locator));
 
   return <div
     ref={hostRef}
@@ -307,8 +311,8 @@ function AudioWaveformCanvas({
   >
     <canvas ref={canvasRef} aria-hidden="true" />
     <div className="cluster-audio-buffer-ranges" aria-hidden="true">{snapshot.buffered.map((range, index) => duration > 0 ? <span key={`${range.start}:${range.end}:${index}`} style={runtimeStyle({ left: `${clamp(range.start / duration, 0, 1) * 100}%`, width: `${clamp((range.end - range.start) / duration, 0, 1) * 100}%` })} /> : null)}</div>
-    {showRegions ? <div className="cluster-audio-review-regions" aria-hidden="true">{markerComments.filter(({ locator }) => locator.endTimeSeconds != null && duration > 0).map(({ comment, locator }) => <span key={comment.id} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%`, width: `${clamp(((locator.endTimeSeconds || locator.timeSeconds) - locator.timeSeconds) / duration, 0, 1) * 100}%` })} />)}</div> : null}
-    {showMarkers ? <div className="cluster-audio-review-markers">{markerComments.map(({ comment, locator }) => duration > 0 ? <ClusterButton type="button" key={comment.id} variant="quiet" size="compact" className={`cluster-audio-review-marker${comment.status === "resolved" ? " resolved" : ""}`} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%` })} title={`${formatShortTime(locator.timeSeconds)} · ${comment.body || "Review note"}`} aria-label={`Review note at ${formatTime(locator.timeSeconds)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onSeek(locator.timeSeconds); }}><span /></ClusterButton> : null)}</div> : null}
+    {showRegions ? <div className="cluster-audio-review-regions" aria-hidden="true">{markerComments.filter(({ locator }) => locator.endTimeSeconds != null && duration > 0).map(({ comment, locator }) => <span key={comment.id} data-tone={reviewAttentionTone(comment)} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%`, width: `${clamp(((locator.endTimeSeconds || locator.timeSeconds) - locator.timeSeconds) / duration, 0, 1) * 100}%` })} />)}</div> : null}
+    {showMarkers ? <div className="cluster-audio-review-markers">{markerComments.map(({ comment, locator }) => duration > 0 ? <ClusterButton type="button" key={comment.id} variant="quiet" size="compact" className="cluster-audio-review-marker" data-tone={reviewAttentionTone(comment)} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / duration, 0, 1) * 100}%` })} title={`${formatShortTime(locator.timeSeconds)} · ${comment.priority || "medium"} · ${comment.body || "Review note"}`} aria-label={`Review note at ${formatTime(locator.timeSeconds)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onSeek(locator.timeSeconds); }}><span /></ClusterButton> : null)}</div> : null}
   </div>;
 }
 
@@ -416,6 +420,7 @@ function AudioReviewComposer({
 
 function AudioAdapter({
   session,
+  mode,
   compareSession,
   comparison,
   visibleOverlayIds,
@@ -459,6 +464,7 @@ function AudioAdapter({
   onMonitoringPreset: (value: AudioMonitoringPreset) => void;
   onActiveTrack: (value: string | null) => void;
   onStemState: (id: string, patch: Partial<StemMonitoringState>) => void;
+  mode: ViewerMode;
   onShowComposer: (value: boolean) => void;
   onReload: () => void;
   onDiagnostics: (value: Record<string, unknown>) => void;
@@ -554,6 +560,17 @@ function AudioAdapter({
 
   if (snapshot.phase === "error") return <ViewerState compact tone="error" title="Audio playback failed" description={snapshot.errorMessage || "The authorized audio source could not be played."} actions={<ClusterButton size="compact" variant="secondary" onClick={onReload}>Retry</ClusterButton>} />;
 
+  // Review and technical modes show where notes need attention.
+  const showAttention = mode !== "view";
+  const noteMarkers = reviewThreadRoots(comments).map((comment) => ({ comment, locator: audioLocator(comment.locator) })).filter((item) => item.locator);
+  const openNoteTimes = noteMarkers.filter(({ comment }) => isOpenReviewComment(comment)).map(({ locator }) => locator!.timeSeconds);
+  const jumpToAttention = (direction: 1 | -1) => {
+    const target = nextReviewAttention(openNoteTimes, snapshot.currentTime, direction);
+    if (target == null) return;
+    controller.pause();
+    seek(target);
+  };
+
   return <div className="cluster-audio-adapter">
     <audio ref={setMainElement} src={selection.url} preload="metadata" crossOrigin="use-credentials" className="cluster-audio-hidden-media" aria-label={`${session.resource.source.title} audio`} />
     {compareSelection?.url ? <audio ref={setCompareElement} src={compareSelection.url} preload="metadata" crossOrigin="use-credentials" className="cluster-audio-hidden-media" aria-label="Comparison audio" /> : null}
@@ -565,7 +582,7 @@ function AudioAdapter({
 
     <div className="cluster-audio-main">
       <div className={compareSession ? "cluster-audio-waveform-compare" : "cluster-audio-waveform-single"}>
-        <AudioWaveformCanvas title={session.resource.source.title} samples={waveformSamples} snapshot={snapshot} comments={comments} showMarkers={visibleOverlayIds.includes("audio.waveform_markers") || visibleOverlayIds.includes("review.annotations")} showRegions={visibleOverlayIds.includes("audio.clip_regions")} onSeek={seek} />
+        <AudioWaveformCanvas title={session.resource.source.title} samples={waveformSamples} snapshot={snapshot} comments={comments} showMarkers={showAttention || visibleOverlayIds.includes("audio.waveform_markers") || visibleOverlayIds.includes("review.annotations")} showRegions={showAttention || visibleOverlayIds.includes("audio.clip_regions")} onSeek={seek} />
         {compareSession ? <AudioWaveformCanvas title={compareSession.resource.source.title} samples={compareWaveformSamples} snapshot={snapshot} comments={[]} showMarkers={false} showRegions={false} onSeek={seek} /> : null}
       </div>
 
@@ -575,6 +592,11 @@ function AudioAdapter({
         <ClusterIconButton label={`Forward ${skipSeconds} seconds`} size="compact" variant="quiet" onClick={() => controller.jump(skipSeconds)}><ClusterIcon name="forward" /></ClusterIconButton>
         <span className="cluster-audio-time-readout">{formatShortTime(snapshot.currentTime)} <small>/ {formatShortTime(snapshot.duration)}</small></span>
         <form className="cluster-audio-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Seek to timecode" title="Type a time and press Enter" placeholder="Go to…" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /></form>
+        {showAttention && noteMarkers.length ? <span className="cluster-review-attention" data-open={openNoteTimes.length ? "true" : "false"}>
+          <ClusterIconButton size="compact" label="Previous open note" title="Previous open note" disabled={!openNoteTimes.length} onClick={() => jumpToAttention(-1)}><ClusterIcon name="chevron-left" /></ClusterIconButton>
+          <span title={`${openNoteTimes.length} open of ${noteMarkers.length} notes`}><b>{openNoteTimes.length}</b> open</span>
+          <ClusterIconButton size="compact" label="Next open note" title="Next open note" disabled={!openNoteTimes.length} onClick={() => jumpToAttention(1)}><ClusterIcon name="chevron-right" /></ClusterIconButton>
+        </span> : null}
         <span className="cluster-audio-transport-spacer" />
         <ClusterNativeSelect aria-label="Playback speed" value={playbackRate} onChange={(event) => onPlaybackRate(Number(event.target.value))}>{AUDIO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect>
         <ClusterNativeSelect aria-label="Output" value={outputMode} onChange={(event) => onOutputMode(event.target.value as AudioOutputMode)}>{AUDIO_OUTPUT_MODES.map((mode) => <option key={mode} value={mode}>{outputLabel(mode)}</option>)}</ClusterNativeSelect>
@@ -732,6 +754,7 @@ export function UnifiedAudioViewer({
       {compareAssetSession.session ? <ViewerComparisonBar session={comparisonSession} snapshot={comparison} primaryLabel={session.resource.source.title} secondaryLabel={compareAssetSession.session.resource.source.title} /> : null}
       <AudioAdapter
       session={session}
+      mode={mode}
       compareSession={compareAssetSession.session}
       comparison={comparison}
       visibleOverlayIds={visibleOverlayIds}

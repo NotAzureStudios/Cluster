@@ -17,6 +17,7 @@ import { useReviewComparisonSession } from "./use-review-comparison-session";
 import { ViewerComparisonBar } from "./ViewerComparisonBar";
 import { ViewerOverlayLayer } from "./ViewerOverlayLayer";
 import { ViewerShell } from "./ViewerShell";
+import { isOpenReviewComment, nextReviewAttention, reviewAttentionTone, reviewThreadRoots } from "./review-attention";
 import { ViewerState } from "./ViewerState";
 import { viewerOverlayCatalogForMedium } from "./viewer-overlay-catalog";
 import { absoluteViewerResourceUrl } from "./viewer-resource-loader";
@@ -40,6 +41,9 @@ type ReviewCommentRecord = {
   id: string;
   body?: string | null;
   status?: string | null;
+  priority?: string | null;
+  category?: string | null;
+  parentCommentId?: string | null;
   locator?: unknown;
   user?: { displayName?: string | null; username?: string | null } | null;
 };
@@ -292,8 +296,9 @@ function ReviewComposer({ session, controller, snapshot, frameRate, activeTrackI
   </form>;
 }
 
-function VideoAdapter({ session, compareSession, visibleOverlayIds, overlayPlacements, controller, snapshot, sourceMode, onSourceMode, comparisonMode, comparisonAmount, syncComparison, showComposer, onShowComposer, onReload, onDiagnostics, onDurationDiscovered }: {
+function VideoAdapter({ session, mode, compareSession, visibleOverlayIds, overlayPlacements, controller, snapshot, sourceMode, onSourceMode, comparisonMode, comparisonAmount, syncComparison, showComposer, onShowComposer, onReload, onDiagnostics, onDurationDiscovered }: {
   session: ViewerAssetSession;
+  mode: ViewerMode;
   compareSession: ViewerAssetSession | null;
   visibleOverlayIds: readonly string[];
   overlayPlacements: Record<string, string>;
@@ -382,9 +387,18 @@ function VideoAdapter({ session, compareSession, visibleOverlayIds, overlayPlace
     });
   }, [snapshot.phase, snapshot.currentTime, snapshot.duration, snapshot.presentedFrame, snapshot.presentedMediaTime, snapshot.videoFrameControl, snapshot.totalVideoFrames, snapshot.droppedVideoFrames, snapshot.errorCode, snapshot.errorMessage, snapshot.buffered, snapshot.seekable, frameRate, ahead, sourceMode, selection.derivative?.id, compareSession?.resource.source.id, comparisonMode, activeCaptionId, activeTrackId, onDiagnostics, session.resource.source.sizeBytes]);
 
-  const markerComments = comments.map((comment) => ({ comment, locator: mediaLocator(comment.locator) })).filter((value): value is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof mediaLocator>> } => Boolean(value.locator));
+  const markerComments = reviewThreadRoots(comments).map((comment) => ({ comment, locator: mediaLocator(comment.locator) })).filter((value): value is { comment: ReviewCommentRecord; locator: NonNullable<ReturnType<typeof mediaLocator>> } => Boolean(value.locator));
   const activeAnnotations = visibleOverlayIds.includes("review.annotations") ? markerComments.filter(({ locator }) => locator.annotation && snapshot.currentTime >= locator.timeSeconds - 0.2 && snapshot.currentTime <= (locator.endTimeSeconds ?? locator.timeSeconds + 0.65) + 0.2) : [];
   const activeCaption = captions.find((track) => track.id === activeCaptionId) || null;
+  // Review and technical modes show where notes need attention; view mode is clean playback.
+  const showAttention = mode !== "view";
+  const openMarkers = markerComments.filter(({ comment }) => isOpenReviewComment(comment));
+  const jumpToAttention = (direction: 1 | -1) => {
+    const target = nextReviewAttention(openMarkers.map(({ locator }) => locator.timeSeconds), snapshot.currentTime, direction);
+    if (target == null) return;
+    controller.pause();
+    controller.seek(target);
+  };
 
   function timelinePointer(event: ReactPointerEvent<HTMLDivElement>, commit: boolean) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -469,7 +483,10 @@ function VideoAdapter({ session, compareSession, visibleOverlayIds, overlayPlace
         <div className="cluster-video-buffered">{snapshot.buffered.map((range, index) => snapshot.duration > 0 ? <span key={`${range.start}:${range.end}:${index}`} style={runtimeStyle({ left: `${clamp(range.start / snapshot.duration, 0, 1) * 100}%`, width: `${clamp((range.end - range.start) / snapshot.duration, 0, 1) * 100}%` })} /> : null)}</div>
         <span className="cluster-video-progress" style={runtimeStyle({ width: `${snapshot.duration > 0 ? clamp(snapshot.currentTime / snapshot.duration, 0, 1) * 100 : 0}%` })} />
         {chapters.map((chapter) => snapshot.duration > 0 ? <ClusterButton key={chapter.index} variant="quiet" size="compact" className="cluster-video-chapter-marker" style={runtimeStyle({ left: `${clamp(chapter.startSeconds / snapshot.duration, 0, 1) * 100}%` })} title={`${chapter.title} · ${formatVideoTimecode(chapter.startSeconds, frameRate)}`} aria-label={`Go to chapter ${chapter.title}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); controller.seek(chapter.startSeconds); }}><span /></ClusterButton> : null)}
-        {markerComments.map(({ comment, locator }) => snapshot.duration > 0 ? <ClusterButton key={comment.id} variant="quiet" size="compact" className={`cluster-video-review-marker${comment.status === "resolved" ? " resolved" : ""}`} style={runtimeStyle({ left: `${clamp(locator.timeSeconds / snapshot.duration, 0, 1) * 100}%` })} title={`${formatVideoTimecode(locator.timeSeconds, frameRate)} · ${comment.body || "Review note"}`} aria-label={`Review note at ${formatVideoTimecode(locator.timeSeconds, frameRate)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); controller.seek(locator.timeSeconds); }}><span /></ClusterButton> : null)}
+        {showAttention && snapshot.duration > 0 ? markerComments.map(({ comment, locator }) => { const tone = reviewAttentionTone(comment); const left = clamp(locator.timeSeconds / snapshot.duration, 0, 1) * 100; return <span key={comment.id}>
+          {locator.endTimeSeconds != null && locator.endTimeSeconds > locator.timeSeconds ? <span className="cluster-review-range" data-tone={tone} style={runtimeStyle({ left: `${left}%`, width: `${clamp((locator.endTimeSeconds - locator.timeSeconds) / snapshot.duration, 0, 1) * 100}%` })} /> : null}
+          <ClusterButton variant="quiet" size="compact" className="cluster-video-review-marker" data-tone={tone} style={runtimeStyle({ left: `${left}%` })} title={`${formatVideoTimecode(locator.timeSeconds, frameRate)} · ${comment.priority || "medium"} · ${comment.body || "Review note"}`} aria-label={`${isOpenReviewComment(comment) ? "Open" : "Resolved"} review note at ${formatVideoTimecode(locator.timeSeconds, frameRate)}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); controller.pause(); controller.seek(locator.timeSeconds); }}><span /></ClusterButton>
+        </span>; }) : null}
         {hover && storyboard ? <StoryboardPreview storyboard={storyboard} seconds={hover.seconds} ratio={hover.ratio} frameRate={frameRate} /> : null}
       </div>
     </div>
@@ -484,6 +501,11 @@ function VideoAdapter({ session, compareSession, visibleOverlayIds, overlayPlace
       <ClusterIconButton size="compact" label="Next frame" title="Next frame (→)" onClick={() => controller.stepFrame(1, frameRate)}><ClusterIcon name="next" /></ClusterIconButton>
       <span className="cluster-video-time-readout" title={`Frame ${videoFrameNumber(snapshot.currentTime, frameRate).toLocaleString()}`}><strong>{formatVideoTimecode(snapshot.currentTime, frameRate)}</strong><small>/ {formatVideoTimecode(snapshot.duration, frameRate)}</small></span>
       <form className="cluster-video-time-entry" onSubmit={(event) => { event.preventDefault(); commitTimeEntry(); }}><ClusterTextInput aria-label="Go to timecode" title="Type a timecode and press Enter" placeholder="Go to…" value={timeEntry} onChange={(event) => setTimeEntry(event.target.value)} /></form>
+      {showAttention && markerComments.length ? <span className="cluster-review-attention" data-open={openMarkers.length ? "true" : "false"}>
+        <ClusterIconButton size="compact" label="Previous open note" title="Previous open note" disabled={!openMarkers.length} onClick={() => jumpToAttention(-1)}><ClusterIcon name="chevron-left" /></ClusterIconButton>
+        <span title={`${openMarkers.length} open of ${markerComments.length} notes`}><b>{openMarkers.length}</b> open</span>
+        <ClusterIconButton size="compact" label="Next open note" title="Next open note" disabled={!openMarkers.length} onClick={() => jumpToAttention(1)}><ClusterIcon name="chevron-right" /></ClusterIconButton>
+      </span> : null}
       <span className="cluster-video-transport-spacer" />
       <ClusterNativeSelect aria-label="Playback speed" title="Playback speed" value={snapshot.playbackRate} onChange={(event) => { const value = Number(event.target.value); controller.setPlaybackRate(value); writePreferenceStorage("cluster-media-playback-rate", String(value)); }}>{VIDEO_PLAYBACK_RATES.map((rate) => <option key={rate} value={rate}>{rate}×</option>)}</ClusterNativeSelect>
       <ClusterNativeSelect aria-label="Source" title={`${selection.label} · ${formatBytes(selection.derivative?.sizeBytes || session.resource.source.sizeBytes)} · ${videoCodec(session)}${videoBitRate(session) ? ` · ${(videoBitRate(session)! / 1_000_000).toFixed(1)} Mb/s` : ""}`} value={sourceMode} onChange={(event) => onSourceMode(event.target.value as VideoSourceMode)}>{VIDEO_SOURCE_MODES.map((value) => <option key={value} value={value}>{sourceLabel(value)}</option>)}</ClusterNativeSelect>
@@ -575,6 +597,7 @@ export const UnifiedVideoViewer = forwardRef<UnifiedVideoViewerHandle, {
       {compareSession.session ? <ViewerComparisonBar session={comparisonSession} snapshot={comparison} primaryLabel={session.resource.source.title} secondaryLabel={compareSession.session.resource.source.title} /> : null}
       <VideoAdapter
       session={session}
+      mode={mode}
       compareSession={compareSession.session}
       visibleOverlayIds={visibleOverlayIds}
       overlayPlacements={overlayPlacements}

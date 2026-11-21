@@ -112,3 +112,25 @@
 
 /* Hosted: the surrounding page or window is the frame and owns the header. */
 .cluster-viewer-shell[data-hosted="true"] { border: 0; border-radius: 0; }
+
+/* ---------- Review attention on timelines ---------- */
+[data-tone] { --review-tone: var(--accent); }
+[data-tone="danger"] { --review-tone: var(--danger); }
+[data-tone="warning"] { --review-tone: var(--warning, #f0b429); }
+[data-tone="muted"] { --review-tone: var(--cluster-workbench-border-strong); }
+.cluster-video-timeline .cluster-video-review-marker { z-index: 4; width: 14px; height: 26px; }
+.cluster-video-review-marker[data-tone] > span { width: 4px; height: 22px; margin: 0 auto; border: 0; border-radius: 2px; background: var(--review-tone); box-shadow: 0 0 0 2px var(--cluster-workbench-panel); }
+.cluster-video-review-marker[data-tone="muted"] > span { height: 12px; opacity: .6; }
+.cluster-video-review-marker[data-tone]:hover > span { width: 6px; }
+.cluster-review-range { position: absolute; z-index: 2; top: 0; bottom: 0; border-radius: 3px; background: color-mix(in srgb, var(--review-tone) 30%, transparent); pointer-events: none; }
+.cluster-review-attention { display: inline-flex; align-items: center; gap: 0; height: 30px; padding: 0 2px; border-radius: var(--cluster-radius-control); background: var(--cluster-workbench-panel-raised, var(--cluster-recess)); color: var(--cluster-workbench-muted); font-size: var(--cluster-font-size-xs); white-space: nowrap; }
+.cluster-review-attention b { color: var(--text); font-variant-numeric: tabular-nums; }
+.cluster-review-attention[data-open="true"] b { color: var(--warning, #f0b429); }
+.cluster-review-attention .cluster-icon-button-v425 { width: 26px; height: 26px; min-height: 0 !important; }
+.cluster-audio-review-markers .cluster-audio-review-marker[data-tone]::before { width: 2px; background: var(--review-tone); opacity: 1; }
+.cluster-audio-review-markers .cluster-audio-review-marker[data-tone] > span { width: 10px; height: 10px; border: 0; background: var(--review-tone); }
+.cluster-audio-review-markers .cluster-audio-review-marker[data-tone="muted"] { opacity: .55; }
+.cluster-audio-review-regions span[data-tone] { border-color: color-mix(in srgb, var(--review-tone) 70%, transparent); background: color-mix(in srgb, var(--review-tone) 14%, transparent); }
+.cluster-video-timeline .cluster-video-review-marker[data-tone] { display: grid !important; place-items: center; grid-template-columns: auto !important; width: 14px !important; min-width: 0 !important; height: 26px !important; min-height: 0 !important; padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+.cluster-video-review-marker[data-tone] > span { min-width: 4px; }
+.cluster-video-review-marker[data-tone]:hover > span { min-width: 6px; }
