@@ -116,6 +116,29 @@ function parseNameStatusZ(value: string) {
   return rows;
 }
 
+/* git log -z with fields split by \x1f; the message (%B) is last. */
+const LOG_FORMAT = ["%H", "%h", "%P", "%an", "%ae", "%aI", "%cI", "%B"].join("%x1f");
+
+/* git diff-tree --numstat -z: "added\tdeleted\tpath\0", or for a rename
+   "added\tdeleted\t\0old\0new\0". Binary files report "-". */
+function parseNumstatZ(value: string) {
+  const parts = value.split("\u0000");
+  const rows = new Map<string, { additions: number | null; deletions: number | null; binary: boolean }>();
+  for (let index = 0; index < parts.length; index += 1) {
+    const head = parts[index];
+    if (!head) continue;
+    const [added, deleted, inline] = head.split("\t");
+    let filePath = inline || "";
+    if (!filePath) { filePath = parts[index + 2] || parts[index + 1] || ""; index += 2; }
+    if (!filePath) continue;
+    const binary = added === "-" && deleted === "-";
+    rows.set(filePath, { additions: binary ? null : Number(added) || 0, deletions: binary ? null : Number(deleted) || 0, binary });
+  }
+  return rows;
+}
+
+const CHANGE_TYPES: Record<string, string> = { A: "added", M: "modified", D: "deleted", R: "renamed", C: "copied", T: "modified" };
+
 export function createGitRepositoryRuntime(input: { repositoriesRoot: string; workspacesRoot: string; executable?: string }) {
   const executable = String(input.executable || process.env.CLUSTER_GIT_EXECUTABLE || "git").trim() || "git";
   const workspacesRoot = path.resolve(input.workspacesRoot);
@@ -563,5 +586,49 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
     }
   }
 
-  return { inspect, status, initializeManagedRepository, deleteManagedRepository, syncMirror, inspectWorkingCopy, prepareWorkingCopy, commitWorkingCopy, pushWorkingCopy, evaluateMerge, mergeReview };
+  /* Branches, recent default-branch commits and per-file changes, read
+     straight from a Cluster-managed bare repository. Native repositories
+     have no provider API, so this is how their history reaches Cluster. */
+  async function readLocalHistory(inputData: { repositoryId: string; repositoryPath?: string | null; defaultBranch?: string | null; limit?: number; detailed?: number }) {
+    const target = repositoryPath(inputData.repositoryId, inputData.repositoryPath);
+    const limit = Math.max(1, Math.min(500, inputData.limit || 100));
+    const refs = (await run(["--git-dir", target, "for-each-ref", "--format=%(refname:short)%00%(objectname)%00%(committerdate:iso-strict)", "refs/heads"], { timeoutMs: 60_000 })).stdout;
+    const heads = refs.split("\n").filter(Boolean).map((line) => { const [name, revision, date] = line.split("\u0000"); return { name, revision, date }; }).filter((row) => row.name && row.revision);
+    if (!heads.length) return { defaultBranch: safeBranchName(inputData.defaultBranch || "main"), branches: [], commits: [], changes: {} as Record<string, Array<{ path: string; previousPath: string | null; changeType: string; additions: number | null; deletions: number | null; binary: boolean }>> };
+    const symbolic = await run(["--git-dir", target, "symbolic-ref", "--short", "HEAD"], { timeoutMs: 15_000 }).then((result) => result.stdout.trim()).catch(() => "");
+    const preferred = [inputData.defaultBranch, symbolic, "main", "master"].find((name) => name && heads.some((head) => head.name === name)) || heads[0].name;
+    const branches = heads.map((head) => ({ name: head.name, headRevision: head.revision, isDefault: head.name === preferred, protected: false, aheadCount: 0, behindCount: 0, lastCommitAt: head.date ? new Date(head.date) : null }));
+    const log = (await run(["--git-dir", target, "log", `--max-count=${limit}`, "-z", `--format=${LOG_FORMAT}`, `refs/heads/${preferred}`], { timeoutMs: 120_000 })).stdout;
+    const commits = log.split("\u0000").filter((record) => record.trim()).map((record) => {
+      const [revision, shortRevision, parents, authorName, authorEmail, authoredAt, committedAt, ...message] = record.replace(/^\n/, "").split("\u001f");
+      return {
+        revision, shortRevision,
+        message: message.join("\u001f").trim() || "(no message)",
+        authorName: authorName || null, authorEmail: authorEmail || null,
+        authoredAt: authoredAt ? new Date(authoredAt) : null, committedAt: committedAt ? new Date(committedAt) : null,
+        parentRevisions: parents ? parents.split(" ").filter(Boolean) : [],
+        branchNames: [] as string[], metadata: {}, webUrl: null,
+        additions: null as number | null, deletions: null as number | null, filesChanged: null as number | null,
+      };
+    }).filter((commit) => /^[0-9a-f]{7,64}$/i.test(commit.revision));
+    const changes: Record<string, Array<{ path: string; previousPath: string | null; changeType: string; additions: number | null; deletions: number | null; binary: boolean }>> = {};
+    for (const commit of commits.slice(0, Math.max(0, inputData.detailed ?? 20))) {
+      const [names, numbers] = await Promise.all([
+        run(["--git-dir", target, "diff-tree", "--no-commit-id", "-r", "-z", "-M", "--root", "--name-status", commit.revision], { timeoutMs: 120_000 }),
+        run(["--git-dir", target, "diff-tree", "--no-commit-id", "-r", "-z", "-M", "--root", "--numstat", commit.revision], { timeoutMs: 120_000 }),
+      ]);
+      const counts = parseNumstatZ(numbers.stdout);
+      const rows = parseNameStatusZ(names.stdout).map((row) => {
+        const count = counts.get(row.path);
+        return { path: row.path, previousPath: row.previousPath, changeType: CHANGE_TYPES[row.status] || "modified", additions: count?.additions ?? null, deletions: count?.deletions ?? null, binary: Boolean(count?.binary) };
+      });
+      changes[commit.revision] = rows;
+      commit.filesChanged = rows.length;
+      commit.additions = rows.reduce((sum, row) => sum + (row.additions || 0), 0);
+      commit.deletions = rows.reduce((sum, row) => sum + (row.deletions || 0), 0);
+    }
+    return { defaultBranch: preferred, branches, commits, changes };
+  }
+
+  return { inspect, status, initializeManagedRepository, readLocalHistory, deleteManagedRepository, syncMirror, inspectWorkingCopy, prepareWorkingCopy, commitWorkingCopy, pushWorkingCopy, evaluateMerge, mergeReview };
 }

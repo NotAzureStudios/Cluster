@@ -43,4 +43,18 @@ const results = await Promise.all([first.catch((error: Error) => error), second]
 const errors = results.filter((r) => r instanceof Error).map((r) => (r as Error).message);
 ok(!errors.some((m) => m.includes("index.lock")), `concurrent commits serialized (${errors.join(" | ") || "no errors"})`);
 
+// Native repositories have no provider API: branches, history and per-file
+// changes come from the bare repository itself.
+await fs.rename(path.join(wcPath, "Content", "Props", "Café Table.uasset"), path.join(wcPath, "Content", "Props", "Café Table 2.uasset"));
+await rt.commitWorkingCopy({ workingCopyId: "wc1", message: "Rename table\n\nBody line", authorName: "Brady" });
+await rt.pushWorkingCopy({ workingCopyId: "wc1", branchName: "feature/hero" });
+const history = await rt.readLocalHistory({ repositoryId: "r1", repositoryPath: mirror, defaultBranch: "main", detailed: 5 });
+ok(history.defaultBranch === "main" && history.branches.some((b) => b.name === "feature/hero") && history.branches.find((b) => b.isDefault)?.name === "main", `local branches ${JSON.stringify(history.branches.map((b) => b.name))}`);
+ok(history.commits[0]?.revision === merged.mergedRevision && history.commits.length === 3 && history.commits.some((c) => c.message === "Initialize Cluster project repository"), "default-branch history starts at the merge and includes both parents");
+const heroChanges = Object.values(history.changes).flat().map((c) => `${c.changeType}:${c.path}`);
+ok(heroChanges.includes("added:Content/UI/タイトル.umap"), `non-ASCII paths in changes (${heroChanges.length} rows)`);
+const featureHistory = await rt.readLocalHistory({ repositoryId: "r1", repositoryPath: mirror, defaultBranch: "feature/hero", detailed: 1 });
+const rename = featureHistory.changes[featureHistory.commits[0].revision]?.[0];
+ok(featureHistory.commits[0].message === "Rename table\n\nBody line" && rename?.changeType === "renamed" && rename.previousPath === "Content/Props/Café Table.uasset" && rename.path === "Content/Props/Café Table 2.uasset", `rename detected ${JSON.stringify(rename)}`);
+
 await fs.rm(root, { recursive: true, force: true });

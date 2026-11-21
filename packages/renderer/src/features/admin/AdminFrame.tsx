@@ -20,6 +20,7 @@ const ENTRIES: Entry[] = [
   { screen: "studioSettings", label: "Studio", icon: "settings", group: "Settings" },
   { screen: "serverConfig", label: "Server", icon: "cloud", group: "Settings" },
   { screen: "integrations", label: "Integrations", icon: "link", group: "Tools" },
+  { screen: "toolInfrastructure", section: "source-control", label: "Repositories", icon: "code", group: "Tools" },
   { screen: "toolInfrastructure", label: "Tool infrastructure", icon: "tools", group: "Tools" },
   { screen: "vault", label: "Vault", icon: "lock", group: "Tools" },
 ];
@@ -32,7 +33,10 @@ export function AdminFrame({ screen, section, onNavigate, children }: {
 }) {
   const [pageNav, setPageNav] = useState<SettingsPageNav | null>(null);
   const host = useMemo(() => ({ publish: setPageNav }), []);
-  const isActive = (entry: Entry) => entry.screen === screen && (!entry.section || entry.section === section || (entry.section === "admin" && section === "account"));
+  // An entry without a section owns its screen's other sections, unless a
+  // sibling entry claims that section (Repositories within Tool infrastructure).
+  const claimed = (value?: string | null) => ENTRIES.some((entry) => entry.screen === screen && entry.section && entry.section === value);
+  const isActive = (entry: Entry) => entry.screen === screen && (entry.section ? entry.section === section || (entry.section === "admin" && section === "account") : !claimed(section));
   const groups = ENTRIES.reduce<Array<[string, Entry[]]>>((list, entry) => {
     const found = list.find(([name]) => name === entry.group);
     if (found) found[1].push(entry); else list.push([entry.group, [entry]]);

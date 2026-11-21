@@ -34,7 +34,6 @@ import { openTicketWorkspace } from "../../tickets/ticket-navigation";
 
 import { ClusterSelect } from "../../../components/ClusterSelect";
 import { AdminToolControls, type ToolKey } from "../../admin/AdminToolControls";
-import { SourceControlAdminPage } from "../../admin/ProductionIntegrationAdminPages";
 import type { AdminPageDependencies } from "../../admin/AdminWorkspacePage";
 import { LazyLibraryWorkspacePage, LazyPacketsPage, LazyTimeWorkspacePage } from "../application-entrypoints";
 import { CardSelect } from "./application-utility-workspaces";
@@ -902,7 +901,6 @@ export const TOOL_INFRASTRUCTURE_LABELS = Object.fromEntries(TOOL_INFRASTRUCTURE
 export function ToolInfrastructurePage({ projects, settings, initialSection }: { projects: Project[]; settings?: Settings; initialSection?: string | null }) {
   const [activeTool, setActiveTool] = useState<ToolKey>("timeline");
   const [toolBrowseMode, setToolBrowseMode] = useState<"configure" | "directory">("directory");
-  const [sourceControlOpen, setSourceControlOpen] = useState(initialSection === "source-control");
   const [toolSettingsOpen, setToolSettingsOpen] = useState(false);
   const [users, setUsers] = useState<UserActivitySummary[]>([]);
   const [snapshots, setSnapshots] = useState<ToolInfrastructureSnapshot[]>([]);
@@ -1006,7 +1004,6 @@ export function ToolInfrastructurePage({ projects, settings, initialSection }: {
     setStatus("Scheduler hours exported.");
   }
   useEffect(() => { void refreshInfrastructure(); }, []);
-  useEffect(() => { if (initialSection === "source-control") { setSourceControlOpen(true); setToolSettingsOpen(true); } }, [initialSection]);
   useEffect(() => {
     if (activeTool === "scheduler") void loadHours();
   }, [activeTool, hoursQuery]);
@@ -1116,7 +1113,6 @@ export function ToolInfrastructurePage({ projects, settings, initialSection }: {
       </div>
       {toolBrowseMode === "directory" ? <ToolDirectoryPanel onConfigure={(id: ClusterToolPermissionKey) => {
         if (!CLUSTER_ADMIN_CONFIGURABLE_TOOL_IDS.includes(id as ToolKey)) return;
-        setSourceControlOpen(false);
         setActiveTool(id as ToolKey);
         setToolSettingsOpen(true);
         setToolBrowseMode("configure");
@@ -1129,7 +1125,6 @@ export function ToolInfrastructurePage({ projects, settings, initialSection }: {
             </div>
           </header>
           <div className="tool-infrastructure-catalog-list">
-            <section><h2>Development</h2><ClusterButton type="button" className={sourceControlOpen ? "active operational" : "operational"} onClick={() => { setSourceControlOpen(true); setToolSettingsOpen(true); }}><i /><span><strong>Source Control</strong><em>Git runtime, managed repositories, LFS, remotes, and repository defaults.</em></span><b>Native</b></ClusterButton></section>
             {toolGroups.map((group) => (
               <section key={group}>
                 <h2>{group}</h2>
@@ -1138,7 +1133,7 @@ export function ToolInfrastructurePage({ projects, settings, initialSection }: {
                   .map((tool) => {
                     const snapshot = snapshots.find((item) => item.key === tool.key);
                     return (
-                      <ClusterButton type="button" key={tool.key} className={`${activeTool === tool.key ? "active" : ""} ${snapshot?.status || "degraded"}`} onClick={() => { setSourceControlOpen(false); setActiveTool(tool.key); setToolSettingsOpen(true); }}>
+                      <ClusterButton type="button" key={tool.key} className={`${activeTool === tool.key ? "active" : ""} ${snapshot?.status || "degraded"}`} onClick={() => { setActiveTool(tool.key); setToolSettingsOpen(true); }}>
                         <i />
                         <span>
                           <strong>{tool.label}</strong>
@@ -1153,7 +1148,7 @@ export function ToolInfrastructurePage({ projects, settings, initialSection }: {
           </div>
         </aside>
         <main className="tool-infrastructure-detail">
-          {sourceControlOpen ? <><header className="panel tool-infrastructure-detail-header"><ClusterButton className="tool-infrastructure-back" type="button" onClick={() => { setSourceControlOpen(false); setToolSettingsOpen(false); }} variant="secondary">Back to tools</ClusterButton><div><span>Development · Cluster native</span><h2>Source Control</h2><p>Configure Git runtime, repository defaults, LFS, optional remotes, and repository infrastructure here.</p></div><dl><div><dt>Mode</dt><dd>Project native</dd></div><div><dt>Projects</dt><dd>{projects.length}</dd></div></dl></header><SourceControlAdminPage embedded /></> : <>
+          {<>
           <header className="panel tool-infrastructure-detail-header">
             <ClusterButton className="tool-infrastructure-back" type="button" onClick={() => setToolSettingsOpen(false)} variant="secondary">Back to tools</ClusterButton>
             <div>

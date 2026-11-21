@@ -3,19 +3,24 @@ import { serializeClusterDeepLink, type ClusterOperation } from "@cluster/shared
 import { copyClusterText } from "../../core/clipboard";
 import { clusterWorkPermalink } from "../workflow/work-actions";
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
-import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
-import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
+import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
+import { ClusterIcon } from "../../components/ClusterIcon";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
+import { ClusterToggle } from "../../components/ClusterToggle";
 import { api, formatApiError, queryApi } from "../../core/api";
 import type { Project, User } from "../application/application-models";
-import { ProjectSectionHeader, ProjectSectionStatus, ProjectSurface } from "./ProjectWorkspacePrimitives";
-import { ActivityHeatmap, HealthStrip, PipelineRail } from "../../components/ClusterVisualIntelligence";
 import { CollaborationPanel } from "../../components/CollaborationPanel";
 import { ClusterMultiSelect } from "../../components/ClusterMultiSelect";
 import { PeopleMultiPicker } from "../people/PeoplePicker";
-import type { VisualDatum } from "../../components/visual-intelligence";
 import { ProjectCollaborationStrip } from "../collaboration";
 import { readFocusedSourceReview, readFocusedSourceCommit } from "./source-review-navigation";
+import "./project-source.css";
+
+/* Project → Source Control. One bar (repository, branch, head, sync) and
+   five views: Work, Reviews, History, Branches, Policy. Rows, not cards;
+   styled only by project-source.css (sx-*). */
 
 type SourceBranch = {
   id: string;
@@ -168,6 +173,8 @@ type SourceControlPayload = {
   reviews?: SourceReview[];
 };
 
+type SourceView = "work" | "reviews" | "history" | "branches" | "policy";
+
 function relativeTime(value?: string | null) {
   if (!value) return "Never";
   const time = new Date(value).getTime();
@@ -179,13 +186,6 @@ function relativeTime(value?: string | null) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.round(hours / 24);
   return `${days}d ago`;
-}
-
-function operationTone(status?: string) {
-  if (status === "succeeded") return "neutral";
-  if (status === "failed") return "danger";
-  if (status === "queued" || status === "running") return "accent";
-  return "neutral";
 }
 
 function workingCopyTone(status?: string) {
@@ -210,7 +210,10 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
   onOpenConnections: () => void;
 }) {
   const [payload, setPayload] = useState<SourceControlPayload | null>(null);
-  const [status, setStatus] = useState("Loading source control…");
+  const [status, setStatus] = useState("");
+  const [view, setView] = useState<SourceView>("work");
+  const [openReviewId, setOpenReviewId] = useState<string | null>(null);
+  const [reviewDraftFor, setReviewDraftFor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [expandedCommitId, setExpandedCommitId] = useState<string | null>(null);
   const [commitChangesById, setCommitChangesById] = useState<Record<string, SourceChange[]>>({});
@@ -238,7 +241,6 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
   const [policyDraft, setPolicyDraft] = useState({ protectedPatterns: "", branchPrefixes: "", allowDirectPush: true, requireLinkedWorkItem: false, requiredApprovals: 1, requireQa: false, requireBuild: false });
 
   const activeOperation = useMemo(() => payload?.operations.find((operation) => operation.status === "queued" || operation.status === "running") || null, [payload]);
-  const recentChanges = useMemo(() => payload?.commits.reduce((count, commit) => count + Number(commit.filesChanged ?? commit.changes?.length ?? 0), 0) || 0, [payload]);
   const operationsByWorkingCopy = useMemo(() => new Map((payload?.operations || [])
     .map((operation) => [operation, sourceOperationMetadata(operation)] as const)
     .filter(([operation, metadata]) => metadata?.workingCopyId && (operation.status === "queued" || operation.status === "running"))
@@ -250,9 +252,6 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
       const result = await queryApi<SourceControlPayload>(`/api/projects/${project.id}/source-control`, { force, staleMs: 5_000, maxAgeMs: 60_000, tags: ["source-control", project.id] });
       if (generation !== sourceLoadGenerationRef.current) return;
       setPayload(result);
-      if (!result.repository) setStatus("No repository is linked to this project.");
-      else if (result.repository.syncState === "failed") setStatus(result.repository.healthMessage || "Repository synchronization failed.");
-      else setStatus(result.repository.lastSyncedAt ? `Repository synchronized ${relativeTime(result.repository.lastSyncedAt)}.` : "Repository is linked but has not been synchronized yet.");
       const defaultName = result.binding?.defaultBranch || result.repository?.defaultBranch || "main";
       setBaseBranch((current) => current === "main" ? defaultName : current);
       setExistingBranch((current) => current === "main" ? defaultName : current);
@@ -290,15 +289,18 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
   }, [focusedReviewId, payload?.reviews, project.id, linkedReview?.id]);
   useEffect(() => {
     if (!focusedReviewId || !(linkedReview?.id === focusedReviewId || payload?.reviews?.some((review) => review.id === focusedReviewId))) return;
+    setView("reviews");
+    setOpenReviewId(focusedReviewId);
     setDiscussionReviewId(focusedReviewId);
     const node = document.getElementById(`cluster-source-review-${focusedReviewId}`);
     node?.scrollIntoView({ block: "center", behavior: "auto" });
     node?.focus({ preventScroll: true });
-  }, [focusedReviewId, payload?.reviews, linkedReview]);
+  }, [focusedReviewId, payload?.reviews, linkedReview, view]);
 
   useEffect(() => {
     if (!focusedCommitId) { setLinkedCommit(null); return; }
     const known = payload?.commits?.some((commit) => commit.id === focusedCommitId);
+    setView("history");
     if (known) { setLinkedCommit(null); setExpandedCommitId(focusedCommitId); return; }
     let cancelled = false;
     // Older linked commits can fall outside the bounded recent-history window.
@@ -313,7 +315,7 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
     const node = document.getElementById(`cluster-source-commit-${focusedCommitId}`);
     node?.scrollIntoView({ block: "center", behavior: "auto" });
     node?.focus({ preventScroll: true });
-  }, [focusedCommitId, expandedCommitId, payload?.commits, linkedCommit]);
+  }, [focusedCommitId, expandedCommitId, payload?.commits, linkedCommit, view]);
 
   useEffect(() => {
     void api<Array<{ id: string; name: string; archived?: boolean }>>("/api/team/teams").then((rows) => setTeams(rows.filter((row) => !row.archived))).catch(() => setTeams([]));
@@ -413,6 +415,7 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
     const targetBranch = reviewTargets[workingCopy.id] || payload?.repository?.defaultBranch || "main";
     const created = await perform("Source review opened.", () => api(`/api/projects/${project.id}/source-control/reviews`, { method: "POST", body: JSON.stringify({ workingCopyId: workingCopy.id, title, targetBranch, reviewerIds: reviewerIds[workingCopy.id] || [], reviewerTeamIds: reviewerTeamIds[workingCopy.id] || [] }) }));
     if (created) {
+      setReviewDraftFor(null);
       setReviewerIds((current) => ({ ...current, [workingCopy.id]: [] }));
       setReviewerTeamIds((current) => ({ ...current, [workingCopy.id]: [] }));
     }
@@ -445,172 +448,255 @@ export function ProjectChangesPanel({ project, users, currentUser, canContribute
   }
 
   const repository = payload?.repository || null;
-  const defaultBranch = payload?.branches.find((branch) => branch.isDefault) || null;
   const policy = payload?.policy || null;
-  const branchOptions = payload?.branches.length ? payload.branches : defaultBranch ? [defaultBranch] : [];
-  const sourceHealth: VisualDatum[] = repository ? [
-    { id: "sync", label: "Repository", value: repository.syncState === "failed" ? "Needs attention" : "Synchronized", tone: repository.syncState === "failed" ? "danger" : "good", detail: repository.lastSyncedAt ? relativeTime(repository.lastSyncedAt) : "Not synced yet" },
-    { id: "working", label: "Working copies", value: payload?.workingCopies?.length || 0, tone: (payload?.workingCopies || []).some((copy) => copy.conflictCount > 0) ? "danger" : (payload?.workingCopies || []).some((copy) => copy.dirtyFiles > 0) ? "warning" : "good", detail: `${(payload?.workingCopies || []).reduce((sum, copy) => sum + copy.dirtyFiles, 0)} changed files` },
-    { id: "reviews", label: "Open reviews", value: (payload?.reviews || []).filter((review) => review.status === "open").length, tone: (payload?.reviews || []).some((review) => review.status === "open" && review.eligibilityState === "ready") ? "accent" : "neutral", detail: `${(payload?.reviews || []).filter((review) => review.status === "open" && review.eligibilityState === "ready").length} merge ready` },
-    { id: "runtime", label: "Managed mirror", value: payload?.runtime?.mirrorState === "ready" ? "Ready" : "Unavailable", tone: payload?.runtime?.mirrorState === "ready" ? "good" : "warning", detail: payload?.runtime?.runtime.available ? `Git ${payload.runtime.runtime.version || "available"}` : "Git runtime unavailable" },
-  ] : [];
-  const commitActivity: VisualDatum[] = (payload?.commits || []).slice(0, 28).reverse().map((commit) => ({ id: commit.id, label: `${commit.shortRevision} ${commit.message.split("\n")[0]}`, value: Math.min(100, Math.max(8, (commit.filesChanged ?? commit.changes?.length ?? 0) * 12)), tone: "accent", detail: `${commit.filesChanged ?? commit.changes?.length ?? 0} files · ${relativeTime(commit.committedAt)}` }));
-  const activeReview = (payload?.reviews || []).find((review) => review.id === discussionReviewId) || null;
-  const activeSourceBranch = (payload?.workingCopies || []).find((copy) => copy.dirtyFiles > 0 || copy.conflictCount > 0)?.branchName || payload?.workingCopies?.[0]?.branchName || repository?.defaultBranch || "source";
+  const branches = payload?.branches || [];
+  const workingCopies = payload?.workingCopies || [];
+  const reviews = [...(linkedReview && !payload?.reviews?.some((review) => review.id === linkedReview.id) ? [linkedReview] : []), ...(payload?.reviews || [])];
+  const commits = [...(linkedCommit && !payload?.commits?.some((commit) => commit.id === linkedCommit.id) ? [linkedCommit] : []), ...(payload?.commits || [])];
+  const openReviews = reviews.filter((review) => review.status === "open");
+  const mirrorReady = payload?.runtime?.mirrorState === "ready";
+  const gitAvailable = payload?.runtime?.runtime.available !== false;
+  const activeReview = reviews.find((review) => review.id === discussionReviewId) || null;
+  const activeSourceBranch = workingCopies.find((copy) => copy.dirtyFiles > 0 || copy.conflictCount > 0)?.branchName || workingCopies[0]?.branchName || repository?.defaultBranch || "source";
   const sourcePresenceActivity = activeReview ? `Source review · ${activeReview.title}` : `Source · ${activeSourceBranch}`;
-  const reviewPipeline: VisualDatum[] = [
-    { id: "source", label: "Source", value: payload?.commits.length || 0, tone: repository ? "good" : "neutral", detail: `${payload?.branches.length || 0} branches` },
-    { id: "review", label: "Review", value: (payload?.reviews || []).filter((review) => review.status === "open").length, tone: (payload?.reviews || []).some((review) => review.status === "open" && review.eligibilityState === "ready") ? "accent" : "warning", detail: `${(payload?.reviews || []).filter((review) => review.status === "open" && review.eligibilityState === "ready").length} ready` },
-    { id: "build", label: "Build", value: policy?.requireBuild ? "Required" : "Optional", tone: policy?.requireBuild ? "accent" : "neutral", detail: "Merge policy" },
-    { id: "qa", label: "QA", value: policy?.requireQa ? "Required" : "Optional", tone: policy?.requireQa ? "accent" : "neutral", detail: "Merge policy" },
-    { id: "merge", label: "Merge", value: (payload?.reviews || []).filter((review) => review.status === "merged").length, tone: "good", detail: `into ${repository?.defaultBranch || "default"}` },
+  const lastFailure = (payload?.operations || []).find((operation) => operation.status === "failed" && !activeOperation);
+  const syncState = !repository ? "none" : repository.syncState === "failed" ? "failed" : activeOperation ? "running" : mirrorReady ? "ready" : "pending";
+  const workDisabled = !canContribute || busy;
+  const notice = !gitAvailable ? { tone: "danger", text: payload?.runtime?.runtime.message || "Git isn't available on the server." }
+    : repository?.syncState === "failed" ? { tone: "danger", text: repository.healthMessage || "Sync failed." }
+    : repository && !mirrorReady && !activeOperation ? { tone: "warning", text: "Not synced yet. Sync to load branches and history." }
+    : null;
+
+  if (!payload && !status) return <section className="sx"><p className="sx-empty">Loading…</p></section>;
+
+  if (!repository) return <section className="sx">
+    <div className="sx-none">
+      <ClusterIcon name="code" aria-hidden="true" />
+      <b>No repository</b>
+      <span>Pick one of the studio's repositories for this project.</span>
+      {canManage ? <ClusterButton variant="primary" size="compact" onClick={onOpenConnections}>Link repository</ClusterButton> : <small>{permissionReason}</small>}
+    </div>
+    {status ? <p className="sx-msg" role="status">{status}</p> : null}
+  </section>;
+
+  const tabs: Array<{ value: SourceView; label: string }> = [
+    { value: "work", label: workingCopies.length ? `Work ${workingCopies.length}` : "Work" },
+    { value: "reviews", label: openReviews.length ? `Reviews ${openReviews.length}` : "Reviews" },
+    { value: "history", label: "History" },
+    { value: "branches", label: branches.length ? `Branches ${branches.length}` : "Branches" },
+    { value: "policy", label: "Policy" },
   ];
 
   return (
-    <section className="project-subpage-v312">
-      <ProjectSectionHeader
-        eyebrow="Source Control"
-        title="Changes"
-        description="Prepare branches, commit project work, review changes, merge protected targets, and track source-backed versions without leaving Cluster."
-        metrics={[
-          { label: "Repository", value: repository?.name || "No repository", tone: repository ? "accent" : "warning" },
-          { label: "Branches", value: String(payload?.branches.length || 0) },
-          { label: "Working copies", value: String(payload?.workingCopies?.length || 0) },
-          { label: "Recent files", value: String(recentChanges) },
-          { label: "Mirror", value: payload?.runtime?.mirrorState === "ready" ? "Ready" : payload?.runtime?.runtime.available ? "Not created" : "Git unavailable", tone: payload?.runtime?.mirrorState === "ready" ? "good" : "warning" },
-        ]}
-        actions={repository ? (
-          <>
-            {repository.remoteUrl ? <ClusterLinkButton href={repository.remoteUrl} target="_blank" rel="noreferrer" variant="secondary" size="compact">Open remote</ClusterLinkButton> : null}
-            <ClusterButton variant="primary" size="compact" disabled={busy || Boolean(activeOperation) || !canContribute} onClick={() => void sync()}>{sourceOperationMetadata(activeOperation)?.operationType === "fetch" ? `${activeOperation?.progress || 0}%` : busy ? "Working…" : "Sync"}</ClusterButton>
-          </>
-        ) : <ClusterButton variant="primary" size="compact" onClick={onOpenConnections}>Link repository</ClusterButton>}
-      />
+    <section className="sx">
+      <header className="sx-bar">
+        <span className="sx-repo" data-state={syncState} title={repository.healthMessage || undefined}>
+          <i aria-hidden="true" />
+          <b>{repository.name}</b>
+          <small>{repository.connection?.displayName || "Cluster native"}</small>
+        </span>
+        <span className="sx-fact" title="Default branch"><ClusterIcon name="timeline" aria-hidden="true" />{repository.defaultBranch || "main"}</span>
+        <code className="sx-fact" title={repository.headRevision || "No commits yet"}>{repository.headRevision?.slice(0, 8) || "no commits"}</code>
+        <span className="sx-fact sx-fact--muted" title={repository.lastSyncedAt ? new Date(repository.lastSyncedAt).toLocaleString() : undefined}>{repository.lastSyncedAt ? `Synced ${relativeTime(repository.lastSyncedAt).toLowerCase()}` : "Never synced"}</span>
+        {activeOperation ? <span className="sx-op" role="status" title={activeOperation.progressMessage || undefined}>
+          <span className="sx-op__track"><span style={{ width: `${Math.max(4, activeOperation.progress || 0)}%` }} /></span>
+          {sourceOperationLabel(activeOperation)} {activeOperation.progress || 0}%
+        </span> : null}
+        <span className="sx-bar__end">
+          {repository.remoteUrl ? <ClusterLinkButton href={repository.remoteUrl} target="_blank" rel="noreferrer" variant="quiet" size="compact" title="Open remote"><ClusterIcon name="forward" aria-hidden="true" />Remote</ClusterLinkButton> : null}
+          <ClusterButton variant="primary" size="compact" disabled={busy || Boolean(activeOperation) || !canContribute} onClick={() => void sync()}><ClusterIcon name="sync" aria-hidden="true" />{activeOperation ? "Syncing…" : "Sync"}</ClusterButton>
+        </span>
+      </header>
       <ProjectCollaborationStrip tool="project" projectId={project.id} activity={sourcePresenceActivity} />
-      <ProjectSectionStatus tone={repository?.syncState === "failed" ? "danger" : activeOperation ? "warning" : repository ? "good" : "warning"}>{status}{!canContribute && repository ? ` ${permissionReason}` : ""}</ProjectSectionStatus>
+      {notice ? <p className="sx-notice" data-tone={notice.tone} role={notice.tone === "danger" ? "alert" : "status"}><ClusterIcon name="warning" aria-hidden="true" />{notice.text}</p> : null}
+      {lastFailure && !notice ? <p className="sx-notice" data-tone="danger" role="alert"><ClusterIcon name="warning" aria-hidden="true" />{sourceOperationLabel(lastFailure)} failed{lastFailure.lastError ? `: ${lastFailure.lastError}` : "."}</p> : null}
 
-      {repository ? (
-        <>
-          <ProjectSurface title="Source overview" description="Repository health, recent change density, and the production path from source through review, build, QA, and merge. These views derive from the same source-control payload as the controls below." tone={repository.syncState === "failed" ? "danger" : "accent"}>
-            <HealthStrip items={sourceHealth} label="Source control health" />
-            <div className="cluster-visual-consumer-grid">
-              <div><p className="eyebrow">Recent change activity</p><ActivityHeatmap items={commitActivity} label="Recent source activity" onSelect={(selection) => setExpandedCommitId(selection.datumId)} /></div>
-              <div><p className="eyebrow">Delivery lineage</p><PipelineRail items={reviewPipeline} label="Source to merge pipeline" /></div>
-            </div>
-          </ProjectSurface>
-          <div className="project-connection-grid-v312">
-            <ProjectSurface title="Repository" description="Cluster owns repository identity and synchronized state. Provider credentials stay in Administration." tone={repository.healthState === "failed" ? "danger" : "accent"}>
-              <dl className="project-form-grid-v312">
-                <div><dt>Repository</dt><dd>{repository.slug || repository.name}</dd></div>
-                <div><dt>Connection</dt><dd>{repository.connection?.displayName || "Cluster native"}</dd></div>
-                <div><dt>Default branch</dt><dd>{repository.defaultBranch || "main"}</dd></div>
-                <div><dt>Head</dt><dd>{repository.headRevision?.slice(0, 12) || "Unknown"}</dd></div>
-                <div><dt>Managed mirror</dt><dd>{payload?.runtime?.mirrorState === "ready" ? "Ready" : payload?.runtime?.mirrorState === "missing" ? "Not created" : "Unavailable"}</dd></div>
-                <div><dt>Git runtime</dt><dd>{payload?.runtime?.runtime.available ? `Git ${payload.runtime.runtime.version || "available"}` : "Unavailable"}</dd></div>
-              </dl>
-            </ProjectSurface>
-            <ProjectSurface title="Current operation" description="Source-control writes use Cluster's durable background job system." tone={activeOperation ? operationTone(activeOperation.status) : "neutral"}>
-              {activeOperation ? <div className="project-member-v312"><strong>{sourceOperationLabel(activeOperation)}</strong><span>{activeOperation.progress}%</span><p>{activeOperation.progressMessage || activeOperation.status}</p></div> : <p className="muted">No source-control operation is running.</p>}
-            </ProjectSurface>
-          </div>
+      <nav className="sx-tabs">
+        <ClusterSegmentedControl value={view} onChange={setView} label="Source control views" options={tabs} />
+        {!canContribute ? <span className="sx-readonly"><ClusterIcon name="lock" aria-hidden="true" />{permissionReason}</span> : null}
+        {status ? <span className="sx-msg" role="status">{status}</span> : null}
+      </nav>
 
-          <ProjectSurface title="Version suggestion" description="Cluster derives the next project version from the active version policy and synchronized default-branch changes." tone={payload?.versionSuggestion?.suggestion?.hasChanges ? "accent" : "neutral"}>
-            {!payload?.versionSuggestion?.configured ? <p className="muted">No version policy is configured. Configure one in Administration &gt; Versioning to enable source-backed suggestions.</p> : payload.versionSuggestion.suggestion ? <div className="project-form-grid-v312">
-              <div><span>Suggested version</span><strong>{payload.versionSuggestion.suggestion.label}</strong></div>
-              <div><span>Change level</span><strong>{payload.versionSuggestion.suggestion.bump === "none" ? "Initial" : payload.versionSuggestion.suggestion.bump}</strong></div>
-              <div><span>Source changes</span><strong>{payload.versionSuggestion.suggestion.commitCount}</strong></div>
-              <div><span>Latest version</span><strong>{payload.versionSuggestion.latest?.label || "None"}</strong></div>
-              <p className="muted">{payload.versionSuggestion.suggestion.rationale.join(" ")}</p>
-              {payload.versionSuggestion.suggestion.hasChanges ? <ClusterButton variant="primary" disabled={!canManage || busy} onClick={() => void createSuggestedVersion()}>Create draft {payload.versionSuggestion.suggestion.label}</ClusterButton> : <p className="muted">The current project version already matches the synchronized default branch.</p>}
-            </div> : <p className="muted">Synchronize the repository to calculate a version suggestion.</p>}
-          </ProjectSurface>
+      {view === "work" ? <>
+        {canContribute ? <div className="sx-start" aria-label="Start work">
+          <label className="sx-field sx-field--grow"><span>New branch</span><ClusterTextInput value={newBranch} onChange={(event) => setNewBranch(event.target.value)} placeholder={policy?.branchPrefixes?.[0] ? `${policy.branchPrefixes[0]}…` : "feature/…"} disabled={workDisabled} /></label>
+          <label className="sx-field"><span>From</span><ClusterNativeSelect value={baseBranch} onChange={(event) => setBaseBranch(event.target.value)} disabled={workDisabled || !branches.length}>{branches.map((branch) => <option key={branch.id} value={branch.name}>{branch.name}</option>)}</ClusterNativeSelect></label>
+          <ClusterButton variant="primary" size="compact" disabled={workDisabled || !newBranch.trim() || !mirrorReady} onClick={() => void prepareBranch(true)}>Create</ClusterButton>
+          <span className="sx-start__or">or</span>
+          <label className="sx-field"><span>Open</span><ClusterNativeSelect value={existingBranch} onChange={(event) => setExistingBranch(event.target.value)} disabled={workDisabled || !branches.length}>{branches.map((branch) => <option key={branch.id} value={branch.name}>{branch.name}{branch.isDefault ? " (default)" : ""}</option>)}</ClusterNativeSelect></label>
+          <ClusterButton variant="secondary" size="compact" disabled={workDisabled || !existingBranch || !mirrorReady} onClick={() => void prepareBranch(false)}>Open</ClusterButton>
+        </div> : null}
+        <section className="sx-card" aria-label="Working copies">
+          <h3 className="sx-card__title">Working copies</h3>
+          {workingCopies.length ? <ul className="sx-rows">
+            {workingCopies.map((workingCopy) => {
+              const operation = operationsByWorkingCopy.get(workingCopy.id);
+              const protectedBranch = Boolean(policy?.protectedPatterns.some((pattern) => wildcardMatches(workingCopy.branchName, pattern)) || branches.find((branch) => branch.name === workingCopy.branchName)?.protected);
+              const canPush = canContribute && !operation && !protectedBranch && policy?.allowDirectPush !== false && workingCopy.status !== "conflicted" && workingCopy.status !== "failed" && workingCopy.behindCount === 0;
+              const canOpenReview = workingCopy.dirtyFiles === 0 && Boolean(workingCopy.headRevision && workingCopy.upstreamName);
+              const locked = !canContribute || Boolean(operation);
+              return <li key={workingCopy.id} className="sx-wc" data-tone={workingCopyTone(workingCopy.status)}>
+                <div className="sx-row">
+                  <span className="sx-row__main"><i className="sx-dot" aria-hidden="true" /><b>{workingCopy.branchName}</b>{protectedBranch ? <ClusterIcon name="lock" aria-label="Protected" /> : null}<small>{workingCopy.status}</small></span>
+                  <span className="sx-nums">
+                    <span title="Ahead / behind upstream">↑{workingCopy.aheadCount} ↓{workingCopy.behindCount}</span>
+                    <span data-on={workingCopy.dirtyFiles > 0 || undefined}>{workingCopy.dirtyFiles} changed</span>
+                    {workingCopy.conflictCount ? <span data-tone="danger">{workingCopy.conflictCount} conflicts</span> : null}
+                  </span>
+                  <code title={workingCopy.headRevision || undefined}>{workingCopy.headRevision?.slice(0, 8) || "—"}</code>
+                  <span className="sx-row__actions">
+                    <ClusterIconButton size="compact" label="Refresh" disabled={Boolean(operation) || busy} onClick={() => void refreshWorkingCopy(workingCopy.id)}><ClusterIcon name="refresh" /></ClusterIconButton>
+                    {canOpenReview ? <ClusterButton size="compact" variant={reviewDraftFor === workingCopy.id ? "secondary" : "quiet"} disabled={locked || busy} onClick={() => setReviewDraftFor((current) => current === workingCopy.id ? null : workingCopy.id)}>Review</ClusterButton> : null}
+                    <ClusterButton size="compact" variant="secondary" disabled={!canPush || busy} title={protectedBranch ? "Protected branch — merge through a review" : workingCopy.behindCount ? "Behind upstream — sync first" : undefined} onClick={() => void pushWorkingCopy(workingCopy.id)}>Push</ClusterButton>
+                  </span>
+                </div>
+                {operation ? <p className="sx-sub">{sourceOperationLabel(operation)} · {operation.progress}%{operation.progressMessage ? ` · ${operation.progressMessage}` : ""}</p> : null}
+                {workingCopy.dirtyFiles > 0 ? <div className="sx-compose">
+                  <ClusterTextInput aria-label={`Commit message for ${workingCopy.branchName}`} value={commitMessages[workingCopy.id] || ""} onChange={(event) => setCommitMessages((current) => ({ ...current, [workingCopy.id]: event.target.value }))} placeholder="Commit message" disabled={locked} />
+                  <ClusterNativeSelect aria-label="Linked work" value={commitLinks[workingCopy.id] || ""} onChange={(event) => setCommitLinks((current) => ({ ...current, [workingCopy.id]: event.target.value }))} disabled={locked}><option value="">No linked work</option>{candidates.map((candidate) => <option key={`${candidate.kind}:${candidate.id}`} value={`${candidate.kind}:${candidate.id}`}>{candidate.label} · {candidate.context || candidate.kind.replaceAll("_", " ")}</option>)}</ClusterNativeSelect>
+                  <ClusterButton size="compact" variant="primary" disabled={locked || !(commitMessages[workingCopy.id] || "").trim()} onClick={() => void commitWorkingCopy(workingCopy)}>Commit {workingCopy.dirtyFiles}</ClusterButton>
+                </div> : null}
+                {canOpenReview && reviewDraftFor === workingCopy.id ? <div className="sx-compose sx-compose--review">
+                  <ClusterTextInput aria-label="Review title" value={reviewTitles[workingCopy.id] || ""} onChange={(event) => setReviewTitles((current) => ({ ...current, [workingCopy.id]: event.target.value }))} placeholder={`Review ${workingCopy.branchName}`} disabled={locked} />
+                  <label className="sx-field"><span>Into</span><ClusterNativeSelect value={reviewTargets[workingCopy.id] || repository.defaultBranch || "main"} onChange={(event) => setReviewTargets((current) => ({ ...current, [workingCopy.id]: event.target.value }))} disabled={locked}>{branches.filter((branch) => branch.name !== workingCopy.branchName).map((branch) => <option key={branch.id} value={branch.name}>{branch.name}</option>)}</ClusterNativeSelect></label>
+                  <PeopleMultiPicker label="Reviewers" values={reviewerIds[workingCopy.id] || []} onChange={(values) => setReviewerIds((current) => ({ ...current, [workingCopy.id]: values }))} people={users} disabled={locked} />
+                  {teams.length ? <ClusterMultiSelect values={reviewerTeamIds[workingCopy.id] || []} onChange={(values) => setReviewerTeamIds((current) => ({ ...current, [workingCopy.id]: values }))} options={teams.map((team) => ({ value: team.id, label: team.name }))} ariaLabel="Reviewer teams" placeholder="Teams" disabled={locked} /> : null}
+                  <ClusterButton size="compact" variant="primary" disabled={locked || busy || workingCopy.behindCount > 0} onClick={() => void openReview(workingCopy)}>Open review</ClusterButton>
+                </div> : null}
+              </li>;
+            })}
+          </ul> : <p className="sx-empty">{mirrorReady ? "No working copies. Create or open a branch." : "Sync first, then create or open a branch."}</p>}
+        </section>
+      </> : null}
 
-          <ProjectSurface title="Start work" description="Open an existing branch or create a project branch from a synchronized base. Cluster keeps the server path private." tone="accent">
-            <div className="project-form-grid-v312">
-              <label><span>Existing branch</span><ClusterNativeSelect value={existingBranch} onChange={(event) => setExistingBranch(event.target.value)} disabled={!canContribute || busy}>{(payload?.branches || []).map((branch) => <option key={branch.id} value={branch.name}>{branch.name}{branch.isDefault ? " · default" : ""}</option>)}</ClusterNativeSelect></label>
-              <label><span>Base branch</span><ClusterNativeSelect value={baseBranch} onChange={(event) => setBaseBranch(event.target.value)} disabled={!canContribute || busy}>{(payload?.branches || []).map((branch) => <option key={branch.id} value={branch.name}>{branch.name}</option>)}</ClusterNativeSelect></label>
-              <label><span>New branch</span><ClusterTextInput value={newBranch} onChange={(event) => setNewBranch(event.target.value)} placeholder="feature/inventory-pass" disabled={!canContribute || busy} /></label>
-              <div className="project-control-inline-actions-v313"><ClusterButton variant="secondary" disabled={!canContribute || busy || !existingBranch || payload?.runtime?.mirrorState !== "ready"} onClick={() => void prepareBranch(false)}>Open branch</ClusterButton><ClusterButton variant="primary" disabled={!canContribute || busy || !newBranch.trim() || payload?.runtime?.mirrorState !== "ready"} onClick={() => void prepareBranch(true)}>Create branch</ClusterButton></div>
-            </div>
-            {policy?.branchPrefixes?.length ? <p className="muted">Suggested branch prefixes: {policy.branchPrefixes.join(", ")}</p> : null}
-          </ProjectSurface>
+      {view === "reviews" ? <section className="sx-card" aria-label="Reviews">
+        {focusedReviewId && payload?.reviews && !payload.reviews.some((review) => review.id === focusedReviewId) && linkedReview?.id !== focusedReviewId ? <p className="sx-notice" data-tone="warning">The requested source review is no longer available in this Project. <ClusterButton size="compact" variant="quiet" onClick={() => setFocusedReviewId(null)}>Show all</ClusterButton></p> : null}
+        {reviews.length ? <ul className="sx-rows">
+          {reviews.map((review) => {
+            const open = openReviewId === review.id;
+            const state = review.status === "open" ? review.eligibilityState : review.status;
+            const approvals = review.changeSummary?.approvals || 0;
+            const required = review.changeSummary?.requiredApprovals ?? policy?.requiredApprovals ?? 1;
+            return <li key={review.id} id={`cluster-source-review-${review.id}`} data-focused={focusedReviewId === review.id ? "true" : undefined} tabIndex={-1} aria-label={`Source review: ${review.title}`} className="sx-review cluster-source-review-v536" data-state={state}>
+              <div className="sx-row">
+                <button type="button" className="sx-row__toggle" aria-expanded={open} onClick={() => setOpenReviewId(open ? null : review.id)}>
+                  <span className="sx-pill" data-state={state}>{state.replaceAll("_", " ")}</span>
+                  <span className="sx-row__main"><b>{review.title}</b><small>{review.sourceBranch} → {review.targetBranch}</small></span>
+                </button>
+                <span className="sx-nums">
+                  <span data-on={approvals >= required || undefined} title="Approvals">✓ {approvals}/{required}</span>
+                  <span>{review.changeSummary?.commits || 0} commits</span>
+                  <span>{review.changeSummary?.files || 0} files</span>
+                </span>
+                <span className="sx-row__actions"><ClusterIconButton size="compact" label="Copy link" onClick={() => void copySourceLink("source_review", review.id)}><ClusterIcon name="link" /></ClusterIconButton></span>
+              </div>
+              {open ? <div className="sx-detail">
+                {review.status === "open" ? <p className="sx-sub">{review.eligibilityMessage || "Checking merge eligibility."}</p> : review.mergedRevision ? <p className="sx-sub">Merged as <code>{review.mergedRevision.slice(0, 10)}</code>{review.mergedAt ? ` · ${relativeTime(review.mergedAt)}` : ""}</p> : null}
+                {review.status === "open" ? <>
+                  <div className="sx-compose">
+                    <PeopleMultiPicker label="Reviewers" values={review.reviewerIds || []} onChange={(values) => void updateReviewAssignments(review, values, review.reviewerTeamIds || [])} people={users} disabled={!canContribute || busy} />
+                    {teams.length ? <ClusterMultiSelect values={review.reviewerTeamIds || []} onChange={(values) => void updateReviewAssignments(review, review.reviewerIds || [], values)} options={teams.map((team) => ({ value: team.id, label: team.name }))} ariaLabel={`${review.title} reviewer teams`} placeholder="Teams" disabled={!canContribute || busy} /> : null}
+                  </div>
+                  <div className="sx-compose">
+                    <ClusterTextInput aria-label="Review note" value={reviewComments[review.id] || ""} onChange={(event) => setReviewComments((current) => ({ ...current, [review.id]: event.target.value }))} placeholder="Note (needed to request changes)" disabled={!canContribute || busy} />
+                    <ClusterButton size="compact" variant="secondary" disabled={!canContribute || busy || !(reviewComments[review.id] || "").trim()} onClick={() => void reviewDecision(review, "changes_requested")}>Request changes</ClusterButton>
+                    <ClusterButton size="compact" variant="secondary" disabled={!canContribute || busy} onClick={() => void reviewDecision(review, "approved")}>Approve</ClusterButton>
+                    <ClusterButton size="compact" variant="primary" disabled={!canManage || busy || review.eligibilityState !== "ready"} onClick={() => void mergeReview(review.id)}>Merge</ClusterButton>
+                  </div>
+                  <div className="sx-detail__foot">
+                    <ClusterButton size="compact" variant={discussionReviewId === review.id ? "secondary" : "quiet"} disabled={busy} onClick={() => setDiscussionReviewId((current) => current === review.id ? null : review.id)}><ClusterIcon name="comment" aria-hidden="true" />Discussion</ClusterButton>
+                    <ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => void refreshReview(review.id)}><ClusterIcon name="refresh" aria-hidden="true" />Recheck</ClusterButton>
+                    <code>{review.sourceRevision.slice(0, 8)} → {review.targetRevision.slice(0, 8)}</code>
+                  </div>
+                  {discussionReviewId === review.id ? <CollaborationPanel title="Review discussion" entityType="source_review" entityId={review.id} users={users} currentUser={currentUser} compact /> : null}
+                </> : null}
+              </div> : null}
+            </li>;
+          })}
+        </ul> : <p className="sx-empty">No reviews. Push a branch, then open a review from Work.</p>}
+      </section> : null}
 
-          <ProjectSurface title="My working copies" description="Working copies report dirty files, conflicts, and remote divergence. Desktop/source workspace integration can edit these managed copies without exposing server paths here." tone="neutral">
-            <div className="project-team-grid-v312">
-              {(payload?.workingCopies || []).map((workingCopy) => {
-                const operation = operationsByWorkingCopy.get(workingCopy.id);
-                const protectedBranch = Boolean(policy?.protectedPatterns.some((pattern) => wildcardMatches(workingCopy.branchName, pattern)) || payload?.branches.find((branch) => branch.name === workingCopy.branchName)?.protected);
-                const canPush = canContribute && !operation && !protectedBranch && policy?.allowDirectPush !== false && workingCopy.status !== "conflicted" && workingCopy.status !== "failed" && workingCopy.behindCount === 0;
-                return <article key={workingCopy.id} className="project-member-v312">
-                  <div><strong>{workingCopy.branchName}</strong><span className={`soft-pill ${workingCopyTone(workingCopy.status)}`}>{workingCopy.status}</span>{protectedBranch ? <span className="soft-pill">Protected</span> : null}</div>
-                  <code>{workingCopy.headRevision?.slice(0, 12) || "not prepared"}</code>
-                  <small>{workingCopy.upstreamName || "No upstream"} · {workingCopy.aheadCount} ahead / {workingCopy.behindCount} behind · {workingCopy.dirtyFiles} changed · {workingCopy.conflictCount} conflicts</small>
-                  {operation ? <small>{sourceOperationLabel(operation)} · {operation.progress}% · {operation.progressMessage || operation.status}</small> : null}
-                  <div className="project-control-inline-actions-v313"><ClusterButton size="compact" variant="quiet" disabled={Boolean(operation) || busy} onClick={() => void refreshWorkingCopy(workingCopy.id)}>Refresh</ClusterButton><ClusterButton size="compact" variant="secondary" disabled={!canPush || busy} onClick={() => void pushWorkingCopy(workingCopy.id)}>Push branch</ClusterButton></div>
-                  {workingCopy.dirtyFiles > 0 ? <div className="project-form-grid-v312"><label><span>Commit message</span><ClusterTextInput value={commitMessages[workingCopy.id] || ""} onChange={(event) => setCommitMessages((current) => ({ ...current, [workingCopy.id]: event.target.value }))} placeholder="Describe the production change" disabled={!canContribute || Boolean(operation)} /></label><label><span>Linked work</span><ClusterNativeSelect value={commitLinks[workingCopy.id] || ""} onChange={(event) => setCommitLinks((current) => ({ ...current, [workingCopy.id]: event.target.value }))} disabled={!canContribute || Boolean(operation)}><option value="">No linked item</option>{candidates.map((candidate) => <option key={`${candidate.kind}:${candidate.id}`} value={`${candidate.kind}:${candidate.id}`}>{candidate.label} · {candidate.context || candidate.kind.replaceAll("_", " ")}</option>)}</ClusterNativeSelect></label><ClusterButton variant="primary" disabled={!canContribute || Boolean(operation) || !(commitMessages[workingCopy.id] || "").trim()} onClick={() => void commitWorkingCopy(workingCopy)}>Commit changes</ClusterButton></div> : <p className="muted">Working copy is clean. Commit controls appear when managed files change.</p>}
-                  {workingCopy.dirtyFiles === 0 && workingCopy.headRevision && workingCopy.upstreamName ? <div className="project-form-grid-v312"><label><span>Review title</span><ClusterTextInput value={reviewTitles[workingCopy.id] || ""} onChange={(event) => setReviewTitles((current) => ({ ...current, [workingCopy.id]: event.target.value }))} placeholder={`Review ${workingCopy.branchName}`} disabled={!canContribute || Boolean(operation)} /></label><label><span>Merge into</span><ClusterNativeSelect value={reviewTargets[workingCopy.id] || repository.defaultBranch || "main"} onChange={(event) => setReviewTargets((current) => ({ ...current, [workingCopy.id]: event.target.value }))} disabled={!canContribute || Boolean(operation)}>{(payload?.branches || []).filter((branch) => branch.name !== workingCopy.branchName).map((branch) => <option key={branch.id} value={branch.name}>{branch.name}{branch.isDefault ? " · default" : ""}</option>)}</ClusterNativeSelect></label><PeopleMultiPicker label="Requested reviewers" values={reviewerIds[workingCopy.id] || []} onChange={(values) => setReviewerIds((current) => ({ ...current, [workingCopy.id]: values }))} people={users} disabled={!canContribute || Boolean(operation)} /><div className="field"><label>Reviewer teams</label><ClusterMultiSelect values={reviewerTeamIds[workingCopy.id] || []} onChange={(values) => setReviewerTeamIds((current) => ({ ...current, [workingCopy.id]: values }))} options={teams.map((team) => ({ value: team.id, label: team.name }))} ariaLabel="Requested reviewer teams" placeholder="Add reviewer team" disabled={!canContribute || Boolean(operation) || !teams.length} /></div><ClusterButton variant="secondary" disabled={!canContribute || Boolean(operation) || busy || workingCopy.behindCount > 0} onClick={() => void openReview(workingCopy)}>Open review</ClusterButton></div> : null}
-                </article>;
-              })}
-              {!payload?.workingCopies?.length ? <p className="muted">Open or create a branch to prepare your first managed working copy.</p> : null}
-            </div>
-          </ProjectSurface>
+      {view === "history" ? <>
+        {payload?.versionSuggestion?.configured && payload.versionSuggestion.suggestion?.hasChanges ? <div className="sx-version" title={payload.versionSuggestion.suggestion.rationale.join(" ")}>
+          <ClusterIcon name="spark" aria-hidden="true" />
+          <span>Next version <b>{payload.versionSuggestion.suggestion.label}</b></span>
+          <small>{payload.versionSuggestion.suggestion.bump === "none" ? "initial" : payload.versionSuggestion.suggestion.bump} · {payload.versionSuggestion.suggestion.commitCount} changes · latest {payload.versionSuggestion.latest?.label || "none"}</small>
+          {canManage ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void createSuggestedVersion()}>Create draft</ClusterButton> : null}
+        </div> : null}
+        <section className="sx-card" aria-label="Recent commits">
+          <h3 className="sx-card__title">Commits <small>{repository.defaultBranch}</small></h3>
+          {commits.length ? <ul className="sx-rows">
+            {commits.map((commit) => {
+              const expanded = expandedCommitId === commit.id;
+              const changes = commit.changes || commitChangesById[commit.id];
+              const linkCount = payload?.links?.filter((link) => link.commitId === commit.id).length || 0;
+              return <li key={commit.id} id={`cluster-source-commit-${commit.id}`} tabIndex={-1} data-focused={focusedCommitId === commit.id ? "true" : undefined} className="sx-commit">
+                <div className="sx-row">
+                  <button type="button" className="sx-row__toggle" aria-expanded={expanded} onClick={() => void toggleCommit(commit)}>
+                    <code title={commit.revision}>{commit.revision.slice(0, 8)}</code>
+                    <span className="sx-row__main"><b title={commit.message}>{commit.message.split("\n")[0]}</b><small>{commit.authorName || "Unknown"} · {relativeTime(commit.committedAt)}</small></span>
+                  </button>
+                  <span className="sx-nums">
+                    <span>{commit.filesChanged ?? changes?.length ?? 0} files</span>
+                    <span data-tone="good">+{commit.additions || 0}</span>
+                    <span data-tone="danger">−{commit.deletions || 0}</span>
+                    {linkCount ? <span title="Linked work"><ClusterIcon name="link" aria-hidden="true" />{linkCount}</span> : null}
+                  </span>
+                  <span className="sx-row__actions"><ClusterIconButton size="compact" label="Copy link" onClick={() => void copySourceLink("source_commit", commit.id)}><ClusterIcon name="link" /></ClusterIconButton></span>
+                </div>
+                {expanded ? <ul className="sx-files">
+                  {loadingCommitId === commit.id && !changes ? <li className="sx-empty">Loading files…</li> : changes?.length ? changes.map((change) => <li key={change.id} data-change={change.changeType}>
+                    <i>{change.changeType.slice(0, 1).toUpperCase()}</i>
+                    <code title={change.previousPath ? `${change.previousPath} → ${change.path}` : change.path}>{change.path}</code>
+                    <small>{change.binary ? "binary" : change.additions == null && change.deletions == null ? "" : `+${change.additions || 0} −${change.deletions || 0}`}</small>
+                  </li>) : <li className="sx-empty">No file list cached for this commit.</li>}
+                </ul> : null}
+              </li>;
+            })}
+          </ul> : <p className="sx-empty">{mirrorReady ? "No commits yet." : "Sync to load history."}</p>}
+        </section>
+        {payload?.operations?.length ? <section className="sx-card" aria-label="Operations">
+          <h3 className="sx-card__title">Operations</h3>
+          <ul className="sx-rows">{payload.operations.slice(0, 10).map((operation) => <li key={operation.id} className="sx-row sx-oprow" data-state={operation.status}>
+            <span className="sx-pill" data-state={operation.status}>{operation.status}</span>
+            <span className="sx-row__main"><b>{sourceOperationLabel(operation)}</b><small title={operation.lastError || undefined}>{operation.lastError || operation.progressMessage || ""}</small></span>
+            <small className="sx-when">{relativeTime(operation.createdAt)}</small>
+          </li>)}</ul>
+        </section> : null}
+      </> : null}
 
-          <ProjectSurface title="Reviews" description="Review production changes before they reach protected branches. Eligibility is calculated from revisions, approvals, conflicts, linked work, QA, and build policy." tone={(payload?.reviews || []).some((review) => review.status === "open" && review.eligibilityState === "ready") ? "accent" : "neutral"}>
-            {focusedReviewId && payload?.reviews && !payload.reviews.some((review) => review.id === focusedReviewId) && linkedReview?.id !== focusedReviewId ? <ProjectSectionStatus tone="warning">The requested source review is no longer available in this Project. It may have been removed or you may no longer have access. <ClusterButton size="compact" variant="quiet" onClick={() => setFocusedReviewId(null)}>Show all reviews</ClusterButton></ProjectSectionStatus> : null}
-            <div className="project-team-grid-v312">
-              {([...(linkedReview && !payload?.reviews?.some((review) => review.id === linkedReview.id) ? [linkedReview] : []), ...(payload?.reviews || [])]).map((review) => <article key={review.id} id={`cluster-source-review-${review.id}`} data-focused={focusedReviewId === review.id ? "true" : undefined} tabIndex={-1} aria-label={`Source review: ${review.title}`} className="project-member-v312 cluster-source-review-v536">
-                <div><strong>{review.title}</strong><span className={`soft-pill ${review.status === "merged" ? "good" : review.eligibilityState === "ready" ? "accent" : review.eligibilityState === "conflicted" ? "danger" : "warning"}`}>{review.status === "open" ? review.eligibilityState : review.status}</span></div>
-                <small>{review.sourceBranch} → {review.targetBranch} · {review.sourceRevision.slice(0, 12)} → {review.targetRevision.slice(0, 12)}</small><div className="project-control-inline-actions-v313"><ClusterButton size="compact" variant="quiet" onClick={() => void copySourceLink("source_review", review.id)}>Copy link</ClusterButton></div>
-                <small>{review.changeSummary?.commits || 0} commits · {review.changeSummary?.files || 0} files · {review.changeSummary?.approvals || 0}/{review.changeSummary?.requiredApprovals ?? policy?.requiredApprovals ?? 1} approvals · {review.changeSummary?.linkedWork || 0} links</small>
-                {review.status === "open" ? <p className="muted">{review.eligibilityMessage || "Checking merge eligibility."}</p> : review.mergedRevision ? <p className="muted">Merged as {review.mergedRevision.slice(0, 12)} {review.mergedAt ? `· ${relativeTime(review.mergedAt)}` : ""}</p> : null}
-                {review.status === "open" ? <><div className="project-form-grid-v312"><PeopleMultiPicker label="Requested reviewers" values={review.reviewerIds || []} onChange={(values) => void updateReviewAssignments(review, values, review.reviewerTeamIds || [])} people={users} disabled={!canContribute || busy} /><div className="field"><label>Reviewer teams</label><ClusterMultiSelect values={review.reviewerTeamIds || []} onChange={(values) => void updateReviewAssignments(review, review.reviewerIds || [], values)} options={teams.map((team) => ({ value: team.id, label: team.name }))} ariaLabel={`${review.title} reviewer teams`} placeholder="Add reviewer team" disabled={!canContribute || busy || !teams.length} /></div></div><label><span>Review note</span><ClusterTextInput value={reviewComments[review.id] || ""} onChange={(event) => setReviewComments((current) => ({ ...current, [review.id]: event.target.value }))} placeholder="Review note (required to request changes)" disabled={!canContribute || busy} /></label><div className="project-control-inline-actions-v313"><ClusterButton size="compact" variant={discussionReviewId === review.id ? "secondary" : "quiet"} disabled={busy} onClick={() => setDiscussionReviewId((current) => current === review.id ? null : review.id)}>{discussionReviewId === review.id ? "Hide discussion" : "Discussion"}</ClusterButton><ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => void refreshReview(review.id)}>Refresh</ClusterButton><ClusterButton size="compact" variant="secondary" disabled={!canContribute || busy || !(reviewComments[review.id] || "").trim()} onClick={() => void reviewDecision(review, "changes_requested")}>Request changes</ClusterButton><ClusterButton size="compact" variant="secondary" disabled={!canContribute || busy} onClick={() => void reviewDecision(review, "approved")}>Approve</ClusterButton><ClusterButton size="compact" variant="primary" disabled={!canManage || busy || review.eligibilityState !== "ready"} onClick={() => void mergeReview(review.id)}>Merge</ClusterButton></div></> : null}
-                {review.status === "open" && discussionReviewId === review.id ? <CollaborationPanel title="Review discussion" entityType="source_review" entityId={review.id} users={users} currentUser={currentUser} compact /> : null}
-              </article>)}
-              {!payload?.reviews?.length && !linkedReview ? <p className="muted">Push a project branch and open a review when changes are ready for approval.</p> : null}
-            </div>
-          </ProjectSurface>
+      {view === "branches" ? <section className="sx-card" aria-label="Branches">
+        {branches.length ? <ul className="sx-rows">
+          {branches.map((branch) => <li key={branch.id} className="sx-row sx-branch">
+            <span className="sx-row__main"><b>{branch.name}</b>{branch.isDefault ? <span className="sx-pill" data-state="ready">default</span> : null}{branch.protected || policy?.protectedPatterns.some((pattern) => wildcardMatches(branch.name, pattern)) ? <ClusterIcon name="lock" aria-label="Protected" /> : null}</span>
+            <span className="sx-nums">{branch.aheadCount || branch.behindCount ? <span>↑{branch.aheadCount} ↓{branch.behindCount}</span> : null}</span>
+            <code title={branch.headRevision || undefined}>{branch.headRevision?.slice(0, 8) || "—"}</code>
+            <small className="sx-when">{branch.lastCommitAt ? relativeTime(branch.lastCommitAt) : ""}</small>
+          </li>)}
+        </ul> : <p className="sx-empty">Sync to load branches.</p>}
+      </section> : null}
 
-          <ProjectSurface title="Branch policy" description="The default branch is always protected. Additional protection and work-link rules are project-owned." tone="neutral">
-            {canManage ? <div className="project-form-grid-v312">
-              <label><span>Additional protected patterns</span><ClusterTextInput value={policyDraft.protectedPatterns} onChange={(event) => setPolicyDraft((current) => ({ ...current, protectedPatterns: event.target.value }))} placeholder="release/*, hotfix/locked-*" /></label>
-              <label><span>Suggested branch prefixes</span><ClusterTextInput value={policyDraft.branchPrefixes} onChange={(event) => setPolicyDraft((current) => ({ ...current, branchPrefixes: event.target.value }))} placeholder="feature/, fix/, hotfix/" /></label>
-              <label className="tool-check compact"><ClusterInput type="checkbox" checked={policyDraft.allowDirectPush} onChange={(event) => setPolicyDraft((current) => ({ ...current, allowDirectPush: event.target.checked }))} /> Allow direct push to unprotected branches</label>
-              <label className="tool-check compact"><ClusterInput type="checkbox" checked={policyDraft.requireLinkedWorkItem} onChange={(event) => setPolicyDraft((current) => ({ ...current, requireLinkedWorkItem: event.target.checked }))} /> Require linked project work before push or merge</label>
-              <label><span>Required review approvals</span><ClusterNativeSelect value={String(policyDraft.requiredApprovals)} onChange={(event) => setPolicyDraft((current) => ({ ...current, requiredApprovals: Number(event.target.value) }))}>{[0,1,2,3,4,5].map((count) => <option key={count} value={count}>{count}</option>)}</ClusterNativeSelect></label>
-              <label className="tool-check compact"><ClusterInput type="checkbox" checked={policyDraft.requireQa} onChange={(event) => setPolicyDraft((current) => ({ ...current, requireQa: event.target.checked }))} /> Require linked QA evidence before merge</label>
-              <label className="tool-check compact"><ClusterInput type="checkbox" checked={policyDraft.requireBuild} onChange={(event) => setPolicyDraft((current) => ({ ...current, requireBuild: event.target.checked }))} /> Require a linked build before merge</label>
-              <ClusterButton variant="primary" disabled={busy} onClick={() => void savePolicy()}>Save branch policy</ClusterButton>
-            </div> : <dl className="project-form-grid-v312"><div><dt>Protected</dt><dd>{policy?.protectedPatterns.join(", ") || repository.defaultBranch}</dd></div><div><dt>Direct push</dt><dd>{policy?.allowDirectPush === false ? "Disabled" : "Unprotected branches only"}</dd></div><div><dt>Linked work</dt><dd>{policy?.requireLinkedWorkItem ? "Required" : "Optional"}</dd></div><div><dt>Review approvals</dt><dd>{policy?.requiredApprovals ?? 1}</dd></div><div><dt>QA evidence</dt><dd>{policy?.requireQa ? "Required" : "Optional"}</dd></div><div><dt>Build</dt><dd>{policy?.requireBuild ? "Required" : "Optional"}</dd></div><div><dt>Force push</dt><dd>Disabled</dd></div></dl>}
-          </ProjectSurface>
-
-          <ProjectSurface title="Branches" description="Remote branch heads are synchronized from the linked source-control adapter." tone="neutral">
-            <div className="project-team-grid-v312">
-              {(payload?.branches || []).map((branch) => <article key={branch.id} className="project-member-v312"><div><strong>{branch.name}</strong>{branch.isDefault ? <span className="soft-pill good">Default</span> : null}{branch.protected ? <span className="soft-pill">Provider protected</span> : null}</div><code>{branch.headRevision?.slice(0, 12) || "unknown"}</code><small>{branch.lastCommitAt ? relativeTime(branch.lastCommitAt) : branch === defaultBranch ? "Current default branch" : "No commit time cached"}</small></article>)}
-              {!payload?.branches.length ? <p className="muted">Synchronize the repository to load branch state.</p> : null}
-            </div>
-          </ProjectSurface>
-
-          <ProjectSurface title="Recent commits" description="Recent history from the default branch, with file changes and project links cached by Cluster." tone="neutral">
-            <div className="project-team-grid-v312">
-              {([...(linkedCommit && !payload?.commits?.some((commit) => commit.id === linkedCommit.id) ? [linkedCommit] : []), ...(payload?.commits || [])]).map((commit) => {
-                const expanded = expandedCommitId === commit.id;
-                const changes = commit.changes || commitChangesById[commit.id];
-                const linkCount = payload?.links?.filter((link) => link.commitId === commit.id).length || 0;
-                return <article key={commit.id} id={`cluster-source-commit-${commit.id}`} tabIndex={-1} data-focused={focusedCommitId === commit.id ? "true" : undefined} className="project-member-v312"><ClusterButton unstyled type="button" className="project-resource-card-v312" aria-expanded={expanded} onClick={() => void toggleCommit(commit)}><code>{commit.shortRevision}</code><span><strong>{commit.message.split("\n")[0]}</strong><small>{commit.authorName || "Unknown author"} · {relativeTime(commit.committedAt)} · {commit.filesChanged ?? changes?.length ?? 0} files · {linkCount} links</small></span><span className="soft-pill">+{commit.additions || 0} / -{commit.deletions || 0}</span></ClusterButton><div className="project-control-inline-actions-v313"><ClusterButton size="compact" variant="quiet" onClick={() => void copySourceLink("source_commit", commit.id)}>Copy link</ClusterButton></div>{expanded ? <div className="project-member-skills-v312">{loadingCommitId === commit.id && !changes ? <p className="muted">Loading file changes…</p> : changes?.length ? changes.map((change) => <div key={change.id}><span className={`soft-pill ${change.changeType === "added" ? "good" : change.changeType === "deleted" ? "warning" : ""}`}>{change.changeType}</span><code>{change.path}</code><small>{change.binary ? "binary" : change.additions == null && change.deletions == null ? "Locally committed change" : `+${change.additions || 0} / -${change.deletions || 0}`}</small></div>) : <p className="muted">No file-level diff is cached for this commit.</p>}</div> : null}</article>;
-              })}
-              {!payload?.commits.length && !linkedCommit ? <p className="muted">Synchronize the repository to load recent commit history.</p> : null}
-            </div>
-          </ProjectSurface>
-
-          <ProjectSurface title="Operations" description="Synchronization and write actions keep durable receipts, progress, and failures." tone="neutral">
-            <div className="project-team-grid-v312">{(payload?.operations || []).slice(0, 12).map((operation) => <article key={operation.id} className="project-member-v312"><span className={`soft-pill ${operationTone(operation.status)}`}>{operation.status}</span><strong>{sourceOperationLabel(operation)}</strong><span>{operation.progress}%</span><small>{operation.lastError || operation.progressMessage || relativeTime(operation.createdAt)}</small></article>)}</div>
-          </ProjectSurface>
-        </>
-      ) : (
-        <ProjectSurface title="No repository linked" description="Choose a studio-managed repository in Connections. Credentials and provider settings remain in Tool Infrastructure > Source Control." tone="warning">
-          <ClusterButton variant="primary" onClick={onOpenConnections}>Open Connections</ClusterButton>
-        </ProjectSurface>
-      )}
+      {view === "policy" ? <section className="sx-card sx-policy" aria-label="Branch policy">
+        <div className="sx-set"><span><b>Protected branches</b><small>{repository.defaultBranch} is always protected</small></span>
+          {canManage ? <ClusterTextInput aria-label="Protected patterns" value={policyDraft.protectedPatterns} onChange={(event) => setPolicyDraft((current) => ({ ...current, protectedPatterns: event.target.value }))} placeholder="release/*, hotfix/*" /> : <span className="sx-val">{policy?.protectedPatterns.join(", ") || repository.defaultBranch}</span>}
+        </div>
+        <div className="sx-set"><span><b>Branch prefixes</b><small>Suggested when creating branches</small></span>
+          {canManage ? <ClusterTextInput aria-label="Branch prefixes" value={policyDraft.branchPrefixes} onChange={(event) => setPolicyDraft((current) => ({ ...current, branchPrefixes: event.target.value }))} placeholder="feature/, fix/" /> : <span className="sx-val">{policy?.branchPrefixes.join(", ") || "None"}</span>}
+        </div>
+        <div className="sx-set"><span><b>Approvals to merge</b></span>
+          {canManage ? <ClusterSegmentedControl value={String(policyDraft.requiredApprovals)} onChange={(value) => setPolicyDraft((current) => ({ ...current, requiredApprovals: Number(value) }))} label="Required approvals" options={[0, 1, 2, 3].map((count) => ({ value: String(count), label: String(count) }))} /> : <span className="sx-val">{policy?.requiredApprovals ?? 1}</span>}
+        </div>
+        {([
+          ["allowDirectPush", "Direct push", "To unprotected branches"],
+          ["requireLinkedWorkItem", "Linked work", "Required before push or merge"],
+          ["requireBuild", "Build", "A linked build is required to merge"],
+          ["requireQa", "QA", "Linked QA evidence is required to merge"],
+        ] as const).map(([key, label, hint]) => <div key={key} className="sx-set"><span><b>{label}</b><small>{hint}</small></span>
+          {canManage ? <ClusterToggle checked={policyDraft[key]} aria-label={label} onCheckedChange={(checked) => setPolicyDraft((current) => ({ ...current, [key]: checked }))} /> : <span className="sx-val">{(key === "allowDirectPush" ? policy?.allowDirectPush !== false : Boolean(policy?.[key])) ? "On" : "Off"}</span>}
+        </div>)}
+        <div className="sx-set"><span><b>Force push</b></span><span className="sx-val">Never</span></div>
+        {canManage ? <div className="sx-policy__save"><ClusterButton variant="primary" size="compact" disabled={busy} onClick={() => void savePolicy()}>Save policy</ClusterButton></div> : null}
+      </section> : null}
     </section>
   );
 }

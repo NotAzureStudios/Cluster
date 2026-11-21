@@ -30,9 +30,9 @@ assert.match(vault, /rotationOpen && <div/, 'Secret rotation should be on demand
 assert.match(vault, /reviewsOpen && <>/, 'Review queue should be on demand');
 assert.match(vault, /\/api\/admin\/vault\/secrets/, 'Vault backend authority retained');
 assert.match(vault, /confirmCluster\(/, 'Security confirmations remain');
-assert.match(repo, /sourceView === "repositories" && <section/, 'Repositories-first page');
-assert.match(repo, /sourceView === "connections" && <section/, 'Provider connection secondary view');
-assert.match(repo, /source-control-repository-card/);
+assert.match(repo, /useState<"repositories" \| "connections">\("repositories"\)/, 'Repositories-first page');
+assert.match(repo, /sourceView === "connections" \? \(connections\.length/, 'Provider connection secondary view');
+assert.match(repo, /className="scm-repo"/);
 assert.doesNotMatch(shell, /cluster-vault-domains|DomainInventoryPanel/, 'Domain management is no longer duplicated in Vault');
 assert.ok(JSON.parse(read('config/release-candidate.json')).sequence >= 17, 'RC17 UI behavior is retained by later releases');
 console.log('RC17 workspace density and workflow checks: Studio Settings rail removed, icon-nav active state, repository-first, Inventory catalog, Vault secure progressive disclosure');

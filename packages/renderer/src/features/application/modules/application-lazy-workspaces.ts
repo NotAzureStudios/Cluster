@@ -24,6 +24,7 @@ export const LazyBoardPage = lazy(() => import("./application-board-routes").the
 export const LazyWhiteboardPage = lazy(() => import("./application-board-routes").then((module) => ({ default: module.WhiteboardPage })));
 export const LazyQAFoldedIntoProjectsPage = lazy(() => import("./application-project-delivery").then((module) => ({ default: module.QAFoldedIntoProjectsPage })));
 
+export const LazySourceControlAdminPage = lazy(() => import("../../admin/ProductionIntegrationAdminPages").then((module) => ({ default: module.SourceControlAdminPage })));
 export const LazyToolInfrastructurePage = lazy(() => import("./application-admin-workspaces").then((module) => ({ default: module.ToolInfrastructurePage })));
 
 export const LazyProjectsRoute = lazy(() => import("./application-project-routes").then((module) => ({ default: module.ProjectsRoute })));

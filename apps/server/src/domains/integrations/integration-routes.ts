@@ -66,6 +66,10 @@ export function registerIntegrationRoutes(input: {
   settingsForClient: (settings: SettingPayload) => Record<string, unknown>;
   authorization: { requireTool: (request: FastifyRequest, reply: FastifyReply, tool: string, minimum?: string) => Promise<any | null> };
   sourceProvider: SourceProviderService;
+  /** Creates storage for Cluster-native repositories. */
+  gitRuntime?: {
+    initializeManagedRepository: (input: { repositoryId: string; defaultBranch?: string; projectName?: string; lfs?: boolean; ignoreTemplate?: "generic" | "unreal" | "software" }) => Promise<{ defaultBranch: string; headRevision: string }>;
+  };
   logActivity?: (input: any) => Promise<any>;
   discordRequest?: (settings: SettingPayload, path: string, options?: { method?: string; body?: unknown }) => Promise<any>;
 }) {
@@ -384,6 +388,7 @@ export function registerIntegrationRoutes(input: {
       cloneUrl: z.string().url().max(2048).optional().nullable(),
       defaultBranch: z.string().trim().min(1).max(200).default("main"),
       providerRepositoryId: z.string().trim().max(240).optional().nullable(),
+      template: z.enum(["generic", "unreal", "software"]).default("generic"),
     }).parse(request.body);
     const hostingError = validateRepositoryHosting(body);
     if (hostingError) throw createHttpError("SOURCE_REPOSITORY_HOSTING_INVALID", hostingError, 400);
@@ -392,7 +397,9 @@ export function registerIntegrationRoutes(input: {
       const connection = await input.prisma.integrationConnection.findFirst({ where: { id: body.connectionId, workspaceId: workspace.id, category: "source-control", archived: false, status: { not: "disabled" } } });
       if (!connection) throw createHttpError("SOURCE_CONNECTION_NOT_FOUND", "Choose an active source-control connection.", 400);
     }
-    const row = await input.prisma.sourceRepository.create({
+    const taken = await input.prisma.sourceRepository.findFirst({ where: { workspaceId: workspace.id, name: body.name }, select: { archived: true } });
+    if (taken) throw createHttpError("SOURCE_REPOSITORY_NAME_TAKEN", taken.archived ? "A removed repository still uses this name. Pick another name." : "A repository with this name already exists.", 409);
+    let row = await input.prisma.sourceRepository.create({
       data: {
         workspaceId: workspace.id,
         connectionId: body.connectionId || null,
@@ -402,9 +409,28 @@ export function registerIntegrationRoutes(input: {
         cloneUrl: body.cloneUrl || body.remoteUrl || null,
         defaultBranch: body.defaultBranch,
         providerRepositoryId: body.providerRepositoryId || null,
+        metadata: body.hostingMode === "cluster" ? JSON.stringify({ storageKind: "managed", template: body.template }) : "{}",
       },
       include: { connection: true, _count: { select: { projects: true, branches: true, commits: true, changes: true, operations: true } } },
     });
+    if (body.hostingMode === "cluster") {
+      // A native repository is only usable once its bare repository exists.
+      // Create it now (with the template's .gitignore/.gitattributes and LFS
+      // for Unreal) or roll the record back, so no repository is left that
+      // every later sync reports as "storage missing".
+      try {
+        if (!input.gitRuntime) throw new Error("Git is not available on this server.");
+        const created = await input.gitRuntime.initializeManagedRepository({ repositoryId: row.id, defaultBranch: body.defaultBranch, projectName: body.name, lfs: body.template === "unreal", ignoreTemplate: body.template });
+        row = await input.prisma.sourceRepository.update({
+          where: { id: row.id },
+          data: { defaultBranch: created.defaultBranch, headRevision: created.headRevision, healthState: "healthy", healthMessage: "Cluster-managed repository is ready." },
+          include: { connection: true, _count: { select: { projects: true, branches: true, commits: true, changes: true, operations: true } } },
+        });
+      } catch (error) {
+        await input.prisma.sourceRepository.delete({ where: { id: row.id } }).catch(() => undefined);
+        throw createHttpError("SOURCE_REPOSITORY_INIT_FAILED", `Repository storage could not be created: ${error instanceof Error ? error.message : String(error)}`, 503);
+      }
+    }
     await recordIntegrationChange("source_repository", row.id, "source_repository_created", "Source repository created", { connectionId: row.connectionId });
     return reply.code(201).send({ ok: true, repository: serializeRepository(row) });
   });
@@ -442,7 +468,8 @@ export function registerIntegrationRoutes(input: {
     if (!existing || existing.archived) throw createHttpError("SOURCE_REPOSITORY_NOT_FOUND", "Repository not found.", 404);
     await input.prisma.$transaction([
       input.prisma.projectSourceBinding.updateMany({ where: { repositoryId, archived: false }, data: { archived: true, isPrimary: false } }),
-      input.prisma.sourceRepository.update({ where: { id: repositoryId }, data: { archived: true } }),
+      // Names are unique per workspace; free this one for a new repository.
+      input.prisma.sourceRepository.update({ where: { id: repositoryId }, data: { archived: true, name: `${existing.name.slice(0, 130)} · removed ${repositoryId.slice(-8)}` } }),
     ]);
     await recordIntegrationChange("source_repository", repositoryId, "source_repository_removed", "Source repository removed");
     return { ok: true };

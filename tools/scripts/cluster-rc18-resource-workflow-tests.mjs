@@ -51,10 +51,11 @@ assert.match(vault,/requestId\.current\+\+; reviewsRequestId\.current\+\+/);
 assert.match(vault,/document\.visibilityState === "hidden"/);
 assert.match(vault,/setRevealed\(null\)/);
 assert.match(vault,/confirmCluster\(/);
-assert.match(repo,/source-control-repository-toolbar/);
-assert.match(repo,/source-control-repository-inspector/);
+// Repositories: searchable list beside the selected repository's detail.
+assert.match(repo,/className="scm-search"/);
+assert.match(repo,/className="scm-detail"/);
 assert.match(repo,/visibleRepositories\.map/);
-assert.match(repo,/aria-pressed=\{selectedRepositoryId === repository\.id\}/);
+assert.match(repo,/aria-current=\{selectedRepositoryId === repository\.id \|\| undefined\}/);
 assert.match(repo,/syncRepository\(selectedRepository\)/);
 assert.match(directory,/cluster-tool-hub__categories/);
 assert.match(directory,/groupFilter === "all" \|\| tool\.group === groupFilter/);
