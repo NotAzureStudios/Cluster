@@ -1087,3 +1087,12 @@
 .pw .board-list .list-title-editor :is(input, strong, h3, span) { font-size: var(--cluster-font-size-md); }
 .pw .board-list .add-card-button { flex: none; min-height: 30px; height: 30px; border: 0; background: transparent; color: var(--muted); font-size: var(--cluster-font-size-sm); box-shadow: none; }
 .pw .board-list .add-card-button:hover { background: var(--cluster-button-fill); color: var(--text); }
+
+/* Phones: search and count on one row, layouts as a scrolling segment row. */
+@media (max-width: 620px) {
+  .pw .board-workspace-search-v256 { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .pw .board-workspace-search-v256 .board-search-field { flex: 1 1 0; min-width: 0; }
+  .pw .board-workspace-search-v256 .board-select-visible-v11 { display: none; }
+  .pw .board-workspace-search-v256 .board-view-mode-v489 { display: flex !important; order: 10; flex: 1 0 100%; width: auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .pw .board-workspace-search-v256 .board-view-mode-v489 .cluster-button-v425 { flex: none; width: auto !important; }
+}

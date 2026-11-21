@@ -56,3 +56,15 @@ button.pw-project:hover { background: var(--cluster-button-fill); color: var(--t
 .pw-live .collaboration-presence-v193 > strong { display: none; }
 .pw-live .collaboration-transport-v201:not(.offline):not(.reconnecting) { display: none; }
 .pw-live .collaboration-transport-v201 { font-size: var(--cluster-font-size-2xs); color: var(--warning, #f0b429); }
+@media (max-width: 640px) {
+  .pw-head { overflow: hidden; }
+  .pw-head > :is(.pw-project, .pw-sep, .pw-icon) { display: none !important; }
+  .pw-resource { flex: 1 1 auto; min-width: 96px; }
+  .pw-resource .cluster-select-trigger-v227 { min-width: 0; max-width: 100%; }
+  .pw-resource .project-resource-switcher-v489 { flex-wrap: nowrap; }
+  .pw-end { flex: 0 1 auto; min-width: 0; max-width: 52%; overflow-x: auto; scrollbar-width: none; }
+  .pw-end::-webkit-scrollbar { display: none; }
+  .pw-end > * { flex: none; }
+  .pw-live { display: none; }
+  .pw-resource .project-resource-browser-v489 { display: none; }
+}
