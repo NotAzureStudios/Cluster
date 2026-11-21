@@ -66,3 +66,49 @@
    so the viewer's own identity block steps aside and leaves only its tools. */
 .vr-stage__player .cluster-viewer-identity { display: none; }
 .vr-stage__player .cluster-viewer-header { justify-content: flex-end; }
+
+/* Pin each part of the video frame to its row. Without the optional source
+   warning the stage auto-placed into the first (auto) row, sized itself from
+   its width, and pushed the timeline and transport over the picture. */
+.cluster-video-adapter > .cluster-video-source-warning { grid-row: 1; }
+.cluster-video-adapter > .cluster-video-stage { grid-row: 2; }
+.cluster-video-adapter > .cluster-video-timeline-wrap { grid-row: 3; }
+.cluster-video-adapter > .cluster-video-transport { grid-row: 4; }
+.cluster-video-adapter > .cluster-video-degraded-note { grid-row: 5; }
+
+/* The shell's rows vary (command bar, status, advisories are each optional),
+   so a fixed row template put the workspace in an auto row whenever one was
+   missing and the media collapsed. A column lets the workspace take the rest. */
+.cluster-viewer-shell { display: flex; flex-direction: column; }
+.cluster-viewer-shell > * { flex: none; }
+.cluster-viewer-shell > .cluster-viewer-workspace { flex: 1 1 auto; min-height: 0; }
+/* Same for the optional comparison bar: the media always takes the 1fr row. */
+.cluster-viewer-comparison-stack > :last-child { grid-row: 2; }
+/* One definite cell, so the video's 100% height is the frame's height and
+   object-fit letterboxes instead of the picture being cropped. */
+.cluster-video-primary, .cluster-video-compare { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+
+/* ---------- Audio: waveform over one transport row ---------- */
+.cluster-viewer-shell[data-medium="audio"] > .cluster-viewer-command-bar { display: none; }
+.cluster-audio-adapter { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); }
+.cluster-audio-main { display: flex; flex-direction: column; min-height: 0; }
+.cluster-audio-waveform-single, .cluster-audio-waveform-compare { display: grid; flex: 1 1 auto; min-height: 120px; padding: var(--space-2); }
+.cluster-audio-waveform-single > .cluster-audio-waveform, .cluster-audio-waveform-compare > .cluster-audio-waveform { min-height: 0; height: 100%; margin: 0; }
+.cluster-audio-transport { flex: none; gap: 4px; min-height: 52px; padding: 6px var(--space-2); border-top: 0; }
+.cluster-audio-transport .cluster-audio-time-readout { min-width: 0; margin: 0 6px; font-size: var(--cluster-font-size-sm); }
+.cluster-audio-transport .cluster-audio-time-readout small { color: var(--cluster-workbench-muted); font-size: var(--cluster-font-size-xs); }
+.cluster-audio-transport .cluster-audio-time-entry { display: flex; width: 96px; }
+.cluster-audio-transport .cluster-audio-time-entry input { height: 30px !important; min-height: 30px !important; font-size: var(--cluster-font-size-xs) !important; }
+.cluster-audio-transport-spacer { flex: 1; }
+.cluster-audio-transport select.cluster-native-select-v495 { flex: none; width: auto !important; height: 30px; min-height: 30px; padding-block: 0; font-size: var(--cluster-font-size-xs); }
+.cluster-audio-transport .cluster-audio-master-volume { display: inline-flex; align-items: center; gap: 2px; min-width: 0; margin: 0; }
+.cluster-audio-transport .cluster-audio-master-volume input { width: 88px; }
+.cluster-audio-mixer { width: 280px; }
+.cluster-audio-mixer section { display: grid; gap: 6px; padding: var(--space-2); }
+.cluster-audio-mixer header { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--cluster-font-size-sm); }
+.cluster-audio-mixer header span { color: var(--cluster-workbench-muted); font-size: var(--cluster-font-size-xs); }
+@container (max-width: 620px) { .cluster-audio-mixer { width: auto; } .cluster-audio-adapter { grid-template-columns: minmax(0, 1fr); } }
+.cluster-audio-transport .cluster-audio-meter[data-supported="false"] { display: none; }
+
+/* Hosted: the surrounding page or window is the frame and owns the header. */
+.cluster-viewer-shell[data-hosted="true"] { border: 0; border-radius: 0; }

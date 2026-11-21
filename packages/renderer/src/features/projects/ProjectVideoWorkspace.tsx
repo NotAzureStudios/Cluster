@@ -15,7 +15,7 @@ import { useVisibleRefresh } from "../../core/visible-refresh";
 import { displayUserName } from "../people/people-utils";
 import { PeopleMultiPicker } from "../people/PeoplePicker";
 import type { BuildArtifactRecord, Project, ProjectMediaPayload, QASessionRecord, User, ReviewAsset, ReviewComment, VideoNoteCategory, VideoPool, VideoPriority, VideoProductionRecord, VideoProductionRecordKind, VideoStatus } from "../application/application-models";
-import { UnifiedVideoViewer, type UnifiedVideoViewerHandle } from "../viewer";
+import { UnifiedVideoViewer, ViewerHostToolbarProvider, type UnifiedVideoViewerHandle } from "../viewer";
 import { ProjectSectionHeader, ProjectSectionStatus } from "./ProjectWorkspacePrimitives";
 import { ProjectProductionEvidenceBar } from "./ProjectProductionEvidenceBar";
 import { summarizeProjectProductionEvidence, type ProductionEvidenceGate } from "./project-production-readiness";
@@ -97,6 +97,7 @@ type Props = {
 
 export function ProjectVideoWorkspace({ project, media, users, videoEnabled, buildArtifacts, qaSessions, onOpenBuilds, onOpenQa, canContribute, canManage, isAdmin, userId, status, onStatusChange, onMediaChange, onRevalidate, parseTimecode, secondsToTimecode, bytesToSize, videoAssetUrl }: Props) {
   const videoViewerRef = useRef<UnifiedVideoViewerHandle | null>(null);
+  const [viewerToolbar, setViewerToolbar] = useState<HTMLDivElement | null>(null);
   const revalidateTimerRef = useRef<number | null>(null);
   const [workspaceMode, setWorkspaceMode] = useState<"review" | "production" | "deliverables">("review");
   const [ticketDestination, setTicketDestination] = useState("");
@@ -417,12 +418,13 @@ export function ProjectVideoWorkspace({ project, media, users, videoEnabled, bui
             <p>{statusLabel(selectedVideo.status)} · {versionName(selectedVideo)}{selectedVideo.reviewRound ? ` · ${selectedVideo.reviewRound}` : ""} · {bytesToSize(selectedVideo.sizeBytes)}{selectedVideo.processingState && !["idle", "ready"].includes(selectedVideo.processingState) ? ` · Processing ${selectedVideo.processingState}` : ""}</p>
           </div>
           <div className="vr-stage__actions">
+            <div className="vr-stage__viewer-tools" ref={setViewerToolbar} />
             {reviewHierarchy.compareCandidates.length ? <ClusterSelect ariaLabel="Compare with" value={compareVideoId} onChange={setCompareVideoId} options={[{ value: "", label: "No comparison" }, ...reviewHierarchy.compareCandidates.map((version) => ({ value: version.id, label: `Compare ${versionName(version)}` }))]} /> : null}
             <ClusterLinkButton href={videoAssetUrl(selectedVideo)} target="_blank" rel="noreferrer" variant="quiet" size="compact">Open file</ClusterLinkButton>
             {canManage ? <><ClusterButton size="compact" variant="secondary" onClick={() => setApproval("changes")}>Request changes</ClusterButton><ClusterButton size="compact" variant="primary" onClick={() => setApproval("approved")}>Approve</ClusterButton></> : null}
           </div>
         </div>
-        <div className="vr-stage__player"><UnifiedVideoViewer ref={videoViewerRef} input={{ locator: { provider: "review_asset", assetId: selectedVideo.id } }} compareInput={compareVideo ? { locator: { provider: "review_asset", assetId: compareVideo.id } } : null} userId={userId} mode="review" onReviewMutation={() => scheduleMediaRevalidation(120)} onDurationDiscovered={(duration) => { if (canManage && !selectedVideo.durationSeconds && Number.isFinite(duration)) void updateAsset(selectedVideo.id, { durationSeconds: duration }); }} /></div>
+        <div className="vr-stage__player"><ViewerHostToolbarProvider value={viewerToolbar}><UnifiedVideoViewer ref={videoViewerRef} input={{ locator: { provider: "review_asset", assetId: selectedVideo.id } }} compareInput={compareVideo ? { locator: { provider: "review_asset", assetId: compareVideo.id } } : null} userId={userId} mode="review" onReviewMutation={() => scheduleMediaRevalidation(120)} onDurationDiscovered={(duration) => { if (canManage && !selectedVideo.durationSeconds && Number.isFinite(duration)) void updateAsset(selectedVideo.id, { durationSeconds: duration }); }} /></ViewerHostToolbarProvider></div>
         {versionFamily.length > 1 ? <div className="vr-versions" aria-label="Versions">{versionFamily.map((version) => <ClusterButton size="compact" variant="quiet" selected={version.id === selectedVideo.id} key={version.id} onClick={() => setSelectedVideoId(version.id)}>{versionName(version)}{version.approvalState === "approved" ? <ClusterIcon name="check" /> : null}</ClusterButton>)}</div> : null}
       </div> : <div className="vr-stage vr-stage--empty"><h2>No video yet</h2><p>Upload footage or a cut to start reviewing.</p></div>}
 

@@ -10,7 +10,8 @@ import { libraryFileUrl } from "./library-file-url";
 import type { LibraryItem } from "./library-types";
 import { runtimeStyle } from "../../core/runtime-style";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
-import { UnifiedAudioViewer, UnifiedImageViewer, UnifiedPdfViewer, UnifiedThreeViewer, UnifiedVideoViewer } from "../viewer";
+import "./library-viewer.css";
+import { UnifiedAudioViewer, UnifiedImageViewer, UnifiedPdfViewer, UnifiedThreeViewer, UnifiedVideoViewer, ViewerHostToolbarProvider } from "../viewer";
 
 
 export function LibraryAuthenticatedImage({ item, alt = "", compact = false }: { item: LibraryItem; alt?: string; compact?: boolean }) {
@@ -340,6 +341,7 @@ export function LibraryViewerModal({ item, items = [], onSelect, onClose, onPrev
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [railOpen, setRailOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [viewerToolbar, setViewerToolbar] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!item) return;
     setShowShortcuts(false);
@@ -376,12 +378,13 @@ export function LibraryViewerModal({ item, items = [], onSelect, onClose, onPrev
   const controls: LibraryPreviewControls = { shortcutsEnabled: !externalLink, onPrevious, onNext, hasPrevious, hasNext, onShortcutHelp: () => setShowShortcuts((value) => !value) };
   return <ClusterModal open onClose={onClose} backdropClassName="library-viewer-backdrop-v217" className={`library-viewer-v270${externalLink ? " is-external-v529" : ""}${contextOpen ? " context-open-v11" : ""}`} ariaLabel={`Preview ${item.title}`}>
       <header className="library-viewer-toolbar-v217">
-        <div className="library-viewer-title-v218"><LibraryIcon name={itemIconName(item)} size={22} /><strong>{item.title}</strong>{position && total ? <em>{position} of {total}</em> : null}</div>
+        <div className="library-viewer-title-v218"><LibraryIcon name={itemIconName(item)} size={22} /><strong>{item.title}</strong><em>{[item.extension?.toUpperCase() || item.mimeGroup || item.type, item.sizeBytes ? formatViewerBytes(item.sizeBytes) : "", position && total ? `${position} of ${total}` : ""].filter(Boolean).join(" · ")}</em></div>
         <div className="library-viewer-actions-v220">
-          {!externalLink ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${contextOpen ? " active" : ""}`} selected={contextOpen} onClick={() => setContextOpen((value) => !value)} aria-label={contextOpen ? "Hide media details" : "Show media details"} title={contextOpen ? "Hide details" : "Show details"}><LibraryIcon name="note" size={20} /><span>Details</span></ClusterButton> : null}
-          {!externalLink && items.length > 0 ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${railOpen ? " active" : ""}`} selected={railOpen} onClick={() => setRailOpen((value) => !value)} aria-label={railOpen ? "Hide file list" : "Show file list"} title={railOpen ? "Hide files" : "Show files"}><LibraryIcon name={railOpen ? "panelClose" : "panelOpen"} size={21} /><span>Files</span></ClusterButton> : null}
-          {!externalLink ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${showShortcuts ? " active" : ""}`} selected={showShortcuts} onClick={() => setShowShortcuts((value) => !value)} aria-label="Media keyboard shortcuts" title="Keyboard shortcuts (?)"><LibraryIcon name="keyboard" size={21} /><span>Shortcuts</span></ClusterButton> : null}
-          {externalLink && item.externalUrl ? <ClusterLinkButton className="library-viewer-tool-v220" href={item.externalUrl} target="_blank" rel="noreferrer" variant="quiet" size="compact"><LibraryIcon name="link" size={19} /><span>Open link</span></ClusterLinkButton> : <a className="library-viewer-tool-v220" href={libraryFileUrl(item, true)}><LibraryIcon name="download" size={21} /><span>Download</span></a>}
+          {!externalLink ? <div className="library-viewer-host-tools" ref={setViewerToolbar} /> : null}
+          {!externalLink ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${contextOpen ? " active" : ""}`} selected={contextOpen} onClick={() => setContextOpen((value) => !value)} aria-label={contextOpen ? "Hide media details" : "Show media details"} title={contextOpen ? "Hide details" : "Show details"}><LibraryIcon name="note" size={20} /></ClusterButton> : null}
+          {!externalLink && items.length > 0 ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${railOpen ? " active" : ""}`} selected={railOpen} onClick={() => setRailOpen((value) => !value)} aria-label={railOpen ? "Hide file list" : "Show file list"} title={railOpen ? "Hide files" : "Show files"}><LibraryIcon name={railOpen ? "panelClose" : "panelOpen"} size={21} /></ClusterButton> : null}
+          {!externalLink ? <ClusterButton type="button" variant="quiet" size="compact" className={`library-viewer-tool-v220${showShortcuts ? " active" : ""}`} selected={showShortcuts} onClick={() => setShowShortcuts((value) => !value)} aria-label="Media keyboard shortcuts" title="Keyboard shortcuts (?)"><LibraryIcon name="keyboard" size={21} /></ClusterButton> : null}
+          {externalLink && item.externalUrl ? <ClusterLinkButton className="library-viewer-tool-v220" href={item.externalUrl} target="_blank" rel="noreferrer" variant="quiet" size="compact"><LibraryIcon name="link" size={19} /><span>Open link</span></ClusterLinkButton> : <a className="library-viewer-tool-v220" href={libraryFileUrl(item, true)} aria-label="Download" title="Download"><LibraryIcon name="download" size={21} /></a>}
           <ClusterButton type="button" variant="quiet" size="compact" className="library-viewer-close-v220" onClick={onClose} aria-label="Close preview" title="Close preview (Escape)"><LibraryIcon name="close" size={23} /></ClusterButton>
         </div>
       </header>
@@ -405,9 +408,8 @@ export function LibraryViewerModal({ item, items = [], onSelect, onClose, onPrev
         </aside> : null}
         <div className="library-viewer-stage-v270">
           {!externalLink ? <ClusterButton type="button" variant="quiet" className="library-viewer-side-nav-v219 previous" onClick={onPrevious} disabled={!hasPrevious} aria-label="Previous file" title="Previous file (Shift + Left)"><LibraryIcon name="previous" size={28} /></ClusterButton> : null}
-          <div className="library-viewer-body-v217"><LibraryPreview item={item} expanded controls={controls} /></div>
+          <div className="library-viewer-body-v217"><ViewerHostToolbarProvider value={viewerToolbar}><LibraryPreview item={item} expanded controls={controls} /></ViewerHostToolbarProvider></div>
           {!externalLink ? <ClusterButton type="button" variant="quiet" className="library-viewer-side-nav-v219 next" onClick={onNext} disabled={!hasNext} aria-label="Next file" title="Next file (Shift + Right)"><LibraryIcon name="next" size={28} /></ClusterButton> : null}
-          {!externalLink ? <footer className="library-viewer-status-v270"><span>{item.extension?.toUpperCase() || item.mimeGroup || item.type}</span>{item.sizeBytes ? <span>{formatViewerBytes(item.sizeBytes)}</span> : null}{position && total ? <span>{position} / {total}</span> : null}</footer> : null}
         </div>
       </div>
       {!externalLink && showShortcuts && <LibraryShortcutGuide item={item} onClose={() => setShowShortcuts(false)} />}

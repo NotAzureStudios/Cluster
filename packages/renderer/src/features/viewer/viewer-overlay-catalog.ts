@@ -8,7 +8,7 @@ export const VIEWER_OVERLAY_CATALOG = [
   { id: "source.derivative", label: "Source / derivative", description: "Active source version and derivative identity.", zone: "top-right", media: ALL_MEDIA, presets: ["technical"], requiredCapability: "viewBasicMetadata", priority: 20 },
   { id: "comparison.state", label: "Comparison state", description: "Active A/B source and comparison mode.", zone: "top-center", media: ALL_MEDIA, presets: ["review", "technical"], priority: 30 },
 
-  { id: "video.timecode", label: "Timecode", zone: "bottom-center", media: ["video"], presets: ["review", "technical"], defaultVisible: true, priority: 10 },
+  { id: "video.timecode", label: "Timecode", zone: "bottom-center", media: ["video"], presets: ["review", "technical"], defaultVisible: false, priority: 10 },
   { id: "video.frame_number", label: "Frame number", zone: "bottom-right", media: ["video"], presets: ["technical"], priority: 20 },
   { id: "video.fps", label: "Frame rate", zone: "top-left", media: ["video"], presets: ["technical", "performance"], requiredCapability: "viewBasicMetadata", priority: 20 },
   { id: "video.resolution", label: "Resolution", zone: "top-left", media: ["video"], presets: ["technical"], requiredCapability: "viewBasicMetadata", priority: 30 },
@@ -18,7 +18,7 @@ export const VIEWER_OVERLAY_CATALOG = [
   { id: "video.buffer_health", label: "Buffer health", zone: "top-right", media: ["video"], presets: ["performance"], requiredCapability: "accessDiagnostics", priority: 25 },
   { id: "video.captions", label: "Captions", zone: "bottom-center", media: ["video"], presets: ["review"], priority: 15 },
 
-  { id: "audio.timecode", label: "Time / timecode", zone: "bottom-center", media: ["audio"], presets: ["audio", "review", "technical"], defaultVisible: true, priority: 10 },
+  { id: "audio.timecode", label: "Time / timecode", zone: "bottom-center", media: ["audio"], presets: ["audio", "review", "technical"], defaultVisible: false, priority: 10 },
   { id: "audio.tracks", label: "Active tracks", zone: "top-left", media: ["audio"], presets: ["audio", "technical"], priority: 20 },
   { id: "audio.meters", label: "Audio meters", zone: "top-right", media: ["audio", "video"], presets: ["audio", "technical"], priority: 10 },
   { id: "audio.peaks", label: "Peak levels", zone: "top-right", media: ["audio"], presets: ["audio", "technical"], priority: 20 },

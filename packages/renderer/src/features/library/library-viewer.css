@@ -1,0 +1,32 @@
+/* Library media viewer: the file fills the window; navigation overlays its edges. */
+.library-viewer-v270 .library-viewer-stage-v270 { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; padding: 0; }
+.library-viewer-v270 .library-viewer-body-v217 { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; }
+.library-viewer-v270 .library-viewer-side-nav-v219 { position: absolute; top: 50%; z-index: 3; width: 36px !important; min-width: 0 !important; height: 56px !important; padding: 0 !important; translate: 0 -50%; border-radius: var(--cluster-radius-control); background: color-mix(in srgb, var(--cluster-workbench-panel) 80%, transparent) !important; opacity: 0; transition: opacity .15s ease; }
+.library-viewer-v270 .library-viewer-side-nav-v219.previous { left: 8px; }
+.library-viewer-v270 .library-viewer-side-nav-v219.next { right: 8px; }
+.library-viewer-v270 .library-viewer-side-nav-v219:disabled { display: none; }
+.library-viewer-v270 .library-viewer-stage-v270:hover .library-viewer-side-nav-v219,
+.library-viewer-v270 .library-viewer-side-nav-v219:focus-visible { opacity: 1; }
+
+.library-viewer-v270 .library-viewer-toolbar-v217 { min-height: 48px; padding: 0 var(--space-2) 0 var(--space-3); }
+.library-viewer-v270 .library-viewer-title-v218 { gap: 8px; min-width: 0; }
+.library-viewer-v270 .library-viewer-title-v218 strong { overflow: hidden; font-size: var(--cluster-font-size-md); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.library-viewer-v270 .library-viewer-title-v218 em { color: var(--muted); font-size: var(--cluster-font-size-xs); font-style: normal; white-space: nowrap; }
+.library-viewer-v270 .library-viewer-actions-v220 { gap: 2px; }
+.library-viewer-v270 .library-viewer-actions-v220 > :is(button, a) { display: inline-grid; place-items: center; width: 32px !important; min-width: 0 !important; height: 32px !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: var(--cluster-radius-control); background: transparent !important; box-shadow: none !important; color: var(--muted); }
+.library-viewer-v270 .library-viewer-actions-v220 > :is(button, a):hover,
+.library-viewer-v270 .library-viewer-actions-v220 > .active { background: var(--cluster-button-fill) !important; color: var(--text); }
+.library-viewer-v270 .library-viewer-actions-v220 svg { width: 16px; height: 16px; }
+
+/* The modal has a definite height: the picture takes the stage row exactly
+   (aspect-ratio would otherwise size it from the width and overflow the row). */
+.library-viewer-v270 .cluster-video-adapter > .cluster-video-stage { align-self: stretch; justify-self: stretch; aspect-ratio: auto; }
+
+/* The viewer's tools live in this toolbar (see viewer-host.tsx). */
+.library-viewer-v270 .library-viewer-host-tools { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; padding-right: 8px; box-shadow: inset -1px 0 0 var(--cluster-workbench-border); }
+.library-viewer-v270 .library-viewer-host-tools:empty { display: none; }
+.library-viewer-v270 .library-viewer-host-tools .cluster-viewer-mode-switch { display: inline-flex; gap: 2px; margin-right: 4px; }
+.library-viewer-v270 .library-viewer-host-tools .cluster-button-v425 { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-xs); }
+.library-viewer-v270 .library-viewer-body-v217 { padding: 0; }
+/* The Library's own shortcut guide covers playback and file navigation. */
+.library-viewer-v270 .library-viewer-host-tools .cluster-viewer-shortcuts-button { display: none; }

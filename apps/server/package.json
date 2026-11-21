@@ -26,7 +26,8 @@
     "recovery:apply": "tsx src/scripts/recovery.ts apply",
     "recovery:migrate": "tsx src/scripts/recovery.ts migrate",
     "storage:move": "tsx src/scripts/move-data-root.ts",
-    "git-http:check": "tsx src/scripts/git-http-check.ts"
+    "git-http:check": "tsx src/scripts/git-http-check.ts",
+    "runtime-config:check": "tsx src/scripts/runtime-config-check.ts"
   },
   "dependencies": {
     "@cluster/shared": "*",

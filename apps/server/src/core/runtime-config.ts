@@ -139,8 +139,10 @@ function finiteNumber(
   fallback: number,
   options: { min?: number; max?: number; integer?: boolean } = {},
 ) {
-  const parsed =
-    typeof value === "number" ? value : Number(String(value ?? "").trim());
+  // A missing or blank value means "use the default", not zero: Number("") is 0,
+  // which clamped every unset limit (request body, sessions, …) to its minimum.
+  const text = typeof value === "number" ? "" : String(value ?? "").trim();
+  const parsed = typeof value === "number" ? value : text ? Number(text) : Number.NaN;
   let result = Number.isFinite(parsed) ? parsed : fallback;
   if (options.integer) result = Math.trunc(result);
   if (options.min !== undefined) result = Math.max(options.min, result);
