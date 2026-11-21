@@ -1,6 +1,7 @@
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CLUSTER_PERSON_CHANGED_EVENT, CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, type ClusterPersonSummary, type ClusterAssignmentChange } from "@cluster/shared";
 import { api, queryApi, setApiQueryData } from "../../core/api";
@@ -579,9 +580,8 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
 
       <div className="calendar-toolbar-v189 panel calendar-toolbar-v190">
         <ClusterSegmentedControl value={view} onChange={changeCalendarView} label="Calendar view" options={(["year", "month", "week", "day", "agenda"] as const).map((item) => ({ value: item, label: levelLabel(item) }))} />
-        <div className="calendar-range-control-v189"><ClusterButton type="button" className="" onClick={() => moveWindow(-1)} variant="quiet" size="compact">Previous</ClusterButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterButton type="button" className="" onClick={() => moveWindow(1)} variant="quiet" size="compact">Next</ClusterButton><strong>{rangeLabel}</strong>
-          <label className="calendar-date-jump-v11">
-            <span>Go to date</span>
+        <div className="calendar-range-control-v189"><ClusterIconButton size="compact" label="Previous" title="Previous" onClick={() => moveWindow(-1)}><ClusterIcon name="chevron-left" /></ClusterIconButton><ClusterButton type="button" className="" onClick={() => { const now = new Date(); preferredMonthDayRef.current = now.getDate(); setAnchorDate(now); setSelectedDate(now); setSelectedDayLimit(25); overflowReturnFocusRef.current = null; }} variant="quiet" size="compact">Today</ClusterButton><ClusterIconButton size="compact" label="Next" title="Next" onClick={() => moveWindow(1)}><ClusterIcon name="chevron-right" /></ClusterIconButton><strong>{rangeLabel}</strong>
+          <label className="calendar-date-jump-v11" title="Go to date">
             <ClusterInput type="date" aria-label="Jump to calendar date"
               value={calendarDateInputValue(anchorDate)}
               onChange={(event) => jumpToCalendarDate(event.target.value)} />
@@ -594,7 +594,6 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
           <ClusterSelect value={ownerFilter} onChange={setOwnerFilter} ariaLabel="Filter calendar by owner" options={[{ value: "all", label: "All owners" }, { value: "unassigned", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: displayUserName(user) }))]} />
         </div>
         {view !== "year" ? <div className="calendar-layer-controls-v11" role="group" aria-label="Calendar visibility layers">
-          <span>Show on calendar</span>
           {([
             ["events", "Events"],
             ["timeline", "Timeline"],

@@ -616,25 +616,23 @@ export default function TimeWorkspacePage({
             value: String(workspace?.planning?.conflicts.length || 0),
           },
         ]}
-        context={
-          <ClusterButton unstyled type="button"
-            className="time-week-label-v212"
-            onClick={() => setWeek(mondayStart(new Date()))}
-          >
-            <strong>
-              {week.toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-              –{" "}
-              {addDays(week, 6).toLocaleDateString([], {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </strong>
-          </ClusterButton>
-        }
         actions={
           <>
             <ClusterIconButton label="Previous week" size="compact" onClick={() => setWeek(addDays(week, -7))}><ClusterIcon name="chevron-left" /></ClusterIconButton>
+          <ClusterButton unstyled type="button"
+              className="time-week-label-v212"
+              onClick={() => setWeek(mondayStart(new Date()))}
+            >
+              <strong>
+                {week.toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                –{" "}
+                {addDays(week, 6).toLocaleDateString([], {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </strong>
+            </ClusterButton>
             <ClusterIconButton label="Next week" size="compact" onClick={() => setWeek(addDays(week, 7))}><ClusterIcon name="chevron-right" /></ClusterIconButton>
             <ClusterActionMenu iconOnly label="More scheduler actions" items={[{ id: "refresh", label: "Refresh scheduler", icon: "refresh", disabled: loading, onSelect: () => loadWorkspace(false, true) }]} />
           </>
@@ -666,6 +664,7 @@ export default function TimeWorkspacePage({
           <label className="time-clock-title-v212">
             <span>{active ? "Next work item" : "Work item"}</span>
             <ClusterTextInput
+              aria-label={active ? "Next work item" : "Work item"}
               value={clockForm.title}
               onChange={(event) =>
                 setClockForm({ ...clockForm, title: event.target.value })
@@ -838,6 +837,7 @@ export default function TimeWorkspacePage({
               return (
                 <section
                   className={`time-day-card-v212 ${isToday ? "is-today" : ""}`}
+                  data-empty={!dayEntries.length && !dayBlocks.length ? "true" : undefined}
                   key={key}
                 >
                   <header>

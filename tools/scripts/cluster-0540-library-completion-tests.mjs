@@ -80,7 +80,7 @@ await test('single-item membership changes require revision-qualified transactio
 });
 await test('UI saves descendant scope and offers server-bounded matching selection',()=>{
  assert.match(ui,/folderScope: \{ mode: "descendants", folderId \}/);
- assert.match(ui,/Select matching \(max \{MAX_LIBRARY_BULK_IDS\}\)/);
+ assert.match(ui,/Select all matches \(max \$\{MAX_LIBRARY_BULK_IDS\}\)/);
  assert.match(ui,/api\/library\/bulk\/select-matching/);
  assert.match(ui,/selection\.selectedCount !== selection\.items\.length/);
  assert.match(ui,/serial !== requestSerial\.current/);

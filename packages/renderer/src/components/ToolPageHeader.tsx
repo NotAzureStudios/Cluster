@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "./tool-page-header.css";
 import { ClusterIcon, type ClusterIconName } from "./ClusterIcon";
 
 export type ToolPageMetric = {
@@ -37,30 +38,29 @@ export function ToolPageHeader({
   className?: string;
   icon?: ClusterIconName | null;
 }) {
-  const hasMeta = Boolean(description) || metrics.length > 0;
+  // One line: icon, title and counts on the left, actions on the right. The
+  // description stays available to assistive tech and as the title's tooltip.
   return (
-    <header className={`page-head ${className}`.trim()}>
-      {eyebrow ? <p className="page-head-eyebrow">{eyebrow}</p> : null}
-      <div className="page-head-title">
+    <header className={`page-head tph ${className}`.trim()}>
+      <div className="tph-main">
         {icon ? <span className="page-head-icon" aria-hidden="true"><ClusterIcon name={icon} /></span> : null}
-        <h1>{title}</h1>
+        <div className="page-head-title">
+          {eyebrow ? <p className="page-head-eyebrow">{eyebrow}</p> : null}
+          <h1 title={description || undefined}>{title}</h1>
+        </div>
+        {description ? <p className="page-head-desc tph-sr">{description}</p> : null}
+        {metrics.length > 0 ? (
+          <dl className="page-head-stats" aria-label={`${title} summary`}>
+            {metrics.map((metric) => (
+              <div key={metric.label} className="page-head-stat" data-tone={metric.tone || "neutral"}>
+                <dd>{metric.value}</dd>
+                <dt>{metric.label}</dt>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
       {actions ? <div className="page-head-actions" role="group" aria-label={`${title} actions`}>{actions}</div> : null}
-      {hasMeta ? (
-        <div className="page-head-meta">
-          {description ? <p className="page-head-desc">{description}</p> : null}
-          {metrics.length > 0 ? (
-            <dl className="page-head-stats" aria-label={`${title} summary`}>
-              {metrics.map((metric) => (
-                <div key={metric.label} className="page-head-stat" data-tone={metric.tone || "neutral"}>
-                  <dd>{metric.value}</dd>
-                  <dt>{metric.label}</dt>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-        </div>
-      ) : null}
       {context ? <div className="page-head-context">{context}</div> : null}
     </header>
   );

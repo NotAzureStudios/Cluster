@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
@@ -28,8 +28,9 @@ type RecoveryResponse = {
 /** Explicit, read-only administrator inspection. Never polls, repairs,
  * deletes remote objects, or exposes provider keys / multipart identifiers.
  */
-export function LibraryUploadRecoveryPanel() {
-  const [open, setOpen] = useState(false);
+/** Opened from the Library menu; it inspects on open and closes back to nothing. */
+export function LibraryUploadRecoveryPanel({ onClose }: { onClose: () => void }) {
+  const [open, setOpen] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [snapshot, setSnapshot] = useState<RecoveryResponse | null>(null);
@@ -62,11 +63,13 @@ export function LibraryUploadRecoveryPanel() {
     } finally { if (generation.current === current) setPending(false); }
   }
 
+  useEffect(() => { void inspect(); }, []);
+
   return <section className="library-background-bulk-status" aria-label="Read-only upload recovery inspection">
     <div className="button-row">
       <ClusterButton size="compact" variant="quiet" disabled={pending || Boolean(inspectingId)}
-        onClick={() => { setOpen((value) => !value); if (!open) void inspect(); else { generation.current += 1; setPending(false); setInspectingId(null); setInspection(null); } }}>
-        {open ? "Close upload recovery" : "Inspect upload recovery"}
+        onClick={() => { generation.current += 1; setOpen(false); onClose(); }}>
+        Close upload recovery
       </ClusterButton>
       {open && <ClusterButton size="compact" variant="quiet" disabled={pending || Boolean(inspectingId)} onClick={() => void inspect()}>Refresh</ClusterButton>}
     </div>

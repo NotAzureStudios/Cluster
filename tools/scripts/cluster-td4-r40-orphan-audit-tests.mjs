@@ -88,7 +88,7 @@ try {
    const server=source('apps/server/src/app/cluster-server.ts');
    const ui=source('packages/renderer/src/features/library/LibraryWorkspacePage.tsx');
    assert.match(ownership,/"library\.storage\.orphan-audit"/);assert.match(server,/registerLibraryOrphanAuditJob\(/);
-   assert.match(ui,/currentUser\.isAdmin \? <ClusterButton/);assert.match(ui,/storage\/orphans\/audit/);
+   assert.match(ui,/currentUser\.isAdmin \? \[\{ id: "audit-storage"/);assert.match(ui,/storage\/orphans\/audit/);
    assert.doesNotMatch(ui,/Delete audit candidates/); // no destructive UI
  });
 } finally {await fsp.rm(base,{recursive:true,force:true});}

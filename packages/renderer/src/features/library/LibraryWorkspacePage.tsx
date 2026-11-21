@@ -44,6 +44,7 @@ import { LibraryGovernancePanel } from "./LibraryGovernancePanel";
 import { LibraryUploadRecoveryPanel } from "./LibraryUploadRecoveryPanel";
 import { LibraryResourceReferencesPanel } from "./LibraryResourceReferencesPanel";
 
+import "./library-page.css";
 import { ClusterInput } from "../../components/ClusterNativeControls";
 
 const PAGE_SIZE = 80;
@@ -206,11 +207,12 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
   </div>;
 }
 
+/** Pinned items sit at the top of the Explorer, like a sidebar of favourites. */
 function PinnedShelf({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: LibraryItem) => void }) {
   if (!items.length) return null;
-  return <section className="library-pinned-shelf-v217" aria-label="Pinned Library items">
-    <div><LibraryIcon name="star" size={15} /><strong>Pinned</strong></div>
-    <div>{items.map((item) => <ClusterButton unstyled key={item.id} style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)}><LibraryIcon name={itemIconName(item)} size={18} /><span>{item.title}</span></ClusterButton>)}</div>
+  return <section className="library-explorer-section-v10 library-pinned-shelf-v217" aria-label="Pinned Library items">
+    <div className="library-explorer-section-head-v10 library-pinned-head"><LibraryIcon name="star" size={14} /><strong>Pinned</strong><span>{items.length}</span></div>
+    <nav className="library-section-nav-v504">{items.map((item) => <ClusterButton unstyled key={item.id} type="button" style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)} title={item.title}><LibraryIcon name={itemIconName(item)} size={15} /><span>{item.title}</span></ClusterButton>)}</nav>
   </section>;
 }
 
@@ -568,6 +570,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   const [filters, setFilters] = useState<LibraryFilters>(() => ({ projectId: readClusterWorkProjectContext() || "", ownerId: "", type: "all", status: "active", mimeGroup: "all", visibility: "all", modified: "any", tag: "", pinned: "all", sort: "updated-desc" }));
   const [layout, setLayout] = useServerState<LayoutMode>("user", "library.layout", "grid", { merge: (value, fallback) => ["grid", "compact-grid", "list", "details"].includes(String(value)) ? value as LayoutMode : fallback });
   const [showFilters, setShowFilters] = useState(false);
+  const [showUploadRecovery, setShowUploadRecovery] = useState(false);
   const [showSavedViews, setShowSavedViews] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<LibraryItem | null>(null);
@@ -1885,7 +1888,6 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       actions={<><ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} /><ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} /><ClusterButton variant="primary" disabled={uploading.active} onClick={() => fileInput.current?.click()}>{uploading.active ? "Uploading…" : "Upload files"}</ClusterButton><ClusterButton variant="secondary" onClick={() => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" })}><LibraryIcon name="link" size={16} />Add link</ClusterButton><ClusterActionMenu label="More Library actions" items={[{ id: "upload-model-bundle", label: "Upload model bundle", description: "Import a model with its companion files.", onSelect: () => modelBundleInput.current?.click() }]} /></>}
     />
     {activeItem?.projectId ? <ProjectCollaborationStrip tool="library" projectId={activeItem.projectId} activity={`Library · ${activeItem.title}`} /> : null}
-    <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
 
     <section className={`library-browser-shell-v217${dropActive ? " is-drop-target-v531" : ""}`} onDragEnter={handleLibraryDragEnter} onDragOver={handleLibraryDragOver} onDragLeave={handleLibraryDragLeave} onDrop={handleLibraryDrop}>
       {dropActive ? <div className="library-drop-overlay-v531" aria-hidden="true"><span><LibraryIcon name="upload" size={28} /></span><strong>Drop files to upload</strong><small>{folderId ? `Into ${currentFolder?.title || "this folder"}` : "Into Library"}</small></div> : null}
@@ -1918,6 +1920,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
 
       <ClusterResizableRail className="library-browser-grid-v429" label="Library Explorer" persistKey="library-folders" minWidth={240} defaultWidth={272} maxWidth={380} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217" aria-label="Library Explorer">
         <header className="library-explorer-head-v10"><div><LibraryIcon name="folder" size={18} /><strong>Library Explorer</strong></div><ClusterIconButton label="Collapse Library Explorer" type="button" onClick={() => setExplorerCollapsed(true)}><LibraryIcon name="chevron" size={16} /></ClusterIconButton></header>
+        <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
         <section className="library-explorer-section-v10">
           <ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setViewsOpen(!viewsOpen)} aria-expanded={viewsOpen}><LibraryIcon name="chevron" size={14} className={viewsOpen ? "open" : ""} /><strong>Views</strong></ClusterButton>
           {viewsOpen ? <nav className="library-section-nav-v504" aria-label="Library views">{([ ["recent", "Recent"], ["favorites", "Favorites"], ["shared", "Shared with me"], ["created", "Created by me"], ["generated", "Generated"], ["trash", "Trash"] ] as Array<[LibrarySection, string]>).map(([section, label]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><LibraryIcon name={section === "favorites" ? "star" : section === "trash" ? "archive" : "file"} size={15} /><span>{label}</span></ClusterButton>)}</nav> : null}
@@ -1943,23 +1946,27 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             <ClusterButton unstyled type="button" onClick={() => openLibrarySection("folder")}>Library</ClusterButton>
             {librarySection === "folder" ? <>{path.map((entry) => <span key={entry.id}>/<ClusterButton unstyled type="button" onClick={() => { setLibrarySection("folder"); setFolderId(entry.id); setActiveItem(null); setActiveId(null); }}>{entry.title}</ClusterButton></span>)}{currentFolder && !path.some((entry) => entry.id === currentFolder.id) && <span>/<ClusterButton unstyled type="button" onClick={() => void selectItem(currentFolder)}>{currentFolder.title}</ClusterButton></span>}</> : <span>/ <strong>{sectionLabel}</strong></span>}
             <em>{items.length} loaded{pagination.hasMore ? " · more available" : ""}</em>
-            {items.length > 0 ? <ClusterButton size="compact" variant="quiet" disabled={bulkBusy || loading || loadingMore} onClick={selectLoadedLibraryItems} title={`Select up to ${MAX_LIBRARY_BULK_IDS} currently loaded items`}>Select loaded</ClusterButton> : null}
-            <ClusterButton size="compact" variant="quiet" disabled={bulkBusy || loading || loadingMore || query.trim() !== deferredQuery || (librarySection === "collection" && !activeCollection)} busy={bulkBusy} onClick={() => void selectMatchingLibraryItems()} title={librarySection === "collection" ? "Select every accessible item in this collection across unloaded pages (maximum 200); collection access and item permissions are rechecked." : "Ask the server to select all accessible search matches (maximum 200). If more match, narrow your filters; no partial selection is applied."}>Select matching (max {MAX_LIBRARY_BULK_IDS})</ClusterButton>
-            {(librarySection !== "collection" || (activeCollection && activeCollection.accessRole !== "viewer")) ? <ClusterActionMenu label={librarySection === "collection" ? "Background edits for Collection members" : "Background edits for all matching Library items"} items={[
-              { id: "match-tag", label: "Tag matching items…", icon: "note", onSelect: () => void queueMatchingMetadata("tag") },
-              { id: "match-untag", label: "Remove tag from matches…", icon: "note", onSelect: () => void queueMatchingMetadata("untag") },
-              { id: "match-pin", label: "Pin all matches", icon: "star", onSelect: () => void queueMatchingMetadata("pin", true) },
-              { id: "match-unpin", label: "Unpin all matches", icon: "star", onSelect: () => void queueMatchingMetadata("pin", false) },
-              { id: "match-archive", label: "Archive matching files…", icon: "folder", separatorBefore: true, onSelect: () => void queueMatchingMetadata("archive") },
-              { id: "match-unarchive", label: "Restore archived matching files…", icon: "refresh", onSelect: () => void queueMatchingMetadata("unarchive") },
-            ]} /> : null}
-            {currentUser.isAdmin ? <ClusterButton size="compact" variant="quiet" disabled={Boolean(orphanAudit && !["SUCCEEDED", "CANCELLED", "DEAD_LETTER"].includes(orphanAudit.status))} onClick={() => void startLibraryOrphanAudit()} title="Run a read-only Library storage orphan inventory. Nothing will be deleted or quarantined.">Audit storage</ClusterButton> : null}
+            {/* Selection, background edits and the storage audit live in one menu. */}
+            <ClusterActionMenu label="Library selection and background edits" iconOnly items={[
+              { id: "select-loaded", label: "Select loaded items", icon: "check", disabled: !items.length || bulkBusy || loading || loadingMore, onSelect: selectLoadedLibraryItems },
+              { id: "select-matching", label: `Select all matches (max ${MAX_LIBRARY_BULK_IDS})`, icon: "check", disabled: bulkBusy || loading || loadingMore || query.trim() !== deferredQuery || (librarySection === "collection" && !activeCollection), onSelect: () => void selectMatchingLibraryItems() },
+              ...((librarySection !== "collection" || (activeCollection && activeCollection.accessRole !== "viewer")) ? [
+                { id: "match-tag", label: "Tag matching items…", icon: "note" as const, separatorBefore: true, onSelect: () => void queueMatchingMetadata("tag") },
+                { id: "match-untag", label: "Remove tag from matches…", icon: "note" as const, onSelect: () => void queueMatchingMetadata("untag") },
+                { id: "match-pin", label: "Pin all matches", icon: "star" as const, onSelect: () => void queueMatchingMetadata("pin", true) },
+                { id: "match-unpin", label: "Unpin all matches", icon: "star" as const, onSelect: () => void queueMatchingMetadata("pin", false) },
+                { id: "match-archive", label: "Archive matching files…", icon: "folder" as const, onSelect: () => void queueMatchingMetadata("archive") },
+                { id: "match-unarchive", label: "Restore archived matching files…", icon: "refresh" as const, onSelect: () => void queueMatchingMetadata("unarchive") },
+              ] : []),
+              ...(currentUser.isAdmin ? [{ id: "upload-recovery", label: "Upload recovery", description: "Read-only diagnostics for interrupted uploads.", icon: "upload" as const, separatorBefore: true, onSelect: () => setShowUploadRecovery(true) }] : []),
+              ...(currentUser.isAdmin ? [{ id: "audit-storage", label: "Audit storage", description: "Read-only orphan inventory; nothing is deleted.", icon: "inventory" as const, disabled: Boolean(orphanAudit && !["SUCCEEDED", "CANCELLED", "DEAD_LETTER"].includes(orphanAudit.status)), onSelect: () => void startLibraryOrphanAudit() }] : []),
+            ]} />
             {librarySection === "folder" ? <ClusterActionMenu label={currentFolder ? `${currentFolder.title} folder actions` : "Library root actions"} iconOnly className="library-breadcrumb-actions-v14" items={[
               { id: "new-folder", label: currentFolder ? "New subfolder" : "New folder", icon: "plus", onSelect: () => beginCreateFolder(folderId) },
               ...(currentFolder ? [{ id: "permissions", label: "Folder permissions", icon: "lock" as const, onSelect: () => void openFolderPermissions(currentFolder) }] : []),
             ]} /> : null}
           </nav>
-          {currentUser.isAdmin ? <LibraryUploadRecoveryPanel /> : null}
+          {currentUser.isAdmin && showUploadRecovery ? <LibraryUploadRecoveryPanel onClose={() => setShowUploadRecovery(false)} /> : null}
           {currentUser.isAdmin && orphanAudit ? <section role="status" aria-live="polite" className="library-background-bulk-status" aria-label="Read-only Library storage audit">
             <strong>Storage orphan audit: {orphanAudit.status.toLowerCase()} (read-only)</strong>
             <span> {orphanAudit.progress}% · {orphanAudit.message}</span>
