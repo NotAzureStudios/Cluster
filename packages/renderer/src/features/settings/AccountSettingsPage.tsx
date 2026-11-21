@@ -49,12 +49,21 @@ import type { AppTheme, Project, ServerSessionRecord, Settings, SettingsSection,
 import { projectMemberIds } from "../projects/projects-utils";
 import "./settings-workspace.css";
 import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { createWebAuthnCredential, requireWebAuthnBrowserOrigin, webAuthnAvailable } from "../../core/webauthn-client";
 
 import type { AccountSettingsPageProps } from "./settings-workspace-contracts";
 import { ACCOUNT_SETTINGS_DEPENDENCIES } from "./account-settings-dependencies";
 import { buildAccountSettingsSections } from "./account-settings-registry";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+
+/** "Chrome on Linux" from a user agent; empty when it can't tell. */
+function userAgentSummary(userAgent: string) {
+  const ua = userAgent || "";
+  const browser = /ClusterDesktop|Electron/i.test(ua) ? "Cluster Desktop" : /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
+  const os = /Windows/i.test(ua) ? "Windows" : /iPhone|iPad|iOS/i.test(ua) ? "iOS" : /Android/i.test(ua) ? "Android" : /Mac OS X|Macintosh/i.test(ua) ? "macOS" : /Linux|X11/i.test(ua) ? "Linux" : "";
+  return browser && os ? `${browser} on ${os}` : browser || os;
+}
 
 type PersonalDeviceRecord = {
   id: string;
@@ -203,6 +212,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
   const [personalDevices, setPersonalDevices] = useState<PersonalDeviceRecord[]>([]);
   const [personalDevicesLoading, setPersonalDevicesLoading] = useState(false);
   const [deviceLabels, setDeviceLabels] = useState<Record<string, string>>({});
+  const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   const [localDeviceProofFingerprint, setLocalDeviceProofFingerprint] = useState<string | null>(null);
   const [mfaStatus, setMfaStatus] = useState<MfaStatusRecord>({ enabled: false, recoveryCodesRemaining: 0 });
   const [securityViewOwner, setSecurityViewOwner] = useState(currentUser.id);
@@ -1853,7 +1863,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
               <div className="settings-card-grid-v092">
                 <div className="settings-card-v092 span-2 account-presence-card-v547">
                   <div className="settings-card-head-v092">
-                    <div><h3>Presence & visibility</h3><small className="muted">Live state. Changes apply immediately and are not part of Settings save.</small></div>
+                    <div><h3 title="Applies immediately">Presence</h3></div>
                     <span>{presenceVisibility === "invisible" ? "Appearing offline" : presenceAvailability}</span>
                   </div>
                   <div className="account-presence-grid-v547">
@@ -1868,24 +1878,11 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     </div>
                   </div>
                 </div>
-                <div className="settings-card-v092">
-                  <div className="settings-card-head-v092">
-                    <h3>Local comfort</h3>
-                    <span>Personal-only toggles</span>
-                  </div>
-                  <div className="toggle-grid compact-toggle-grid-v092">
-                    <label className="tool-check">
-                      <ClusterInput type="checkbox" checked={settings.userShowHelpText ?? false} onChange={(e) => patch("userShowHelpText", e.target.checked)} /> Show helper text
-                    </label>
-                  </div>
-                </div>
                 {securityViewOwner === currentUser.id ? <>
                 <div className="settings-card-v092 span-2 account-mfa-v495">
-                  <div className="settings-card-head-v092"><h3>Multi-factor authentication</h3><span>{!mfaStatusLoaded ? "Unavailable" : mfaStatus.enabled ? "Enabled" : "Optional"}</span></div>
-                  <p className="muted tight">Use authenticator apps, passkeys, or hardware security keys. Cluster stores public-key credential metadata for WebAuthn, never biometric templates.</p>
-                  <div className="button-row compact"><ClusterButton type="button" variant="secondary" onClick={() => void enrollPasskey()} disabled={!mfaStatusLoaded || mfaBusy || !webAuthnAvailable()}>Add passkey or security key</ClusterButton></div>
+                  <div className="settings-card-head-v092"><h3 title="Passkeys, security keys or an authenticator app">Two-factor</h3><span>{!mfaStatusLoaded ? "Unavailable" : mfaStatus.enabled ? "Enabled" : "Optional"}</span></div>
+                  <div className="button-row compact"><ClusterButton type="button" variant="secondary" onClick={() => void enrollPasskey()} disabled={!mfaStatusLoaded || mfaBusy || !webAuthnAvailable()}>Add passkey</ClusterButton>{mfaStatusLoaded && !mfaStatus.enabled && !mfaEnrollment && <ClusterButton type="button" variant="secondary" onClick={beginMfaEnrollment} disabled={mfaBusy}>Set up authenticator</ClusterButton>}</div>
                   {mfaStatusLoaded && (mfaStatus.factors || []).length > 0 && <div className="server-session-list-v202">{(mfaStatus.factors || []).map((factor) => <article key={factor.id}><div><strong>{factor.label || (factor.kind === "webauthn" ? "Passkey" : "Authenticator app")}</strong><span>{factor.kind === "webauthn" ? `${factor.attachment === "cross-platform" ? "Security key" : "Passkey"} · ${factor.strength.replace(/_/g, " ")}` : "Authenticator app · MFA"}</span><em>{factor.state} · last used {factor.lastUsedAt ? compactDateTime(factor.lastUsedAt) : "never"}</em></div>{factor.state === "active" && (mfaStatus.activeFactorCount || 0) > 1 && <ClusterButton type="button" variant="danger" size="compact" onClick={() => void removeMfaFactor(factor)}>Remove</ClusterButton>}</article>)}</div>}
-                  {mfaStatusLoaded && !mfaStatus.enabled && !mfaEnrollment && <div className="button-row compact"><ClusterButton type="button" variant="secondary" onClick={beginMfaEnrollment} disabled={mfaBusy}>Set up authenticator</ClusterButton></div>}
                   {mfaEnrollment && <div className="settings-stack-v092">
                     <div className="hint-box"><strong>Authenticator secret</strong><code>{mfaEnrollment.secret}</code><span>Add this secret to your authenticator app. The provisioning URI is available below for apps that accept it directly.</span><code className="security-secret-uri-v495">{mfaEnrollment.provisioningUri}</code></div>
                     <div className="field"><label>Six-digit code</label><ClusterInput inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))} /></div>
@@ -1898,47 +1895,49 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                   {mfaRecoveryCodes.length > 0 && <div className="hint-box security-recovery-codes-v495"><strong>Save these recovery codes now</strong><div>{mfaRecoveryCodes.map((code) => <code key={code}>{code}</code>)}</div></div>}
                 </div>
                 <div className="settings-card-v092 span-2 account-devices-v495">
-                  <div className="settings-card-head-v092"><h3>Devices</h3><span>{personalDevicesLoading ? "Refreshing" : `${personalDevices.filter((device) => !device.revokedAt).length} known`}</span></div>
-                  <p className="muted tight">Device identity groups sessions by this Cluster installation. It is inventory metadata, not a trusted authentication factor.</p>
-                  <div className="button-row compact"><ClusterButton type="button" variant="secondary" onClick={loadPersonalDevices} disabled={personalDevicesLoading}>Refresh</ClusterButton></div>
-                  <div className="server-session-list-v202">
-                    {personalDevices.length ? personalDevices.slice(0, 16).map((device) => { const proofMismatch = Boolean(device.current && device.proofKeyFingerprint && localDeviceProofFingerprint && device.proofKeyFingerprint !== localDeviceProofFingerprint); return <article key={device.deviceId}><div><strong>{device.current ? `${device.label} · current` : device.label}</strong><span>{device.userAgent}</span><em>{device.activeSessionCount} active session{device.activeSessionCount === 1 ? "" : "s"} · seen {compactDateTime(device.lastSeenAt)} · {device.platform || "unknown platform"} · {device.cryptographicallyBound ? `device proof verified${device.proofKeyFingerprint ? ` · ${device.proofKeyFingerprint}` : ""}` : "installation ID only"}</em>{proofMismatch && <div className="hint-box"><strong>Device key mismatch</strong><span>The server is bound to a different key than this installation currently holds. Rebind this device before security-sensitive operations.</span></div>}<div className="button-row compact"><ClusterInput aria-label={`Label ${device.label}`} value={deviceLabels[device.deviceId] ?? ""} onChange={(event) => setDeviceLabels((current) => ({ ...current, [device.deviceId]: event.target.value.slice(0, 80) }))} placeholder="Custom device label" /><ClusterButton type="button" size="compact" onClick={() => saveDeviceLabel(device.deviceId)}>Save label</ClusterButton>{device.current && <ClusterButton type="button" size="compact" variant={proofMismatch ? "primary" : "secondary"} onClick={() => void rotateCurrentDeviceProof(device)}>Rebind device key</ClusterButton>}</div></div><ClusterButton type="button" variant="danger" size="compact" onClick={() => revokePersonalDevice(device)}>Revoke device</ClusterButton></article>; }) : <ClusterEmptyState compact kind="empty" title="No installation devices" description="Device records will appear after this account signs in through a Cluster installation." />}
+                  <div className="settings-card-head-v092"><h3 title="Devices group your sessions by Cluster installation.">Devices</h3><b className="account-count">{personalDevicesLoading ? "…" : personalDevices.filter((device) => !device.revokedAt).length}</b><ClusterButton type="button" variant="quiet" size="compact" onClick={loadPersonalDevices} disabled={personalDevicesLoading}>Refresh</ClusterButton></div>
+                  <div className="account-device-list">
+                    {personalDevices.filter((device) => !device.revokedAt).length ? personalDevices.filter((device) => !device.revokedAt).slice(0, 16).map((device) => {
+                      const proofMismatch = Boolean(device.current && device.proofKeyFingerprint && localDeviceProofFingerprint && device.proofKeyFingerprint !== localDeviceProofFingerprint);
+                      const agent = userAgentSummary(device.userAgent);
+                      const editing = editingDeviceId === device.deviceId;
+                      return <article key={device.deviceId} data-idle={device.activeSessionCount === 0 || undefined}>
+                        <div>
+                          {editing
+                            ? <form className="account-device-rename" onSubmit={(event) => { event.preventDefault(); void saveDeviceLabel(device.deviceId).then(() => setEditingDeviceId(null)); }}>
+                                <ClusterInput autoFocus aria-label={`Name for ${device.label}`} value={deviceLabels[device.deviceId] ?? device.customLabel ?? ""} onChange={(event) => setDeviceLabels((current) => ({ ...current, [device.deviceId]: event.target.value.slice(0, 80) }))} onKeyDown={(event) => { if (event.key === "Escape") setEditingDeviceId(null); }} placeholder={device.label} />
+                                <ClusterButton type="submit" size="compact" variant="primary">Save</ClusterButton>
+                              </form>
+                            : <strong>{device.customLabel || agent || device.label}{device.current ? <span className="account-device-badge">This device</span> : null}</strong>}
+                          <span title={device.userAgent}>{[device.customLabel ? agent : "", `${device.activeSessionCount} session${device.activeSessionCount === 1 ? "" : "s"}`, `seen ${compactDateTime(device.lastSeenAt)}`].filter(Boolean).join(" · ")}{device.cryptographicallyBound ? <span className="account-device-verified" title={`Device key verified${device.proofKeyFingerprint ? ` · ${device.proofKeyFingerprint}` : ""}`}><ClusterIcon name="lock" /></span> : null}</span>
+                          {proofMismatch && <span className="account-device-warning">Device key changed. Rebind this device.</span>}
+                        </div>
+                        <ClusterActionMenu iconOnly label={`${device.label} actions`} items={[
+                          { id: "rename", label: "Rename", icon: "pen", onSelect: () => setEditingDeviceId(device.deviceId) },
+                          ...(device.current ? [{ id: "rebind", label: "Rebind device key", icon: "refresh" as const, onSelect: () => void rotateCurrentDeviceProof(device) }] : []),
+                          { id: "revoke", label: "Revoke", icon: "close", danger: true, separatorBefore: true, onSelect: () => revokePersonalDevice(device) },
+                        ]} />
+                      </article>;
+                    }) : <ClusterEmptyState compact kind="empty" title="No devices" />}
                   </div>
                 </div>
                 <div className="settings-card-v092 span-2 account-sessions-v202">
                   <div className="settings-card-head-v092">
-                    <h3>Active sessions</h3>
-                    <span>{personalSessionsLoading ? "Refreshing" : `${personalSessions.length} active`}</span>
+                    <h3>Sessions</h3>
+                    <b className="account-count">{personalSessionsLoading ? "…" : personalSessions.length}</b>
+                    <ClusterButton type="button" variant="quiet" size="compact" onClick={revokeOtherPersonalSessions} disabled={personalSessions.filter((item) => !item.current).length === 0}>Sign out others</ClusterButton>
+                    <ClusterButton type="button" variant="quiet" size="compact" onClick={loadPersonalSessions} disabled={personalSessionsLoading}>Refresh</ClusterButton>
                   </div>
-                  <div className="button-row compact">
-                    <ClusterButton type="button" variant="secondary" onClick={loadPersonalSessions} disabled={personalSessionsLoading}>
-                      Refresh
-                    </ClusterButton>
-                    <ClusterButton type="button" variant="quiet" onClick={revokeOtherPersonalSessions} disabled={personalSessions.filter((item) => !item.current).length === 0}>
-                      Sign out other sessions
-                    </ClusterButton>
-                  </div>
-                  <div className="server-session-list-v202">
-                    {personalSessions.length ? (
-                      personalSessions.slice(0, 12).map((session) => (
-                        <article key={session.id}>
-                          <div>
-                            <strong>{session.current ? "Current session" : "Cluster session"}</strong>
-                            <span>{session.userAgent}</span>
-                            <em>
-                              {session.ipAddress || "Unknown IP"} · {String(session.authMethod || "password").replace(/-/g, " ")} · seen {compactDateTime(session.lastSeenAt)} · expires {compactDateTime(session.expiresAt)}
-                            </em>
-                          </div>
-                          {!session.current && (
-                            <ClusterButton type="button" variant="danger" size="compact" onClick={() => revokePersonalSession(session.id)}>
-                              Revoke
-                            </ClusterButton>
-                          )}
-                        </article>
-                      ))
-                    ) : (
-                      <ClusterEmptyState compact kind="empty" title="No active sessions" description="This account has no active authenticated sessions." />
-                    )}
+                  <div className="account-device-list">
+                    {personalSessions.length ? personalSessions.slice(0, 12).map((session) => (
+                      <article key={session.id}>
+                        <div>
+                          <strong title={session.userAgent}>{userAgentSummary(session.userAgent) || "Cluster session"}{session.current ? <span className="account-device-badge">This session</span> : null}</strong>
+                          <span>{[session.ipAddress, String(session.authMethod || "password").replace(/-/g, " "), `seen ${compactDateTime(session.lastSeenAt)}`].filter(Boolean).join(" · ")}</span>
+                        </div>
+                        {!session.current ? <ClusterButton type="button" variant="quiet" size="compact" onClick={() => revokePersonalSession(session.id)}>Sign out</ClusterButton> : <span />}
+                      </article>
+                    )) : <ClusterEmptyState compact kind="empty" title="No sessions" />}
                   </div>
                 </div>
                 </> : <div className="settings-card-v092 span-2" role="status">Loading security information for the current account…</div>}

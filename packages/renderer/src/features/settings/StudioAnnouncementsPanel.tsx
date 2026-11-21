@@ -303,7 +303,7 @@ export function StudioAnnouncementsPanel({ targetAnnouncementId = null, composeA
       </div>)}
     </div></aside>
     <section className="studio-systems-editor-v34f"><header className="studio-entity-editor-head-v272"><div><span className="eyebrow">Studio announcements</span><h3>Inbox delivery</h3><p>Draft changes are revision-guarded. Published content is immutable; audience preview never exposes recipient identities.</p></div></header>
-      <label className="field"><span>Find an announcement</span><ClusterInput aria-label="Search studio announcements" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value.slice(0, 120))} placeholder="Search titles or message content" /></label>
+      <label className="field"><span>Find an announcement</span><ClusterInput aria-label="Search studio announcements" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value.slice(0, 120))} placeholder="Search announcements" /></label>
       {targetError && <div role="alert" className="studio-explanation-v272">{targetError}</div>}
       <div className="studio-form-field-list-v34f">{visibleAnnouncements.map((item) => {
         const report = reports[item.id]; const active = editing?.id === item.id;

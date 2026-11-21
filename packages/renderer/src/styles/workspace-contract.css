@@ -121,7 +121,7 @@ select {
   min-height: 38px !important;
   border: 1px solid var(--cluster-line) ;
   border-radius: 9px !important;
-  background: color-mix(in srgb, var(--cluster-surface-solid) 82%, transparent) !important;
+  background-color: color-mix(in srgb, var(--cluster-surface-solid) 82%, transparent) !important;
   color: var(--cluster-text);
   box-shadow: none;
 }

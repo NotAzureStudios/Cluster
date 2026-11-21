@@ -1906,3 +1906,21 @@
 .profile-editor-v473 .people-working-hours-v495 label { display:flex; align-items:center; gap:7px; }
 .profile-editor-v473 .people-working-hours-v495 > div > span { font-size:.6rem; color:var(--muted); text-align:center; }
 .profile-editor-v473 .people-expertise-tags-v495 { display:flex; flex-wrap:wrap; gap:6px; }
+
+/* Account devices and sessions: one quiet row each, actions in a menu. */
+:is(.account-devices-v495, .account-sessions-v202) > .settings-card-head-v092 { align-items: center; justify-content: flex-start; }
+:is(.account-devices-v495, .account-sessions-v202) > .settings-card-head-v092 > .account-count { margin-right: auto; padding: 0 6px; border-radius: 999px; background: var(--cluster-recess, var(--surface-2)); color: var(--muted); font-size: var(--cluster-font-size-xs); font-weight: 600; font-variant-numeric: tabular-nums; }
+.account-device-list { display: flex; flex-direction: column; max-height: 360px; overflow: auto; }
+.account-device-list > * { flex: none; }
+.account-device-list > article { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); min-height: 44px; padding: 6px 2px; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+.account-device-list > article:last-child { border-bottom: 0; }
+.account-device-list > article[data-idle] strong { color: var(--muted); }
+.account-device-list > article > div { display: grid; gap: 2px; min-width: 0; }
+.account-device-list strong { display: flex; align-items: center; gap: var(--space-2); min-width: 0; overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+.account-device-list > article > div > span { display: flex; align-items: center; gap: 6px; overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); white-space: nowrap; text-overflow: ellipsis; }
+.account-device-badge { padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-size: 10px; font-weight: 600; }
+.account-device-verified { display: inline-flex; color: var(--good, #4fc49a); }
+.account-device-verified svg { inline-size: 12px; block-size: 12px; }
+.account-device-warning { color: var(--warning, #f3b64c) !important; }
+.account-device-rename { display: flex; align-items: center; gap: var(--space-2); }
+.account-device-rename input { height: 30px; min-height: 30px !important; }

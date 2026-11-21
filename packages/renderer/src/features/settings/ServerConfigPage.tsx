@@ -2150,7 +2150,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
                   {visibleAdvancedFields.length} of {SERVER_CONFIG_FIELDS.length} editable settings
                 </span>
               </div>
-              <ClusterInput type="search" value={configSearch} onChange={(event) => setConfigSearch(event.target.value)} placeholder="Search label, key, group, or section" />
+              <ClusterInput type="search" value={configSearch} onChange={(event) => setConfigSearch(event.target.value)} placeholder="Search settings" />
             </div>
             <div className="server-config-index-grid-v238">{visibleAdvancedFields.map(renderField)}</div>
             {missingMetadataKeys.length > 0 && (

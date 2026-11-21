@@ -3027,7 +3027,7 @@ export function WhiteboardWorkspacePage({ whiteboards, projects, selectedWhitebo
               </div>
               <div className="field compact">
                 <label>Live Cluster object</label>
-                <ClusterTextInput type="search" value={liveReferenceQuery} onChange={(event) => setLiveReferenceQuery(event.target.value)} placeholder="Search cards, tickets, builds, QA, Library, people…" />
+                <ClusterTextInput type="search" value={liveReferenceQuery} onChange={(event) => setLiveReferenceQuery(event.target.value)} placeholder="Search work…" />
                 <small>{liveReferenceLoading ? "Searching…" : liveReferenceError || "Insert a live reference card. Double-click it later to open the source."}</small>
               </div>
               {liveReferenceResults.length ? (

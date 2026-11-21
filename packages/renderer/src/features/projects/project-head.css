@@ -120,6 +120,7 @@
 .pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button.active { color: var(--text); font-weight: 600; }
 .pj-head .compact-section-nav-v204 :is(.compact-section-primary-v204, .compact-section-more-v204) > button.active::after {
   content: "";
+  display: block;
   position: absolute;
   inset: auto var(--space-2) 0;
   height: 2px;

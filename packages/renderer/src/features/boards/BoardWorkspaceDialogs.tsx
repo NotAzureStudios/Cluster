@@ -1066,14 +1066,14 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
               <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={users} label="Assignee" ariaLabel="Card assignee" />
             </div>
             <div className="field span-2">
-              <label>Colored board labels</label>
+              <label>Labels</label>
               <div className="board-card-label-picker-v308">
                 {labelDefinitions.map((definition) => {
                   const selected = labelArray.some((label) => label.toLowerCase() === definition.name.toLowerCase());
                   return <ClusterButton unstyled key={definition.id} type="button" className={selected ? "selected" : ""} style={runtimeStyle({ "--label-color": definition.color })} onClick={() => setLabels(selected ? labelArray.filter((label) => label.toLowerCase() !== definition.name.toLowerCase()).join(", ") : unique([...labelArray, definition.name]).join(", "))}><span />{definition.name}</ClusterButton>;
                 })}
               </div>
-              <label>Additional tags</label>
+              <label>Tags</label>
               <ClusterTextInput value={labels} onChange={(e) => setLabels(e.target.value)} placeholder="bug, ui, high-risk" />
               {tagPresets.length > 0 && (
                 <div className="chip-picker tag-preset-picker">
@@ -1087,7 +1087,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
             </div>
             <div className="field span-2">
               <label>Description</label>
-              <ClusterTextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What needs to happen? Include scope, acceptance notes, and references." />
+              <ClusterTextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add a description…" />
             </div>
             {card && <div className="card-subsections">
               <section>
@@ -1203,7 +1203,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
             />
             <div className="field span-2 compact-field">
               <label>External link</label>
-              <ClusterTextInput value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="Design doc, asset folder, reference link..." />
+              <ClusterTextInput value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="Paste a link" />
             </div>
             {card && <details className="ce-more">
               <summary>Linked issue</summary>

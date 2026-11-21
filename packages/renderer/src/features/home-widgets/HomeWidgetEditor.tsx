@@ -306,7 +306,7 @@ export function HomeWidgetEditor({
                 <span>{library.policy.mode === "allow" ? "Studio policy · extensions allowed" : library.policy.mode === "curated-only" ? "Studio policy · curated only" : "Studio policy · extensions blocked"}</span>
               </div>
             </section>
-            <div className="home-widget-catalog-toolbar-v486"><ClusterTextInput type="search" value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Search widgets, tools, or permissions" aria-label="Search widget library" /><ClusterSelect ariaLabel="Widget source" value={catalogSource} options={[{ value: "all", label: "All widgets" }, { value: "builtin", label: "Built in" }, { value: "gallery", label: "Gallery" }, { value: "custom", label: "Installed" }]} onChange={(value) => setCatalogSource(value as typeof catalogSource)} /></div>
+            <div className="home-widget-catalog-toolbar-v486"><ClusterTextInput type="search" value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Search widgets" aria-label="Search widget library" /><ClusterSelect ariaLabel="Widget source" value={catalogSource} options={[{ value: "all", label: "All widgets" }, { value: "builtin", label: "Built in" }, { value: "gallery", label: "Gallery" }, { value: "custom", label: "Installed" }]} onChange={(value) => setCatalogSource(value as typeof catalogSource)} /></div>
             {DASHBOARD_WIDGET_GROUPS.map((group) => {
               const definitions = filteredBuiltin.filter((item) => item.group === group.key);
               if (!definitions.length) return null;

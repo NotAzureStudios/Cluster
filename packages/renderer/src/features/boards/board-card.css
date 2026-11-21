@@ -55,6 +55,8 @@
 .ce { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-4); align-items: start; }
 .ce-main, .ce-side { display: grid; gap: var(--space-3); min-width: 0; }
 .ce-meta { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: var(--space-2); }
+.ce-meta select { height: 36px; min-height: 36px !important; }
+.ce-meta .people-picker .cluster-select-trigger-v227 { width: 100%; }
 .ce .field { display: grid; gap: 4px; margin: 0; }
 .ce .field > label, .ce .card-planning-fields-v300 .field > label { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
 .ce :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select) { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-sm) !important; }

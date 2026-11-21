@@ -111,7 +111,7 @@
   background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card);
 }
 .st-main .settings-card-v092 .settings-card-v092 { padding: 0; background: transparent; box-shadow: none; }
-.st-main .settings-card-head-v092 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+.st-main .settings-card-head-v092 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; padding: 0; border: 0; min-height: 28px; align-items: center; }
 .st-main .settings-card-head-v092 :is(h3, h4, strong) { margin: 0; font-size: var(--cluster-font-size-md); font-weight: 600; }
 .st-main .settings-card-head-v092 > span { margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); }
 

@@ -96,13 +96,13 @@ export function BoardCardPlanningFields(props: BoardCardPlanningFieldsProps) {
         </div>
         <div className="card-cover-color-v300">
           <ColorField value={props.coverColor || "#3b82f6"} onChange={props.onCoverColorChange} label="Cover color" />
-          <ClusterButton className="" type="button" onClick={() => props.onCoverColorChange("")} disabled={!props.coverColor} variant="quiet" size="compact">Clear cover color</ClusterButton>
+          <ClusterButton className="" type="button" onClick={() => props.onCoverColorChange("")} disabled={!props.coverColor} variant="quiet" size="compact">Clear</ClusterButton>
         </div>
         <div className="field">
           <label>Cover image</label>
           <div className="button-row">
             <ClusterButton className="" type="button" onClick={() => inputRef.current?.click()} variant="secondary" size="compact">Choose image</ClusterButton>
-            <ClusterButton className="" type="button" onClick={() => props.onCoverImageChange("")} disabled={!props.coverImage} variant="quiet" size="compact">Remove</ClusterButton>
+            {props.coverImage ? <ClusterButton className="" type="button" onClick={() => props.onCoverImageChange("")} variant="quiet" size="compact">Remove</ClusterButton> : null}
           </div>
           <input ref={inputRef} hidden type="file" accept="image/*" onChange={(event) => void loadCover(event.target.files?.[0])} />
           {coverError && <span className="field-error-v300">{coverError}</span>}
@@ -110,7 +110,7 @@ export function BoardCardPlanningFields(props: BoardCardPlanningFieldsProps) {
       </div>
       <div className="field span-2">
         <label>Completion criteria</label>
-        <ClusterTextArea value={props.completionCriteria} onChange={(event) => props.onCompletionCriteriaChange(event.target.value)} placeholder="What must be true before this Card is actually done?" maxLength={4000} rows={3} />
+        <ClusterTextArea value={props.completionCriteria} onChange={(event) => props.onCompletionCriteriaChange(event.target.value)} placeholder="Definition of done" maxLength={4000} rows={3} />
       </div>
       {(props.coverImage || props.coverColor) && <div className="card-cover-preview-v300" style={runtimeStyle({ backgroundColor: props.coverColor || undefined, backgroundImage: props.coverImage ? `url(${props.coverImage})` : undefined })} />}
       <div className="field card-member-picker-v300">

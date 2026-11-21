@@ -110,6 +110,8 @@ input[type="radio"]:checked::before {
 .project-card, .task-card, .time-schedule-block-v212, .tickets-row-v184 { border-radius: var(--cluster-radius-card); }
 /* Native selects had the visual charm of a firmware setup screen. */
 select { appearance: none; -webkit-appearance: none; min-height: var(--cluster-control-height); width: 100%; border: 1px solid var(--cluster-border); background-color: var(--cluster-surface-2); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: var(--text); line-height: 1.2; cursor: pointer; }
+/* Field resets elsewhere use the background shorthand; keep the chevron on every single-value select. */
+select:not([multiple]):not([size]) { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%) !important; background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50% !important; background-size: 5px 5px, 5px 5px !important; background-repeat: no-repeat !important; padding-right: 28px !important; }
 select:hover { border-color: var(--cluster-border-strong) !important; background-color: var(--cluster-surface-3) !important; }
 select:focus-visible { border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 62%, var(--cluster-border-strong)) !important; box-shadow: none !important; outline-offset: 1px; }
 select:disabled { cursor: not-allowed; }

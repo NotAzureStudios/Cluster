@@ -84,7 +84,7 @@ export function ManagedPackageSeatRequirementPanel({ packageId }: { packageId: s
       <p>Reason: {requirement.reason}</p>
       <p className="muted">Removing or replacing this restriction requires a separately reviewed policy workflow. This control cannot silently downgrade access.</p>
     </div> : loaded && <>
-      <ClusterInput aria-label="Search Inventory assets" placeholder="Search active digital/license assets" value={assetSearch}
+      <ClusterInput aria-label="Search Inventory assets" placeholder="Search licenses" value={assetSearch}
         onChange={(event) => { setAssetSearch(event.target.value); generation.current++; setAssets([]); }}/>
       <ClusterButton type="button" variant="quiet" disabled={assetSearchBusy} onClick={() => void findAssets()}>
         {assetSearchBusy ? "Searching…" : "Find eligible Inventory assets"}

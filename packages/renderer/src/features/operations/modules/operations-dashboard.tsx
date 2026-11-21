@@ -358,7 +358,7 @@ export function GlobalSearchHub({ projects, onOpenProject, onOpenBoard }: { proj
         </div>
         <span className="soft-pill">{rows.length} results</span>
       </div>
-      <ClusterTextInput className="global-search-input-v121" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, boards, whiteboards, docs..." />
+      <ClusterTextInput className="global-search-input-v121" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search…" />
       <div className="global-search-results-v121">
         {rows.length ? (
           rows.map((row) => (

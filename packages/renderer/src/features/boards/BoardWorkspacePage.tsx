@@ -1238,7 +1238,7 @@ export function BoardWorkspacePage({ board, projects, currentUser, currentBoardI
 
         <div className="board-toolbar panel board-workspace-search-v256 cluster-dense-toolbar">
           <div className="field board-search-field">
-            <ClusterTextInput ref={searchInputRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards, labels, assignees, Source Control issues…  /" aria-label="Search board cards" />
+            <ClusterTextInput ref={searchInputRef} type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search cards  /" aria-label="Search board cards" />
           </div>
           <span className="control-result">{filteredCount} cards</span>
           <ClusterButton size="compact" variant="quiet" className="board-select-visible-v11"

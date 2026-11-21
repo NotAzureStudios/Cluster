@@ -19,7 +19,7 @@ export function ErrorCodeReferencePanel() {
       <div className="error-code-reference-body-v532" aria-labelledby="cluster-error-code-title">
         <label className="error-code-search-v311">
           <span className="sr-only">Search error codes</span>
-          <ClusterTextInput type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search code, message, status, or action" />
+          <ClusterTextInput type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search codes" />
         </label>
         <div className="error-code-list-v311">
           {rows.map((item) => (
