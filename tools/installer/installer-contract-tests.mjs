@@ -45,6 +45,10 @@ check('installer script can safely live within work root',!ps.includes('Install 
 check('no user-profile AppData probing',!ps.includes('LOCALAPPDATA'));
 check('fresh install uses bundled source, not random adjacent archive',src.includes('chooseEmbeddedRevision(installedHash, embeddedHash')&&src.includes('Use the revision embedded in this EXE')); 
 check('runtime pruning of root documents leaves nested app files to targeted pruning',ps.includes('Get-ChildItem -LiteralPath $source -File')&&ps.includes('tools/fixtures')); 
+check('prebuilt managed runtime retains the verified npm lockfile for dependency admission',
+  ps.includes("$candidate.Name -notin @('CLUSTER_RELEASE.json', 'package.json', 'package-lock.json')") &&
+  ps.includes('TestManifest $source') &&
+  ps.indexOf('TestManifest $source') < ps.indexOf('ApplyRevision $source $hash'));
 check('source ZIP excludes installer executable and embedded payload',builder.includes("bin/Cluster-Installer.exe")&&builder.includes("tools/installer/assets/bundled-source.zip"));
 check('source ZIP generated without external npm ZIP dependencies',builder.includes("from 'node:zlib'")&&builder.includes('crc32'));
 check('native compiler stdout and stderr retained for troubleshooting',ps.includes('2>&1 | ForEach-Object') && ps.includes('full stdout/stderr is in $script:log') && ps.includes('Installer logging: native stdout/stderr retained'));
