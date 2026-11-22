@@ -1006,6 +1006,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     { id: "copy-profile-link", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy profile link", icon: "link", onSelect: () => copyProfileLink(profile) },
                     { id: "mention-person", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy mention", icon: "comment", onSelect: () => copyProfileMention(profile) },
                     ...(canOpenScheduler ? [{ id: "open-scheduler", resourceKinds: ["user"] as const, allowed: () => true, label: "Open scheduler", icon: "clock" as const, onSelect: () => { openClusterWorkNavigation({ screen: "scheduler" }); } }] : []),
+                    ...(effectiveAdminMode && profile.id !== currentUser.id && !profile.archived ? [{ id: "reset-password", resourceKinds: ["user"] as const, allowed: () => true, label: "Reset password", icon: "lock" as const, separatorBefore: true, onSelect: () => { setProfileView("access"); void issuePasswordResetForProfile(); } }] : []),
                     ...(currentUser.isAdmin && profile.id !== currentUser.id ? [{ id: "manage-access", resourceKinds: ["user"] as const, allowed: () => true, label: effectiveAdminMode ? "Manage access" : "View access", icon: "lock" as const, separatorBefore: true, onSelect: () => setProfileView("access") }] : []),
                   ])} />
                 </div>
@@ -1204,7 +1205,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         {state !== "SUSPENDED" ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton> : null}
                         {state !== "DISABLED" ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton> : null}
                         <span className="pp-admin-divider" aria-hidden="true" />
-                        <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Temporary password"}</ClusterButton>
+                        <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Resetting…" : "Reset password"}</ClusterButton>
                         {state === "PASSWORD_CHANGE_REQUIRED" && !profile.archived ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void issueActivationInvitationForProfile()}>{adminActionBusy === "activation-invitation" ? "Issuing…" : "Activation link"}</ClusterButton> : null}
                         <ClusterButton size="compact" variant="danger" disabled={Boolean(securityActionUserId)} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton>
                       </div>}
