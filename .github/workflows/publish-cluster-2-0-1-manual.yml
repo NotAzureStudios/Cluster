@@ -204,13 +204,7 @@ jobs:
           cat > "$RUNNER_TEMP/cluster-2-0-1-notes.md" <<'NOTES'
           ## Cluster 2.0.1 (Windows x64)
 
-          **Cluster 2.0.1 Windows startup hotfix.** Fixes Server 2.0.0 incorrectly rejecting valid npm caret ranges, including two renderer font packages already installed at 5.3.0. This release includes all 2.0.0 interface refinements; see `docs/releases/CLUSTER_2_0_0.md` and `docs/releases/CLUSTER_2_0_1.md`.
-
-          Download **Cluster-Installer.exe** and verify its SHA-256 against **Cluster-server-build-receipt.json**.
-
-          **Upgrading from broken 2.0.0:** This is a complete, data-preserving in-place Server installer. Back up PostgreSQL, Library, configuration, and account secrets; stop the managed Server services; install from the same parent directory, without deleting the existing Server or its data. The unchanged 2.0.0 installer cannot fix this bug.
-
-          **Upgrading from 1.x:** use this installer manually. Existing 1.x launchers cannot discover 2.x releases. The signed automatic-update feed remains separate from this unsigned manual download.
+          **Cluster 2.0.1: Windows Server patch.** Fixes 2.0.0 installs that would not start (two unpinned font dependencies failed the managed startup check), and lets the signed in-app update feed carry 2.x releases. Includes everything in 2.0.0; see `docs/releases/CLUSTER_2_0_0.md` and `docs/releases/CLUSTER_2_0_1.md`.
 
           **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed `Cluster` folder: for `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`; for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`. Do not run the installer from Downloads or inside `Cluster\Server`, because its location determines the target.
 

@@ -55,6 +55,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Source versions do not agree' }
           node tools/scripts/cluster-release-lockfile-check.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Root npm lockfile does not match the current release' }
+          node tools/scripts/cluster-exact-dependency-pins-tests.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'External dependencies must be pinned exactly; managed startup rejects ranges' }
           node tools/scripts/cluster-managed-db-env-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Managed database URL bootstrap regression failed' }
           node tools/scripts/cluster-prebuilt-install-gate-tests.mjs

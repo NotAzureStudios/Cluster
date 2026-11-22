@@ -1,19 +1,15 @@
-# Cluster 2.0.1 — Windows managed-startup hotfix
+# Cluster 2.0.1
 
-**Release type:** Server patch release (Windows x64).
+Windows Server patch for 2.0.0.
 
-## Fix
+## Fixes
 
-Cluster Server 2.0.0 could install successfully and start its private PostgreSQL service but then refuse to start the application, claiming the installed dependency graph was incomplete. The launcher incorrectly required every declared dependency version to be an exact `x.y.z` pin; the renderer correctly declares `@fontsource/comfortaa` and `@fontsource/inter` as `^5.3.0`. The prebuilt locked installer contained concrete `5.3.0` versions, yet the startup validator rejected the declarations before checking those files.
+- **Server 2.0.0 would install but not start.** Managed startup accepts only exactly pinned dependencies, and 2.0.0's renderer declared its two font packages as `^5.3.0`. They are now pinned to `5.3.0`, and the build refuses any unpinned dependency, so this can't ship again. The startup check itself stays strict. It now looks in a workspace's own `node_modules` before the root one, which is the order Node uses to resolve packages.
+- **In-app updates now carry 2.x.** The signed update feed only accepted 1.x versions, so 2.0.0 never appeared as an in-app update. From 2.0.1 on, installed 2.x Servers are offered updates normally.
+- The Windows install smoke check now compares each installed dependency with its pinned version (the lockfile isn't part of an install).
 
-- Accept installed package versions that satisfy supported npm caret and tilde constraints; unsupported dependency syntax still fails closed.
-- Match Node's package resolution order: workspace-local dependencies before root-level hoisted packages.
-- Add regression coverage for exact pins, caret and tilde versions, invalid versions, and workspace-local resolution.
+## Installing
 
-## Installation and data preservation
+Run the 2.0.1 `Cluster-Installer.exe` in the same parent folder as the existing installation. It upgrades in place and keeps your data. Back up first, as with any upgrade. This applies to 2.0.0 installs that won't start and to 1.x installs (1.x can't discover 2.x by itself).
 
-**Use the 2.0.1 `Cluster-Installer.exe`, not the unchanged 2.0.0 installer.** Back up PostgreSQL, Library, configuration, and account secrets before any upgrade. Shut down the Server and managed services. Run the installer in the **same parent directory** of the existing managed `Cluster` installation. Do not delete `Server\\data` or migrate to a new workspace. The full installer performs a data-preserving in-place upgrade.
-
-This is an **unsigned manual-download** release, separate from the signed main update feed. Verify the binary against the published `Cluster-server-build-receipt.json`.
-
-The Qt Desktop product remains at **1.2.2**; its previously published, SHA-256-verified downloads are included unchanged.
+Qt Desktop stays at 1.2.2; its published downloads are included unchanged.
