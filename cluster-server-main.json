@@ -3,16 +3,16 @@
   "product": "cluster-server",
   "target": "server-windows-x64",
   "channel": "main",
-  "release": "2.0.2",
-  "sequence": 200000002,
-  "sourceVersion": "2.0.2",
-  "commit": "26c45e322543490787b4278a8f5b2ca52ac95548",
+  "release": "2.0.726",
+  "sequence": 200000726,
+  "sourceVersion": "2.0.726",
+  "commit": "a59c14b3fb6ba6bb13a9fefccb73d84f83417fa7",
   "artifact": {
     "kind": "installer",
     "filename": "Cluster-Installer.exe",
-    "url": "https://github.com/NotAzureStudios/Cluster/releases/download/server-v2.0.2/Cluster-Installer.exe",
-    "sha256": "95b846e6aee2e1727c03258e02b3383462bc9ec91dc892e2f930a1964766aae4",
-    "size": 224142336
+    "url": "https://github.com/NotAzureStudios/Cluster/releases/download/server-v2.0.726/Cluster-Installer.exe",
+    "sha256": "eb03116f2819df79396dac5c16adfaf8a65ecfc612269942f7d620efae34a5eb",
+    "size": 224146432
   },
-  "signature": "MpbSWF66QaZk6t9dy9sxajWcEANYhOUOi6yk9AC9/+dGZzwUGH7MLYmTn4Wc75AWiIDlM7RCNHzgb6DF9YKIDg=="
+  "signature": "qsOkLvAjzESZ40IyyZiKMrCU8fzWH7VZmMfGLvdyMW9Gtt+WJbiUL9gqZg2dEE+DlfbKjG7Hm6XoypSae85uBA=="
 }
