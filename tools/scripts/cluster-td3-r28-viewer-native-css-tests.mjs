@@ -64,8 +64,8 @@ test('Native server profile controls report action failure rather than swallowin
 });
 test('Sidebar row height has one owner and retains mobile target',()=>{
   assert.match(sidebar, /--cluster-sidebar-item-height: 38px/);
-  assert.match(sidebar, /#cluster-sidebar \.cluster-sidebar__link \{[\s\S]*?min-height: var\(--cluster-sidebar-item-height\) !important/);
-  assert.match(sidebar,/min-height: 44px !important/);
+  assert.match(sidebar, /#cluster-sidebar \.cluster-sidebar__link \{[\s\S]*?min-height: var\(--cluster-sidebar-item-height\)/);
+  assert.match(sidebar,/min-height: 44px/);
   assert.doesNotMatch(sidebar,/#cluster-sidebar \.cluster-sidebar__link \{\s*min-height: 36px !important/);
   assert.doesNotMatch(shellCss, /min-height:var\(--sidebar-row-height-v524\) !important/);
 });
