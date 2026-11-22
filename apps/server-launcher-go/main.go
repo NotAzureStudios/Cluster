@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-var version = "2.0.1-dev"
+var version = "2.0.2-dev"
 
 const privateNodeVersion = "24.20.0"
 
@@ -270,6 +270,9 @@ func managedHostCommand(options launcherOptions, node string, env map[string]str
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	configureChildProcess(cmd)
 	cmd.Env = mergeEnvironment(os.Environ(), env)
+	if gitDir := gitRuntimeDirectory(); gitDir != "" {
+		cmd.Env = prependPath(cmd.Env, gitDir)
+	}
 	if nodeDir := filepath.Dir(node); nodeDir != "" {
 		cmd.Env = prependPath(cmd.Env, nodeDir)
 	}
@@ -764,10 +767,11 @@ func prependPath(env []string, directory string) []string {
 	if directory == "" {
 		return env
 	}
+	// Windows spells it Path; keep only the value, whatever the case.
 	current := ""
 	for _, item := range env {
 		if strings.HasPrefix(strings.ToUpper(item), "PATH=") {
-			current = strings.TrimPrefix(item, "PATH=")
+			current = item[len("PATH="):]
 			break
 		}
 	}

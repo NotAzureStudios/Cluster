@@ -173,3 +173,11 @@ func TestPanelStopGraceExceedsManagedHostDrain(t *testing.T) {
 		t.Fatalf("control panel grace %s can kill the Host before its API drains", managedHostStopGrace)
 	}
 }
+
+func TestPrependPathKeepsWindowsPathValue(t *testing.T) {
+	env := prependPath([]string{`Path=C:\Windows\system32;C:\Program Files\Git\cmd`, "OTHER=1"}, `C:\node`)
+	want := `PATH=C:\node` + string(os.PathListSeparator) + `C:\Windows\system32;C:\Program Files\Git\cmd`
+	if len(env) != 2 || env[1] != want {
+		t.Fatalf("prependPath = %q, want %q", env, want)
+	}
+}

@@ -255,8 +255,9 @@ export function createGitRepositoryRuntime(input: { repositoriesRoot: string; wo
         checkedAt: new Date().toISOString(),
         message: `${version ? `Git ${version}` : "Git"} is available${lfsAvailable ? ` with Git LFS${lfsVersion ? ` ${lfsVersion}` : ""}` : "; Git LFS is unavailable"}.`,
       };
-    } catch {
-      value = { available: false, version: null, lfsAvailable: false, lfsVersion: null, executable: path.basename(executable), checkedAt: new Date().toISOString(), message: "Git runtime is unavailable. Remote metadata can still synchronize through supported provider adapters." };
+    } catch (error) {
+      const reason = /ENOENT/.test(String((error as Error)?.message)) ? `${executable} was not found on the Server's PATH` : String((error as Error)?.message || error).split("\n")[0];
+      value = { available: false, version: null, lfsAvailable: false, lfsVersion: null, executable: path.basename(executable), checkedAt: new Date().toISOString(), message: `Git runtime is unavailable: ${reason}.` };
     }
     inspectionCache = { expiresAt: Date.now() + 30_000, value };
     return value;
