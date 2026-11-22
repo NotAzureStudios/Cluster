@@ -806,6 +806,9 @@ try {
   # Windows PowerShell 5.1 Set-Content UTF8 adds a BOM; Go's JSON decoder rejects it.
   [IO.File]::WriteAllText((Join-Path $source 'CLUSTER_RELEASE.json'), ($releaseMarker | ConvertTo-Json -Depth 6), ([Text.UTF8Encoding]::new($false)))
   if ($BuildOnly) { Say "Build-only success: $source"; exit 0 }
+  # Keep package-lock.json beside package.json in managed releases so the
+  # installed dependency graph remains auditable against the exact locked
+  # build and the first-install smoke can verify packaged dependency versions.
   # This repository historically shipped hundreds of root-level development
   # checklists/reports alongside the server. They are NOT application runtime
   # resources. Remove only recognized root-level documentation/report types;
@@ -814,7 +817,7 @@ try {
   foreach ($candidate in @(Get-ChildItem -LiteralPath $source -File)) {
     if ($candidate.Name -eq 'README.md') { continue }
     if ($candidate.Extension -in @('.md','.txt','.patch') -or
-        ($candidate.Extension -eq '.json' -and $candidate.Name -ne 'CLUSTER_RELEASE.json' -and $candidate.Name -ne 'package.json')) {
+        ($candidate.Extension -eq '.json' -and $candidate.Name -notin @('CLUSTER_RELEASE.json', 'package.json', 'package-lock.json'))) {
       Remove-Item -LiteralPath $candidate.FullName -Force
       $pruned++
     }
