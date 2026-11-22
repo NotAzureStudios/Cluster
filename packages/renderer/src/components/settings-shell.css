@@ -25,6 +25,13 @@
   top: var(--space-2);
   display: grid;
   gap: var(--space-3);
+  /* Side navigation sits on the patterned canvas; a light translucent layer
+     keeps its text readable at any pattern intensity. */
+  padding: var(--space-2);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cluster-visual-surface, var(--panel)) 74%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
   max-height: calc(100dvh - var(--cl-titlebar-h, 44px) - var(--space-4));
   overflow-y: auto;
   scrollbar-width: thin;

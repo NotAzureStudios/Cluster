@@ -105,7 +105,10 @@ export type ClusterIconName =
   | "redo"
   | "info"
   | "shapes"
-  | "frame";
+  | "frame"
+  | "mail"
+  | "phone"
+  | "globe";
 
 
 export type ClusterIconTreatment = "duotone" | "navigation" | "action";

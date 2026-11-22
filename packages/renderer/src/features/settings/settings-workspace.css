@@ -1944,3 +1944,29 @@
    columns left each under 330px — too narrow for a label beside a
    segmented control. One column of full-width cards instead. */
 .st-main .appearance-layout-v093 .appearance-card-grid-v092 { grid-template-columns: minmax(0, 1fr); }
+
+/* Appearance: grouped rows beside a sticky live preview. */
+.ap { display:grid; gap:14px; container-type:inline-size; }
+.ap-presets { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
+.ap-presets > button { display:grid; gap:2px; justify-items:start; padding:9px 12px; border:1px solid var(--border); border-radius:10px; background:var(--panel); text-align:left; }
+.ap-presets > button:hover { background:var(--surface-hover,var(--panel)); }
+.ap-presets strong { font-size:.76rem; }
+.ap-presets span { color:var(--muted); font-size:.64rem; }
+.ap-body { display:grid; gap:14px; align-items:start; }
+@container (min-width:860px) { .ap-body { grid-template-columns:minmax(0,1fr) 280px; } }
+.ap-groups { display:grid; gap:12px; min-width:0; }
+.ap-card { display:grid; gap:2px; padding:12px 14px; }
+.ap-card > h3 { margin:0 0 6px; font-size:.8rem; }
+.ap-row { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:44px; padding:6px 0; border-top:1px solid var(--border); }
+.ap-row > span { flex:0 0 auto; color:var(--muted); font-size:.72rem; }
+.ap-row > div { display:flex; justify-content:flex-end; min-width:0; }
+.ap-row .segmented-choice-v267 { width:auto; }
+.ap-row .cluster-select-v227 { width:180px; }
+.ap-row input[type="range"] { width:min(260px,100%); }
+.ap-row .background-choice-grid-v267 { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+.ap-row .background-choice-grid-v267 > button { width:76px; min-height:0; padding:6px; }
+.ap-row .background-choice-grid-v267 > button > span { height:30px; }
+.ap-row .background-choice-grid-v267 > button > strong { font-size:.64rem; }
+.ap-card .cluster-settings-choice-group-v11, .ap-card [role="radiogroup"] { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:6px; }
+.ap-preview { position:sticky; top:var(--space-3); min-width:0; }
+@container (max-width:560px) { .ap-row { flex-wrap:wrap; } .ap-row > div { flex:1 1 100%; justify-content:flex-start; } }

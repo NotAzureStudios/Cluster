@@ -18,7 +18,7 @@ const names = [
   'play','playlist','plus','previous','print','project','refresh','reset','rewind','rotate','search','settings',
   'spark','speed','star','star-filled','sync','text','ticket','timeline','tools','trash','upload','user',
   'users','video','volume','warning','work','zoom-in','zoom-out',
-  'pointer','pen','eraser','square','circle','diamond','sticky','arrow','line','chart','type','undo','redo','book','info','shapes','frame',
+  'pointer','pen','eraser','square','circle','diamond','sticky','arrow','line','chart','type','undo','redo','book','info','shapes','frame','mail','phone','globe',
 ];
 // Semantic, not arbitrary asset identifiers. Each glyph chooses its own
 // treatment at the application boundary (sidebar / action / workspace).
@@ -38,6 +38,7 @@ export const iconCandidates = {
     link:'link-duotone',play:'play-duotone',pause:'pause-duotone',pin:'push-pin-duotone',
     sync:'arrows-clockwise-duotone',refresh:'arrow-clockwise-duotone',spark:'sparkle-duotone',
     list:'list-duotone',menu:'list-duotone',check:'check-duotone',
+    mail:'envelope-simple-duotone',phone:'phone-duotone',globe:'globe-duotone',
 
   },
   tabler: {
@@ -55,6 +56,7 @@ export const iconCandidates = {
     plus:'plus',minus:'minus',more:'dots',refresh:'refresh',sync:'refresh',
     'zoom-in':'zoom-in','zoom-out':'zoom-out',fullscreen:'maximize',minimize:'minimize',
     'panel-close':'layout-sidebar-right-collapse','panel-open':'layout-sidebar-right-expand',
+    mail:'mail',phone:'phone',globe:'world',
 
   },
   lucide: {

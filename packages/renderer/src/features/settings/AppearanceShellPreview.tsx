@@ -47,7 +47,7 @@ export function AppearanceShellPreview({ settings, theme }: { settings: Settings
     data-icon-size={context.iconSize} data-panel-borders={context.accessibility.highContrast ? "defined" : context.panelBorders}
     data-scrollbar-style={context.accessibility.highContrast ? "prominent" : context.scrollbarStyle}
     aria-label="Live Cluster appearance preview">
-    <header className="appearance-shell-preview__head"><div><strong>Live shell preview</strong><span>Uses the effective visual instance</span></div><small>{theme} · {settings.interfaceDensity || "compact"}</small></header>
+    <header className="appearance-shell-preview__head"><strong>Preview</strong></header>
     <div className="appearance-shell-preview__frame">
       <aside className="appearance-shell-preview__sidebar">
         <div className="appearance-shell-preview__brand"><span className="appearance-shell-preview__logo">C</span><strong>Cluster</strong></div>
@@ -62,6 +62,5 @@ export function AppearanceShellPreview({ settings, theme }: { settings: Settings
         </main>
       </div>
     </div>
-    <footer className="appearance-shell-preview__meta"><span>{settings.backgroundBaseStyle || "clean"}</span><span>{settings.backgroundPattern || "hex"}</span><span>{settings.surfaceStyle || "outlined"}</span><span>{context.sidebarLayout} sidebar</span><span>{context.sidebarItemStyle} navigation</span><span>{context.surfaceDepth} depth</span><span>{context.surfaceTexture} texture</span><span>{context.panelBorders} borders</span><span>{context.iconSize} icons</span><span>{context.taskbarLayout === "floating" ? "Floating" : "Full-width"} taskbar</span><span>{settings.taskbarSurface || "match"} finish</span></footer>
   </section>;
 }

@@ -120,7 +120,7 @@ test("Server configuration review only passes labels and impact, never secrets",
 });
 test("Account Appearance and Quiet Hours consume shared settings controls", () => {
   assert.match(account, /<ClusterSettingsChoiceGroup<AppTheme>/);
-  assert.match(account, /<ClusterSettingsChoiceGroup<NonNullable<Settings\["interfaceDensity"\]>>/);
+  assert.match(account, /segmented\("interfaceDensity", \["dense", "compact", "comfortable"\]/);
   assert.match(account, /<ClusterSettingsRow label="Quiet hours"/);
   assert.match(account, /<ClusterDisclosureGroup className="settings-component-gallery-v11"/);
 });

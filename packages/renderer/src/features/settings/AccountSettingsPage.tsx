@@ -1361,229 +1361,77 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
             </div>
           )}
 
-          {section === "appearance" && (
-            <div className="settings-section-v092 appearance-section-v092">
-              <div className="settings-panel-head-v092" id="appearance-theme-v546" tabIndex={-1}>
-                <p className="eyebrow">Interface</p>
+          {section === "appearance" && (() => {
+            const cap = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+            const segmented = <K extends keyof Settings>(key: K, options: string[], fallback: string, label: string) => (
+              <div className="segmented-choice-v267" role="group" aria-label={label}>
+                {options.map((option) => <ClusterButton key={option} type="button" aria-pressed={(settings[key] || fallback) === option} className={(settings[key] || fallback) === option ? "active" : ""} onClick={() => patch(key, option as Settings[K])}>{cap(option)}</ClusterButton>)}
+              </div>
+            );
+            const row = (label: string, control: React.ReactNode) => <div className="ap-row"><span>{label}</span><div>{control}</div></div>;
+            return <div className="settings-section-v092 ap">
+              <div className="settings-panel-head-v092">
                 <h2>Appearance</h2>
-                <ClusterButton type="button" variant="secondary" onClick={applyVisualDefaults}>
-                  Reset visuals
-                </ClusterButton>
+                <ClusterButton type="button" variant="quiet" size="compact" onClick={applyVisualDefaults}>Reset</ClusterButton>
               </div>
-              <nav className="appearance-area-nav-v546" aria-label="Appearance categories">
-                {([ ["appearance-theme-v546", "Theme"], ["appearance-materials-v546", "Materials"], ["appearance-layout-v546", "Layout"], ["appearance-motion-v546", "Motion"], ["appearance-presets-v546", "Presets"] ] as const).map(([id, label]) => (
-                  <ClusterButton key={id} type="button" variant="secondary" onClick={() => document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "auto" })}>{label}</ClusterButton>
-                ))}
-              </nav>
-              <div className="appearance-choice-board-v267">
-                <section className="settings-card-v092">
-                  <div className="settings-card-head-v092">
+              <div className="ap-presets" aria-label="Presets">
+                {([["dense", "Dense", "Smaller chrome"], ["dark", "Studio dark", "Glass and blue"], ["clean", "Clean light", "Flat and bright"], ["lowMotion", "Low motion", "Fewer effects"]] as const).map(([id, title, hint]) => <ClusterButton key={id} type="button" onClick={() => applyAppearancePreset(id)}><strong>{title}</strong><span>{hint}</span></ClusterButton>)}
+              </div>
+              <div className="ap-body">
+                <div className="ap-groups">
+                  <section className="settings-card-v092 ap-card">
                     <h3>Theme</h3>
-                    <span>Base contrast</span>
-                  </div>
-                  <ClusterSettingsChoiceGroup<AppTheme>
-                    label="Theme"
-                    value={theme}
-                    onChange={(option) => { setDirty(true); onThemeChange(option); }}
-                    options={[
-                      { value: "dark", label: "Dark", preview: <span className="cluster-settings-theme-preview-v11" data-theme="dark"><i /><i /></span> },
-                      { value: "light", label: "Light", preview: <span className="cluster-settings-theme-preview-v11" data-theme="light"><i /><i /></span> },
-                      { value: "system", label: "System", preview: <span className="cluster-settings-theme-preview-v11" data-theme="system"><i /><i /></span> },
-                    ]}
-                  />
-                </section>
-                <section id="appearance-materials-v546" tabIndex={-1} className="settings-card-v092 span-3 appearance-surface-combined-v270">
-                  <div className="settings-card-head-v092">
-                    <h3>Materials & background</h3>
-                    <span>Color foundation, texture, elevation and glass</span>
-                  </div>
-                  <div className="appearance-surface-row-v270 appearance-visual-instance-v3">
-                    <div>
-                      <label>Background base</label>
-                      <div className="background-choice-grid-v267">
-                        {(["clean", "gradient", "aurora", "midnight"] as Array<NonNullable<Settings["backgroundBaseStyle"]>>).map((option) => (
-                          <ClusterButton key={option} type="button" data-background-preview={option} className={(settings.backgroundBaseStyle || "clean") === option ? "active" : ""} onClick={() => patch("backgroundBaseStyle", option)}>
-                            <span />
-                            <strong>{option.charAt(0).toUpperCase() + option.slice(1)}</strong>
-                          </ClusterButton>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label>Background pattern</label>
-                      <div className="background-choice-grid-v267 appearance-pattern-grid-v3">
-                        {(["none", "hex", "grid", "dots"] as Array<NonNullable<Settings["backgroundPattern"]>>).map((option) => (
-                          <ClusterButton key={option} type="button" data-pattern-preview={option} className={(settings.backgroundPattern || "hex") === option ? "active" : ""} onClick={() => patch("backgroundPattern", option)}>
-                            <span />
-                            <strong>{option.charAt(0).toUpperCase() + option.slice(1)}</strong>
-                          </ClusterButton>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="appearance-pattern-controls-v3">
-                      <div className="field">
-                        <label>Pattern intensity: {settings.backgroundPatternIntensity ?? 4}%</label>
-                        <ClusterSlider min="0" max="12" value={settings.backgroundPatternIntensity ?? 4} onChange={(e) => patch("backgroundPatternIntensity", Number(e.target.value))} />
-                      </div>
-                      <div className="field">
-                        <label>Pattern scale</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Background pattern scale">
-                          {(["small", "medium", "large"] as Array<NonNullable<Settings["backgroundPatternScale"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.backgroundPatternScale || "medium") === option ? "active" : ""} onClick={() => patch("backgroundPatternScale", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="appearance-material-controls-v546">
-                      <div className="field">
-                        <label>Surface depth</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Surface depth">
-                          {(["flat", "soft", "elevated"] as Array<NonNullable<Settings["surfaceDepth"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.surfaceDepth || "soft") === option} className={(settings.surfaceDepth || "soft") === option ? "active" : ""} onClick={() => patch("surfaceDepth", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label>Surface texture</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Surface texture">
-                          {(["none", "fine", "brushed"] as Array<NonNullable<Settings["surfaceTexture"]>>).map((option) => <ClusterButton type="button" key={option} aria-pressed={(settings.surfaceTexture || "fine") === option} className={(settings.surfaceTexture || "fine") === option ? "active" : ""} onClick={() => patch("surfaceTexture", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label>Texture visibility: {settings.surfaceTextureIntensity ?? 6}%</label>
-                        <ClusterSlider min="0" max="20" value={settings.surfaceTextureIntensity ?? 6} onChange={(event) => patch("surfaceTextureIntensity", Number(event.target.value))} />
-                      </div>
-                      <div className="field">
-                        <label>Panel borders</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Panel border definition">
-                          {(["minimal", "subtle", "defined"] as Array<NonNullable<Settings["panelBorders"]>>).map((option) => <ClusterButton key={option} type="button" aria-pressed={(settings.panelBorders || "subtle") === option} className={(settings.panelBorders || "subtle") === option ? "active" : ""} onClick={() => patch("panelBorders", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label>Panel style</label>
-                      <div className="segmented-choice-v267">
-                        {(["flat", "outlined", "glass"] as Array<NonNullable<Settings["surfaceStyle"]>>).map((option) => (
-                          <ClusterButton key={option} type="button" className={(settings.surfaceStyle || "outlined") === option ? "active" : ""} onClick={() => patch("surfaceStyle", option)}>
-                            {option.charAt(0).toUpperCase() + option.slice(1)}
-                          </ClusterButton>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </section>
+                    <ClusterSettingsChoiceGroup<AppTheme>
+                      label="Theme"
+                      value={theme}
+                      onChange={(option) => { setDirty(true); onThemeChange(option); }}
+                      options={[
+                        { value: "dark", label: "Dark", preview: <span className="cluster-settings-theme-preview-v11" data-theme="dark"><i /><i /></span> },
+                        { value: "light", label: "Light", preview: <span className="cluster-settings-theme-preview-v11" data-theme="light"><i /><i /></span> },
+                        { value: "system", label: "System", preview: <span className="cluster-settings-theme-preview-v11" data-theme="system"><i /><i /></span> },
+                      ]}
+                    />
+                    {row("Font", <ClusterSelect ariaLabel="Font" value={settings.fontFamily || "comfortaa"} onChange={(value) => patch("fontFamily", value as Settings["fontFamily"])} options={[{ value: "comfortaa", label: "Comfortaa" }, { value: "inter", label: "Inter" }, { value: "system", label: "System" }, { value: "mono", label: "Mono" }]} />)}
+                    {row("Density", segmented("interfaceDensity", ["dense", "compact", "comfortable"], "compact", "Interface density"))}
+                  </section>
+                  <section className="settings-card-v092 ap-card">
+                    <h3>Background</h3>
+                    {row("Base", <div className="background-choice-grid-v267">
+                      {(["clean", "gradient", "aurora", "midnight"] as Array<NonNullable<Settings["backgroundBaseStyle"]>>).map((option) => <ClusterButton key={option} type="button" data-background-preview={option} aria-pressed={(settings.backgroundBaseStyle || "clean") === option} className={(settings.backgroundBaseStyle || "clean") === option ? "active" : ""} onClick={() => patch("backgroundBaseStyle", option)}><span /><strong>{cap(option)}</strong></ClusterButton>)}
+                    </div>)}
+                    {row("Pattern", <div className="background-choice-grid-v267 appearance-pattern-grid-v3">
+                      {(["none", "hex", "grid", "dots"] as Array<NonNullable<Settings["backgroundPattern"]>>).map((option) => <ClusterButton key={option} type="button" data-pattern-preview={option} aria-pressed={(settings.backgroundPattern || "hex") === option} className={(settings.backgroundPattern || "hex") === option ? "active" : ""} onClick={() => patch("backgroundPattern", option)}><span /><strong>{cap(option)}</strong></ClusterButton>)}
+                    </div>)}
+                    {(settings.backgroundPattern || "hex") !== "none" && <>
+                      {row(`Intensity · ${settings.backgroundPatternIntensity ?? 4}%`, <ClusterSlider min="0" max="12" value={settings.backgroundPatternIntensity ?? 4} onChange={(e) => patch("backgroundPatternIntensity", Number(e.target.value))} />)}
+                      {row("Scale", segmented("backgroundPatternScale", ["small", "medium", "large"], "medium", "Background pattern scale"))}
+                    </>}
+                  </section>
+                  <section className="settings-card-v092 ap-card">
+                    <h3>Surfaces</h3>
+                    {row("Panels", segmented("surfaceStyle", ["flat", "outlined", "glass"], "outlined", "Panel style"))}
+                    {(settings.surfaceStyle || "outlined") === "glass" && row(`Glass · ${settings.glassStrength ?? 72}%`, <ClusterSlider min="20" max="95" value={settings.glassStrength ?? 72} onChange={(e) => patch("glassStrength", Number(e.target.value))} />)}
+                    {row("Depth", segmented("surfaceDepth", ["flat", "soft", "elevated"], "soft", "Surface depth"))}
+                    {row("Borders", segmented("panelBorders", ["minimal", "subtle", "defined"], "subtle", "Panel border definition"))}
+                    {row("Texture", segmented("surfaceTexture", ["none", "fine", "brushed"], "fine", "Surface texture"))}
+                    {(settings.surfaceTexture || "fine") !== "none" && row(`Texture · ${settings.surfaceTextureIntensity ?? 6}%`, <ClusterSlider min="0" max="20" value={settings.surfaceTextureIntensity ?? 6} onChange={(event) => patch("surfaceTextureIntensity", Number(event.target.value))} />)}
+                    {row(`Corners · ${settings.cornerRadius ?? 10}px`, <ClusterSlider min="2" max="24" value={settings.cornerRadius ?? 10} onChange={(e) => patch("cornerRadius", Number(e.target.value))} />)}
+                  </section>
+                  <section className="settings-card-v092 ap-card">
+                    <h3>Layout &amp; motion</h3>
+                    {row("Icons", segmented("iconSize", ["small", "standard", "large"], "standard", "Icon scale"))}
+                    {row("Scrollbars", segmented("scrollbarStyle", ["minimal", "standard", "prominent"], "standard", "Scrollbar prominence"))}
+                    {row("Project tabs", segmented("projectTabStyle", ["compact", "standard"], "standard", "Project tab style"))}
+                    {row("Motion", segmented("userMotionPreference", ["system", "full", "reduced", "none"], "system", "Motion preference"))}
+                  </section>
+                </div>
+                <aside className="ap-preview"><AppearanceShellPreview settings={settings} theme={theme} /></aside>
               </div>
-
-              <ClusterDisclosureGroup className="settings-component-gallery-v11" title="Design system gallery" summary="Optional examples of Cluster controls and interaction patterns">
+              <ClusterDisclosureGroup className="settings-component-gallery-v11" title="Design system gallery" summary="Examples of Cluster controls">
                 <DesignSystemPreview />
               </ClusterDisclosureGroup>
-              <div className="appearance-layout-v093">
-                <AppearanceShellPreview settings={settings} theme={theme} />
-                <div className="settings-card-grid-v092 appearance-card-grid-v092">
-                  <div id="appearance-layout-v546" tabIndex={-1} className="settings-card-v092">
-                    <div className="settings-card-head-v092">
-                      <h3>Layout & navigation</h3>
-                      <span>Density and chrome</span>
-                    </div>
-                    <div className="settings-stack compact-fields-v092 appearance-layout-controls-v522">
-                      <div className="field">
-                        <label>Font</label>
-                        <ClusterNativeSelect value={settings.fontFamily || "comfortaa"} onChange={(e) => patch("fontFamily", e.target.value as Settings["fontFamily"])}>
-                          <option value="comfortaa">Comfortaa</option>
-                          <option value="inter">Inter</option>
-                          <option value="system">System</option>
-                          <option value="mono">Mono</option>
-                        </ClusterNativeSelect>
-                      </div>
-                      <div className="field">
-                        <label>Icon scale</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Icon scale">
-                          {(["small", "standard", "large"] as Array<NonNullable<Settings["iconSize"]>>).map((option) => <ClusterButton key={option} type="button" aria-pressed={(settings.iconSize || "standard") === option} className={(settings.iconSize || "standard") === option ? "active" : ""} onClick={() => patch("iconSize", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                        <small className="muted">Adjusts navigation and action icon artwork without reducing button hit targets.</small>
-                      </div>
-                      <div className="field">
-                        <label>Scrollbars</label>
-                        <div className="segmented-choice-v267" role="group" aria-label="Scrollbar prominence">
-                          {(["minimal", "standard", "prominent"] as Array<NonNullable<Settings["scrollbarStyle"]>>).map((option) => <ClusterButton key={option} type="button" aria-pressed={(settings.scrollbarStyle || "standard") === option} className={(settings.scrollbarStyle || "standard") === option ? "active" : ""} onClick={() => patch("scrollbarStyle", option)}>{option.charAt(0).toUpperCase() + option.slice(1)}</ClusterButton>)}
-                        </div>
-                        <small className="muted">Scrollbars stay available; high contrast always favors visibility.</small>
-                      </div>
-                      <ClusterSettingsRow label="Density" description="Choose how tightly controls and content are arranged.">
-                        <ClusterSettingsChoiceGroup<NonNullable<Settings["interfaceDensity"]>>
-                          label="Interface density" density="compact"
-                          value={settings.interfaceDensity || "compact"}
-                          onChange={(option) => patch("interfaceDensity", option)}
-                          options={[
-                            { value: "dense", label: "Dense" },
-                            { value: "compact", label: "Compact" },
-                            { value: "comfortable", label: "Comfortable" },
-                          ]}
-                        />
-                      </ClusterSettingsRow>
-                      {/* Sidebar and taskbar surface, layout, button style and label options
-                          were retired with the window frame rebuild: one flush title bar and
-                          one sidebar, styled by features/shell/shell-frame.css. */}
-                      <div className="field">
-                        <label>Project tabs</label>
-                        <div className="segmented-choice-v267 two-options-v522" role="group" aria-label="Project tab style">
-                          {(["compact", "standard"] as Array<NonNullable<Settings["projectTabStyle"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.projectTabStyle || "standard") === option ? "active" : ""} onClick={() => patch("projectTabStyle", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="settings-card-v092">
-                    <div className="settings-card-head-v092">
-                      <h3 id="appearance-motion-v546" tabIndex={-1}>Motion & interaction</h3>
-                      <span>Feedback, shape, and movement</span>
-                    </div>
-                    <div className="settings-stack compact-fields-v092">
-                      <div className="field">
-                        <label>Motion</label>
-                        <div className="segmented-choice-v267 appearance-motion-choice-v3" role="group" aria-label="Motion preference">
-                          {(["system", "full", "reduced", "none"] as Array<NonNullable<Settings["userMotionPreference"]>>).map((option) => (
-                            <ClusterButton key={option} type="button" className={(settings.userMotionPreference || "system") === option ? "active" : ""} onClick={() => patch("userMotionPreference", option)}>
-                              {option.charAt(0).toUpperCase() + option.slice(1)}
-                            </ClusterButton>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label>Corner radius: {settings.cornerRadius ?? 10}px</label>
-                        <ClusterSlider min="2" max="24" value={settings.cornerRadius ?? 10} onChange={(e) => patch("cornerRadius", Number(e.target.value))} />
-                      </div>
-                      <div className="field">
-                        <label>Glass strength: {settings.glassStrength ?? 72}%</label>
-                        <ClusterSlider min="20" max="95" value={settings.glassStrength ?? 72} onChange={(e) => patch("glassStrength", Number(e.target.value))} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div id="appearance-presets-v546" className="appearance-preset-row-v093">
-                <ClusterButton type="button" onClick={() => applyAppearancePreset("dense")}>
-                  <strong>Dense workspace</strong>
-                  <span>Smaller chrome, more content</span>
-                </ClusterButton>
-                <ClusterButton type="button" onClick={() => applyAppearancePreset("dark")}>
-                  <strong>Studio dark</strong>
-                  <span>Glass panels and blue accents</span>
-                </ClusterButton>
-                <ClusterButton type="button" onClick={() => applyAppearancePreset("clean")}>
-                  <strong>Clean light</strong>
-                  <span>Flat cards, brighter surfaces</span>
-                </ClusterButton>
-                <ClusterButton type="button" onClick={() => applyAppearancePreset("lowMotion")}>
-                  <strong>Low motion</strong>
-                  <span>Reduced effects and outlines</span>
-                </ClusterButton>
-              </div>
-            </div>
-          )}
+            </div>;
+          })()}
 
           {section === "performance" && <DevicePerformanceSettingsSection />}
 

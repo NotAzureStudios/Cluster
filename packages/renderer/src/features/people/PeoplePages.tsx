@@ -10,7 +10,8 @@ import { DataViewAggregationStrip, DataViewDerivedFieldBuilder, DataViewFacetBar
 import { ClusterTableToolbar } from "../../components/ClusterTableToolbar";
 import { ClusterDataView } from "../../components/ClusterDataView";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
-import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { resolveClusterResourceActions } from "../../core/resource-action-registry";
@@ -74,17 +75,15 @@ function safeProfileUrl(value?: string | null) {
   }
 }
 
-function ProfileContactActions({ user }: { user: User }) {
+function ProfileContactList({ user }: { user: User }) {
   const website = safeProfileUrl(user.profileWebsite);
   const discord = user.profileDiscordUsername || user.discordUsername || "";
-  const hasAny = Boolean(user.email || user.phoneNumber || discord || website);
-  if (!hasAny) return <span className="muted">No shared contact methods.</span>;
-  return <div className="people-contact-actions-v473">
-    {user.email && <ClusterLinkButton className="" href={`mailto:${user.email}`} variant="secondary">Email</ClusterLinkButton>}
-    {user.phoneNumber && <ClusterLinkButton className="" href={`tel:${user.phoneNumber}`} variant="secondary">Call</ClusterLinkButton>}
-    {discord && <ClusterCopyButton text={discord} copiedLabel="Discord copied" failedLabel="Discord username could not be copied">Copy Discord</ClusterCopyButton>}
-    {website && <ClusterLinkButton className="" href={website} target="_blank" rel="noreferrer" variant="secondary">Website</ClusterLinkButton>}
-  </div>;
+  return <ul className="pp-contact">
+    {user.email && <li><ClusterIcon name="mail" /><a href={`mailto:${user.email}`}>{user.email}</a></li>}
+    {user.phoneNumber && <li><ClusterIcon name="phone" /><a href={`tel:${user.phoneNumber}`}>{user.phoneNumber}</a></li>}
+    {discord && <li><ClusterIcon name="comment" /><span>{discord}</span><ClusterCopyButton text={discord} variant="quiet" size="compact" copiedLabel="Copied">Copy</ClusterCopyButton></li>}
+    {website && <li><ClusterIcon name="globe" /><a href={website} target="_blank" rel="noreferrer">{new URL(website).host}</a></li>}
+  </ul>;
 }
 
 type PeopleTeam = {
@@ -998,7 +997,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
             <>
               <header className="pp-head">
                 {profileExpanded && <ClusterIconButton size="compact" className="pp-back" label={adminMode && onBack ? "Back to users" : "Back to directory"} onClick={() => { if (adminMode && onBack) onBack(); else setProfileExpanded(false); }}><ClusterIcon name="chevron-left" /></ClusterIconButton>}
-                <PersonSummary person={profile} profileAction={false} avatarProfilePeek={false} showCapacity departmentIdentity={departmentForPerson(profile)} className="pp-identity" />
+                <PersonSummary person={profile} profileAction={false} avatarProfilePeek={false} showCapacity={profile.capacityHours != null} departmentIdentity={departmentForPerson(profile)} className="pp-identity" />
                 <div className="pp-actions">
                   {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant={profileView === "edit" ? "primary" : "secondary"} onClick={() => setProfileView("edit")}>Edit</ClusterButton>}
                   {profile.id === currentUser.id && onEditProfile && <ClusterButton size="compact" variant="secondary" onClick={onEditProfile}>Edit profile</ClusterButton>}
@@ -1046,35 +1045,37 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   for (const field of profile.profileFieldDefinitions || []) { const value = profile.customProfileFields?.[field.id]; push(field.label, Array.isArray(value) ? value.join(", ") : value == null ? null : String(value)); }
                   const expertise = profile.expertise?.length ? profile.expertise : (profile.skills || []).map((name) => ({ name, level: "", years: null as number | null }));
                   const hasContact = Boolean(profile.email || profile.phoneNumber || profile.profileDiscordUsername || profile.discordUsername || profile.profileWebsite);
-                  return <>
-                    {profile.profileBio ? <p className="pp-bio">{profile.profileBio}</p> : null}
-                    <div className="pp-stats" aria-label="Summary">
-                      <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileProjects.length}</strong> projects</ClusterButton>
-                      <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileCards.length}</strong> cards</ClusterButton>
-                      <span><strong>{profileTeams.length}</strong> teams</span>
-                      {directReports.length ? <span><strong>{directReports.length}</strong> reports</span> : null}
-                      {profileWork?.overdue ? <span className="warn"><strong>{profileWork.overdue}</strong> overdue</span> : null}
+                  return <div className="pp-overview">
+                    <div className="pp-main">
+                      {profile.profileBio ? <p className="pp-bio">{profile.profileBio}</p> : null}
+                      <div className="pp-stats" aria-label="Summary">
+                        <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileProjects.length}</strong><span>Projects</span></ClusterButton>
+                        <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileCards.length}</strong><span>Cards</span></ClusterButton>
+                        <div><strong>{profileTeams.length}</strong><span>Teams</span></div>
+                        {directReports.length ? <div><strong>{directReports.length}</strong><span>Reports</span></div> : null}
+                        {profileWork?.overdue ? <div className="warn"><strong>{profileWork.overdue}</strong><span>Overdue</span></div> : null}
+                      </div>
+                      {facts.length ? <dl className="pp-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : null}
+                      {expertise.length ? <section className="pp-section"><h3>Skills</h3><div className="pp-chips">{expertise.map((item) => <span key={item.name}>{item.name}{item.level ? <small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small> : null}</span>)}</div></section> : null}
+                      {profileShowcaseProjects.length > 0 && <section className="pp-section"><h3>Showcase</h3><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}
+                      {directReports.length > 0 && <section className="pp-section"><h3>Reports</h3><div className="pp-chips">{directReports.map((person) => <ClusterButton unstyled type="button" key={person.id} onClick={() => inspectProfile(person.id)}>{displayUserName(person)}</ClusterButton>)}</div></section>}
+                      <section className="pp-section people-profile-feed-rc46" aria-label="Recent work activity">
+                        <h3>Activity{profile.recentActivity?.length ? <ClusterButton size="compact" variant="quiet" onClick={() => setProfileView("activity")}>All</ClusterButton> : null}</h3>
+                        {profile.recentActivity?.length ? <ol>{profile.recentActivity.slice(0, 5).map((event) => <li key={event.id}><span className="people-profile-feed-dot-rc46" aria-hidden="true" /><div><strong>{event.title}</strong>{event.message && <p>{event.message}</p>}<time dateTime={event.createdAt}>{formatRelativeTime(event.createdAt)}</time></div></li>)}</ol> : <p className="muted">Nothing recent.</p>}
+                      </section>
                     </div>
-                    {hasContact ? <ProfileContactActions user={profile as User} /> : null}
-                    <dl className="pp-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-                    {expertise.length ? <section className="pp-section"><h3>Skills</h3><div className="pp-chips">{expertise.map((item) => <span key={item.name}>{item.name}{item.level ? <small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small> : null}</span>)}</div></section> : null}
-                    {profileShowcaseProjects.length > 0 && <section className="pp-section"><h3>Showcase</h3><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}
-                    {directReports.length > 0 && <section className="pp-section"><h3>Reports</h3><div className="pp-chips">{directReports.map((person) => <ClusterButton unstyled type="button" key={person.id} onClick={() => inspectProfile(person.id)}>{displayUserName(person)}</ClusterButton>)}</div></section>}
-                    {canSeeSensitiveProfile && <section className="pp-section pp-private" aria-label={sensitiveProfileMessage}>
-                      <h3><ClusterIcon name="lock" /> Private</h3>
-                      <dl className="pp-facts">
-                        {!profile.hideLegalName && <div><dt>Legal name</dt><dd>{profile.legalName || "—"}</dd></div>}
-                        <div><dt>Email</dt><dd>{profile.email || "—"}</dd></div>
-                        <div><dt>Phone</dt><dd>{profile.phoneNumber || "—"}</dd></div>
-                        {profile.employeeNumber ? <div><dt>Employee #</dt><dd>{profile.employeeNumber}</dd></div> : null}
-                      </dl>
-                      {profile.notes ? <p className="pp-note">{profile.notes}</p> : null}
-                    </section>}
-                    <section className="pp-section people-profile-feed-rc46" aria-label="Recent work activity">
-                      <h3>Activity{profile.recentActivity?.length ? <ClusterButton size="compact" variant="quiet" onClick={() => setProfileView("activity")}>All</ClusterButton> : null}</h3>
-                      {profile.recentActivity?.length ? <ol>{profile.recentActivity.slice(0, 5).map((event) => <li key={event.id}><span className="people-profile-feed-dot-rc46" aria-hidden="true" /><div><strong>{event.title}</strong>{event.message && <p>{event.message}</p>}<time dateTime={event.createdAt}>{formatRelativeTime(event.createdAt)}</time></div></li>)}</ol> : <p className="muted">Nothing recent.</p>}
-                    </section>
-                  </>;
+                    {(hasContact || canSeeSensitiveProfile) && <aside className="pp-aside">
+                      {hasContact && <section className="pp-card"><h3>Contact</h3><ProfileContactList user={profile as User} /></section>}
+                      {canSeeSensitiveProfile && (!profile.hideLegalName && profile.legalName || profile.employeeNumber || profile.notes) ? <section className="pp-card" aria-label={sensitiveProfileMessage}>
+                        <h3><ClusterIcon name="lock" /> Private</h3>
+                        <dl className="pp-rows">
+                          {!profile.hideLegalName && profile.legalName ? <div><dt>Legal name</dt><dd>{profile.legalName}</dd></div> : null}
+                          {profile.employeeNumber ? <div><dt>Employee #</dt><dd>{profile.employeeNumber}</dd></div> : null}
+                        </dl>
+                        {profile.notes ? <p className="pp-note">{profile.notes}</p> : null}
+                      </section> : null}
+                    </aside>}
+                  </div>;
                 })()}
 
                 {profileView === "work" && (
@@ -1183,53 +1184,45 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   <PersonnelRecordsPanel subjectUserId={profile.id} canManage compact />
                 )}
 
-                {profileView === "access" && (
-                  <div className="people-access-v417">
-                    <section className="people-section-v244">
-                      <header className="people-section-heading-v417"><div><h3>Workspace access</h3><span>{profile.workspaceRole || (profile.isAdmin ? "admin" : "member")}</span></div><strong>{profileAccess.length} tools</strong></header>
-                      <div className="profile-access-grid-v250">
-                        {profileAccess.map((tool) => <div key={tool.key}><span>{tool.label}</span><strong>{levelLabel(tool.level)}</strong></div>)}
-                        {!profileAccess.length && <p className="muted">No explicit tool access.</p>}
-                      </div>
+                {profileView === "access" && (() => {
+                  const state = String(profile.accountState || "ACTIVE").toUpperCase();
+                  const self = profile.id === currentUser.id;
+                  const busy = Boolean(adminActionBusy);
+                  return <div className="pp-access">
+                    <section className="pp-card">
+                      <header><h3>Account</h3><span className={`pp-state ${profile.archived ? "archived" : state.toLowerCase()}`}>{profile.archived ? "Archived" : levelLabel(state.replaceAll("_", " ").toLowerCase())}</span></header>
+                      <dl className="pp-rows">
+                        <div><dt>Role</dt><dd>{levelLabel(profile.workspaceRole || (profile.isAdmin ? "admin" : "member"))}</dd></div>
+                        <div><dt>Type</dt><dd>{effectiveAdminMode ? <ClusterSelect ariaLabel="Account type" value={profile.accountType || "employee"} disabled={busy} onChange={(value) => void changeProfileAccountType(value)} options={[{ value: "employee", label: "Employee" }, { value: "contractor", label: "Contractor" }, { value: "client", label: "Client" }, { value: "guest", label: "Guest" }]} /> : levelLabel(profile.accountType || "employee")}</dd></div>
+                        <div><dt>Password</dt><dd>{profile.passwordConfigured === false ? "Setup required" : "Set"}</dd></div>
+                        <div><dt>PIN</dt><dd>{profile.pinConfigured ? "Set" : "Not set"}</dd></div>
+                        <div><dt>Access expires</dt><dd title={profile.accountType && profile.accountType !== "employee" ? "Clients, contractors and guests need an expiry. Extensions are approved in Studio Settings → Access renewals." : undefined}>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "Never"}</dd></div>
+                        <div><dt>Last active</dt><dd>{profile.lastActivityAt ? formatRelativeTime(profile.lastActivityAt) : "—"}</dd></div>
+                      </dl>
+                      {effectiveAdminMode && !self && <div className="pp-admin-actions">
+                        {["SUSPENDED", "DISABLED"].includes(state) ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton> : null}
+                        {state !== "SUSPENDED" ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton> : null}
+                        {state !== "DISABLED" ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton> : null}
+                        <span className="pp-admin-divider" aria-hidden="true" />
+                        <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Temporary password"}</ClusterButton>
+                        {state === "PASSWORD_CHANGE_REQUIRED" && !profile.archived ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void issueActivationInvitationForProfile()}>{adminActionBusy === "activation-invitation" ? "Issuing…" : "Activation link"}</ClusterButton> : null}
+                        <ClusterButton size="compact" variant="danger" disabled={Boolean(securityActionUserId)} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton>
+                      </div>}
+                      {adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"} className={adminActionFeedback.error ? "pp-feedback error" : "pp-feedback"}>{adminActionFeedback.message}</p>}
                     </section>
-                    <section className="people-section-v244">
-                      <h3>Account posture</h3>
-                      <div className="people-profile-grid-v244">
-                        <div><span>Account state</span><strong>{profile.accountState || "Active"}</strong></div>
-                        <div><span>Account type</span><strong>{profile.accountType || "employee"}</strong></div>
-                        <div><span>Password</span><strong>{profile.passwordConfigured === false ? "Setup required" : "Configured"}</strong></div>
-                        <div><span>PIN</span><strong>{profile.pinConfigured ? "Configured" : "Not configured"}</strong></div>
-                        <div><span>Access expires</span><strong>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "No expiry"}</strong></div>
-                        <div><span>Last activity</span><strong>{profile.lastActivityAt ? formatRelativeTime(profile.lastActivityAt) : "No activity"}</strong></div>
-                      </div>
+                    <section className="pp-card">
+                      <header><h3>Tool access</h3>{effectiveAdminMode ? <span>Default follows the role and account type</span> : null}</header>
+                      <div className="pp-tools">{(effectiveAdminMode ? TOOL_PERMISSION_OPTIONS : profileAccess).map((tool) => <div key={tool.key}>
+                        <span>{tool.label}</span>
+                        {effectiveAdminMode
+                          ? <ClusterSelect ariaLabel={`${tool.label} access`} value={String(profile.toolPermissions?.[tool.key] || "inherit")} disabled={busy} onChange={(value) => void setProfileToolPermission(tool.key, value)} options={[{ value: "inherit", label: `Default · ${levelLabel(getToolLevel(profile, tool.key))}` }, { value: "none", label: "None" }, { value: "view", label: "View" }, { value: "edit", label: "Edit" }, { value: "manage", label: "Manage" }]} />
+                          : <strong>{levelLabel(getToolLevel(profile, tool.key))}</strong>}
+                      </div>)}</div>
+                      {!effectiveAdminMode && !profileAccess.length ? <p className="muted">No tool access.</p> : null}
                     </section>
-                    {(profile.id === currentUser.id || effectiveAdminMode) && <PersonEffectiveAccessPanel personId={profile.id} selfId={currentUser.id} />}
-                    {effectiveAdminMode && <section className="people-section-v244 people-account-admin-v536">
-                      <header className="people-section-heading-v417"><div><h3>Account administration</h3><span>Lifecycle and recovery actions for this person</span></div><strong>{profile.archived ? "Archived" : String(profile.accountState || "ACTIVE").replaceAll("_", " ")}</strong></header>
-                      <div className="people-admin-account-fields-v536">
-                        <label><span>Account type</span><ClusterNativeSelect value={profile.accountType || "employee"} disabled={Boolean(adminActionBusy)} onChange={(event) => void changeProfileAccountType(event.target.value)}><option value="employee">Employee</option><option value="contractor">Contractor</option><option value="client">Client</option><option value="guest">Guest</option></ClusterNativeSelect><small>External account types require a future access expiry.</small></label>
-                        <div><span>Access expires</span><strong>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "No expiry"}</strong><small>Extensions require another admin’s approval in Studio Settings → Studio Systems → Access renewals.</small></div>
-                      </div>
-                      <div className="people-admin-action-groups-v536">
-                        <div><span>Lifecycle</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || !["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase())} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"} onClick={() => void setProfileAccountState("SUSPENDED")}>Suspend</ClusterButton><ClusterButton variant="danger" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || String(profile.accountState || "ACTIVE").toUpperCase() === "DISABLED"} onClick={() => void setProfileAccountState("DISABLED")}>Disable</ClusterButton><span className="muted">{profile.archived ? "Return via Studio Settings → Offboarding" : "Archive via governed Offboarding"}</span></div></div>
-                        <div><span>Credential recovery</span><div className="button-row compact"><ClusterButton variant="secondary" size="compact" disabled={Boolean(adminActionBusy) || profile.id === currentUser.id} onClick={() => void issuePasswordResetForProfile()}>{adminActionBusy === "password-reset" ? "Issuing…" : "Issue temporary password"}</ClusterButton><ClusterButton type="button" variant="secondary" size="compact"
-  disabled={Boolean(adminActionBusy) || profile.id === currentUser.id || profile.archived || profile.accountState !== "PASSWORD_CHANGE_REQUIRED"}
-  onClick={() => void issueActivationInvitationForProfile()}>{adminActionBusy === "activation-invitation" ? "Issuing…" : "Issue activation link"}</ClusterButton><ClusterButton type="button" variant="danger" size="compact" disabled={Boolean(securityActionUserId) || profile.id === currentUser.id} onClick={() => void resetAuthenticatorsForProfile()}>{securityActionUserId === profile.id ? "Resetting…" : "Reset authenticators"}</ClusterButton></div></div>
-                      </div>
-                      {adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"} className={adminActionFeedback.error ? "people-user-editor-error-v106" : "people-user-editor-status-v11"}>{adminActionFeedback.message}</p>}
-                      {profile.id === currentUser.id && <small className="muted">You cannot suspend or disable your own account.</small>}
-                      {!["SUSPENDED", "DISABLED"].includes(String(profile.accountState || "ACTIVE").toUpperCase()) && <small className="muted">Reactivation is only for suspended or disabled accounts. Setup and recovery are separate.</small>}
-                    </section>}
-                    {effectiveAdminMode && <section className="people-section-v244 people-tool-access-editor-v536">
-                      <header className="people-section-heading-v417"><div><h3>Tool access</h3><span>Explicit overrides. Inherit follows the workspace role and account type defaults.</span></div></header>
-                      <div className="people-tool-access-grid-v536">{TOOL_PERMISSION_OPTIONS.map((tool) => <label key={tool.key}><span>{tool.label}</span><ClusterNativeSelect value={String(profile.toolPermissions?.[tool.key] || "inherit")} disabled={Boolean(adminActionBusy)} onChange={(event) => void setProfileToolPermission(tool.key, event.target.value)}><option value="inherit">Inherit · {levelLabel(getToolLevel(profile, tool.key))}</option><option value="none">None</option><option value="view">View</option><option value="edit">Edit</option><option value="manage">Manage</option></ClusterNativeSelect></label>)}</div>
-                    </section>}
-                    {effectiveAdminMode && <section className="people-section-v244 people-project-access-editor-v536">
-                      <header className="people-section-heading-v417"><div><h3>Project access</h3><span>Time-limited individual grants are requested and approved in Studio Settings → Studio Systems → Scoped grants. This profile does not directly elevate Project access.</span></div></header>
-                      {Object.entries(profile.projectPermissions || {}).length > 0 && <p className="muted">Legacy Project overrides remain visible to Access Explorer until explicitly reconciled during TD7 cleanup.</p>}
-                    </section>}
-                  </div>
-                )}
+                    {(self || effectiveAdminMode) && <PersonEffectiveAccessPanel personId={profile.id} selfId={currentUser.id} />}
+                  </div>;
+                })()}
 
                 {profileView === "edit" && effectiveAdminMode && !profile.archived && <PeopleUserEditor
                   key={profile.id}

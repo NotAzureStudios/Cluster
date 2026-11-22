@@ -77,13 +77,13 @@ check("lifecycle changes require explicit confirmation and avoid redundant trans
   assert.ok(people.includes('accountStateActionGateRef.current = true;'));
   assert.ok(people.includes('title: state === "ACTIVE" ? "Reactivate account?"'));
   assert.ok(people.includes('if (!confirmed || activeProfileIdRef.current !== userId) return;'));
-  assert.ok(people.includes('String(profile.accountState || "ACTIVE").toUpperCase() === "SUSPENDED"'));
+  assert.ok(people.includes('{state !== "SUSPENDED" ? <ClusterButton'), 'Suspend is hidden for already suspended accounts');
 });
 check("account type changes are deliberate, error-local, and cannot create an unexpiring external identity", () => {
   assert.ok(people.includes('async function changeProfileAccountType(nextType: string)'));
   assert.ok(people.includes('title: "Change account type?"'));
   assert.ok(people.includes('The current renewal flow cannot assign an initial expiry'));
-  assert.ok(people.includes('onChange={(event) => void changeProfileAccountType(event.target.value)}'));
+  assert.ok(people.includes('onChange={(value) => void changeProfileAccountType(value)}'));
   assert.ok(people.includes('adminActionFeedback && <p role={adminActionFeedback.error ? "alert" : "status"}'));
 });
 check("password reset prompts before revoking sessions", () => {
