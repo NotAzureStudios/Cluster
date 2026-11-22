@@ -40,7 +40,7 @@ check(pin.includes('value.slice(0, -1)') && pin.includes('value + digit'), 'keyp
 check(pin.includes('disabled={disabled || value.length >= 8}'), 'keypad blocks ninth digit');
 check(host.includes('<ClusterPinEntry') && host.includes('portal={true}'), 'main modal uses reusable keypad and body portal');
 check(!host.includes('security-pin-step-v267') && !host.includes('phaseCopy.helper'), 'no redundant step/helper text');
-check(host.includes('mode !== "verify"') && host.includes('phaseCopy.label'), 'setup and change modes retain necessary context');
+check(host.includes('mode === "verify" ? request.title : phaseCopy.title') && host.includes('phaseCopy.detail') && host.includes('label={phaseCopy.label}'), 'setup and change modes retain necessary context');
 check(kiosk.includes('<ClusterPinEntry value={credential}') && kiosk.includes('credentialType === "pin"'), 'signed-out admin PIN has a real keypad');
 check(kiosk.includes('"/api/kiosk/admin-exit"'), 'kiosk still uses signed-out authorization route');
 check(kiosk.includes('/^\\d{4,8}$/'), 'kiosk PIN length checked before submit');

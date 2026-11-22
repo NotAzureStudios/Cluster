@@ -32,14 +32,11 @@ export function SecurityPinHost() {
 
   const mode = request?.mode || "verify";
   const phaseCopy = useMemo(() => {
-    if (phase === "current")
-      return { label: "Current PIN" };
-    if (phase === "new")
-      return { label: "New PIN" };
-    if (phase === "confirm")
-      return { label: "Confirm PIN" };
-    return { label: "Security PIN" };
-  }, [phase]);
+    if (phase === "current") return { label: "Current PIN", title: "Enter current PIN", detail: "Confirm it's you before choosing a new one." };
+    if (phase === "new") return { label: "New PIN", title: mode === "change" ? "Choose a new PIN" : request?.title || "Create a PIN", detail: "4 to 8 digits." };
+    if (phase === "confirm") return { label: "Confirm PIN", title: "Enter it again", detail: "To make sure it's right." };
+    return { label: "Security PIN", title: request?.title || "Enter PIN", detail: request?.description || "" };
+  }, [phase, mode, request?.title, request?.description]);
 
   useEffect(() => {
     const receive = (event: Event) => {
@@ -181,14 +178,15 @@ export function SecurityPinHost() {
       dialogProps={{
         "data-mode": mode,
         "data-phase": phase,
+        "data-error": error ? "true" : undefined,
       }}
     >
       <>
+      <ClusterButton unstyled type="button" className="security-pin-close-v262" onClick={close} aria-label="Close PIN pad" tabIndex={-1}><ClusterIcon name="close" /></ClusterButton>
       <header>
-        <h2 id="security-pin-title-v262">{request.title}</h2>
-        <ClusterButton unstyled type="button" className="security-pin-close-v262" onClick={close} aria-label="Close PIN pad"><ClusterIcon name="close" /></ClusterButton>
+        <h2 id="security-pin-title-v262">{mode === "verify" ? request.title : phaseCopy.title}</h2>
+        <p aria-live="polite">{mode === "verify" ? request.description : phaseCopy.detail}</p>
       </header>
-      {mode !== "verify" && <span className="security-pin-phase-v124" aria-live="polite">{phaseCopy.label}</span>}
       <ClusterPinEntry value={pin} onChange={(next) => { setError(""); setPin(next); }} disabled={verifying} inputRef={inputRef} label={phaseCopy.label} onEnter={() => void advance()} />
 
       {error && (
