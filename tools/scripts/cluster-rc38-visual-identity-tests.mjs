@@ -13,7 +13,7 @@ const overview=read('packages/renderer/src/features/projects/ProjectDetailHeader
 const cards=read('packages/renderer/src/features/projects/ProjectPortfolioItem.tsx');
 check('Project owns an optional persistent icon, not embedded image data',/model Project \{[\s\S]*?iconId\s+String\?/.test(schema));
 check('SQL migration adds Project icon without rewriting existing identities',read('apps/server/prisma/migrations/20261112000000_rc38_project_visual_identity/migration.sql').includes('ADD COLUMN "iconId" TEXT'));
-check('Project mutation validates curated glyph and service IDs',route.includes('iconId: z.union([')&&route.includes('brand:as-git')&&route.includes('glyph:project'));
+check('Project mutation validates built-in and library icon IDs',route.includes('iconId: z.union([')&&route.includes('refine(isResourceIconId)')&&read('apps/server/src/core/resource-icon.ts').includes('brand:as-git'));
 check('Project icon edits share existing edit permissions and revision CAS',route.includes('changesNonArchiveFields')&&route.includes('data: projectData')&&route.includes('expectedRevision'));
 check('Protected upload requires edit authorization and expected revision before writing',route.indexOf('hasToolPermission(actor, decorated?.workspaceRole, "projects", "edit")') < route.indexOf('await writeUpload(project.id, "branding"') && route.includes('project.revision !== body.expectedRevision'));
 check('Icon URL is guarded by current project identity and permission',route.includes('enforceTargetAccess(request, reply, "project", project.id, project, "view")')&&route.includes('project.iconId !== `asset:${params.fileName}`'));

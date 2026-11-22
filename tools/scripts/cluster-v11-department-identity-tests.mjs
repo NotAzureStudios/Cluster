@@ -14,7 +14,7 @@ const graph = fs.readFileSync("packages/renderer/src/features/people/company-gra
 const contracts = [
   [schema.includes("  iconId      String?"), "canonical department icon column"],
   [migration.includes('ALTER TABLE "Department" ADD COLUMN "iconId" TEXT'), "migration adds persisted icon"],
-  [routes.includes("const departmentIconSchema = z.enum(["), "department icons restricted to curated catalog"],
+  [routes.includes("z.string().refine(isResourceIconId") && fs.readFileSync("apps/server/src/core/resource-icon.ts", "utf8").includes("LIBRARY_ICON = /^icon:(?:tabler|simple-icons):[a-z0-9-]{1,80}$/"), "department icons restricted to built-in marks and the bundled icon library"],
   [routes.includes("color: departmentColorSchema,") && routes.includes("iconId: departmentIconSchema"), "writes validate color and icon"],
   [routes.includes("...(body.iconId !== undefined ? { iconId: body.iconId } : {})"), "updates persist icon"],
   [routes.includes("...(body.color !== undefined ? { color: body.color } : {})"), "updates persist color"],

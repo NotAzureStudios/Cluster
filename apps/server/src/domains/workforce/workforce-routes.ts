@@ -1,15 +1,9 @@
 import { z } from "zod";
 import { acquireTransactionAdvisoryLock } from "../../core/postgres-advisory-lock.js";
+import { isResourceIconId } from "../../core/resource-icon.js";
 
 const departmentColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional();
-const departmentIconSchema = z.enum([
-  "glyph:project", "glyph:game", "glyph:code", "glyph:video",
-  "glyph:image", "glyph:model", "glyph:folder", "glyph:library",
-  "glyph:work", "glyph:calendar", "glyph:packet", "glyph:grid",
-  "glyph:check", "glyph:users", "brand:as-git", "brand:discord",
-  "brand:steam", "brand:epic", "brand:unreal", "brand:blender",
-  "brand:curseforge", "brand:minecraft",
-]).nullable().optional();
+const departmentIconSchema = z.string().refine(isResourceIconId, "Choose an icon from the icon picker.").nullable().optional();
 
 
 function parseJson(value: unknown, fallback: any) {

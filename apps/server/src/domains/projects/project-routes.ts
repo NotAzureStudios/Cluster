@@ -22,6 +22,7 @@ import { projectStorageDirectory, type ClusterDataLayout } from "../../core/data
 import { canAccessCalendarEvent } from "../planning/calendar-access.js";
 import { createProjectSnapshotService } from "./project-snapshot-service.js";
 import { removeEmptyProjectFolders } from "../library/library-empty-project-folders.js";
+import { isResourceIconId } from "../../core/resource-icon.js";
 type ProjectRouteDependencies = {
   app: FastifyInstance;
   prisma: any;
@@ -505,7 +506,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
         tags: z.array(z.string().trim().min(1).max(48)).max(24).optional().default([]),
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
-        iconId: z.union([z.enum(["glyph:project", "glyph:game", "glyph:code", "glyph:video", "glyph:image", "glyph:model", "glyph:folder", "glyph:library", "glyph:work", "glyph:calendar", "glyph:packet", "glyph:grid", "brand:as-git", "brand:discord", "brand:steam", "brand:epic", "brand:unreal", "brand:blender", "brand:curseforge", "brand:minecraft"]), z.string().regex(/^asset:[a-f0-9]{24}-[a-zA-Z0-9._-]{1,100}\.(?:png|jpg|webp)$/)]).optional().nullable(),
+        iconId: z.union([z.string().refine(isResourceIconId), z.string().regex(/^asset:[a-f0-9]{24}-[a-zA-Z0-9._-]{1,100}\.(?:png|jpg|webp)$/)]).optional().nullable(),
         healthNote: z.string().max(1000).optional().nullable(),
         memberRoles: z.record(z.string().max(80)).optional().default({}),
         projectType: z.string().min(1).max(64).default("general"),

@@ -8,3 +8,9 @@
 .resource-icon-picker-grid button:focus-visible{outline:2px solid #57c1ff;outline-offset:2px}
 .resource-icon-picker-grid button>span{width:28px;height:28px;display:inline-flex}.resource-icon-picker-grid small{font-size:.67rem;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .resource-icon-picker-upload{display:flex;gap:8px;align-items:center;font-size:.8rem}.resource-icon-picker-upload input{min-width:0;max-width:100%;font-size:.73rem}.resource-icon-picker-error{color:var(--danger,#f87171)}
+.resource-icon-picker-tabs{display:flex;gap:4px;padding:3px;border-radius:9px;background:var(--surface-soft,var(--surface))}
+.resource-icon-picker-tabs button{flex:1;min-height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:inherit;font-size:.72rem;font-weight:600;cursor:pointer}
+.resource-icon-picker-tabs button[aria-selected=true]{background:var(--panel);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0 / 12%)}
+.resource-icon-picker-grid .library-icon{width:24px;height:24px}
+.resource-icon-picker-note{grid-column:1/-1;padding:8px;color:var(--muted);font-size:.72rem;text-align:center}
+.resource-identity-mark .library-icon{width:62%;height:62%}

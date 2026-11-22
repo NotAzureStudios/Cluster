@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import { ClusterIcon, type ClusterIconName } from "./ClusterIcon";
+import { LibraryIcon } from "./LibraryIcon";
+import { parseLibraryIconId, type IconLibrarySet } from "../core/icon-library";
 import "./resource-identity.css";
 
 export const PROJECT_ICON_OPTIONS = [
@@ -18,13 +20,13 @@ export const PROJECT_ICON_OPTIONS = [
   { id: "glyph:check", label: "Quality / Done", glyph: "check" },
   { id: "glyph:users", label: "People", glyph: "users" },
   { id: "brand:as-git", label: "Azure Studios Git", monogram: "Git", image: "/brand/as-git.webp" },
-  { id: "brand:discord", label: "Discord", monogram: "D" },
-  { id: "brand:steam", label: "Steam", monogram: "S" },
-  { id: "brand:epic", label: "Epic Games", monogram: "E" },
-  { id: "brand:unreal", label: "Unreal Engine", monogram: "UE" },
-  { id: "brand:blender", label: "Blender", monogram: "B" },
-  { id: "brand:curseforge", label: "CurseForge", monogram: "CF" },
-  { id: "brand:minecraft", label: "Minecraft", monogram: "MC" },
+  { id: "brand:discord", label: "Discord", library: "simple-icons:discord" },
+  { id: "brand:steam", label: "Steam", library: "simple-icons:steam" },
+  { id: "brand:epic", label: "Epic Games", library: "simple-icons:epicgames" },
+  { id: "brand:unreal", label: "Unreal Engine", library: "simple-icons:unrealengine" },
+  { id: "brand:blender", label: "Blender", library: "simple-icons:blender" },
+  { id: "brand:curseforge", label: "CurseForge", library: "simple-icons:curseforge" },
+  { id: "brand:minecraft", label: "Minecraft", library: "simple-icons:minecraft" },
 ] as const;
 
 export function resourceIconDefault(projectType?: string | null): string {
@@ -46,10 +48,11 @@ export function ResourceIdentityMark({ iconId, projectId, projectType, label, cl
 }) {
   const choice = iconId || resourceIconDefault(projectType);
   const option = PROJECT_ICON_OPTIONS.find(item => item.id === choice);
+  const library = parseLibraryIconId(choice) || (option && "library" in option ? { set: option.library.split(":")[0] as IconLibrarySet, name: option.library.split(":")[1] } : null);
   const glyph = option && "glyph" in option ? option.glyph : "project";
   const assetName = /^asset:([a-f0-9]{24}-[a-zA-Z0-9._-]{1,100}\.(?:png|jpg|webp))$/.exec(choice)?.[1];
   const image = assetName && projectId ? `/api/projects/${encodeURIComponent(projectId)}/icon/${encodeURIComponent(assetName)}` : option && "image" in option ? option.image : undefined;
-  return <span className={`resource-identity-mark ${className}`} style={{ "--resource-icon-accent": accentColor || "#57c1ff" } as CSSProperties} title={option?.label || label} role="img" aria-label={`${label} icon`}>
-    {image ? <img src={image} alt="" loading="lazy" decoding="async" /> : option && "monogram" in option ? <strong aria-hidden="true">{option.monogram}</strong> : <ClusterIcon name={glyph as ClusterIconName} />}
+  return <span className={`resource-identity-mark ${className}`} style={{ "--resource-icon-accent": accentColor || "#57c1ff" } as CSSProperties} title={option?.label || library?.name || label} role="img" aria-label={`${label} icon`}>
+    {image ? <img src={image} alt="" loading="lazy" decoding="async" /> : library ? <LibraryIcon set={library.set} name={library.name} /> : <ClusterIcon name={glyph as ClusterIconName} />}
   </span>;
 }

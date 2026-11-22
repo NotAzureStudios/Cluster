@@ -90,3 +90,4 @@ __pycache__/
 
 # Local certification gate output
 TD1_TD2_LOCAL_CERT_REPORT.json
+apps/web/public/icon-library/
