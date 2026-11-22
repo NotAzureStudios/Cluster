@@ -312,7 +312,7 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
                   </ContextualCardOpenButton>
                 </div>
               ))}
-              {!selectedDayRows.length ? <p className="muted">No cards due on this date match the current Board filters.</p> : null}
+              {!selectedDayRows.length ? <p className="muted">Nothing due.</p> : null}
             </div>
             {selectedDayRows.length > selectedDayLimit ? <ClusterButton variant="secondary" size="compact"
               className="board-calendar-show-more-v11" onClick={() => setSelectedDayLimit((limit) => limit + 25)}>
@@ -323,7 +323,7 @@ export function BoardCalendarView({ rows, selectedIds, onToggleSelected, onOpen 
       </section>
       {undated.length ? (
         <aside className="board-calendar-undated-v489 panel">
-          <header><strong>No scheduled due date</strong><span>{undated.length}</span></header>
+          <header><strong>Unscheduled</strong><span>{undated.length}</span></header>
           {invalidDueCount ? <p className="board-calendar-invalid-due-v11" role="status">
             {invalidDueCount} card{invalidDueCount === 1 ? "" : "s"} with an invalid due date are included here. Open a card to correct its date.
           </p> : null}
@@ -359,7 +359,7 @@ export function BoardTimelineView({ rows, selectedIds, onToggleSelected, onOpen 
   return (
     <section className="board-alt-view-v489 board-timeline-v509 panel" aria-label="Board work timeline">
       <header className="board-timeline-toolbar-v509">
-        <div><strong>Timeline</strong><span>Dates belong to the original cards</span></div>
+        <div><strong>Timeline</strong></div>
         <div>
           <ClusterButton size="compact" variant="quiet" onClick={() => shift(-weekCount)} aria-label="Previous twelve weeks"><ClusterIcon name="chevron-left" /></ClusterButton>
           <ClusterButton size="compact" variant="quiet" onClick={() => setFirstWeek(timelineWeekStart(new Date()))}>Today</ClusterButton>

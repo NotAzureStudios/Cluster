@@ -523,7 +523,7 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.board-calendar-undated-v489 > div > .cluster-button-v425:last-child {
+.board-calendar-undated-v489 > div > :is(.cluster-button-v425, button):not(:first-child) {
   min-width: 0;
   display: grid;
   justify-items: start;
@@ -1057,3 +1057,7 @@
   .pw .board-workspace-search-v256 .board-view-mode-v489 { display: flex !important; order: 10; flex: 1 0 100%; width: auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .pw .board-workspace-search-v256 .board-view-mode-v489 .cluster-button-v425 { flex: none; width: auto !important; }
 }
+
+.board-calendar-undated-v489 > div > :not(:first-child) { justify-content: flex-start; text-align: left; }
+.board-calendar-undated-v489 > div > :not(:first-child) { min-width: 0; color: var(--text); }
+.board-calendar-undated-v489 > div > :not(:first-child) > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--cluster-font-size-sm); }
