@@ -153,6 +153,7 @@ import { runtimeAccessModeFromEnvironment } from "../core/runtime-access-state.j
 import { mayRunBackgroundMutation } from "../core/operations-background-mode.js";
 import { createMediaWorkerSupervisor } from "./media-worker-supervisor.js";
 import { serverAutoUpdateTick } from "../core/server-auto-update.js";
+import { removeEmptyProjectFolders } from "../domains/library/library-empty-project-folders.js";
 const RUNTIME_CONFIG = loadRuntimeConfig();
 const { clusterVersion: CLUSTER_VERSION, runtimeProfile: RUNTIME_PROFILE, bootWorkspaceRoot: BOOT_WORKSPACE_ROOT, bootConfigFilePath: BOOT_CONFIG_FILE_PATH, bootSettings: BOOT_SETTINGS, webOrigin: WEB_ORIGIN, configuredCorsOrigins: CONFIGURED_CORS_ORIGINS, sessionCookie: SESSION_COOKIE, sessionDays: SESSION_DAYS, sessionSecure: SESSION_SECURE, rateLimitEnabled: RATE_LIMIT_ENABLED, authRequired: AUTH_REQUIRED, devLoginEnabled: DEV_LOGIN_ENABLED, requestTimeoutMs: REQUEST_TIMEOUT_MS, apiRateLimitMax: API_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, authRateLimitMax: AUTH_RATE_LIMIT_MAX, sessionIdleHours: SESSION_IDLE_HOURS, sessionMaxPerUser: SESSION_MAX_PER_USER, securityHeadersEnabled: SECURITY_HEADERS_ENABLED, requireMutationOrigin: REQUIRE_MUTATION_ORIGIN, requireDiscordLink: REQUIRE_DISCORD_LINK, uploadLimitBytes: UPLOAD_LIMIT_BYTES, avatarUploadLimitBytes: AVATAR_UPLOAD_LIMIT_BYTES, allowExecutableUploads: ALLOW_EXECUTABLE_UPLOADS, backupVerifyAfterCreate: BACKUP_VERIFY_AFTER_CREATE, sessionSecret: SESSION_SECRET, authSecret: AUTH_SECRET } = RUNTIME_CONFIG;
 const DATABASE_URL = process.env.DATABASE_URL || BOOT_SETTINGS.databaseUrlOverride || "postgresql://cluster@127.0.0.1:5432/cluster";
@@ -1465,6 +1466,8 @@ export async function startClusterServer() {
       backgroundTasks.scheduleAdaptive("data-integrity-reconcile", 6 * 60 * 60 * 1000, async () => {
         const nextDelayMs = operationsCadenceMilliseconds("operationsIntegrityScanHours", (await readSettings()).operationsIntegrityScanHours);
         if (!backgroundMutationPermitted()) return { nextDelayMs };
+        const removedFolders = await removeEmptyProjectFolders(prisma, { projectId: null });
+        if (removedFolders) app.log.info({ removedFolders }, "Removed empty Library folders left by deleted projects");
         await dataIntegrityRuntime.scan();
         return { nextDelayMs };
       }, { runImmediately: true, maxBackoffMs: 24 * 60 * 60 * 1000, slowTaskMs: 120_000, workloadClass: "maintenance" });

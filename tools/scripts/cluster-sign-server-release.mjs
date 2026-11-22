@@ -6,6 +6,7 @@ import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {stableServerSequence} from "./cluster-server-release-sequence.mjs";
+import { stampedFiles } from "./cluster-stamp-release.mjs";
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../..");
 const args=process.argv.slice(2);
@@ -64,7 +65,9 @@ const validRC = channel === "development" && rcSequence && Number(rcSequence[1])
 assert(Boolean(validStable || validRC), "Signed Server update identity must match stable or development RC release sequence");
 const branch=spawnSync("git",["branch","--show-current"],{cwd:root,encoding:"utf8"});
 assert(branch.status===0&&branch.stdout.trim()===(channel==="main"?"main":"development"),"Publisher must sign from the matching reviewed main/development branch");
-for(const command of [["diff","--quiet"],["diff","--cached","--quiet"]]){
+// Only the CI version stamp may differ from the reviewed commit.
+const unstamped=["--",".",...stampedFiles().map(file=>":!"+file)];
+for(const command of [["diff","--quiet",...unstamped],["diff","--cached","--quiet",...unstamped]]){
  const result=spawnSync("git",command,{cwd:root,encoding:"utf8"});
  assert(result.status===0,"Tracked source is modified; refuse signing unreviewed build");
 }

@@ -437,7 +437,10 @@ async function checkServer() {
     return false;
   }
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 4_000);
+  // A busy Server can take a few seconds to answer; one slow probe is not an outage.
+  const timer = window.setTimeout(() => controller.abort(), 10_000);
+  // Only a second failure in a row is reported as unreachable.
+  const confirmFailure = snapshot.consecutiveFailures > 0;
   try {
     const response = await fetch(`${API_URL}/health`, {
       credentials: "include",
@@ -494,10 +497,10 @@ async function checkServer() {
       : serverState;
     const readAccessAllowed = reachable && compatibilityReadsAllowed && !["maintenance", "recovery", "draining", "starting", "unavailable"].includes(serverState);
     const mutationReplayAllowed = reachable && compatibilityReplayAllowed && ["healthy", "degraded"].includes(serverState);
-    setSnapshot({ online: true, serverReachable: reachable, serverState: effectiveServerState, serverIssues, readAccessAllowed, mutationReplayAllowed, lastCheckedAt: Date.now() });
+    if (reachable || confirmFailure) setSnapshot({ online: true, serverReachable: reachable, serverState: effectiveServerState, serverIssues, readAccessAllowed, mutationReplayAllowed, lastCheckedAt: Date.now() });
     return reachable;
   } catch {
-    setSnapshot({ online: true, serverReachable: false, serverState: "unreachable", readAccessAllowed: false, mutationReplayAllowed: false, lastCheckedAt: Date.now() });
+    if (confirmFailure) setSnapshot({ online: true, serverReachable: false, serverState: "unreachable", readAccessAllowed: false, mutationReplayAllowed: false, lastCheckedAt: Date.now() });
     return false;
   } finally {
     window.clearTimeout(timer);
@@ -581,8 +584,11 @@ async function performOfflineRefresh(intent: SyncRefreshIntent) {
     markSharedSyncCycle();
     const reachable = await checkServer();
     if (!reachable) {
-      setSnapshot({ consecutiveFailures: snapshot.consecutiveFailures + 1, lastError: snapshot.online ? "Cluster server is unavailable." : null });
+      const confirmed = snapshot.consecutiveFailures > 0;
+      setSnapshot({ consecutiveFailures: snapshot.consecutiveFailures + 1, lastError: confirmed && snapshot.online ? "Cluster server is unavailable." : snapshot.lastError });
       broadcastSyncPosture();
+      // Confirm a first failure quickly instead of waiting a full sync interval.
+      if (!confirmed) scheduleNextSync(2_000);
       return;
     }
     setSnapshot({

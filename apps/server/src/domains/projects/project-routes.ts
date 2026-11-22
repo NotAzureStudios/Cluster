@@ -21,6 +21,7 @@ import { projectSourceControlPlan, provisionClusterManagedProjectRepository, typ
 import { projectStorageDirectory, type ClusterDataLayout } from "../../core/data-layout.js";
 import { canAccessCalendarEvent } from "../planning/calendar-access.js";
 import { createProjectSnapshotService } from "./project-snapshot-service.js";
+import { removeEmptyProjectFolders } from "../library/library-empty-project-folders.js";
 type ProjectRouteDependencies = {
   app: FastifyInstance;
   prisma: any;
@@ -1059,6 +1060,8 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       // deleted project left another pinned "<name> Library" folder behind.
       // Unpin before the delete, while the folder can still be found by project.
       const projectFolderIds = [project.libraryFolderId].filter(Boolean);
+      const projectFolders = { OR: [{ projectId: project.id }, ...(projectFolderIds.length ? [{ id: { in: projectFolderIds } }] : [])] };
+      await removeEmptyProjectFolders(transaction, projectFolders);
       await transaction.libraryItem.updateMany({
         where: {
           type: "folder",
