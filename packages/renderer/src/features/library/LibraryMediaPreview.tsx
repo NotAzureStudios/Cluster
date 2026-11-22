@@ -204,9 +204,10 @@ export function LibraryModelThumbnail({ item }: { item: LibraryItem }) {
     objectUrlRef.current = "";
     void fetch(source, { credentials: "include", signal: controller.signal }).then(async (response) => {
       if (!response.ok) throw new Error(`Thumbnail request failed (${response.status}).`);
-      return response.blob();
+      return response.status === 204 ? null : response.blob();
     }).then((blob) => {
       if (cancelled) return;
+      if (!blob) { setFailed(true); return; }
       objectUrlRef.current = URL.createObjectURL(blob);
       setImageUrl(objectUrlRef.current);
     }).catch(() => { if (!cancelled) setFailed(true); });

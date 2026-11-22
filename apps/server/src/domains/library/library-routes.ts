@@ -1066,7 +1066,8 @@ export function registerLibraryRoutes({
     if (settings.libraryAllowModelPreviews === false) return reply.code(403).send({ ok: false, error: "3D model previews are disabled." });
     if (String(result.item.extension || "").toLowerCase() === "blend" && settings.libraryAllowBlendPreviews === false) return reply.code(403).send({ ok: false, error: ".blend previews are disabled." });
     const thumbnail = await findModelThumbnail(params.itemId);
-    if (!thumbnail) return reply.code(404).send({ ok: false, error: "Model thumbnail has not been generated." });
+    // Not generated yet is an ordinary state (it is made on first expand), not an error.
+    if (!thumbnail) return reply.code(204).header("Cache-Control", "private, no-cache").send();
     const mime = thumbnail.extension === "png" ? "image/png" : thumbnail.extension === "jpg" ? "image/jpeg" : "image/webp";
     reply.header("Content-Type", mime);
     reply.header("Content-Length", String(thumbnail.size));

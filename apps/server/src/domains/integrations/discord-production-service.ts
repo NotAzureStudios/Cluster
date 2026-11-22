@@ -424,6 +424,10 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
   }
 
   async function deliverySummary(connectionId?: string | null) {
+    // A studio without Discord is not an error: report an empty, unconnected summary.
+    if (!connectionId && !(await input.prisma.integrationConnection.findFirst({ where: { providerId: "communication.discord", archived: false, status: { not: "disabled" } }, select: { id: true } }))) {
+      return { connectionId: null, projectCount: 0, routeCount: 0, deliveries: { completed: 0, failed: 0, pending: 0, running: 0, retrying: 0, deadLetter: 0 }, recentFailures: [], healthState: "not_configured", healthMessage: null, lastCheckedAt: null };
+    }
     const connection = await activeConnection(connectionId);
     const [routeCount, projectCount, completed, failed, pending, running, deadLetter, retrying, recentFailures] = await Promise.all([
       input.prisma.projectIntegrationBinding.count({ where: { connectionId: connection.id, resourceType: "discord_route", archived: false } }),
