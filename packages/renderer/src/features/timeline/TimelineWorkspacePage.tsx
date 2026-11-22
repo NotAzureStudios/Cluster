@@ -10,7 +10,6 @@ import { confirmCluster } from "../../components/cluster-dialog-service";
 import { api, mutateApi, queryApi, peekApiQuery, setApiQueryData } from "../../core/api";
 import { addDays, compactDateTime, toDateTimeLocalInput } from "../../core/date-time";
 import { ClusterIcon } from "../../components/ClusterIcon";
-import { ClusterVisualBars } from "../../components/ClusterVisualMetrics";
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { ClusterSelect } from "../../components/ClusterSelect";

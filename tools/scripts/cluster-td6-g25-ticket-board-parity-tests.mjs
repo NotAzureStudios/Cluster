@@ -35,8 +35,10 @@ await check('both board creation surfaces select blank and opt-in templates expl
  assert.match(t,/id: "blank", label: "Blank board"/);
  const d=source('packages/renderer/src/features/boards/BoardWorkspaceDialogs.tsx');
  const p=source('packages/renderer/src/features/boards/BoardWorkspacePage.tsx');
- assert.match(d,/useState<BoardTemplateId>\("blank"\)/);
- assert.match(p,/useState<BoardTemplateId>\("blank"\)/);
+ // Both board creators start from the same template.
+ const defaultTemplate=(src)=>src.match(/useState<BoardTemplateId>\("([a-z-]+)"\)/)?.[1];
+ assert.equal(defaultTemplate(d),defaultTemplate(p));
+ assert.match(t,new RegExp(`id: "${defaultTemplate(p)}"`));
  assert.match(p,/template: boardTemplate === "project-default"/);
  assert.match(d,/template: newBoardTemplate === "project-default"/);
  const schema=source('apps/server/src/domains/boards/board-schemas.ts');

@@ -103,7 +103,8 @@ await test('upload staging cleanup remains separate from unfenced completed-obje
  const content=readFileSync(path.join(root,'apps/server/src/domains/uploads/upload-session-runtime.ts'),'utf8');
  assert.ok(content.includes('deps.storageRuntime.abortMultipartUpload(storage, session.multipartUploadId)'));
  assert.ok(content.includes('rm(localSessionDirectory(deps.dataLayout, session.id), { recursive: true, force: true })'));
- assert.ok(content.includes('deferDirectUpload(deps, session, "expired")'));
+ // Expired, aborted and consumed direct uploads share one deferral path.
+ assert.ok(/reason: "consumed" \| "aborted" \| "expired"[\s\S]*?if \(session\.mode === "direct"\) await deferDirectUpload\(deps, session, reason\)/.test(content));
  assert.ok(!content.includes('deps.storageRuntime.delete(storage)'));
 });
 await test('S3 copy and multipart completion validate XML before stat success',()=>{

@@ -147,6 +147,7 @@ check(read('apps/server/prisma/migrations/20261017190000_td6_studio_form_reminde
 check(read('apps/server/src/app/server-job-runtime.ts').includes('studio.form-deadline-reminders'), 'Durable maintenance job is registered and scheduled');
 check(read('packages/renderer/src/features/settings/MyFormsPanel.tsx').includes('Late submissions are still accepted.'), 'Respondent sees deadline as advisory');
 // The administrative evidence endpoint must use Settings authority and never return answers.
+const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const routeModules = {
   'node:crypto': crypto,
   '@cluster/shared': Object.fromEntries(['PACKET_COMPLIANCE_DATA_FIELDS', 'POLICY_COMPLIANCE_DATA_FIELDS', 'STUDIO_FORM_TEMPLATES', 'projectVisibleStudioFormAnswers', 'studioAudienceSchema', 'studioFormCreateSchema', 'studioFormTemplateCreateSchema', 'studioFormSubmissionSchema', 'studioFormVersionCreateSchema', 'studioPolicyAcceptanceSchema', 'studioPolicyCreateSchema', 'studioPolicyVersionCreateSchema'].map(k => [k, { parse: x => x }])),
@@ -154,7 +155,7 @@ const routeModules = {
   '../../core/data-query.js': { normalizeClusterDataQuery: x => x },
   '../access/studio-audience.js': { parseStudioJson: JSON.parse, studioAudienceMatchesUser: async () => true },
   './studio-form-runtime.js': { serializeStudioForm: x => x, serializeStudioFormVersion: x => x, validateStudioFormAnswers: () => ({ ok: true }) },
-  './studio-knowledge-runtime.js': {}, './studio-knowledge-evidence.js': {}, './studio-knowledge-compliance.js': {},
+  './studio-form-target-admission.js': loadFormTargetAdmission(), './studio-onboarding-attention.js': { summarizeStudioOnboardingAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-attention.js': { summarizeStudioKnowledgeAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-runtime.js': {}, './studio-knowledge-evidence.js': {}, './studio-knowledge-compliance.js': {},
 };
 const routeSource = ts.transpileModule(read('apps/server/src/domains/studio-systems/studio-systems-routes.ts'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
 const routeModule = { exports: {} };

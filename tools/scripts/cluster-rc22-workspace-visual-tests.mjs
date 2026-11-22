@@ -21,7 +21,7 @@ check(()=>assert.match(icon,/\| "inventory"/));
 check(()=>assert.match(generator,/inventory:'package-duotone'/));
 check(()=>assert.match(generator,/inventory:'package'/));
 check(()=>assert.match(inventory,/useState<InventorySection>\(isAdmin \? "assets" : "mine"\)/));
-check(()=>assert.match(inventory,/<ClusterIcon name="inventory"/));
+check(()=>assert.match(inventory,/<ToolPageHeader title="Inventory" icon="inventory"/));
 check(()=>assert.match(resource,/className="settings-section-v092 inventory-recipient-keys inventory-resources-v22"/));
 check(()=>assert.match(reviews,/inventory-review-heading-v22/));
 check(()=>assert.match(reviews,/personOptionsRequested\.current/));
@@ -32,8 +32,7 @@ check(()=>assert.match(library,/className="library-views-anchor-v22"/));
 check(()=>assert.match(library,/className="library-views-flyout-v22"/));
 check(()=>assert.doesNotMatch(library,/\n\s*\{showSavedViews \? <SavedViewsToolbar/));
 check(()=>assert.match(read('packages/renderer/src/features/library/library-workspace.css'),/\.library-views-flyout-v22\{position:absolute/));
-check(()=>assert.match(inspector,/<details className="inspector-section-v146 project-brief-inspector-v307 project-inspector-secondary-v22">/));
-check(()=>assert.match(inspector,/<summary>Setup readiness/));
+check(()=>assert.match(inspector,/<section className="pl-insp__section">\s*<h3>Setup <span>\{done\}\/\{checklist\.length\}<\/span><\/h3>/));
 check(()=>assert.match(creator,/mode === "project" \? "project" : selectedMode\?\.icon/));
 check(()=>assert.match(read('packages/renderer/src/features/create/shared-create-drawer.css'),/data-create-mode="project"/));
 // Parse every changed TSX surface, not just string-match markup.

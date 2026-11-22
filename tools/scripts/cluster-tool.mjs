@@ -75,7 +75,7 @@ export function checkTools(base = root) {
   const app = fs.readFileSync(path.join(base, paths.application), 'utf8');
   const prefetch = fs.readFileSync(path.join(base, paths.prefetch), 'utf8');
   const lazy = fs.readFileSync(path.join(base, paths.lazy), 'utf8');
-  if (!app.includes('isStandaloneToolRoute(screen) && <StandaloneToolRoute')) errors.push('application missing canonical standalone mount');
+  if (!/isStandaloneToolRoute\(screen\) && (?:adminFramed\()?<StandaloneToolRoute/.test(app)) errors.push('application missing canonical standalone mount');
   if (!prefetch.includes('isStandaloneToolRoute(screen)') || !prefetch.includes('preloadStandaloneTool(screen)')) errors.push('prefetch not integrated with standalone registry');
   for (const route of standalone) {
     // Regression guard against the previous three-place registration hazard.

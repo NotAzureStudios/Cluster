@@ -64,7 +64,7 @@ ok(ui.includes('go func()'),'readiness is async, does not block message loop');
 ok(ui.includes('serviceProbePending'),'one in-flight check');
 ok(ui.includes('10*time.Second'),'poll throttle');
 ok(ui.includes('Windows Service running · '),'service state distinct from readiness');
-ok(ui.includes('Service RSS'),'service PID attribution labelled accurately');
+ok(ui.includes('CPU / memory / disk'),'performance metrics labelled as host-wide measurements');
 ok(existsSync(path.join(base,'apps/server-launcher-go/network_preflight_linux.go')),'Linux compilation stub for development');
 ok(tcp.includes('func parseTCPListenerOwners('),'kernel listener row parser');
 ok(tcp.includes('binary.BigEndian.Uint16'),'port endian decoded accurately');

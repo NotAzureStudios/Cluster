@@ -98,6 +98,6 @@ test('resume route verifies device, current entitlements and signed bytes withou
  assert.match(body,/offer\.artifactSha256/);
  assert.doesNotMatch(body,/managedPackageDeviceDeployment\.create|newPackageReceiptChallenge/);
  assert.match(ui,/downloadPackageSegments\(/);
- assert.match(ui,/crypto\.subtle\.digest\("SHA-256", bytes\)/);
+ assert.match(ui,/crypto\.subtle\.digest\("SHA-256", (?:new Uint8Array\()?bytes\)?\)/);
 });
 console.log(`${checked}/${checked} TD6 G15 segmented Package checks passed`);

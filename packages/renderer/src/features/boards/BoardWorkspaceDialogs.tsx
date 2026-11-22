@@ -203,7 +203,7 @@ export function ColumnSettingsModal({ list, users, onClose, onSave }: { list?: B
 export function BoardManagerModal({ board, projects, currentBoardId, onSelectBoard, onClose, onChanged }: { board: Board; projects: Project[]; currentBoardId: string | null; onSelectBoard: (boardId: string | null) => void; onClose: () => void; onChanged: () => Promise<void> }) {
   const project = projects.find((item) => item.id === board.project.id) || projects[0];
   const [newBoardName, setNewBoardName] = useState("New Board");
-  const [newBoardTemplate, setNewBoardTemplate] = useState<BoardTemplateId>("blank");
+  const [newBoardTemplate, setNewBoardTemplate] = useState<BoardTemplateId>("kanban");
   const [renameBoardName, setRenameBoardName] = useState(board.name);
   const [newListTitle, setNewListTitle] = useState("New List");
   const [listNames, setListNames] = useState<Record<string, string>>(() => Object.fromEntries(board.lists.map((list) => [list.id, list.title])));

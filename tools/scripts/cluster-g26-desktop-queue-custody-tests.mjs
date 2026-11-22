@@ -28,7 +28,7 @@ const checks = [
   ['failed admission restores existing queue and declines transfer', (qt.match(/m_transfers = previousQueue;/g) || []).length === 2],
   ['file write errors abort atomic journal', /file\.write\(encoded\) != encoded\.size\(\)/.test(qt) && /file\.cancelWriting\(\)/.test(qt)],
   ['commit result is not ignored', /return file\.commit\(\)/.test(qt)],
-  ['legacy source deleted only after successfully saved migration', /if \(save\(\)\) QFile::remove\(path\)/.test(qt)],
+  ['journal files are never deleted; only a verified owned partial is removed', (qt.match(/QFile::remove\(/g) || []).length === 1 && /if \(!file\.exists\(\) \|\| !file\.isFile\(\) \|\| file\.isSymLink\(\)\) return false;\s*return QFile::remove\(partial\);/.test(qt)],
   ['corrupt queue disables writes', /m_queueReadable && m_scopeWritable/.test(qt) && /m_queueReadable = false/.test(qt)],
   ['invalid JSON and schema fail closed', /QJsonParseError::NoError/.test(qt) && /!document\.isObject\(\)/.test(qt) && /!root\.value\(QStringLiteral\(\"transfers\"\)\)\.isArray\(\)/.test(qt)],
   ['duplicate journal IDs are not silently replaced', /m_transfers\.contains\(id\)/.test(qt)],

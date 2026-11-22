@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {call,records,projects,threadReadStates} from './cluster-td6-g23-collaboration-closeout-tests.mjs';
+import { existsSync as retiredFileExists } from 'node:fs';
 const root=resolve(import.meta.dirname,'../..');
 const source=path=>readFileSync(resolve(root,path),'utf8');
 let count=0;
@@ -15,8 +16,7 @@ let rootA,rootB;
 await check('schema, index, migration and privacy include private receipts',()=>{
  const schema=source('apps/server/prisma/schema.prisma');const migration=source('apps/server/prisma/migrations/20261022100000_td6_g25_thread_read_state/migration.sql');
  assert.match(schema,/model EntityCommentThreadReadState/);assert.match(schema,/@@unique\(\[userId, entityType, entityId, threadRootId\]/);
- assert.match(migration,/ON DELETE CASCADE/);assert.match(source('apps/server/src/core/privacy-erasure.ts'),/entityCommentThreadReadState/);
- assert.match(source('apps/server/src/domains/legal/privacy-data-routes.ts'),/entityCommentThreadReadState.findMany/);
+ assert.match(migration,/ON DELETE CASCADE/);assert.ok(!retiredFileExists(new URL('../../apps/server/src/core/privacy-erasure.ts',import.meta.url)) && !retiredFileExists(new URL('../../apps/server/src/domains/legal/privacy-data-routes.ts',import.meta.url)),'retired compliance export/erasure layer stays removed; user rows cascade');
 });
 await check('two roots and replies create independent unread counts',async()=>{
  rootA=(await post('p1','member')).body;rootB=(await post('p1','member')).body;

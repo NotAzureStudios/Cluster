@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {validateRepositoryHosting} from '../../apps/server/src/domains/source-control/repository-hosting-policy.ts';
+import { validStableServerRelease } from './cluster-server-release-sequence.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 const require=createRequire(import.meta.url);
@@ -60,7 +61,7 @@ for(const [source,pattern,explanation] of [
   [css,/\.cluster-key-pool-key-grid/,'key metadata cards'],
   [repo,/queryApi<RepositoryStateDetail>\(/,'on-demand repository history'],
   [repo,/repositoryDetail\?\.repositoryId === selectedRepository\.id/,'repository detail owner'],
-  [repo,/repositoryDetail\.data\.commits\.slice\(0, 8\)/,'bounded commit history'],
+  [repo,/detail\.commits\.slice\(0, 10\)/,'bounded commit history'],
 ])check(()=>assert.match(source,pattern,explanation));
-check(()=>{ const identity = JSON.parse(read('config/release-candidate.json')); assert.ok(identity.sequence >= 19); assert.equal(identity.release, `1.0.0-rc.${identity.sequence}`); });
+check(()=>assert.ok(validStableServerRelease(JSON.parse(read('config/release-candidate.json')))));
 console.log(`RC19 repository-hosting / allocation / privileged-reveal / layout checks: ${assertions} passed`);

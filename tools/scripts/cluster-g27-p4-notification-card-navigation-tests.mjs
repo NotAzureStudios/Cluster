@@ -20,6 +20,7 @@ const routing=load('packages/renderer/src/features/workflow/resource-navigation.
 const notifications=load('packages/renderer/src/features/notifications/notification-navigation.ts',{
  '@cluster/shared':{clusterResourceAddressFromEntity:({entityType,entityId,projectId})=>entityId?{kind:entityType,id:entityId,projectId}:null},
  '../workflow/resource-navigation':routing,
+ '../admin/incident-link':load('packages/renderer/src/features/admin/incident-link.ts'),
 });
 let total=0;
 const test=(title,run)=>{run();total++;console.log('PASS '+title)};

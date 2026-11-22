@@ -77,9 +77,9 @@ test('Feedback distinguishes uncertain commit from safe retry and rollback failu
 test('Taskbar search command input uses an immediate single-flight command runner',()=>{
   assert.match(palette,/const attempt = commandInvocation\.current\.run\(action\)/);
   assert.match(palette,/if \(!attempt\) return/);
-  assert.match(palette,/setCommandError\("Command could not be confirmed/);
+  assert.match(palette,/setCommandError\((?:\(previous\) => previous \|\| )?"Command could not be confirmed/);
   assert.match(palette,/if \(!successful\)/);
-  assert.match(palette,/aria-busy=\{searching \|\| commandBusy\}/);
+  assert.match(palette,/aria-busy=\{searching \|\| (?:currentC|c)ommandBusy\}/);
 });
 test('Detached workspace commands report failed native open instead of closing search',()=>{
   assert.match(palette,/invokeCommand\(item, \(\) => openWorkInDesktopWindow\(navigation, item\.title\)\)/);
@@ -98,7 +98,7 @@ test('Project restricted share links report actual clipboard result',()=>{
 test('Preserves shell features and People identity treatment',()=>{
   const tabs=read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
   const avatar=read('packages/renderer/src/components/PresenceAvatar.tsx');
-  for(const value of ['TaskbarProjectTabs','TaskbarTransferCenter','My Work','Tickets'])assert.ok(tabs.includes(value),value);
+  for(const value of ['TaskbarProjectTabs','TaskbarTransferCenter','onOpenMyWork','Tickets'])assert.ok(tabs.includes(value),value);
   for(const value of ['accentColor','cluster-presence-indicator-v227'])assert.ok(avatar.includes(value),value);
 });
 let passed=0;

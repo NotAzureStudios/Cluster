@@ -16,9 +16,9 @@ const check = (file, required, forbidden = []) => {
   for (const fragment of required) assert.ok(content.includes(fragment), `${file} lacks ${fragment}`);
   for (const fragment of forbidden) assert.ok(!content.includes(fragment), `${file} still has ${fragment}`);
 };
-check('packages/renderer/src/features/projects/ProjectOverviewDashboard.tsx', ['ClusterVisualRing label="Work complete"','ClusterVisualRing label="Setup ready"'], ['<div><strong>{progress}%</strong>']);
-check('packages/renderer/src/features/projects/ProjectPortfolioItem.tsx', ['ClusterVisualRing label="Ready"'], ['<small>{completeness}% ready</small>']);
-check('packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx', ['ClusterVisualBars label="Next 6 weeks"'], ['label: "Cadence"']);
+check('packages/renderer/src/features/projects/ProjectOverviewDashboard.tsx', ['<ClusterMiniRing label={item.label}'], ['<div><strong>{progress}%</strong>']);
+check('packages/renderer/src/features/projects/ProjectPortfolioItem.tsx', ['<ClusterMiniRing label="Ready"'], ['<small>{completeness}% ready</small>']);
+check('packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx', ['className="panel tl-map" aria-label="Roadmap"'], ['label: "Cadence"']);
 check('packages/renderer/src/features/settings/StudioInventoryVaultPanel.tsx', ['ClusterVisualMeter label="Available"','ClusterVisualComposition label="Stock"']);
 check('packages/renderer/src/features/people/PeoplePages.tsx', ['ClusterVisualComposition label="Capacity configured"','ClusterVisualComposition label="Availability"','ClusterVisualMeter label="Allocated"']);
 check('packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx', ['ClusterVisualComposition label="Health"','ClusterVisualComposition label="Builds"','ClusterVisualComposition label="Release health"','ClusterVisualMeter label="Capacity set"']);

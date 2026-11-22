@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { existsSync as retiredFileExists } from 'node:fs';
 const root=resolve(import.meta.dirname,'../..');
 const require=createRequire(import.meta.url);const ts=require('typescript');
 const read=x=>readFileSync(resolve(root,x),'utf8');
@@ -11,6 +12,7 @@ const source=read('apps/server/src/domains/studio-systems/studio-systems-routes.
 const sharedKeys=['PACKET_COMPLIANCE_DATA_FIELDS','POLICY_COMPLIANCE_DATA_FIELDS','STUDIO_FORM_TEMPLATES','projectVisibleStudioFormAnswers','studioAudienceSchema','studioFormCreateSchema','studioFormTemplateCreateSchema','studioFormSubmissionSchema','studioFormVersionCreateSchema','studioPolicyAcceptanceSchema','studioPolicyCreateSchema','studioPolicyVersionCreateSchema'];
 const schema=new Proxy({parse:x=>x},{get:(_t,k)=>k==='parse'?(v=>v):()=>schema});
 const z=new Proxy({object:()=>schema,coerce:{number:()=>schema}},{get:(t,k)=>t[k]||(()=>schema)});
+const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const mods={
  'node:crypto':require('node:crypto'),
  '@cluster/shared':Object.fromEntries(sharedKeys.map(k=>[k,k==='projectVisibleStudioFormAnswers'?((_fields,answers)=>answers):schema])),
@@ -18,7 +20,7 @@ const mods={
  '../../core/data-query.js':{normalizeClusterDataQuery:x=>x},
  '../access/studio-audience.js':{parseStudioJson:(x,f)=>{try{return JSON.parse(x)}catch{return f}},studioAudienceMatchesUser:async(_p,a,user)=>JSON.parse(a).targets.some(t=>t.id===user.id),parseStudioAudience:JSON.parse,loadStudioAudienceUserContext:async()=>({}),studioAudienceMatchesContext:(a,id)=>a.targets.some(t=>t.id===id)},
  './studio-form-runtime.js':{serializeStudioForm:x=>x,serializeStudioFormVersion:x=>x,validateStudioFormAnswers:()=>({ok:true})},
- './studio-knowledge-runtime.js':{}, './studio-knowledge-evidence.js':{}, './studio-knowledge-compliance.js':{},
+ './studio-form-target-admission.js': loadFormTargetAdmission(), './studio-onboarding-attention.js': { summarizeStudioOnboardingAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-attention.js': { summarizeStudioKnowledgeAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-runtime.js':{}, './studio-knowledge-evidence.js':{}, './studio-knowledge-compliance.js':{},
 };
 const script=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const module={exports:{}};
@@ -57,5 +59,5 @@ await test('restoring a revoked obligation needs latest revision',async()=>{cons
 await test('recipient sees only own due override, without peer names',async()=>{
  const r=await call('GET','/api/forms/available');assert.equal(r.body.forms[0].assigned,true);assert.equal(r.body.forms[0].required,true);assert.equal(r.body.forms[0].dueAt,'2026-10-30T09:00:00Z');assert.equal('user' in r.body.forms[0],false);
 });
-await test('schema, migration, privacy, and UI integration present',()=>{assert.match(read('apps/server/prisma/schema.prisma'),/model StudioFormAssignment/);assert.match(read('apps/server/prisma/migrations/20261022120000_td6_g25_form_assignments/migration.sql'),/ON DELETE CASCADE/);assert.match(read('apps/server/src/core/privacy-erasure.ts'),/studioFormAssignment/);assert.match(read('apps/server/src/domains/legal/privacy-data-routes.ts'),/formAssignments/);assert.match(read('packages/renderer/src/features/settings/StudioSystemsSettingsSection.tsx'),/StudioFormAssignmentsPanel/);assert.match(read('packages/renderer/src/features/settings/MyFormsPanel.tsx'),/Assigned · required/)});
+await test('schema, migration, privacy, and UI integration present',()=>{assert.match(read('apps/server/prisma/schema.prisma'),/model StudioFormAssignment/);assert.match(read('apps/server/prisma/migrations/20261022120000_td6_g25_form_assignments/migration.sql'),/ON DELETE CASCADE/);assert.ok(!retiredFileExists(new URL('../../apps/server/src/core/privacy-erasure.ts',import.meta.url)) && !retiredFileExists(new URL('../../apps/server/src/domains/legal/privacy-data-routes.ts',import.meta.url)),'retired compliance export/erasure layer stays removed; user rows cascade');assert.match(read('packages/renderer/src/features/settings/StudioSystemsSettingsSection.tsx'),/StudioFormAssignmentsPanel/);assert.match(read('packages/renderer/src/features/settings/MyFormsPanel.tsx'),/Assigned · required/)});
 console.log(`${checks}/${checks} G25 Form assignment checks passed`);

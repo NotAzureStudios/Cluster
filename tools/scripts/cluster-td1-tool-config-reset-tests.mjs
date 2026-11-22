@@ -27,7 +27,7 @@ const servicesModule=evalModule('apps/server/src/app/server-services-settings-in
  '../core/server-config-publication-journal.js':{hasPublicationJournal:async()=>false},
  '../core/server-config-preconditions.js':{},
  '../domains/access/configurable-tool-availability.js':{},
- '../core/auth.js':{}, '../core/data-layout.js':{}, '../core/database-provider.js':{}, '../core/storage-migrations.js':{}, '../core/secret-store.js':{}, '../core/security-pin-credential.js':{},
+ '../core/auth.js':{}, '../core/data-layout.js':{}, '../core/server-network-deployment.js':{}, '../core/server-network-change-review.js':{NETWORK_REVIEW_KEYS:[]}, '../core/database-provider.js':{}, '../core/storage-migrations.js':{}, '../core/secret-store.js':{}, '../core/security-pin-credential.js':{},
 });
 const rows=new Map([
  ['timelineDefaultRangeDays',JSON.stringify(45)],

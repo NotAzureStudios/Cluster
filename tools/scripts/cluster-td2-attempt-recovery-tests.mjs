@@ -49,7 +49,7 @@ function testDB({reclaim=true,exhausted=false}={}){
       if(sql.includes('WITH workspace_load') && sql.includes('SELECT job."id", job."workspaceId"'))
         return reclaim?[{id:'job-1',workspaceId:null}]:[];
       if(sql.includes('WITH workspace_load') && sql.includes('UPDATE "BackgroundJob"')){
-        assert.match(sql,/job\."id" = \$8/);assert.equal(values[7],'job-1');
+        assert.match(sql,/job\."id" = \$7/);assert.equal(values[6],'job-1');
         return reclaim?[{id:'job-1',type:'test.work',leaseOwner:'new-claim-token',attempts:2,status:'RUNNING'}]:[];
       }
       if(sql.includes('INSERT INTO "BackgroundJobAttempt"')){

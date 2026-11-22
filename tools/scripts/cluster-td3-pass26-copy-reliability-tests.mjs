@@ -70,11 +70,11 @@ test('Sensitive auth and admin copy surfaces share feedback and no raw browser c
 test('One-time codes, credentials, and partner links copy through the shared control', () => {
   const auth = renderer('features/auth/AuthScreens.tsx');
   const server = renderer('features/settings/ServerConfigPage.tsx');
-  const people = renderer('features/people/PeoplePages.tsx');
   const closeout = renderer('features/projects/CloseoutPortalPanel.tsx');
   assert.match(auth, /<ClusterCopyButton text=\{recoveryCodes\.join\("\\n"\)\}/);
   for (const needle of ['credentialSecret.value','webhookSecret.value']) assert.ok(server.includes(`<ClusterCopyButton text={${needle}}`));
-  assert.ok(people.includes('<ClusterCopyButton text={issuedCredential.temporaryPassword}'));
+  // One-time password handoff moved to its own component.
+  assert.ok(renderer('features/people/AccountCredentialHandoff.tsx').includes('<ClusterCopyButton text={temporaryPassword}'));
   assert.ok(closeout.includes('<ClusterCopyButton text={newShareUrl}'));
 });
 test('Data table announces copy failure rather than incorrectly reporting success', () => {
@@ -86,7 +86,7 @@ test('Data table announces copy failure rather than incorrectly reporting succes
 test('Previous shell and People identity contracts remain in source', () => {
   const tabs=renderer('features/application/modules/ApplicationProjectTabs.tsx');
   const avatar=renderer('components/PresenceAvatar.tsx');
-  for(const part of ['My Work','Tickets']) assert.ok(tabs.includes(part), part);
+  for(const part of ['onOpenMyWork','Tickets']) assert.ok(tabs.includes(part), part);
   for(const part of ['accentColor','data-status']) assert.ok(avatar.includes(part), part);
 });
 let passed=0;

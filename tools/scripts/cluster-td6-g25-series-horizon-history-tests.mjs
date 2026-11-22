@@ -61,7 +61,7 @@ await test('unbounded old records remain unchanged until explicitly edited',()=>
 });
 await test('visual recurrence control and server contract agree on explicit end date',()=>{
  const ui=read('packages/renderer/src/features/calendar/CalendarPage.tsx');const route=read('apps/server/src/domains/planning/calendar-routes.ts');
- assert.match(ui,/Final occurrence date/);assert.match(ui,/recurrenceRule && !recurrenceEndDate/);
+ assert.match(ui,/Final occurrence date/);assert.match(ui,/Boolean\(recurrenceRule\) && !recurrenceEndDate/);
  assert.match(route,/checkCalendarSeriesConflicts/);assert.match(read('packages/shared/src/scheduling-contracts.ts'),/recurrenceEndDate/);
 });
 await test('Whiteboard conflict retains a local recovery copy without releasing server conflict barrier',()=>{

@@ -65,7 +65,7 @@ check('QA coverage and Operations counts use the shared mixed Card/Ticket lifecy
 check('Mixed Project QA and Issue closed queues are not mislabeled resolved', () => {
   const qa = read('packages/renderer/src/features/projects/ProjectQAPanel.tsx');
   const issues = read('packages/renderer/src/features/projects/ProjectIssuesPanel.tsx');
-  assert.match(qa, /<span>Closed<\/span><strong>\{closed\.length\}/);
+  assert.match(qa, /\{id:"closed",label:"Closed"\}/);
   assert.match(issues, /label: "Closed", value: closed\.length/);
 });
 console.log(`Batch A Ticket lifecycle: ${count}/${count} passed`);

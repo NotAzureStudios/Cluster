@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validStableServerRelease } from './cluster-server-release-sequence.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=(rel)=>fs.readFileSync(path.join(root,rel),'utf8');
 const installer=read('tools/installer/Install-Cluster.ps1');
@@ -12,7 +13,7 @@ const manifest=read('tools/scripts/cluster-rc-preflight.mjs');
 const rootEntry=read('tools/server-entry-go/main.go');
 const packageSrc=read('tools/scripts/package-cluster-rc.mjs');
 const expected=[
- ['RC12 release identity',/^1\.0\.0-rc\.(?:1[2-9]|[2-9][0-9])$/.test(JSON.parse(read('config/release-candidate.json')).release)],
+ ['RC12 release identity',validStableServerRelease(JSON.parse(read('config/release-candidate.json')))],
  ['installer privately provides pinned Go and Node',installer.includes('ProvisionPortableTools')&&installer.includes('$goArchiveSha256')&&installer.includes('$nodeArchiveSha256')],
  ['installer compiles Host',installer.includes("Run 'node' @('tools/scripts/build-native-host.mjs') $source")],
  ['installer compiles Server Manager',installer.includes("Run 'node' @('tools/scripts/build-server-launcher.mjs') $source")],
@@ -25,7 +26,7 @@ const expected=[
  ['installer checks deployed outputs before commit',installer.indexOf('cluster-rc-runtime-admission.mjs')<installer.indexOf('$committed = $true')],
  ['no automatic compilation for installed release',admission.includes('normal startup will not recompile')&&launcher.includes('verifyManagedStartup(root, force, prebuiltReady')],
  ['no npm install fallback for installed release',admission.includes('normal startup will not execute npm install')],
- ['explicit native repair kept separate',/if explicitRepair\s*\{\s*return nil\s*\}/.test(admission)],
+ ['managed releases refuse in-place source repair',/if explicitRepair\s*\{\s*return fmt\.Errorf\("managed Cluster releases cannot be source-repaired in place/.test(admission)],
  ['Prisma compiled output required',deployed.includes('apps/server/dist/generated/prisma/client.js')],
  ['deployed native host required',deployed.includes('bin/cluster-host.exe')],
  ['deployed update helper required',deployed.includes('bin/cluster-update-helper.exe')],

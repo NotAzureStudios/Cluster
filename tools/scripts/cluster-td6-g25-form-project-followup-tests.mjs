@@ -11,13 +11,14 @@ const read=x=>readFileSync(resolve(root,x),'utf8');
 const schema=new Proxy({parse:x=>x},{get:(_t,k)=>k==='parse'?x=>x:()=>schema});
 const z=new Proxy({object:()=>schema,coerce:{number:()=>schema}},{get:(t,k)=>t[k]||(()=>schema)});
 const sharedKeys=['PACKET_COMPLIANCE_DATA_FIELDS','POLICY_COMPLIANCE_DATA_FIELDS','STUDIO_FORM_TEMPLATES','projectVisibleStudioFormAnswers','studioAudienceSchema','studioFormCreateSchema','studioFormTemplateCreateSchema','studioFormSubmissionSchema','studioFormVersionCreateSchema','studioPolicyAcceptanceSchema','studioPolicyCreateSchema','studioPolicyVersionCreateSchema'];
+const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const modules={
  'node:crypto':require('node:crypto'),
  '@cluster/shared':Object.fromEntries(sharedKeys.map(k=>[k,k==='projectVisibleStudioFormAnswers'?((_f,a)=>a):schema])),
  'zod':{z}, '../../core/data-query.js':{normalizeClusterDataQuery:x=>x},
  '../access/studio-audience.js':{parseStudioJson:()=>({mode:'all'}),studioAudienceMatchesUser:async()=>true,parseStudioAudience:()=>({mode:'all'}),loadStudioAudienceUserContext:async()=>({}),studioAudienceMatchesContext:()=>true},
  './studio-form-runtime.js':{serializeStudioForm:x=>x,serializeStudioFormVersion:x=>x,validateStudioFormAnswers:()=>({ok:true})},
- './studio-knowledge-runtime.js':{},'./studio-knowledge-evidence.js':{},'./studio-knowledge-compliance.js':{},
+ './studio-form-target-admission.js': loadFormTargetAdmission(), './studio-onboarding-attention.js': { summarizeStudioOnboardingAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-attention.js': { summarizeStudioKnowledgeAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-runtime.js':{},'./studio-knowledge-evidence.js':{},'./studio-knowledge-compliance.js':{},
 };
 const src=read('apps/server/src/domains/studio-systems/studio-systems-routes.ts');
 const compiled=ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;

@@ -4,19 +4,21 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import { existsSync as retiredFileExists } from 'node:fs';
 const root=resolve(import.meta.dirname,'../..'), require=createRequire(import.meta.url), ts=require('typescript');
 const read=p=>readFileSync(resolve(root,p),'utf8');
 const source=read('apps/server/src/domains/studio-systems/studio-systems-routes.ts');
 const schema=new Proxy({parse:x=>x},{get:(_t,k)=>k==='parse'?x=>x:()=>schema});
 const z=new Proxy({object:()=>schema,coerce:{number:()=>schema}},{get:(t,k)=>t[k]||(()=>schema)});
 const sharedKeys=['PACKET_COMPLIANCE_DATA_FIELDS','POLICY_COMPLIANCE_DATA_FIELDS','STUDIO_FORM_TEMPLATES','projectVisibleStudioFormAnswers','studioAudienceSchema','studioFormCreateSchema','studioFormTemplateCreateSchema','studioFormSubmissionSchema','studioFormVersionCreateSchema','studioPolicyAcceptanceSchema','studioPolicyCreateSchema','studioPolicyVersionCreateSchema'];
+const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const modules={
  'node:crypto':require('node:crypto'),
  '@cluster/shared':Object.fromEntries(sharedKeys.map(k=>[k,k==='projectVisibleStudioFormAnswers'?((_fields,answers)=>answers):schema])),
  zod:{z},'../../core/data-query.js':{normalizeClusterDataQuery:x=>x},
  '../access/studio-audience.js':{parseStudioJson:(raw,fallback)=>{try{return JSON.parse(raw)}catch{return fallback}},studioAudienceMatchesUser:async()=>true,parseStudioAudience:()=>({mode:'all'}),loadStudioAudienceUserContext:async()=>({}),studioAudienceMatchesContext:()=>true},
  './studio-form-runtime.js':{serializeStudioForm:x=>x,serializeStudioFormVersion:x=>x,validateStudioFormAnswers:()=>({ok:true})},
- './studio-knowledge-runtime.js':{},'./studio-knowledge-evidence.js':{},'./studio-knowledge-compliance.js':{},
+ './studio-form-target-admission.js': loadFormTargetAdmission(), './studio-onboarding-attention.js': { summarizeStudioOnboardingAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-attention.js': { summarizeStudioKnowledgeAttention: async () => ({ overdue: 0, dueSoon: 0, assignments: [] }) }, './studio-knowledge-runtime.js':{},'./studio-knowledge-evidence.js':{},'./studio-knowledge-compliance.js':{},
 };
 const script=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const mod={exports:{}};vm.runInNewContext(script,{module:mod,exports:mod.exports,require:n=>{if(n in modules)return modules[n];throw Error('Unexpected import '+n)},Date,JSON,Array,Map,Set,Promise,String,Number,Error,console},{filename:'studio-systems-routes.ts'});
@@ -70,8 +72,7 @@ await test('transaction revocation recheck prevents a competing review write',as
 await test('schema, privacy, UI, and scoped routing are integrated',async()=>{
  assert.match(read('apps/server/prisma/schema.prisma'),/model StudioFormReviewer/);
  assert.match(read('apps/server/prisma/migrations/20261023200000_td6_g25_form_review_delegation/migration.sql'),/ON DELETE CASCADE/);
- assert.match(read('apps/server/src/core/privacy-erasure.ts'),/studioFormReviewer/);
- assert.match(read('apps/server/src/domains/legal/privacy-data-routes.ts'),/formReviewGrants/);
+ assert.ok(!retiredFileExists(new URL('../../apps/server/src/core/privacy-erasure.ts',import.meta.url)) && !retiredFileExists(new URL('../../apps/server/src/domains/legal/privacy-data-routes.ts',import.meta.url)),'retired compliance export/erasure layer stays removed; user rows cascade');
  const submissions=read('packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx');assert.match(submissions,/delegatedReview/);assert.match(submissions,/!delegatedReview && <section/);assert.match(submissions,/detailRequestId/);assert.match(source,/queue is not a bulk export of private response answers/);
  assert.match(read('packages/renderer/src/features/settings/MyFormsPanel.tsx'),/review-assignments/);
  assert.match(read('packages/renderer/src/features/settings/StudioSystemsSettingsSection.tsx'),/StudioFormReviewersPanel/);

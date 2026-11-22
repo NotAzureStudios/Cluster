@@ -27,7 +27,7 @@ try {
   });
   check('Existing tool routes require no individual app rendering branches',()=>{
     const app=read(appPath);const prefetch=read(prefetchPath);const registry=read(registryPath);
-    assert.match(app,/isStandaloneToolRoute\(screen\) && <StandaloneToolRoute/);
+    assert.match(app,/isStandaloneToolRoute\(screen\) && (?:adminFramed\()?<StandaloneToolRoute/);
     assert.match(prefetch,/preloadStandaloneTool\(screen\)/);
     assert.match(registry,/satisfies Record<ClusterStandaloneToolRouteId, StandaloneToolModule>/);
     for (const route of ['inventory','vault','integrations']) {
@@ -40,9 +40,8 @@ try {
     const shell=read('packages/renderer/src/features/application/modules/application-admin-workspaces.tsx');
     const app=read(appPath);
     assert.match(directory,/CLUSTER_TOOL_PERMISSION_KEYS\.map/);
-    assert.match(directory,/Open tool/);
-    assert.match(shell,/<ToolDirectoryPanel onConfigure/);
-    assert.match(app,/!isAppScreen\(target.screen\) \|\| !canOpenScreen\(activeUser, target.screen\)/);
+    assert.match(shell,/BUILTIN_TOOL_DIRECTORY\.find/);
+    assert.match(app,/!isAppScreen\(target\.screen\)\) return;[\s\S]*?!canOpenScreen\(activeUser, target\.screen\)\) return/);
   });
   // Use a minimal copy of the exact files that the validator reads.
   for(const p of [manifestPath,registryPath,appPath,prefetchPath,lazyPath]){

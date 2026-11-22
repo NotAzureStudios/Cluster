@@ -28,14 +28,14 @@ function loadTs(file, imports = {}) {
 let passed = 0;
 function check(description, action) { action(); console.log(`PASS ${description}`); passed++; }
 const a11y = loadTs('packages/renderer/src/core/accessibility-preferences.ts');
-const visual = loadTs('packages/renderer/src/core/visual-system.ts', {'./accessibility-preferences': a11y, '../../../shared/appearance/semantic-palette.json': JSON.parse(read('packages/shared/appearance/semantic-palette.json'))});
+const visual = loadTs('packages/renderer/src/core/visual-system.ts', {'./renderer-budget': loadTs('packages/renderer/src/core/renderer-budget.ts'), './accessibility-preferences': a11y, '../../../shared/appearance/semantic-palette.json': JSON.parse(read('packages/shared/appearance/semantic-palette.json'))});
 const policy = loadTs('apps/server/src/domains/access/request-policy.ts');
 const availability = loadTs('apps/server/src/domains/access/configurable-tool-availability.ts');
 
 check('Appearance resolves on startup without a temporal-dead-zone error', () => {
   const context = visual.resolveVisualContext({});
   assert.equal(context.backgroundBase, 'clean');
-  assert.equal(context.backgroundPattern, 'hex');
+  assert.equal(context.backgroundPattern, 'none');
   assert.equal(context.fontFamily, 'comfortaa');
 });
 check('Legacy grid selection and canonical background settings both resolve', () => {

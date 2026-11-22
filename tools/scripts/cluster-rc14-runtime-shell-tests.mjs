@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { validStableServerRelease } from './cluster-server-release-sequence.mjs';
 const root=path.resolve(import.meta.dirname,'../..');
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 const queue=read('apps/server/src/domains/jobs/job-queue-service.ts');
@@ -25,8 +26,7 @@ assert.match(app,/<Suspense fallback=\{<ScreenLoadingState screen=\{screen\} \/>
 assert.match(app,/<BoardLoadingState label="Loading board"/);
 const css=read('packages/renderer/src/features/shell/shell-v2.css');
 assert.match(css,/RC14: Search takes the full remaining taskbar row/);
-assert.match(css,/grid-template-columns: auto minmax\(0, 1fr\) !important/);
-assert.match(css,/\.taskbar-right-v143 \{ display: none !important; \}/);
+assert.match(css,/\[data-search-open="true"\] \.cluster-taskbar-search-field-v546 \{ min-width: 0; width: 100%; height: 100%; \}/);
 const manifest=JSON.parse(read('config/release-candidate.json'));
-assert.ok(manifest.sequence>=14 && manifest.release===`1.0.0-rc.${manifest.sequence}`);
+assert.ok(validStableServerRelease(manifest));
 console.log('RC14: unused PostgreSQL parameter removed, settings URL wired, void locks handled, search expanded, skeletons mapped');

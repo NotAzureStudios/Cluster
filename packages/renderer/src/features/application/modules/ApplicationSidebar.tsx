@@ -4,7 +4,7 @@ import { useClusterDialogInteraction } from "../../../components/useClusterDialo
 import { APP_SIDEBAR_SECTIONS, canOpenScreen, routeDefinition, screenLabel, sidebarRouteDefinitions, type AppScreen } from "../../../core/navigation";
 import { ADAPTIVE_MEDIA } from "../../../core/adaptive-layout";
 import { AppVersionFooter } from "../../../components/AppVersionFooter";
-import { ClusterIcon, type ClusterIconName } from "../../../components/ClusterIcon";
+import { ClusterIcon } from "../../../components/ClusterIcon";
 import { ClusterButton } from "../../../components/ClusterButton";
 import { scheduleFeaturePrefetch } from "../../shell/feature-prefetch";
 import { resolveSidebarCollapsed, nextSidebarMode } from "../../shell/sidebar-presentation";
@@ -13,21 +13,8 @@ import { canUseProject } from "../../projects/project-access-policy";
 import { ClusterSidebarShell, SidebarNavItem, SidebarSection } from "../../shell/ShellPrimitives";
 
 import type { SidebarPresentationMode } from "../../shell/sidebar-presentation";
-/** Administrative destinations reuse the existing Studio Settings authority and permissions. */
-const ADMIN_STUDIO_DESTINATIONS: readonly { label: string; icon: ClusterIconName; section: string; subsection?: string }[] = [
-  { label: "Custom fields", icon: "list", section: "customFields" },
-  { label: "Project types", icon: "project", section: "projectTypes" },
-  { label: "Domains", icon: "link", section: "domains" },
-  { label: "Automations", icon: "sync", section: "automations" },
-  { label: "Forms", icon: "file", section: "studioSystems", subsection: "forms" },
-  { label: "Policies", icon: "lock", section: "studioSystems", subsection: "policies" },
-  { label: "Applications", icon: "users", section: "studioSystems", subsection: "applications" },
-  { label: "Announcements", icon: "bell", section: "studioSystems", subsection: "announcements" },
-];
 export function Sidebar({ status, screen, currentRoute, setScreen, user, settings, projects, currentProjectId, onOpenProject, onOpenChangelog, open = false, onClose }: { status?: ReactNode; screen: AppScreen; currentRoute?: string; setScreen: (screen: AppScreen, options?: { section?: string | null; subsection?: string | null }) => void; user: User; settings: Settings; projects: Project[]; currentProjectId?: string | null; onOpenProject: (projectId: string) => void; onOpenChangelog: () => void; open?: boolean; onClose?: () => void }) {
   const sidebarRef = useRef<HTMLElement | null>(null);
-  const [adminToolsOpen, setAdminToolsOpen] = useState(() => routeDefinition(screen).parent === "admin");
-  const [adminStudioShortcutsOpen, setAdminStudioShortcutsOpen] = useState(false);
   const [sidebarMode, setSidebarMode] = useState<SidebarPresentationMode>(() => {
     try {
       const stored = readPreferenceStorage("cluster.sidebar.mode");
@@ -60,9 +47,6 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
       document.documentElement.style.removeProperty("--cluster-sidebar-current-width");
     };
   }, [effectiveCollapsed, sidebarMode]);
-  useEffect(() => {
-    if (screen === "admin" || routeDefinition(screen).parent === "admin") setAdminToolsOpen(true);
-  }, [screen]);
   const canSeeProjects = canOpenScreen(user, "projects");
   const isAdmin = Boolean(user.isAdmin);
   const desktopHost = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("clusterDesktop") === "1";

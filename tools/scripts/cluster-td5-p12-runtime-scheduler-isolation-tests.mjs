@@ -47,6 +47,7 @@ function fixture({ logger = { info() {}, warn() {}, error() {} }, readSettings =
     '../domains/studio-systems/studio-announcement-delivery.js': { createStudioAnnouncementDelivery: () => ({ runDue: async () => ({ delivered: 0 }) }) },
     '../domains/users/studio-access-expiry-lifecycle.js': { runStudioAccessExpiryTick: async () => ({ expired: 0 }) },
     '../domains/inventory/inventory-credential-expiry-lifecycle.js': { runInventoryCredentialExpiryTick: async () => ({ committed: 0 }) },
+    '../core/mail-transport.js': { sendStudioMail: async () => ({ messageId: 'test', accepted: [], rejected: [] }) },
   });
   const runtime = createServerJobRuntime({
     prisma: {}, queue: {}, logger, readSettings,

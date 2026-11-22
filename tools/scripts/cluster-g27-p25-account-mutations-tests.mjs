@@ -18,7 +18,7 @@ test('Profile Save invalidates a pending profile refresh', () => {
   assert.match(body('saveProfile'), /securityRequestsRef\.current\.invalidate\("profile-refresh"\)/);
 });
 test('Profile Save does not mistake a local UI callback failure for a failed server save', () => {
-  assert.match(body('saveProfile'), /setProfileDirty\(false\);[\s\S]*?reconcileAfterCommit\(\(\) => onUserUpdated\(result\.user\)\)/);
+  assert.match(body('saveProfile'), /setProfileDirty\(false\);[\s\S]*?reconcileAfterCommit\((?:async )?\(\) => onUserUpdated\(result\.user\)\)/);
 });
 test('Profile Save discards stale identity responses', () => {
   assert.match(body('saveProfile'), /if \(!securityRequestsRef\.current\.isCurrent\(ticket\)\) return/);

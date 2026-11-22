@@ -15,7 +15,7 @@ check('Home edit mode also requests saved views for resource pickers',()=>assert
 check('widget with saved view configuration requests its referenced view',()=>assert.match(dash,/enabledHomeWidgets\.some\(\(placement\) => Boolean\(placement\.config\?\.savedViewId\)\)/));
 check('saved views flag contributes to owner signature',()=>assert.match(cat,/\|views:\$\{canSavedViews \? 1 : 0\}/));
 check('saved views reader checks enabled flag and current account',()=>assert.match(cat,/!authority\.isOwner\(owner\) \|\| !accountId \|\| !canSavedViews/));
-check('disabled views do not start a request',()=>assert.match(cat,/if \(canSavedViews\) void loadSavedViews\(true\)/));
+check('disabled views do not start a request',()=>assert.match(cat,/if \(canSavedViews\) void loadSavedViews\((?:true)?\)/));
 check('disabled views have a ready rather than infinite loading state',()=>assert.match(cat,/savedViewsStatus: \{ state: savedViewsEnabled \? "loading" : "ready" \}/));
 check('disabled views cannot render previous private view names',()=>assert.match(cat,/savedViews: canSavedViews \? current\.savedViews : \[\]/));
 check('switching demand reinitializes all account-scoped data',()=>assert.match(cat,/initialState\(owner, canSourceControl, canIntegrations, canSavedViews\)/));

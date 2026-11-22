@@ -22,7 +22,7 @@ check(svc.includes('serviceControlStop') && svc.includes('serviceControlShutdown
 check(svc.includes('context.WithCancel') && svc.includes('cancel()'),'cancelable service lifetime');
 check(svc.includes('managedHostStopGrace'),'graceful host drain deadline');
 check(svc.includes('processjob.New()') && svc.includes('job.Close()'),'kernel-owned whole-tree process termination');
-check(svc.includes('runServiceManaged(ctx, root, func()'),'service waits for explicit application readiness');
+check(svc.includes('runServiceManaged(childCtx, root, func()'),'service waits for explicit application readiness');
 check(svc.includes('windows-service.control'),'dedicated service control file');
 check(svc.includes('serviceRuntimePrerequisites(root)'),'prebuilt runtime prerequisites');
 check(svc.includes('releasePrebuiltReady(root)'),'enforces matching prebuilt release');

@@ -28,10 +28,16 @@ const required = new Set([
   'studio.onboarding-lifecycle','studio.knowledge-lifecycle','integrations.webhook-deliver',
   'integrations.webhook-recovery','source.repository-sync','source.workflow',
   'integration.discord-delivery','data-export.generate','data-import.apply','system.search-rebuild',
+  // Account mail (verification, recovery, digests) is platform-wide.
+  'mail.send',
+  // Studio records and access/credential expiry must run even when a tool is off.
+  'studio.announcement-publish-due','studio.form-deadline-reminders',
+  'studio.inventory-credential-expiry','studio.people-access-expiry',
 ]);
 const mixed = new Set(['automation.project-rule','automation.studio-action']);
 const owned = new Map([
   ['automation.calendar-scan','calendar'],
+  ['studio.calendar-owner-reminders','calendar'],
   ['library.transfer.finalize','library'],
   ['library.derivative.build','library'],
   ['library.bulk.metadata','library'],

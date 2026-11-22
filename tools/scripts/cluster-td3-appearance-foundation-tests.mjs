@@ -25,7 +25,8 @@ function loadTs(file, dependencies) {
   return module.exports;
 }
 const accessibility = loadTs('packages/renderer/src/core/accessibility-preferences.ts', {});
-const visual = loadTs('packages/renderer/src/core/visual-system.ts', {'accessibility-preferences':accessibility});
+const rendererBudget = loadTs('packages/renderer/src/core/renderer-budget.ts', {});
+const visual = loadTs('packages/renderer/src/core/visual-system.ts', {'accessibility-preferences':accessibility,'renderer-budget':rendererBudget});
 const createRoot = (mode = 'dark') => {
   const values = new Map();
   return {dataset:{theme:mode}, style:{setProperty:(key,value)=> values.set(key,value),getPropertyValue:key=>values.get(key)}, values};

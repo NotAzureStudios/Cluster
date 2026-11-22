@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 const require=createRequire(import.meta.url);
 const ts=(()=>{try{return require('typescript')}catch{return require(path.join(execFileSync('npm',['root','-g'],{encoding:'utf8'}).trim(),'typescript/lib/typescript.js'))}})();
 const read=(name)=>readFileSync(new URL(`../../${name}`,import.meta.url),'utf8');
-const compile=(code,deps)=>{const mod={exports:{}};vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:mod.exports,module:mod,require:(id)=>deps[id]||{},Promise});return mod.exports};
+const compile=(code,deps)=>{const mod={exports:{}};vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:mod.exports,module:mod,require:(id)=>deps[id]||{},Promise,queueMicrotask});return mod.exports};
 const policy=compile(read('packages/renderer/src/core/user-state-ownership.ts'),{});
 const origin={scope:'alice',generation:1}, other={scope:'bob',generation:2};
 let owner=origin, releaseRead=null, queries=0, changes=[];
@@ -27,6 +27,8 @@ let count=0;const check=(name,fn)=>{fn();count++;console.log('PASS',name)};
 const fallback={label:'default'}, selected={label:'local change'}, old={label:'stale read'};
 const [value,setValue,meta]=state.useServerState('user','search.saved',fallback);
 check('initial value starts with safe fallback',()=>assert.equal(value,fallback));
+// User-scope reads are batched in a microtask.
+await Promise.resolve();
 check('server hydration starts a single read',()=>assert.equal(queries,1));
 setValue(selected);
 releaseRead({record:{payload:old,revision:12}});

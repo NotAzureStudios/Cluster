@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {compile, expand, iconCandidates, names} from './generate-cluster-icons.mjs';
+import { validStableServerRelease } from './cluster-server-release-sequence.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=(p)=>fs.readFileSync(path.join(root,p),'utf8');
 const iconBoundary=read('packages/renderer/src/components/ClusterIcon.tsx');
@@ -32,7 +33,7 @@ assert.ok(!iconBoundary.includes('CoolIcon'));
 assert.match(iconBoundary,/data-icon-pack=\{result.pack\}/);
 assert.match(iconBoundary,/treatment \?\? \(identityNames\.has\(name\) \? "duotone" : "action"\)/);
 assert.match(iconBoundary,/priority = name === "star-filled"/);
-assert.match(read('packages/renderer/src/features/shell/ShellPrimitives.tsx'),/treatment=\{active \? "duotone" : nested \? "navigation" : "duotone"\}/);
+assert.match(read('packages/renderer/src/features/shell/ShellPrimitives.tsx'),/<ClusterIcon name=\{icon\} treatment="navigation" className="cl-sb-item__icon"/);
 const pkg=JSON.parse(read('packages/renderer/package.json'));
 for(const dep of ['@iconify-json/ph','@iconify-json/tabler','@iconify-json/lucide']) {
  assert.ok(pkg.devDependencies[dep],`${dep} should be build-time only`);
@@ -54,5 +55,5 @@ function walk(d){for(const item of fs.readdirSync(d,{withFileTypes:true})) {cons
 walk(folder);
 assert.ok(usages>=300,`too few uses of shared icon boundary (${usages})`);
 const meta=JSON.parse(read('config/release-candidate.json'));
-assert.ok(meta.release.startsWith("1.0.0-rc.") && meta.sequence >= 16, "Complete icon migration must persist");
+assert.ok(validStableServerRelease(meta), "release identity follows the stable rule");
 console.log(`RC16 icon migration: ${names.length} semantic names, ${usages} shared uses; Phosphor/Tabler/Lucide offline-only; no legacy pack`);

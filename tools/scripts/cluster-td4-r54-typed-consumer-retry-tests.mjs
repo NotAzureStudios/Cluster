@@ -143,6 +143,7 @@ const notifShared = {
   clusterResourceKindFromEntityType: () => null,
 };
 const {createNotificationService} = load('apps/server/src/domains/notifications/notification-service.ts', {
+  './notification-best-effort.js': load('apps/server/src/domains/notifications/notification-best-effort.ts', {}),
   '@cluster/shared': notifShared,
   '../../core/cursor-pagination.js': { buildCursorPage:()=>({}) },
   './notification-repository.js': { createNotificationRepository:()=>repository },

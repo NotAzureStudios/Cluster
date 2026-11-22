@@ -197,8 +197,12 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
         if (result.record) {
           const next = options.merge ? options.merge(result.record.payload, fallback) : result.record.payload;
           savedValue = next;
-          valueRef.current = next;
-          setValue(next);
+          // Pending early writes replay on top of this; showing the saved
+          // value first would flash it before the user's change returns.
+          if (!deferredWritesRef.current.length) {
+            valueRef.current = next;
+            setValue(next);
+          }
           revisionRef.current = result.record.revision;
           setRevision(result.record.revision);
         }

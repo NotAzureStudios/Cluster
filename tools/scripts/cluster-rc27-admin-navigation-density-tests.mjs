@@ -19,12 +19,10 @@ const overview = read('packages/renderer/src/features/projects/ProjectOverviewDa
 const timeline = read('packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx');
 assert.match(shared, /inventory: \{[^\n]*sidebar: \{[^\n]*icon: "inventory"/);
 assert.match(shared, /ClusterAppNavigationIcon[^\n]*"inventory"/);
-for (const section of ['customFields','projectTypes','domains','automations']) assert.match(sidebar, new RegExp(`section: "${section}"`));
-for (const tab of ['forms','policies','applications','announcements']) assert.match(sidebar, new RegExp(`subsection: "${tab}"`));
-assert.match(sidebar, /tools\.filter\(\(\{ screen: route \}\) => route !== "studioSettings"\)/);
-assert.match(sidebar, /"cluster-sidebar-admin-list"/);
-assert.match(sidebar, /tools\.map|renderRouteLink\(route, true\)/);
-assert.match(sidebar, /setScreen\("studioSettings", \{ section: item\.section, subsection: item\.subsection \}\)/);
+// The sidebar has one Admin entry; Studio Settings owns its section list.
+assert.match(sidebar, /section\.id === "administration"[\s\S]*?navigate\("admin"\)/);
+for (const section of ['customFields','projectTypes','domains','automations','studioSystems']) assert.match(state, new RegExp(`key: "${section}"`));
+for (const tab of ['forms','policies','applications','announcements']) assert.match(systems, new RegExp(`initialTab === "${tab}"`));
 assert.match(application, /initialSubsection=\{routeSubsection\}/);
 assert.match(application, /current !== next \|\| \(next === "studioSettings"/);
 assert.match(systems, /initialTab/);
@@ -36,7 +34,7 @@ assert.doesNotMatch(state, /\{ key: "people", group: "People & Access"/);
 assert.match(gallery, /if \(!inspectorOpen && !analyticsOpen && !intelligenceOpen\) return;/);
 assert.doesNotMatch(card, /project-tile-summary-rc25/);
 assert.doesNotMatch(overview, /Your current project workspace/);
-assert.match(timeline, /No timeline items in this range/);
+assert.match(timeline, /No items in this range/);
 assert.doesNotMatch(timeline, /needs a next beat/);
 const iconSource = read('packages/renderer/src/components/ClusterIcon.tsx');
 const iconUnion = iconSource.match(/export type ClusterIconName\s*=([\s\S]*?);/);

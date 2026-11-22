@@ -10,7 +10,7 @@ const input=fs.readFileSync(path.join(root,'packages/api-client/src/index.ts'),'
 const output=ts.transpileModule(input,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 let resets=0;
 const deps={'./read-rate-limit.js':{
-  readTrafficLane:()=>null,readRateLimitCooldown:async()=>{},noteReadRateLimit:()=>{},
+  readTrafficLane:()=>null,readTrafficLanes:()=>[],readRateLimitGeneration:()=>0,readRateLimitCooldown:async()=>{},noteReadRateLimit:()=>{},
   resetReadRateLimitCooldowns:()=>{resets++;},
 }};
 const mod={exports:{}};

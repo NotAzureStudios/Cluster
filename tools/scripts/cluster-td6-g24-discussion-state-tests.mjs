@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { call, db, records, projects, drafts, readStates } from './cluster-td6-g23-collaboration-closeout-tests.mjs';
+import { existsSync as retiredFileExists } from 'node:fs';
 const root = resolve(import.meta.dirname,'../..');
 const text = f=>readFileSync(resolve(root,f),'utf8');
 const q = {entityType:'project',entityId:'p1',slotKey:'root'};
@@ -102,10 +103,8 @@ await check('reversible metadata actions use CAS and reject a stale inverse',asy
  const ui=text('packages/renderer/src/components/CollaborationPanel.tsx');
  assert.match(ui,/traverseHistory\(direction: "undo" \| "redo"\)/);assert.match(ui,/expectedRevision: entry\.expectedRevision/);
 });
-await check('personal-data export, summary and erasure include private draft authority',()=>{
- const privacy=text('apps/server/src/domains/legal/privacy-data-routes.ts');const erasure=text('apps/server/src/core/privacy-erasure.ts');
- for(const token of ['prisma.entityCommentDraft.count','prisma.entityCommentDraft.findMany','prisma.entityCommentReadState.findMany'])assert.ok(privacy.includes(token),token);
- for(const token of ['prisma.entityCommentDraft.count','["entityCommentDrafts", "entityCommentDraft"','["entityCommentReadStates", "entityCommentReadState"'])assert.ok(erasure.includes(token),token);
- assert.match(text('apps/server/src/core/privacy-data-control.ts'),/PRIVACY_EXPORT_SCHEMA_VERSION = 11/);
+await check('retired personal-data export/erasure layer stays removed; drafts cascade with their user',()=>{
+ for (const model of ['EntityCommentDraft','EntityCommentReadState']) assert.match(text('apps/server/prisma/schema.prisma'), new RegExp(`model ${model} \\{[^}]*?User\\s+@relation\\([^)]*onDelete: Cascade`), model);
+ assert.ok(!retiredFileExists(new URL('../../apps/server/src/core/privacy-erasure.ts',import.meta.url)) && !retiredFileExists(new URL('../../apps/server/src/domains/legal/privacy-data-routes.ts',import.meta.url)),'retired compliance export/erasure layer stays removed; user rows cascade');
 });
 console.log(`TD6 G24 private discussion draft + read-state: ${passed}/${passed} passed`);

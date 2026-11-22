@@ -62,7 +62,7 @@ test('Admin audit search ignores stale results and unmounted requests',()=>{
 });
 test('Taskbar utilities and animated search remain canonical',()=>{
  const code=read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
- for(const phrase of ['TaskbarProjectTabs','My Work','Tickets','TaskbarTransferCenter'])assert.ok(code.includes(phrase),phrase);
+ for(const phrase of ['TaskbarProjectTabs','onOpenMyWork','Tickets','TaskbarTransferCenter'])assert.ok(code.includes(phrase),phrase);
 });
 test('People identity ring and presence dot preserved',()=>{
  const code=read('packages/renderer/src/components/PresenceAvatar.tsx');

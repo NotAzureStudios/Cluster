@@ -79,6 +79,6 @@ try{
  ok(routes.includes('NETWORK_DEPLOYMENT_PENDING'),'pending settings conflict');
  ok(launcher.includes('rollbackNativeNetworkDeployment(root)'),'native rollback invoked');
  ok(launcher.includes('verifyNativeNetworkDeployment(root)'),'native startup verifies before SCM running');
- ok(launcher.includes('reachedReady || ctx.Err() != nil'),'never rollback after healthy service or intentional stop');
+ ok(launcher.includes('err != nil && !reachedReady && ctx.Err() == nil'),'never rollback after healthy service or intentional stop');
  console.log(`Cluster F2 P6 Network Deployment: ${checks}/${checks} assertions passed`);
 }finally{await fsp.rm(temp,{recursive:true,force:true})}

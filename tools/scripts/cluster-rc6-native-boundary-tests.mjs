@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { validStableServerRelease } from './cluster-server-release-sequence.mjs';
 const root = path.resolve(import.meta.dirname, '../..');
 const host = fs.readFileSync(path.join(root, 'apps/host-go/main.go'), 'utf8');
 const ps = fs.readFileSync(path.join(root, 'tools/installer/Install-Cluster.ps1'), 'utf8');
@@ -17,8 +18,8 @@ assertBefore("Run 'node' @('tools/scripts/cluster-rc-native-checks.mjs')", "Run 
 assertBefore("Run 'node' @('tools/scripts/build-native-host.mjs')", "Run 'npm.cmd' @('run','build')");
 assertBefore("Run 'node' @('tools/scripts/build-server-launcher.mjs')", "Run 'npm.cmd' @('run','build')");
 assert.ok(smoke.includes('cluster-rc6-native-boundary-tests.mjs'));
-assert.match(identity.release, /^1\.0\.0-rc\.[1-9]\d*$/);
-assert.equal(identity.sequence, Number(identity.release.split('.').at(-1))); // RC6+ version-agnostic native gate
+// Release identity follows the canonical stable rule (RC-era identities retired at 1.0).
+assert.ok(validStableServerRelease(identity), 'stable release identity');
 for (const section of ['host-go','server-launcher-go']) {
  const unit = fs.readFileSync(path.join(root,'apps',section,'release_display_test.go'),'utf8');
  assert.match(unit, /version = "0\.546\.0"/);

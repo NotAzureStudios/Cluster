@@ -25,11 +25,11 @@ check('Canonical Inventory and Vault routes with separate permission identities'
 check('Sidebar exposes Inventory as a primary resource and Vault as an admin workspace', () => {
   assert.match(manifest, /inventory: .*sidebar: \{ section: "library"/);
   assert.match(manifest, /vault: .*sidebar: \{ section: "administration"/);
-  assert.match(sidebar, /const vault = section.routes.find/);
-  assert.match(sidebar, /vault \? renderRouteLink/);
+  // Administration collapses to one Admin entry; Vault is reached inside it.
+  assert.match(sidebar, /section\.id === "administration"[\s\S]*?navigate\("admin"\)/);
 });
 check('Both routes mount lazy workspaces, not Settings shortcuts', () => {
-  assert.match(app, /isStandaloneToolRoute\(screen\) && <StandaloneToolRoute/);
+  assert.match(app, /isStandaloneToolRoute\(screen\) && adminFramed\(<StandaloneToolRoute/);
   const registry = read('packages/renderer/src/features/application/modules/application-standalone-tool-registry.tsx');
   assert.match(registry, /inventory: \{/);
   assert.match(registry, /vault: \{/);
@@ -84,7 +84,7 @@ const prisma = {
   studioInventoryKey:{findUnique:async({where})=>inventoryKeys.has(where.vaultSecretId)?{id:'pool-1'}:null},studioVaultSecret:{
   findMany:async({where={},cursor,skip=0,take=101})=>{
     let rows=records.filter(x=>!inventoryKeys.has(x.id));
-    if (where.OR?.length){const q=String(where.OR[0].name.contains).toLowerCase();rows=rows.filter(x=>(x.name+' '+x.kind).toLowerCase().includes(q));}
+    const or=where.OR?.length?where.OR:where.AND?.find?.(x=>x.OR)?.OR;if (or?.length){const q=String(or[0].name.contains).toLowerCase();rows=rows.filter(x=>(x.name+' '+x.kind).toLowerCase().includes(q));}
     const start=cursor?rows.findIndex(x=>x.id===cursor.id)+skip:0;
     return rows.slice(start,start+take).map(({encryptedValue,...publicFields})=>publicFields);
   },

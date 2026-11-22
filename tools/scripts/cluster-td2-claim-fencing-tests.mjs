@@ -47,10 +47,10 @@ class StubDb {
       return [{ id: this.job.id, workspaceId: null }];
     }
     if (sql.includes('WITH workspace_load')) {
-      assert.equal(params[7], this.job.id);
-      assert.match(sql, /"leaseOwner"\s*=\s*\$7/);
-      assert.equal(params[1], 'host:123:worker');
-      const token = params[6];
+      assert.equal(params[6], this.job.id);
+      assert.match(sql, /"leaseOwner"\s*=\s*\$6/);
+      // The worker id travels inside the per-claim fencing token.
+      const token = params[5];
       assert.ok(token.startsWith('host:123:worker:'));
       this.lastClaimToken = token;
       this.job = { ...this.job, leaseOwner:token, attempts:this.job.attempts + 1, status:'RUNNING', leaseExpiresAt:new Date(Date.now()+60000) };

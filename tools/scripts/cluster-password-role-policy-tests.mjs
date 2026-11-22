@@ -39,7 +39,7 @@ const owner = source("apps/server/src/app/server-routes-setup.ts");
 const ui = source("packages/renderer/src/features/auth/AuthScreens.tsx");
 const wizard = source("packages/renderer/src/features/application/modules/ApplicationSetupWizard.tsx");
 
-assert.match(core, /minimumLength: PASSWORD_MIN_LENGTH/);
+assert.match(core, /(?:password)?[mM]inimumLength: PASSWORD_MIN_LENGTH/);
 assert.match(core, /password: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);
 assert.match(core, /validateNewPassword\(body\.password, user\)/);
 assert.match(admin, /password: z\.string\(\)\.min\(PASSWORD_MIN_LENGTH\)/);

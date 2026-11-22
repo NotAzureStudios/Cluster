@@ -165,7 +165,7 @@ await check('Calendar durable handler uses deferral rather than false success; p
   assert.match(settings, /onStudioSettingsChanged\?\.\(CONFIGURABLE_TOOL_SETTING_FLAGS, committed\)/);
   assert.match(cluster, /reconcileToolAvailability\(bootToolSettings\)/);
   assert.match(cluster, /settingsCoordination\?\.committedLocally\(changedKeys, values\)/);
-  assert.match(cluster, /applyToolAvailability: reconcileToolAvailability/);
+  assert.match(cluster, /applyToolAvailability: \(settings, changedKeys\) => \{\s*reconcileToolAvailability\(settings, changedKeys\)/);
   assert.match(cluster, /studio-tool-availability-reconcile/);
   assert.match(cluster, /readSettings\(true\)/);
 });

@@ -23,7 +23,7 @@ check('other account rejected from studio state',()=>assert.equal(policy.mayAppl
 check('A→B→A rejects old session',()=>assert.equal(policy.mayApplyClientState('user',alice,aliceAgain),false));
 check('anonymous cannot write client-state',()=>assert.equal(policy.mayApplyClientState('studio',{scope:'anonymous',generation:0},{scope:'anonymous',generation:0}),false));
 const offline=read('packages/renderer/src/core/offline-storage.ts');
-check('scope epoch increments on actual account transitions',()=>assert.match(offline,/if \(next !== activeScope\) activeScopeGeneration \+= 1/));
+check('scope epoch increments on actual account transitions',()=>assert.match(offline,/if \(next === activeScope\) return;\s*activeScopeGeneration \+= 1/));
 check('scope identity exposes stable generation',()=>assert.match(offline,/return \{ scope: getOfflineScope\(\), generation: activeScopeGeneration \}/));
 let current=alice;
 let calls=[];let serverError=null;let deferred=null;
