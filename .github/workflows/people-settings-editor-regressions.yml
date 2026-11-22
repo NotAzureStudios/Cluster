@@ -51,6 +51,6 @@ jobs:
             'cluster-v11-role-assignment-tests.mjs',
             'cluster-1-0-3-settings-visual-contract-tests.mjs'
           )) {
-            node --disable-warning=ExperimentalWarning --experimental-strip-types (Join-Path tools/scripts $script)
+            node --disable-warning=ExperimentalWarning (Join-Path tools/scripts $script)
             if ($LASTEXITCODE -ne 0) { throw "Focused People/Settings regression failed: $script" }
           }

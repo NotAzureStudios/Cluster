@@ -15,6 +15,7 @@
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "customConditions": ["source"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

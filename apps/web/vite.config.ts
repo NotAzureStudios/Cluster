@@ -83,6 +83,8 @@ function clusterApplicationShellPreload() {
 }
 
 export default defineConfig({
+  // @cluster/shared resolves to its TypeScript source, so shared edits need no rebuild.
+  resolve: { conditions: ["source", "module", "browser", "development|production"] },
   plugins: [react({
     babel: {
       generatorOpts: { compact: true }

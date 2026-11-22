@@ -47,7 +47,7 @@ jobs:
         with:
           node-version: '24.20.0'
       - name: Test secure token lifecycle and public activation contracts
-        run: node --disable-warning=ExperimentalWarning --experimental-strip-types tools/scripts/cluster-v11-account-invitation-contract-tests.mjs
+        run: node --disable-warning=ExperimentalWarning tools/scripts/cluster-v11-account-invitation-contract-tests.mjs
       - name: Restore locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Generate Prisma client
