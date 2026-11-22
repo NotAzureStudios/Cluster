@@ -83,7 +83,7 @@ export function profileMissingSummary(person?: ProfileCompletionSubject | null) 
 }
 
 export function profileCapacityLabel(hours?: number | null) {
-  return personCapacityLabel(hours).replace("Capacity unset", "Unset");
+  return hours == null ? "" : personCapacityLabel(hours);
 }
 
 export function profileWorkloadTone(cardCount: number, capacityHours?: number | null) {

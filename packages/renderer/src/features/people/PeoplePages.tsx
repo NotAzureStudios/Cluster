@@ -114,9 +114,9 @@ type WorkforceContext = {
 };
 
 function workingHoursSummary(hours?: User["workingHours"]) {
-  if (!hours) return "Not configured";
+  if (!hours) return null;
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].filter((day) => Array.isArray(hours[day]) && (hours[day] as unknown[]).length);
-  if (!days.length) return "Not configured";
+  if (!days.length) return null;
   const first = hours[days[0]] as Array<{ start: string; end: string }>;
   const same = days.every((day) => { const value = hours[day] as Array<{ start: string; end: string }>; return value?.[0]?.start === first?.[0]?.start && value?.[0]?.end === first?.[0]?.end; });
   return `${days.length} days${same && first?.[0] ? ` · ${first[0].start}–${first[0].end}` : " configured"}`;
@@ -880,7 +880,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
               <ClusterVisualMeter label="Hours allocated" value={workforceAllocatedHours} total={workforceContext.capacity.totalHours} tone={workforceAllocatedHours > workforceContext.capacity.totalHours ? "warning" : "accent"} />
               <span className={workforceOverallocated ? "warning" : "muted"}>{workforceOverallocated} overallocated</span>
             </div>
-            <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const capacity = Number(person.employment?.capacityHours ?? 0); const allocation = (person.projectMemberships || []).reduce((sum, membership) => sum + Number(membership.allocationPercent || 0), 0); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.employment?.jobRole?.name || "No role"} · {person.employment?.department?.name || "No department"}</span></div><span>{capacity ? `${capacity}h capacity` : "Capacity unset"}</span><div className="people-capacity-person-v34"><ClusterVisualMeter label="Allocated" value={allocation} total={100} tone={allocation > 100 ? "danger" : "accent"} compact /></div></article>; })}</div>
+            <div className="people-workforce-table-v504">{workforceContext.people.map((person) => { const capacity = Number(person.employment?.capacityHours ?? 0); const allocation = (person.projectMemberships || []).reduce((sum, membership) => sum + Number(membership.allocationPercent || 0), 0); return <article key={person.id}><div><strong>{displayUserName(person)}</strong><span>{person.employment?.jobRole?.name || "No role"} · {person.employment?.department?.name || "No department"}</span></div>{capacity ? <span>{capacity}h capacity</span> : null}<div className="people-capacity-person-v34"><ClusterVisualMeter label="Allocated" value={allocation} total={100} tone={allocation > 100 ? "danger" : "accent"} compact /></div></article>; })}</div>
           </>}
           {workforceMode === "availability" && <>
             <header><h2 className="sr-only">Availability</h2><strong>{workforceContext.capacity.available} available · {workforceContext.capacity.clockedIn} clocked in</strong></header>
@@ -1090,14 +1090,14 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         <span>Assigned cards</span>
                         <strong>{profileCards.length}</strong>
                       </div>
-                      <div>
+                      {profile.capacityHours != null ? <><div>
                         <span>Capacity</span>
-                        <strong>{profile.capacityHours != null ? `${profile.capacityHours}h` : "Unset"}</strong>
+                        <strong>{profile.capacityHours}h</strong>
                       </div>
                       <div>
                         <span>Workload</span>
                         <strong>{profileWorkloadLabel(profileCards.length, profile.capacityHours)}</strong>
-                      </div>
+                      </div></> : null}
                       <div>
                         <span>Overdue</span>
                         <strong>{profileWork?.overdue || 0}</strong>
@@ -1198,7 +1198,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                         <div><dt>Password</dt><dd>{profile.passwordConfigured === false ? "Setup required" : "Set"}</dd></div>
                         <div><dt>PIN</dt><dd>{profile.pinConfigured ? "Set" : "Not set"}</dd></div>
                         <div><dt>Access expires</dt><dd title={profile.accountType && profile.accountType !== "employee" ? "Clients, contractors and guests need an expiry. Extensions are approved in Studio Settings → Access renewals." : undefined}>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "Never"}</dd></div>
-                        <div><dt>Last active</dt><dd>{profile.lastActivityAt ? formatRelativeTime(profile.lastActivityAt) : "—"}</dd></div>
+                        {profile.lastActivityAt ? <div><dt>Last active</dt><dd>{formatRelativeTime(profile.lastActivityAt)}</dd></div> : null}
                       </dl>
                       {effectiveAdminMode && !self && <div className="pp-admin-actions">
                         {["SUSPENDED", "DISABLED"].includes(state) ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void setProfileAccountState("ACTIVE")}>Reactivate</ClusterButton> : null}

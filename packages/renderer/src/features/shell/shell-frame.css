@@ -486,3 +486,6 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
 .taskbar-ticket-empty-v254 { display: block !important; padding: 14px 10px; text-align: center; }
 .taskbar-ticket-empty-v254 span { font-size: .74rem !important; }
 @media (min-width: 641px) { .cl-tb-command, .cl-tb-command[aria-expanded="true"] { display: inline-flex !important; flex-wrap: nowrap; } }
+
+/* Admin, separated from everyday tools at the bottom of the sidebar. */
+.cl-sb__admin { flex: none; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--cluster-sidebar-section-border, var(--border)); }

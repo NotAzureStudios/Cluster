@@ -122,6 +122,7 @@ export function personMetaLabel(person: ClusterPersonSummary, options: { localTi
     options.role !== false ? person.title || person.department || person.teamName || null : null,
     summary.availabilityLabel,
     options.localTime !== false ? summary.localTimeLabel : null,
-    options.capacity ? summary.capacityLabel : null,
+    // Unset fields are left out, never shown as "unset".
+    options.capacity && person.capacityHours != null ? summary.capacityLabel : null,
   ].filter(Boolean).join(" · ");
 }

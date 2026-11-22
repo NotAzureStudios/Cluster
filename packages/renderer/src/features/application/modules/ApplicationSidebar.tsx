@@ -62,6 +62,7 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
       }),
     }))
     .filter((section) => section.routes.length > 0), [desktopHost, settings, user]);
+  const adminSection = sidebarSections.find((section) => section.id === "administration");
   const visibleProjects = useMemo(() => projects.filter((project) => !project!.archived && canUseProject(user, project)), [projects, user]);
   function navigate(next: AppScreen) {
     setScreen(next);
@@ -122,21 +123,18 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
         </SidebarSection>
 
         {sidebarSections.map((section) => {
-          if (section.id === "administration") {
-            // One entry: every admin page lives in the Admin workspace, which
-            // has its own navigation (features/admin/AdminFrame).
-            const adminActive = section.routes.some((entry) => entry.screen === screen) || screen === "studioSettings" || (screen === "people" && currentRoute?.split("/")[1] === "admin");
-            return <SidebarSection key={section.id}>
-              <SidebarNavItem icon="settings" label="Admin" active={adminActive}
-                onPointerEnter={() => prefetch("admin")} onFocus={() => prefetch("admin")}
-                onClick={() => navigate("admin")} />
-            </SidebarSection>;
-          }
+          if (section.id === "administration") return null;
           return <SidebarSection key={section.id} label={effectiveCollapsed ? undefined : section.label}>
             {section.routes.map(({ screen: route }) => renderRouteLink(route))}
           </SidebarSection>;
         })}
       </nav>
+      {/* Admin sits apart from everyday tools, just above the status footer.
+          Every admin page lives in the Admin workspace (features/admin/AdminFrame). */}
+      {adminSection ? <div className="cl-sb__admin">
+        <SidebarNavItem icon="settings" label="Admin" active={adminSection.routes.some((entry) => entry.screen === screen) || screen === "studioSettings" || (screen === "people" && currentRoute?.split("/")[1] === "admin")}
+          onPointerEnter={() => prefetch("admin")} onFocus={() => prefetch("admin")} onClick={() => navigate("admin")} />
+      </div> : null}
       {status ? <div className="cl-sb__status">{status}</div> : null}
       <div className="cl-sb__footer">
         <AppVersionFooter onOpenChangelog={() => { onOpenChangelog(); onClose?.(); }} onOpenOperations={isAdmin ? () => navigate("admin") : undefined} /></div>
