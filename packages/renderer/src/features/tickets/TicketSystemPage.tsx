@@ -137,7 +137,7 @@ const TicketRow = memo(function TicketRow({ card, selected, active, ticketType, 
 
 function VirtualTicketList(props: VirtualTicketListProps) {
   const narrow = useNarrowTicketRows();
-  const rowHeight = narrow ? 116 : 76;
+  const rowHeight = narrow ? 104 : 56;
   const overscan = 8;
   const viewportHeight = Math.min(narrow ? 620 : 720, Math.max(rowHeight * 4, props.items.length * rowHeight));
   const { elementRef, scrollTop, onScroll } = usePersistedScrollPosition(props.scrollKey);

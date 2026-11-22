@@ -31,7 +31,7 @@ check(() => assert.doesNotMatch(notifications, /\.notification-workspace-v251 \{
 const source = read('packages/renderer/src/core/server-state.ts');
 check(() => assert.match(source, /batchUserStateRead<T>\(key\)/));
 check(() => assert.match(source, /scope === "user" \? batchUserStateRead<T>\(key\)/));
-check(() => assert.match(source, /if \(Object\.is\(resolved, valueRef\.current\)\) return/));
+check(() => assert.match(source, /if \(sameClientStateValue\(resolved, valueRef\.current\)\) return/));
 for (const file of ['apps/server/src/core/runtime-config.ts','apps/server/src/app/server-routes-health-operations.ts','apps/server/src/core/cluster-coordination-bus.ts','packages/renderer/src/core/server-state.ts','packages/renderer/src/features/settings/ServerConfigPage.tsx']) {
   const parsed = ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   check(() => assert.equal(parsed.parseDiagnostics.length, 0, `${file}: syntax errors`));

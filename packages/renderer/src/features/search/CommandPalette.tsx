@@ -1000,7 +1000,7 @@ export function CommandPalette(props: CommandPaletteProps) {
                 else run(items[activeIndex]);
               }
             }}
-            placeholder={commandMode ? "Run a command…" : "Search everything… use > for commands, or try is:overdue"}
+            placeholder={commandMode ? "Run a command…" : "Search everything"}
           />
           {searching && <span className="search-command-spinner-v294" aria-label="Searching" />}
           {!commandMode && <ClusterButton className="" type="button" aria-pressed={showOperatorHelp} onClick={() => setShowOperatorHelp((value) => !value)} variant="quiet" size="compact">Operators</ClusterButton>}
