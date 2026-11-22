@@ -11,8 +11,8 @@ progress, .ui-progress-v224 { appearance: none; -webkit-appearance: none; width:
 progress::-webkit-progress-bar, .ui-progress-v224::-webkit-progress-bar { border-radius: inherit; background: var(--control-track); }
 progress::-webkit-progress-value, .ui-progress-v224::-webkit-progress-value { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
 progress::-moz-progress-bar, .ui-progress-v224::-moz-progress-bar { border-radius: inherit; background: var(--control-fill); }
-.completion-meter, .progress-rail{ min-height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 72%, transparent); border-radius: 999px; background: var(--control-track); }
-.progress-bar-v146 > span, .completion-meter > span, .progress-rail > span { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
+.completion-meter{ min-height: 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 72%, transparent); border-radius: 999px; background: var(--control-track); }
+.completion-meter > span { border-radius: inherit; background: var(--control-fill); box-shadow: none; transition: width .18s ease; }
 @media (pointer: coarse) { input[type="range"] { height: 34px; } input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; } input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; } }
 /* Settings only needs a slightly taller hit area. Track/thumb visuals inherit the canonical range control above. */
 .settings-page-v092 input[type="range"], .server-config-page-v094 input[type="range"] { height: 28px; }
@@ -106,8 +106,14 @@ input[type="radio"]:checked::before {
 }
 
 /* Block 12: canonical shared text/select/icon control presentation. Moved from consistency.css so interaction primitives have one owner. */
- input, textarea, select, summary, .segmented button, .cluster-icon-button-v227 { border-radius: var(--cluster-radius-control); }
-.project-card, .task-card, .time-schedule-block-v212, .tickets-row-v184 { border-radius: var(--cluster-radius-card); }
+ input,
+textarea,
+select,
+summary,
+.cluster-icon-button-v227 { border-radius: var(--cluster-radius-control); }
+.project-card,
+.time-schedule-block-v212,
+.tickets-row-v184 { border-radius: var(--cluster-radius-card); }
 /* Native selects had the visual charm of a firmware setup screen. */
 select { appearance: none; -webkit-appearance: none; min-height: var(--cluster-control-height); width: 100%; border: 1px solid var(--cluster-border); background-color: var(--cluster-surface-2); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: var(--text); line-height: 1.2; cursor: pointer; }
 /* Field resets elsewhere use the background shorthand; keep the chevron on every single-value select. */

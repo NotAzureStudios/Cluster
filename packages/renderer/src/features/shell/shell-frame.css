@@ -143,8 +143,7 @@
 .cl-tb-menu { position: relative; display: flex; }
 
 /* Counts sit on the icon's corner and disappear at zero. */
-.cl-tb-badge,
-.cl-tb-action__badge {
+.cl-tb-badge {
   position: absolute;
   top: 1px;
   right: 0;
@@ -355,8 +354,7 @@
   scrollbar-width: thin;
 }
 .cl-sb__section { display: flex; flex-direction: column; gap: 1px; }
-.cl-sb__section-label,
-.cl-sb__sublabel {
+.cl-sb__section-label {
   padding: var(--space-1) var(--space-2-5) var(--space-1);
   color: var(--muted);
   font-size: var(--cluster-font-size-2xs);
@@ -364,7 +362,6 @@
   letter-spacing: .06em;
   text-transform: uppercase;
 }
-.cl-sb__sublabel { padding-top: var(--space-2); }
 
 .cl-sb-item {
   display: grid;
@@ -395,10 +392,6 @@
 .cl-sb-item__trailing { display: inline-flex; color: var(--muted); }
 .cl-sb-item__trailing svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
 .cl-sb-item.is-nested { height: 30px; font-size: var(--cluster-font-size-sm); }
-
-.cl-sb__subnav { display: flex; flex-direction: column; gap: 1px; padding-left: var(--space-2); }
-.cl-sb__more.cluster-button-v425 { justify-content: flex-start; width: 100%; padding-inline: var(--space-2-5); color: var(--muted); }
-.cl-sb__more.cluster-button-v425:hover { color: var(--text); }
 
 .cl-sb__footer {
   display: flex;
@@ -486,7 +479,7 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
 .taskbar-account-menu-v546 .taskbar-account-action-icon-v546 svg { width: 15px; height: 15px; }
 .taskbar-account-menu-v546 .taskbar-account-actions-v546 strong, .taskbar-account-menu-v546 .taskbar-account-signout-v546 strong { font-size: .8125rem; font-weight: 500; }
 .taskbar-account-menu-v546 .taskbar-account-action-chevron-v546 { width: 13px; height: 13px; opacity: .5; }
-.taskbar-account-menu-v546 .taskbar-presence-options-v546 > button, .taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px !important; }
 .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { min-height: 32px !important; padding: 4px 8px !important; }
 .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; }
 .taskbar-account-menu-v546 .taskbar-account-actions-v546 > button, .taskbar-account-menu-v546 .taskbar-account-signout-v546, .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { grid-template-columns: 22px minmax(0, 1fr) auto !important; }

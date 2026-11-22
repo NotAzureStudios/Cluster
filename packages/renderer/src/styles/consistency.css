@@ -44,9 +44,6 @@
 
 
 /* Consistent section surfaces: one container, internal dividers, fewer floating rounded islands. */
-
-
-.section-heading + .metric-grid, .section-heading + .summary-grid { margin-top: 0; }
 /* Custom menus need to remain above modal content and inspector clipping. */
 
 
@@ -105,8 +102,25 @@ select, input, textarea, button { border-radius: var(--cluster-radius-control); 
 .admin-hours-panel-v105 .time-context-bar { margin-bottom: 12px; }
 
 /* v0.234 zero-prose surfaces and viewport-owned Library viewer. */
-.muted.tight:not([role="status"]):not([role="alert"]), .eyebrow, .tool-subtitle, .page-header p.muted, .page-header > div > p, .section-heading p.muted, .section-heading > div > p.muted, .panel-header p.muted, .management-header-row p.muted, .admin-header p.muted, .settings-panel-head-v092 p.muted, .cluster-tool-title-v228 > p, .library-empty-v217 > p, .library-preview-empty-v217 > p, .library-document-note-v221, .project-header-progress-copy-v148 span, .compact-copy-v147, .hint-box.slim:not([role="alert"]):not(.error-box):not(.status-box):not(.toast), .hint-box:not([role="alert"]):not(.error-box):not(.status-box):not(.toast) { display: none !important; }
-.cluster-tool-title-v228, .page-header > div:first-child, .section-heading > div:first-child, .panel-header > div:first-child { gap: 0 !important; }
+.muted.tight:not([role="status"]):not([role="alert"]),
+.eyebrow,
+.tool-subtitle,
+.page-header p.muted,
+.page-header > div > p,
+.section-heading p.muted,
+.section-heading > div > p.muted,
+.management-header-row p.muted,
+.settings-panel-head-v092 p.muted,
+.cluster-tool-title-v228 > p,
+.library-empty-v217 > p,
+.library-preview-empty-v217 > p,
+.library-document-note-v221,
+.project-header-progress-copy-v148 span,
+.hint-box.slim:not([role="alert"]):not(.error-box):not(.status-box):not(.toast),
+.hint-box:not([role="alert"]):not(.error-box):not(.status-box):not(.toast) { display: none !important; }
+.cluster-tool-title-v228,
+.page-header > div:first-child,
+.section-heading > div:first-child { gap: 0 !important; }
 
 
 /* v0.250 shared avatar and presence contract */
@@ -151,9 +165,7 @@ body.board-fullscreen-open-v254, body.card-editor-fullscreen-open-v254, body.tim
 .visual-declutter-v140 .permission-section-v065 .section-heading p.muted.tight,
 .visual-declutter-v140 .role-home-panel-v126 .section-heading p.muted.tight,
 .visual-declutter-v140 .global-search-hub-v121 .section-heading p.muted.tight,
-.visual-declutter-v140 .saved-views-toolbar-v120 span,
 .visual-declutter-v140 .closeout-portal-v134 p.muted.tight { display: none !important; }
 .visual-declutter-v140 .tool-check em,
-.visual-declutter-v140 .saved-views-toolbar-v120 span,
 .visual-declutter-v140 .mini-list-row span { font-size: .76rem !important; }
 

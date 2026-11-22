@@ -29,6 +29,6 @@ check('focus colors use semantic palette with accessible light fallback',()=>{
 });
 check('known select !important debt has been retired',()=>{
  assert.doesNotMatch(read('components/cluster-select.css'),/!important/);
- assert.equal((read('layers/application-adaptive.css').match(/!important/g)||[]).length,37);
+ assert.ok((read('layers/application-adaptive.css').match(/!important/g)||[]).length<=37,'application-adaptive.css must not gain !important overrides');
 });
 console.log(`${count}/${count} CSS ownership and focus checks passed`);

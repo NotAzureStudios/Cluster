@@ -13,7 +13,6 @@
 .cluster-workspace-title-v391 .eyebrow { margin: 0; }
 .cluster-workspace-description-v391 { max-width: 72ch; margin: 0; }
 .cluster-workspace-actions-v391,
-.cluster-workspace-header-v391 > .header-actions,
 .cluster-workspace-header-v391 .notification-command-actions-v252 {
   display: flex;
   flex-wrap: wrap;
@@ -181,8 +180,7 @@
 @media (max-width: 720px) {
   .cluster-workspace-header-v391 { grid-template-columns: 1fr; align-items: stretch; }
   .cluster-workspace-actions-v391,
-  .cluster-workspace-header-v391 > .header-actions,
-  .cluster-workspace-header-v391 .notification-command-actions-v252 { justify-content: flex-start; }
+.cluster-workspace-header-v391 .notification-command-actions-v252 { justify-content: flex-start; }
   .cluster-context-bar-v391 { grid-template-columns: 1fr; }
   .cluster-context-actions-v391 { justify-content: flex-start; }
   .cluster-workspace-metrics-v391 > *, .cluster-tool-metrics-v228 > span, .project-section-metrics-v312 > * { min-width: min(140px, 48%); flex: 1 1 42%; }

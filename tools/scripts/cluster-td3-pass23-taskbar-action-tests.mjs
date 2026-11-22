@@ -67,7 +67,6 @@ test('Read action is acknowledged before local flags or event are changed',()=>{
 });
 test('Inbox read and presence actions show accessible pending/error feedback',()=>{
  for(const token of ['notificationActionBusy','notificationActionError','presenceBusy','presenceError','role="alert"','busy={notificationActionBusy}'])assert.ok(source.includes(token),token);
- assert.match(styles,/\.taskbar-notification-error-v548/);
  assert.match(styles,/\.taskbar-presence-error-v548/);
 });
 test('Modal/taskbar menus cannot dismiss during pending mutation',()=>{

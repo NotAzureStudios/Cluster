@@ -398,7 +398,6 @@
 }
 
 #cluster-sidebar .cluster-sidebar__project-row:hover .cluster-sidebar__project-pin,
-#cluster-sidebar .cluster-sidebar__project-row.pinned-project-v111 .cluster-sidebar__project-pin,
 #cluster-sidebar .cluster-sidebar__project-pin:focus-visible {
   opacity: 1 !important;
 }
@@ -600,7 +599,6 @@
 }
 #cluster-sidebar .cluster-sidebar__section { padding-block: 5px 4px !important; }
 #cluster-sidebar .cluster-sidebar__admin-toggle { grid-template-columns:var(--cluster-sidebar-icon-slot) minmax(0,1fr) 14px !important; }
-#cluster-sidebar .cluster-sidebar__admin-toggle.active-child { color:var(--cluster-shell-text) !important; }
 #cluster-sidebar .cluster-sidebar__admin-chevron { width:13px !important; height:13px !important; color:var(--cluster-shell-muted) !important; overflow:visible !important; }
 #cluster-sidebar .cluster-sidebar__admin-list {
   display:grid !important;
@@ -656,8 +654,7 @@
   margin: 0 !important;
   padding: 0 !important;
 }
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon > svg,
-:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .sidebar-icon-slot-v344 > svg {
+:root[data-sidebar-collapsed="true"] #cluster-sidebar .cluster-sidebar__link > .cluster-sidebar__icon > svg {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -701,7 +698,6 @@
   vertical-align: middle !important;
 }
 #cluster-sidebar .cluster-sidebar__icon > svg,
-#cluster-sidebar .sidebar-icon-slot-v344 > svg,
 #cluster-sidebar .cluster-sidebar__mode-toggle > svg,
 #cluster-sidebar .cluster-sidebar__mobile-close > svg {
   display: block !important;
@@ -756,8 +752,7 @@
   min-height: 24px !important;
   place-items: center !important;
 }
-#cluster-sidebar .cluster-sidebar__icon-svg,
-#cluster-sidebar .sidebar-icon-slot-v344 > svg {
+#cluster-sidebar .cluster-sidebar__icon-svg {
   width: 18px !important;
   min-width: 18px !important;
   height: 18px !important;

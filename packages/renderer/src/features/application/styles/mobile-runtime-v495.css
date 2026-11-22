@@ -102,7 +102,6 @@ html[data-cluster-kiosk-hide-navigation="true"] .mobile-primary-nav-v495 { displ
 .notification-popover-v473 {
 bottom: max(74px, calc(env(safe-area-inset-bottom) + 66px));
 }
-.chat-dock { bottom: max(76px, calc(env(safe-area-inset-bottom) + 68px)); }
 /* Mobile Safari must not zoom the viewport just because a production form uses compact typography. */
 .content-shell :where(input, textarea, select) { font-size: 16px; }
 .content-shell :where(input, textarea, select, .cluster-select-trigger-v227) { max-width: 100%; }
@@ -179,8 +178,7 @@ padding-top: 2px;
 .mobile-primary-nav-v495 > button > span:last-child { display: none; }
 .mobile-primary-create-icon-v495 { width: 34px; height: 34px; margin-top: 0; }
 .notification-toast-v473,
-.notification-popover-v473,
-.chat-dock { bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px)); }
+.notification-popover-v473 { bottom: max(56px, calc(env(safe-area-inset-bottom) + 48px)); }
 }
 /* Dense production workspaces: phones review and act without pretending to be tiny desktops. */
 .board-card-touch-move-v495 { display: none; }
@@ -239,10 +237,6 @@ grid-template-columns: minmax(0, 1fr);
 .project-page-v312 :where(.video-review-cockpit-v495, .video-review-history-row-v495) {
 grid-template-columns: minmax(0, 1fr);
 }
-.project-page-v312 .video-review-history-row-v495 {
-align-items: start;
-padding-block: 8px;
-}
 .project-page-v312 :where(.video-review-round-nav-v495, .video-session-actions-v495) {
 max-width: 100%;
 overflow-x: auto;
@@ -267,7 +261,6 @@ scroll-padding-inline: 0;
 touch-action: pan-x pan-y;
 }
 .board-workspace-v257 .board-list { scroll-snap-stop: always; }
-.board-workspace-v257 .task-card { scroll-margin-top: 58px; }
 .board-card-touch-move-v495 {
 grid-column: 2;
 display: grid;
@@ -325,7 +318,6 @@ padding-right: max(8px, env(safe-area-inset-right));
 .comment-actions-v227 { opacity: 1; }
 .whiteboard-page-v069 .whiteboard-canvas { touch-action: none; }
 .board-card-touch-move-v495 { display: grid; }
-.board-workspace-v257 .drag-handle { min-width: 30px; min-height: 44px; }
 .whiteboard-page-v069 :where(.whiteboard-toolbar.expanded, .whiteboard-commandbar-v299, .whiteboard-style-topbar-v069) button { min-height: 42px; }
 }
 @media (min-width: 768px) and (max-width: 1180px) and (any-pointer: coarse) {

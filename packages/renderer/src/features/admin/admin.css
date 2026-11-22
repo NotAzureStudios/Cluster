@@ -21,7 +21,6 @@
 
 /* RC17 repository-first Source Control: overview in cards, provider setup secondary. */
 .source-control-overview-v524 { display:flex; flex-wrap:wrap; gap:9px; align-items:center; }
-.source-control-overview-v524 .summary-card { min-width:120px; }
 .source-control-overview-actions-v524 { margin-left:auto; display:flex; flex-wrap:wrap; gap:6px; }
 .source-control-mode-header { display:flex; justify-content:space-between; gap:10px; align-items:center; margin:0 0 12px; }
 .source-control-mode-header strong { font-size:1rem; }

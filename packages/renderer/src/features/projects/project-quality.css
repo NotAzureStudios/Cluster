@@ -168,12 +168,9 @@
 .project-production-evidence-grid-v495 article.tone-good{border-color:color-mix(in srgb,var(--success) 35%,var(--border))}
 .project-production-evidence-grid-v495 article.tone-warning{border-color:color-mix(in srgb,var(--warning) 35%,var(--border))}
 .project-production-evidence-grid-v495 article.tone-danger{border-color:color-mix(in srgb,var(--danger) 40%,var(--border))}
-.video-review-cockpit-v495{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;border:1px solid var(--border);border-radius:12px;background:var(--surface-1)}
-.video-review-cockpit-v495>div{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.video-review-cockpit-v495 small{color:var(--text-muted)}
 @media(max-width:980px){.project-production-evidence-grid-v495{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media(max-width:640px){.project-production-evidence-v495>header,.video-review-cockpit-v495{align-items:flex-start;flex-direction:column}
+@media(max-width:640px){.project-production-evidence-v495>header{align-items:flex-start;flex-direction:column}
 .project-production-evidence-grid-v495{grid-template-columns:1fr}
 }
 

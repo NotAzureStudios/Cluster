@@ -97,70 +97,8 @@
 
 /* TD3 Pass 5: user-selectable sticky taskbar silhouette. One component, two placements.
    Runtime preference is applied to <html> by the canonical visual system. */
-:root[data-taskbar-layout="floating"] .shell-unified-v3430 .taskbar-unified-v3430 {
-  border-radius: var(--radius-lg, 16px) !important;
-  border: 1px solid var(--cluster-taskbar-border, var(--cluster-visual-border)) !important;
-  box-shadow: 0 10px 32px rgb(0 0 0 / 14%), inset 0 1px 0 rgb(255 255 255 / 6%) !important;
-}
-:root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
-  /* Keep workspace padding for everything except the edge-to-edge taskbar. */
-  --cluster-taskbar-gutter-left: 12px;
-  --cluster-taskbar-gutter-right: 12px;
-  padding-top: 0 !important;
-}
-:root[data-taskbar-layout="full-width"] .shell-unified-v3430 .taskbar-unified-v3430 {
-  position: sticky !important;
-  top: 0 !important;
-  width: calc(100% + var(--cluster-taskbar-gutter-left) + var(--cluster-taskbar-gutter-right)) !important;
-  max-width: none !important;
-  margin-left: calc(-1 * var(--cluster-taskbar-gutter-left)) !important;
-  margin-right: calc(-1 * var(--cluster-taskbar-gutter-right)) !important;
-  margin-top: 0 !important;
-  margin-bottom: 16px !important;
-  border-radius: 0 !important;
-  border-top: 0 !important;
-  border-left: 0 !important;
-  border-right: 0 !important;
-  border-bottom: 1px solid var(--cluster-taskbar-border, var(--cluster-visual-border)) !important;
-  box-shadow: 0 5px 20px rgb(0 0 0 / 8%), inset 0 1px 0 rgb(255 255 255 / 5%) !important;
-}
-@media (max-width: 767px) {
-  :root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
-    --cluster-taskbar-gutter-left: max(10px, env(safe-area-inset-left));
-    --cluster-taskbar-gutter-right: max(10px, env(safe-area-inset-right));
-  }
-  :root[data-taskbar-layout="floating"] .shell-unified-v3430 .taskbar-unified-v3430 {
-    border-radius: 12px !important;
-  }
-}
-:root[data-high-contrast="true"] .shell-unified-v3430 .taskbar-unified-v3430,
-:root[data-surface-style="flat"] .shell-unified-v3430 .taskbar-unified-v3430 {
-  box-shadow: none !important;
-}
 
 /* TD3 Pass 6: Sidebar placement is a shell preference, not a second navigation tree. */
-@media (min-width: 900px) {
-  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 {
-    grid-template-columns: calc(var(--cluster-sidebar-current-width, 264px) + 24px) minmax(0, 1fr) !important;
-  }
-  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .shell-sidebar-v3430 {
-    width: var(--cluster-sidebar-current-width, 264px) !important;
-    min-width: var(--cluster-sidebar-current-width, 264px) !important;
-    max-width: var(--cluster-sidebar-current-width, 264px) !important;
-    height: calc(100dvh - 24px) !important;
-    max-height: calc(100dvh - 24px) !important;
-    margin: 12px !important;
-    border: 1px solid var(--cluster-visual-border, var(--border)) !important;
-    border-radius: var(--radius-lg, 16px) !important;
-    box-shadow: var(--cluster-appearance-elevation, 0 12px 30px rgb(0 0 0 / 12%)) !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    scrollbar-width: thin;
-  }
-  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .content-shell {
-    padding-left: 4px !important;
-  }
-}
 /* Preferences supply a consistent material treatment for persistent chrome. */
 :root[data-surface-depth="flat"] { --cluster-appearance-elevation: none; }
 :root[data-surface-depth="soft"] { --cluster-appearance-elevation: 0 8px 22px rgb(0 0 0 / 12%), inset 0 1px 0 rgb(255 255 255 / 4%); }
@@ -168,24 +106,14 @@
 :root[data-surface-texture="fine"] { --cluster-shell-texture-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text) var(--cluster-texture-percent, 6%), transparent) .65px, transparent .9px); --cluster-shell-texture-size: 7px 7px; }
 :root[data-surface-texture="brushed"] { --cluster-shell-texture-image: repeating-linear-gradient(95deg, transparent 0 2px, color-mix(in srgb, var(--text) var(--cluster-texture-percent, 6%), transparent) 3px 3.5px, transparent 4px 7px); --cluster-shell-texture-size: auto; }
 :root[data-surface-texture="none"] { --cluster-shell-texture-image: none; --cluster-shell-texture-size: auto; }
-:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 .taskbar-unified-v3430,
-:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 > .shell-sidebar-v3430 { background-image: var(--cluster-shell-texture-image, none) !important; background-size: var(--cluster-shell-texture-size, auto) !important; }
-:root:not([data-high-contrast="true"]):not([data-surface-style="flat"])[data-surface-depth="elevated"] .shell-unified-v3430 .taskbar-unified-v3430,
-:root:not([data-high-contrast="true"]):not([data-surface-style="flat"])[data-surface-depth="soft"] .shell-unified-v3430 .taskbar-unified-v3430 { box-shadow: var(--cluster-appearance-elevation) !important; }
 :root[data-high-contrast="true"], :root[data-surface-style="flat"] { --cluster-shell-texture-image: none; --cluster-appearance-elevation: none; }
-@media (max-width: 899px) {
-  :root[data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 > .shell-sidebar-v3430 { margin: 0 !important; border-radius: 0 !important; height: 100dvh !important; max-height: 100dvh !important; }
-}
 
 /* TD3 Pass 7: independent personalization of chrome artwork, borders, and scrollbars.
    The icon scale does not shrink or expand click targets or replace intrinsic sizing. */
-.shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) .cluster-icon-svg {
+:is(.cl-tb, .cl-sb) .cluster-icon-svg {
   scale: var(--cluster-icon-scale, 1);
   transform-origin: center;
   overflow: visible;
-}
-:root:not([data-high-contrast="true"]) .shell-unified-v3430 :is(.taskbar-unified-v3430, .shell-sidebar-v3430) {
-  border-color: color-mix(in srgb, var(--cluster-visual-border, var(--border)) calc(var(--cluster-panel-border-opacity, .72) * 100%), transparent) !important;
 }
 /* Keep visible scrollbars; user preference adjusts prominence only on desktop.
    The project tab strip remains intentionally scrollable without showing a bar. */
@@ -234,8 +162,6 @@
 .cluster-taskbar-search-results-v546 { width: min(820px, calc(100vw - 24px)) !important; min-width: min(430px, calc(100vw - 24px)); height: auto; max-height: min(740px, calc(100dvh - 70px)); z-index: 2000; }
 @media (max-width: 767px) {
   /* The mobile shell normally hides project tabs. Search temporarily occupies that slot. */
-  .shell-unified-v3430 .taskbar-unified-v3430 .cluster-taskbar-search-switch-v546[data-search-open="true"] { display: grid !important; grid-column: 1 / -1 !important; grid-row: 2 !important; min-height: 42px; }
-  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) { height: auto !important; min-height: 96px !important; grid-template-rows: auto auto; }
   .cluster-taskbar-search-field-v546 > button:not(.cluster-taskbar-search-field__close) { display: none; }
   .cluster-taskbar-search-results-v546 { min-width: 0; width: calc(100vw - 16px) !important; max-height: min(72dvh, 650px); }
 }
@@ -253,68 +179,15 @@
 /* RC14: Search takes the full remaining taskbar row, with history controls visible.
    The account/menu utilities reappear immediately when search closes. */
 @media (min-width: 768px) {
-  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) {
-    grid-template-columns: auto minmax(0, 1fr) !important;
-  }
-  .shell-unified-v3430 .taskbar-unified-v3430 .cluster-taskbar-search-switch-v546[data-search-open="true"] {
-    grid-column: 2 / -1 !important; grid-row: 1 !important; width: 100% !important; display: grid !important; min-width: 0 !important;
-  }
-  .shell-unified-v3430 .taskbar-unified-v3430:has(.cluster-taskbar-search-switch-v546[data-search-open="true"]) > .taskbar-right-v143 { display: none !important; }
   .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-switch__input,
   .cluster-taskbar-search-switch-v546[data-search-open="true"] .cluster-taskbar-search-field-v546 { min-width: 0; width: 100%; height: 100%; }
 }
-.shell-unified-v3430 .taskbar-unified-v3430 :is(.cluster-taskbar-action, .taskbar-icon-button-v081) { align-items: center; justify-content: center; }
 
 /* RC15 unified icon grid: same optical box for all three curated icon sets.
    The glyph itself is centered, not enlarged by old per-vendor CSS rules. */
-.shell-unified-v3430 :is(.shell-sidebar-v3430, .taskbar-unified-v3430) .cluster-icon--unified {
-  box-sizing: border-box !important;
-  display: block !important;
-  inline-size: 20px !important;
-  block-size: 20px !important;
-  min-inline-size: 20px !important;
-  min-block-size: 20px !important;
-  flex: 0 0 20px !important;
-  align-self: center !important;
-  justify-self: center !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  transform: none !important;
-  translate: none !important;
-  overflow: hidden !important;
-  vertical-align: middle !important;
-}
-.shell-unified-v3430 .taskbar-unified-v3430 .cluster-icon--action { inline-size: 18px !important; block-size: 18px !important; min-inline-size: 18px !important; min-block-size: 18px !important; flex-basis: 18px !important; }
-.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item__icon { display: grid !important; place-items: center !important; min-width: 28px; }
-.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item__icon > .cluster-icon--unified { grid-area: 1 / 1; }
-.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar-nav-item.is-nested .cluster-icon--unified { inline-size: 18px !important; block-size: 18px !important; min-inline-size: 18px !important; min-block-size: 18px !important; }
-.shell-unified-v3430 .shell-sidebar-v3430 .cluster-sidebar__empty { padding: 3px 0 4px 42px; font-size: .68rem; line-height: 1.25; color: var(--cluster-visual-text-muted); }
 /* RC15 account button: old global avatar selectors must not size the copy or badges. */
-.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { display: inline-flex !important; align-items: center !important; justify-content: flex-start !important; gap: 6px !important; min-width: 0 !important; max-width: 172px !important; overflow: hidden !important; white-space: nowrap !important; }
-.shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 :is(.taskbar-profile-copy-v546, .taskbar-profile-copy-v227) :is(strong, small, em) { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-@media (max-width: 1180px) { :root[data-taskbar-labels="auto"] .shell-unified-v3430 .taskbar-unified-v3430 .taskbar-profile-v073 { max-width: 54px !important; justify-content: center !important; } }
 
 /* RC20: taskbar must be a clean solid chrome surface regardless of selected shell texture. */
-.shell-unified-v3430 .taskbar-unified-v3430,
-:root:not([data-high-contrast="true"]):not([data-surface-style="flat"]) .shell-unified-v3430 .taskbar-unified-v3430 {
-  background-image: none !important;
-  background-size: auto !important;
-  background-repeat: no-repeat !important;
-}
 
 /* RC47: legacy collapsed-layout rule used display:block at *all* widths.
    Persistent desktop navigation must retain the two-column shell grid. */
-@media (min-width: 900px) {
-  :root[data-sidebar-collapsed="true"] .app-shell.shell-unified-v3430 {
-    display: grid !important;
-    grid-template-columns: var(--cluster-sidebar-current-width, 72px) minmax(0, 1fr) !important;
-    height: 100dvh !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-  }
-}
-@media (min-width: 900px) {
-  :root[data-sidebar-collapsed="true"][data-sidebar-layout="floating"] .app-shell.shell-unified-v3430 {
-    grid-template-columns: calc(var(--cluster-sidebar-current-width, 72px) + 24px) minmax(0, 1fr) !important;
-  }
-}

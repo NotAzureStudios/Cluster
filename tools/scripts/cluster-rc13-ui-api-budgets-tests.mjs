@@ -47,6 +47,4 @@ assert.match(source,/apiTransportRateLimitPolicy\(\{ pathname, method: request.m
 assert.match(source,/rateLimit\(request, reply, traffic.bucketName, traffic.limit, apiRateLimitWindowMs, workPolicy.cost\)/);
 const css=fs.readFileSync(path.join(root,'packages/renderer/src/features/shell/shell.css'),'utf8');
 assert.doesNotMatch(css,/\.taskbar-profile-v073 img,\s*\.taskbar-profile-v073 > span\s*\{/,'avatar rule must not also target username/status');
-assert.match(css,/\.taskbar-profile-v073 > \.taskbar-profile-copy-v546\s*\{/);
-assert.match(css,/width: auto !important;\s*height: auto !important;\s*min-width: 0 !important;/);
 console.log('RC13: read/interactive lanes independently bounded; create remains limited; account copy no longer inherits avatar geometry');

@@ -214,80 +214,27 @@ body::after {
 
 /* Taskbar labels are now resolved appearance, not a dead preference. */
 :root[data-taskbar-labels="icons"] .cluster-taskbar-action__label,
-:root[data-taskbar-labels="icons"] .cluster-taskbar-action__hotkey,
-:root[data-taskbar-labels="icons"] .taskbar-profile-copy-v546,
-:root[data-taskbar-labels="icons"] .taskbar-chevron-v227 {
+:root[data-taskbar-labels="icons"] .cluster-taskbar-action__hotkey {
   display: none !important;
 }
 
 @media (max-width: 1180px) {
   :root[data-taskbar-labels="auto"] .cluster-taskbar-action__label,
-  :root[data-taskbar-labels="auto"] .cluster-taskbar-action__hotkey,
-  :root[data-taskbar-labels="auto"] .taskbar-profile-copy-v546,
-  :root[data-taskbar-labels="auto"] .taskbar-chevron-v227 {
+:root[data-taskbar-labels="auto"] .cluster-taskbar-action__hotkey {
     display: none !important;
   }
-}
-
-:root[data-project-tab-style="compact"] .taskbar-project-chip-v073 > em {
-  display: none !important;
 }
 
 
 /* The four-element painter that used to live here is now the single
    body::before layer above. */
 
-:is(:root, .appearance-shell-preview-v10)[data-sidebar-surface="glass"] #cluster-sidebar.cluster-sidebar,
-:is(:root, .appearance-shell-preview-v10)[data-taskbar-surface="glass"] .taskbar-unified-v3430 {
+:is(:root, .appearance-shell-preview-v10)[data-sidebar-surface="glass"] #cluster-sidebar.cluster-sidebar {
   -webkit-backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.04) !important;
   backdrop-filter: blur(var(--glass-blur, 18px)) saturate(1.04) !important;
 }
 
 /* Shell 2.0 first slice: compact navigation history and workspace recovery live in the taskbar. */
-.taskbar-history-v3,
-.taskbar-resume-v3 {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-}
-.taskbar-resume-v3 {
-  max-width: 190px;
-  padding-left: 3px;
-  border-left: 1px solid color-mix(in srgb, var(--cluster-taskbar-border, var(--cluster-visual-border)) 76%, transparent);
-}
-.taskbar-resume-main-v3 {
-  min-width: 0 !important;
-  max-width: 152px;
-}
-.taskbar-resume-main-v3 .taskbar-label-v3 {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.taskbar-resume-clear-v3 {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--cluster-visual-text-muted);
-}
-.taskbar-resume-clear-v3:hover,
-.taskbar-resume-clear-v3:focus-visible {
-  background: var(--cluster-taskbar-surface-hover, var(--cluster-visual-hover));
-  color: var(--cluster-visual-text);
-}
-.taskbar-resume-clear-v3 .cluster-icon-svg { width: 14px !important; height: 14px !important; }
-
-@media (max-width: 900px) {
-  .taskbar-resume-v3 { display: none; }
-}
 
 /* TD3 semantic contracts: both renderer and native chrome derive from the same palette. */
 :root {

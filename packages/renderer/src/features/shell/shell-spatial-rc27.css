@@ -25,14 +25,6 @@
 :root[data-sidebar-item-style="divided"] #cluster-sidebar .cluster-sidebar__link:hover { background: var(--cluster-sidebar-surface-hover) !important; }
 :root[data-high-contrast="true"] #cluster-sidebar .cluster-sidebar__link { border: 1px solid var(--cluster-visual-border) !important; }
 @media (min-width:900px) {
-  .app-shell.shell-unified-v3430 > .content-shell {
-    min-width:0 !important;
-    padding: 5px 8px 16px !important;
-    overflow-x: clip !important;
-    overflow-y: auto !important;
-    scrollbar-gutter: auto !important;
-    overscroll-behavior-x:none;
-  }
   .visual-overhaul-v139 .page {
     width:100%; max-width:100%;
     min-width:0;
@@ -40,10 +32,6 @@
     padding: var(--cluster-workspace-page-pad) !important;
   }
   .visual-overhaul-v139 .page:where(.projects-page-v310, .timeline-page-v156) { padding-inline: 6px !important; }
-  :root[data-taskbar-layout="full-width"] .shell-unified-v3430 > .content-shell {
-    --cluster-taskbar-gutter-left:8px;
-    --cluster-taskbar-gutter-right:8px;
-  }
 }
 /* The live Appearance preview uses the same nav button treatment as the persistent shell. */
 .appearance-shell-preview-v10[data-sidebar-item-style="outlined"] .appearance-shell-preview__nav:not(.active) { border:1px solid var(--cluster-visual-border); background:color-mix(in srgb,var(--cluster-visual-surface-raised) 35%,transparent); }

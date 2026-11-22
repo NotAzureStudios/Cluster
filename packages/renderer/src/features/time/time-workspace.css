@@ -120,7 +120,6 @@
 .time-summary-card-v212 > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 
 .time-summary-card-v212 > p { margin: 0; color: var(--muted); font-size: .77rem; line-height: 1.5; }
-.time-progress-v212 span { display: block; height: 100%; border-radius: inherit; background: var(--time-accent); }
 .time-summary-card-v212 > .cluster-visual-meter { margin-bottom: 10px; }
 .time-summary-card-v212 dl { display: grid; gap: 7px; margin: 0; }
 .time-summary-card-v212 dl > div { display: flex; justify-content: space-between; gap: 12px; }
@@ -208,18 +207,8 @@
 /* Consolidated feature refinements. */
 /* Cluster v0.302: feature-owned legacy compatibility rules. */
 /* Extracted from legacy-foundation.css for feature ownership. */
-.time-page .hero-panel h1 { max-width: 920px; }
-.time-toolbar {
-  display: grid;
-  grid-template-columns: auto 1fr minmax(160px, 220px) minmax(160px, 220px);
-  gap: 12px;
-  align-items: center;
-}
-.time-layout, .schedule-layout { display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.2fr); gap: 18px; align-items: start; }
-.time-list-panel, .schedule-week-panel, .schedule-list-panel, .time-breakdown { grid-column: 1 / -1; }
 .time-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .time-form-grid .full { grid-column: 1 / -1; }
-.time-entry-list { display: grid; gap: 10px; }
 .time-entry-row { display: grid; grid-template-columns: 1.2fr 0.8fr auto; gap: 14px; align-items: center; padding: 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: color-mix(in srgb, var(--cluster-white) calc(var(--glass-alpha) * 100%), transparent); backdrop-filter: blur(var(--glass-blur)); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 [data-theme="dark"] .time-entry-row { background: color-mix(in srgb, var(--cluster-slate-900) 52%, transparent); }
 .time-entry-row:hover { transform: translateY(-1px); border-color: rgba(47,128,237,.35); box-shadow: var(--shadow-soft); }
@@ -227,11 +216,6 @@
 .time-entry-row div { min-width: 0; }
 .time-entry-row strong, .time-entry-row b { display: block; color: var(--text); }
 .time-entry-row span { display: block; color: var(--muted); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.time-breakdown .three-col { align-items: start; }
-@media (max-width: 1100px) {
-  .time-toolbar { grid-template-columns: 1fr; }
-  .time-layout, .schedule-layout { grid-template-columns: 1fr; }
-}
 @media (max-width: 720px) {
   .time-form-grid { grid-template-columns: 1fr; }
   .time-entry-row { grid-template-columns: 1fr; }
@@ -239,25 +223,13 @@
 
 .time-card { animation: panelEnter .24s ease both; }
 .time-card .section-heading { align-items: start; margin-bottom: 12px; }
-.compact-list .time-entry-row { grid-template-columns: 1fr auto; }
 @media (max-width: 1180px) { .time-context-bar { grid-template-columns: 1fr; } }
-
-.time-subnav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--space-2);padding:var(--space-2)}
-.time-subnav button{display:grid;gap:4px;min-height:42px;padding:var(--space-3) var(--space-4);border:1px solid transparent;border-radius:var(--radius-md);background:transparent;color:var(--muted);text-align:left;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease}.time-subnav button strong{color:var(--text);font-size:.92rem}.time-subnav button span{font-size:.76rem}.time-subnav button:is(:hover,.active){transform:translateY(-1px);color:var(--text);border-color:color-mix(in srgb,var(--accent) 28%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
-@media(max-width:1320px){.time-subnav{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:860px){.time-subnav{grid-template-columns:1fr}}
 .time-context-bar {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) 220px 220px;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3);
-}
-.time-stat-strip {
-  margin-top: 0;
-}
-.time-overview-grid,
-.time-section-grid {
-  gap: var(--space-5);
 }
 .time-card {
   padding: var(--space-5);
@@ -267,25 +239,7 @@
   gap: var(--space-4);
 }
 @media (max-width: 1320px) {
-  .capacity-layout,
   .time-context-bar {
-    grid-template-columns: 1fr;
-  }
-}
-.time-card-featured .clean-form-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: end;
-}
-.time-card-featured .clean-form-grid .toggle-line {
-  align-self: end;
-  padding: 0 14px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cluster-slate-900) 55%, transparent), rgba(8,14,28,.8));
-}
-
-@media (max-width: 720px) {
-  .time-card-featured .clean-form-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -297,22 +251,19 @@
   background: var(--cluster-hover-fill);
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line));
 }
-.page-header,
-.hero-panel {
+.page-header {
   border-radius: 30px !important;
 }
 .tool-permission-grid-v065 {
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: clamp(16px, 1.8vw, 28px) !important;
 }
-.page-header,
-.hero-panel {
+.page-header {
   margin-top: 0 !important;
   padding: clamp(22px, 2.4vw, 36px) !important;
 }
 @media (max-width: 900px) {
-  .page-header,
-.hero-panel {
+  .page-header {
     padding: 20px !important;
     border-radius: 22px !important;
   }
@@ -356,9 +307,6 @@
 .field label, .clean-form-grid label, .time-form-grid label { margin-bottom: 0 !important; }
 
 .modal-backdrop, .clock-modal-backdrop-v113 { backdrop-filter: blur(10px) !important; }
-.availability-grid-v120 button { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-soft); color: var(--text); padding: 12px; display: grid; gap: 5px; text-align: left; cursor: pointer; }
-.availability-grid-v120 button:hover { border-color: var(--accent); transform: translateY(-1px); }
-.availability-grid-v120 span, .availability-grid-v120 em, .availability-grid-v120 small { color: var(--muted); font-style: normal; line-height: 1.35; }
 .time-correction-panel-v132, .time-rules-panel-v132 { display: grid; gap: 16px; }
 .time-correction-form-v132, .time-rules-grid-v132, .break-form-v132 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .time-correction-form-v132 .full, .time-rules-grid-v132 .full, .break-form-v132 .full{ grid-column: 1 / -1; }
@@ -375,8 +323,7 @@
 @media (max-width: 680px) { .time-correction-form-v132, .time-rules-grid-v132, .break-form-v132, .time-rule-warning-grid-v132, .correction-preview-v132, .time-correction-list-v132 article, .break-list-v132 article, .comment-compose-v132 { grid-template-columns: 1fr; } }
 
 @media (max-width: 760px) {  .section-heading,
-.page-header { display: grid !important; } .header-actions,
-.button-row { width: 100%; }  }
+.page-header { display: grid !important; } .button-row { width: 100%; }  }
 
 /* Extracted from legacy-overrides.css for feature ownership. */
 

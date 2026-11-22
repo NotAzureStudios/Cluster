@@ -71,24 +71,13 @@
 .people-full-profile-v250{grid-template-columns:1fr}
 .people-full-profile-v250 .people-section-v244:last-child{grid-column:auto}
 }
-.profile-tabs-v250 button { min-height: 34px; padding: 6px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); }
-.profile-tabs-v250 button.active { border-color: var(--border); background: var(--surface); color: var(--text); }
-.profile-content-v250 h2 { margin: 0; font-size: .83rem; }
-.profile-content-v250 header > span { color: var(--muted); font-size: .64rem; }
-.profile-summary-grid-v250 > div,
 .profile-access-grid-v250 > div { min-width: 0; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); display: grid; gap: 3px; }
-.profile-summary-grid-v250 span,
 .profile-access-grid-v250 span { color: var(--muted); font-size: .59rem; }
-.profile-summary-grid-v250 strong,
 .profile-access-grid-v250 strong { font-size: .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-access-grid-v250 { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
-@media (max-width:1000px) {
-.profile-header-v250>.button-row{grid-column:1/-1}
-}
 @media (max-width:680px) {
 .profile-access-grid-v250{grid-template-columns:1fr}
 }
-.profile-header-v250 > .button-row { position: relative; z-index: 32; flex-wrap: wrap; }
 
 .people-context-v495{display:grid;gap:8px;padding:10px;min-width:0}
 .people-context-summary-v495>div{display:grid;gap:2px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
@@ -117,20 +106,13 @@
 @media(max-width:760px){.people-detail-header-v244{grid-template-columns:minmax(0,1fr) auto}.people-detail-header-v244>.people-person-actions-v495{grid-column:1/-1;justify-content:flex-start}.people-team-member-controls-v495{grid-template-columns:1fr}}
 .people-list-v244>button{content-visibility:auto;contain-intrinsic-size:58px}
 .people-directory-boundary-v495{padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:.58rem;color:var(--muted)}
-.profile-header-identity-v250 h1 { margin: 0; font-size: 1.25rem; }
-.profile-header-identity-v250 span, .profile-header-identity-v250 small, .profile-header-presence-v250 span { color: var(--muted); font-size: .68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-header-identity-v250 small { color: var(--text); }
-.profile-header-presence-v250 strong { font-size: .74rem; }
-.profile-content-v250 > section, .profile-content-columns-v250 > section, .profile-note-v250 { padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
-.profile-content-v250 section > header, .profile-content-columns-v250 section > header, .profile-note-v250 > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
-.profile-note-v250 p { margin: 0; color: var(--muted); font-size: .7rem; line-height: 1.5; }
 
 .people-contact-actions-v473{display:flex;flex-wrap:wrap;gap:7px}.people-profile-bio-v473{margin:0;color:var(--soft-text);font-size:.79rem;line-height:1.55;white-space:pre-wrap}.people-profile-contact-v473{display:grid;gap:10px}
 
 @media(max-width:430px){.people-contact-actions-v473{display:grid;grid-template-columns:minmax(0,1fr)}.people-contact-actions-v473 :where(a,button){width:100%;justify-content:center}}
 
-@media(max-width:1199px){.people-detail-tabs-v244{max-width:100%;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:none}.people-detail-tabs-v244::-webkit-scrollbar{display:none}.profile-tabs-v250 button,.people-detail-tabs-v244 button{flex:0 0 auto;white-space:nowrap}.profile-header-v250>.button-row{grid-column:1/-1;width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.profile-header-v250>.button-row::-webkit-scrollbar{display:none}.profile-header-v250>.button-row>*{flex:0 0 auto}.profile-access-grid-v250{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:767px){.profile-header-v250>.button-row{grid-column:1/-1;width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.profile-header-v250>.button-row::-webkit-scrollbar{display:none}.profile-header-v250>.button-row>*{flex:0 0 auto}.people-detail-tabs-v244{scroll-padding-inline:max(8px,env(safe-area-inset-left));scroll-snap-type:x proximity}.profile-tabs-v250 button,.people-detail-tabs-v244 button{min-height:44px;scroll-snap-align:start;touch-action:manipulation}}@media(pointer:coarse){.profile-tabs-v250 button,.people-detail-tabs-v244 button{min-height:42px;touch-action:manipulation}}
+@media(max-width:1199px){.people-detail-tabs-v244{max-width:100%;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-inline:contain;scrollbar-width:none}.people-detail-tabs-v244::-webkit-scrollbar{display:none}.people-detail-tabs-v244 button{flex:0 0 auto;white-space:nowrap}.profile-access-grid-v250{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:767px){.people-detail-tabs-v244{scroll-padding-inline:max(8px,env(safe-area-inset-left));scroll-snap-type:x proximity}.people-detail-tabs-v244 button{min-height:44px;scroll-snap-align:start;touch-action:manipulation}}@media(pointer:coarse){.people-detail-tabs-v244 button{min-height:42px;touch-action:manipulation}}
 .people-context-disclosure-v30d{border:1px solid var(--border);border-radius:12px;background:var(--surface);overflow:clip}.people-context-disclosure-v30d>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 11px;cursor:pointer;list-style:none}.people-context-disclosure-v30d>summary::-webkit-details-marker{display:none}.people-context-disclosure-v30d>summary>span:first-child{display:grid;gap:2px}.people-context-disclosure-v30d>summary small{color:var(--muted);font-weight:500}.people-context-disclosure-v30d .people-context-count-v547{font-size:.72rem;font-weight:700;color:var(--muted);white-space:nowrap}.people-context-disclosure-v30d[open]>summary{border-bottom:1px solid var(--border)}.people-context-disclosure-v30d .people-context-v495{border:0;border-radius:0}:root[data-density="dense"] .people-page-v244{gap:8px}:root[data-density="dense"] .people-list-v244>button{padding-block:5px}:root[data-density="dense"] .people-detail-scroll-v244{gap:8px}:root[data-density="comfortable"] .people-list-v244>button{padding-block:11px}@media(max-width:720px){.people-context-disclosure-v30d>summary{align-items:flex-start;flex-direction:column}}
 
 /* Phase 9G normalized workforce workspace */
@@ -188,10 +170,6 @@
 .people-data-tools-v524 > summary { min-height: 36px; padding: 7px 10px; }
 .people-data-tools-body-v524 { padding: 8px; }
 .people-context-disclosure-v30d { margin: 0; }
-.profile-user-color-v532 > div:first-child { display:grid; gap:2px; }
-.profile-user-color-v532 h2 { margin:0; }
-.profile-user-color-v532 span { color:var(--muted); font-size:var(--cluster-font-size-xs); }
-.profile-user-color-v532 .cluster-color-field-v227 { margin:0; }
 @media (max-width: 850px) { .people-layout-v244 { height:auto; } }
 .people-admin-create-v536>header>div{display:grid;gap:2px}.people-admin-create-v536 header span{font-size:.61rem;color:var(--muted)}.people-admin-create-grid-v536 .field{margin:0;min-width:0}.people-admin-credential-v536>div:first-child{display:grid;gap:3px}.people-admin-credential-v536 strong{font-size:.66rem}.people-admin-credential-v536 code{font:600 .72rem/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;user-select:all}
 .people-account-admin-v536{gap:10px}.people-admin-action-groups-v536{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.people-admin-action-groups-v536>div{display:grid;align-content:start;gap:6px;padding:8px 9px;border:1px solid var(--border);border-radius:8px;background:var(--surface-soft)}.people-admin-action-groups-v536>div>span{font-size:.58rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
@@ -256,9 +234,9 @@
 /* TD3 Pass 11: keep profile tabs one row tall on handheld workspaces.
    Accessible horizontal tab navigation beats a multi-line tab wall. */
 @media (max-width: 760px) {
-  .people-detail-tabs-v244, .profile-tabs-v250 { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
-  .people-detail-tabs-v244 > button, .profile-tabs-v250 > button { flex: 0 0 auto; min-height: 42px; }
-  .people-detail-tabs-v244 > button:focus-visible, .profile-tabs-v250 > button:focus-visible { outline-offset: -2px; }
+  .people-detail-tabs-v244 { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+  .people-detail-tabs-v244 > button { flex: 0 0 auto; min-height: 42px; }
+  .people-detail-tabs-v244 > button:focus-visible { outline-offset: -2px; }
 }
 
 /* RC34: capacity and availability are visual proportions with exact accessible values. */

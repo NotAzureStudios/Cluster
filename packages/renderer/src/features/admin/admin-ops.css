@@ -54,10 +54,6 @@ button.ao-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accen
 .ao button.cluster-toggle-v533 { min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
 
 /* Tiles: a grid of compact items (tools, integrations). */
-.ao-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-1-5); }
-.ao-tile { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); min-height: 48px; padding: 0 var(--space-2); border-radius: var(--cluster-radius-control); background: var(--cluster-recess); }
-.ao-tile > svg.cluster-icon-svg { inline-size: 16px; block-size: 16px; justify-self: center; color: var(--muted); }
-.ao-tile[data-off] { opacity: .55; }
 
 .ao-search { display: flex; align-items: center; gap: 6px; flex: 0 1 240px; height: 30px; padding: 0 var(--space-2); border-radius: var(--cluster-radius-control); background: var(--cluster-recess); color: var(--muted); }
 .ao-search svg.cluster-icon-svg { flex: none; inline-size: 13px; block-size: 13px; }

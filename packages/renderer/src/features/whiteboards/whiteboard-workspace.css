@@ -138,10 +138,13 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 .canvas-page-v067 .page-header.compact{display:grid;grid-template-columns:minmax(360px,1fr) auto;align-items:start;gap:clamp(18px,2.2vw,34px);margin-bottom:0;}
 .canvas-page-v067 .page-header h1{font-size:clamp(2.45rem,4.4vw,4.25rem);line-height:.95;}
 .canvas-page-v067 .page-header .muted{max-width:760px;}
-.canvas-page-v067 .header-actions{max-width:760px;justify-content:flex-end;align-items:flex-start;gap:8px;}
 .canvas-page-v067 .zoom-pill{min-height:38px;}
 .canvas-page-v067 .tool-block-title,.canvas-page-v067 .tool-subtitle{line-height:1.1;}
-.canvas-page-v067 .tool-grid.compact-tools,.canvas-page-v067 .diagram-tool-grid,.canvas-page-v067 .template-grid,.canvas-page-v067 .selected-actions,.canvas-page-v067 .color-row,.canvas-page-v067 .check-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.canvas-page-v067 .tool-grid.compact-tools,
+.canvas-page-v067 .diagram-tool-grid,
+.canvas-page-v067 .template-grid,
+.canvas-page-v067 .selected-actions,
+.canvas-page-v067 .color-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
 .canvas-page-v067 .template-grid{grid-template-columns:1fr;}
 .canvas-page-v067 .swatches{grid-template-columns:repeat(6,minmax(0,1fr));}
 .canvas-page-v067 .tool-field textarea{min-height:92px;}
@@ -153,7 +156,7 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 .toggles-v069{justify-content:start;}
 }
 :root[data-density="dense"] .whiteboard-commandbar-v299,:root[data-density="dense"] .whiteboard-style-topbar-v069,:root[data-density="dense"] .whiteboard-toolbar.expanded{padding-block:6px}:root[data-density="dense"] .whiteboard-toolbar.expanded>.tool-block{flex-basis:min(220px,70vw)}:root[data-density="comfortable"] .whiteboard-commandbar-v299{padding:10px 12px}:root[data-density="comfortable"] .whiteboard-toolbar.expanded>.tool-block{flex-basis:min(320px,86vw)}
-@media (any-pointer:coarse),(max-width:760px){.whiteboard-commandbar-v299,.whiteboard-style-topbar-v069,.whiteboard-toolbar.expanded{overscroll-behavior-inline:contain;scroll-snap-type:x proximity}.whiteboard-commandbar-v299 .cluster-button-v425,.whiteboard-style-topbar-v069 .cluster-button-v425,.whiteboard-toolbar.expanded .cluster-button-v425,.canvas-page-v067 .zoom-pill{min-height:44px}.whiteboard-commandbar-v299>* ,.whiteboard-style-topbar-v069>* ,.whiteboard-toolbar.expanded>.tool-block{scroll-snap-align:start}.whiteboard-toolbar.expanded>.tool-block{max-height:min(52dvh,360px)}.canvas-page-v067 .page-header.compact{grid-template-columns:minmax(0,1fr)}.canvas-page-v067 .page-header h1{font-size:clamp(2rem,9vw,3rem)}.canvas-page-v067 .header-actions{max-width:100%;overflow-x:auto;flex-wrap:nowrap;overscroll-behavior-inline:contain}}
+@media (any-pointer:coarse),(max-width:760px){.whiteboard-commandbar-v299,.whiteboard-style-topbar-v069,.whiteboard-toolbar.expanded{overscroll-behavior-inline:contain;scroll-snap-type:x proximity}.whiteboard-commandbar-v299 .cluster-button-v425,.whiteboard-style-topbar-v069 .cluster-button-v425,.whiteboard-toolbar.expanded .cluster-button-v425,.canvas-page-v067 .zoom-pill{min-height:44px}.whiteboard-commandbar-v299>* ,.whiteboard-style-topbar-v069>* ,.whiteboard-toolbar.expanded>.tool-block{scroll-snap-align:start}.whiteboard-toolbar.expanded>.tool-block{max-height:min(52dvh,360px)}.canvas-page-v067 .page-header.compact{grid-template-columns:minmax(0,1fr)}.canvas-page-v067 .page-header h1{font-size:clamp(2rem,9vw,3rem)}}
 
 /* RC16 visual integrity: tool chrome may scroll, but the canvas remains the primary viewport. */
 .cluster-whiteboard-workspace .whiteboard-commandbar-v299 {

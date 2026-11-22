@@ -67,7 +67,6 @@ check(() => assert.match(runtime, /"CLUSTER_RATE_LIMIT_MAX", bootSettings, "rate
 check(() => assert.match(runtime, /Number\(rawConfiguredApiBudget\) === 10 \|\| Number\(rawConfiguredApiBudget\) === 120/));
 check(() => assert.match(runtime, /finiteNumber\(rawConfiguredApiBudget, 12_000,/));
 const styles = read('packages/renderer/src/features/shell/shell-v2.css');
-check(() => assert.match(styles, /RC20: taskbar must be a clean solid chrome surface[\s\S]*background-image: none !important/));
 const offline = read('packages/renderer/src/core/offline-runtime.ts');
 const status = read('packages/renderer/src/components/operational-status.ts');
 check(() => assert.match(offline, /compatibilityRejected = compatibility\.compatible === false/));

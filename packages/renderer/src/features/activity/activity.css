@@ -2,10 +2,6 @@
 
 
 .activity-page-v245{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:7px;min-width:0;min-height:0;padding:0}
-.activity-topbar-v245{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
-.activity-topbar-v245>div:first-child{display:grid;gap:2px}
-.activity-topbar-v245 h1{margin:0;font-size:1rem}
-.activity-topbar-v245 span{font-size:.61rem;color:var(--muted)}
 .activity-view-nav-v245{position:static!important}
 .activity-filterbar-v245{display:grid;grid-template-columns:minmax(220px,1fr) repeat(4,minmax(115px,.24fr)) auto;gap:6px;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
 .activity-filterbar-v245 input,.activity-filterbar-v245 select{min-height:33px;padding:6px 8px;font-size:.65rem}
@@ -121,11 +117,6 @@
   .operations-live-grid-v249>div{border-right:0;border-bottom:1px solid var(--border)}
 }
 /* v0.416 Phase E: distinguish people, automation, and system activity. */
-.activity-source-strip-v416{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:0 0 6px}
-.activity-source-strip-v416 button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;background:var(--panel);color:var(--muted);cursor:pointer}
-.activity-source-strip-v416 button strong{color:var(--text);font-size:.7rem}.activity-source-strip-v416 button span{font-size:.58rem;font-weight:800}
-.activity-source-strip-v416 button.active{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));background:color-mix(in srgb,var(--accent) 9%,var(--panel));color:var(--text)}
-@media(max-width:700px){.activity-source-strip-v416{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Block 14: presentation migrated from the retired global application-workspaces registry. */
 .presence-dot-v083 {
@@ -163,12 +154,9 @@
 :root[data-density="dense"] .activity-filterbar-v245{padding:4px}
 :root[data-density="dense"] .activity-filterbar-v245 input,:root[data-density="dense"] .activity-filterbar-v245 select{min-height:30px;padding-block:4px}
 :root[data-density="dense"] .activity-row-v245{padding-block:5px}
-:root[data-density="dense"] .activity-source-strip-v416 button{min-height:30px;padding-block:4px}
 :root[data-density="comfortable"] .activity-page-v245{gap:10px}
 :root[data-density="comfortable"] .activity-filterbar-v245{padding:8px}
 :root[data-density="comfortable"] .activity-row-v245{padding-block:10px}
-:root[data-density="comfortable"] .activity-source-strip-v416 button{min-height:40px;padding-block:8px}
-:root[data-text-scale="largest"] .activity-topbar-v245{align-items:flex-start;flex-wrap:wrap}
 :root[data-text-scale="largest"] .activity-filterbar-v245{display:flex;overflow-x:auto;overscroll-behavior-inline:contain}
 :root[data-text-scale="largest"] .activity-filterbar-v245>*{flex:0 0 min(240px,72vw)}
 :root[data-text-scale="largest"] .activity-filterbar-v245>button{flex-basis:auto}

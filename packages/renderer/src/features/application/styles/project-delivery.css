@@ -391,17 +391,6 @@
     display: none;
   }
 }
-.compact-page-hero-v157 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--border);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--cluster-blue-400) 12%, transparent), color-mix(in srgb, var(--cluster-slate-900) 18%, transparent));
-  border-radius: var(--radius-md);
-}
-.compact-page-hero-v157 h1 { margin: 0; font-size: clamp(1.6rem, 2vw, 2.3rem); letter-spacing: -0.04em; }
 .qa-folded-page-v158 {
   display: grid;
   gap: 18px;
