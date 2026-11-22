@@ -1,8 +1,8 @@
 // Stamps the release version into the source tree for a CI build.
-// Version = <line>.<commit count of HEAD>, so every main commit is a newer
-// release without anyone editing version numbers. Main only moves forward, so
-// the count only grows. `line` (major.minor) in config/release-candidate.json
-// is the only version anyone sets by hand. Committed files carry <line>.0.
+// Version = <line>.<commits since the line was set>, so every main commit is a
+// newer release without anyone editing version numbers: changing `line`
+// (major.minor) in config/release-candidate.json starts it at <line>.0, and
+// main only moves forward. Committed files carry <line>.0.
 //   node tools/scripts/cluster-stamp-release.mjs          stamp HEAD's version
 //   node tools/scripts/cluster-stamp-release.mjs --print  print it only
 import { execFileSync } from "node:child_process";
@@ -21,7 +21,10 @@ export function releaseVersion() {
   const { line } = readJson("config/release-candidate.json");
   if (!/^[1-9][0-9]?\.(0|[1-9][0-9]*)$/.test(line || "")) throw new Error("config/release-candidate.json needs line: \"<major>.<minor>\"");
   if (git("rev-parse", "--is-shallow-repository") !== "false") throw new Error("Release versions need full history (checkout fetch-depth: 0)");
-  const version = `${line}.${git("rev-list", "--count", "HEAD")}`;
+  // The commit that last changed the line value; it is release <line>.0.
+  const base = git("log", "-1", "--format=%H", "-G\"line\":", "--", "config/release-candidate.json");
+  if (!base) throw new Error("Could not find the commit that set the release line");
+  const version = `${line}.${git("rev-list", "--count", `${base}..HEAD`)}`;
   if (stableServerSequence(version) === null) throw new Error(`${version} is not a valid Server release`);
   return version;
 }

@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-var version = "2.0.0-dev"
+var version = "2.1.0-dev"
 
 type host struct {
 	root             string
