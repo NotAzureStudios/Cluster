@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PRODUCT_CONNECTION_STATES, PRODUCT_OPERATION_STATES } from "@cluster/shared";
-import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
@@ -513,6 +513,13 @@ export function SourceControlAdminPage(_props: { embedded?: boolean } = {}) {
   );
 }
 
+type DiscordSetup = {
+  bot: { id: string; username: string; avatarUrl: string | null } | null;
+  botError: string | null;
+  inviteUrl: string | null;
+  servers: Array<{ id: string; name: string; iconUrl: string | null; approved: boolean; primary: boolean }>;
+};
+
 export function IntegrationsAdminPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -528,7 +535,10 @@ export function IntegrationsAdminPage() {
   const [discordOAuthReady, setDiscordOAuthReady] = useState(false);
   const [discordOAuthAppMatches, setDiscordOAuthAppMatches] = useState(true);
   const [discordOAuthRedirectUri, setDiscordOAuthRedirectUri] = useState("");
-  const [discordWorkspaceView, setDiscordWorkspaceView] = useState<"dashboard" | "configuration" | "bot" | "delivery">("dashboard");
+  const [discordWorkspaceView, setDiscordWorkspaceView] = useState<"setup" | "roles" | "delivery">("setup");
+  const [discordSetup, setDiscordSetup] = useState<DiscordSetup | null>(null);
+  const [discordOptions, setDiscordOptions] = useState<{ channels: Array<{ id: string; name: string; kind: "text" | "forum" }>; roles: Array<{ id: string; name: string }> } | null>(null);
+  const [editingCredentials, setEditingCredentials] = useState(false);
   const [deliverySummary, setDeliverySummary] = useState<DiscordDeliverySummary | null>(null);
   const [botToken, setBotToken] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -596,6 +606,26 @@ export function IntegrationsAdminPage() {
     void queryApi<{ coverage: { active: number; linked: number; unlinked: number } }>("/api/admin/integrations/discord/link-coverage", { force: true, tags: ["discord-link-coverage"] })
       .then((data) => setDiscordLinkCoverage(data.coverage)).catch(() => setDiscordLinkCoverage(null));
   }
+  async function loadDiscordSetup() {
+    try { setDiscordSetup(await api<DiscordSetup>("/api/admin/integrations/discord/setup")); } catch (error) { setStatus(formatApiError(error)); }
+  }
+  useEffect(() => { if (integrationView === "discord") void loadDiscordSetup(); }, [integrationView]);
+  useEffect(() => {
+    if (integrationView !== "discord" || !/^\d{8,24}$/.test(guildId)) { setDiscordOptions(null); return; }
+    void api<{ channels: Array<{ id: string; name: string; kind: "text" | "forum" }>; roles: Array<{ id: string; name: string }> }>(`/api/admin/integrations/discord/guilds/${guildId}/options`).then(setDiscordOptions).catch(() => setDiscordOptions(null));
+  }, [integrationView, guildId, discordSetup?.servers.length]);
+  useEffect(() => { if (integrationView === "discord" && discordWorkspaceView === "roles") { void loadDiscordRoles(); void previewDiscordRoles(); } }, [integrationView, discordWorkspaceView]);
+  async function useDiscordServer(id: string) {
+    if (!guildId) return saveDiscordConfiguration({ guildId: id, chatChannelId: "", forumChannelId: "", adminRoleId: "" });
+    setNewDiscordGuild(id);
+    setBusy(true);
+    try {
+      const result = await api<{ guilds: typeof discordGuilds }>("/api/admin/integrations/discord/guilds", { method: "POST", body: JSON.stringify({ guildId: id }) });
+      setDiscordGuilds(result.guilds);
+      await loadDiscordSetup();
+      setStatus("Server approved.");
+    } catch (error) { setStatus(formatApiError(error)); } finally { setBusy(false); }
+  }
   // One-shot reads on opening the dashboard, not background polling on every admin page.
   useEffect(() => { if (integrationView === "discord") loadDiscordRuntime(); }, [integrationView]);
 
@@ -603,18 +633,19 @@ export function IntegrationsAdminPage() {
   const integrationProviders = providers.filter((provider) => provider.category !== "source-control");
   const providerLabel = (providerId: string) => providers.find((provider) => provider.id === providerId)?.label || providerId;
 
-  async function saveDiscordConfiguration() {
+  async function saveDiscordConfiguration(overrides: Partial<{ guildId: string; chatChannelId: string; forumChannelId: string; adminRoleId: string }> = {}) {
     if (!displayName.trim()) return;
+    const next = { guildId, chatChannelId, forumChannelId, adminRoleId, ...overrides };
     setBusy(true);
     try {
       const result = await api<{ configuration: { botTokenConfigured: boolean; webhookConfigured: boolean; applicationPublicKeyConfigured: boolean } }>("/api/admin/discord/configuration", {
         method: "PUT",
         body: JSON.stringify({
           displayName: displayName.trim(),
-          guildId: guildId.trim(),
-          forumChannelId: forumChannelId.trim(),
-          chatChannelId: chatChannelId.trim(),
-          adminRoleId: adminRoleId.trim(),
+          guildId: next.guildId.trim(),
+          forumChannelId: next.forumChannelId.trim(),
+          chatChannelId: next.chatChannelId.trim(),
+          adminRoleId: next.adminRoleId.trim(),
           messagePrefix: messagePrefix.trim() || "Cluster",
           applicationId: applicationId.trim(),
           ...(applicationPublicKey.trim() ? { applicationPublicKey: applicationPublicKey.trim() } : {}),
@@ -629,7 +660,8 @@ export function IntegrationsAdminPage() {
       setBotToken("");
       setWebhookUrl("");
       await load(true);
-      setStatus("Discord configuration saved.");
+      await loadDiscordSetup();
+      setStatus("Saved.");
     } catch (error) { setStatus(formatApiError(error)); }
     finally { setBusy(false); }
   }
@@ -773,7 +805,7 @@ export function IntegrationsAdminPage() {
       <div className="ao-bar">
         <ClusterSegmentedControl value={integrationView} onChange={setIntegrationView} label="Integration workspace" options={[{ value: "connected", label: connections.length ? `Connected ${connections.length}` : "Connected" }, { value: "catalog", label: "Catalog" }, { value: "discord", label: "Discord" }]} />
         {integrationView === "discord" ? <ClusterSegmentedControl value={discordWorkspaceView} onChange={(next) => setDiscordWorkspaceView(next as typeof discordWorkspaceView)} label="Discord management views" options={[
-          { value: "dashboard", label: "Overview" }, { value: "configuration", label: "Setup" }, { value: "bot", label: "Bot & servers" }, { value: "delivery", label: deliverySummary?.deliveries.failed ? `Deliveries ${deliverySummary.deliveries.failed}` : "Deliveries" },
+          { value: "setup", label: "Setup" }, { value: "roles", label: "Roles" }, { value: "delivery", label: deliverySummary?.deliveries.failed ? `Deliveries ${deliverySummary.deliveries.failed}` : "Deliveries" },
         ]} /> : null}
         <span className="ao-bar__end">
           {status ? <span className="ao-msg" role="status">{status}</span> : null}
@@ -794,52 +826,75 @@ export function IntegrationsAdminPage() {
       </section> : null}
       {integrationView === "catalog" ? <IntegrationProvidersPanel excludeCategories={["source-control"]} /> : null}
       {integrationView === "discord" ? <>
-      {discordWorkspaceView === "dashboard" ? <section className="ao-card cluster-discord-dashboard-v548" aria-label="Discord bot management dashboard">
-        <h3 className="ao-card__title">Discord
-          <span className="ao-inline">
-            <ClusterButton type="button" size="compact" variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}><ClusterIcon name="play" />{discordBotState?.managed ? "Restart" : "Start"}</ClusterButton>
-            <ClusterButton type="button" size="compact" variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop</ClusterButton>
-          </span>
-        </h3>
-        <ul className="ao-rows">
-          <li className="ao-row" data-tone={discordBotState?.state === "connected" ? "good" : discordBotState?.state === "failed" ? "danger" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Bot</b><small>{discordBotState?.managed ? "Run by Cluster" : "Not running under Cluster"}</small></span><span className="ao-row__end"><small>{discordBotState?.state || "Not checked"}</small></span></li>
-          <li className="ao-row" data-tone={discordOAuthReady && discordOAuthAppMatches ? "good" : "warning"}><i className="ao-dot" /><span className="ao-row__main"><b>Account linking</b><small>{discordOAuthReady && !discordOAuthAppMatches ? "Application ID doesn't match the bot" : discordOAuthReady ? "Configured · test by linking an account" : "OAuth not configured"}</small></span><span className="ao-row__end">{!discordOAuthReady || !discordOAuthAppMatches ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("configuration")}>Set up</ClusterButton> : <small>{discordLinkCoverage ? `${discordLinkCoverage.linked}/${discordLinkCoverage.active} linked` : "Ready"}</small>}</span></li>
-          <li className="ao-row" data-tone={discordGuilds.some((guild) => guild.reachable === false) ? "warning" : discordGuilds.length ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Servers</b><small>{discordGuilds.length ? discordGuilds.map((guild) => guild.name || guild.id).join(", ") : "None approved"}</small></span><span className="ao-row__end"><ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("bot")}>Manage</ClusterButton></span></li>
-          <li className="ao-row" data-tone={deliverySummary?.deliveries.failed ? "danger" : deliverySummary ? "good" : undefined}><i className="ao-dot" /><span className="ao-row__main"><b>Deliveries</b><small>{deliverySummary ? `${deliverySummary.deliveries.completed} delivered · ${deliverySummary.deliveries.pending + deliverySummary.deliveries.running} queued · ${deliverySummary.deliveries.failed} failed` : "No data"}</small></span><span className="ao-row__end"><small>{deliverySummary?.routeCount ?? 0} project routes</small>{deliverySummary?.deliveries.failed ? <ClusterButton size="compact" variant="quiet" onClick={() => setDiscordWorkspaceView("delivery")}>Review</ClusterButton> : null}</span></li>
-        </ul>
-      </section> : null}
-      {discordWorkspaceView === "configuration" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Discord</h3><p>Studio connection and credentials. Project routing remains attached to each project.</p></div><span className={`soft-pill ${discordProvider?.implementation === "active" ? "good" : "warning"}`}>{discordProvider?.implementation === "active" ? "Available" : "Unavailable"}</span></div><div className="admin-tool-field-grid-v232"><label><span>Connection name</span><ClusterTextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Studio Discord" /></label><label><span>Server ID</span><ClusterTextInput value={guildId} onChange={(event) => setGuildId(event.target.value)} placeholder="Discord server ID" /></label><label><span>Bot token</span><ClusterTextInput type="password" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Configured · enter a value to replace" : "Bot token"} /></label><label><span>Webhook URL</span><ClusterTextInput type="password" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Configured · enter a value to replace" : "Optional Discord webhook URL"} /></label><label><span>Forum channel ID</span><ClusterTextInput value={forumChannelId} onChange={(event) => setForumChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Chat channel ID</span><ClusterTextInput value={chatChannelId} onChange={(event) => setChatChannelId(event.target.value)} placeholder="Optional" /></label><label><span>Admin role ID</span><ClusterTextInput value={adminRoleId} onChange={(event) => setAdminRoleId(event.target.value)} placeholder="Optional" /></label><label><span>Message prefix</span><ClusterTextInput value={messagePrefix} onChange={(event) => setMessagePrefix(event.target.value)} placeholder="Cluster" /></label><label><span>Application ID</span><ClusterTextInput value={applicationId} onChange={(event) => setApplicationId(event.target.value)} placeholder="Required for Discord actions" /></label><label><span>Application public key</span><ClusterTextInput type="password" value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Configured · enter a value to replace" : "Required for signed Discord actions"} /></label></div>{!discordOAuthReady ? <p className="warning" role="status">Discord account linking is not configured. Add DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET and DISCORD_REDIRECT_URI to the server environment, then restart Cluster. Bot installation alone does not enable user linking.</p> : !discordOAuthAppMatches ? <p className="warning" role="status">Discord OAuth uses a different Application ID than the configured bot. Verify that both settings refer to the intended Discord application.</p> : <p className="muted">Discord account linking is available.</p>}
-        <details className="cluster-visual-advanced"><summary>Set up account linking (OAuth)</summary><div className="cluster-visual-advanced__body">
+      {discordWorkspaceView === "setup" ? (() => {
+        const bot = discordSetup?.bot;
+        const servers = discordSetup?.servers || [];
+        const primaryServer = servers.find((server) => server.primary);
+        const ready = Boolean(bot && primaryServer && chatChannelId);
+        const running = discordBotState?.state === "connected" || discordBotState?.managed;
+        const step = (done: boolean, n: number, title: string, body: ReactNode, disabled = false) => <section className="dc-step" data-done={done || undefined} data-disabled={disabled || undefined}>
+          <header><span className="dc-step__n">{done ? <ClusterIcon name="check" /> : n}</span><h3>{title}</h3></header>
+          {!disabled ? <div className="dc-step__body">{body}</div> : null}
+        </section>;
+        return <div className="dc">
+          {step(Boolean(bot) && !editingCredentials, 1, bot && !editingCredentials ? `Bot · ${bot.username}` : "Create the bot", bot && !editingCredentials
+            ? <div className="dc-inline">{bot.avatarUrl ? <img src={bot.avatarUrl} alt="" width={28} height={28} /> : <ClusterIcon name="user" />}<span>Connected as <b>@{bot.username}</b></span><ClusterButton size="compact" variant="quiet" onClick={() => setEditingCredentials(true)}>Change</ClusterButton></div>
+            : <>
+              <p className="dc-hint">In the Discord Developer Portal, create an application and add a bot. Copy the Application ID and Public Key from <b>General Information</b>, and the token from <b>Bot → Reset Token</b>.</p>
+              <ClusterLinkButton variant="secondary" href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Open Developer Portal ↗</ClusterLinkButton>
+              <div className="dc-fields">
+                <label><span>Application ID</span><ClusterTextInput value={applicationId} onChange={(event) => setApplicationId(event.target.value.trim())} placeholder="123456789012345678" /></label>
+                <label><span>Public key</span><ClusterTextInput type="password" value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Saved · paste to replace" : "Public key"} /></label>
+                <label><span>Bot token</span><ClusterTextInput type="password" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Saved · paste to replace" : "Bot token"} /></label>
+              </div>
+              {discordSetup?.botError ? <p className="dc-error" role="alert">Discord rejected the token: {discordSetup.botError}</p> : null}
+              <div className="dc-actions"><ClusterButton variant="primary" busy={busy} disabled={!/^\d{8,24}$/.test(applicationId) || (!botTokenConfigured && !botToken.trim())} onClick={() => void saveDiscordConfiguration().then(() => setEditingCredentials(false))}>Connect</ClusterButton>{bot ? <ClusterButton variant="quiet" onClick={() => setEditingCredentials(false)}>Cancel</ClusterButton> : null}</div>
+            </>)}
+          {step(Boolean(primaryServer), 2, primaryServer ? `Server · ${primaryServer.name}` : "Add it to your server", <>
+            <div className="dc-actions">{discordSetup?.inviteUrl ? <ClusterLinkButton variant="primary" href={discordSetup.inviteUrl} target="_blank" rel="noopener noreferrer">Add to Discord ↗</ClusterLinkButton> : null}<ClusterButton variant="secondary" size="compact" busy={busy} onClick={() => void loadDiscordSetup()}><ClusterIcon name="refresh" />Refresh</ClusterButton></div>
+            {servers.length ? <ul className="dc-servers">{servers.map((server) => <li key={server.id}>
+              {server.iconUrl ? <img src={server.iconUrl} alt="" width={28} height={28} /> : <span className="dc-servers__glyph">{server.name.slice(0, 1)}</span>}
+              <span className="dc-servers__name">{server.name}{server.primary ? <em>Main</em> : server.approved ? <em>Approved</em> : null}</span>
+              {!server.approved ? <ClusterButton size="compact" variant="secondary" disabled={busy} onClick={() => void useDiscordServer(server.id)}>Use</ClusterButton>
+                : !server.primary ? <><ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => void saveDiscordConfiguration({ guildId: server.id, chatChannelId: "", forumChannelId: "", adminRoleId: "" })}>Make main</ClusterButton><ClusterButton size="compact" variant="quiet" disabled={busy} onClick={() => void revokeDiscordGuild(server.id).then(loadDiscordSetup)}>Remove</ClusterButton></> : null}
+            </li>)}</ul> : <p className="dc-hint">The bot isn't in a server yet. Add it, then Refresh.</p>}
+          </>, !bot)}
+          {step(Boolean(primaryServer && chatChannelId), 3, "Choose channels", <>
+            <div className="dc-fields">
+              <label><span>Notifications</span><ClusterSelect ariaLabel="Notification channel" value={chatChannelId} placeholder="Choose a channel" onChange={(value) => { setChatChannelId(value); void saveDiscordConfiguration({ chatChannelId: value }); }} options={(discordOptions?.channels || []).filter((channel) => channel.kind === "text").map((channel) => ({ value: channel.id, label: `# ${channel.name}` }))} /></label>
+              <label><span>Forum <small>optional</small></span><ClusterSelect ariaLabel="Forum channel" value={forumChannelId} onChange={(value) => { setForumChannelId(value); void saveDiscordConfiguration({ forumChannelId: value }); }} options={[{ value: "", label: "None" }, ...(discordOptions?.channels || []).filter((channel) => channel.kind === "forum").map((channel) => ({ value: channel.id, label: channel.name }))]} /></label>
+              <label><span>Admin role <small>optional</small></span><ClusterSelect ariaLabel="Admin role" value={adminRoleId} onChange={(value) => { setAdminRoleId(value); void saveDiscordConfiguration({ adminRoleId: value }); }} options={[{ value: "", label: "None" }, ...(discordOptions?.roles || []).map((role) => ({ value: role.id, label: `@${role.name}` }))]} /></label>
+            </div>
+            {!discordOptions ? <p className="dc-hint">Loading channels…</p> : null}
+          </>, !primaryServer)}
+          {step(Boolean(running), 4, "Start the bot", <>
+            <div className="dc-inline"><span className="dc-state" data-state={discordBotState?.state || "stopped"}>{discordBotState?.state || "stopped"}</span>{discordBotState?.message ? <small>{discordBotState.message}</small> : null}</div>
+            <div className="dc-actions">
+              <ClusterButton variant="primary" busy={busy} onClick={() => void changeDiscordBot(true).then(() => applicationPublicKeyConfigured ? syncDiscordActions() : undefined)}><ClusterIcon name="play" />{running ? "Restart" : "Start"}</ClusterButton>
+              {running ? <ClusterButton variant="secondary" disabled={busy} onClick={() => void changeDiscordBot(false)}>Stop</ClusterButton> : null}
+              <ClusterButton variant="secondary" disabled={busy || !chatChannelId} onClick={() => void sendDiscordTestMessage()}>Send test message</ClusterButton>
+            </div>
+          </>, !ready)}
+          <details className="dc-more"><summary>Account linking</summary><div>
+            <p className="dc-hint">{!discordOAuthReady ? "Not set up. Members need it to run Cluster actions from Discord." : !discordOAuthAppMatches ? "OAuth uses a different application than the bot." : `Configured. Linking an account is the real test${discordLinkCoverage ? ` · ${discordLinkCoverage.linked}/${discordLinkCoverage.active} people linked` : ""}.`}</p>
+                    <div className="dc-oauth">
           <p>1. In the Discord Developer Portal, open your application's OAuth2 settings. Add the public callback URL below as a redirect.</p>
           <code>{discordOAuthRedirectUri || `${typeof window !== "undefined" ? window.location.origin : "https://your-cluster-domain"}/api/auth/discord/callback`}</code>
           <p>2. Configure <code>DISCORD_CLIENT_ID</code>, <code>DISCORD_CLIENT_SECRET</code>, and <code>DISCORD_REDIRECT_URI</code> in the Cluster server environment. Restart the server. The Application ID must match your configured bot.</p>
           <p>3. Members can open Account Settings → Profile → Discord account and link themselves. Discord roles never grant Cluster access.</p>
           <p className="muted">Use your externally reachable HTTPS hostname, not localhost, when people will link from other devices. Tokens and client secrets must never be entered into a public URL.</p>
-        </div></details>
-        <div className="button-row admin-integration-detail-actions-v535"><ClusterButton variant="primary" disabled={busy || !displayName.trim() || discordProvider?.implementation !== "active"} onClick={() => void saveDiscordConfiguration()}>{busy ? "Saving…" : "Save connection"}</ClusterButton><ClusterButton variant="secondary" disabled={busy} onClick={() => void reconcileDiscord()}>Test connection</ClusterButton><ClusterButton variant="secondary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !applicationPublicKeyConfigured} onClick={() => void syncDiscordActions()}>Sync actions</ClusterButton><ClusterButton variant="secondary" disabled={busy || !botTokenConfigured || !/^\d{8,24}$/.test(chatChannelId.trim())} onClick={() => void sendDiscordTestMessage()}>Send test message</ClusterButton></div></section> : null}
-      {discordWorkspaceView === "bot" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Discord bot</h3><p>Hosted by Cluster. Discord server installation does not grant Cluster access.</p></div><span className="soft-pill">{discordBotState?.state || "Not started"}</span></div>
-        <div className="button-row admin-integration-detail-actions-v535">
-          <ClusterButton variant="primary" disabled={busy || !botTokenConfigured || !applicationId.trim() || !guildId.trim()} onClick={() => void changeDiscordBot(true)}>Start / restart bot</ClusterButton>
-          <ClusterButton variant="secondary" disabled={busy || !discordBotState?.managed} onClick={() => void changeDiscordBot(false)}>Stop bot</ClusterButton>
-          <ClusterButton variant="secondary" disabled={busy} onClick={() => void queryApi<{ bot: { state: string; managed: boolean; message: string | null } }>("/api/admin/integrations/discord/bot", { force: true }).then((value) => setDiscordBotState(value.bot)).catch((error) => setStatus(formatApiError(error)))}>Refresh bot status</ClusterButton>
-          {/^\d{8,24}$/.test(applicationId) ? <a href={`https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(applicationId)}&scope=bot%20applications.commands&permissions=3072&integration_type=0`} target="_blank" rel="noopener noreferrer" className="cluster-button">Install on Discord server ↗</a> : null}
-          {/^\d{8,24}$/.test(applicationId) ? <a href={`https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(applicationId)}&scope=bot%20applications.commands&permissions=268438528&integration_type=0`} target="_blank" rel="noopener noreferrer" className="cluster-button" title="Requires Manage Roles, View Channel, and Send Messages. The bot's role must be above every mapped role.">Install with Manage Roles</a> : null}
-          {/\d{8,24}$/.test(applicationId) ? <a href={`https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(applicationId)}&scope=bot%20applications.commands&permissions=8&integration_type=0`} target="_blank" rel="noopener noreferrer" className="cluster-button" title="Optional: gives the Discord bot server Administrator permissions. It never grants users Cluster permissions.">Install with Discord Administrator</a> : null}
         </div>
-        {discordBotState?.message ? <p className="muted" role="status">{discordBotState.message}</p> : null}
-        <details><summary>Approved Discord servers ({discordGuilds.length})</summary>
-          <div className="button-row"><ClusterTextInput value={newDiscordGuild} onChange={(event) => setNewDiscordGuild(event.target.value)} placeholder="Server ID" />
-            <ClusterButton variant="secondary" disabled={busy || !/^\d{8,24}$/.test(newDiscordGuild.trim())} onClick={() => void approveDiscordGuild()}>Approve server</ClusterButton></div>
-          {discordGuilds.map((guild) => <div className="button-row" key={guild.id}>
-            {guild.iconUrl ? <img src={guild.iconUrl} alt="" loading="lazy" width={28} height={28} style={{ borderRadius: 8 }} /> : <ClusterIcon name="users" width={20} height={20} />}
-            <span><strong>{guild.name || `Discord server ${guild.id}`}</strong>{guild.primary ? " · Primary" : ""}{guild.reachable === false ? " · Unreachable" : ""}<small style={{ display: "block" }}>{guild.id}</small></span>
-            {!guild.primary ? <ClusterButton variant="danger" size="compact" disabled={busy} onClick={() => void revokeDiscordGuild(guild.id)}>Revoke</ClusterButton> : null}
-          </div>)}
-        </details>
-
-        <details className="cluster-visual-advanced" onToggle={(event) => { if (event.currentTarget.open) { void loadDiscordRoles(); void previewDiscordRoles(); } }}>
-          <summary><ClusterIcon name="users" /> One-way role synchronization</summary>
-          <div className="cluster-visual-advanced__body">
+          </div></details>
+          <details className="dc-more"><summary>Advanced</summary><div className="dc-fields">
+            <label><span>Connection name</span><ClusterTextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+            <label><span>Message prefix</span><ClusterTextInput value={messagePrefix} onChange={(event) => setMessagePrefix(event.target.value)} placeholder="Cluster" /></label>
+            <label><span>Webhook URL <small>optional</small></span><ClusterTextInput type="password" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Saved · paste to replace" : "https://discord.com/api/webhooks/…"} /></label>
+            <div className="dc-actions"><ClusterButton variant="secondary" busy={busy} onClick={() => void saveDiscordConfiguration()}>Save</ClusterButton><ClusterButton variant="quiet" disabled={busy} onClick={() => void reconcileDiscord()}>Verify project routes</ClusterButton></div>
+          </div></details>
+        </div>;
+      })() : null}
+      {discordWorkspaceView === "roles" ? <section className="ao-card dc-roles" aria-label="Discord role sync">
+        <div>
             <p className="muted">Cluster → Discord only. Only ordinary roles with no server-wide permissions can be mapped. Disabled by default. Never grants Cluster permissions.</p>
             <div className="button-row">
               <ClusterSelect ariaLabel="Discord role server" value={selectedRoleGuild} options={discordGuilds.map((guild) => ({ value: guild.id, label: guild.name || guild.id }))} onChange={(value) => { setSelectedRoleGuild(value); void loadDiscordRoles(value); }} placeholder="Select approved server" />
@@ -869,8 +924,6 @@ export function IntegrationsAdminPage() {
               {discordRoleStatus.uncertain > 0 ? <p role="alert" className="warning">Some role assignments have uncertain delivery. Cluster will not automatically remove or claim those roles. Review them in Discord before continuing.</p> : null}
             </> : <p className="muted">Select an approved server and refresh its role list.</p>}
           </div>
-        </details>
-        <p className="muted">Only approved servers and linked, authorized Cluster users can run actions. Ordinary notifications use Cluster Inbox and its durable delivery queue.</p>
       </section> : null}
       {discordWorkspaceView === "delivery" ? <section className="admin-panel-v243"><div className="admin-section-heading-v243"><div><h3>Delivery health</h3></div></div>{deliverySummary && <ClusterVisualComposition label="Discord delivery outcomes" total={deliverySummary.deliveries.completed + deliverySummary.deliveries.pending + deliverySummary.deliveries.running + deliverySummary.deliveries.failed} parts={[
   { label: "Completed", value: deliverySummary.deliveries.completed, tone: "good" },

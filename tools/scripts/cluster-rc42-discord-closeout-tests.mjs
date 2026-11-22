@@ -117,6 +117,6 @@ await check('admin endpoints require integration permissions and log test sends'
 });
 await check('visual setup exposes guild names, link coverage and test message controls',async()=>{
   const ui=read('packages/renderer/src/features/admin/ProductionIntegrationAdminPages.tsx');
-  for(const phrase of ['guild.name','guild.iconUrl','discordLinkCoverage','Send test message','Install with Discord Administrator'])assert(ui.includes(phrase));
+  for(const phrase of ['server.name','server.iconUrl','discordLinkCoverage','Send test message','Add to Discord'])assert(ui.includes(phrase));
 });
 console.log(`RC42 Discord closeout: ${count}/${count} checks passed`);

@@ -5,7 +5,9 @@ import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterOverlayDrawer } from "../../components/ClusterWorkspacePanel";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
-import { queryApi } from "../../core/api";
+import { api, queryApi } from "../../core/api";
+import { ClusterActionMenu, type ClusterActionMenuItem } from "../../components/ClusterContextActions";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 import { formatRelativeTime } from "../../core/format";
 import { AccountCredentialHandoff } from "../people/AccountCredentialHandoff";
 import { PeopleAccountProvisioningWizard } from "../people/PeopleAccountProvisioningWizard";
@@ -138,6 +140,40 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
     }
   }
 
+  const [resetCredential, setResetCredential] = useState<{ username: string; temporaryPassword: string } | null>(null);
+  async function resetPassword(account: Account) {
+    const name = account.displayName || account.username;
+    if (!(await confirmCluster({ title: `Reset ${name}'s password?`, message: "Signs them out everywhere and shows a one-time password to send them privately. They choose a new one at sign-in.", confirmLabel: "Reset password", tone: "danger" }))) return;
+    try {
+      const result = await api<{ username: string; temporaryPassword: string }>(`/api/admin/users/${encodeURIComponent(account.id)}/password-reset`, { method: "POST" });
+      setResetCredential({ username: result.username, temporaryPassword: result.temporaryPassword });
+      setReloadKey((value) => value + 1);
+    } catch (cause) { setStatus(cause instanceof Error ? cause.message : "Password reset failed."); }
+  }
+  async function setAccountState(account: Account, state: "ACTIVE" | "SUSPENDED" | "DISABLED") {
+    const name = account.displayName || account.username;
+    const verb = state === "ACTIVE" ? "Reactivate" : state === "SUSPENDED" ? "Suspend" : "Disable";
+    if (!(await confirmCluster({ title: `${verb} ${name}?`, message: state === "ACTIVE" ? "They can sign in again." : "Signs them out and blocks sign-in until reactivated.", confirmLabel: verb, tone: state === "ACTIVE" ? undefined : "danger" }))) return;
+    try {
+      await api(`/api/admin/users/${encodeURIComponent(account.id)}/account-state`, { method: "PATCH", body: JSON.stringify({ state }) });
+      setStatus(`${name}: ${verb.toLowerCase()}d.`);
+      setReloadKey((value) => value + 1);
+    } catch (cause) { setStatus(cause instanceof Error ? cause.message : "Account update failed."); }
+  }
+  function rowActions(account: Account): ClusterActionMenuItem[] {
+    const state = account.accountState.toUpperCase();
+    const self = account.id === currentUser.id;
+    return [
+      { id: "open", label: "Open profile", icon: "user", onSelect: () => onOpenPerson(account.id) },
+      ...(!self && !account.archived ? [
+        { id: "reset", label: "Reset password", icon: "lock" as const, separatorBefore: true, onSelect: () => void resetPassword(account) },
+        ...(["SUSPENDED", "DISABLED"].includes(state) ? [{ id: "reactivate", label: "Reactivate", icon: "refresh" as const, onSelect: () => void setAccountState(account, "ACTIVE") }] : []),
+        ...(state !== "SUSPENDED" ? [{ id: "suspend", label: "Suspend", icon: "pause" as const, onSelect: () => void setAccountState(account, "SUSPENDED") }] : []),
+        ...(state !== "DISABLED" ? [{ id: "disable", label: "Disable", icon: "close" as const, danger: true, onSelect: () => void setAccountState(account, "DISABLED") }] : []),
+      ] : []),
+    ];
+  }
+
   const filtersActive = Boolean(search || accountType !== "all" || role);
   const roleLabel = (id: string) => roles.find((item) => item.id === id)?.label || id.replaceAll("_", " ");
 
@@ -169,6 +205,7 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
       <span className="au-count" role="status">{total == null ? "" : `${total} ${total === 1 ? "person" : "people"}`}</span>
     </div>
 
+    {resetCredential ? <AccountCredentialHandoff username={resetCredential.username} temporaryPassword={resetCredential.temporaryPassword} onDismiss={() => setResetCredential(null)} /> : null}
     {provisioning.issuedCredential ? <AccountCredentialHandoff username={provisioning.issuedCredential.username} temporaryPassword={provisioning.issuedCredential.temporaryPassword} onDismiss={provisioning.dismissCredential} /> : null}
     {provisioning.onboardingFollowup ? <div className="au-followup" role="alert">
       <span><strong>Account created, onboarding pending</strong>{provisioning.onboardingFollowup.message}</span>
@@ -193,7 +230,7 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
           <span role="cell" className="au-team">{account.department || <em>Unassigned</em>}{account.jobTitle ? <small>{account.jobTitle}</small> : null}</span>
           <span role="cell" className="au-seen">{account.lastSeenAt ? formatRelativeTime(account.lastSeenAt) : "Never"}</span>
           <span role="cell" className="au-actions">
-            <ClusterIconButton size="compact" label={`Open ${account.displayName || account.username}`} onClick={() => onOpenPerson(account.id)}><ClusterIcon name="chevron-right" /></ClusterIconButton>
+            <ClusterActionMenu iconOnly label={`${account.displayName || account.username} actions`} items={rowActions(account)} />
           </span>
         </div>;
       })}

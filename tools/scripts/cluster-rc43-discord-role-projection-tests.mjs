@@ -113,10 +113,11 @@ await check('role status exposes ownership counts but not account identities',as
  const result=await service.list(guild);
  assert.equal(typeof result.managed,'number');assert.equal(typeof result.uncertain,'number');assert(!('users' in result));
 });
-await check('normal install remains separate from optional Manage Roles install',async()=>{
+await check('the one setup invite grants Manage Roles for optional role sync; sync stays off until enabled',async()=>{
  const ui=fs.readFileSync(path.join(root,'packages/renderer/src/features/admin/ProductionIntegrationAdminPages.tsx'),'utf8');
- assert(ui.includes('permissions=3072'));assert(ui.includes('permissions=268438528'));
- assert(ui.includes('One-way role synchronization'));
+ const service=fs.readFileSync(path.join(root,'apps/server/src/domains/integrations/discord-production-service.ts'),'utf8');
+ assert(service.includes('1n << 28n'));
+ assert(ui.includes('Cluster → Discord only') && ui.includes('discordWorkspaceView === "roles"'));
 });
 await check('role changes are admin-only and preview is read-only',async()=>{
  const server=fs.readFileSync(path.join(root,'apps/server/src/app/server-discord-runtime.ts'),'utf8');

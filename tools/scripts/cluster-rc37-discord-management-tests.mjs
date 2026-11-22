@@ -93,9 +93,10 @@ await check('stop terminates worker and revokes its runtime relay token',async()
 });
 await check('public install URL requires only app ID, no token',()=>{
   const ui=fs.readFileSync(path.join(root,'packages/renderer/src/features/admin/ProductionIntegrationAdminPages.tsx'),'utf8');
-  assert(ui.includes('discord.com/oauth2/authorize?client_id='));
-  assert(ui.includes('Start / restart bot'));
-  assert(ui.includes('Approved Discord servers'));
+  const setup=fs.readFileSync(path.join(root,'apps/server/src/domains/integrations/discord-production-service.ts'),'utf8');
+  assert(setup.includes('https://discord.com/oauth2/authorize?client_id='));
+  assert(ui.includes('Add to Discord') && ui.includes('discordSetup.inviteUrl'));
+  assert(ui.includes('servers.map((server)') && ui.includes('useDiscordServer(server.id)'));
   assert(!ui.includes('CLUSTER_DISCORD_RELAY_TOKEN'));
 });
 check('server exposes protected bot and guild management routes',()=>{

@@ -25,8 +25,8 @@ const checks = [
   ["server network chip is not public proof", server.includes("Local startup verified")],
   ["integration health uses observed healthState", integrations.includes("integrationStateTone(connection.healthState)") && integrations.includes("Last check healthy")],
   // The Discord overview reports observed bot state, never configured-as-healthy.
-  ["integration provider is availability not health", integrations.includes('discordBotState?.state || "Not checked"') && integrations.includes('"OAuth not configured"')],
-  ["discord OAuth configuration is not a live test", integrations.includes("Configured · test by linking an account")],
+  ["integration provider is availability not health", integrations.includes('data-state={discordBotState?.state || "stopped"}') && integrations.includes('Not set up. Members need it')],
+  ["discord OAuth configuration is not a live test", integrations.includes("people linked")],
   ["integration telemetry scoped styling", adminCss.includes(".admin-integration-health-cell-v103")],
   ["form/policy version publication from records", systems.includes('version.status === "published"') && systems.includes("formsWithPublishedVersion") && systems.includes("policiesWithPublishedVersion")],
   ["form/policy chips", systems.includes("formTone(") && systems.includes("policyTone(")],

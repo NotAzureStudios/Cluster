@@ -173,6 +173,10 @@ function verifyDiscordSignature(publicKeyHex: string, signatureHex: string, time
   }
 }
 
+// View channels, send messages and threads, embed, attach, read history,
+// manage threads and manage roles (for optional one-way role sync).
+const DISCORD_SETUP_PERMISSIONS = String([1n << 10n, 1n << 11n, 1n << 14n, 1n << 15n, 1n << 16n, 1n << 28n, 1n << 34n, 1n << 35n, 1n << 38n].reduce((sum, bit) => sum | bit, 0n));
+
 export function createDiscordProductionService(input: DiscordProductionServiceInput) {
   async function activeConnection(connectionId?: string | null) {
     const connection = connectionId
@@ -347,6 +351,54 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     if (!existing) throw createHttpError("DISCORD_ROUTE_NOT_FOUND", "Discord route not found.", 404);
     await input.prisma.projectIntegrationBinding.update({ where: { id: existing.id }, data: { archived: true } });
     return { id: existing.id, archived: true };
+  }
+
+  // Guided setup: who the bot is, where it can be invited, and the servers it
+  // is already in (approval still has to be granted explicitly).
+  async function setupState() {
+    const settings = await input.readSettings(true);
+    const applicationId = cleanText(settings.discordApplicationId, 40);
+    const primaryGuildId = cleanText(settings.discordGuildId, 120);
+    let approved: string[] = [];
+    try { approved = await approvedGuildIds(); } catch { approved = primaryGuildId ? [primaryGuildId] : []; }
+    const inviteUrl = /^\d{8,24}$/.test(applicationId)
+      ? `https://discord.com/oauth2/authorize?client_id=${applicationId}&scope=bot%20applications.commands&permissions=${DISCORD_SETUP_PERMISSIONS}&integration_type=0`
+      : null;
+    if (!settings.discordBotToken) return { bot: null, botError: null, inviteUrl, servers: [] };
+    try {
+      const [me, guilds] = await Promise.all([input.discordRequest(settings, "/users/@me"), input.discordRequest(settings, "/users/@me/guilds")]);
+      const avatar = cleanText(me?.avatar, 120);
+      const servers = (Array.isArray(guilds) ? guilds : []).slice(0, 100).map((guild: any) => {
+        const id = cleanText(guild?.id, 120);
+        const icon = cleanText(guild?.icon, 120);
+        return { id, name: cleanText(guild?.name, 100) || `Server ${id}`, iconUrl: /^[a-zA-Z0-9_]{10,120}$/.test(icon) ? `https://cdn.discordapp.com/icons/${id}/${icon}.png?size=64` : null, approved: approved.includes(id), primary: id === primaryGuildId };
+      });
+      return {
+        bot: { id: cleanText(me?.id, 120), username: cleanText(me?.username, 100), avatarUrl: /^[a-zA-Z0-9_]{10,120}$/.test(avatar) ? `https://cdn.discordapp.com/avatars/${cleanText(me?.id, 120)}/${avatar}.png?size=64` : null },
+        botError: null, inviteUrl, servers,
+      };
+    } catch (error) {
+      return { bot: null, botError: error instanceof Error ? error.message : "Discord rejected the bot token.", inviteUrl, servers: [] };
+    }
+  }
+
+  // Text, announcement and forum channels plus assignable roles of an approved server.
+  async function guildOptions(guildId: string) {
+    const approved = await approvedGuildIds();
+    if (!approved.includes(guildId)) throw createHttpError("DISCORD_GUILD_NOT_APPROVED", "Approve this Discord server first.", 403);
+    const settings = await input.readSettings(true);
+    const [channels, roles] = await Promise.all([
+      input.discordRequest(settings, `/guilds/${guildId}/channels`).catch(() => []),
+      input.discordRequest(settings, `/guilds/${guildId}/roles`).catch(() => []),
+    ]);
+    return {
+      channels: (Array.isArray(channels) ? channels : []).filter((channel: any) => [0, 5, 15].includes(Number(channel?.type)))
+        .map((channel: any) => ({ id: String(channel.id), name: cleanText(channel.name, 100), kind: Number(channel.type) === 15 ? "forum" : "text", position: Number(channel.position) || 0 }))
+        .sort((a: any, b: any) => a.position - b.position),
+      roles: (Array.isArray(roles) ? roles : []).filter((role: any) => !role?.managed && String(role?.id) !== guildId)
+        .map((role: any) => ({ id: String(role.id), name: cleanText(role.name, 100), position: Number(role.position) || 0 }))
+        .sort((a: any, b: any) => b.position - a.position),
+    };
   }
 
   async function discordChannels(settings: SettingPayload, guildId = cleanText(settings.discordGuildId, 120)) {
@@ -888,5 +940,5 @@ export function createDiscordProductionService(input: DiscordProductionServiceIn
     return { commands: commands.map((cmd) => ({ name: cmd.name, type: cmd.type })), guilds: outcomes };
   }
 
-  return { listGuilds, linkedAccountCoverage, sendTestMessage, addGuild, removeGuild, projectRoutes, upsertProjectRoute, archiveProjectRoute, availableChannels, reconcileRoutes, deliverySummary, retryDelivery, enqueueNotification, repairPendingDeliveries, executeDelivery, processInteraction, processGatewayInteraction, syncCommands, eventClassForNotification, discordNotificationPresentation };
+  return { setupState, guildOptions, listGuilds, linkedAccountCoverage, sendTestMessage, addGuild, removeGuild, projectRoutes, upsertProjectRoute, archiveProjectRoute, availableChannels, reconcileRoutes, deliverySummary, retryDelivery, enqueueNotification, repairPendingDeliveries, executeDelivery, processInteraction, processGatewayInteraction, syncCommands, eventClassForNotification, discordNotificationPresentation };
 }

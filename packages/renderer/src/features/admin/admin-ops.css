@@ -95,3 +95,42 @@ button.ao-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accen
 .ao .ao-card__title select.cluster-native-select-v495 { flex: none; width: auto !important; min-width: 120px; height: 28px; min-height: 28px; margin-left: auto; padding-block: 0; font-size: var(--cluster-font-size-xs); font-weight: 500; }
 .ao .ao-card__title > .cluster-segmented-v532, .ao .ao-card__title > [role="radiogroup"] { margin-left: auto; }
 .admin-approval-head-v249:not(:has(button)) { display: none; }
+
+/* Discord guided setup. */
+.dc { display:grid; gap:10px; max-width:760px; }
+.dc-step { display:grid; gap:10px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+.dc-step[data-disabled] { opacity:.55; }
+.dc-step > header { display:flex; align-items:center; gap:10px; }
+.dc-step > header h3 { margin:0; font-size:.82rem; }
+.dc-step__n { display:inline-grid; place-items:center; width:22px; height:22px; flex:none; border-radius:50%; background:var(--surface-soft,var(--surface)); color:var(--muted); font-size:.7rem; font-weight:700; }
+.dc-step[data-done] .dc-step__n { background:color-mix(in srgb,var(--success,#3fb950) 18%,transparent); color:var(--success,#3fb950); }
+.dc-step__n svg { width:13px; height:13px; }
+.dc-step__body { display:grid; gap:10px; padding-left:32px; }
+.dc-hint { margin:0; color:var(--muted); font-size:.72rem; line-height:1.5; }
+.dc-error { margin:0; color:var(--danger); font-size:.72rem; }
+.dc-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+.dc-fields label { display:grid; gap:4px; min-width:0; }
+.dc-fields label > span { color:var(--muted); font-size:.66rem; font-weight:600; }
+.dc-fields small { font-weight:400; opacity:.8; }
+.dc-actions, .dc-inline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.dc-inline img { border-radius:8px; }
+.dc-inline > span { font-size:.74rem; }
+.dc-servers { display:grid; margin:0; padding:0; list-style:none; }
+.dc-servers li { display:flex; align-items:center; gap:10px; min-height:42px; border-top:1px solid var(--border); }
+.dc-servers li:first-child { border-top:0; }
+.dc-servers img, .dc-servers__glyph { width:28px; height:28px; flex:none; border-radius:8px; }
+.dc-servers__glyph { display:inline-grid; place-items:center; background:var(--surface-soft,var(--surface)); font-weight:700; font-size:.74rem; }
+.dc-servers__name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.76rem; }
+.dc-servers__name em { margin-left:8px; padding:1px 7px; border-radius:999px; background:var(--surface-soft,var(--surface)); color:var(--muted); font-size:.6rem; font-style:normal; font-weight:700; }
+.dc-state { padding:2px 9px; border-radius:999px; background:var(--surface-soft,var(--surface)); color:var(--muted); font-size:.66rem; font-weight:700; text-transform:capitalize; }
+.dc-state[data-state="connected"] { background:color-mix(in srgb,var(--success,#3fb950) 16%,transparent); color:var(--success,#3fb950); }
+.dc-state[data-state="failed"] { background:color-mix(in srgb,var(--danger) 16%,transparent); color:var(--danger); }
+.dc-more { border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+.dc-more > summary { padding:10px 14px; cursor:pointer; font-size:.76rem; font-weight:600; }
+.dc-more > div { display:grid; gap:10px; padding:0 14px 12px; }
+.dc-oauth { display:grid; gap:6px; font-size:.72rem; }
+.dc-oauth p { margin:0; }
+.dc-oauth code { overflow-wrap:anywhere; }
+.dc-roles > div { display:grid; gap:10px; }
+.dc-step__body > .cluster-button-v425 { justify-self:start; }
+.dc a.cluster-button-v425 { text-decoration:none; }

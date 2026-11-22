@@ -72,6 +72,17 @@ export function registerDiscordProductionRoutes(input: {
     return { ok: true, ...(await input.service.reconcileRoutes({ projectId })) };
   });
 
+  input.app.get("/api/admin/integrations/discord/setup", async (request: any, reply: any) => {
+    if (!(await input.authorization.requireTool(request, reply, "integrations", "view"))) return;
+    reply.header("Cache-Control", "no-store");
+    return { ok: true, ...(await input.service.setupState()) };
+  });
+  input.app.get("/api/admin/integrations/discord/guilds/:guildId/options", async (request: any, reply: any) => {
+    if (!(await input.authorization.requireTool(request, reply, "integrations", "view"))) return;
+    const { guildId } = z.object({ guildId: z.string().regex(/^\d{8,24}$/) }).parse(request.params);
+    reply.header("Cache-Control", "no-store");
+    return { ok: true, ...(await input.service.guildOptions(guildId)) };
+  });
   input.app.get("/api/admin/integrations/discord/guilds", async (request: any, reply: any) => {
     if (!(await input.authorization.requireTool(request, reply, "integrations", "view"))) return;
     reply.header("Cache-Control", "no-store");
