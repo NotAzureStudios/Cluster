@@ -132,6 +132,12 @@ export async function writeServerState<T>(scope: ServerStateScope, key: string, 
   }
 }
 
+function sameClientStateValue(a: unknown, b: unknown) {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+}
+
 export function useServerState<T>(scope: ServerStateScope, key: string, fallback: T, options: UseServerStateOptions<T> = {}) {
   const initial = useRef(options.merge ? options.merge(fallback, fallback) : fallback);
   const stateOwner = getOfflineScopeIdentity();
@@ -148,6 +154,12 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
   const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingWritesRef = useRef(0);
   const localChangeVersionRef = useRef(0);
+  // Writes requested before the first read lands are replayed on top of the
+  // saved value. Writing them straight away replaced saved layouts and tab
+  // lists with defaults on every load.
+  const hydratedRef = useRef(false);
+  const deferredWritesRef = useRef<Array<SetStateAction<T>>>([]);
+  const persistRef = useRef<Dispatch<SetStateAction<T>>>(() => undefined);
   const effectiveValue = hydratedOwner !== stateOwnerKey ? initial.current : value;
   valueRef.current = effectiveValue;
 
@@ -156,6 +168,8 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
     localChangeVersionRef.current += 1;
     const hydrationVersion = localChangeVersionRef.current;
     revisionRef.current = null;
+    hydratedRef.current = false;
+    deferredWritesRef.current = [];
     setRevision(null);
     setValue(initial.current);
     setHydratedOwner(stateOwnerKey);
@@ -163,10 +177,12 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
     setQueued(false);
     setWriteError(null);
     if (options.enabled === false || (scope === "user" && stateOwner.scope === "anonymous")) {
+      hydratedRef.current = true;
       setHydrated(true);
       return;
     }
     let alive = true;
+    let savedValue: T = initial.current;
     (scope === "user" ? batchUserStateRead<T>(key) : queryApi<StateResponse<T>>(statePath(scope, key), {
       force: true,
       staleMs: 10_000,
@@ -180,6 +196,8 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
         if (localChangeVersionRef.current !== hydrationVersion) return;
         if (result.record) {
           const next = options.merge ? options.merge(result.record.payload, fallback) : result.record.payload;
+          savedValue = next;
+          valueRef.current = next;
           setValue(next);
           revisionRef.current = result.record.revision;
           setRevision(result.record.revision);
@@ -188,7 +206,17 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
       .catch(() => {
         if (alive && mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) setWriteError("Could not refresh saved preferences. Retry after reconnecting.");
       })
-      .finally(() => { if (alive && mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) setHydrated(true); });
+      .finally(() => {
+        if (!alive || !mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) return;
+        hydratedRef.current = true;
+        setHydrated(true);
+        const deferred = deferredWritesRef.current;
+        deferredWritesRef.current = [];
+        if (!deferred.length) return;
+        // Replay against what is saved, not the optimistic pre-read value.
+        if (localChangeVersionRef.current === hydrationVersion) valueRef.current = savedValue;
+        for (const next of deferred) persistRef.current(next);
+      });
     return () => { alive = false; };
   }, [scope, key, options.enabled, stateOwnerKey]);
 
@@ -203,8 +231,15 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
   const persist = useCallback<Dispatch<SetStateAction<T>>>((next) => {
     if (!mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) return;
     const resolved = typeof next === "function" ? (next as (current: T) => T)(valueRef.current) : next;
-    // Re-rendering an unchanged tab list must not generate an identical PUT.
-    if (Object.is(resolved, valueRef.current)) return;
+    if (!hydratedRef.current && options.enabled !== false) {
+      deferredWritesRef.current.push(next);
+      valueRef.current = resolved;
+      setValue(resolved);
+      return;
+    }
+    // Re-rendering an unchanged tab list or layout must not generate an
+    // identical PUT; recomputed arrays and objects compare by content.
+    if (sameClientStateValue(resolved, valueRef.current)) return;
     localChangeVersionRef.current += 1;
     valueRef.current = resolved;
     setValue(resolved);
@@ -234,6 +269,7 @@ export function useServerState<T>(scope: ServerStateScope, key: string, fallback
         if (mayApplyClientState(scope, stateOwner, getOfflineScopeIdentity())) setSaving(pendingWritesRef.current > 0);
       });
   }, [scope, key, options.enabled, stateOwnerKey]);
+  persistRef.current = persist;
 
   return [effectiveValue, persist, {
     hydrated: hydratedOwner === stateOwnerKey && hydrated,

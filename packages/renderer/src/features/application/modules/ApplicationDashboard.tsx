@@ -23,7 +23,7 @@ import { ClusterSelect } from "../../../components/ClusterSelect";
 import { ToolPageHeader } from "../../../components/ToolPageHeader";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../../core/security-pin";
 import type { User, Project, ProjectSnapshot, Settings, LibrarySummary, TimelinePayload, UpcomingPayload, TimeEntry, TimeSummary, ActivityEvent, UserActivitySummary, WorkLinkRecord, RecurringWorkRecord, WatcherRecord, ProjectCloseoutRecord, ExternalPortalRule, AttentionItem, AttachmentRecord, TimeCorrectionRequest, ShiftRuleSettings, BreakLedgerEntry, BuildArtifactRecord, QATestPlan, ClockIntentPayload, TeamAssignment } from "../application-models";
-import { readShiftRules } from "../../operations/modules/operations-admin";
+import { readShiftRules } from "../../operations/modules/time-rules";
 import { useDashboardWidgets } from "../../home-widgets/home-dashboard-controller";
 
 import { ProjectWorkflowAttentionState, deriveNeedsAttention } from "./application-foundation";

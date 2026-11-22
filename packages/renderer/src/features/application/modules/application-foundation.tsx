@@ -29,7 +29,7 @@ import type { EntityReference, User, Project, Priority, Board, AppTheme, Project
 import { DEFAULT_PROJECT_TYPE_PRESETS, isPast, isToday, makeAttentionItem, projectBuildProfile, projectTypeBadge, projectTypeMeta } from "../../operations/modules/operations-foundation";
 import { QATestPlansPanel, normalizeTestPlan } from "../../operations/modules/operations-delivery";
 import { accessTargetLabel, canUseEntityAccess, canUseLibraryItem, canUseProject, getProjectPermission, projectPermissionReason } from "../../projects/project-access-policy";
-import { normalizeCorrectionRequest, readShiftRules, shiftRuleWarnings, timeCorrectionIssueLabel } from "../../operations/modules/operations-admin";
+import { normalizeCorrectionRequest, readShiftRules, shiftRuleWarnings, timeCorrectionIssueLabel } from "../../operations/modules/time-rules";
 import { ClusterTextArea } from "../../../components/ClusterTextArea";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
 import { ClusterButton, ClusterIconButton } from "../../../components/ClusterButton";
