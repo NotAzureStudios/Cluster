@@ -35,6 +35,12 @@ function validIanaTimeZone(value: string) {
 
 const backupTimezoneSchema = z.string().trim().min(1).max(100).refine(validIanaTimeZone, "Backup timezone must be a valid IANA timezone, such as America/New_York.");
 
+// An uploaded logo is served by this Server at /api/branding/<file>; an
+// external logo must be a full http(s) URL.
+function organizationLogoUrl(value: string) {
+  return /^\/api\/branding\/[A-Za-z0-9._%-]+$/.test(value) ? value : safeUrl(value, "Organization logo URL", ["http:", "https:"]);
+}
+
 function backupOperationFailure(reply: any, error: unknown, fallback: string) {
   if (error instanceof OperationCancelledError || (error as any)?.code === "OPERATION_CANCELLED") {
     return reply.code(499).send({ ok: false, code: "OPERATION_CANCELLED", error: error instanceof Error ? error.message : "Operation cancelled.", retryable: true });
@@ -717,7 +723,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     validateKioskDefault(effectiveSignedInKioskDefault, "signed-in");
     validateKioskDefault(effectiveSignedOutKioskDefault, "signed-out");
     if (body.organizationLogoUrl) {
-      body.organizationLogoUrl = safeUrl(body.organizationLogoUrl, "Organization logo URL", ["http:", "https:"]);
+      body.organizationLogoUrl = organizationLogoUrl(body.organizationLogoUrl);
     }
     if (body.publicApiUrl) {
       body.publicApiUrl = safeUrl(body.publicApiUrl, "Public API URL", ["http:", "https:"]).replace(/\/$/, "");
@@ -1034,7 +1040,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
     await verifyUserPin(admin, body.securityPin, "apply_studio_settings", request);
     delete (body as any).securityPin;
     if (body.organizationLogoUrl) {
-      body.organizationLogoUrl = safeUrl(body.organizationLogoUrl, "Organization logo URL", ["http:", "https:"]);
+      body.organizationLogoUrl = organizationLogoUrl(body.organizationLogoUrl);
     }
     if (body.publicApiUrl) {
       body.publicApiUrl = safeUrl(body.publicApiUrl, "Public API URL", ["http:", "https:"]).replace(/\/$/, "");
