@@ -19,12 +19,13 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-var version = "2.0.0-dev"
+var version = "2.0.1-dev"
 
 const privateNodeVersion = "24.20.0"
 
@@ -531,13 +532,11 @@ func installedDependencyGraphHealthy(root string) bool {
 				if strings.HasPrefix(name, "@cluster/") || expected == "*" || strings.HasPrefix(expected, "workspace:") || strings.HasPrefix(expected, "file:") {
 					continue
 				}
-				// Cluster currently pins external direct dependencies exactly. If a
-				// future manifest introduces a range, fail closed and let npm verify it.
-				if !regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`).MatchString(expected) {
-					return false
-				}
+				// npm ci resolves declared ranges into concrete versions during the
+				// release build. Compare against the installed package, not the
+				// literal range: ^5.3.0 must accept installed 5.3.0.
 				installed, ok := installedPackageVersion(root, filepath.Dir(relative), name)
-				if !ok || installed != expected {
+				if !ok || !npmVersionRequirementMatches(expected, installed) {
 					return false
 				}
 			}
@@ -546,12 +545,70 @@ func installedDependencyGraphHealthy(root string) bool {
 	return true
 }
 
+// npmVersionRequirementMatches accepts exact pins and the simple caret/tilde
+// forms present in Cluster's npm manifests. Unsupported specs fail closed.
+// The separately validated npm ci lockfile pins the release's concrete packages.
+func npmVersionRequirementMatches(requirement, installed string) bool {
+	if requirement == installed {
+		return true
+	}
+	if len(requirement) < 2 || (requirement[0] != '^' && requirement[0] != '~') {
+		return false
+	}
+	minimum, minOK := numericNpmVersion(requirement[1:])
+	actual, actualOK := numericNpmVersion(installed)
+	if !minOK || !actualOK {
+		return false
+	}
+	if actual[0] < minimum[0] ||
+		(actual[0] == minimum[0] && actual[1] < minimum[1]) ||
+		(actual[0] == minimum[0] && actual[1] == minimum[1] && actual[2] < minimum[2]) {
+		return false
+	}
+	if requirement[0] == '~' {
+		return actual[0] == minimum[0] && actual[1] == minimum[1]
+	}
+	// npm caret semantics preserve the leftmost non-zero component.
+	if minimum[0] > 0 {
+		return actual[0] == minimum[0]
+	}
+	if minimum[1] > 0 {
+		return actual[0] == 0 && actual[1] == minimum[1]
+	}
+	return actual == minimum
+}
+
+func numericNpmVersion(version string) ([3]int, bool) {
+	var result [3]int
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		return result, false
+	}
+	for i, part := range parts {
+		if part == "" {
+			return result, false
+		}
+		for _, digit := range part {
+			if digit < '0' || digit > '9' {
+				return result, false
+			}
+		}
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return result, false
+		}
+		result[i] = n
+	}
+	return result, true
+}
+
 func installedPackageVersion(root, manifestDir, name string) (string, bool) {
 	packagePath := filepath.FromSlash(name)
-	candidates := []string{filepath.Join(root, "node_modules", packagePath, "package.json")}
+	candidates := []string{}
 	if manifestDir != "." && manifestDir != "" {
 		candidates = append(candidates, filepath.Join(root, manifestDir, "node_modules", packagePath, "package.json"))
 	}
+	candidates = append(candidates, filepath.Join(root, "node_modules", packagePath, "package.json"))
 	for _, candidate := range candidates {
 		contents, err := os.ReadFile(candidate)
 		if err != nil {

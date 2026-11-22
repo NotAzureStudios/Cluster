@@ -44,6 +44,25 @@ try {
       throw "Real installer omitted $required"
     }
   }
+  # A packaged release can pass artifact checks but fail managed startup if
+  # npm direct dependencies are missing or no longer match the shipped lock.
+  # Cluster 2.0.0 reached users with exactly this blind spot for renderer fonts.
+  $lock = Get-Content -LiteralPath (Join-Path $managed 'package-lock.json') -Raw | ConvertFrom-Json
+  $renderer = Get-Content -LiteralPath (Join-Path $managed 'packages\renderer\package.json') -Raw | ConvertFrom-Json
+  foreach ($name in @('@fontsource/comfortaa', '@fontsource/inter')) {
+    $declared = [string]$renderer.dependencies.PSObject.Properties[$name].Value
+    $lockSpec = [string]$lock.packages.'packages/renderer'.dependencies.PSObject.Properties[$name].Value
+    $lockedPackage = $lock.packages.PSObject.Properties['node_modules/' + $name].Value
+    $manifestPath = Join-Path $managed ('node_modules\' + ($name.Replace('/', '\')) + '\package.json')
+    if ($declared -ne $lockSpec -or $null -eq $lockedPackage -or
+        -not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+      throw "Installed renderer dependency is missing or inconsistent with lockfile: $name"
+    }
+    $installed = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ([string]$installed.version -ne [string]$lockedPackage.version) {
+      throw "Installed renderer dependency differs from locked version: $name"
+    }
+  }
   if (-not (Test-Path -LiteralPath $launcher -PathType Leaf) -or
       -not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
     throw "Normal writable install did not publish owned root launcher"
