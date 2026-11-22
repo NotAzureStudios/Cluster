@@ -7,7 +7,6 @@ let ts;
 try { ts=require('typescript'); } catch { ts=require(process.env.CLUSTER_TYPESCRIPT_PATH || 'typescript'); }
 import { nextCloseoutStatus, closeoutShareLinkProjection, closeoutShareLinkActive, updateCloseoutAtRevision, CloseoutConcurrentWrite } from '../../apps/server/src/domains/projects/project-closeout-policy.ts';
 import { calendarRangeWhere, isCalendarInstant, isCalendarTimezone, isCalendarWindowValid } from '../../apps/server/src/domains/planning/calendar-intervals.ts';
-import { prepareLibraryDestruction } from '../../apps/server/src/domains/library/library-destruction.ts';
 import { libraryRetentionDecision } from '../../apps/server/src/domains/library/library-governance.ts';
 let passed=0;
 async function check(description, fn){await fn();++passed;console.log(`PASS ${description}`);}
@@ -107,10 +106,8 @@ function db(item,opts={}) {
   },libraryBacklink:{async count({where}={}){return where?.sourceResourceKind === 'packet_release' ? 0 : opts.backlinks||0}},libraryVersion:{async findMany(){return (opts.versions||[]).map(fileName=>({fileName}))},async count({where}){return refs[where.fileName]||0}}};
 }
 const trash={id:'f',title:'Alpha',revision:2,lifecycleState:'trashed',legalHold:false,fileName:'alpha.bin',retentionUntil:null};
-await check('Immediate Library destruction primitive is disabled',async()=>{
- const store=db(trash);
- const result=await prepareLibraryDestruction(store,'f',2,'Alpha',true,'owner',libraryRetentionDecision);
- assert.equal(result.error.code,'LIBRARY_DISPOSITION_REVIEW_REQUIRED');assert.equal(store.deleted,false);
+await check('Immediate Library destruction primitive stays removed',()=>{
+ assert.doesNotMatch(source('apps/server/src/domains/library/library-routes.ts'),/prepareLibraryDestruction|library-destruction/);
 });
 await check('Governed disposition uses revision, reason, and request identity',()=>{
  const backend=source('apps/server/src/domains/library/library-routes.ts');

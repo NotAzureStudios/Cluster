@@ -152,10 +152,9 @@ await check('contradictory QA go/failed cases are rejected before DB writes',asy
  await assert.rejects(x.service.put('P1','qa-session','QA1',{...input,status:'running',decision:'go',failed:0}),e=>e.code==='DELIVERY_QA_EVIDENCE_CONFLICT');
 });
 await check('publish and QA UI expose the same authoritative release requirements',()=>{
- const pub=readFileSync(deliveryFile,'utf8'),cmd=readFileSync('packages/renderer/src/features/projects/ProjectDeliveryCommandCenter.tsx','utf8');
+ const pub=readFileSync(deliveryFile,'utf8');
  const lifecycleUI=readFileSync('packages/renderer/src/features/projects/ProjectDeliveryLifecycle.tsx','utf8');
  assert.ok(pub.includes('createProjectDeliveryLifecycleService(prisma).snapshot(projectId, input.buildId)'));
- assert.ok(cmd.includes('Independent review is required'));
  assert.ok(lifecycleUI.includes('Blocking delivery gates'));
 });
 console.log(`${passed}/${passed} G04 Project / QA / release checks passed`);

@@ -4,11 +4,10 @@ const read=p=>fs.readFileSync(p,'utf8');
 const routes=read('apps/server/src/domains/library/library-routes.ts');
 const ui=read('packages/renderer/src/features/library/LibraryGovernancePanel.tsx');
 const logic=read('apps/server/src/domains/library/library-disposition.ts');
-const old=read('apps/server/src/domains/library/library-destruction.ts');
 const schema=read('apps/server/prisma/schema.prisma');
 const sql=read('apps/server/prisma/migrations/20261016031500_td4_library_disposition_ledger/migration.sql');
 let n=0;function check(label,fn){fn();n++;console.log('PASS',label)}
-check('legacy endpoint is retired and old deletion function cannot delete',()=>{assert.doesNotMatch(routes,/app.delete\("\/api\/library\/:itemId\/permanent"/);assert.doesNotMatch(old,/libraryItem\.delete/);assert.match(old,/LIBRARY_DISPOSITION_REVIEW_REQUIRED/)});
+check('legacy endpoint is retired and old deletion function cannot delete',()=>{assert.doesNotMatch(routes,/app.delete\("\/api\/library\/:itemId\/permanent"/);assert.doesNotMatch(routes,/prepareLibraryDestruction/)});
 check('all disposition routes authorize manage access',()=>{
  for(const route of ['app.get("/api/library/:itemId/disposition"','app.post("/api/library/:itemId/disposition"','app.post("/api/library/:itemId/disposition/cancel"']){
   const at=routes.indexOf(route);assert.ok(at>=0,route);const end=routes.indexOf('\n  });',at);const block=routes.slice(at,end);assert.match(block,/findAccessibleItem\(request, reply, params.itemId, "manage"\)/);

@@ -65,11 +65,9 @@ try {
   await fsp.symlink(path.join(rootPath,'external'),path.join(library,'linked'),'dir');
   assert.ok((await reviewLibraryOrphanCandidate({...base,sample:{...sample,relativePath:'linked/item'}})).blockers.includes('UNSAFE_OR_CHANGED_DIRECTORY'));
  });
- await test('Legacy destruction primitive is fail-closed and cannot delete metadata',async()=>{
-  const {prepareLibraryDestruction}=await import(pathToFileURL(path.join(root,'apps/server/src/domains/library/library-destruction.ts')).href);
-  const tx={libraryItem:{deleteMany:async()=>{throw Error('unsafe deletion');}},activityEvent:{create:async()=>{throw Error('unsafe evidence');}}};
-  const result=await prepareLibraryDestruction(tx,'item',8,'Test',false,'administrator',()=>({eligible:true,code:'ELIGIBLE'}));
-  assert.equal(result.error.code,'LIBRARY_DISPOSITION_REVIEW_REQUIRED');
+ await test('Retired destruction primitive stays removed; Library routes use governed disposition only',async()=>{
+  assert.ok(!fs.existsSync(path.join(root,'apps/server/src/domains/library/library-destruction.ts')));
+  assert.doesNotMatch(source('apps/server/src/domains/library/library-routes.ts'),/prepareLibraryDestruction|library-destruction/);
   assert.equal(fs.existsSync(filename),true);
  });
  await test('Route restricts reviews to admins and completed audited sample IDs, not arbitrary paths',async()=>{

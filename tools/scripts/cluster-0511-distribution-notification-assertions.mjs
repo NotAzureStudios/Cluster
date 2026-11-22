@@ -83,11 +83,4 @@ await test('Publication stores immutable source backlinks in the SAME release tr
   assert.match(routes,/sourceResourceKind: "packet_release"/);
   assert.match(routes,/relationKind: "published_source"/);
 });
-const destruction=loadTs('apps/server/src/domains/library/library-destruction.ts');
-await test('Legacy Library destruction cannot bypass published Packet source protections',async()=>{
-  let deleted=false;
-  const tx={libraryItem:{deleteMany:async()=>{deleted=true;return {count:1}}}};
-  const result=await destruction.prepareLibraryDestruction(tx,'source',4,'Important source',true,'owner',()=>({eligible:true}));
-  assert.equal(result.error.code,'LIBRARY_DISPOSITION_REVIEW_REQUIRED');assert.equal(deleted,false);
-});
 console.log(`${count}/${count} Cluster v0.511 publication and notification assertions passed`);
