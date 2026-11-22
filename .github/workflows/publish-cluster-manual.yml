@@ -1,8 +1,8 @@
-name: Publish Cluster 2.0.0 manual Windows installers
+name: Publish Cluster manual Windows installers
 
-# One-time unsigned direct-download release of the already reviewed main
-# Windows build. This does not publish or relax the separately signed
-# server-main automatic-update channel.
+# Unsigned direct-download release of every reviewed main Windows build,
+# versioned <line>.<commit count> by tools/scripts/cluster-stamp-release.mjs.
+# The separately signed server-main update channel is published elsewhere.
 on:
   workflow_run:
     workflows: [Build Cluster Windows Server installer]
@@ -13,7 +13,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: cluster-2-0-0-manual-release
+  group: cluster-manual-release
   cancel-in-progress: false
 
 jobs:
@@ -41,15 +41,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Admit only unpublished Cluster 2.0.0
+      - name: Stamp the release version and admit only unpublished releases
         id: eligibility
         shell: bash
         run: |
           set -euo pipefail
-          version="$(python3 -c 'import json; print(json.load(open("config/release-candidate.json"))["release"])')"
-          if test "$version" != 2.0.0 || gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          version="$(node tools/scripts/cluster-stamp-release.mjs)"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "One-time 2.0.0 publication is not needed; skipping."
+            echo "v$version is already published; skipping."
             exit 0
           fi
           echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -61,33 +62,33 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SERVER_SHA"
           python3 - <<'PY'
-          import json
+          import json,os
           metadata=json.load(open('config/release-candidate.json',encoding='utf-8'))
           package=json.load(open('package.json',encoding='utf-8'))
-          assert metadata['release']=='2.0.0'
-          assert metadata['sourceVersion']=='2.0.0'
+          version=os.environ['VERSION']
+          major,minor,patch=map(int,version.split('.'))
+          assert metadata['release']==metadata['sourceVersion']==package['version']==version
           assert metadata['channel']=='stable'
-          assert metadata['sequence']==200000000
-          assert package['version']=='2.0.0'
+          assert metadata['sequence']==major*100000000+minor*100000+patch
           PY
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.head_sha')" = "$SERVER_SHA"
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.head_branch')" = main
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SERVER_RUN" --jq '.conclusion')" = success
-          if gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo 'Immutable v2.0.0 is already published. Refusing to overwrite it.' >&2
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Immutable v$VERSION is already published. Refusing to overwrite it." >&2
             exit 1
           fi
 
-      - name: Require all reviewed 2.0.0 release CI on the exact Server commit
+      - name: Require all reviewed release CI on the exact Server commit
         if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
           for attempt in $(seq 1 60); do
-            gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SERVER_SHA&per_page=100" > "$RUNNER_TEMP/cluster-2-0-0-ci-runs.json"
+            gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SERVER_SHA&per_page=100" > "$RUNNER_TEMP/cluster-ci-runs.json"
             result="$(python3 - <<'PY'
           import json,os,pathlib
-          runs=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'cluster-2-0-0-ci-runs.json').read_text())['workflow_runs']
+          runs=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'cluster-ci-runs.json').read_text())['workflow_runs']
           required=(
             'Managed network access regressions',
             'Reproducible Node and workspace release build',
@@ -140,7 +141,7 @@ jobs:
           receipt=json.loads(receipt_path.read_text(encoding='utf-8'))
           assert receipt['product']=='cluster-server'
           assert receipt['profile']=='server-windows-x64'
-          assert receipt['release']==receipt['sourceVersion']=='2.0.0'
+          assert receipt['release']==receipt['sourceVersion']==os.environ['VERSION']
           assert receipt['channel']=='main'
           assert receipt['commit']==os.environ['SERVER_SHA']
           assert receipt['built'] is True
@@ -161,7 +162,7 @@ jobs:
               assert path.stat().st_size==entries[0]['bytes'], f'Size mismatch: {declared}'
               shutil.copyfile(path,target/out_name)
           shutil.copyfile(receipt_path,target/'Cluster-server-build-receipt.json')
-          print('Verified both Windows binaries against reviewed 2.0.0 main build receipt')
+          print('Verified both Windows binaries against the reviewed main build receipt')
           PY
 
       - name: Verify and retain unchanged native Qt Desktop 1.2.2 release artifacts
@@ -196,44 +197,43 @@ jobs:
               shutil.copyfile(src,root/'cluster-release'/name)
           PY
 
-      - name: Publish verified 2.0.0 direct-download release
+      - name: Publish verified direct-download release
         if: steps.eligibility.outputs.publish == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/cluster-2-0-0-notes.md" <<'NOTES'
-          ## Cluster 2.0.0 (Windows x64)
+          previous="$(git tag -l 'v*' --sort=-v:refname --merged HEAD | head -1)"
+          {
+            echo "## Cluster $VERSION (Windows x64)"
+            echo
+            echo "**Changes**"
+            echo
+            git log --no-merges --format='- %s' ${previous:+"$previous..HEAD"} | head -60
+            echo
+            cat <<'NOTES'
+          **Updating:** Servers with automatic updates install this from the signed feed in their maintenance window. To install by hand, place this installer in the parent folder of the existing `Cluster` folder (for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`) and run it; it upgrades in place and keeps your data.
 
-          **Cluster 2: the refinement release.** One shell, one page header, one menu skin and quieter copy across every tool. See `docs/releases/CLUSTER_2_0_0.md` for the full list.
-
-          Download **Cluster-Installer.exe** and verify its SHA-256 against **Cluster-server-build-receipt.json**.
-
-          **Upgrading from 1.x:** use this installer. 1.x launchers only recognise 1.x releases and will not offer 2.0.0 as an update; from 2.0.0 on, updates are offered normally.
-
-          **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed `Cluster` folder: for `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`; for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`. Do not run the installer from Downloads or inside `Cluster\Server`, because its location determines the target.
-
-          **Unsigned manual installer.** This release is not delivered by the signed `server-main` update channel unless the protected publisher signs it. Authenticode signing is independent.
-
-          **Qt Desktop:** The native Qt Desktop 1.2.2 installer and portable ZIP are carried forward unchanged from v1.2.2 and individually verified against their published SHA-256 hashes.
+          **Qt Desktop:** The native Qt Desktop 1.2.2 installer and portable ZIP are carried forward unchanged from v1.2.2 and verified against their published SHA-256 hashes.
           NOTES
-          gh release create v2.0.0 --repo "$GITHUB_REPOSITORY" \
+          } > "$RUNNER_TEMP/cluster-notes.md"
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" \
             --target "$SERVER_SHA" \
-            --title 'Cluster 2.0.0 | Azure Studios' \
-            --notes-file "$RUNNER_TEMP/cluster-2-0-0-notes.md" \
+            --title "Cluster $VERSION | Azure Studios" \
+            --notes-file "$RUNNER_TEMP/cluster-notes.md" \
             --draft
           for asset in Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
             Cluster-Desktop-1.2.2-windows-x64.zip Cluster-desktop-build-receipt.json \
             Cluster-Desktop-Installer-1.2.2-windows-x64.exe \
             Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
             test -s "$RUNNER_TEMP/cluster-release/$asset"
-            gh release upload v2.0.0 "$RUNNER_TEMP/cluster-release/$asset" --repo "$GITHUB_REPOSITORY"
+            gh release upload "v$VERSION" "$RUNNER_TEMP/cluster-release/$asset" --repo "$GITHUB_REPOSITORY"
           done
-          gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/cluster-released-names.txt"
+          gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/cluster-released-names.txt"
           test "$(wc -l < "$RUNNER_TEMP/cluster-released-names.txt")" -eq 8
           for asset in Cluster-Installer.exe Cluster-Server.exe Cluster-server-build-receipt.json \
             Cluster-Desktop-Installer.exe Cluster-Desktop-Portable.zip; do
             grep -Fx "$asset" "$RUNNER_TEMP/cluster-released-names.txt"
           done
-          gh release edit v2.0.0 --repo "$GITHUB_REPOSITORY" --draft=false --latest
-          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = v2.0.0
-          echo 'Published verified, unsigned Cluster Server 2.0.0 as the latest manual GitHub release.'
+          gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')" = "v$VERSION"
+          echo "Published verified, unsigned Cluster Server $VERSION as the latest manual GitHub release."

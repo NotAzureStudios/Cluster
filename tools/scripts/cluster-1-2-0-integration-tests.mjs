@@ -4,11 +4,11 @@ const read=(p)=>fs.readFileSync(p,"utf8");
 const meta=JSON.parse(read("config/release-candidate.json"));
 // The one-time 1.2.0 publisher is retired now that v1.2.0 is out; the current
 // manual publisher keeps the same refusals.
-const manualPublisher=read(".github/workflows/publish-cluster-2-0-0-manual.yml");
-assert.match(manualPublisher,/sequence.*200000000|200000000/);
+const manualPublisher=read(".github/workflows/publish-cluster-manual.yml");
+assert.match(manualPublisher,/cluster-stamp-release\.mjs/);
 assert.match(manualPublisher,/Release CI timed out; refusing to publish/);
-assert.match(manualPublisher,/Immutable v2\.0\.0 is already published/);
-assert.match(manualPublisher,/gh release create v2\.0\.0/);
+assert.match(manualPublisher,/Immutable v\$VERSION is already published/);
+assert.match(manualPublisher,/gh release create "v\$VERSION"/);
 assert.match(manualPublisher,/digest==entries\[0\]\['sha256'\]/);
 const server=read("apps/server/src/app/server-routes-configuration-integrations.ts");
 const native=read("apps/server-launcher-go/launcher_ui_windows.go");

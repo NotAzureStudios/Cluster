@@ -38,6 +38,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
+          fetch-depth: 0
       - name: Install pinned Node 24.20.0
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -49,6 +50,8 @@ jobs:
           if ((git branch --show-current).Trim() -ne 'main') { throw 'Publisher must be on main' }
           $head = (git rev-parse HEAD).Trim()
           if ($head -ne $env:BUILT_SHA) { throw 'A newer main revision exists; only publish a build of the latest main' }
+          node tools/scripts/cluster-stamp-release.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Could not stamp the release version' }
           node tools/scripts/cluster-suite-version-contract.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Source version/lockfile mismatch' }
           $required = @(

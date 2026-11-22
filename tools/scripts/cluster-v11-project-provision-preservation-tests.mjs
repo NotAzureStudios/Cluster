@@ -97,25 +97,15 @@ test("Git provisioning failure retains its database repository binding and ID", 
   assert.doesNotMatch(source, /sourceRepository\.delete\(/);
 });
 
-test("active manual publisher matches current monotonic stable release identity", () => {
+test("manual publisher derives and verifies the stamped release identity", () => {
   const release = JSON.parse(read("config/release-candidate.json"));
-  const version = String(release.release || "");
-  assert.match(version, /^[1-9][0-9]?\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/);
-  assert.equal(release.sourceVersion, version);
-  assert.equal(release.channel, "stable");
-  assert.equal(release.sequence, stableServerSequence(version));
-  const prefix = ".github/workflows/publish-cluster-" + version.replaceAll(".", "-");
-  const candidates = [prefix + "-manual.yml", prefix + "-full.yml"];
-  const present = candidates.filter((file) => fs.existsSync(path.join(root, file)));
-  // A version's one-time publisher is added when that version is released;
-  // an unreleased source version has none yet, and never more than one.
-  assert.ok(present.length <= 1, "At most one current stable release publisher may exist");
-  if (!present.length) return;
-  const workflow = read(present[0]);
+  assert.match(String(release.line || ""), /^[1-9][0-9]?\.(0|[1-9][0-9]*)$/);
+  assert.equal(release.sequence, stableServerSequence(release.release));
+  const workflow = read(".github/workflows/publish-cluster-manual.yml");
   assert.ok(workflow.includes("head_branch == 'main'"), "Publisher must only accept main build events");
-  assert.ok(workflow.includes("assert metadata['sequence']==" + release.sequence));
+  assert.ok(workflow.includes("node tools/scripts/cluster-stamp-release.mjs"));
   assert.ok(workflow.includes('test "$(git rev-parse HEAD)" = "$SERVER_SHA"'));
-  assert.ok(workflow.includes("gh release create v" + version));
+  assert.ok(workflow.includes('gh release create "v$VERSION"'));
   assert.ok(workflow.includes("SERVER_ARTIFACT: cluster-server-unsigned-windows-x64-"));
 });
 
