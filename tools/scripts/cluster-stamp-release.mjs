@@ -37,6 +37,13 @@ const SOURCE_FILES = [
   "packages/shared/src/index.ts",
 ];
 
+// Every file stamp() writes; the packager allows exactly these to differ.
+export function stampedFiles() {
+  const { workspaces } = readJson("package.json");
+  return [...SOURCE_FILES, "package.json", ...workspaces.map((w) => `${w}/package.json`), "package-lock.json",
+    "config/release-candidate.json", "config/toolchain-versions.json", "config/distribution-profiles.json"];
+}
+
 export function stamp(version) {
   const app = readJson("package.json");
   const previous = app.version;

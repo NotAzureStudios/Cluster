@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isDesktopOnlyDistributionPath } from './cluster-distribution-scope.mjs';
 import {validStableServerRelease} from './cluster-server-release-sequence.mjs';
+import { stampedFiles } from './cluster-stamp-release.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const installer=path.join(root,'tools','installer');
 const embedded=path.join(installer,'assets','bundled-source.zip');
@@ -104,8 +105,10 @@ function run(){
     if(!fs.existsSync(path.join(root,'apps/web/dist/assets'))||
        !fs.readdirSync(path.join(root,'apps/web/dist/assets')).some(name=>name.endsWith('.js')))
       throw new Error('Prebuilt installer missing compiled web assets');
-    const gitStatus=spawnSync('git',['diff','--quiet'],{cwd:root});
-    const stagedStatus=spawnSync('git',['diff','--cached','--quiet'],{cwd:root});
+    // Only the CI version stamp may differ from the committed source.
+    const unstamped=['--','.',...stampedFiles().map(file=>':!'+file)];
+    const gitStatus=spawnSync('git',['diff','--quiet',...unstamped],{cwd:root});
+    const stagedStatus=spawnSync('git',['diff','--cached','--quiet',...unstamped],{cwd:root});
     if(gitStatus.status!==0||stagedStatus.status!==0)throw new Error('Prebuilt release must be produced from clean tracked source');
     prebuiltMetadata={
       schema:1,product:'cluster-server',kind:'prebuilt-windows-x64',
