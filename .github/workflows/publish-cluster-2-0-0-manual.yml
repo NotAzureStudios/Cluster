@@ -204,7 +204,7 @@ jobs:
 
           Download **Cluster-Installer.exe** and verify its SHA-256 against **Cluster-server-build-receipt.json**.
 
-          **Upgrading from 1.x:** install Server 1.2.4 first (or use this manual installer). Launchers from 1.2.3 and earlier only recognise 1.x releases and will not offer 2.0.0.
+          **Upgrading from 1.x:** use this installer. 1.x launchers only recognise 1.x releases and will not offer 2.0.0 as an update; from 2.0.0 on, updates are offered normally.
 
           **Existing Server upgrades:** Preserve a verified backup of PostgreSQL, Library, configuration, and account secrets. Stop Server and managed PostgreSQL/Node/Host services. Place the installer in the parent directory of the existing managed `Cluster` folder: for `D:\Cluster-Server\Cluster\Server`, run `D:\Cluster-Server\Cluster-Installer.exe`; for `C:\Cluster\Server`, run `C:\Cluster-Installer.exe`. Do not run the installer from Downloads or inside `Cluster\Server`, because its location determines the target.
 

@@ -21,12 +21,8 @@ Stable 1.x sequences are unchanged. Major 2 and later start at `major × 1000000
 
 ## Upgrading
 
-Server launchers up to 1.2.3 only recognise 1.x release identities, so they will not offer 2.0.0. Server **1.2.4** (branch `release/1.2.4-bridge`) is the bridge: it is 1.2.3 with Cluster 2's launcher rule. Release order:
+Launchers from 1.x only recognise 1.x release identities, so existing installations do not get 2.0.0 as an in-app update. Upgrade them with the manual 2.0.0 installer; from 2.0.0 on, updates are offered normally.
 
-1. Merge `release/1.2.4-bridge` into `main`; `publish-cluster-1-2-4-manual.yml` publishes v1.2.4 once the Windows build and release CI pass.
-2. Let installations reach 1.2.4 (signed channel or manual installer).
-3. Merge `development` into `main`; `publish-cluster-2-0-0-manual.yml` publishes v2.0.0 the same way.
-
-The manual 2.0.0 installer also works directly on any 1.x installation.
+Release: merge `development` into `main`; `publish-cluster-2-0-0-manual.yml` publishes v2.0.0 once the Windows build and release CI pass.
 
 The native Qt Desktop keeps its independent version (1.2.2).
