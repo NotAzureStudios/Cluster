@@ -14,3 +14,5 @@
 .security-pin-dialog-v262[data-error="true"] .cluster-pin-dots-v124 { animation: security-pin-shake .32s ease; }
 @keyframes security-pin-shake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
 @media (prefers-reduced-motion: reduce) { .security-pin-dialog-v262[data-error="true"] .cluster-pin-dots-v124 { animation: none; } }
+/* Stays out of the flow even when focused (a global focus rule made it static). */
+.security-pin-dialog-v262 > .security-pin-close-v262, .security-pin-dialog-v262 > .security-pin-close-v262:focus, .security-pin-dialog-v262 > .security-pin-close-v262:focus-visible { position: absolute; top: 12px; right: 12px; }

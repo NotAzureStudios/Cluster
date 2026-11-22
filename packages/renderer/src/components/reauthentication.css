@@ -13,3 +13,9 @@
 .reauth-methods-v495 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 2px 18px 4px; padding: 4px; border: 1px solid var(--border, color-mix(in srgb, var(--cluster-white) 14%, transparent)); border-radius: 9px; background: color-mix(in srgb, var(--cluster-black) 10%, transparent); }
 .reauth-methods-v495 button { min-height: 34px; border: 0; border-radius: 6px; background: transparent; color: var(--muted, #9aa3ab); font: inherit; font-size: .78rem; font-weight: 650; }
 .reauth-methods-v495 button.active { background: var(--panel-raised, color-mix(in srgb, var(--cluster-white) 8%, transparent)); color: var(--text, #f4f6f8); }
+/* Identity check on the Security PIN sheet. */
+.reauth-sheet__field { width:100%; }
+.reauth-sheet__note { margin:0; text-align:center; color:var(--muted); font-size:.78rem; }
+.reauth-sheet__alt { display:flex; justify-content:center; gap:14px; }
+.reauth-sheet__alt > button { border:0; background:none; color:var(--accent); font:inherit; font-size:.74rem; cursor:pointer; }
+.reauth-sheet > footer { display:grid; gap:10px; }

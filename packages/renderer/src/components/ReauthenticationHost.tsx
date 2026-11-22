@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../core/api";
 import { REAUTHENTICATION_REQUEST_EVENT, type ReauthenticationRequestDetail } from "../core/reauthentication";
 import "./reauthentication.css";
+import "./security-pin.css";
 import { ClusterTextInput } from "./ClusterTextInput";
 import { ClusterPinEntry } from "./ClusterPinEntry";
 import { ClusterButton } from "./ClusterButton";
@@ -42,7 +43,7 @@ export function ReauthenticationHost() {
     if (!request) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.setTimeout(() => inputRef.current?.focus(), 0);
+    window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 30);
     return () => { document.body.style.overflow = previousOverflow; };
   }, [request, mode]);
 
@@ -96,57 +97,34 @@ export function ReauthenticationHost() {
   }
 
   if (!request) return null;
+  const passkeyUsable = Boolean(request.passkeyAvailable && webAuthnAvailable());
+  const alternatives = ([
+    passkeyUsable ? ["passkey", "Use passkey"] : null,
+    !request.passkeyRequired && request.pinAllowed ? ["pin", "Use PIN"] : null,
+    !request.passkeyRequired && request.passwordAllowed ? ["password", "Use password"] : null,
+  ].filter(Boolean) as Array<[CredentialMode, string]>).filter(([option]) => option !== mode);
+  const reasonMissing = request.reasonMode === "required" && reason.trim().length < (request.purpose === "context_secret_export" ? 12 : 1);
+  const blocked = working || reasonMissing || (request.passkeyRequired && (mode !== "passkey" || !passkeyUsable)) || (mode !== "passkey" && !credential) || (mode === "pin" && credential.length < 4);
+  // Same sheet as the Security PIN pad, so every identity check looks alike.
   return (
-    <ClusterModal open onClose={close} busy={working} backdropClassName="reauth-backdrop-v349" includeDefaultBackdropClass={false} className="reauth-dialog-v349" labelledBy="reauth-title-v349" describedBy="reauth-description-v349" portal={false}>
-        <header>
-          <div>
-            <span>Security check</span>
-            <h2 id="reauth-title-v349">{request.title}</h2>
-            <p id="reauth-description-v349">{request.description}</p>
-          </div>
-          <ClusterButton unstyled type="button" onClick={close} aria-label="Cancel identity confirmation"><ClusterIcon name="close" /></ClusterButton>
-        </header>
-        {(request.pinAllowed || request.passkeyAvailable) && (
-          <div className="reauth-methods-v495" role="group" aria-label="Confirmation method">
-            {request.passkeyAvailable && webAuthnAvailable() && <ClusterButton unstyled type="button" className={mode === "passkey" ? "active" : ""} aria-pressed={mode === "passkey"} onClick={() => chooseMode("passkey")}>Passkey / security key</ClusterButton>}
-            {!request.passkeyRequired && request.pinAllowed && <ClusterButton unstyled type="button" className={mode === "pin" ? "active" : ""} aria-pressed={mode === "pin"} onClick={() => chooseMode("pin")}>Security PIN</ClusterButton>}
-            {!request.passkeyRequired && request.passwordAllowed && <ClusterButton unstyled type="button" className={mode === "password" ? "active" : ""} aria-pressed={mode === "password"} onClick={() => chooseMode("password")}>Password</ClusterButton>}
-          </div>
-        )}
-        {mode === "passkey" ? <div className="hint-box"><strong>Use your authenticator</strong><span>{request.minimumStrength === "hardware_backed" ? "This action requires a hardware security key." : "This action requires phishing-resistant verification with a passkey or security key."}</span></div> : mode === "pin" ? (
-          <div className="reauth-pin-pad-v124">
-            <span>Security PIN</span>
-            <ClusterPinEntry
-              inputRef={inputRef}
-              label="Security PIN"
-              value={credential}
-              disabled={working}
-              onChange={(next) => { setCredential(next); setError(""); }}
-              onEnter={() => void submitReauthentication()}
-            />
-          </div>
-        ) : <label>
-          <span>Password</span>
-          <ClusterTextInput
-            ref={inputRef}
-            type="password"
-            value={credential}
-            autoComplete="current-password"
-            disabled={working}
-            onChange={(event) => { setCredential(event.target.value); setError(""); }}
-            onKeyDown={(event) => { if (event.key === "Enter") void submitReauthentication(); }}
-          />
-        </label>}
-        {request.reasonMode === "required" && <label>
-          <span>Reason for access</span>
-          <ClusterTextInput value={reason} maxLength={500} autoComplete="off" onChange={(event) => { setReason(event.target.value); setError(""); }} placeholder="Explain why this privileged operation is necessary" />
-        </label>}
-        {request.passkeyRequired && (!request.passkeyAvailable || !webAuthnAvailable()) && <div className="reauth-error-v349" role="alert">An enrolled passkey or security key is required for this action.</div>}
-        {error && <div className="reauth-error-v349" role="alert">{error}</div>}
-        <footer>
-          <ClusterButton type="button" className="" onClick={close} variant="secondary">Cancel</ClusterButton>
-          <ClusterButton type="button" className="" disabled={working || (request.passkeyRequired && (mode !== "passkey" || !request.passkeyAvailable || !webAuthnAvailable())) || (request.reasonMode === "required" && reason.trim().length < (request.purpose === "context_secret_export" ? 12 : 1)) || (mode !== "passkey" && !credential) || (mode === "pin" && credential.length < 4)} onClick={() => void submitReauthentication()} variant="primary">{working ? "Confirming…" : mode === "passkey" ? "Use authenticator" : "Confirm"}</ClusterButton>
-        </footer>
+    <ClusterModal open onClose={close} busy={working} backdropClassName="security-pin-backdrop-v262 security-pin-backdrop-v267" includeDefaultBackdropClass={false} className="security-pin-dialog-v262 security-pin-dialog-v267 reauth-sheet" labelledBy="reauth-title-v349" describedBy="reauth-description-v349" portal={false} dialogProps={{ "data-mode": mode, "data-error": error ? "true" : undefined }}>
+      <>
+      <ClusterButton unstyled type="button" className="security-pin-close-v262" onClick={close} aria-label="Cancel identity confirmation" tabIndex={-1}><ClusterIcon name="close" /></ClusterButton>
+      <header>
+        <h2 id="reauth-title-v349">{request.title}</h2>
+        <p id="reauth-description-v349">{request.description}</p>
+      </header>
+      {mode === "pin" ? <ClusterPinEntry inputRef={inputRef} label="Security PIN" value={credential} disabled={working} onChange={(next) => { setCredential(next); setError(""); }} onEnter={() => void submitReauthentication()} />
+        : mode === "password" ? <ClusterTextInput ref={inputRef} type="password" aria-label="Password" placeholder="Password" className="reauth-sheet__field" value={credential} autoComplete="current-password" disabled={working} onChange={(event) => { setCredential(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void submitReauthentication(); }} />
+        : <p className="reauth-sheet__note">{request.minimumStrength === "hardware_backed" ? "Use your hardware security key." : "Use your passkey or security key."}</p>}
+      {request.reasonMode === "required" && <ClusterTextInput className="reauth-sheet__field" aria-label="Reason" value={reason} maxLength={500} autoComplete="off" onChange={(event) => { setReason(event.target.value); setError(""); }} placeholder="Reason for this action" />}
+      {request.passkeyRequired && !passkeyUsable && <div className="security-pin-error-v262" role="alert">This action needs an enrolled passkey or security key.</div>}
+      {error && <div className="security-pin-error-v262" role="alert">{error}</div>}
+      <footer>
+        <ClusterButton type="button" variant="primary" disabled={blocked} onClick={() => void submitReauthentication()}>{working ? "Confirming…" : mode === "passkey" ? "Use authenticator" : "Confirm"}</ClusterButton>
+        {alternatives.length ? <div className="reauth-sheet__alt">{alternatives.map(([option, label]) => <ClusterButton key={option} unstyled type="button" onClick={() => chooseMode(option)}>{label}</ClusterButton>)}</div> : null}
+      </footer>
+      </>
     </ClusterModal>
   );
 }
