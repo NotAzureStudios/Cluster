@@ -332,6 +332,7 @@ export type Settings = {
   operationsEscalationIntervalMinutes?: number;
   operationsNativeReconcileIntervalMinutes?: number;
   operationsIntegrityScanHours?: number;
+  serverAutoUpdate?: boolean;
   maintenanceWindowEnabled?: boolean;
   maintenanceWindowTimezone?: string;
   maintenanceWindowDaysCsv?: string;

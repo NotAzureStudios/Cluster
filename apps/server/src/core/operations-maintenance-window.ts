@@ -1,9 +1,9 @@
 /**
  * F4 P13: bounded, strictly advisory maintenance window calendar.
  *
- * Window configuration does not authorize a restart, drain, update, or worker
- * interruption. A native executor must independently verify its own authority,
- * a fresh preflight and the active window before taking any action.
+ * Automatic Server updates install inside the active window
+ * (server-auto-update.ts); the native broker still verifies, backs up and
+ * rolls back. The window authorizes no other restart, drain or interruption.
  *
  * Evaluate real instants in an IANA timezone, rather than adding seven days to
  * a UTC timestamp. This preserves local wall-clock schedules across DST.
@@ -84,6 +84,6 @@ export function previewMaintenanceWindows(policy: MaintenanceWindowPolicy, optio
     checkedAt: new Date(now).toISOString(),
     windows: result,
     executable: false as const,
-    note: "Advisory maintenance calendar only. No reboot, update, drain, background job, or Windows Service action is scheduled or authorized. Native supervision, backup integrity, outage communication and fresh readiness checks remain required.",
+    note: "Automatic Server updates install during these windows. Nothing else restarts or drains the Server on this schedule.",
   };
 }

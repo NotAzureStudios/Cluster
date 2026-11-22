@@ -1,7 +1,5 @@
 
 import fs from "node:fs/promises";
-import { execFile, spawn } from "node:child_process";
-import { promisify } from "node:util";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { type FastifyInstance } from "fastify";
@@ -19,6 +17,7 @@ import { OperationCancelledError, withRequestCancellation } from "../core/operat
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
 import { checkServerConfigPreconditions } from "../core/server-config-preconditions.js";
 import { readNetworkDeploymentStatus } from "../core/server-network-deployment.js";
+import { nativeUpdateBinary, readNativeWebUpdate, startNativeUpdateStage } from "../core/server-auto-update.js";
 import { diagnoseLocalNetworkPorts } from "../core/server-network-local-diagnostics.js";
 import { NETWORK_REVIEW_KEYS, reviewBoundDomainPortDrift, reviewNetworkChange } from "../core/server-network-change-review.js";
 
@@ -32,29 +31,6 @@ function validIanaTimeZone(value: string) {
   } catch {
     return false;
   }
-}
-
-const nativeUpdateExecFile = promisify(execFile);
-
-// The native Windows binary owns publisher-signature verification, staging
-// bounds and canonical update-channel configuration. API callers may not
-// supply executables, URLs, installer paths or shell arguments.
-function nativeUpdateBinary(dataRoot: string) {
-  if (process.platform !== "win32" || path.basename(dataRoot).toLowerCase() !== "data") return null;
-  const root = path.dirname(dataRoot);
-  return { root, binary: path.join(root, "bin", "Cluster Server.exe") };
-}
-async function readNativeWebUpdate(dataRoot: string, action: "check" | "status" | "install") {
-  const native = nativeUpdateBinary(dataRoot);
-  if (!native) return null;
-  const { stdout } = await nativeUpdateExecFile(native.binary,
-    ["--root", native.root, "--web-server-update", action],
-    { windowsHide: true, timeout: action === "check" ? 16_000 : action === "install" ? 20_000 : 8_000, maxBuffer: 8 * 1024 });
-  return JSON.parse(stdout) as {
-    ok: boolean; state: string; available?: boolean; message: string;
-    release?: string; sequence?: number; sha256?: string;
-    manualReleaseUrl?: string; installSupported: boolean; updatedAt?: string;
-  };
 }
 
 const backupTimezoneSchema = z.string().trim().min(1).max(100).refine(validIanaTimeZone, "Backup timezone must be a valid IANA timezone, such as America/New_York.");
@@ -388,12 +364,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       // One bounded, fixed-purpose native child. The child locks its staging
       // transaction, checks the pinned Ed25519 publisher key, and records
       // its result. A browser request never controls its executable or feed.
-      await new Promise<void>((resolve, reject) => {
-        const child = spawn(native.binary, ["--root", native.root, "--web-server-update", "stage"],
-          { windowsHide: true, detached: true, stdio: "ignore" });
-        child.once("error", reject);
-        child.once("spawn", () => { child.unref(); resolve(); });
-      });
+      await startNativeUpdateStage(DATA_ROOT);
       await deps.logSecurityEvent?.({ event: "server.update.stage_requested", actorUserId: user.id, result: "SUCCESS", reasonCode: "SIGNED_SERVER_STAGE_REQUESTED", request, metadata: { channel: "main" } });
       reply.header("Cache-Control", "private, no-store");
       return reply.code(202).send({ ok: true, state: "staging", message: "Signed installer staging was started. Check status for native verification; no Server update has been installed." });
@@ -583,6 +554,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         operationsEscalationIntervalMinutes: z.number().int().min(2).max(5).optional(),
         operationsNativeReconcileIntervalMinutes: z.number().int().min(2).max(5).optional(),
         operationsIntegrityScanHours: z.number().int().min(1).max(24).optional(),
+        serverAutoUpdate: z.boolean().optional(),
         maintenanceWindowEnabled: z.boolean().optional(),
         maintenanceWindowTimezone: z.string().min(1).max(64).refine((value) => { try { new Intl.DateTimeFormat("en-US", { timeZone: value }); return /^[A-Za-z0-9_+\-/]+$/.test(value); } catch { return false; } }, "Invalid IANA timezone").optional(),
         maintenanceWindowDaysCsv: z.string().min(3).max(64).regex(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:\s*,\s*(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*$/, "Use comma-separated weekday abbreviations").refine((value) => { const days = value.split(",").map(s => s.trim()); return new Set(days).size === days.length; }, "Duplicate weekdays are not allowed").optional(),
@@ -930,6 +902,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
         operationsEscalationIntervalMinutes: z.number().int().min(2).max(5).optional(),
         operationsNativeReconcileIntervalMinutes: z.number().int().min(2).max(5).optional(),
         operationsIntegrityScanHours: z.number().int().min(1).max(24).optional(),
+        serverAutoUpdate: z.boolean().optional(),
         maintenanceWindowEnabled: z.boolean().optional(),
         maintenanceWindowTimezone: z.string().min(1).max(64).refine((value) => { try { new Intl.DateTimeFormat("en-US", { timeZone: value }); return /^[A-Za-z0-9_+\-/]+$/.test(value); } catch { return false; } }, "Invalid IANA timezone").optional(),
         maintenanceWindowDaysCsv: z.string().min(3).max(64).regex(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)(?:\s*,\s*(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat))*$/, "Use comma-separated weekday abbreviations").refine((value) => { const days = value.split(",").map(s => s.trim()); return new Set(days).size === days.length; }, "Duplicate weekdays are not allowed").optional(),

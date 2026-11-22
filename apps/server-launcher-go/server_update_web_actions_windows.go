@@ -143,7 +143,7 @@ func runWebServerUpdateAction(root,action string)error{
   // transaction as "verified" merely because the staged installer remains.
   if !pending && state.State!="installed" && state.State!="blocked" &&
     state.State!="recovered" && state.State!="installing" {
-    if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil{
+    if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil && candidate.Sequence>installedServerReleaseSequence(root){
       state.OK=true
       state.State="verified"
       state.Available=true
@@ -187,7 +187,8 @@ func runWebServerUpdateAction(root,action string)error{
   lock.Close()
   defer os.Remove(lockFile)
   _=publishWebUpdateStatus(root,webServerUpdateStatus{OK:true,State:"staging",Message:"Downloading and verifying the publisher-signed Server installer."})
-  if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil{
+  // Reuse a staged installer only while it is still newer than this install.
+  if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil && candidate.Sequence>installedServerReleaseSequence(root){
    return publishWebUpdateStatus(root,webServerUpdateStatus{OK:true,State:"verified",Available:true,Release:candidate.Release,Sequence:candidate.Sequence,SHA256:candidate.SHA256,Message:"Previously staged signed Server installer verified."})
   }
   result:=checkUpdateManifest(root)

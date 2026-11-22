@@ -87,4 +87,6 @@ export type ServerConfigField = {
   restart?: boolean;
   wide?: boolean;
   options?: Array<{ value: string; label: string }>;
+  // Boolean fields: the value when the setting has never been saved.
+  defaultValue?: boolean;
 };

@@ -93,7 +93,8 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
   ] },
   { key: "serverResourceWorkerCap", label: "Maximum concurrent background jobs", section: "performance", group: "Worker limits", type: "number", min: 1, max: 128, step: 1, placeholder: "128 (default)", restart: true },
   { key: "serverResourceRecoveryHoldMs", label: "Overload recovery hold (milliseconds)", section: "performance", group: "Worker limits", type: "number", min: 1000, max: 120000, step: 500, placeholder: "7500 (default)", restart: true },
-  { key: "maintenanceWindowEnabled", label: "Enable maintenance window planning", section: "maintenance", group: "Planned service windows", type: "boolean" },
+  { key: "serverAutoUpdate", label: "Install updates automatically", section: "maintenance", group: "Planned service windows", type: "boolean", defaultValue: true },
+  { key: "maintenanceWindowEnabled", label: "Use a maintenance window", section: "maintenance", group: "Planned service windows", type: "boolean" },
   { key: "maintenanceWindowTimezone", label: "Maintenance timezone", section: "maintenance", group: "Planned service windows", type: "timezone" },
   { key: "maintenanceWindowDaysCsv", label: "Weekdays (Sun, Mon, Tue...)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "Sun" },
   { key: "maintenanceWindowStart", label: "Local start (HH:mm)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "03:00" },
@@ -1403,7 +1404,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     if (field.type === "boolean") {
       return <div className={className + " server-config-toggle-v238"} key={String(field.key)}>
         {header}
-        <ClusterInput id={inputId} type="checkbox" checked={Boolean(value)} onChange={(event) => patch(field.key, event.target.checked)} />
+        <ClusterInput id={inputId} type="checkbox" checked={Boolean(value ?? field.defaultValue)} onChange={(event) => patch(field.key, event.target.checked)} />
       </div>;
     }
     const control = field.type === "timezone"
@@ -1860,10 +1861,10 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       {section === "maintenance" && (
         <>
           <ServerUpdateControls owner={currentUser.workspaceRole === "owner"} pinConfigured={currentUser.pinConfigured === true} />
-          <div className="hint-box"><strong>Scheduled health checks</strong><span>These intervals tune existing server jobs without creating additional polling workers. No automatic update, restart, data deletion, or recovery action is authorized by changing these values. Live cadence changes rearm idle tasks. Active scans remain bounded by the background scheduler.</span></div>
+          <div className="hint-box"><strong>Automatic updates</strong><span>New releases download as soon as they're published and install during the maintenance window, or nightly at 3 AM studio time if no window is set.</span></div>
           {renderSectionFields("maintenance")}
           <section className="panel server-config-operations-v238" aria-label="Saved maintenance window preview">
-            <div className="server-config-group-head-v238"><div><h2>Planned service windows</h2><p className="muted tight">Preview saved maintenance windows in their configured timezone. Draft changes above take effect only after a protected Save. This calendar never initiates a reboot, update or drain.</p></div></div>
+            <div className="server-config-group-head-v238"><div><h2>Planned service windows</h2><p className="muted tight">Upcoming windows in their timezone. Changes apply after Save.</p></div></div>
             <ClusterButton type="button" variant="secondary" busy={maintenanceWindowsLoading} busyLabel="Checking…" disabled={maintenanceWindowsLoading} onClick={() => void previewSavedMaintenanceWindows()}>Preview saved windows</ClusterButton>
             {maintenanceWindowsError && <p role="alert">{maintenanceWindowsError}</p>}
             {maintenanceWindows && <div aria-live="polite">

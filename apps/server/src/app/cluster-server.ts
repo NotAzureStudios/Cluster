@@ -152,6 +152,7 @@ import { ClusterAccelerationRuntime, type ClusterAccelerationMode } from "../cor
 import { runtimeAccessModeFromEnvironment } from "../core/runtime-access-state.js";
 import { mayRunBackgroundMutation } from "../core/operations-background-mode.js";
 import { createMediaWorkerSupervisor } from "./media-worker-supervisor.js";
+import { serverAutoUpdateTick } from "../core/server-auto-update.js";
 const RUNTIME_CONFIG = loadRuntimeConfig();
 const { clusterVersion: CLUSTER_VERSION, runtimeProfile: RUNTIME_PROFILE, bootWorkspaceRoot: BOOT_WORKSPACE_ROOT, bootConfigFilePath: BOOT_CONFIG_FILE_PATH, bootSettings: BOOT_SETTINGS, webOrigin: WEB_ORIGIN, configuredCorsOrigins: CONFIGURED_CORS_ORIGINS, sessionCookie: SESSION_COOKIE, sessionDays: SESSION_DAYS, sessionSecure: SESSION_SECURE, rateLimitEnabled: RATE_LIMIT_ENABLED, authRequired: AUTH_REQUIRED, devLoginEnabled: DEV_LOGIN_ENABLED, requestTimeoutMs: REQUEST_TIMEOUT_MS, apiRateLimitMax: API_RATE_LIMIT_MAX, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, authRateLimitMax: AUTH_RATE_LIMIT_MAX, sessionIdleHours: SESSION_IDLE_HOURS, sessionMaxPerUser: SESSION_MAX_PER_USER, securityHeadersEnabled: SECURITY_HEADERS_ENABLED, requireMutationOrigin: REQUIRE_MUTATION_ORIGIN, requireDiscordLink: REQUIRE_DISCORD_LINK, uploadLimitBytes: UPLOAD_LIMIT_BYTES, avatarUploadLimitBytes: AVATAR_UPLOAD_LIMIT_BYTES, allowExecutableUploads: ALLOW_EXECUTABLE_UPLOADS, backupVerifyAfterCreate: BACKUP_VERIFY_AFTER_CREATE, sessionSecret: SESSION_SECRET, authSecret: AUTH_SECRET } = RUNTIME_CONFIG;
 const DATABASE_URL = process.env.DATABASE_URL || BOOT_SETTINGS.databaseUrlOverride || "postgresql://cluster@127.0.0.1:5432/cluster";
@@ -1471,6 +1472,12 @@ export async function startClusterServer() {
         if (!backgroundMutationPermitted()) return { nextDelayMs: 60 * 60 * 1000 };
         await storageLifecycleRuntime.run();
       }, { runImmediately: false, maxBackoffMs: 12 * 60 * 60 * 1000, slowTaskMs: 30 * 60_000, workloadClass: "maintenance" });
+      // Signed main updates: download when published, install in the
+      // maintenance window. Windows native installs only; off by setting.
+      backgroundTasks.scheduleAdaptive("server-auto-update", 5 * 60 * 1000, async () => !backgroundMutationPermitted() ? { nextDelayMs: 15 * 60 * 1000 } : serverAutoUpdateTick({
+        dataRoot: DATA_ROOT, readSettings: () => readSettings(), log: app.log,
+        logSecurityEvent: (event) => logSecurityEvent(event),
+      }), { runImmediately: false, maxBackoffMs: 6 * 60 * 60 * 1000, slowTaskMs: 30_000, workloadClass: "maintenance" });
       backgroundTasks.scheduleAdaptive("storage-browser-upload-probe", 15 * 60 * 1000, async () => {
         if (!backgroundMutationPermitted()) return { nextDelayMs: 15 * 60 * 1000 };
         await storageRuntime.browserDirectUploadCapability(WEB_ORIGIN);

@@ -136,7 +136,7 @@ try {
  const ui=read('packages/renderer/src/features/settings/ServerConfigPage.tsx');
  for(const key of keys) yes(ui.includes(`key: "${key}"`),`UI editable ${key}`);
  yes(ui.includes('Preview saved windows'),'explicit preview control');
- yes(ui.includes('never initiates a reboot, update or drain'),'UI does not promise automatic work');
+ yes(ui.includes('install during the maintenance window'),'UI says what the window is used for');
  yes(read('apps/server/src/core/openapi.ts').includes('"/api/admin/operations/maintenance/windows": { get:'),'OpenAPI documented');
  const model=read('apps/server/src/app/server-composition-types.ts');
  const rendererModel=read('packages/renderer/src/features/application/application-models/settings-server.ts');

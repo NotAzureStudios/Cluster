@@ -124,7 +124,7 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
       <div className="server-config-group-head-v238">
         <div>
           <h2>Server updates</h2>
-          <p className="muted tight">Check the publisher-signed Server main release feed from this browser. The native Windows Server Manager verifies signatures before staging an installer.</p>
+          <p className="muted tight">Signed releases from main. Install now, or let them install in the maintenance window.</p>
         </div>
         <SettingsStateChip tone={["verified", "installed"].includes(status?.state || "") ? "success" : ["failed", "blocked", "recovered"].includes(status?.state || "") ? "warning" : "neutral"}>
           {status?.state === "installed" ? "Installed" : status?.state === "installing" ? "Installing" : status?.state === "queued" ? "Queued" : status?.state === "verified" ? "Signed download verified" : status?.state === "staging" ? "Downloading" : status?.state === "blocked" ? "Recovery needs review" : "Signed updates"}
@@ -141,6 +141,7 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
           Refresh status
         </ClusterButton>
         <ClusterButton type="button" variant="primary" busy={busy === "install"} disabled={!owner || !status?.installSupported || status.state !== "verified" || busy !== null}
+          onClick={() => void installVerifiedUpdate()}
           title={status?.installSupported ? "Authorize one verified native Server installation" : "Requires a locally provisioned and running privileged Windows Update Broker"}>
           Install verified update
         </ClusterButton>
@@ -152,7 +153,7 @@ export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean;
         {status.sha256 && <p className="muted tight">Verified installer SHA-256: <code>{status.sha256}</code></p>}
       </div>}
       {error && <p role="alert">{error}</p>}
-      <p className="muted tight">Installing requires a separately provisioned Windows Update Broker and Owner Security PIN. The broker independently verifies the publisher signature, creates a cold database snapshot, applies the release and attempts rollback if startup fails. Unverified or interrupted recovery remains blocked for local review.</p>
+      <p className="muted tight">The Windows Update Broker verifies the signature, backs up the database, installs, and rolls back if startup fails.</p>
     </section>
   );
 }

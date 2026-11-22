@@ -117,6 +117,7 @@ export type SettingPayload = Record<string, unknown> & PacketsSettingsPayload & 
   operationsEscalationIntervalMinutes?: number;
   operationsNativeReconcileIntervalMinutes?: number;
   operationsIntegrityScanHours?: number;
+  serverAutoUpdate?: boolean;
   maintenanceWindowEnabled?: boolean;
   maintenanceWindowTimezone?: string;
   maintenanceWindowDaysCsv?: string;

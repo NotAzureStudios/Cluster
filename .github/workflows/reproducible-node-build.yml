@@ -47,6 +47,8 @@ jobs:
           DATABASE_URL: postgresql://cluster_build:unused@127.0.0.1:1/cluster_build
       - name: Database analytics query budget regression
         run: node tools/scripts/cluster-performance-analytics-query-tests.mjs
+      - name: Automatic Server updates download when published and install in the maintenance window
+        run: node tools/scripts/cluster-server-auto-update-tests.mjs
       - name: Request I/O coalescing and update hold safety
         run: node tools/scripts/cluster-request-io-coalescing-tests.mjs
       - name: Queue counts and pressure single-flight regression
