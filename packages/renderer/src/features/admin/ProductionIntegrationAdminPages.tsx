@@ -21,6 +21,7 @@ import "./admin.css";
 import "./source-control-admin.css";
 import "./admin-ops.css";
 import { useGitCloneUrl } from "../settings/GitAccessPanel";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 type Provider = {
   id: string;
@@ -485,7 +486,7 @@ export function SourceControlAdminPage(_props: { embedded?: boolean } = {}) {
         <label className="scm-field scm-field--grow"><span>Name</span><ClusterTextInput value={connectionName} onChange={(event) => setConnectionName(event.target.value)} placeholder="Studio Git" /></label>
         <label className="scm-field scm-field--grow"><span>Server URL</span><ClusterTextInput value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={providerId === "source.github" ? "https://github.com" : providerId === "source.gitlab" ? "https://gitlab.com" : "https://git.example.com"} /></label>
         <label className="scm-field scm-field--grow"><span>API URL</span><ClusterTextInput value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} placeholder="Auto" /></label>
-        <label className="scm-field scm-field--grow"><span>Access token</span><ClusterTextInput type="password" value={sourceToken} onChange={(event) => { setSourceToken(event.target.value); if (event.target.value) setClearSourceToken(false); }} placeholder={sourceTokenConfigured ? "Saved · type to replace" : "Token"} /></label>
+        <label className="scm-field scm-field--grow"><span>Access token</span><ClusterTextInput {...SECRET_INPUT_PROPS} value={sourceToken} onChange={(event) => { setSourceToken(event.target.value); if (event.target.value) setClearSourceToken(false); }} placeholder={sourceTokenConfigured ? "Saved · type to replace" : "Token"} /></label>
         <div className="scm-field"><span>Private network</span><ClusterSegmentedControl value={allowPrivateNetwork ? "allow" : "block"} onChange={(value) => setAllowPrivateNetwork(value === "allow")} label="Private network access" options={[{ value: "block", label: "Block" }, { value: "allow", label: "Allow" }]} /></div>
         {isEditingConnection && sourceTokenConfigured ? <div className="scm-field"><span>Saved token</span><ClusterSegmentedControl value={clearSourceToken ? "remove" : "keep"} onChange={(value) => { setClearSourceToken(value === "remove"); if (value === "remove") setSourceToken(""); }} label="Stored token action" options={[{ value: "keep", label: "Keep" }, { value: "remove", label: "Remove" }]} /></div> : null}
         <ClusterButton size="compact" variant="primary" busy={busy} busyLabel="Saving…" disabled={busy || !connectionName.trim() || !providerId} onClick={() => void saveSourceConnection()}>{isEditingConnection ? "Save" : "Add"}</ClusterButton>
@@ -844,8 +845,8 @@ export function IntegrationsAdminPage() {
               <ClusterLinkButton variant="secondary" href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Open Developer Portal ↗</ClusterLinkButton>
               <div className="dc-fields">
                 <label><span>Application ID</span><ClusterTextInput value={applicationId} onChange={(event) => setApplicationId(event.target.value.trim())} placeholder="123456789012345678" /></label>
-                <label><span>Public key</span><ClusterTextInput type="password" value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Saved · paste to replace" : "Public key"} /></label>
-                <label><span>Bot token</span><ClusterTextInput type="password" value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Saved · paste to replace" : "Bot token"} /></label>
+                <label><span>Public key</span><ClusterTextInput {...SECRET_INPUT_PROPS} value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Saved · paste to replace" : "Public key"} /></label>
+                <label><span>Bot token</span><ClusterTextInput {...SECRET_INPUT_PROPS} value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Saved · paste to replace" : "Bot token"} /></label>
               </div>
               {discordSetup?.botError ? <p className="dc-error" role="alert">Discord rejected the token: {discordSetup.botError}</p> : null}
               <div className="dc-actions"><ClusterButton variant="primary" busy={busy} disabled={!/^\d{8,24}$/.test(applicationId) || (!botTokenConfigured && !botToken.trim())} onClick={() => void saveDiscordConfiguration().then(() => setEditingCredentials(false))}>Connect</ClusterButton>{bot ? <ClusterButton variant="quiet" onClick={() => setEditingCredentials(false)}>Cancel</ClusterButton> : null}</div>
@@ -888,7 +889,7 @@ export function IntegrationsAdminPage() {
           <details className="dc-more"><summary>Advanced</summary><div className="dc-fields">
             <label><span>Connection name</span><ClusterTextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
             <label><span>Message prefix</span><ClusterTextInput value={messagePrefix} onChange={(event) => setMessagePrefix(event.target.value)} placeholder="Cluster" /></label>
-            <label><span>Webhook URL <small>optional</small></span><ClusterTextInput type="password" value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Saved · paste to replace" : "https://discord.com/api/webhooks/…"} /></label>
+            <label><span>Webhook URL <small>optional</small></span><ClusterTextInput {...SECRET_INPUT_PROPS} value={webhookUrl} onChange={(event) => setWebhookUrl(event.target.value)} placeholder={webhookConfigured ? "Saved · paste to replace" : "https://discord.com/api/webhooks/…"} /></label>
             <div className="dc-actions"><ClusterButton variant="secondary" busy={busy} onClick={() => void saveDiscordConfiguration()}>Save</ClusterButton><ClusterButton variant="quiet" disabled={busy} onClick={() => void reconcileDiscord()}>Verify project routes</ClusterButton></div>
           </div></details>
         </div>;

@@ -6,6 +6,7 @@ import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterVisualComposition } from "../../components/ClusterVisualMetrics";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 type VaultRecord = {
   id: string; name: string; kind: string; fingerprint: string;
@@ -308,7 +309,7 @@ export function VaultManager() {
                       <ClusterButton disabled={busy} variant="secondary" onClick={() => void decideRotation(review, "reject")}>Reject</ClusterButton>
                     </div>}
                     {review.status === "approved" && <>
-                      <label className="field"><span>Replacement value (only now)</span><ClusterInput type="password" autoComplete="new-password" maxLength={16384} value={replacement} onChange={(event) => setReplacement(event.target.value)} /></label>
+                      <label className="field"><span>Replacement value (only now)</span><ClusterInput {...SECRET_INPUT_PROPS} maxLength={16384} value={replacement} onChange={(event) => setReplacement(event.target.value)} /></label>
                       <label className="field"><span>External provider disposition, operator-declared</span><ClusterNativeSelect value={externalStatus} onChange={(event) => setExternalStatus(event.target.value)}><option value="pending_external_update">Still pending</option><option value="updated_by_operator">Operator reports updated</option><option value="not_applicable">Not applicable</option></ClusterNativeSelect></label>
                       <label className="field"><span>Disposition note (no credentials)</span><ClusterInput maxLength={1000} value={externalNote} onChange={(event) => setExternalNote(event.target.value)} /></label>
                       <ClusterButton disabled={busy || !replacement || externalNote.trim().length < 12} onClick={() => void commitRotation(selected, review)}>Commit reviewed replacement…</ClusterButton>
@@ -338,7 +339,7 @@ export function VaultManager() {
           <h2 className="sr-only">New secret</h2>
           <label className="field"><span>Label</span><ClusterInput maxLength={160} value={createDraft.name} onChange={(event) => setCreateDraft((draft) => ({ ...draft, name: event.target.value }))} /></label>
           <label className="field"><span>Kind</span><ClusterNativeSelect value={createDraft.kind} onChange={(event) => setCreateDraft((draft) => ({ ...draft, kind: event.target.value }))}><option value="integration">Integration</option><option value="password">Password</option><option value="license_key">License key</option><option value="game_key">Game key</option><option value="other">Other</option></ClusterNativeSelect></label>
-          <label className="field"><span>Secret value</span><ClusterInput type="password" autoComplete="new-password" maxLength={16384} value={createDraft.value} onChange={(event) => setCreateDraft((draft) => ({ ...draft, value: event.target.value }))} /></label>
+          <label className="field"><span>Secret value</span><ClusterInput {...SECRET_INPUT_PROPS} maxLength={16384} value={createDraft.value} onChange={(event) => setCreateDraft((draft) => ({ ...draft, value: event.target.value }))} /></label>
           <label className="field"><span>Expires at (optional)</span><ClusterInput type="datetime-local" value={createDraft.expiresAt} onChange={(event) => setCreateDraft((draft) => ({ ...draft, expiresAt: event.target.value }))} /></label>
           <ClusterButton variant="primary" disabled={busy || !createDraft.name.trim() || !createDraft.value} onClick={() => void create()}>Store secret</ClusterButton>
         </div>}

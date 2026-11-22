@@ -2,6 +2,7 @@ import { useEffect, useRef, type Ref } from "react";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterTextInput } from "./ClusterTextInput";
 import "./cluster-pin-entry.css";
+import { SECRET_INPUT_PROPS } from "./secret-input";
 
 /** One keyboard/touch accessible PIN entry used by authenticated and signed-out actions. */
 export function ClusterPinEntry({ value, onChange, disabled = false, inputRef, label = "Security PIN", onEnter }: {
@@ -55,7 +56,7 @@ export function ClusterPinEntry({ value, onChange, disabled = false, inputRef, l
   return <div className="cluster-pin-entry-v124">
     <ClusterTextInput
       ref={assignInputRef} className="cluster-pin-physical-input-v124"
-      type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="off"
+      {...SECRET_INPUT_PROPS} inputMode="numeric" pattern="[0-9]*" maxLength={8}
       aria-label={label} disabled={disabled} value={value}
       onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 8))}
       onKeyDown={(event) => { if (event.key === "Enter" && onEnter) { event.preventDefault(); onEnter(); } }}

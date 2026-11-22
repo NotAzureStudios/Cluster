@@ -28,6 +28,7 @@ import { SERVER_CONFIG_DEPENDENCIES } from "./server-config-dependencies";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 type AdminDeviceRecord = { id: string; deviceId: string; label: string; platform?: string | null; userAgent: string; lastSeenAt: string; activeSessionCount: number; current?: boolean; userId: string; proofStatus?: string; proofKeyFingerprint?: string | null; cryptographicallyBound?: boolean; user?: { id: string; username: string; displayName?: string | null } };
 type ServiceCredentialRecord = { id: string; name: string; credentialType: "api_token" | "webhook_signing" | "extension_token"; scopes: string[]; tokenPrefix?: string | null; secretFingerprint?: string | null; expiresAt?: string | null; lastUsedAt?: string | null; revokedAt?: string | null; createdAt: string; rotationDue?: boolean; scopePolicyCompliant?: boolean };
@@ -1415,7 +1416,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         ? <ClusterNativeSelect id={inputId} value={String(value ?? "")} onChange={(event) => patch(field.key, event.target.value)}>
             {optionsWithCurrent(field.options || [], String(value ?? "")).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </ClusterNativeSelect>
-        : <ClusterInput id={inputId} type={field.type === "password" ? "password" : field.type}
+        : <ClusterInput id={inputId} {...(field.type === "password" ? SECRET_INPUT_PROPS : { type: field.type })}
             value={value === undefined || value === null ? "" : String(value)} placeholder={field.placeholder}
             min={field.min} max={field.max} step={field.step}
             onChange={(event) => patch(field.key, field.type === "number" ? (event.target.value === "" ? undefined : Number(event.target.value)) : event.target.value)} />;

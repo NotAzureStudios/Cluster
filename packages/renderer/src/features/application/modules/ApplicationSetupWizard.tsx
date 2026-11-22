@@ -5,6 +5,7 @@ import { api, apiErrorPresentation } from "../../../core/api";
 import "./setup-wizard.css";
 import type { SetupStatus, User } from "../application-models";
 import { ClusterTimezoneSelect } from "../../../components/ClusterTimezoneSelect";
+import { SECRET_INPUT_PROPS } from "../../../components/secret-input";
 
 type SetupMode = "guided" | "quick" | "import" | "skip";
 type SetupForm = {
@@ -191,8 +192,8 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
           <small className={passwordLength >= 12 ? "ok" : ""}>12–1024 characters{passwordLength ? ` · ${passwordLength}` : ""}</small></label>
         <label className="setup-v2-field"><span>Confirm password</span><ClusterTextInput type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={1024} value={form.ownerPasswordConfirm} onChange={(event) => patch("ownerPasswordConfirm", event.target.value)} aria-invalid={(form.ownerPasswordConfirm && form.ownerPasswordConfirm !== form.ownerPassword) || undefined} required /></label>
         <div className="setup-v2-pair">
-          <label className="setup-v2-field"><span>Security PIN</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" placeholder="4–8 digits" value={form.ownerPin} onChange={(event) => patch("ownerPin", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
-          <label className="setup-v2-field"><span>Confirm PIN</span><ClusterTextInput type="password" inputMode="numeric" pattern="[0-9]*" maxLength={8} autoComplete="new-password" value={form.ownerPinConfirm} onChange={(event) => patch("ownerPinConfirm", event.target.value.replace(/\D/g, "").slice(0, 8))} aria-invalid={(form.ownerPinConfirm && form.ownerPinConfirm !== form.ownerPin) || undefined} required /></label>
+          <label className="setup-v2-field"><span>Security PIN</span><ClusterTextInput {...SECRET_INPUT_PROPS} inputMode="numeric" pattern="[0-9]*" maxLength={8} placeholder="4–8 digits" value={form.ownerPin} onChange={(event) => patch("ownerPin", event.target.value.replace(/\D/g, "").slice(0, 8))} required /></label>
+          <label className="setup-v2-field"><span>Confirm PIN</span><ClusterTextInput {...SECRET_INPUT_PROPS} inputMode="numeric" pattern="[0-9]*" maxLength={8} value={form.ownerPinConfirm} onChange={(event) => patch("ownerPinConfirm", event.target.value.replace(/\D/g, "").slice(0, 8))} aria-invalid={(form.ownerPinConfirm && form.ownerPinConfirm !== form.ownerPin) || undefined} required /></label>
         </div>
       </section>}
 

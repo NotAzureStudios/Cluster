@@ -31,6 +31,7 @@ import { viewerOverlayCatalogForMedium } from "./viewer-overlay-catalog";
 import { useViewerResourceScope } from "./viewer-resource-scope";
 import { openPdfPrintFrame } from "./pdf-print-frame";
 import type { ViewerAssetSessionInput, ViewerCommandDefinition, ViewerMode } from "./viewer-contracts";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -672,7 +673,7 @@ const PdfAdapter = forwardRef<PdfAdapterHandle, {
   };
 
   if (state === "loading") return <ViewerState compact tone="loading" title="Opening PDF" description="Using bounded page rendering and HTTP range delivery where the source supports it." />;
-  if (state === "password") return <form className="cluster-static-pdf-password" onSubmit={(event) => { event.preventDefault(); if (!password || !passwordUpdate) return; passwordUpdate(password); setPassword(""); setState("loading"); }}><ClusterIcon name="lock" /><strong>Password required</strong><p>This document is encrypted. The password is used only by the local PDF parser.</p><ClusterTextInput type="password" autoFocus value={password} onChange={(event) => setPassword(event.target.value)} /><ClusterButton type="submit" variant="primary" disabled={!password}>Unlock</ClusterButton></form>;
+  if (state === "password") return <form className="cluster-static-pdf-password" onSubmit={(event) => { event.preventDefault(); if (!password || !passwordUpdate) return; passwordUpdate(password); setPassword(""); setState("loading"); }}><ClusterIcon name="lock" /><strong>Password required</strong><p>This document is encrypted. The password is used only by the local PDF parser.</p><ClusterTextInput {...SECRET_INPUT_PROPS} autoFocus value={password} onChange={(event) => setPassword(event.target.value)} /><ClusterButton type="submit" variant="primary" disabled={!password}>Unlock</ClusterButton></form>;
   if (state === "error" || !pdf) return <ViewerState compact tone="error" title="PDF could not open" description={error || "The document could not be parsed safely."} />;
 
   const railViewportHeight = railRef.current?.clientHeight || viewport.height;

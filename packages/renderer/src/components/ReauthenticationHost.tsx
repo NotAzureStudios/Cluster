@@ -5,6 +5,7 @@ import "./reauthentication.css";
 import "./security-pin.css";
 import { ClusterTextInput } from "./ClusterTextInput";
 import { ClusterPinEntry } from "./ClusterPinEntry";
+import { SECRET_INPUT_PROPS } from "./secret-input";
 import { ClusterButton } from "./ClusterButton";
 import { ClusterIcon } from "./ClusterIcon";
 import { ClusterModal } from "./ClusterModal";
@@ -115,7 +116,7 @@ export function ReauthenticationHost() {
         <p id="reauth-description-v349">{request.description}</p>
       </header>
       {mode === "pin" ? <ClusterPinEntry inputRef={inputRef} label="Security PIN" value={credential} disabled={working} onChange={(next) => { setCredential(next); setError(""); }} onEnter={() => void submitReauthentication()} />
-        : mode === "password" ? <ClusterTextInput ref={inputRef} type="password" aria-label="Password" placeholder="Password" className="reauth-sheet__field" value={credential} autoComplete="current-password" disabled={working} onChange={(event) => { setCredential(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void submitReauthentication(); }} />
+        : mode === "password" ? <ClusterTextInput ref={inputRef} {...SECRET_INPUT_PROPS} aria-label="Password" placeholder="Password" className="reauth-sheet__field" value={credential} disabled={working} onChange={(event) => { setCredential(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") void submitReauthentication(); }} />
         : <p className="reauth-sheet__note">{request.minimumStrength === "hardware_backed" ? "Use your hardware security key." : "Use your passkey or security key."}</p>}
       {request.reasonMode === "required" && <ClusterTextInput className="reauth-sheet__field" aria-label="Reason" value={reason} maxLength={500} autoComplete="off" onChange={(event) => { setReason(event.target.value); setError(""); }} placeholder="Reason for this action" />}
       {request.passkeyRequired && !passkeyUsable && <div className="security-pin-error-v262" role="alert">This action needs an enrolled passkey or security key.</div>}

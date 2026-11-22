@@ -43,6 +43,7 @@ import type { AdminPageScope, AdminSection, BoardSummary, DiagnosticsPayload, Is
 import "./admin-workspace.css";
 import { ADAPTIVE_MEDIA } from "../../core/adaptive-layout";
 import { ADMIN_PAGE_DEPENDENCIES } from "../application/modules/application-admin-workspaces";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 type ProjectIntakeTemplate = { key: string; label: string; type: string; boardName: string; description: string; whiteboardBrief: string; libraryBrief: string };
 const ADMIN_USER_RENDER_BATCH = 160;
@@ -1607,7 +1608,7 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
                           <div><span>Security PIN</span><strong>{adminSelectedUser.pinConfigured ? "Configured" : "Not configured"}</strong></div>
                         </div>
                         <div className="admin-credential-editor-v270">
-                          <label className="field"><span>Set password</span><div className="admin-password-field-v473"><ClusterTextInput type={adminPasswordVisible ? "text" : "password"} maxLength={1024} value={adminCredentialForm.password} onChange={(event) => setAdminCredentialForm((current) => ({ ...current, password: event.target.value }))} placeholder="New password" /><ClusterButton type="button" onClick={() => setAdminPasswordVisible((value) => !value)}>{adminPasswordVisible ? "Hide" : "Show"}</ClusterButton></div></label>
+                          <label className="field"><span>Set password</span><div className="admin-password-field-v473"><ClusterTextInput {...SECRET_INPUT_PROPS} data-secret={adminPasswordVisible ? undefined : "true"} maxLength={1024} value={adminCredentialForm.password} onChange={(event) => setAdminCredentialForm((current) => ({ ...current, password: event.target.value }))} placeholder="New password" /><ClusterButton type="button" onClick={() => setAdminPasswordVisible((value) => !value)}>{adminPasswordVisible ? "Hide" : "Show"}</ClusterButton></div></label>
                           <ClusterButton type="button" className="" onClick={() => void setAdminUserPassword(adminSelectedUser)} disabled={!adminCredentialForm.password} variant="secondary">Set password</ClusterButton>
                           <label className="field"><span>Set security PIN</span><ClusterTextInput inputMode="numeric" pattern="[0-9]*" maxLength={8} value={adminCredentialForm.pin} onChange={(event) => setAdminCredentialForm((current) => ({ ...current, pin: event.target.value.replace(/\D/g, "").slice(0, 8) }))} placeholder="4–8 digits" /></label>
                           <ClusterButton type="button" className="" onClick={() => void setAdminUserPin(adminSelectedUser)} disabled={!adminCredentialForm.pin} variant="secondary">Set PIN</ClusterButton>

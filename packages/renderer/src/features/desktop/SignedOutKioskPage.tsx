@@ -8,6 +8,7 @@ import { CLUSTER_KIOSK_ADMIN_EXIT_REQUEST_EVENT } from "./use-native-kiosk-sessi
 import "./signed-out-kiosk.css";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterPinEntry } from "../../components/ClusterPinEntry";
+import { SECRET_INPUT_PROPS } from "../../components/secret-input";
 
 type PublicHealth = {
   ok?: boolean;
@@ -200,7 +201,7 @@ export function SignedOutKioskPage({ exitShortcut = "Ctrl+Shift+F10" }: { exitSh
               <ClusterButton unstyled type="button" aria-pressed={credentialType === "password"} onClick={() => { setCredentialType("password"); setCredential(""); }}>Password</ClusterButton>
               <ClusterButton unstyled type="button" aria-pressed={credentialType === "pin"} onClick={() => { setCredentialType("pin"); setCredential(""); }}>Security PIN</ClusterButton>
             </div>
-            {credentialType === "pin" ? <ClusterPinEntry value={credential} onChange={setCredential} disabled={exitBusy} label="Administrator PIN" inputRef={pinInputRef} /> : <label>Password<ClusterTextInput type="password" autoComplete="current-password" value={credential} onChange={(event) => setCredential(event.target.value)} /></label>}
+            {credentialType === "pin" ? <ClusterPinEntry value={credential} onChange={setCredential} disabled={exitBusy} label="Administrator PIN" inputRef={pinInputRef} /> : <label>Password<ClusterTextInput {...SECRET_INPUT_PROPS} value={credential} onChange={(event) => setCredential(event.target.value)} /></label>}
             {exitError && <p className="signed-out-kiosk-exit-error-v495" role="alert">{exitError}</p>}
             <div className="signed-out-kiosk-exit-actions-v495"><ClusterButton type="button" variant="secondary" onClick={() => setAdminExitOpen(false)} disabled={exitBusy}>Cancel</ClusterButton><ClusterButton type="submit" disabled={exitBusy || !identifier.trim() || (credentialType === "pin" ? !/^\d{4,8}$/.test(credential) : !credential)}>{exitBusy ? "Verifying…" : "Exit kiosk"}</ClusterButton></div>
           </form>
