@@ -53,7 +53,7 @@ try {
     $manifestFile = Join-Path $managed (Join-Path $workspace 'package.json')
     if (-not (Test-Path -LiteralPath $manifestFile -PathType Leaf)) { throw "Installed manifest missing: $workspace" }
     $manifestJson = Get-Content -LiteralPath $manifestFile -Raw | ConvertFrom-Json
-    $declaredDependencies = @($manifestJson.dependencies, $manifestJson.devDependencies, $manifestJson.optionalDependencies) | Where-Object { $null -ne $_ } | ForEach-Object { $_.PSObject.Properties }
+    $declaredDependencies = $manifestJson.PSObject.Properties | Where-Object { $_.Name -in @('dependencies', 'devDependencies', 'optionalDependencies') } | ForEach-Object { $_.Value.PSObject.Properties }
     foreach ($dependency in $declaredDependencies) {
       $name = [string]$dependency.Name
       $declared = [string]$dependency.Value
