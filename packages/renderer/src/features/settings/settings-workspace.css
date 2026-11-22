@@ -1794,12 +1794,12 @@
 .studio-settings-disclosure-v112>.studio-settings-block-v272{margin:12px}
 
 /* v6 profile settings: one-line Discord row, inline visibility switches. */
-.profile-editor-v473 .cluster-discord-identity-v548 { display:flex; align-items:center; gap:12px; margin:10px 0; padding:8px 12px; min-height:0; }
+.profile-editor-v473 .cluster-discord-identity-v548 { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin:10px 0; padding:8px 12px; min-height:0; }
 .profile-editor-v473 .cluster-discord-identity-v548 > h3 { display:flex; align-items:center; gap:8px; margin:0; font-size:.78rem; }
 .profile-editor-v473 .cluster-discord-identity-v548 > h3 .resource-identity-mark { width:18px; height:18px; }
 .profile-editor-v473 .cluster-discord-identity-row-v548 { flex:1; }
 .profile-editor-v473 .cluster-discord-identity-row-v548 img { width:24px; height:24px; border-radius:7px; }
-.cluster-discord-state-v6 { flex:1; color:var(--muted); font-size:.7rem; }
+.cluster-discord-state-v6 { flex:1 1 8ch; min-width:8ch; color:var(--muted); font-size:.7rem; }
 .profile-editor-v473 .cluster-discord-identity-v548 .button-row { margin:0; flex-wrap:nowrap; }
 .profile-editor-v473 .profile-visibility-toggle-v547 { align-self:end; min-height:34px; padding:4px 8px; border:0; background:none; justify-content:flex-start; gap:8px; }
 .profile-editor-v473 .profile-visibility-toggle-v547 strong { font-size:.68rem; font-weight:600; color:var(--muted); }
@@ -1939,3 +1939,8 @@
 @media  (max-width: 900px) {
   .studio-home-department-recommendations-v488 > header { grid-template-columns:1fr; }
 }
+
+/* Appearance: the cards share the row with the 280px live preview, so two
+   columns left each under 330px — too narrow for a label beside a
+   segmented control. One column of full-width cards instead. */
+.st-main .appearance-layout-v093 .appearance-card-grid-v092 { grid-template-columns: minmax(0, 1fr); }

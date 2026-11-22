@@ -36,7 +36,7 @@
 .server-config-field-v238 input,.server-config-field-v238 select,.server-config-field-v238 textarea{width:100%;min-width:0}
 .server-config-field-v238 textarea{resize:vertical;}
 .server-config-field-v238>code{font-size:.61rem;color:var(--muted);overflow-wrap:anywhere}
-.server-config-field-v238.span-2{grid-column:span 2}
+.server-config-field-v238.span-2{grid-column:1/-1}
 .server-config-toggle-v238{grid-template-columns:minmax(0,1fr) auto;align-items:center;cursor:pointer;}
 .server-config-toggle-v238>span{display:grid;justify-content:start;gap:4px}
 .server-config-toggle-v238 input{width:auto}
@@ -72,7 +72,7 @@
 .server-config-contained-v241 .server-config-group-v238{ min-width:0; margin:0; padding:11px; break-inside:auto; }
 .server-config-contained-v241 .server-config-fields-v238{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
 .server-config-contained-v241 .server-config-field-v238{ min-height:0; padding:8px 9px; gap:4px; }
-.server-config-contained-v241 .server-config-field-v238.span-2{grid-column:span 2}
+.server-config-contained-v241 .server-config-field-v238.span-2{grid-column:1/-1}
 .server-config-contained-v241 .server-config-field-v238>code{display:none}
 .server-config-contained-v241 .server-config-field-v238 input, .server-config-contained-v241 .server-config-field-v238 select{min-height:34px}
 .server-config-contained-v241 .server-config-field-v238 textarea{min-height:54px;max-height:86px}

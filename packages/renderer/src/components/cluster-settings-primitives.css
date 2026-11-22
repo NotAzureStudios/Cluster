@@ -148,3 +148,11 @@
 @media (max-width: 740px) {
   .server-config-compact-field-v11 .cluster-settings-help-content-v11 { left: 0; right: auto; }
 }
+
+/* A row stacks its label over its control when its section is narrow,
+   whatever the viewport: settings sections sit in cards of many widths. */
+.cluster-settings-section-content-v11 { container-type: inline-size; }
+@container (max-width: 420px) {
+  .cluster-settings-row-v11 { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .cluster-settings-row-control-v11 { justify-self: stretch; min-width: 0; width: 100%; flex-wrap: wrap; }
+}
