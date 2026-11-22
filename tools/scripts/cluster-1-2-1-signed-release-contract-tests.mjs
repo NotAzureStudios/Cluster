@@ -11,7 +11,7 @@ const toolchain=JSON.parse(read('config/toolchain-versions.json'));
 const installer=read('apps/server-launcher-go/server_update_manifest.go');
 const signer=read('tools/scripts/cluster-sign-server-release.mjs');
 const publisher=read('.github/workflows/cluster-server-signed-main-publish.yml');
-const manual=read('.github/workflows/publish-cluster-2-0-0-manual.yml');
+const manual=read('.github/workflows/publish-cluster-'+metadata.release.replaceAll('.','-')+'-manual.yml');
 const goTests=read('apps/server-launcher-go/server_update_manifest_test.go');
 const feed='https://github.com/NotAzureStudios/Cluster/raw/refs/heads/server-update-feed/cluster-server-main.json';
 assert.equal(metadata.release,toolchain.cluster);
