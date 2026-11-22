@@ -2,7 +2,7 @@
 /** G26 WS6: execute real Packet release requirement handlers in controlled DB transactions. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),ts=require('typescript');
@@ -72,7 +72,7 @@ await test('stale manifest cannot notify a recipient',async()=>{const f=await as
 await test('audit persistence failure rolls back notification and reminder evidence',async()=>{const f=fixture({failAudit:true}); // assignment also fails; create a separate seeded requirement with auditable fixture
 await assert.rejects(f.call('POST','releases/:releaseId/requirements',{body}),/audit unavailable/);assert.equal(f.notifications().length,0);});
 await test('manager report includes reminder timestamp only for manager and frozen release',async()=>{const f=await assigned();await f.call('POST',reminder,{body:{expectedManifestSha256:manifest}});const r=await f.call('GET','releases/:releaseId/requirements');assert.ok(r.value.requirements[0].lastRemindedAt);assert.equal(r.headers['Cache-Control'],'private, no-store');});
-await test('privacy export includes all requirement and reminder collections with bounded selects',()=>{const p=readFileSync('apps/server/src/domains/legal/privacy-data-routes.ts','utf8');assert.match(p,/packetReleaseReminderDelivery\.findMany/);assert.match(p,/packetReleaseRequirements, packetReleaseReminders \}\)/);const erasure=readFileSync('apps/server/src/core/privacy-erasure.ts','utf8');assert.match(erasure,/packetReleaseReminders/);assert.match(readFileSync('apps/server/src/core/privacy-data-control.ts','utf8'),/PRIVACY_EXPORT_SCHEMA_VERSION = 11/);});
+await test('retired privacy export layer stays removed',()=>{assert.ok(!existsSync('apps/server/src/domains/legal/privacy-data-routes.ts') && !existsSync('apps/server/src/core/privacy-erasure.ts'),'retired compliance export/erasure layer stays removed; user rows cascade');});
 await test('only recipient-owned Packet reminder notifications are visible without broad Packet event bypass',async()=>{
  const code=ts.transpileModule(readFileSync('apps/server/src/domains/notifications/notification-visibility.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
  const module={exports:{}};vm.runInNewContext(code,{module,exports:module.exports,require}, {filename:'notification-visibility.ts'});

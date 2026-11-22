@@ -101,6 +101,7 @@ await check('notification navigation resolves a concrete My Work deep link',()=>
   const mod=load('packages/renderer/src/features/notifications/notification-navigation.ts',{
     '@cluster/shared':{clusterResourceAddressFromEntity:()=>null},
     '../workflow/resource-navigation':{clusterResourceNavigation:()=>null},
+    '../admin/incident-link':load('packages/renderer/src/features/admin/incident-link.ts',{}),
   });
   const target=mod.notificationWorkNavigation({entityType:'studio_onboarding_assignment',entityId:'ownassignment',category:'action'});
   assert.deepEqual(target,{screen:'mywork',inspectScope:'onboarding',inspectId:'ownassignment'});

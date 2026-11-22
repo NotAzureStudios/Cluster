@@ -80,7 +80,7 @@ check(frontend.includes('/api/admin/operations/api-tools'), 'actual Operations S
 check(frontend.includes('liveness') || frontend.includes('not proof'), 'UI explicitly distinguishes traffic from liveness');
 check(frontend.includes('apiToolPosture') && frontend.includes('apiToolQuery'), 'search and posture filter wired');
 const requestInfra = read('apps/server/src/app/server-request-infrastructure.ts');
-check(requestInfra.includes('runtimeTelemetry.complete(startedAt, request.routeOptions.url || "/unmatched"'), 'unmatched paths cannot leak raw user URLs through request telemetry');
+check(/runtimeTelemetry\.complete\(\s*startedAt, request\.routeOptions\.url \|\| "\/unmatched"/.test(requestInfra), 'unmatched paths cannot leak raw user URLs through request telemetry');
 check(requestInfra.includes('runtimeTelemetry.abandon(startedAt, request.routeOptions.url || "/unmatched"'), 'aborted unmatched requests cannot leak raw URLs');
 // Assert existing public readiness boundary still intact.
 check(!operationRoutes.slice(operationLocation, operationLocation + 950).includes('/health/ready'), 'API tool diagnostics not public health route');

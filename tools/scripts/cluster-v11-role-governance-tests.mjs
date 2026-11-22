@@ -8,7 +8,7 @@ const settingsRoute = routes.slice(routes.indexOf('app.put("/api/settings"'), ro
 
 const checks = [
   [!ui.includes("function renameStudioRole("), "UI no longer rewrites referenced role IDs"],
-  [ui.includes('aria-label="Immutable role key"') && ui.includes("readOnly disabled"), "role key editor is immutable"],
+  [ui.includes('<code className="rp-key">{selectedRole.id}</code>') && !/updateStudioRole\(selectedRole\.id, \{ id:/.test(ui), "role key is shown read-only and never edited"],
   [ui.includes('roleHasAssignments(id: string)') && ui.includes('includeArchived=true'), "UI checks assigned and archived memberships before deletion"],
   [ui.includes("if (await roleHasAssignments(id))"), "UI does not delete assigned roles"],
   [ui.includes("setStudioRoleEnabled(id: string, enabled: boolean)") && ui.includes("if (await roleHasAssignments(id))"), "UI does not disable assigned roles"],

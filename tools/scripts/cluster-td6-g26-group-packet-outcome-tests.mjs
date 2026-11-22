@@ -20,6 +20,7 @@ const route=load('apps/server/src/domains/library/packet-routes.ts',{
  '../access/studio-audience.js':{loadStudioAudienceUserContext:async(_db,user,opts)=>{assert.equal(opts.strict,true);return {id:user.id}},studioAudienceMatchesContext:(_audience,id)=>id!=='hidden'},
  '../studio-systems/studio-knowledge-runtime.js':{},
  '../studio-systems/studio-knowledge-evidence.js':{},
+ './packet-delivery-issuance.js':{commitPacketDeliveryIssuance:async()=>{throw Error('issuance is not exercised by grouped outcome checks')}},
 });
 const manifest='a'.repeat(64),now=new Date(),ago=n=>new Date(now.getTime()-n*86400000),later=n=>new Date(now.getTime()+n*86400000);
 const requirements=[

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
+import { isIP } from 'node:net';
 const require = createRequire(import.meta.url);
 let ts;
 try {ts = require('typescript');} catch {ts = require('typescript');}
@@ -15,7 +16,7 @@ function load(name, mocks) {
   return module.exports;
 }
 const plans = load('apps/server/src/domains/domains/domain-connection-plans.ts',{});
-const deployment = load('apps/server/src/domains/domains/domain-deployment-readiness.ts',{'node:crypto':{createHash},'./domain-connection-plans.js':plans});
+const deployment = load('apps/server/src/domains/domains/domain-deployment-readiness.ts',{'node:crypto':{createHash},'node:net':{isIP},'./domain-connection-plans.js':plans});
 const hostname = 'cluster.azurestudios.dev';
 const caddy = {mode:'direct_https', provider:'caddy', webPort:3000,apiPort:4000,publicPort:443};
 const valid = {publicWebUrl:`https://${hostname}`, publicApiUrl:`https://${hostname}`, corsOrigins:`https://${hostname}`,
@@ -46,7 +47,7 @@ const setup=source('packages/renderer/src/features/application/modules/Applicati
 const setupServer=source('apps/server/src/app/server-routes-setup.ts');
 ok(studio.includes('<StudioDomainsPanel />'),'Studio owns domain registry');
 ok(server.includes('<ServerDomainsPanel />'),'Server Config owns gateway');
-ok(!vault.includes('<DomainInventoryPanel />') && !vault.includes('<VaultDomainsPanel />') && source('packages/renderer/src/features/application/modules/ApplicationSidebar.tsx').includes('{ label: "Domains"'), 'Domains is a dedicated Admin destination, not a Vault panel');
+ok(!vault.includes('<DomainInventoryPanel />') && !vault.includes('<VaultDomainsPanel />') && /key: "domains" as StudioSettingsSection, group: "Studio" as const, label: "Domains & ownership"/.test(source('packages/renderer/src/features/settings/studio-settings-state.ts')), 'Domains is its own Studio settings section, not a Vault panel');
 ok(setup.includes('"Domain & Access"') && setup.includes('domainSetupIntent'),'OOBE owns initial domain intent');
 ok(source('packages/renderer/src/features/admin/AdminSetupChecklist.tsx').includes('<DomainSetupContinuation '),'authenticated OOBE completion is available');
 ok(setupServer.includes('domainSetupIntent: z.object') && setupServer.includes('Unsupported domain connection mode/provider'),'bootstrap validates input');

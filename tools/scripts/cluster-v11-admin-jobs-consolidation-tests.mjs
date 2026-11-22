@@ -33,7 +33,7 @@ assert.match(jobs, /\[filterQueue, filterStatus, filterType, debouncedSearch, so
 assert.match(jobs, /jobs-name-cell-v12/);
 assert.match(studio, /icon: STUDIO_SETTINGS_NAV_ICONS\[key\]/);
 assert.match(server, /icon: item\.icon, group: group\.label/);
-assert.match(server, /settings-section-context-v12/);
+assert.doesNotMatch(server, /settings-section-context-v12/, "server settings uses the shared layout, no duplicate section header");
 assert.match(jobs, /aria-valuenow=/);
 assert.match(jobs, /id: "startedAt"/);
 assert.match(jobs, /id: "finishedAt"/);

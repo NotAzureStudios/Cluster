@@ -51,7 +51,7 @@ await test('shared media viewer never advertises other-version preview URLs',()=
  const result=viewer.libraryItemViewableResource(item,[ready,{...ready,id:'old',sourceChecksumSha256:shaB},{...ready,id:'invalid',invalidatedAt:new Date()},{...ready,id:'failed',status:'failed'}]);
  assert.equal(result.derivatives.length,1);assert.equal(result.derivatives[0].id,'d1');
 });
-let copyrightHeld=false, accessAllowed=true, lastDelivery=null;
+let accessAllowed=true, lastDelivery=null;
 const temp=mkdtempSync(path.join(tmpdir(),'cluster-g26-derivatives-'));
 const runtimeRoot=path.join(temp,'runtime');
 const cacheRoot=path.join(runtimeRoot,'library-derivatives','lib1');mkdirSync(cacheRoot,{recursive:true});
@@ -67,7 +67,6 @@ try {
     'zod':{z},
     '../../core/uploads.js':{},
     '../media/resource-delivery.js':{sendStoredResource:fakeDelivery},
-    '../../core/copyright-workflow.js':{isCopyrightResourceDisabled:async()=>copyrightHeld,copyrightDisabledResponse:(reply)=>reply.code(451).send({code:'COPYRIGHT_HOLD'})},
     './library-derivative-version.js':helper,
     './library-derivative-file-safety.js':pathSafety,
   });
@@ -90,10 +89,8 @@ try {
     lastDelivery=null;const result=await file({params:{itemId:'lib1',derivativeId:'d1'}},reply());
     assert.equal(result.streamed,true);assert.equal(lastDelivery.cacheControl,'private, no-store');
   });
-  await test('copyright hold denies derivative discovery and delivery',async()=>{
-    copyrightHeld=true;lastDelivery=null;
-    const a=reply(),b=reply();await list({params:{itemId:'lib1'}},a);await file({params:{itemId:'lib1',derivativeId:'d1'}},b);
-    assert.equal(a.statusCode,451);assert.equal(b.statusCode,451);assert.equal(lastDelivery,null);copyrightHeld=false;
+  await test('derivative routes no longer consult the retired copyright layer',()=>{
+    assert.doesNotMatch(readFileSync('apps/server/src/domains/library/library-9e2-routes.ts','utf8'),/copyright-workflow|isCopyrightResourceDisabled/);
   });
   await test('revoked ACL blocks stale URL delivery on each request',async()=>{
     accessAllowed=false;lastDelivery=null;

@@ -53,7 +53,7 @@ test("Project tile offers a stable identity for restoring list focus", () => {
   assert.match(item, /data-project-id=\{project\.id\}/);
   assert.match(item, /onClick=\{onInspect\}/);
   assert.match(item, /onInspect: \(event: MouseEvent<HTMLButtonElement>\)/);
-  assert.match(item, /className="project-row-select-v370"/);
+  assert.match(item, /label=\{`Details for \$\{project\.name\}`\} size="compact" onClick=\{onInspect\}/);
 });
 test("Inspector is explicitly nonmodal, announced, keyboard-dismissible and labeled", () => {
   const page = read("packages/renderer/src/features/projects/ProjectsPage.tsx");
@@ -63,7 +63,7 @@ test("Inspector is explicitly nonmodal, announced, keyboard-dismissible and labe
   assert.match(page, /tabIndex=\{-1\} className="projects-browser-inspector-shell-rc25"/);
   assert.match(page, /event\.key !== "Escape" \|\| event\.defaultPrevented/);
   assert.match(page, /event\.stopPropagation\(\);[\s\S]*?dismissInspector\(\)/);
-  assert.match(page, /onClick=\{dismissInspector\} aria-label="Close project details"/);
+  assert.match(page, /label="Close details" onClick=\{dismissInspector\}/);
   assert.match(page, /Press Escape to close and return to the project list/);
 });
 test("Opening focuses only once and closing returns to the tile or search", () => {

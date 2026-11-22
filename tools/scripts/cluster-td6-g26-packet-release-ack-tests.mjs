@@ -2,7 +2,7 @@
 /** G26 WS3: independently run packet recipient and author acknowledgment endpoints. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),ts=require('typescript');
@@ -86,25 +86,6 @@ await test('invalid report cursor cannot read another release',async()=>{const h
 await test('manager must have Packet editor visibility in addition to role',async()=>{const h=harness({user:'manager',admin:true,visible:false});assert.equal((await h.call('GET',report)).status,404);});
 await test('Prisma migration has unique recipient key and restrictive release relation',()=>{const sql=readFileSync('apps/server/prisma/migrations/20261029000000_td6_g26_packet_release_acknowledgment/migration.sql','utf8');assert.match(sql,/UNIQUE INDEX "PacketReleaseAcknowledgment_releaseId_recipientId_key"/);assert.match(sql,/ON DELETE RESTRICT/);});
 await test('recipient UI requires consent and never infers acceptance from download or catalogue',()=>{const ui=readFileSync('packages/renderer/src/features/packets/PacketsPage.tsx','utf8');assert.match(ui,/acknowledgmentConfirmed/);assert.match(ui,/confirmed: true/);assert.match(ui,/Record my acknowledgment/);assert.match(ui,/not evidence that a download finished/);});
-await test('privacy export includes only subject-owned Packet issuance and acknowledgment rows',()=>{
- const source=readFileSync('apps/server/src/domains/legal/privacy-data-routes.ts','utf8');
- assert.match(source,/prisma\.packetDeliveryReceipt\.findMany\(\{ where: \{ recipientId: user\.id \}/);
- assert.match(source,/prisma\.packetReleaseAcknowledgment\.findMany\(\{ where: \{ recipientId: user\.id \}/);
- assert.match(source,/packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements/);
- assert.match(source,/take: limit/);
-});
-await test('privacy summary exposes Packet evidence as a separate category',()=>{
- const source=readFileSync('apps/server/src/domains/legal/privacy-data-routes.ts','utf8');
- assert.match(source,/id: "packet-delivery"/);
- assert.match(source,/packetDeliveryIssuances \+ counts\.packetReleaseAcknowledgments/);
-});
-await test('erasure plan explicitly preserves immutable release evidence under pseudonymization',()=>{
- const source=readFileSync('apps/server/src/core/privacy-erasure.ts','utf8');
- assert.match(source,/preservedCounts: \{ packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements, packetReleaseReminders \}/);
- assert.match(source,/published Packet delivery issuance, required release assignments, reminder deliveries and release-bound recipient acknowledgment evidence/);
-});
-await test('privacy schema version is revised for new Packet evidence categories',()=>{
- const source=readFileSync('apps/server/src/core/privacy-data-control.ts','utf8');
- assert.match(source,/PRIVACY_EXPORT_SCHEMA_VERSION = 11/);
-});
+await test('retired privacy export layer stays removed',()=>{assert.ok(!existsSync('apps/server/src/domains/legal/privacy-data-routes.ts') && !existsSync('apps/server/src/core/privacy-erasure.ts'),'retired compliance export/erasure layer stays removed; user rows cascade');});
+await test('Packet evidence has no erasure or export side channel left',()=>{assert.ok(!existsSync('apps/server/src/core/privacy-data-control.ts'),'retired privacy schema/version module stays removed');});
 console.log(`G26 Workstream 3 Packet acknowledgment: ${checks}/${checks} passed`);

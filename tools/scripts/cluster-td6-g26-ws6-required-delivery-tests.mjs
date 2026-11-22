@@ -2,7 +2,7 @@
 /** G26 WS6: execute real Packet release requirement handlers in controlled DB transactions. */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 const require=createRequire(import.meta.url),ts=require('typescript');
@@ -65,6 +65,6 @@ await test('manager report joins only release scoped acknowledgments',async()=>{
 await test('invalid report cursor rejected rather than reading another release',async()=>{const f=fixture();assert.equal((await f.call('GET',endpoint,{query:{cursor:'other'}})).status,400);});
 await test('candidate discovery excludes users outside frozen audience',async()=>{const f=fixture();const r=await f.call('GET','releases/:releaseId/requirement-candidates');assert.equal(r.value.candidates.length,2);assert.ok(!JSON.stringify(r.value).includes('private-original'));});
 await test('recipient catalog signals exact-version requirement and acknowledgment separately',async()=>{const f=fixture({user:'member'});await f.call('POST',endpoint,{body});const r=await f.call('GET','deliveries');assert.equal(r.value.releases[0].requiredAcknowledgment.acknowledgedAt,null);f.acks.push({releaseId:'release',recipientId:'member',manifestSha256:manifest,acknowledgedAt:new Date()});const rr=await f.call('GET','deliveries');assert.ok(rr.value.releases[0].requiredAcknowledgment.acknowledgedAt);});
-await test('privacy export, erasure plan and migration declare requirements',()=>{const p=readFileSync('apps/server/src/domains/legal/privacy-data-routes.ts','utf8');assert.match(p,/packetReleaseRequirement\.findMany\(\{ where: \{ recipientId: user\.id \}/);assert.match(p,/packetReleaseRequirements/);const erasure=readFileSync('apps/server/src/core/privacy-erasure.ts','utf8');assert.match(erasure,/preservedCounts: \{ packetDeliveryIssuances, packetReleaseAcknowledgments, packetReleaseRequirements, packetReleaseReminders \}/);const migration=readFileSync('apps/server/prisma/migrations/20261030000000_td6_g26_packet_required_release_delivery/migration.sql','utf8');assert.match(migration,/ON DELETE RESTRICT/);assert.match(migration,/UNIQUE INDEX/);});
+await test('migration declares requirements; retired privacy layer stays removed',()=>{assert.ok(!existsSync('apps/server/src/domains/legal/privacy-data-routes.ts') && !existsSync('apps/server/src/core/privacy-erasure.ts'),'retired compliance export/erasure layer stays removed; user rows cascade');const migration=readFileSync('apps/server/prisma/migrations/20261030000000_td6_g26_packet_required_release_delivery/migration.sql','utf8');assert.match(migration,/ON DELETE RESTRICT/);assert.match(migration,/UNIQUE INDEX/);});
 await test('UI exposes required selection, due date, and outstanding evidence',()=>{const ui=readFileSync('packages/renderer/src/features/packets/PacketsPage.tsx','utf8');assert.match(ui,/Assign required acknowledgments/);assert.match(ui,/Awaiting your acknowledgment/);assert.match(ui,/requirementReport\?\.requirements/);});
 console.log(`G26 WS6 required Packet delivery: ${checks}/${checks} passed`);

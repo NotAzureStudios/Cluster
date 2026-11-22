@@ -108,9 +108,9 @@ test("Project nav and breadcrumb use the same visible authorized tool inventory"
   const detail = read(src("ProjectDetailPage.tsx"));
   const shared = read("packages/renderer/src/components/CompactSectionNav.tsx");
   assert.match(nav, /projectPrimaryTabIds\(items, requestedPrimaryIds\?\.length \? requestedPrimaryIds : PRIMARY_PROJECT_SECTIONS, activeId\)/);
-  assert.match(header, /activeSectionLabel = tabs\.find/);
-  assert.match(header, /aria-current="page" className="project-breadcrumb-current-v11"/);
-  assert.match(detail, /\.filter\(\(item\) => !hiddenToolIds\.has/);
+  assert.match(header, /const workTabs = tabs\.filter\(\(item\) => item\.id !== "settings"\)/);
+  assert.doesNotMatch(header, /project-breadcrumb-current-v11/, "header no longer repeats a breadcrumb row");
+  assert.match(detail, /\.filter\(\(item\) => item\.id === "settings" \|\| !hiddenToolIds\.has/);
   assert.match(shared, /pendingPromotedFocusRef\.current === activeId/);
   assert.match(shared, /focus\(\{ preventScroll: true \}\)/);
 });

@@ -10,6 +10,7 @@ const chain={trim(){return this},min(){return this},max(){return this},int(){ret
 const z={record(){return Object.create(chain)},unknown(){return Object.create(chain)},object(fields){const row=Object.create(chain);row.parse=(v)=>fields?.page?{page:1,limit:25,...v}:v;return row},string(){return Object.create(chain)},boolean(){return Object.create(chain)},number(){return Object.create(chain)},enum(){return Object.create(chain)},coerce:{number(){return Object.create(chain)}}};
 const parser = value => typeof value === 'string' ? JSON.parse(value) : value;
 const serializeVersion = (row,{publicView=false}={}) => ({...row,schema:{fields:parser(row.schemaJson).fields.map(x=>publicView?Object.fromEntries(Object.entries(x).filter(([k])=>k!=='profileMappingKey')):x)},settings:parser(row.settingsJson),schemaJson:undefined,settingsJson:undefined});
+const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const modules={
   '@cluster/shared': {STUDIO_FORM_TEMPLATES:[],studioAudienceSchema:chain,studioFormCreateSchema:chain,studioFormTemplateCreateSchema:chain,studioFormSubmissionSchema:chain,studioFormVersionCreateSchema:chain,studioPolicyAcceptanceSchema:chain,studioPolicyCreateSchema:chain,studioPolicyVersionCreateSchema:chain,POLICY_COMPLIANCE_DATA_FIELDS:[],PACKET_COMPLIANCE_DATA_FIELDS:[],projectVisibleStudioFormAnswers:(_fields,answers)=>({...answers})},
   'zod': {z},
@@ -18,6 +19,9 @@ const modules={
   './studio-form-runtime.js': {serializeStudioFormVersion:serializeVersion,serializeStudioForm:row=>({...row,versions:row.versions?.map(v=>serializeVersion(v))}),validateStudioFormAnswers:(_schema,answers)=>answers.invalid?{ok:false,error:'invalid'}:{ok:true}},
   './studio-knowledge-runtime.js': {reconcileStudioKnowledgeAssignments:async()=>{}},
   './studio-knowledge-evidence.js': {ensureStudioKnowledgePersonnelRecord:async()=>{}},
+  './studio-form-target-admission.js': loadFormTargetAdmission(),
+  './studio-onboarding-attention.js': {summarizeStudioOnboardingAttention:async()=>({overdue:0,dueSoon:0,assignments:[]})},
+  './studio-knowledge-attention.js': {summarizeStudioKnowledgeAttention:async()=>({overdue:0,dueSoon:0,assignments:[]})},
   './studio-knowledge-compliance.js': {applyStudioKnowledgeComplianceQuery:()=>({}),studioKnowledgeComplianceRows:async()=>[]},
 };
 const js=ts.transpileModule(routeSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -42,6 +46,8 @@ const db={
     updateMany:async({where,data})=>{const row=drafts.find(d=>d.formId===where.formId&&d.userId===where.userId&&d.formVersionId===where.formVersionId&&d.revision===where.revision);if(!row)return {count:0};row.answersJson=data.answersJson;row.revision++;row.updatedAt=new Date();return {count:1}},
     deleteMany:async({where})=>{const before=drafts.length;drafts=drafts.filter(d=>!(d.formId===where.formId&&d.userId===where.userId&&(!where.revision||where.revision===d.revision)));return {count:before-drafts.length}}
   },
+  studioFormReviewer: { findUnique: async()=>null, findMany: async()=>[] },
+  studioFormAssignment: { findMany: async()=>[] },
   workspaceMember: { findMany: async()=>[{userId:'admin-a'},{userId:'admin-b'}] },
   studioForm: {
     findMany:async({where}={})=>forms.filter(f=>!where?.status||f.status===where.status).filter(f=>!where?.purpose?.not||f.purpose!==where.purpose.not).filter(f=>!where?.versions?.some||versions.some(v=>v.formId===f.id&&v.status==='published')).map(f=>({...f,versions:versions.filter(v=>v.formId===f.id&&v.status==='published').sort((a,b)=>b.version-a.version).slice(0,1)})),
@@ -130,7 +136,7 @@ check(result.code===409 && result.value.code==='FORM_ALREADY_SUBMITTED','One-res
 result=await call('GET','/api/forms/available');
 check(result.value.forms[0].canSubmit===false && result.value.forms[0].lastSubmission?.id==='submission-1','Recipient sees private submission state and disabled repeat submission');
 result=await call('GET','/api/studio-systems/forms/:formId/submissions',{formId:'general'});
-check(result.value.submissions.length===1 && result.value.submissions[0].answers.reason==='Need stylus','Admin review queue retrieves versioned answers');
+check(result.value.submissions.length===1 && result.value.submissions[0].version===1 && !('answers' in result.value.submissions[0]) && /answers: parseJson\(submission\.answersJson/.test(routeSource),'Admin review queue lists versioned rows; answers load only in the opened response');
 result=await call('GET','/api/studio-systems/forms/:formId/submissions',{formId:'application'});
 check(result.code===404,'General review queue does not expose application responses');
 result=await call('PATCH','/api/studio-systems/forms/:formId/submissions/:submissionId/review',{formId:'general',submissionId:'submission-1'},{expectedUpdatedAt:'2026-10-10T12:00:00Z',status:'rejected',note:''});

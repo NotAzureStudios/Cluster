@@ -71,6 +71,7 @@ await check('unauthorized listing and direct lookup never touch database',async(
 const navigation=load('packages/renderer/src/features/notifications/notification-navigation.ts',{
  '@cluster/shared':{clusterResourceAddressFromEntity:({entityType,entityId})=> entityType==='announcement'?{kind:'announcement',id:entityId}:null},
  '../workflow/resource-navigation':{clusterResourceNavigation:()=>null},
+ '../admin/incident-link':load('packages/renderer/src/features/admin/incident-link.ts',{}),
 });
 await check('recipient announcement stays in Inbox',()=>{const item={entityType:'announcement',entityId:'0003',category:'activity'};assert.deepEqual(navigation.notificationWorkNavigation(item),{screen:'inbox'});assert.equal(navigation.notificationDesktopRoute(navigation.notificationWorkNavigation(item)),'inbox')});
 await check('malformed or non-resolvable activity targets do not route to Studio Settings',()=>{assert.notEqual(navigation.notificationWorkNavigation({entityType:'announcement',entityId:'0003',category:'activity'}).screen,'studioSettings')});

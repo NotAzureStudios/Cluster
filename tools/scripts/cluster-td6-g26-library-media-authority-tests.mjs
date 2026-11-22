@@ -61,11 +61,11 @@ test('cache changes when conversion limits change', () => assert.notEqual(base, 
 test('cache changes when conversion source-relative path changes', () => assert.notEqual(base, modelPreviewFingerprint(source,[companion],'new.blend',100)));
 test('thumbnail write requires contribute', () => assert.match(routes, /app\.put\("\/api\/library\/:itemId\/model-thumbnail"[\s\S]{0,400}?findAccessibleItem\(request, reply, params\.itemId, "contribute"\)/));
 test('companion ACL uses request actor context', () => assert.match(routes, /visibleFor\(result\.context, companion, "view"\)/));
-test('Personnel Records and copyright are checked separately', () => { assert.match(routes,/personnelRecordAttachment\.findMany/); assert.match(routes,/copyrightResourceRestriction\.findMany/); assert.match(routes,/copyrightDisabledIds\.has\(record\.id\)/); });
+test('Personnel Records are checked; retired copyright holds stay removed', () => { assert.match(routes,/personnelRecordAttachment\.findMany/); assert.doesNotMatch(routes,/copyright/i); });
 test('blob paths reject managed symlink traversal', () => assert.match(routes, /validateManagedDerivativePath\(dataLayout\.libraryFilesRoot, currentPath\)/));
 test('derivative stream ETag includes companion identity', () => assert.match(routes, /reply\.header\("ETag", `"blend-\$\{cacheKey\}"`\)/));
 test('thumbnail writes use shared fail-closed managed storage', () => { assert.match(routes, /saveManagedModelThumbnail\(modelThumbnailRoot/); assert.match(readFileSync(resolve(sourceRoot, 'apps/server/src/domains/library/library-managed-preview-io.ts'),'utf8'), /assertManagedThumbnailRoot/); });
-test('companion copyright review is bounded to one query', () => assert.match(routes, /resourceId: \{ in: \[item\.id, \.\.\.companionIds\] \}/));
+test('companion Personnel Records review is bounded to one query', () => assert.match(routes, /libraryItemId: \{ in: \[item\.id, \.\.\.companionIds\] \}/));
 test('thumbnail request policy admits bounded 6 MiB upload as heavy work', () => {
   const policy = requestWorkPolicy({ pathname:'/api/library/abc/model-thumbnail', method:'PUT', globalBodyLimitBytes: 16*1024*1024, uploadLimitBytes: 16*1024*1024, avatarUploadLimitBytes: 2*1024*1024 });
   assert.equal(policy.workClass, 'heavy');

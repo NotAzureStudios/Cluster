@@ -348,7 +348,7 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
       originalName: `${access.item.title || "Library item"}-${kind}`,
       requestedInline: true,
       checksumSha256: derivative.contentChecksumSha256 || null,
-      // The URL is stable while permissions and copyright holds are not.
+      // The URL is stable while permissions are not.
       cacheControl: "private, no-store",
     });
   });
