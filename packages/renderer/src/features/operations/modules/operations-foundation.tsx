@@ -39,6 +39,8 @@ export function sanitizeProjectTypePreset(input: Partial<ProjectTypePreset> | nu
     releaseFields: cleanPresetList(clean.releaseFields, fallback?.releaseFields || ["release channel", "version", "changelog", "approval", "publish target"], 18),
     approvalRoles: cleanPresetList(clean.approvalRoles, fallback?.approvalRoles || DEFAULT_ROLE_APPROVAL_ROLES, 12),
     locked: false,
+    // Saved lists are the studio's own: built-ins are templates, never merged back in.
+    source: "studio",
   };
 }
 

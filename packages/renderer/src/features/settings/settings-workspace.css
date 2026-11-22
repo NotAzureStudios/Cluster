@@ -1970,3 +1970,20 @@
 .ap-card .cluster-settings-choice-group-v11, .ap-card [role="radiogroup"] { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:6px; }
 .ap-preview { position:sticky; top:var(--space-3); min-width:0; }
 @container (max-width:560px) { .ap-row { flex-wrap:wrap; } .ap-row > div { flex:1 1 100%; justify-content:flex-start; } }
+
+/* Project types: own list, templates, icons. */
+.pt-profiles { display:grid; gap:8px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--panel); }
+.pt-profiles > header { display:grid; gap:2px; }
+.pt-profiles > header strong { font-size:.8rem; }
+.pt-profiles > header small { color:var(--muted); font-size:.68rem; }
+.pt-profiles__chips { display:flex; flex-wrap:wrap; gap:6px; }
+.pt-profiles__chips > button { display:inline-flex; align-items:center; gap:5px; min-height:30px; padding:0 12px; border:1px solid var(--border); border-radius:999px; background:transparent; color:var(--muted); font:inherit; font-size:.72rem; font-weight:600; cursor:pointer; }
+.pt-profiles__chips > button[aria-pressed="true"] { border-color:color-mix(in srgb,var(--accent) 55%,var(--border)); background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--text); }
+.pt-profiles__chips svg { width:12px; height:12px; color:var(--accent); }
+.project-type-list-v470 .pt-item { display:flex; align-items:center; gap:10px; text-align:left; }
+.project-type-list-v470 .pt-item .resource-identity-mark { width:30px; height:30px; flex:none; border-radius:9px; }
+.project-type-list-v470 .pt-item > span { display:grid; gap:1px; min-width:0; flex:1; }
+.project-type-list-v470 .pt-item small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.project-type-list-v470 .pt-item em { padding:1px 7px; border-radius:999px; background:var(--surface-soft,var(--surface)); color:var(--muted); font-size:.6rem; font-style:normal; font-weight:700; }
+.project-type-editor-v470 > header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.project-type-editor-v470 .pt-delete { color:var(--danger); }

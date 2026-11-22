@@ -49,6 +49,8 @@ jobs:
         run: node tools/scripts/cluster-performance-analytics-query-tests.mjs
       - name: Automatic Server updates download when published and install in the maintenance window
         run: node tools/scripts/cluster-server-auto-update-tests.mjs
+      - name: Studio project types are the studio's own list; built-ins are templates
+        run: node tools/scripts/cluster-project-type-catalog-tests.mjs
       - name: Request I/O coalescing and update hold safety
         run: node tools/scripts/cluster-request-io-coalescing-tests.mjs
       - name: Queue counts and pressure single-flight regression

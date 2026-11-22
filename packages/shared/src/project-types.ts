@@ -85,6 +85,10 @@ export type ClusterProjectTypeDefinition = {
   workspaceEntities?: ClusterProjectWorkspaceEntityDefinition[];
   enabled?: boolean;
   locked?: boolean;
+  /** Set on every type the studio has saved: its list is then used exactly
+   * as saved, and the built-in definitions are only templates. */
+  source?: "studio";
+  iconId?: string;
 };
 
 const toolIds: ClusterProjectToolId[] = [...CLUSTER_PROJECT_TOOL_IDS];
@@ -278,6 +282,7 @@ export const clusterProjectTypeDefinitionSchema = z.object({
   productionTemplates: z.array(z.string().trim().min(1).max(120)).max(20).optional(), stageOwnership: z.record(z.array(z.string().trim().min(1).max(80)).max(12)).optional(), deliveryGatePolicy: z.object({ requiredGateIds: z.array(z.string().trim().min(1).max(80)).max(20).default([]), optionalGateIds: z.array(z.string().trim().min(1).max(80)).max(20).default([]), channels: z.array(z.string().trim().min(1).max(40)).max(8).optional() }).optional(),
   workspaceEntities: z.array(z.object({ id: z.string().trim().min(1).max(48), label: z.string().trim().min(1).max(80), plural: z.string().trim().min(1).max(100), baseKind: z.enum(["phase", "milestone", "deliverable", "issue", "change_request", "decision", "baseline"]), statuses: z.array(z.string().trim().min(1).max(48)).min(1).max(12), defaultStatus: z.string().trim().min(1).max(48), stage: z.string().trim().max(48).optional(), description: z.string().trim().max(240).optional() })).max(16).optional(),
   enabled: z.boolean().optional(), locked: z.boolean().optional(),
+  source: z.literal("studio").optional(), iconId: z.string().trim().max(100).optional(),
 });
 
 function uniqueStrings(values: unknown, fallback: string[] = [], limit = 24) {
@@ -356,10 +361,30 @@ export function sanitizeClusterProjectTypeDefinition(input: Partial<ClusterProje
     capabilities: { ...(base.capabilities || {}), ...(input?.capabilities || {}) }, sourceControlDefaults: { ...(base.sourceControlDefaults || {}), ...(input?.sourceControlDefaults || {}) },
     terminology: { ...(base.terminology || {}), ...(input?.terminology || {}) }, productionHierarchy: uniqueStrings(input?.productionHierarchy, base.productionHierarchy || [], 12), deliveryStages: uniqueStrings(input?.deliveryStages, base.deliveryStages || [], 16), reviewStages: uniqueStrings(input?.reviewStages, base.reviewStages || [], 16), dashboardWidgets: uniqueStrings(input?.dashboardWidgets, base.dashboardWidgets || [], 16), productionTemplates: uniqueStrings(input?.productionTemplates, base.productionTemplates || categoryBase?.productionTemplates || [], 20), stageOwnership: { ...(categoryBase?.stageOwnership || {}), ...(base.stageOwnership || {}), ...(input?.stageOwnership || {}) }, deliveryGatePolicy: { requiredGateIds: uniqueStrings(input?.deliveryGatePolicy?.requiredGateIds, base.deliveryGatePolicy?.requiredGateIds || categoryBase?.deliveryGatePolicy?.requiredGateIds || [], 20), optionalGateIds: uniqueStrings(input?.deliveryGatePolicy?.optionalGateIds, base.deliveryGatePolicy?.optionalGateIds || categoryBase?.deliveryGatePolicy?.optionalGateIds || [], 20), channels: uniqueStrings(input?.deliveryGatePolicy?.channels, base.deliveryGatePolicy?.channels || categoryBase?.deliveryGatePolicy?.channels || ["internal", "release"], 8) }, workspaceEntities: cleanWorkspaceEntities(input?.workspaceEntities, base.workspaceEntities || categoryBase?.workspaceEntities || []),
     enabled: input?.enabled !== false, locked: Boolean(input?.locked),
+    ...(input?.source === "studio" ? { source: "studio" as const } : {}),
+    ...(typeof input?.iconId === "string" && input.iconId ? { iconId: input.iconId.slice(0, 100) } : {}),
   };
 }
 
+/** Starting points offered by "Add type"; a studio's own list never merges them back in. */
+export const CLUSTER_PROJECT_TYPE_TEMPLATES = CLUSTER_PROJECT_TYPE_DEFINITIONS;
+
 export function resolveClusterProjectTypes(custom?: unknown): ClusterProjectTypeDefinition[] {
+  if (Array.isArray(custom) && custom.some((entry) => entry && typeof entry === "object" && (entry as { source?: unknown }).source === "studio")) {
+    const seen = new Set<string>();
+    const own: ClusterProjectTypeDefinition[] = [];
+    for (const raw of custom) {
+      if (!raw || typeof raw !== "object") continue;
+      const candidate = raw as Partial<ClusterProjectTypeDefinition>;
+      const template = CLUSTER_PROJECT_TYPE_DEFINITIONS.find((item) => item.id === normalizeClusterProjectTypeId(candidate.id || candidate.label))
+        || CLUSTER_PROJECT_TYPE_DEFINITIONS.find((item) => item.id === candidate.category);
+      const clean = sanitizeClusterProjectTypeDefinition({ ...candidate, source: "studio" }, template);
+      if (clean.enabled === false || seen.has(clean.id)) continue;
+      seen.add(clean.id);
+      own.push(clean);
+    }
+    return own.length ? own : [sanitizeClusterProjectTypeDefinition({ ...CLUSTER_PROJECT_TYPE_DEFINITIONS[0], source: "studio" })];
+  }
   const builtIns = new Map(CLUSTER_PROJECT_TYPE_DEFINITIONS.map((item) => [item.id, sanitizeClusterProjectTypeDefinition(item, item)]));
   if (Array.isArray(custom)) {
     for (const raw of custom) {
@@ -377,7 +402,9 @@ export function resolveClusterProjectTypes(custom?: unknown): ClusterProjectType
 export function resolveClusterProjectType(type: unknown, custom?: unknown) {
   const id = normalizeClusterProjectTypeId(type);
   const definitions = resolveClusterProjectTypes(custom);
-  return definitions.find((item) => item.id === id) || definitions.find((item) => item.id === "general") || definitions[0];
+  // A project keeps its behaviour after its type is removed from the studio's list.
+  const template = CLUSTER_PROJECT_TYPE_DEFINITIONS.find((item) => item.id === id);
+  return definitions.find((item) => item.id === id) || (template ? sanitizeClusterProjectTypeDefinition(template, template) : undefined) || definitions.find((item) => item.id === "general") || definitions[0];
 }
 
 

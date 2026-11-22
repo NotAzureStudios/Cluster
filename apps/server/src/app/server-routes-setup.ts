@@ -1,3 +1,4 @@
+import { CLUSTER_PROJECT_TYPE_TEMPLATES } from "@cluster/shared";
 import { createHash, randomUUID } from "node:crypto";
 import { type FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -488,6 +489,9 @@ export function registerSetupRoutes(deps: ServerRouteRegistrationDeps) {
       ...(body.domainSetupIntent ? { domainSetupIntent: {
         ...body.domainSetupIntent, domain: body.domainSetupIntent.domain.toLowerCase(),
       } } : {}),
+      // A new studio starts with one General project type; the rest are
+      // templates under Project types → Add type.
+      projectTypePresets: [{ ...CLUSTER_PROJECT_TYPE_TEMPLATES[0], source: "studio" }],
       ...studioDefaults,
       setupChecklistSkippedIds: [],
       serverInstanceId,

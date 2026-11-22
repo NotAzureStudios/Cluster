@@ -6,7 +6,7 @@ import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../compon
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, queryApi } from "../../core/api";
-import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
+import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_PROJECT_TYPE_TEMPLATES, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { DEFAULT_MEMBER_TOOL_PERMISSIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
@@ -19,6 +19,8 @@ import { buildStudioSettingsSearchEntries } from "./studio-settings-search";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
 import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
+import { ResourceIconPicker } from "../../components/ResourceIconPicker";
+import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { DepartmentIdentityMark } from "../../components/DepartmentIdentityMark";
 import { ClusterFileButton } from "../../components/ClusterFileButton";
 import { ClusterSelect } from "../../components/ClusterSelect";
@@ -741,7 +743,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       {
         ...base,
         id,
-        label: `${base.label} Custom`,
+        label: `${base.label} copy`,
         locked: false,
         enabled: true,
       },
@@ -763,11 +765,15 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
     if (selectedProjectTypeId === id) setSelectedProjectTypeId(next[0]?.id || "");
     if (settings.defaultProjectTypeId === id) patch("defaultProjectTypeId", next[0]?.id || "general");
   }
-  function resetProjectTypePresets() {
-    const next = mergeProjectTypePresets(DEFAULT_PROJECT_TYPE_PRESETS);
-    patch("projectTypePresets", next);
-    setSelectedProjectTypeId(next[0]?.id || "");
-    writeProjectTypePresetsCache(next);
+  function addProjectTypeFromTemplate(templateId: string) {
+    const template = CLUSTER_PROJECT_TYPE_TEMPLATES.find((item) => item.id === templateId);
+    const base = template || CLUSTER_PROJECT_TYPE_TEMPLATES[0];
+    const label = template ? template.label : "New project type";
+    let id = slugProjectTypeId(template ? template.id : label);
+    if (projectTypePresets.some((preset) => preset.id === id)) id = `${id}_${Date.now().toString(36)}`.slice(0, 48);
+    const next = sanitizeProjectTypePreset({ ...base, id, label, note: template ? base.note : "", enabled: true, locked: false }, base);
+    patch("projectTypePresets", [...projectTypePresets, next]);
+    setSelectedProjectTypeId(next.id);
   }
   function projectTypeToolMode(preset: ProjectTypePreset, toolId: ClusterProjectToolId): "included" | "optional" | "hidden" {
     if ((preset.hiddenTools || []).includes(toolId)) return "hidden";
@@ -2109,22 +2115,25 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           {section === "projectTypes" && (
             <div className="settings-section-v092 studio-project-types-v470">
               <div className="settings-panel-head-v092 project-type-page-head-v470">
-                <div><p className="eyebrow">Projects</p><h2>Project types</h2><span>Reusable project behavior without hard-coded platform logic.</span></div>
-                <div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => addProjectTypePreset(selectedProjectTypePreset?.id || "general")}>Add type</ClusterButton><ClusterButton type="button" variant="quiet" onClick={resetProjectTypePresets}>Restore defaults</ClusterButton></div>
+                <div><h2>Project types</h2><span>Your studio's own list. Templates are copies you can change or delete.</span></div>
+                <ClusterActionMenu label="Add project type" triggerLabel="Add type" items={[
+                  { id: "blank", label: "Blank type", icon: "plus", onSelect: () => addProjectTypeFromTemplate("blank") },
+                  ...CLUSTER_PROJECT_TYPE_TEMPLATES.map((template, index) => ({ id: template.id, label: template.label, description: template.note, icon: "project" as const, separatorBefore: index === 0, onSelect: () => addProjectTypeFromTemplate(template.id) })),
+                ]} />
               </div>
-              <section className="project-profile-opt-in-v5123" aria-label="Technology profile enablement">
-                <header><strong>Technology profiles</strong><small>Specialized workflows are optional. New studios start generic, without vendor-specific creation choices.</small></header>
-                <div className="project-profile-opt-in-grid-v5123">
-                  {CLUSTER_PRODUCTION_PROFILE_DEFINITIONS.filter((profile) => profile.classification === "specialized").map((profile) => (
-                    <label key={profile.id}><ClusterInput type="checkbox" checked={(settings.studioEnabledProductionProfileIds || []).includes(profile.id)} onChange={(event) => patch("studioEnabledProductionProfileIds", event.target.checked ? unique([...(settings.studioEnabledProductionProfileIds || []), profile.id]) : (settings.studioEnabledProductionProfileIds || []).filter((id) => id !== profile.id))} /><span>{profile.label}</span></label>
-                  ))}
+              <section className="pt-profiles" aria-label="Technology profiles">
+                <header><strong>Technology profiles</strong><small>Offer engine and platform pipelines when creating projects. Existing projects keep theirs.</small></header>
+                <div className="pt-profiles__chips">
+                  {CLUSTER_PRODUCTION_PROFILE_DEFINITIONS.filter((profile) => profile.classification === "specialized").map((profile) => {
+                    const on = (settings.studioEnabledProductionProfileIds || []).includes(profile.id);
+                    return <ClusterButton key={profile.id} unstyled type="button" aria-pressed={on} title={profile.note} onClick={() => patch("studioEnabledProductionProfileIds", on ? (settings.studioEnabledProductionProfileIds || []).filter((id) => id !== profile.id) : unique([...(settings.studioEnabledProductionProfileIds || []), profile.id]))}>{on ? <ClusterIcon name="check" /> : null}{profile.label}</ClusterButton>;
+                  })}
                 </div>
-                <small>Disabling a technology only removes it from new Project choices. Existing Project references remain unchanged.</small>
               </section>
               <div className="project-type-workbench-v470">
                 <aside className="project-type-list-v470" aria-label="Project types">
                   <header><strong>{projectTypePresets.length} types</strong><small>{enabledPresetCount} enabled</small></header>
-                  <div>{projectTypePresets.map((preset) => <ClusterButton type="button" key={preset.id} className={selectedProjectTypePreset?.id === preset.id ? "active" : ""} aria-pressed={selectedProjectTypePreset?.id === preset.id} onClick={() => setSelectedProjectTypeId(preset.id)}><span><strong>{preset.label}</strong><small>{preset.buildProfileKey}</small></span><i className={preset.enabled === false ? "off" : "on"} aria-hidden="true" /></ClusterButton>)}</div>
+                  <div>{projectTypePresets.map((preset) => <ClusterButton type="button" key={preset.id} className={`pt-item ${selectedProjectTypePreset?.id === preset.id ? "active" : ""}`} aria-pressed={selectedProjectTypePreset?.id === preset.id} onClick={() => setSelectedProjectTypeId(preset.id)}><ResourceIdentityMark iconId={preset.iconId} projectType={preset.category || preset.id} label={preset.label} /><span><strong>{preset.label}</strong><small>{preset.note}</small></span>{preset.enabled === false ? <em>Off</em> : null}</ClusterButton>)}</div>
                 </aside>
                 {selectedProjectTypePreset ? (() => {
                   const preset = selectedProjectTypePreset;
@@ -2137,7 +2146,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   const workspaceEntitiesCsv = (value?: typeof preset.workspaceEntities) => (value || []).map((entity) => `${entity.id}=${entity.label}|${entity.plural}|${entity.baseKind}|${entity.statuses.join(">")}|${entity.defaultStatus}|${entity.stage || ""}`).join("; ");
                   const workspaceEntitiesFromCsv = (value: string) => value.split(";").map((item) => item.trim()).filter(Boolean).map((item) => { const [idPart, ...rest] = item.split("="); const [label, plural, baseKind, statusesRaw, defaultStatus, stage] = rest.join("=").split("|"); const statuses = (statusesRaw || "planned").split(">").map((status) => status.trim()).filter(Boolean); return { id: idPart.trim(), label: (label || idPart).trim(), plural: (plural || `${label || idPart}s`).trim(), baseKind: (["phase", "milestone", "deliverable", "issue", "change_request", "decision", "baseline"].includes(baseKind) ? baseKind : "deliverable") as "phase" | "milestone" | "deliverable" | "issue" | "change_request" | "decision" | "baseline", statuses, defaultStatus: (defaultStatus || statuses[0] || "planned").trim(), stage: stage?.trim() || undefined }; }).filter((entity) => entity.id && entity.label && entity.statuses.length).slice(0, 16);
                   return <section className="project-type-editor-v470">
-                    <header><div><strong>{preset.label}</strong><small>{preset.id} · {preset.buildProfileKey}</small></div><div className="button-row"><label className="project-type-enabled-v470"><ClusterInput type="checkbox" checked={preset.enabled !== false} onChange={(e) => updateProjectTypePreset(preset.id, { enabled: e.target.checked })} />Enabled</label><ClusterButton type="button" size="compact" onClick={() => addProjectTypePreset(preset.id)}>Duplicate</ClusterButton><ClusterButton type="button" variant="danger" size="compact" onClick={() => removeProjectTypePreset(preset.id)}>{preset.locked ? "Disable" : "Remove"}</ClusterButton></div></header>
+                    <header><ResourceIconPicker label={preset.label} projectType={preset.category || preset.id} value={preset.iconId} onChange={(iconId) => updateProjectTypePreset(preset.id, { iconId: iconId || undefined })} /><div className="button-row"><label className="project-type-enabled-v470"><ClusterInput type="checkbox" checked={preset.enabled !== false} onChange={(e) => updateProjectTypePreset(preset.id, { enabled: e.target.checked })} />Offer for new projects</label><ClusterButton type="button" size="compact" variant="quiet" onClick={() => addProjectTypePreset(preset.id)}>Duplicate</ClusterButton><ClusterButton type="button" variant="quiet" size="compact" className="pt-delete" onClick={() => removeProjectTypePreset(preset.id)}>Delete</ClusterButton></div></header>
                     <div className="project-type-editor-grid-v470">
                       <div className="field"><label>Name</label><ClusterInput value={preset.label} onChange={(e) => updateProjectTypePreset(preset.id, { label: e.target.value })} /></div>
                       <div className="field"><label>Build profile</label><ClusterNativeSelect value={preset.buildProfileKey} onChange={(e) => updateProjectTypePreset(preset.id, { buildProfileKey: e.target.value })}>{availableBuildProfiles.some((profile) => profile.key === preset.buildProfileKey) ? availableBuildProfiles.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>) : [<option key={preset.buildProfileKey} value={preset.buildProfileKey}>{preset.buildProfileKey} (legacy selection)</option>, ...availableBuildProfiles.map((profile) => <option key={profile.key} value={profile.key}>{profile.label}</option>)]}</ClusterNativeSelect></div>
