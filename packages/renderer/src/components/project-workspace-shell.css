@@ -19,7 +19,7 @@ button.pw-project:hover { background: var(--cluster-button-fill); color: var(--t
 /* The resource switcher reads as the title. */
 .pw-resource .project-resource-switcher-v489 { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .pw-resource .project-resource-switcher-v489 > :is(span, label):first-child:not(:only-child) { display: none; }
-.pw-resource .cluster-select-trigger-v227 { min-height: 30px !important; height: 30px; max-width: 360px; padding-inline: 8px !important; border-color: transparent !important; background: transparent !important; box-shadow: none !important; font-size: var(--cluster-font-size-md) !important; font-weight: 600; }
+.pw-resource .cluster-select-trigger-v227 { min-height: 30px !important; height: 30px; max-width: 360px; padding-inline: 8px; border-color: transparent !important; background: transparent !important; box-shadow: none !important; font-size: var(--cluster-font-size-md); font-weight: 600; }
 .pw-resource .cluster-select-trigger-v227:hover { background: var(--cluster-button-fill) !important; }
 .pw-resource select { height: 30px; border-color: transparent; background-color: transparent; font-size: var(--cluster-font-size-md); font-weight: 600; }
 
@@ -49,7 +49,7 @@ button.pw-project:hover { background: var(--cluster-button-fill); color: var(--t
   .pw-metrics, .pw-links { display: none; }
 }
 .pw-end .cluster-button-v425 { min-height: 30px !important; height: 30px; padding-inline: 10px; font-size: var(--cluster-font-size-sm); }
-.pw-end .cluster-icon-button-v425, .pw-end button[aria-label]:has(> svg:only-child) { width: 30px; padding: 0 !important; }
+.pw-end .cluster-icon-button-v425, .pw-end button[aria-label]:has(> svg:only-child) { width: 30px; padding: 0; }
 .pw-resource .cluster-select-trigger-v227 > em { display: none; }
 .pw-live .collaboration-presence-v193 { display: flex; flex-direction: row; align-items: center; gap: 6px; }
 .pw-live .collaboration-avatar-row-v193 { display: flex; gap: 2px; }
@@ -58,7 +58,7 @@ button.pw-project:hover { background: var(--cluster-button-fill); color: var(--t
 .pw-live .collaboration-transport-v201 { font-size: var(--cluster-font-size-2xs); color: var(--warning, #f0b429); }
 @media (max-width: 640px) {
   .pw-head { overflow: hidden; }
-  .pw-head > :is(.pw-project, .pw-sep, .pw-icon) { display: none !important; }
+  .pw-head > :is(.pw-project, .pw-sep, .pw-icon) { display: none; }
   .pw-resource { flex: 1 1 auto; min-width: 96px; }
   .pw-resource .cluster-select-trigger-v227 { min-width: 0; max-width: 100%; }
   .pw-resource .project-resource-switcher-v489 { flex-wrap: nowrap; }

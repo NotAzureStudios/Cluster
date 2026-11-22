@@ -80,7 +80,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); }
 .cluster-button-v425:disabled { opacity: var(--cluster-disabled-opacity); cursor: not-allowed; }
 .cluster-button-v425[aria-busy="true"] { cursor: progress; }
 .cluster-button-v425 > svg { display: block; width: var(--cluster-icon-md); height: var(--cluster-icon-md); flex: 0 0 auto; }
-.cluster-icon-svg { display: block; flex: 0 0 auto; overflow: visible !important; box-sizing: border-box; transform-origin: center; color: currentColor; }
+.cluster-icon-svg { display: block; flex: 0 0 auto; overflow: visible; box-sizing: border-box; transform-origin: center; color: currentColor; }
 /* Icon size is set outright. This used to cap the icon at calc(100% - 8px),
    but an icon button is an inline-grid whose track sizes to the icon itself
    (1em from svg.cluster-icon--unified), so the cap resolved to 12px - 8px and
@@ -497,7 +497,7 @@ button.cluster-metric-item-v427[data-cluster-state="selected"] { background: var
 .cluster-viewer-drawer[data-motion-purpose="surface"]{animation:cluster-floating-enter-v504 var(--cluster-motion-panel) var(--cluster-ease-enter)}
 
 /* WIP21 icon geometry hardening. Iconify artwork may extend close to its viewBox edge. */
-svg.cluster-icon-svg { display:block !important; align-self:center; justify-self:center; flex:0 0 auto; overflow:visible !important; vertical-align:middle; transform-origin:center center; }
+svg.cluster-icon-svg { display:block; align-self:center; justify-self:center; flex:0 0 auto; overflow:visible; vertical-align:middle; transform-origin:center center; }
 .cluster-button-v425 > svg.cluster-icon-svg,
 .cluster-icon-button-v425 > svg.cluster-icon-svg { position:relative; inset:auto; }
 
@@ -589,7 +589,7 @@ details.cluster-field-v425[open] > summary > .cluster-disclosure-chevron-v546 { 
 
 /* RC16: application-wide three-pack optical alignment. No vendor-specific offsets. */
 svg.cluster-icon--unified {
-  display: inline-block !important;
+  display: inline-block;
   flex: 0 0 auto;
   box-sizing: border-box;
   inline-size: 1em;

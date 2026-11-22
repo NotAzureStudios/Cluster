@@ -17,8 +17,8 @@
   z-index: 3;
 }
 /* The item creator is a contained workspace with a dimmed packet-style backdrop. */
-.shared-create-backdrop-v254 { position:fixed; inset:0; z-index:80; display:flex; justify-content:flex-end; padding:18px !important; }
-.shared-create-workspace-v254 { width: min(820px, calc(100dvw - 40px)); height: min(520px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); display: grid !important; grid-template-columns: minmax(0, 1fr) !important; padding: 0 !important; overflow: hidden !important; border-radius: 12px !important; background: var(--cluster-surface-1) !important; box-shadow: 0 28px 90px color-mix(in srgb, var(--cluster-black) 34%, transparent) !important; }
+.shared-create-backdrop-v254 { position:fixed; inset:0; z-index:80; display:flex; justify-content:flex-end; padding:18px; }
+.shared-create-workspace-v254 { width: min(820px, calc(100dvw - 40px)); height: min(520px, calc(100dvh - 40px)); max-height: calc(100dvh - 40px); display: grid; grid-template-columns: minmax(0, 1fr) !important; padding: 0 !important; overflow: hidden; border-radius: 12px; background: var(--cluster-surface-1) !important; box-shadow: 0 28px 90px color-mix(in srgb, var(--cluster-black) 34%, transparent) !important; }
 .shared-create-header-v254 .shared-create-title-copy-v448 > small { color: var(--muted); font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .shared-create-header-v254 h2 { margin: 0; font-size: 1.15rem; }
 .create-mode-icon-v448 { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--cluster-border); border-radius: 7px; background: var(--cluster-surface-1); color: var(--soft-text); }
@@ -42,7 +42,7 @@
 
 .shared-create-footer-v254 .button-row { flex-wrap: nowrap; }
 
-@media (max-width: 760px) { .shared-create-backdrop-v254 { padding: 0 !important; } .shared-create-workspace-v254 { width: 100% !important; height: 100dvh !important; max-height: 100dvh !important; grid-template-columns: 1fr !important; grid-template-rows: minmax(0, 1fr) !important; border-radius: 0 !important; } .shared-create-footer-v254 { align-items: stretch; flex-direction: column; } .shared-create-footer-v254 .button-row { justify-content: stretch; }  }
+@media (max-width: 760px) { .shared-create-backdrop-v254 { padding: 0; } .shared-create-workspace-v254 { width: 100% !important; height: 100dvh !important; max-height: 100dvh !important; grid-template-columns: 1fr !important; grid-template-rows: minmax(0, 1fr) !important; border-radius: 0; } .shared-create-footer-v254 { align-items: stretch; flex-direction: column; } .shared-create-footer-v254 .button-row { justify-content: stretch; }  }
 
 /* v0.311: readable repair errors and less opaque typed-workspace glass. */
 .shared-create-backdrop-v254 { background: color-mix(in srgb, var(--cluster-slate-950) 54%, transparent) !important; backdrop-filter: none; }
@@ -446,7 +446,7 @@
   .shared-create-backdrop-v254 {
     align-items: center;
     justify-content: center;
-    padding: 24px !important;
+    padding: 24px;
   }
   .shared-create-workspace-v254:not(.picker-mode-v455) {
     width: min(920px, calc(100dvw - 56px));
@@ -513,30 +513,30 @@
 
 /* WIP29: an X is already a close affordance; keep it icon-only. */
 .shared-create-close-v448 {
-  display: inline-grid !important;
-  place-items: center !important;
-  width: 32px !important;
-  min-width: 32px !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  padding: 0 !important;
-  border-radius: 999px !important;
-  line-height: 0 !important;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  line-height: 0;
 }
 .shared-create-close-v448 > span { display: none !important; }
-.shared-create-close-v448 svg { width: 16px !important; height: 16px !important; margin: 0 !important; }
+.shared-create-close-v448 svg { width: 16px; height: 16px; margin: 0; }
 
 /* RC22: canonical project glyph and a calm first-create surface. */
 .shared-create-title-icon-v448[data-create-mode="project"]{width:40px;height:40px;flex-basis:40px;border-color:color-mix(in srgb,var(--accent) 28%,var(--cluster-border));background:color-mix(in srgb,var(--accent) 10%,var(--cluster-surface-2));color:var(--accent)}
-.shared-create-title-icon-v448[data-create-mode="project"]>.cluster-icon-svg{display:block;width:24px!important;height:24px!important;max-width:24px;max-height:24px;margin:auto;flex:none;vertical-align:middle}
+.shared-create-title-icon-v448[data-create-mode="project"]>.cluster-icon-svg{display:block;width:24px;height:24px;max-width:24px;max-height:24px;margin:auto;flex:none;vertical-align:middle}
 .shared-create-scroll-v254 .create-form-v161{background:var(--cluster-surface-1);border-color:var(--cluster-border);border-radius:11px}
 .shared-create-scroll-v254 .create-context-strip-v161{padding:6px 9px;min-height:33px}
 .shared-create-workspace-v254 .shared-create-header-v254{align-items:center}
 
-@media(min-width:761px){.shared-create-workspace-v254:has(.shared-create-title-icon-v448[data-create-mode="project"]){height:min(475px,calc(100dvh - 36px))!important}}
+@media(min-width:761px){.shared-create-workspace-v254:has(.shared-create-title-icon-v448[data-create-mode="project"]){height:min(475px,calc(100dvh - 36px))}}
 /* Forms size to their fields instead of a fixed tall sheet; long forms still scroll. */
 @media (min-width: 761px) {
-  .shared-create-workspace-v254.form-mode-v455 { height: auto !important; max-height: calc(100dvh - 40px) !important; }
-  .shared-create-workspace-v254.form-mode-v455 .shared-create-main-v254 { height: auto !important; min-height: 0; }
-  .shared-create-workspace-v254.form-mode-v455 .shared-create-scroll-v254 { height: auto !important; max-height: calc(100dvh - 200px); min-height: 160px; }
+  .shared-create-workspace-v254.form-mode-v455 { height: auto; max-height: calc(100dvh - 40px); }
+  .shared-create-workspace-v254.form-mode-v455 .shared-create-main-v254 { height: auto; min-height: 0; }
+  .shared-create-workspace-v254.form-mode-v455 .shared-create-scroll-v254 { height: auto; max-height: calc(100dvh - 200px); min-height: 160px; }
 }

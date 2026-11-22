@@ -70,15 +70,15 @@ input[type="radio"] {
   border-radius: 999px;
 }
 input[type="checkbox"]::before {
-  content: "" !important;
+  content: "";
   width: 8px !important;
-  height: 5px !important;
+  height: 5px;
   border-left: 0 !important;
   border-bottom: 2px solid var(--cluster-white) !important;
-  transform: rotate(-45deg) scale(0) !important;
-  transform-origin: center !important;
-  transition: transform .12s ease !important;
-  margin-top: -1px !important;
+  transform: rotate(-45deg) scale(0);
+  transform-origin: center;
+  transition: transform .12s ease;
+  margin-top: -1px;
 }
 input[type="checkbox"]:checked,
 input[type="radio"]:checked {
@@ -86,19 +86,19 @@ input[type="radio"]:checked {
   border-color: color-mix(in srgb, var(--accent, var(--cluster-cyan-400)) 74%, white 12%) !important;
 }
 input[type="checkbox"]:checked::before {
-  transform: rotate(-45deg) scale(1) !important;
+  transform: rotate(-45deg) scale(1);
 }
 input[type="radio"]::before {
-  content: "" !important;
-  width: 7px !important;
-  height: 7px !important;
-  border-radius: 999px !important;
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
   background: var(--cluster-white) !important;
-  transform: scale(0) !important;
-  transition: transform .12s ease !important;
+  transform: scale(0);
+  transition: transform .12s ease;
 }
 input[type="radio"]:checked::before {
-  transform: scale(1) !important;
+  transform: scale(1);
 }
 .tool-check input[type="checkbox"],
 .tool-check input[type="radio"] {
@@ -117,7 +117,7 @@ summary,
 /* Native selects had the visual charm of a firmware setup screen. */
 select { appearance: none; -webkit-appearance: none; min-height: var(--cluster-control-height); width: 100%; border: 1px solid var(--cluster-border); background-color: var(--cluster-surface-2); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: var(--text); line-height: 1.2; cursor: pointer; }
 /* Field resets elsewhere use the background shorthand; keep the chevron on every single-value select. */
-select:not([multiple]):not([size]) { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%) !important; background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50% !important; background-size: 5px 5px, 5px 5px !important; background-repeat: no-repeat !important; padding-right: 28px !important; }
+select:not([multiple]):not([size]) { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%) !important; background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50% !important; background-size: 5px 5px, 5px 5px !important; background-repeat: no-repeat !important; padding-right: 28px; }
 select:hover { border-color: var(--cluster-border-strong) !important; background-color: var(--cluster-surface-3) !important; }
 select:focus-visible { border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 62%, var(--cluster-border-strong)) !important; box-shadow: none !important; outline-offset: 1px; }
 select:disabled { cursor: not-allowed; }
@@ -269,7 +269,7 @@ input, select, textarea{ scroll-margin: 80px; }
 .cluster-resizable-rail-handle-v497:hover::after,.cluster-resizable-rail-handle-v497:focus-visible::after{background:var(--accent);width:2px;left:2px}
 @media(max-width:980px){.cluster-resizable-rail-v497{grid-template-columns:minmax(0,1fr)}.cluster-resizable-rail-handle-v497{display:none}.cluster-resizable-main-v497{border-top:1px solid var(--border)}}
 :where(.settings-inline-toggle-v469,.studio-inline-check-v272,.studio-setting-toggle-v272,.profile-visibility-toggle-v473,.records-check-v9e3,.packet-required-toggle-v34f,.tool-check,.library-scope-v217)>input[type="checkbox"]{flex:0 0 18px !important;width:18px !important;min-width:18px !important;height:18px !important;min-height:18px !important;margin:0 !important}
-.cluster-icon-button-v425,.cluster-detail-close-v429{line-height:0 !important;align-items:center !important;justify-items:center !important}.cluster-icon-button-v425>.cluster-icon-svg,.cluster-detail-close-v429>.cluster-icon-svg{display:block !important;align-self:center !important;justify-self:center !important;margin:auto !important}
+.cluster-icon-button-v425,.cluster-detail-close-v429{line-height:0 !important;align-items:center;justify-items:center}.cluster-icon-button-v425>.cluster-icon-svg,.cluster-detail-close-v429>.cluster-icon-svg{display:block;align-self:center;justify-self:center;margin:auto}
 label:has(> input[type="checkbox"]),label:has(> input[type="radio"]){display:flex;flex-direction:row;align-items:center;gap:8px;min-width:0}
 label:has(> input[type="checkbox"]) > input[type="checkbox"],label:has(> input[type="radio"]) > input[type="radio"]{width:var(--cluster-check-control-size) !important;min-width:var(--cluster-check-control-size) !important;max-width:var(--cluster-check-control-size) !important;height:var(--cluster-check-control-size) !important;min-height:var(--cluster-check-control-size) !important;max-height:var(--cluster-check-control-size) !important;flex:0 0 var(--cluster-check-control-size) !important}
 

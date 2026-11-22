@@ -61,7 +61,7 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 textarea { min-height: 92px; line-height: 1.5; }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):hover, textarea:hover, select:hover { border-color: var(--line-strong); background-color: var(--cluster-hover-surface); }
-input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:focus-visible { outline: 1px solid color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 72%, transparent); outline-offset: 1px; border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 58%, var(--line)) !important; box-shadow: none !important; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:focus-visible { outline: 1px solid color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 72%, transparent); outline-offset: 1px; border-color: color-mix(in srgb, var(--cluster-focus-color, var(--cluster-cyan-500)) 58%, var(--line)) !important; box-shadow: none; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 .soft-pill,
@@ -120,7 +120,7 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 .cluster-data-toolbar-v289 { display: grid; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: var(--cluster-radius-panel); background: var(--panel); box-shadow: var(--cluster-shadow-panel); }
 .cluster-data-search-v289 { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; min-height: var(--cluster-control-height); padding: 0 9px; border: 1px solid var(--line); border-radius: var(--cluster-radius-control); background: var(--panel-2); }
 .cluster-data-search-v289 > svg { width: 17px; height: 17px; color: var(--muted); }
-.cluster-data-search-v289 input { min-height: 0 !important; padding: 0 8px !important; border: 0 !important; background: transparent !important; box-shadow: none !important; }
+.cluster-data-search-v289 input { min-height: 0; padding: 0 8px !important; border: 0 !important; background: transparent; box-shadow: none !important; }
 .cluster-data-search-v289 button { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--muted); }
 .cluster-data-search-v289 button:hover { background: var(--cluster-hover-surface); color: var(--text); }
 .cluster-data-search-v289 button svg { width: 15px; height: 15px; }
@@ -160,7 +160,7 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 .settings-content-v092 > .settings-card-v092,
 .studio-settings-content-v165 > .settings-card-v092 { margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; border-radius: 0 !important; box-shadow: none !important; }
 .settings-content-v092 > :last-child,
-.studio-settings-content-v165 > :last-child { border-bottom: 0 !important; }
+.studio-settings-content-v165 > :last-child { border-bottom: 0; }
 .settings-card-v092, .admin-tool-mode-panel-v235, .admin-resource-panel { padding: clamp(16px, 2vw, 24px); }
 
 .danger-confirm-backdrop-v289 { z-index: 120; }
@@ -212,7 +212,7 @@ details > summary:hover { background: var(--cluster-hover-surface); }
   border: 1px solid color-mix(in srgb, var(--cluster-border-strong, var(--cluster-border)) 82%, transparent) !important;
   border-radius: 10px !important;
   background: color-mix(in srgb, var(--cluster-surface-2) 92%, var(--cluster-surface-1)) !important;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cluster-white, #fff) 4%, transparent) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--cluster-white, #fff) 4%, transparent);
 }
 :where(.cluster-data-search-v289, .notification-search-v251, .notification-search-v252, .library-search-v217, .mywork-search-v253, .clock-project-search-v475, .shared-create-search-v457, .shared-create-search-v466):focus-within {
   border-color: color-mix(in srgb, var(--cluster-focus-color) 60%, var(--cluster-border-strong, var(--cluster-border))) !important;
@@ -229,8 +229,8 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 .server-admin-search-v495 input[type="search"] {
   min-height: 36px;
   border: 1px solid color-mix(in srgb, var(--cluster-border-strong, var(--cluster-border)) 82%, transparent) !important;
-  border-radius: 10px !important;
-  background: color-mix(in srgb, var(--cluster-surface-2) 92%, var(--cluster-surface-1)) !important;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cluster-surface-2) 92%, var(--cluster-surface-1));
   box-shadow: none !important;
 }
 .global-search-input-v121 { width: 100%; padding-inline: 12px; }
@@ -261,7 +261,7 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 
 /* WIP31: native file pickers never own Cluster's visible chrome. */
 .cluster-file-input-v475,
-.cluster-file-input-v475[hidden]{display:none !important;}
+.cluster-file-input-v475[hidden]{display:none;}
 :where(input[type="file"]):not(.cluster-file-input-v475){
   min-height:38px;
   padding:4px 6px;
@@ -293,6 +293,6 @@ details > summary:hover { background: var(--cluster-hover-surface); }
 :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),textarea,select):focus-visible{
   outline:0 !important;
   outline-offset:0 !important;
-  box-shadow:none !important;
+  box-shadow:none;
   border-color:color-mix(in srgb,var(--cluster-focus-color,var(--accent)) 62%,var(--cluster-border-strong,var(--border))) !important;
 }

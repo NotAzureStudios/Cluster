@@ -44,6 +44,6 @@
 .adm-health__list > li[data-tone="danger"] > b { color: var(--danger); }
 
 /* Needs attention */
-.adm-queue__list button { display: flex; height: auto; font: inherit; cursor: pointer; border: 0 !important; background: transparent !important; box-shadow: none !important; font-weight: 400; align-items: center; width: 100%; min-height: 32px; padding: 0 var(--space-1); border-radius: var(--cluster-radius-control); color: var(--text); font-size: var(--cluster-font-size-sm); text-align: left; }
+.adm-queue__list button { display: flex; height: auto; font: inherit; cursor: pointer; border: 0; background: transparent; box-shadow: none; font-weight: 400; align-items: center; width: 100%; min-height: 32px; padding: 0 var(--space-1); border-radius: var(--cluster-radius-control); color: var(--text); font-size: var(--cluster-font-size-sm); text-align: left; }
 .adm-queue__list button:hover { background: var(--cluster-button-fill) !important; }
 .adm-queue__list b { margin-left: auto; padding: 0 7px; border-radius: 999px; background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); font-size: var(--cluster-font-size-xs); line-height: 18px; }

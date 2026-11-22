@@ -87,12 +87,12 @@
 .nt-search svg.cluster-icon-svg { flex: none; inline-size: 14px; block-size: 14px; }
 /* Legacy global input rules carry !important; this field opts out of them. */
 .nt-inbox .nt-search > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
-  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important;
-  background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm);
+  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0; border: 0 !important;
+  background: transparent !important; box-shadow: none; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm);
 }
 .nt-search input::-webkit-search-cancel-button { display: none; }
 .nt-group-select { display: flex; align-items: center; gap: var(--space-1-5); color: var(--muted); font-size: var(--cluster-font-size-xs); }
-.nt-inbox .nt-group-select select { height: 30px !important; min-height: 30px !important; padding-block: 0 !important; font-size: var(--cluster-font-size-sm); }
+.nt-inbox .nt-group-select select { height: 30px !important; min-height: 30px !important; padding-block: 0; font-size: var(--cluster-font-size-sm); }
 
 .nt-inbox__body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--space-3); align-items: start; min-height: 0; }
 

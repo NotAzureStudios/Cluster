@@ -256,7 +256,7 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 /* ---------- Paint-style stage: tool rail on the left, colours under it ---------- */
 .wb-stage { position: relative; grid-column: 1; min-width: 0; min-height: 0; }
 .wb-rail { position: absolute; z-index: 6; top: 10px; left: 10px; display: flex; flex-direction: column; align-items: center; gap: 2px; width: 44px; max-height: calc(100% - 20px); padding: 5px 0; overflow-y: auto; border-radius: 12px; background: var(--cluster-workbench-panel); box-shadow: 0 6px 20px rgb(0 0 0 / .35); scrollbar-width: none; }
-.wb-rail .cluster-icon-button-v425 { width: 34px !important; height: 34px !important; min-height: 0 !important; border-radius: 9px !important; }
+.wb-rail .cluster-icon-button-v425 { width: 34px; height: 34px !important; min-height: 0 !important; border-radius: 9px !important; }
 .wb-rail .cluster-icon-button-v425 svg.cluster-icon-svg { inline-size: 17px; block-size: 17px; }
 .wb-rail .cluster-icon-button-v425[aria-pressed="true"], .wb-rail .cluster-icon-button-v425.selected { background: color-mix(in srgb, var(--accent) 22%, transparent) !important; color: var(--accent); }
 .wb-rail__sep { flex: none; width: 24px; height: 1px; margin: 4px 0; background: var(--cluster-workbench-border); }
@@ -274,9 +274,9 @@ body.whiteboard-fullscreen-open-v069{overflow:hidden;}
 .wb-stage { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); width: 100%; }
 .wb-stage > .whiteboard-canvas-wrap { grid-area: 1 / 1; width: 100%; }
 .whiteboard-page-v069 .wb-rail { border: 0; background: #1c1f24; box-shadow: 0 6px 20px rgb(0 0 0 / .35); color: #e5e7eb; }
-.wb-rail .cluster-icon-button-v425 { color: #cbd5e1 !important; background: transparent !important; }
+.wb-rail .cluster-icon-button-v425 { color: #cbd5e1; background: transparent !important; }
 .wb-rail .cluster-icon-button-v425:hover { background: rgb(255 255 255 / .08) !important; }
-.wb-swatch { flex: none; display: block; min-width: 0 !important; min-height: 0 !important; width: 14px !important; height: 14px !important; padding: 0 !important; }
+.wb-swatch { flex: none; display: block; min-width: 0; min-height: 0 !important; width: 14px; height: 14px; padding: 0; }
 .wb-selbar, .wb-eraser-modes { background: #1c1f24; }
 
 /* The outline column exists only while the outline is open. */

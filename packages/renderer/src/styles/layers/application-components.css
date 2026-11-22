@@ -577,11 +577,11 @@ background: color-mix(in srgb, var(--cluster-blue-400) 12%, transparent);
 }
 .pre-wrap-v113 { white-space: pre-wrap; }
 .empty-state { min-height: clamp(76px, 9vh, 120px) !important; padding: clamp(16px, 1.8vw, 24px) !important; gap: 6px !important; }
-.add-card-button { background: var(--cluster-app-surface-muted) !important; border: 1px solid var(--cluster-app-border) ; color: var(--text) ; }
+.add-card-button { background: var(--cluster-app-surface-muted); border: 1px solid var(--cluster-app-border) ; color: var(--text) ; }
 .danger-micro { background: color-mix(in srgb, var(--danger) 78%, var(--cluster-slate-950)) ; border-color: color-mix(in srgb, var(--danger) 45%, var(--cluster-app-border)) ; color: white ; }
 :where(.empty-state, .hero-empty, .list-empty) { min-height: 92px ; padding: 18px ; border-radius: var(--cluster-app-radius-md) !important; border: 1px dashed var(--cluster-app-border-strong) !important; background: color-mix(in srgb, var(--cluster-app-surface) 60%, transparent) !important; color: var(--muted) !important; display: grid !important; place-items: center !important; text-align: center !important; }
 .toast, .status-box, .hint-box, .error-box { border-radius: var(--cluster-app-radius-md) !important; border: 1px solid var(--cluster-app-border) !important; box-shadow: var(--cluster-app-shadow-soft) !important; }
-:root[data-theme="light"] :where( .add-card-button) { background: color-mix(in srgb, var(--cluster-slate-50) 86%, transparent) !important; color: var(--cluster-slate-900) !important; }
+:root[data-theme="light"] :where( .add-card-button) { background: color-mix(in srgb, var(--cluster-slate-50) 86%, transparent); color: var(--cluster-slate-900); }
 .empty-state:not(.smart-empty-state-v124) { min-height: unset; padding-block: clamp(14px, 2.4vw, 26px); }
 .empty-state:not(.smart-empty-state-v124)::before { width: 28px; height: 28px; border-radius: 10px; border: 1px solid var(--border); background: linear-gradient(135deg, color-mix(in srgb, var(--accent, #6366f1) 22%, transparent), transparent); margin-bottom: 8px; }
 /* Block 14: final application-workspace registry decomposition. */

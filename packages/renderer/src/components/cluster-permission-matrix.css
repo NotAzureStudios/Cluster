@@ -8,8 +8,8 @@
 .pm-search:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .pm-search svg.cluster-icon-svg { flex: none; inline-size: 13px; block-size: 13px; }
 .pm .pm-search > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
-  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important;
-  background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm) !important;
+  all: unset; flex: 1; min-width: 0; height: 100% !important; min-height: 0 !important; padding: 0; border: 0 !important;
+  background: transparent !important; box-shadow: none; color: var(--text); font: inherit; font-size: var(--cluster-font-size-sm);
 }
 .pm-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font: inherit; font-size: var(--cluster-font-size-xs); cursor: pointer; }
 .pm-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--text); }

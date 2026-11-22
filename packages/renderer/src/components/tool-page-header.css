@@ -14,5 +14,5 @@
 .page-head.tph .page-head-stat[data-tone="warning"] dd { color: var(--warning, #f0b429); }
 .page-head.tph .page-head-stat[data-tone="danger"] dd { color: var(--danger); }
 .page-head.tph .page-head-actions { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: 0 0 0 auto; }
-.page-head.tph .page-head-actions .cluster-button-v425 { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-sm); }
+.page-head.tph .page-head-actions .cluster-button-v425 { min-height: 32px; height: 32px; font-size: var(--cluster-font-size-sm); }
 .page-head.tph .page-head-context { flex: 1 1 100%; min-width: 0; }

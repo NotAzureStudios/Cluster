@@ -66,10 +66,10 @@
 
 
 @media (max-width: 1100px) {
-.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: 1fr !important; }
+.tickets-control-bar-v184, .timeline-header-filters-v254 { grid-template-columns: 1fr; }
 }
 
 
@@ -117,7 +117,7 @@ select, input, textarea, button { border-radius: var(--cluster-radius-control); 
 .library-document-note-v221,
 .project-header-progress-copy-v148 span,
 .hint-box.slim:not([role="alert"]):not(.error-box):not(.status-box):not(.toast),
-.hint-box:not([role="alert"]):not(.error-box):not(.status-box):not(.toast) { display: none !important; }
+.hint-box:not([role="alert"]):not(.error-box):not(.status-box):not(.toast) { display: none; }
 .cluster-tool-title-v228,
 .page-header > div:first-child,
 .section-heading > div:first-child { gap: 0 !important; }
@@ -146,7 +146,7 @@ input, textarea, select, button { caret-color: var(--accent); }
 
 
 /* v0.254 fullscreen workspaces and Timeline toolbar alignment */
-body.board-fullscreen-open-v254, body.card-editor-fullscreen-open-v254, body.timeline-detail-fullscreen-open-v254 { overflow: hidden !important; }
+body.board-fullscreen-open-v254, body.card-editor-fullscreen-open-v254, body.timeline-detail-fullscreen-open-v254 { overflow: hidden; }
 .workspace-detail-backdrop-v254 { position: fixed; inset: 0; z-index: 420; display: grid; min-width: 0; min-height: 0; padding: 0; overflow: hidden; background: color-mix(in srgb, var(--cluster-surface-0) 60%, rgba(20, 24, 28, .82)); }
 
 

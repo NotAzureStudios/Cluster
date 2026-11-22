@@ -14,24 +14,24 @@
   flex: 0 0 auto;
   --avatar-size: 34px;
   --presence-size: 10px;
-  inline-size: var(--avatar-size) !important;
-  block-size: var(--avatar-size) !important;
-  min-inline-size: var(--avatar-size) !important;
-  min-block-size: var(--avatar-size) !important;
-  max-inline-size: var(--avatar-size) !important;
-  max-block-size: var(--avatar-size) !important;
+  inline-size: var(--avatar-size);
+  block-size: var(--avatar-size);
+  min-inline-size: var(--avatar-size);
+  min-block-size: var(--avatar-size);
+  max-inline-size: var(--avatar-size);
+  max-block-size: var(--avatar-size);
   aspect-ratio: 1;
   line-height: 1;
-  overflow: visible !important;
+  overflow: visible;
   isolation: isolate;
   box-sizing: border-box;
 }
 .cluster-presence-avatar-v227 > img,
 .cluster-presence-avatar-fallback-v227 {
-  inline-size: 100% !important;
-  block-size: 100% !important;
-  min-inline-size: 0 !important;
-  min-block-size: 0 !important;
+  inline-size: 100%;
+  block-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
   border-radius: inherit;
   display: grid;
   place-items: center;
@@ -43,23 +43,23 @@
 }
 .cluster-presence-avatar-v227 > img { display: block; object-fit: cover; object-position: center; }
 .cluster-presence-indicator-v227 {
-  position: absolute !important;
+  position: absolute;
   z-index: 3;
-  inset-inline-end: -2px !important;
-  inset-block-end: -2px !important;
-  inline-size: var(--presence-size) !important;
-  block-size: var(--presence-size) !important;
-  min-inline-size: var(--presence-size) !important;
-  min-block-size: var(--presence-size) !important;
+  inset-inline-end: -2px;
+  inset-block-end: -2px;
+  inline-size: var(--presence-size);
+  block-size: var(--presence-size);
+  min-inline-size: var(--presence-size);
+  min-block-size: var(--presence-size);
   border-radius: 999px;
   background: var(--cluster-slate-500);
   box-sizing: border-box;
   pointer-events: none;
-  clip-path: none !important;
-  overflow: visible !important;
+  clip-path: none;
+  overflow: visible;
 }
 .comment-avatar-v227 { --avatar-size: 32px; --presence-size: 9px; }
 
 /* Block 13: final application presence chrome consolidated into the shared presence owner. */
-.cluster-presence-avatar-v227 {box-shadow: 0 0 0 1px var(--user-avatar-accent, var(--accent)), 0 1px 4px color-mix(in srgb, var(--cluster-black) 16%, transparent) !important;border-width: 0 !important;}
-.cluster-presence-indicator-v227 {right: -2px !important;bottom: -2px !important;width: 9px !important;height: 9px !important;border: 2px solid var(--surface-strong, var(--panel)) !important;box-shadow: none !important;}
+.cluster-presence-avatar-v227 {box-shadow: 0 0 0 1px var(--user-avatar-accent, var(--accent)), 0 1px 4px color-mix(in srgb, var(--cluster-black) 16%, transparent);border-width: 0 !important;}
+.cluster-presence-indicator-v227 {right: -2px;bottom: -2px;width: 9px;height: 9px;border: 2px solid var(--surface-strong, var(--panel)) !important;box-shadow: none;}

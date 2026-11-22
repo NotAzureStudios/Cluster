@@ -532,7 +532,7 @@
   background: color-mix(in srgb, var(--accent) 7%, var(--panel)) !important;
 }
 .search-command-results-v294 > button[aria-selected="true"] {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 72%, transparent) !important;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 72%, transparent);
 }
 
 /* TD3 regression audit: search entry has a defined material, not a transparent floating input. */
@@ -602,11 +602,11 @@
 }
 .cluster-taskbar-search-results-v546 .search-command-results-v294 > button {
   box-sizing: border-box;
-  grid-template-columns: 72px minmax(0, 1fr) auto !important;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
   grid-auto-rows: minmax(0, auto);
   align-items: center;
   min-height: 52px;
-  height: auto !important;
+  height: auto;
   column-gap: 10px;
   row-gap: 3px;
   padding: 8px 10px;
@@ -634,12 +634,12 @@
 }
 @media (max-width: 720px) {
   .cluster-taskbar-search-results-v546 .search-command-results-v294 > button {
-    grid-template-columns: 60px minmax(0, 1fr) !important;
+    grid-template-columns: 60px minmax(0, 1fr);
     min-height: 54px;
   }
 }
 /* v2 result row: kind, copy, optional hint, chevron — one line. */
-.search-command-results-v294 > button { display: flex !important; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; }
+.search-command-results-v294 > button { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; }
 .search-command-results-v294 > button > .search-kind-v294 { flex: 0 0 64px; text-align: center; }
 .search-command-results-v294 > button > .search-result-copy-v495 { flex: 1 1 auto; min-width: 0; }
 .search-command-results-v294 > button > .search-command-hint-v495 { flex: 0 1 auto; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -319,7 +319,7 @@
 @media  (max-width:720px) { .admin-avatar-editor-v251{grid-template-columns:auto minmax(0,1fr)} .admin-avatar-editor-v251>.button-row{grid-column:1/-1} }
 
 :root[data-theme="light"] { --info: var(--cluster-light-accent); --shadow: rgba(40, 54, 61, .18); }
-:root[data-theme="light"] body { background-attachment: fixed !important; }
+:root[data-theme="light"] body { background-attachment: fixed; }
 
 :root[data-theme="light"] :where(input, select, textarea) { border-color: rgba(66,66,66,.25) !important; background: #f8fbfc !important; }
 :root[data-theme="light"] :where(input:focus, select:focus, textarea:focus) { border-color: #00aeca !important; box-shadow: 0 0 0 3px rgba(0,217,255,.18) !important; }
@@ -338,7 +338,7 @@ select option, select optgroup { background: var(--cluster-surface-1) !important
 :root[data-theme="light"] select option,
 :root[data-theme="light"] select optgroup {
   background: var(--cluster-surface-1) !important;
-  color: var(--text) !important;
+  color: var(--text);
 }
 
 .kiosk-day-grid-v495 { display: grid; grid-template-columns: repeat(7, minmax(48px, 1fr)); gap: 6px; margin-top: 12px; }

@@ -36,22 +36,22 @@
 .pw .board-columns-v257 > .board-list { flex: 0 0 280px; width: 280px; padding: 6px; border: 0; border-radius: 12px; background: color-mix(in srgb, var(--cluster-workbench-panel) 92%, black); box-shadow: none; }
 .pw .board-list .list-header { min-height: 34px; padding: 2px 4px 2px 8px; border: 0; }
 .pw .board-list .list-header span { color: var(--muted); font-size: var(--cluster-font-size-xs); }
-.pw .board-list .add-card-button { justify-content: flex-start !important; padding-inline: 10px; border: 0 !important; background: transparent !important; color: var(--muted); }
+.pw .board-list .add-card-button { justify-content: flex-start; padding-inline: 10px; border: 0 !important; background: transparent; color: var(--muted); }
 .pw .board-list .add-card-button:hover { background: var(--cluster-button-fill) !important; color: var(--text); }
 /* Lanes hug their cards (Add card sits under the last one) and scroll past the window. */
 .pw .board-columns.board-columns-v257 { align-items: flex-start !important; }
-.pw .board-columns.board-columns-v257 > .board-list { flex: 0 0 280px !important; align-self: flex-start !important; width: 280px !important; min-width: 0 !important; max-width: 280px; height: auto !important; min-height: 0 !important; max-height: 100%; }
+.pw .board-columns.board-columns-v257 > .board-list { flex: 0 0 280px; align-self: flex-start; width: 280px; min-width: 0; max-width: 280px; height: auto; min-height: 0; max-height: 100%; }
 .pw .board-columns-v257 > .board-list > .list-cards { flex: 0 1 auto; }
 .pw .board-list .add-card-button { display: flex; align-items: center; gap: 6px; text-align: left; }
 .pw .board-list .add-card-button svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
 
 /* Card dialog (ce-*): title on top, the work on the left, details on the right. */
-.card-editor.card-editor-fullscreen-v254 { width: min(980px, calc(100vw - 32px)) !important; max-width: 980px !important; height: auto !important; max-height: calc(100dvh - 48px) !important; margin: 24px auto !important; border-radius: 14px !important; }
+.card-editor.card-editor-fullscreen-v254 { width: min(980px, calc(100vw - 32px)); max-width: 980px; height: auto; max-height: calc(100dvh - 48px); margin: 24px auto; border-radius: 14px !important; }
 .card-editor .modal-header { align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); border: 0; }
 .card-editor .modal-header .button-row { flex: none; }
 .card-editor .ce-title { flex: 1; min-width: 0; }
-.card-editor .ce-title input, .card-editor input.ce-title { height: 40px !important; border-color: transparent !important; background: transparent !important; box-shadow: none !important; font-size: var(--cluster-font-size-lg) !important; font-weight: 600; }
-.card-editor .ce-title input:focus, .card-editor input.ce-title:focus { border-color: var(--accent) !important; background: var(--cluster-recess) !important; }
+.card-editor .ce-title input, .card-editor input.ce-title { height: 40px; border-color: transparent !important; background: transparent; box-shadow: none; font-size: var(--cluster-font-size-lg) !important; font-weight: 600; }
+.card-editor .ce-title input:focus, .card-editor input.ce-title:focus { border-color: var(--accent) !important; background: var(--cluster-recess); }
 .ce { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--space-4); align-items: start; }
 .ce-main, .ce-side { display: grid; gap: var(--space-3); min-width: 0; }
 .ce-meta { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: var(--space-2); }
@@ -59,8 +59,8 @@
 .ce-meta .people-picker .cluster-select-trigger-v227 { width: 100%; }
 .ce .field { display: grid; gap: 4px; margin: 0; }
 .ce .field > label, .ce .card-planning-fields-v300 .field > label { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
-.ce :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select) { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-sm) !important; }
-.ce textarea { min-height: 84px; font-size: var(--cluster-font-size-sm) !important; }
+.ce :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select) { min-height: 32px !important; height: 32px; font-size: var(--cluster-font-size-sm); }
+.ce textarea { min-height: 84px; font-size: var(--cluster-font-size-sm); }
 .ce .card-subsections { display: grid; gap: var(--space-3); margin: 0; padding: 0; border: 0; }
 .ce .card-subsections > section, .ce .card-subsections > details { margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
 .ce h3 { margin: 0 0 6px; font-size: var(--cluster-font-size-sm); font-weight: 600; }
@@ -77,26 +77,26 @@
 .ce .issue-panel { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; background: transparent; }
 .ce .card-member-grid-v300 { display: flex; flex-wrap: wrap; gap: 4px; }
 @media (max-width: 820px) { .ce { grid-template-columns: minmax(0, 1fr); } .ce-meta { grid-template-columns: 1fr; } }
-.ce-side .card-planning-fields-v300 { grid-template-columns: minmax(0, 1fr) !important; }
-.ce-side .card-planning-fields-v300 > * { grid-column: 1 / -1 !important; min-width: 0; }
+.ce-side .card-planning-fields-v300 { grid-template-columns: minmax(0, 1fr); }
+.ce-side .card-planning-fields-v300 > * { grid-column: 1 / -1; min-width: 0; }
 .ce-side .card-planning-grid-v300 > * { min-width: 0; }
 .ce-side .card-cover-color-v300 > * { min-width: 0; }
 .ce-side .card-watch-toggle-v300 { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: var(--cluster-font-size-xs); }
 .ce .board-card-label-picker-v308 { display: flex; flex-wrap: wrap; gap: 4px; }
-.ce .board-card-label-picker-v308 > button { display: inline-flex; align-items: center; gap: 5px; height: 26px; min-height: 0 !important; padding: 0 9px !important; border: 0 !important; border-radius: 6px !important; background: color-mix(in srgb, var(--label-color) 18%, transparent) !important; color: color-mix(in srgb, var(--label-color) 70%, white); font-size: var(--cluster-font-size-xs) !important; }
+.ce .board-card-label-picker-v308 > button { display: inline-flex; align-items: center; gap: 5px; height: 26px; min-height: 0; padding: 0 9px; border: 0; border-radius: 6px; background: color-mix(in srgb, var(--label-color) 18%, transparent) !important; color: color-mix(in srgb, var(--label-color) 70%, white); font-size: var(--cluster-font-size-xs); }
 .ce .board-card-label-picker-v308 > button.selected { background: color-mix(in srgb, var(--label-color) 45%, transparent) !important; color: white; box-shadow: inset 0 0 0 1px var(--label-color); }
 .ce .board-card-label-picker-v308 > button > span { width: 8px; height: 8px; border-radius: 50%; background: var(--label-color); }
 .card-editor .modal-actions.split-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: var(--space-2); }
-.card-editor .modal-actions .cluster-button-v425 { min-height: 32px !important; height: 32px; padding-inline: 10px; font-size: var(--cluster-font-size-sm); }
+.card-editor .modal-actions .cluster-button-v425 { min-height: 32px; height: 32px; padding-inline: 10px; font-size: var(--cluster-font-size-sm); }
 .ce .card-comment-compose-v227 { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: start; }
 .ce .card-discussion-head-v227 { display: none; }
 .ce .card-comments-empty-v227 { margin: 0; color: var(--muted); font-size: var(--cluster-font-size-xs); text-align: left; }
 .card-editor .modal-actions.split-actions > .button-row { display: flex; flex-wrap: wrap; gap: 2px; }
 .card-editor .modal-actions.split-actions > .button-row:last-child { margin-left: auto; }
-.card-editor .modal-actions .cluster-button-v425.secondary { border-color: transparent !important; background: transparent !important; box-shadow: none !important; color: var(--muted); }
+.card-editor .modal-actions .cluster-button-v425.secondary { border-color: transparent !important; background: transparent; box-shadow: none; color: var(--muted); }
 .card-editor .modal-actions .cluster-button-v425.secondary:hover:not(:disabled) { background: var(--cluster-button-fill) !important; color: var(--text); }
 .card-editor .modal-actions .cluster-button-v425.secondary:disabled { display: none; }
-.ce .card-member-grid-v300 > button { display: inline-flex; align-items: center; gap: 6px; height: 28px; min-height: 0 !important; padding: 0 8px 0 3px !important; border: 0 !important; border-radius: 8px !important; background: var(--cluster-workbench-panel) !important; color: var(--muted); font-size: var(--cluster-font-size-xs) !important; }
+.ce .card-member-grid-v300 > button { display: inline-flex; align-items: center; gap: 6px; height: 28px; min-height: 0; padding: 0 8px 0 3px; border: 0; border-radius: 8px; background: var(--cluster-workbench-panel) !important; color: var(--muted); font-size: var(--cluster-font-size-xs); }
 .ce .card-member-grid-v300 > button > span:first-child { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 25%, var(--cluster-recess)); color: var(--text); font-size: 10px; font-weight: 600; }
 .ce .card-member-grid-v300 > button.selected { background: color-mix(in srgb, var(--accent) 22%, transparent) !important; color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
 .ce .checklist + .inline-form, .ce .inline-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }

@@ -125,7 +125,7 @@ select {
   color: var(--cluster-text);
   box-shadow: none;
 }
-input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var(--studio-primary, var(--accent)) 52%, var(--cluster-line-strong)) !important; box-shadow: none !important; }
+input:focus, textarea:focus, select:focus { border-color: color-mix(in srgb, var(--studio-primary, var(--accent)) 52%, var(--cluster-line-strong)) !important; box-shadow: none; }
 .panel,
 .error-box,
 .status-box,
@@ -383,7 +383,7 @@ body,
 .content-shell { padding: 8px 10px 18px; }
 }
 
-.content-shell {  padding: 8px 14px 22px 0; overflow-x: clip !important; }
+.content-shell {  padding: 8px 14px 22px 0; overflow-x: clip; }
 
 @media (max-width: 1180px) {
 .content-shell { padding: 8px 12px 20px !important; }
@@ -615,7 +615,7 @@ body { color: var(--text); }
 }
 
 .settings-card-grid-v092 {
-  gap: clamp(8px, .7vw, 12px) !important;
+  gap: clamp(8px, .7vw, 12px);
 }
 
 .qa-kpi-grid-v085 button em { display: none; }
@@ -894,7 +894,7 @@ body { color: var(--text); }
   .cluster-section-nav
 ) {
   background-color: var(--panel, var(--cluster-workbench-panel)) !important;
-  backdrop-filter: none !important;
+  backdrop-filter: none;
 }
 
 /* WIP29 readability follow-through: structural reading surfaces are opaque even when the canvas uses glass. */
@@ -915,5 +915,5 @@ body { color: var(--text); }
   .notification-detail-v251
 ) {
   background: var(--panel, var(--cluster-workbench-panel)) !important;
-  backdrop-filter: none !important;
+  backdrop-filter: none;
 }

@@ -518,11 +518,11 @@
 .time-workspace-v212 .time-clock-composer-v212 { grid-template-columns: minmax(200px, 1fr) minmax(140px, 200px) minmax(110px, 150px); align-items: center; gap: 6px; }
 .time-workspace-v212 .time-clock-composer-v212 label { display: block; }
 .time-workspace-v212 .time-clock-composer-v212 label > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.time-workspace-v212 .time-clock-composer-v212 :is(input, .cluster-select-trigger-v227) { height: 34px !important; min-height: 34px !important; font-size: var(--cluster-font-size-sm) !important; }
+.time-workspace-v212 .time-clock-composer-v212 :is(input, .cluster-select-trigger-v227) { height: 34px; min-height: 34px; font-size: var(--cluster-font-size-sm) !important; }
 /* Tabs */
 .time-workspace-v212 .time-view-tabs-unified-v229 { min-height: 0; }
 .time-workspace-v212 .time-view-tab-list-v229 > button { height: 40px; font-size: var(--cluster-font-size-sm); }
-.time-workspace-v212 .time-view-toolbar-v229 .cluster-select-trigger-v227 { height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
+.time-workspace-v212 .time-view-toolbar-v229 .cluster-select-trigger-v227 { height: 32px; min-height: 32px; font-size: var(--cluster-font-size-sm); }
 @media (max-width: 900px) {
   .time-workspace-v212 .time-clock-dock-v212 { grid-template-columns: minmax(0, 1fr) auto; }
   .time-workspace-v212 .time-clock-composer-v212 { grid-column: 1 / -1; grid-row: 2; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

@@ -448,8 +448,8 @@
 main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabindex="-1"]:focus { outline: none; }
 
 /* Context back link: a quiet line above the page, not a framed button. */
-.contextual-navigation-v396 { min-height:0; padding:0 0 2px; border:0 !important; background:none !important; box-shadow:none !important; }
-.contextual-navigation-v396 > .cluster-button-v425 { min-height:26px; height:26px; padding:0 8px 0 4px; border:0 !important; background:none !important; box-shadow:none !important; color:var(--muted); font-size:.74rem; }
+.contextual-navigation-v396 { min-height:0; padding:0 0 2px; border:0; background:none; box-shadow:none; }
+.contextual-navigation-v396 > .cluster-button-v425 { min-height:26px; height:26px; padding:0 8px 0 4px; border:0; background:none; box-shadow:none; color:var(--muted); font-size:.74rem; }
 .contextual-navigation-v396 > .cluster-button-v425:hover { color:var(--text); }
 .contextual-navigation-v396 > span { display:none; }
 
@@ -457,7 +457,7 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
    keeps only the current page, notifications, transfers and the account. */
 @media (max-width: 640px) {
   .cl-tb { gap: var(--space-1); }
-  .cl-tb-history, .cl-tb-action.tickets, .cl-tb-create, .cl-tb-command, .cl-tb-projects__empty { display: none !important; }
+  .cl-tb-history, .cl-tb-action.tickets, .cl-tb-create, .cl-tb-command, .cl-tb-projects__empty { display: none; }
   .cl-tb__start { min-width: 0; overflow: hidden; padding-left: 42px; }
   .cl-tb-resume { min-width: 0; }
   .cl-tb-resume__main { min-width: 0; max-width: 46vw; }
@@ -474,15 +474,15 @@ main.content-shell:focus, :where(main, section, div, article, h1, h2, h3)[tabind
 /* Account menu: the same row rhythm as every other menu — 32px rows, small icons, no subtitles. */
 .taskbar-account-menu-v546 .taskbar-account-actions-v546 { gap: 1px; }
 .taskbar-account-menu-v546 .taskbar-account-actions-v546 > button,
-.taskbar-account-menu-v546 .taskbar-account-signout-v546 { min-height: 32px !important; padding: 4px 8px !important; gap: 8px !important; border-radius: 6px; }
+.taskbar-account-menu-v546 .taskbar-account-signout-v546 { min-height: 32px !important; padding: 4px 8px; gap: 8px; border-radius: 6px; }
 .taskbar-account-menu-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; border: 0; background: none; }
 .taskbar-account-menu-v546 .taskbar-account-action-icon-v546 svg { width: 15px; height: 15px; }
 .taskbar-account-menu-v546 .taskbar-account-actions-v546 strong, .taskbar-account-menu-v546 .taskbar-account-signout-v546 strong { font-size: .8125rem; font-weight: 500; }
 .taskbar-account-menu-v546 .taskbar-account-action-chevron-v546 { width: 13px; height: 13px; opacity: .5; }
-.taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px !important; }
-.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { min-height: 32px !important; padding: 4px 8px !important; }
+.taskbar-account-menu-v546 [class*="taskbar-presence-option"] { min-height: 30px !important; padding: 4px 8px; }
+.taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { min-height: 32px !important; padding: 4px 8px; }
 .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 .taskbar-account-action-icon-v546 { width: 22px; height: 22px; }
-.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button, .taskbar-account-menu-v546 .taskbar-account-signout-v546, .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { grid-template-columns: 22px minmax(0, 1fr) auto !important; }
+.taskbar-account-menu-v546 .taskbar-account-actions-v546 > button, .taskbar-account-menu-v546 .taskbar-account-signout-v546, .taskbar-account-menu-v546 .taskbar-presence-visibility-v546 { grid-template-columns: 22px minmax(0, 1fr) auto; }
 .taskbar-ticket-empty-v254 { display: block !important; padding: 14px 10px; text-align: center; }
 .taskbar-ticket-empty-v254 span { font-size: .74rem !important; }
 @media (min-width: 641px) { .cl-tb-command, .cl-tb-command[aria-expanded="true"] { display: inline-flex !important; flex-wrap: nowrap; } }
