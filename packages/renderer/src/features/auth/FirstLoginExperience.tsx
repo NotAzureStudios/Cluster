@@ -5,6 +5,7 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { RequestErrorState } from "../../components/RequestState";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
 import { AuthEntryLayout } from "./AuthEntryLayout";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 export type FirstLoginUser = {
   id: string;
@@ -122,7 +123,7 @@ export function FirstLoginExperience({ user, onUserUpdated, onLogout }: { user: 
       <div className="managed-auth-form">
         <label className="field"><span>Display name</span><ClusterTextInput autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder={user.username} /></label>
         <label className="field"><span>Preferred name</span><ClusterTextInput value={preferredName} onChange={(event) => setPreferredName(event.target.value)} placeholder="Optional" /></label>
-        <label className="field"><span>Timezone</span><ClusterTextInput autoComplete="off" value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="America/New_York" /></label>
+        <label className="field"><span>Timezone</span><ClusterTimezoneSelect value={timezone} onChange={setTimezone} /></label>
       </div>
       {profileError && <div className="error-box" role="alert">{profileError}</div>}
       <div className="login-actions"><ClusterButton type="button" variant="primary" disabled={profileBusy} onClick={() => void saveProfile()}>{profileBusy ? "Saving…" : "Save and continue"}</ClusterButton><ClusterButton type="button" variant="secondary" disabled={profileBusy} onClick={() => void persistStep("policies")}>Skip for now</ClusterButton></div>

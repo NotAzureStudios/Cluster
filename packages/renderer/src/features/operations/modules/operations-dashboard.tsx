@@ -5,7 +5,6 @@ import { ClusterButton } from "../../../components/ClusterButton";
 import { useEffect, useState } from "react";
 import { PROJECT_LEVEL_OPTIONS, ROLE_PERMISSION_TEMPLATES, TOOL_LEVEL_OPTIONS, TOOL_PERMISSION_OPTIONS, defaultToolPermissionsForUser, getToolLevel, isExternalCollaborator, isUserAccessExpired, type ProjectPermissionLevel, type ProjectPermissions, type ToolPermissionKey, type ToolPermissionLevel, type ToolPermissions } from "../../../core/permissions";
 import { useServerState } from "../../../core/server-state";
-import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../../core/options";
 import { compactDateTime } from "../../../core/date-time";
 import { formatRelativeTime, levelLabel } from "../../../core/format";
 import { getProjectPermission, projectPermissionReason } from "../../projects/project-access-policy";
@@ -16,6 +15,7 @@ import type { User, Project, Settings, LibraryItem, TimelineItem, TimelineEntry,
 import { homeRoleForUser } from "./operations-workflows";
 import { libraryStatusLabel, projectTypeBadge } from "./operations-foundation";
 import { runtimeStyle } from "../../../core/runtime-style";
+import { ClusterTimezoneSelect } from "../../../components/ClusterTimezoneSelect";
 
 export function CommandBriefPanel({ brief, items, onOpenProjects, onOpenTimeline, onOpenBuilds, onOpenTime, onOpenLibrary, onOpenTeam, onOpenNotifications, onOpenActivity, onOpenReports, onOpenAdmin }: { brief: CommandBrief; items: AttentionItem[]; onOpenProjects: () => void; onOpenTimeline: () => void; onOpenBuilds: () => void; onOpenTime: () => void; onOpenLibrary: () => void; onOpenTeam: () => void; onOpenNotifications: () => void; onOpenActivity: () => void; onOpenReports: () => void; onOpenAdmin: () => void }) {
   const handlers: Record<AttentionItem["target"], () => void> = {
@@ -791,13 +791,7 @@ export function EditableAvailabilityPlanner({ users }: { users: Array<User | Use
         </div>
         <div className="field">
           <label>Timezone</label>
-          <ClusterNativeSelect value={form.timezone} onChange={(event) => setForm((prev) => ({ ...prev, timezone: event.target.value }))}>
-            {optionsWithCurrent(TIMEZONE_OPTIONS, form.timezone, "Current timezone").map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </ClusterNativeSelect>
+          <ClusterTimezoneSelect value={form.timezone} onChange={(timezone) => setForm((prev) => ({ ...prev, timezone }))} />
         </div>
         <div className="field">
           <label>Work window</label>

@@ -127,7 +127,7 @@ test("Account Appearance and Quiet Hours consume shared settings controls", () =
 test("Studio Identity uses accessible labels and retains the original save contract", () => {
   assert.match(studio, /<ClusterSettingsRow label="Studio \/ organization name" controlId="studio-name-field-v11"/);
   assert.match(studio, /<ClusterSettingsRow label="Studio timezone" controlId="studio-timezone-field-v11"/);
-  assert.match(studio, /<ClusterNativeSelect id="studio-timezone-field-v11"/);
+  assert.match(studio, /<ClusterTimezoneSelect ariaLabel="Studio timezone"/);
   assert.match(studio, /requestSecurityPin/);
 });
 test("Responsive controls support keyboard focus, coarse touch, reduced motion and responsive stacking", () => {

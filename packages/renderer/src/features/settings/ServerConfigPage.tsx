@@ -3,7 +3,7 @@ import "../application/admin-control-center.css";
 import { useEffect, useRef, useState } from "react";
 import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../components/ClusterNativeControls";
 import { API_URL, ApiError, api, queryApi } from "../../core/api";
-import { TIMEZONE_OPTIONS, WORKING_DAY_OPTIONS, optionsWithCurrent } from "../../core/options";
+import { WORKING_DAY_OPTIONS, optionsWithCurrent } from "../../core/options";
 import { compactDateTime } from "../../core/date-time";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
@@ -27,6 +27,7 @@ import type { ServerConfigPageProps } from "./settings-workspace-contracts";
 import { SERVER_CONFIG_DEPENDENCIES } from "./server-config-dependencies";
 import { SettingsLoadingState } from "../../components/LoadingState";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 type AdminDeviceRecord = { id: string; deviceId: string; label: string; platform?: string | null; userAgent: string; lastSeenAt: string; activeSessionCount: number; current?: boolean; userId: string; proofStatus?: string; proofKeyFingerprint?: string | null; cryptographicallyBound?: boolean; user?: { id: string; username: string; displayName?: string | null } };
 type ServiceCredentialRecord = { id: string; name: string; credentialType: "api_token" | "webhook_signing" | "extension_token"; scopes: string[]; tokenPrefix?: string | null; secretFingerprint?: string | null; expiresAt?: string | null; lastUsedAt?: string | null; revokedAt?: string | null; createdAt: string; rotationDue?: boolean; scopePolicyCompliant?: boolean };
@@ -93,7 +94,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
   { key: "serverResourceWorkerCap", label: "Maximum concurrent background jobs", section: "performance", group: "Worker limits", type: "number", min: 1, max: 128, step: 1, placeholder: "128 (default)", restart: true },
   { key: "serverResourceRecoveryHoldMs", label: "Overload recovery hold (milliseconds)", section: "performance", group: "Worker limits", type: "number", min: 1000, max: 120000, step: 500, placeholder: "7500 (default)", restart: true },
   { key: "maintenanceWindowEnabled", label: "Enable maintenance window planning", section: "maintenance", group: "Planned service windows", type: "boolean" },
-  { key: "maintenanceWindowTimezone", label: "Maintenance timezone (IANA)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "America/New_York" },
+  { key: "maintenanceWindowTimezone", label: "Maintenance timezone", section: "maintenance", group: "Planned service windows", type: "timezone" },
   { key: "maintenanceWindowDaysCsv", label: "Weekdays (Sun, Mon, Tue...)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "Sun" },
   { key: "maintenanceWindowStart", label: "Local start (HH:mm)", section: "maintenance", group: "Planned service windows", type: "text", placeholder: "03:00" },
   { key: "maintenanceWindowDurationMinutes", label: "Window duration (minutes)", section: "maintenance", group: "Planned service windows", type: "number", min: 15, max: 240 },
@@ -598,8 +599,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     label: "Timezone",
     section: "backups",
     group: "Schedule",
-    type: "select",
-    options: [...TIMEZONE_OPTIONS],
+    type: "timezone",
   },
   {
     key: "backupScheduleRule",
@@ -1406,7 +1406,9 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         <ClusterInput id={inputId} type="checkbox" checked={Boolean(value)} onChange={(event) => patch(field.key, event.target.checked)} />
       </div>;
     }
-    const control = field.type === "textarea"
+    const control = field.type === "timezone"
+      ? <ClusterTimezoneSelect ariaLabel={field.label} value={String(value ?? "")} onChange={(next) => patch(field.key, next)} />
+      : field.type === "textarea"
       ? <ClusterTextarea id={inputId} value={String(value ?? "")} placeholder={field.placeholder} onChange={(event) => patch(field.key, event.target.value)} />
       : field.type === "select"
         ? <ClusterNativeSelect id={inputId} value={String(value ?? "")} onChange={(event) => patch(field.key, event.target.value)}>

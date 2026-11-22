@@ -4,6 +4,7 @@ import { ClusterTextInput } from "../../../components/ClusterTextInput";
 import { api, apiErrorPresentation } from "../../../core/api";
 import "./setup-wizard.css";
 import type { SetupStatus, User } from "../application-models";
+import { ClusterTimezoneSelect } from "../../../components/ClusterTimezoneSelect";
 
 type SetupMode = "guided" | "quick" | "import" | "skip";
 type SetupForm = {
@@ -173,7 +174,7 @@ export function SetupWizard({ onComplete }: { onComplete: (user: User) => void }
       {step === 0 && <section className="setup-v2-body" aria-label="Studio">
         {!importing ? <>
           <label className="setup-v2-field"><span>Studio name</span><ClusterTextInput autoFocus value={form.studioName} onChange={(event) => patch("studioName", event.target.value)} placeholder="Optional" /></label>
-          {form.studioName.trim() ? <label className="setup-v2-field"><span>Timezone</span><ClusterTextInput value={form.studioTimezone} onChange={(event) => patch("studioTimezone", event.target.value)} placeholder="America/New_York" aria-invalid={!validTimezone || undefined} />{!validTimezone ? <small className="bad">Use an IANA name, like America/New_York.</small> : null}</label> : null}
+          {form.studioName.trim() ? <label className="setup-v2-field"><span>Timezone</span><ClusterTimezoneSelect value={form.studioTimezone} onChange={(value) => patch("studioTimezone", value)} /></label> : null}
         </> : <div className="setup-v2-import">
           <label className="setup-v2-field"><span>Configuration file</span><input type="file" accept=".clusterconfig,.json,application/json" onChange={(event) => void readConfiguration(event)} /></label>
           {configuration && <div className="setup-v2-preview"><strong>{configurationName}</strong>

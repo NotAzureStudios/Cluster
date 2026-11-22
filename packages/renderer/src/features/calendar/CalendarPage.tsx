@@ -36,6 +36,7 @@ import { calendarEventPage, indexCalendarEventsByLocalDay } from "./calendar-eve
 import { visibleCalendarConflictIds } from "./calendar-conflict-projection";
 import { DEFAULT_CALENDAR_LAYER_VISIBILITY, filterCalendarDisplayItems, type CalendarLayer, type CalendarLayerVisibility } from "./calendar-display-filters";
 import { StatusNote } from "../../components/StatusNote";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 function openSharedCalendarCreate(date = new Date()) {
   openSharedCreate("calendar", { date: calendarDateInputValue(date) });
@@ -883,7 +884,7 @@ function EventEditor({ event, date, occurrenceStartsAt, projects, users, current
 
       <div className="event-advanced-v190">
         <div className="two-col">
-          <div className="field"><label>Timezone</label><ClusterTextInput value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="America/New_York" /></div>
+          <div className="field"><label>Timezone</label><ClusterTimezoneSelect value={timezone} onChange={setTimezone} /></div>
           <div className="field"><label>Visibility</label><ClusterSelect value={visibility} onChange={(value) => setVisibility(value as "studio" | "project" | "participants" | "private")} ariaLabel="Calendar visibility" options={[{ value: "studio", label: "Studio" }, { value: "project", label: "Project members" }, { value: "participants", label: "Participants only" }, { value: "private", label: "Private" }]} /></div>
         </div>
         <div className="field"><label>Notes</label><ClusterTextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes, context, outcomes, or handoff information" /></div>

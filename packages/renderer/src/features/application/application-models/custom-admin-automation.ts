@@ -72,7 +72,7 @@ export type StudioSettingsSection = "identity" | "domains" | "privacy" | "kiosk"
 
 export type ServerConfigSection = "overview" | "network" | "domains" | "security" | "storage" | "backups" | "performance" | "maintenance" | "integrations" | "sessions" | "advanced";
 
-export type ServerConfigFieldType = "text" | "password" | "number" | "boolean" | "textarea" | "select" | "date" | "time";
+export type ServerConfigFieldType = "text" | "password" | "number" | "boolean" | "textarea" | "select" | "timezone" | "date" | "time";
 
 export type ServerConfigField = {
   key: keyof Settings;

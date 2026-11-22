@@ -13,7 +13,6 @@ import { api } from "../../../core/api";
 import { type SmartWorkspaceContext } from "../../../core/smart-interface";
 import { csvToTags, downloadJsonFile, localId, parseCsvObjects, unique } from "../../../core/storage";
 import { useServerState } from "../../../core/server-state";
-import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../../core/options";
 import { addDays, compactDateTime, minutesToHuman, toDateTimeLocalInput, weekStart } from "../../../core/date-time";
 import { formatDueDate, formatRelativeTime, levelLabel } from "../../../core/format";
 import { NumberStepper } from "../../../components/NumberStepper";
@@ -49,6 +48,7 @@ import { DEFAULT_BUILD_STATUSES, DEFAULT_QA_CATEGORIES, DEFAULT_QA_CHECKLIST, DE
 
 import { runtimeStyle } from "../../../core/runtime-style";
 import { StatusNote } from "../../../components/StatusNote";
+import { ClusterTimezoneSelect } from "../../../components/ClusterTimezoneSelect";
 
 export function UserEditorForm({ form, setForm, settings, departmentOptions, users = [], editingUserId = "" }: { form: any; setForm: React.Dispatch<any>; settings?: Settings; departmentOptions?: string[]; users?: UserActivitySummary[]; editingUserId?: string }) {
   function patch(key: string, value: unknown) {
@@ -242,14 +242,7 @@ export function UserEditorForm({ form, setForm, settings, departmentOptions, use
           </div>
           <div className="field">
             <label>Timezone</label>
-            <ClusterNativeSelect value={form.timezone} onChange={(e) => patch("timezone", e.target.value)}>
-              <option value="">Unset</option>
-              {optionsWithCurrent(TIMEZONE_OPTIONS, form.timezone).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </ClusterNativeSelect>
+            <ClusterTimezoneSelect value={form.timezone} onChange={(value) => patch("timezone", value)} unsetLabel="Unset" />
           </div>
           <div className="field">
             <label>Capacity hours/week</label>

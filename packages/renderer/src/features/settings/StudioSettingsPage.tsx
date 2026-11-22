@@ -10,7 +10,6 @@ import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { DEFAULT_MEMBER_TOOL_PERMISSIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
-import { TIMEZONE_OPTIONS, optionsWithCurrent } from "../../core/options";
 import { NumberStepper } from "../../components/NumberStepper";
 import { ColorField } from "../../components/ColorField";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
@@ -53,6 +52,7 @@ import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard"
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { StudioDomainsPanel } from "../domains/DomainManagementPanel";
 import { VersioningAdminPage } from "../admin/ProductionIntegrationAdminPages";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 /** Navigation is the single section locator; avoid a second numbered progress rail. */
 const STUDIO_SETTINGS_NAV_ICONS: Record<StudioSettingsSection, import("../../components/ClusterIcon").ClusterIconName> = {
@@ -1087,13 +1087,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <ClusterInput id="studio-code-prefix-field-v11" value={settings.studioProjectCodePrefix || "CLST"} onChange={(e) => patch("studioProjectCodePrefix", e.target.value.toUpperCase())} placeholder="CLST" />
                     </ClusterSettingsRow>
                     <ClusterSettingsRow label="Studio timezone" controlId="studio-timezone-field-v11">
-                      <ClusterNativeSelect id="studio-timezone-field-v11" value={settings.studioTimezone || "America/New_York"} onChange={(e) => patch("studioTimezone", e.target.value)}>
-                        {optionsWithCurrent(TIMEZONE_OPTIONS, settings.studioTimezone || "America/New_York").map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </ClusterNativeSelect>
+                      <ClusterTimezoneSelect ariaLabel="Studio timezone" value={settings.studioTimezone || "America/New_York"} onChange={(value) => patch("studioTimezone", value)} />
                     </ClusterSettingsRow>
                   </div>
                   <div className="logo-preview-card logo-preview-card-v092">

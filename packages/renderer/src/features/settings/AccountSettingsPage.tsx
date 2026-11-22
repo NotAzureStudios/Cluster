@@ -56,6 +56,7 @@ import type { AccountSettingsPageProps } from "./settings-workspace-contracts";
 import { ACCOUNT_SETTINGS_DEPENDENCIES } from "./account-settings-dependencies";
 import { buildAccountSettingsSections } from "./account-settings-registry";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 /** "Chrome on Linux" from a user agent; empty when it can't tell. */
 function userAgentSummary(userAgent: string) {
@@ -1248,7 +1249,7 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                     <label className="field"><span>Preferred name</span><ClusterInput value={profileForm.preferredName} onChange={(event) => patchProfile("preferredName", event.target.value)} placeholder="Optional" /></label>
                     <label className="field"><span>Pronouns</span><ClusterInput value={profileForm.pronouns} onChange={(event) => patchProfile("pronouns", event.target.value)} placeholder="Optional" /></label>
                     <label className="field"><span>Location</span><ClusterInput value={profileForm.workLocation} onChange={(event) => patchProfile("workLocation", event.target.value)} placeholder="Studio, city, remote..." /></label>
-                    <label className="field"><span>Timezone</span><ClusterInput value={profileForm.timezone} onChange={(event) => patchProfile("timezone", event.target.value)} placeholder="America/New_York" /></label>
+                    <label className="field"><span>Timezone</span><ClusterTimezoneSelect value={profileForm.timezone} onChange={(value) => patchProfile("timezone", value)} /></label>
                     <label className="field span-2"><span>Bio</span><ClusterTextarea rows={4} maxLength={600} value={profileForm.profileBio} onChange={(event) => patchProfile("profileBio", event.target.value)} placeholder="A short introduction, specialties, or what you work on." /></label>
                     <div className="field span-2 profile-skill-editor-v473"><span>Skills</span><div className="profile-skill-input-v473"><ClusterInput value={skillDraft} onChange={(event) => setSkillDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === ",") { event.preventDefault(); addProfileSkill(); } }} placeholder="Add a skill" /><ClusterButton type="button" variant="secondary" onClick={() => addProfileSkill()} disabled={!skillDraft.trim() || profileSkills.length >= 40}>Add</ClusterButton></div><div className="profile-skill-tags-v473">{profileSkills.map((skill) => <ClusterButton type="button" key={skill} className="tag-chip profile-skill-tag-v473" onClick={() => removeProfileSkill(skill)} title={`Remove ${skill}`}>{skill}<span aria-hidden="true"><ClusterIcon name="close" /></span></ClusterButton>)}</div></div>
                   </div>

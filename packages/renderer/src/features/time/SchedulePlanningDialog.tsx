@@ -5,6 +5,7 @@ import { ClusterSelect } from "../../components/ClusterSelect";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterModal } from "../../components/ClusterModal";
 import { ClusterInput } from "../../components/ClusterNativeControls";
+import { ClusterTimezoneSelect } from "../../components/ClusterTimezoneSelect";
 
 export type PlanningUser = { id: string; username: string; displayName?: string | null };
 export type PlanningProject = { id: string; name: string; archived?: boolean; projectType?: string | null };
@@ -134,7 +135,7 @@ export function SchedulePlanningDialog({
           <label><span>Repeats</span><ClusterSelect ariaLabel="Production recurrence" value={value.recurrenceFrequency} onChange={(recurrenceFrequency) => onChange({ ...value, recurrenceFrequency: recurrenceFrequency as ProductionWindowDraft["recurrenceFrequency"] })} options={[{ value: "", label: "Does not repeat" }, { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }]} /></label>
           <label><span>Occurrences</span><ClusterTextInput type="number" min={2} max={12} disabled={!value.recurrenceFrequency} value={value.recurrenceOccurrences} onChange={(event) => onChange({ ...value, recurrenceOccurrences: Math.max(2, Math.min(12, Number(event.target.value || 2))) })} /></label>
         </>}
-        <label className="wide"><span>Timezone</span><ClusterTextInput value={value.timezone} onChange={(event) => onChange({ ...value, timezone: event.target.value })} aria-describedby="production-window-timezone-help" /><small id="production-window-timezone-help">Recurring windows preserve this local wall-clock time across daylight-saving changes.</small></label>
+        <label className="wide"><span>Timezone</span><ClusterTimezoneSelect value={value.timezone} onChange={(timezone) => onChange({ ...value, timezone })} /><small>Recurring windows preserve this local wall-clock time across daylight-saving changes.</small></label>
         <label className="wide"><span>Notes</span><ClusterTextArea value={value.description} onChange={(event) => onChange({ ...value, description: event.target.value })} /></label>
       </div>
 
