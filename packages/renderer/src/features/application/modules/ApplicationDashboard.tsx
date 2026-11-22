@@ -1,6 +1,4 @@
-import "../styles/home-dashboard.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DndContext, DragOverlay, PointerSensor, closestCenter, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { api, queryApi, setApiQueryData } from "../../../core/api";
 import { useVisibleTicker } from "../../../core/visible-ticker";
 import { useProjectWorkflowList } from "../../../core/project-workflow-storage";
@@ -10,7 +8,7 @@ import { canUseTool } from "../../../core/permissions";
 import { useServerState } from "../../../core/server-state";
 import { addDays, compactDateTime, minutesToHuman, weekStart } from "../../../core/date-time";
 import { formatDueDate, formatRelativeTime, levelLabel } from "../../../core/format";
-import { importantBuildEntries, isExternalProject, isVideoProject, projectAssignedIds, projectBoardCount, projectCompleteness, projectGitCount, projectHasDiscord, projectHealth, projectLatestTimestamp, projectSetupGaps, projectStatusLabel, projectWhiteboardCount } from "../../projects/projects-utils";
+import { importantBuildEntries, isExternalProject, projectAssignedIds, projectBoardCount, projectCompleteness, projectGitCount, projectHealth, projectLatestTimestamp, projectSetupGaps, projectStatusLabel } from "../../projects/projects-utils";
 import { activeLabel } from "../../people/people-utils";
 import { personMetaLabel } from "../../people/person-summary";
 import { notificationWorkNavigation } from "../../notifications/notification-navigation";
@@ -18,8 +16,7 @@ import { openClusterWorkNavigation } from "../../workflow/work-navigation";
 import { CLUSTER_PERSON_CHANGED_EVENT, CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, type ClusterPersonSummary, type ClusterAssignmentChange, type NotificationItem, type NotificationSummary } from "@cluster/shared";
 import { subscribeClusterCohesionEvent } from "../../../core/cohesion-events";
 import { ClusterButton } from "../../../components/ClusterButton";
-import { ClusterIcon } from "../../../components/ClusterIcon";
-import { ClusterSelect } from "../../../components/ClusterSelect";
+import { confirmCluster } from "../../../components/cluster-dialog-service";
 import { ToolPageHeader } from "../../../components/ToolPageHeader";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../../core/security-pin";
 import type { User, Project, ProjectSnapshot, Settings, LibrarySummary, TimelinePayload, UpcomingPayload, TimeEntry, TimeSummary, ActivityEvent, UserActivitySummary, WorkLinkRecord, RecurringWorkRecord, WatcherRecord, ProjectCloseoutRecord, ExternalPortalRule, AttentionItem, AttachmentRecord, TimeCorrectionRequest, ShiftRuleSettings, BreakLedgerEntry, BuildArtifactRecord, QATestPlan, ClockIntentPayload, TeamAssignment } from "../application-models";
@@ -28,105 +25,19 @@ import { useDashboardWidgets } from "../../home-widgets/home-dashboard-controlle
 
 import { ProjectWorkflowAttentionState, deriveNeedsAttention } from "./application-foundation";
 import { ClockIntentModal } from "./application-workspace-core";
-import { HomeWidgetEditor } from "../../home-widgets/HomeWidgetEditor";
 import { CLUSTER_KIOSK_POLICY_CHANGED_EVENT } from "../../desktop/use-kiosk-document-state";
-import { useHomeWidgetLibrary } from "../../home-widgets/home-widget-library";
-import { useHomeLayoutSharing } from "../../home-widgets/home-layout-sharing";
 import { BuiltInHomeWidget, type BuiltInHomeWidgetData, type BuiltInHomeWidgetActions, type HomeWidgetListItem } from "../../home-widgets/BuiltInHomeWidget";
-import { CustomHomeWidget, type CustomHomeWidgetActions, type CustomHomeWidgetRuntimeData } from "../../home-widgets/CustomHomeWidget";
-import { HomeWidgetPlacement } from "../../home-widgets/HomeWidgetPlacement";
-import { HomeWidgetPalette } from "../../home-widgets/HomeWidgetPalette";
-import { DASHBOARD_WIDGETS, departmentAwareHomeWidgetRecommendation, homeWidgetExtensionPolicyFromSettings, homeWidgetGovernanceFromCsv, type HomeWidgetPermission, type HomeWidgetPreset, type HomeWidgetRuntimeStatus } from "../../home-widgets/home-widget-model";
-import { deriveHandoff, deriveIntegrationHealth, derivePeopleCapacity, deriveReleaseReadiness, deriveReviewQueue, deriveSavedViews, deriveSourceControl, deriveToday, deriveWatchlist } from "../../home-widgets/home-widget-phase7-data";
-import { useHomeDeliveryLifecycleSummaries } from "../../home-widgets/use-home-delivery-lifecycle";
-import { useWidget2CatalogInsights } from "../../home-widgets/use-widget2-catalog-insights";
+import { HomeWidgetGrid } from "../../home-widgets/HomeWidgetGrid";
+import { HomeWidgetGallery } from "../../home-widgets/HomeWidgetGallery";
+import { HomeWidgetOptions } from "../../home-widgets/HomeWidgetOptions";
+import { DASHBOARD_WIDGETS, departmentAwareHomeWidgetRecommendation, homeWidgetGovernanceFromCsv, type HomeWidgetPlacement, type HomeWidgetRuntimeStatus } from "../../home-widgets/home-widget-model";
+import { packGrid } from "../../home-widgets/home-widget-grid";
+import { derivePeopleCapacity, deriveReviewQueue, deriveSourceControl } from "../../home-widgets/home-widget-sources";
+import { useHomeSourceControl } from "../../home-widgets/use-home-source-control";
 import { isOpenHomeTicket, isPriorityHomeTicket } from "../../home-widgets/home-ticket-policy";
 import { createHomeRequestAuthority } from "../../home-widgets/home-request-authority";
 import { openSharedCreate } from "../../create/shared-create-handoff";
-import { buildWidget21DashboardRuntimeData } from "../../home-widgets/home-widget-9l-data";
 import { type HomeWidgetRuntimeContext } from "../../home-widgets/home-widget-runtime-policy";
-
-function HomeWidgetCanvasSurface({
-  editMode,
-  kioskActive,
-  density,
-  mobileLayout,
-  widgetIds,
-  selectedId,
-  onSelect,
-  children,
-}: {
-  editMode: boolean;
-  kioskActive: boolean;
-  density: string;
-  mobileLayout: string;
-  widgetIds: string[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  children: ReactNode;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: "home-widget-canvas", disabled: !editMode, data: { type: "home-widget-canvas" } });
-  const canvasRef = useRef<HTMLElement | null>(null);
-  const programmaticCarouselSelection = useRef(true);
-  const activeIndex = Math.max(0, widgetIds.indexOf(selectedId || ""));
-  const mobileNavigation = !editMode && (mobileLayout === "carousel" || mobileLayout === "focus") && widgetIds.length > 1;
-  const setCanvasRef = useCallback((node: HTMLElement | null) => { canvasRef.current = node; setNodeRef(node); }, [setNodeRef]);
-  useEffect(() => {
-    if (mobileLayout !== "carousel" || editMode || typeof window === "undefined" || !window.matchMedia("(max-width: 760px)").matches) return;
-    if (!programmaticCarouselSelection.current) { programmaticCarouselSelection.current = true; return; }
-    const canvas = canvasRef.current;
-    const selected = canvas?.querySelector<HTMLElement>(`.home-widget-placement-v505[data-widget-id="${CSS.escape(selectedId || "")}"]`);
-    if (!selected || !canvas) return;
-    const destination = selected.offsetLeft + selected.offsetWidth / 2 - canvas.clientWidth / 2;
-    canvas.scrollTo({ left: Math.max(0, destination), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-  }, [mobileLayout, selectedId, widgetIds.join("|"), editMode]);
-  const selectOffset = (offset: number) => {
-    if (!widgetIds.length) return;
-    programmaticCarouselSelection.current = true;
-    onSelect(widgetIds[Math.max(0, Math.min(widgetIds.length - 1, activeIndex + offset))]);
-  };
-  const updateCarouselPosition = () => {
-    if (mobileLayout !== "carousel" || editMode || !canvasRef.current || typeof window === "undefined" || !window.matchMedia("(max-width: 760px)").matches) return;
-    const canvas = canvasRef.current;
-    const center = canvas.scrollLeft + canvas.clientWidth / 2;
-    const cards = Array.from(canvas.querySelectorAll<HTMLElement>(".home-widget-placement-v505"));
-    const nearest = cards.reduce((current, card, index) => Math.abs(card.offsetLeft + card.offsetWidth / 2 - center) < current.distance ? { index, distance: Math.abs(card.offsetLeft + card.offsetWidth / 2 - center) } : current, { index: 0, distance: Infinity });
-    const id = widgetIds[nearest.index];
-    if (id && id !== selectedId) {
-      // Touch scrolling owns its position. Don't scroll back to an interim card.
-      programmaticCarouselSelection.current = false;
-      onSelect(id);
-    }
-  };
-  return (
-    <>
-    {mobileNavigation && <nav className="home-widget-mobile-nav-v547" aria-label="Home widget navigation">
-      <ClusterButton variant="quiet" size="compact" disabled={activeIndex === 0} onClick={() => selectOffset(-1)} aria-label="Previous Home widget">←</ClusterButton>
-      <span role="status" aria-live="polite">{activeIndex + 1} of {widgetIds.length}</span>
-      <ClusterButton variant="quiet" size="compact" disabled={activeIndex === widgetIds.length - 1} onClick={() => selectOffset(1)} aria-label="Next Home widget">→</ClusterButton>
-    </nav>}
-    <section
-      ref={setCanvasRef}
-      className="home-widget-canvas-v484"
-      data-kiosk-home={kioskActive ? "true" : "false"}
-      data-density={density}
-      data-edit-mode={editMode ? "true" : "false"}
-      data-canvas-drop={editMode && isOver ? "true" : "false"}
-      data-mobile-layout={mobileLayout}
-      aria-label="Home widgets"
-      tabIndex={mobileNavigation ? 0 : undefined}
-      onScroll={mobileLayout === "carousel" && !editMode ? updateCarouselPosition : undefined}
-      onKeyDown={(event) => {
-        if (!mobileNavigation || event.target !== event.currentTarget) return;
-        if (event.key === "ArrowLeft") { event.preventDefault(); selectOffset(-1); }
-        if (event.key === "ArrowRight") { event.preventDefault(); selectOffset(1); }
-      }}
-    >
-      {children}
-    </section>
-    </>
-  );
-}
 
 type NotificationPreview = NotificationItem;
 type HomeRemoteSource = "library" | "requiredKnowledge" | "time" | "calendar" | "timeline" | "people" | "activity" | "assignments" | "tickets" | "inbox";
@@ -170,9 +81,7 @@ function homeRemoteError(error: unknown) {
 
 export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject, onOpenMyWork, onOpenIntegrations, onOpenAdmin, onOpenLibrary, onOpenTime, onOpenTeam, onOpenTimeline, onOpenBuilds, onOpenQA, onOpenTickets, onOpenNotifications, onOpenActivity, isAdmin, currentUser, settings, resumeContext }: { projects: Project[]; onOpenBoard: (boardId: string) => void; onOpenProjects: () => void; onOpenProject: (projectId: string) => void; onOpenMyWork: () => void; onOpenIntegrations: () => void; onOpenAdmin: () => void; onOpenLibrary: () => void; onOpenTime: () => void; onOpenTeam: () => void; onOpenTimeline: () => void; onOpenBuilds: () => void; onOpenQA: () => void; onOpenTickets: () => void; onOpenNotifications: () => void; onOpenActivity: () => void; isAdmin: boolean; currentUser: User; settings: Settings; resumeContext?: SmartWorkspaceContext | null }) {
   const boardCount = projectBoardCount(projects);
-  const whiteboardCount = projectWhiteboardCount(projects);
   const gitCount = projectGitCount(projects);
-  const discordCount = projects.filter(projectHasDiscord).length;
   const unassignedProjects = projects.filter((project) => isExternalProject(project) && !projectAssignedIds(project).length);
   const missingBoardProjects = projects.filter((project) => !project.boards.length);
   const missingWhiteboardProjects = projects.filter((project) => !(project.whiteboards?.length || 0));
@@ -224,17 +133,9 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   const homeRecommendation = departmentAwareHomeWidgetRecommendation(homeRoleId, homeDepartmentId, settings.studioRoleDefinitions, settings.studioDepartmentDefinitions, settings.studioHomeRecommendedWidgetsCsv);
   const homeRecommendationKey = homeRecommendation.keys.join(", ");
   const homeWidgetGovernance = useMemo(() => homeWidgetGovernanceFromCsv(settings.studioHomeRequiredWidgetsCsv, settings.studioHomeUnavailableWidgetsCsv, homeRecommendationKey), [settings.studioHomeRequiredWidgetsCsv, settings.studioHomeUnavailableWidgetsCsv, homeRecommendationKey]);
-  const homeWidgetExtensionPolicy = homeWidgetExtensionPolicyFromSettings(settings.studioCustomWidgetPolicy, settings.studioCustomWidgetAllowedPermissionsCsv, settings.studioCustomWidgetBlockedIdsCsv);
-  const homeRoleLabel = homeRoleDefinition?.label || levelLabel(homeRoleId);
-  const homeDepartmentLabel = settings.studioDepartmentDefinitions?.find((department) => department.id === homeDepartmentId)?.label || (homeDepartmentId ? levelLabel(homeDepartmentId) : "Studio");
-  const homeRecommendationLabel = homeRecommendation.source === "role" ? homeRoleLabel : homeRecommendation.source === "department" ? homeDepartmentLabel : "Studio";
   const dashboardWidgets = useDashboardWidgets(homeWidgetGovernance);
   const homeCanMyWork = canUseTool(currentUser, "mywork");
   const homeCanProjects = canUseTool(currentUser, "projects");
-  const homeCanBoards = canUseTool(currentUser, "boards");
-  const homeCanWhiteboards = canUseTool(currentUser, "whiteboards");
-  const homeCanPackets = canUseTool(currentUser, "packets");
-  const homeCanServerConfig = canUseTool(currentUser, "serverConfig");
   const homeCanTime = settings.schedulerEnabled !== false && canUseTool(currentUser, "scheduler");
   const homeCanNotifications = canUseTool(currentUser, "inbox");
   const homeCanTeam = canUseTool(currentUser, "people");
@@ -244,27 +145,10 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   const homeCanTimeline = settings.timelineEnabled !== false && canUseTool(currentUser, "timeline");
   const homeCanTickets = settings.ticketsEnabled !== false && canUseTool(currentUser, "tickets");
   const homeCanSourceControl = canUseTool(currentUser, "sourceControl");
-  const homeCanIntegrations = isAdmin && canUseTool(currentUser, "integrations");
   const homeCanCalendar = settings.calendarEnabled !== false && canUseTool(currentUser, "calendar");
   const homeCanLibrary = settings.libraryEnabled !== false && canUseTool(currentUser, "library");
-  const [homeEditorOpen, setHomeEditorOpen] = useState(false);
-  const [homeEditorFocusId, setHomeEditorFocusId] = useState<string | null>(null);
   const [homeEditMode, setHomeEditMode] = useState(false);
-  const [homePaletteCollapsed, setHomePaletteCollapsed] = useState(false);
-  const [homeMobileLayout, setHomeMobileLayout] = useState(settings.userHomeMobileLayout || "stack");
-  const [mobileHomeSelectedId, setMobileHomeSelectedId] = useState<string | null>(null);
-  const [homeDensity, setHomeDensity] = useState<"compact" | "balanced" | "expanded">((settings.userDashboardDensity as "compact" | "balanced" | "expanded") || "balanced");
-  useEffect(() => setHomeMobileLayout(settings.userHomeMobileLayout || "stack"), [settings.userHomeMobileLayout]);
-  useEffect(() => setHomeDensity((settings.userDashboardDensity as "compact" | "balanced" | "expanded") || "balanced"), [settings.userDashboardDensity]);
-  const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
-  const [homeGridColumns, setHomeGridColumns] = useState(() => typeof window === "undefined" ? 12 : window.innerWidth >= 2200 ? 20 : window.innerWidth >= 1600 ? 16 : window.innerWidth <= 760 ? 2 : 12);
-  useEffect(() => {
-    const syncGridColumns = () => setHomeGridColumns(window.innerWidth >= 2200 ? 20 : window.innerWidth >= 1600 ? 16 : window.innerWidth <= 760 ? 2 : 12);
-    window.addEventListener("resize", syncGridColumns);
-    syncGridColumns();
-    return () => window.removeEventListener("resize", syncGridColumns);
-  }, []);
-  const homeWidgetSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const [homeOptionsId, setHomeOptionsId] = useState<string | null>(null);
   const [kioskHomeState, setKioskHomeState] = useState(() => ({
     active: typeof document !== "undefined" && document.documentElement.dataset.clusterKiosk === "true",
     readOnly: typeof document !== "undefined" && document.documentElement.dataset.clusterKioskReadOnly === "true",
@@ -282,42 +166,33 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   }, []);
   const enabledHomeWidgets = useMemo(() => {
     const kioskIds = new Set(kioskHomeState.widgetIds);
-    return dashboardWidgets.orderedEnabled.filter((placement) => !kioskHomeState.active || !kioskIds.size || kioskIds.has(placement.id));
-  }, [dashboardWidgets.orderedEnabled, kioskHomeState.active, kioskHomeState.widgetIds.join("|")]);
-  const enabledHomeWidgetIds = useMemo(() => new Set(enabledHomeWidgets.map((placement) => placement.id)), [enabledHomeWidgets]);
-  const enabledHomeWidgetSignature = useMemo(() => enabledHomeWidgets.map((placement) => `${placement.id}:${placement.size}:${placement.enabled ? 1 : 0}`).join("|"), [enabledHomeWidgets]);
-  const hasEnabledCustomHomeWidget = enabledHomeWidgets.some((placement) => placement.source === "custom");
-  const homeWidgetUses = (...ids: string[]) => hasEnabledCustomHomeWidget || ids.some((id) => enabledHomeWidgetIds.has(id));
-  const homeNeedsLibrary = homeWidgetUses("library", "libraryActivity", "pulse", "brief");
-  const homeNeedsRequiredKnowledge = homeWidgetUses("roleFocus", "myWork", "today", "brief");
-  const homeNeedsTime = homeWidgetUses("scheduler", "pulse", "today", "brief");
-  const homeNeedsCalendar = homeWidgetUses("roleFocus", "upcoming", "scheduler", "today", "pulse", "brief");
+    return dashboardWidgets.layout.items.filter((placement) => !kioskHomeState.active || !kioskIds.size || kioskIds.has(placement.id));
+  }, [dashboardWidgets.layout, kioskHomeState.active, kioskHomeState.widgetIds.join("|")]);
+  const enabledHomeWidgetIds = useMemo(() => new Set<string>(enabledHomeWidgets.map((placement) => placement.id)), [enabledHomeWidgets]);
+  const enabledHomeWidgetSignature = useMemo(() => [...enabledHomeWidgetIds].sort().join("|"), [enabledHomeWidgetIds]);
+  const homeWidgetUses = (...ids: string[]) => ids.some((id) => enabledHomeWidgetIds.has(id));
+  // Each source loads only while a widget on Home reads it; "brief" reads them all.
+  const homeNeedsLibrary = homeWidgetUses("library", "brief");
+  const homeNeedsRequiredKnowledge = homeWidgetUses("roleFocus", "brief");
+  const homeNeedsTime = homeWidgetUses("scheduler", "brief");
+  const homeNeedsCalendar = homeWidgetUses("roleFocus", "upcoming", "scheduler", "brief");
   const homeNeedsTimeline = homeWidgetUses("timeline", "brief");
-  const homeNeedsPeople = homeWidgetUses("people", "peopleCapacity", "departments", "pulse", "brief");
-  const homeNeedsActivity = homeWidgetUses("activity", "digest", "handoff", "brief");
-  const homeNeedsAssignments = homeWidgetUses("roleFocus", "myWork", "today", "peopleCapacity", "handoff", "brief");
+  const homeNeedsPeople = homeWidgetUses("people", "peopleCapacity", "brief");
+  const homeNeedsActivity = homeWidgetUses("activity", "brief");
+  const homeNeedsAssignments = homeWidgetUses("roleFocus", "peopleCapacity", "brief");
   const homeNeedsTeamWideAssignments = homeWidgetUses("peopleCapacity", "brief");
-  const homeNeedsTickets = homeWidgetUses("tickets", "deliveryAttention", "needs", "brief");
-  const homeNeedsInbox = homeWidgetUses("inbox", "needs", "brief");
-  const homeNeedsBuilds = homeWidgetUses("builds", "releaseReadiness", "brief");
-  const homeNeedsQa = homeWidgetUses("qa", "releaseReadiness", "brief");
-  const homeNeedsSourceControl = homeWidgetUses("sourceControl", "reviewQueue", "brief");
-  const homeNeedsIntegrations = homeWidgetUses("integrationHealth", "brief");
-  const homeNeedsSavedViews = homeWidgetUses("savedViews") || homeEditMode || homeEditorOpen || enabledHomeWidgets.some((placement) => Boolean(placement.config?.savedViewId));
-  const homeNeedsProjectWorkflow = homeWidgetUses("control", "workflow", "closeout", "attachments", "watchlists", "projects", "readiness", "brief");
-  const widget2Catalog = useWidget2CatalogInsights(homeCanSourceControl && homeNeedsSourceControl, homeCanIntegrations && homeNeedsIntegrations, homeNeedsSavedViews, currentUser.id);
+  const homeNeedsTickets = homeWidgetUses("tickets", "brief");
+  const homeNeedsInbox = homeWidgetUses("inbox", "brief");
+  const homeNeedsBuilds = homeWidgetUses("builds", "brief");
+  const homeNeedsQa = homeWidgetUses("qa", "brief");
+  const homeNeedsSourceControl = homeWidgetUses("sourceControl", "reviewQueue");
+  const homeNeedsProjectWorkflow = homeWidgetUses("projects", "adminOverview", "brief");
+  const homeSourceControl = useHomeSourceControl(homeCanSourceControl && homeNeedsSourceControl, currentUser.id);
   const [homeNote, setHomeNote] = useServerState<string>("user", "dashboard.note", "");
-  const homeWidgetLibrary = useHomeWidgetLibrary(homeWidgetExtensionPolicy);
-  const homeLayoutSharing = useHomeLayoutSharing(Boolean(currentUser.id));
-  const customWidgetSignature = homeWidgetLibrary.allManifests.map((item) => `${item.id}@${item.version}`).sort().join("|");
-  useEffect(() => {
-    if (!homeWidgetLibrary.desktop || homeWidgetLibrary.status) dashboardWidgets.syncCustom(homeWidgetLibrary.allManifests);
-  }, [customWidgetSignature, homeWidgetLibrary.desktop, homeWidgetLibrary.status]);
   const workflowProjectIds = useMemo(() => projects.map((project) => project.id), [projects]);
   const projectWorkflowIds = homeCanProjects && homeNeedsProjectWorkflow ? workflowProjectIds : [];
   const [qaPlans] = useProjectDeliveryList<QATestPlan>("qa-plan", homeCanQa && homeNeedsQa ? workflowProjectIds : []);
   const [buildArtifacts] = useProjectDeliveryList<BuildArtifactRecord>("build", homeCanBuilds && homeNeedsBuilds ? workflowProjectIds : []);
-  const homeDeliveryLifecycles = useHomeDeliveryLifecycleSummaries(workflowProjectIds, homeCanBuilds && (homeNeedsBuilds || homeNeedsQa), currentUser.id);
   const [workflowLinks] = useProjectWorkflowList<WorkLinkRecord>("dependency", projectWorkflowIds);
   const [recurringWork] = useProjectWorkflowList<RecurringWorkRecord>("recurring", projectWorkflowIds);
   const [workflowWatchers] = useProjectWorkflowList<WatcherRecord>("watcher", projectWorkflowIds);
@@ -474,7 +349,7 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
     if (homeSourceAllowed("inbox")) void loadHomeInbox();
     const stampHandle = window.setTimeout(() => setLastSeenAt(new Date().toISOString()), 1500);
     return () => window.clearTimeout(stampHandle);
-  }, [setLastSeenAt, currentUser.id, homeCanLibrary, homeCanTime, homeCanCalendar, homeCanTimeline, homeCanTeam, homeCanActivity, homeCanMyWork, homeCanTickets, homeCanNotifications, homeCanIntegrations, enabledHomeWidgetSignature]);
+  }, [setLastSeenAt, currentUser.id, homeCanLibrary, homeCanTime, homeCanCalendar, homeCanTimeline, homeCanTeam, homeCanActivity, homeCanMyWork, homeCanTickets, homeCanNotifications, enabledHomeWidgetSignature]);
   useEffect(() => subscribeClusterCohesionEvent<ClusterAssignmentChange>(CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, () => { scheduleHomeRefresh(["assignments", "requiredKnowledge", "calendar", "tickets", "activity", "inbox"]); }), [currentUser.id]);
   useEffect(() => subscribeClusterCohesionEvent<Partial<ClusterPersonSummary>>(CLUSTER_PERSON_CHANGED_EVENT, () => { scheduleHomeRefresh(["people", "assignments"]); }), [currentUser.id]);
   useEffect(() => {
@@ -546,14 +421,6 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   const activeUsers = users.filter((item) => activeLabel(item.lastSeenAt, item.lastActivityAt) !== "Offline").length;
   const recentProjects = [...projects].sort((a, b) => projectLatestTimestamp(b) - projectLatestTimestamp(a)).slice(0, 5);
   const recentActivity = activity.slice(0, 7);
-  const sinceLastVisit = activity.filter((event) => new Date(event.createdAt).getTime() > new Date(lastSeenAt).getTime());
-  const digestCounts = sinceLastVisit.reduce<Record<string, number>>((acc, event) => {
-    acc[event.entityType || event.type] = (acc[event.entityType || event.type] || 0) + 1;
-    return acc;
-  }, {});
-  const digestTop = (Object.entries(digestCounts) as Array<[string, number]>)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
   const homeAssignmentByUserId = useMemo(() => new Map(homeAssignments.map((item) => [item.user.id, item])), [homeAssignments]);
   const homeUsersWithWorkload = useMemo(() => users.map((user) => ({
     ...user,
@@ -621,20 +488,10 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   function dismissSignal(itemId: string) {
     patchSignalPreference(itemId, { dismissedAt: new Date().toISOString() });
   }
-  const topProjectTime = timeSummary?.byProject?.[0];
   const activeClockMinutes = homeActiveEntry ? Math.max(homeActiveEntry.computedDurationMinutes || 0, Math.round((clockTick - new Date(homeActiveEntry.startedAt).getTime()) / 60000)) : 0;
   const clockButtonLabel = homeActiveEntry ? "Clock out" : "Clock in";
   const readinessAverage = projects.length ? Math.round(projects.reduce((sum, project) => sum + (projectSnapshots[project.id]?.readiness.score ?? projectCompleteness(project)), 0) / projects.length) : 0;
   const teamSpotlight = [...users].sort((a, b) => new Date(b.lastActivityAt || b.lastSeenAt || b.updatedAt || 0).getTime() - new Date(a.lastActivityAt || a.lastSeenAt || a.updatedAt || 0).getTime()).slice(0, 4);
-  const departmentSummary = Array.from(users.reduce((map, member) => {
-    const label = String(member.department || "Unassigned").trim() || "Unassigned";
-    const entry = map.get(label) || { total: 0, active: 0 };
-    entry.total += 1;
-    if (activeLabel(member.lastSeenAt, member.lastActivityAt) !== "Offline") entry.active += 1;
-    map.set(label, entry);
-    return map;
-  }, new Map<string, { total: number; active: number }>()).entries()).sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
-  const videoProjectCount = projects.filter(isVideoProject).length;
   const totalSetupGaps = projects.reduce((sum, project) => sum + projectSetupGaps(project).length, 0);
   const urgentAttentionCount = needsAttentionItems.filter((item) => item.severity === "critical" || item.severity === "high").length;
   const attentionHandlers: Record<AttentionItem["target"], () => void> = {
@@ -666,7 +523,7 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
   const builtInWidgetData: BuiltInHomeWidgetData = {
     attention: needsAttentionItems.map((item) => ({ id: item.id, title: item.title, detail: item.detail, target: item.target })),
     projects: {
-      total: projects.length, ready: operationalProjects.length, attention: attentionProjects.length, boards: boardCount, whiteboards: whiteboardCount, git: gitCount, discord: discordCount,
+      total: projects.length, ready: operationalProjects.length, attention: attentionProjects.length, boards: boardCount, git: gitCount,
       recent: recentProjects.map((project) => ({ id: project.id, title: projectSnapshots[project.id]?.identity.displayName || project.name, detail: projectSnapshots[project.id]?.schedule.label || projectStatusLabel(project), value: `${projectSnapshots[project.id]?.readiness.score ?? projectCompleteness(project)}%`, workTarget: { screen: "project", projectId: project.id } })),
     },
     myWork: {
@@ -697,15 +554,12 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
       week: minutesToHuman(homeCanTime ? (timeSummary?.totalMinutes || 0) : 0), running: homeCanTime ? (timeSummary?.runningCount || 0) : 0, active: homeCanTime && Boolean(homeActiveEntry), activeDetail: homeCanTime ? (homeActiveEntry?.project?.name || homeActiveEntry?.title || "Active timer") : "",
       today: homeCanCalendar ? homeTodayEvents.map((event) => ({ id: event.id, title: event.title, detail: event.project?.name || "Calendar", value: new Date(event.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), workTarget: { screen: "calendar" as const, projectId: event.projectId || event.project?.id || null, inspectScope: "calendar-event", inspectId: event.id } })) : [],
     },
-    today: deriveToday(homeCanCalendar ? homeTodayEvents : [], homeFocusCards, dueCards.length + homeKnowledgeAssignments.length, homeRelationshipBlockers, homePriorityCards.length + homeKnowledgeOverdueCount, homeKnowledgeWorkItems),
     notifications: { attention: homeCanNotifications ? (homeInboxSummary?.unacknowledged ?? homeInboxSummary?.requiresAction ?? 0) : 0, urgent: homeCanNotifications ? ((homeInboxSummary?.critical || 0) + (homeInboxSummary?.high || 0)) : 0 },
     people: { total: homeCanTeam ? users.length : 0, active: homeCanTeam ? activeUsers : 0, spotlight: homeCanTeam ? teamSpotlight.map((member) => ({ id: member.id, title: member.displayName || member.username, detail: personMetaLabel(member, { localTime: true, capacity: true }) || member.title || member.workspaceRole || "Person", workTarget: { screen: "people", inspectScope: "person", inspectId: member.id } })) : [] },
     peopleCapacity: derivePeopleCapacity(homeCanTeam ? users : [], homeAssignments),
-    departments: { total: departmentSummary.length, staffed: departmentSummary.filter(([, value]) => value.total > 0).length, active: departmentSummary.reduce((sum, [, value]) => sum + value.active, 0), items: departmentSummary.slice(0, 8).map(([label, value]) => ({ id: label.toLowerCase().replace(/[^a-z0-9]+/g, "-"), title: label, detail: `${value.total} member${value.total === 1 ? "" : "s"}`, value: `${value.active} active` })) },
     library: {
       total: homeCanLibrary ? (librarySummary?.total || 0) : 0, pinned: homeCanLibrary ? (librarySummary?.pinned || 0) : 0,
       recent: homeCanLibrary ? (librarySummary?.recent || []).slice(0, 8).map((item) => ({ id: item.id, title: item.title, detail: `${levelLabel(item.type)} · ${levelLabel(item.status)}`, value: item.pinned ? "Pinned" : undefined, workTarget: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id } })) : [],
-      topTypes: homeCanLibrary ? Object.entries(librarySummary?.byType || {}).map(([label, value]) => ({ label, value: Number(value) || 0 })).sort((a, b) => b.value - a.value).slice(0, 3).map(({ label, value }) => ({ label: levelLabel(label), value })) : [],
     },
     builds: {
       total: buildArtifacts.length, testing: buildArtifacts.filter((item) => item.qaStatus === "testing" || item.qaStatus === "untested").length, failed: buildArtifacts.filter((item) => item.qaStatus === "failed" || item.approval === "blocked").length, approved: buildArtifacts.filter((item) => item.approval === "approved").length,
@@ -719,11 +573,8 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
       blocked: qaPlans.filter((plan) => plan.status === "blocked").length,
       items: [...qaPlans].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 8).map((plan) => ({ id: plan.id, title: plan.title, detail: projects.find((project) => project.id === plan.projectId)?.name || plan.platform || "QA plan", value: levelLabel(plan.status), workTarget: { screen: "project", projectId: plan.projectId, projectTab: "qa", inspectScope: "qa-plan", inspectId: plan.id } })),
     },
-    releaseReadiness: deriveReleaseReadiness(homeCanBuilds ? homeDeliveryLifecycles : [], projects),
-    sourceControl: deriveSourceControl(widget2Catalog.repositories),
-    reviewQueue: deriveReviewQueue(widget2Catalog.reviews),
-    integrationHealth: deriveIntegrationHealth(widget2Catalog.providers),
-    savedViews: deriveSavedViews(widget2Catalog.savedViews),
+    sourceControl: deriveSourceControl(homeSourceControl.repositories),
+    reviewQueue: deriveReviewQueue(homeSourceControl.reviews),
     tickets: {
       total: homeTickets.length,
       open: homeTickets.filter(isOpenHomeTicket).length,
@@ -746,54 +597,10 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
         metadata: event.metadata || {},
       }),
     })),
-    digest: digestTop.map(([kind, count]) => ({ id: kind, title: levelLabel(kind), detail: "Since last open", value: count })),
-    workflow: { links: workflowLinks.length, recurring: recurringWork.length, watchers: workflowWatchers.length, closeouts: projectWorkflowAttention.closeouts?.length || 0, portals: projectWorkflowAttention.portalRules?.length || 0, attachments: homeAttachments.length },
-    watchlists: deriveWatchlist(workflowWatchers, currentUser.id),
-    handoff: deriveHandoff(recentActivity, homeFocusCards, needsAttentionItems.length),
     admin: { setupGaps: totalSetupGaps, maintenance: needsAttentionItems.filter((item) => item.source === "maintenance").length, corrections: homeCorrectionRequests.length, breakEntries: homeBreakLedger.length },
-    ticketAttention: { signals: needsAttentionItems.filter((item) => item.target === "tickets").length, projectAttention: attentionProjects.length },
   };
-  const builtInWidgetActions: BuiltInHomeWidgetActions = { projects: onOpenProjects, project: onOpenProject, board: onOpenBoard, myWork: onOpenMyWork, scheduler: onOpenTime, notifications: onOpenNotifications, people: onOpenTeam, library: onOpenLibrary, builds: onOpenBuilds, qa: onOpenQA, timeline: onOpenTimeline, tickets: onOpenTickets, activity: onOpenActivity, admin: onOpenAdmin, integrations: onOpenIntegrations, sourceControl: onOpenProjects, quickCreate: (mode) => openSharedCreate(mode), work: (target) => { openClusterWorkNavigation(target); } };
-  const customWidgetData: CustomHomeWidgetRuntimeData = buildWidget21DashboardRuntimeData({
-    projects, boardCount, whiteboardCount, assignedCards: homeAssignedCards, people: users,
-    activePeopleIds: new Set(users.filter((member) => activeLabel(member.lastSeenAt, member.lastActivityAt) !== "Offline").map((member) => member.id)),
-    knowledgeAssignments: homeKnowledgeAssignments, recurring: recurringWork, repositories: widget2Catalog.repositories, reviews: widget2Catalog.reviews,
-    attentionItems: needsAttentionItems, builtIn: builtInWidgetData, weekMinutes: timeSummary?.totalMinutes || 0, runningTimers: timeSummary?.runningCount || 0,
-  });
-  const homeWidgetRuntimeContext: HomeWidgetRuntimeContext = { currentUserId: currentUser.id, currentRoleId: currentUser.workspaceRole || currentUser.title || null, currentProjectId: resumeContext?.projectId || null, savedViews: widget2Catalog.savedViews.map((view) => ({ id: view.id, values: view.values })) };
-  const customWidgetActions: CustomHomeWidgetActions = { projects: onOpenProjects, boards: onOpenProjects, whiteboards: onOpenProjects, mywork: onOpenMyWork, calendar: onOpenTimeline, packets: onOpenLibrary, sourceControl: onOpenProjects, operations: onOpenAdmin };
-  function updateHomeMobileLayout(next: typeof homeMobileLayout) {
-    setHomeMobileLayout(next);
-    void api("/api/me/preferences", { method: "PATCH", body: JSON.stringify({ preferences: { userHomeMobileLayout: next } }) }).catch(() => setHomeMobileLayout(settings.userHomeMobileLayout || "stack"));
-  }
-  function updateHomeDensity(next: "compact" | "balanced" | "expanded") {
-    setHomeDensity(next);
-    void api("/api/me/preferences", { method: "PATCH", body: JSON.stringify({ preferences: { userDashboardDensity: next } }) }).catch(() => setHomeDensity((settings.userDashboardDensity as "compact" | "balanced" | "expanded") || "balanced"));
-  }
-  function canUseHomeWidgetPermission(permission: HomeWidgetPermission) {
-    if (permission === "projects.read") return homeCanProjects;
-    if (permission === "scheduler.read") return homeCanTime;
-    if (permission === "activity.read") return homeCanActivity;
-    if (permission === "inbox.read") return homeCanNotifications;
-    if (permission === "people.read") return homeCanTeam;
-    if (permission === "builds.read") return homeCanBuilds;
-    if (permission === "qa.read") return homeCanQa;
-    if (permission === "tickets.read") return homeCanTickets;
-    if (permission === "calendar.read") return homeCanCalendar;
-    if (permission === "boards.read") return homeCanBoards;
-    if (permission === "whiteboards.read") return homeCanWhiteboards;
-    if (permission === "packets.read") return homeCanPackets;
-    if (permission === "sourceControl.read") return homeCanSourceControl;
-    if (permission === "integrations.read") return homeCanIntegrations;
-    if (permission === "serverConfig.read") return homeCanServerConfig || isAdmin;
-    if (permission === "viewer.read") return homeCanLibrary;
-    return homeCanLibrary;
-  }
-  const authorizedHomeManifests = homeWidgetLibrary.manifests.filter((manifest) => (manifest.permissions || []).every(canUseHomeWidgetPermission));
-  const customManifestMap = new Map(authorizedHomeManifests.map((manifest) => [manifest.id, manifest]));
-  const homeWidgetDefinitions = new Map<string, (typeof DASHBOARD_WIDGETS)[number]>(DASHBOARD_WIDGETS.map((definition) => [definition.key, definition]));
-  const requestedStudioPreset = settings.studioHomeDefaultPreset || "balanced";
-  const studioHomeDefaultPreset: HomeWidgetPreset = (["balanced", "quiet", "core-tools", "everything"] as HomeWidgetPreset[]).includes(requestedStudioPreset as HomeWidgetPreset) ? requestedStudioPreset as HomeWidgetPreset : "balanced";
+  const builtInWidgetActions: BuiltInHomeWidgetActions = { projects: onOpenProjects, myWork: onOpenMyWork, scheduler: onOpenTime, notifications: onOpenNotifications, people: onOpenTeam, library: onOpenLibrary, builds: onOpenBuilds, qa: onOpenQA, timeline: onOpenTimeline, tickets: onOpenTickets, activity: onOpenActivity, admin: onOpenAdmin, quickCreate: (mode) => openSharedCreate(mode), work: (target) => { openClusterWorkNavigation(target); } };
+  const homeWidgetRuntimeContext: HomeWidgetRuntimeContext = { currentUserId: currentUser.id, currentRoleId: currentUser.workspaceRole || currentUser.title || null, currentProjectId: resumeContext?.projectId || null };
   function homeStatusFromSources(sources: HomeRemoteSource[]): HomeWidgetRuntimeStatus | undefined {
     const uniqueSources = Array.from(new Set(sources.filter(homeSourceAllowed)));
     if (!uniqueSources.length) return undefined;
@@ -804,266 +611,107 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
     return { state: "ready" };
   }
   function builtInHomeWidgetStatus(id: string): HomeWidgetRuntimeStatus | undefined {
-    if (["roleFocus", "myWork", "today"].includes(id)) return homeStatusFromSources(["assignments", "requiredKnowledge", "calendar"]);
+    if (id === "roleFocus") return homeStatusFromSources(["assignments", "requiredKnowledge", "calendar"]);
     if (id === "upcoming") return homeStatusFromSources(["calendar"]);
-    if (["scheduler", "pulse"].includes(id)) return homeStatusFromSources(["time"]);
-    if (["people", "peopleCapacity", "departments"].includes(id)) return homeStatusFromSources(["people", "assignments"]);
+    if (id === "scheduler") return homeStatusFromSources(["time"]);
+    if (id === "people" || id === "peopleCapacity") return homeStatusFromSources(["people", "assignments"]);
     if (id === "timeline") return homeStatusFromSources(["timeline"]);
-    if (["activity", "digest", "handoff"].includes(id)) return homeStatusFromSources(["activity", "assignments"]);
+    if (id === "activity") return homeStatusFromSources(["activity"]);
     if (id === "tickets") return homeStatusFromSources(["tickets"]);
-    if (["library", "libraryActivity"].includes(id)) return homeStatusFromSources(["library"]);
-    if (["sourceControl", "reviewQueue"].includes(id)) return widget2Catalog.sourceControlStatus;
-    if (id === "integrationHealth") return widget2Catalog.integrationStatus;
-    if (id === "savedViews") return widget2Catalog.savedViewsStatus;
-    return undefined;
-  }
-  function customHomeWidgetStatus(permissions: HomeWidgetPermission[] = []): HomeWidgetRuntimeStatus | undefined {
-    const sources: HomeRemoteSource[] = [];
-    if (permissions.includes("scheduler.read")) sources.push("time");
-    if (permissions.includes("activity.read")) sources.push("activity");
-    if (permissions.includes("inbox.read")) sources.push("activity");
-    if (permissions.includes("people.read")) sources.push("people");
-    if (permissions.includes("calendar.read")) sources.push("calendar");
-    if (permissions.includes("tickets.read")) sources.push("tickets");
-    if (permissions.includes("library.read")) sources.push("library");
-    return homeStatusFromSources(sources);
-  }
-  function customWidgetPrimaryAction(manifest: { permissions?: HomeWidgetPermission[] }) {
-    const permissions = manifest.permissions || [];
-    if (permissions.includes("projects.read")) return { label: "Open Projects", onSelect: onOpenProjects };
-    if (permissions.includes("builds.read")) return { label: "Open Builds", onSelect: onOpenBuilds };
-    if (permissions.includes("qa.read")) return { label: "Open QA", onSelect: onOpenQA };
-    if (permissions.includes("tickets.read")) return { label: "Open Tickets", onSelect: onOpenTickets };
-    if (permissions.includes("inbox.read")) return { label: "Open Inbox", onSelect: onOpenNotifications };
-    if (permissions.includes("scheduler.read")) return { label: "Open Scheduler", onSelect: onOpenTime };
-    if (permissions.includes("people.read")) return { label: "Open People", onSelect: onOpenTeam };
-    if (permissions.includes("library.read")) return { label: "Open Library", onSelect: onOpenLibrary };
-    if (permissions.includes("calendar.read")) return { label: "Open Timeline", onSelect: onOpenTimeline };
-    if (permissions.includes("activity.read")) return { label: "Open Activity", onSelect: onOpenActivity };
-    if (permissions.includes("boards.read")) return { label: "Open Projects", onSelect: onOpenProjects };
-    if (permissions.includes("whiteboards.read")) return { label: "Open Projects", onSelect: onOpenProjects };
-    if (permissions.includes("packets.read")) return { label: "Open Knowledge", onSelect: onOpenLibrary };
-    if (permissions.includes("sourceControl.read")) return { label: "Open Projects", onSelect: onOpenProjects };
-    if (permissions.includes("integrations.read")) return { label: "Open Integrations", onSelect: onOpenIntegrations };
-    if (permissions.includes("serverConfig.read")) return { label: "Open Operations", onSelect: onOpenAdmin };
+    if (id === "inbox") return homeStatusFromSources(["inbox"]);
+    if (id === "library") return homeStatusFromSources(["library"]);
+    if (id === "sourceControl" || id === "reviewQueue") return homeSourceControl.status;
     return undefined;
   }
   function canUseBuiltInHomeWidget(id: string) {
-    if (["readiness", "projects", "control", "workflow", "closeout", "coverage", "watchlists"].includes(id)) return homeCanProjects;
-    if (id === "attachments" || id === "library" || id === "libraryActivity") return homeCanLibrary;
-    if (["roleFocus", "myWork", "today"].includes(id)) return homeCanMyWork;
+    if (id === "projects") return homeCanProjects;
+    if (id === "library") return homeCanLibrary;
+    if (id === "roleFocus") return homeCanMyWork;
     if (id === "upcoming") return homeCanMyWork && homeCanCalendar;
-    if (["scheduler", "pulse"].includes(id)) return homeCanTime;
-    if (["needs", "inbox"].includes(id)) return homeCanNotifications;
-    if (["people", "peopleCapacity", "departments"].includes(id)) return homeCanTeam;
-    if (["activity", "digest", "handoff"].includes(id)) return homeCanActivity;
-    if (["builds", "releaseReadiness"].includes(id)) return homeCanBuilds;
-    if (["sourceControl", "reviewQueue"].includes(id)) return homeCanSourceControl;
-    if (id === "integrationHealth") return homeCanIntegrations;
+    if (id === "scheduler") return homeCanTime;
+    if (id === "inbox") return homeCanNotifications;
+    if (id === "people" || id === "peopleCapacity") return homeCanTeam;
+    if (id === "activity") return homeCanActivity;
+    if (id === "builds") return homeCanBuilds;
+    if (id === "sourceControl" || id === "reviewQueue") return homeCanSourceControl;
     if (id === "qa") return homeCanQa;
     if (id === "timeline") return homeCanTimeline;
     if (id === "tickets") return homeCanTickets;
-    if (id === "deliveryAttention") return homeCanTickets;
     return true;
   }
-  const availableHomeWidgetIds = [
-    ...DASHBOARD_WIDGETS.filter((definition) => canUseBuiltInHomeWidget(definition.key) && (!definition.adminOnly || isAdmin) && (!definition.desktopOnly || homeWidgetLibrary.desktop)).map((definition) => definition.key),
-    ...homeWidgetLibrary.allManifests.filter((manifest) => (manifest.permissions || []).every(canUseHomeWidgetPermission)).map((manifest) => manifest.id),
-  ];
-  const availableHomeWidgetIdSet = new Set(availableHomeWidgetIds);
+  const availableHomeWidgetIds = useMemo(() => new Set<string>(DASHBOARD_WIDGETS
+    .filter((definition) => canUseBuiltInHomeWidget(definition.key) && (!definition.adminOnly || isAdmin) && dashboardWidgets.canAdd(definition.key))
+    .map((definition) => definition.key)), [isAdmin, homeCanProjects, homeCanLibrary, homeCanMyWork, homeCanCalendar, homeCanTime, homeCanNotifications, homeCanTeam, homeCanActivity, homeCanBuilds, homeCanSourceControl, homeCanQa, homeCanTimeline, homeCanTickets, dashboardWidgets.governance]);
   const kioskWidgetSet = new Set(kioskHomeState.widgetIds);
-  const homeVisiblePlacements = dashboardWidgets.orderedEnabled.filter((placement) => {
-    if (kioskHomeState.active && kioskWidgetSet.size && !kioskWidgetSet.has(placement.id)) return false;
-    if (placement.source === "custom") return customManifestMap.has(placement.id);
-    const definition = homeWidgetDefinitions.get(placement.id);
-    return Boolean(definition && availableHomeWidgetIdSet.has(placement.id));
-  });
-  const mobileHomeWidgetIds = homeVisiblePlacements.map((placement) => placement.id);
-  const activeMobileHomeId = mobileHomeWidgetIds.includes(mobileHomeSelectedId || "") ? mobileHomeSelectedId : mobileHomeWidgetIds[0] || null;
-
-  const draggedCatalogWidgetId = draggedWidgetId?.startsWith("catalog:") ? draggedWidgetId.slice("catalog:".length) : null;
-  const draggedCatalogWidgetLabel = draggedCatalogWidgetId
-    ? DASHBOARD_WIDGETS.find((widget) => widget.key === draggedCatalogWidgetId)?.label || homeWidgetLibrary.allManifests.find((manifest) => manifest.id === draggedCatalogWidgetId)?.name || draggedCatalogWidgetId
-    : null;
-  function addHomeWidget(id: string, targetId?: string | null, position: "before" | "after" = "after", column?: number) {
-    if (!availableHomeWidgetIdSet.has(id)) return;
-    const visibleWithoutAdded = homeVisiblePlacements.filter((item) => item.id !== id);
-    const target = targetId && targetId !== "home-widget-canvas" ? targetId : visibleWithoutAdded.at(-1)?.id;
-    dashboardWidgets.place(id, { enabled: true, column, targetId: target, position: targetId === "home-widget-canvas" || !targetId ? "after" : position });
-  }
-  function homeWidgetDropPosition(event: DragEndEvent): "before" | "after" {
-    const target = event.over?.rect;
-    const active = event.active.rect.current.translated;
-    if (!target || !active) return "after";
-    const dx = (active.left + active.width / 2) - (target.left + target.width / 2);
-    const dy = (active.top + active.height / 2) - (target.top + target.height / 2);
-    return Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? "before" : "after") : (dx < 0 ? "before" : "after");
-  }
-  function homeWidgetDropColumn(event: DragEndEvent) {
-    const active = event.active.rect.current.translated;
-    const canvas = document.querySelector<HTMLElement>(".home-widget-canvas-v484");
-    if (!active || !canvas) return undefined;
-    const rect = canvas.getBoundingClientRect();
-    const style = getComputedStyle(canvas);
-    const columns = Math.max(1, Number.parseInt(style.getPropertyValue("--cluster-home-columns") || "12", 10) || 12);
-    const gap = Number.parseFloat(style.columnGap || style.getPropertyValue("--cluster-home-grid-gap") || "12") || 12;
-    const paddingLeft = Number.parseFloat(style.paddingLeft || "0") || 0;
-    const paddingRight = Number.parseFloat(style.paddingRight || "0") || 0;
-    const innerWidth = Math.max(1, rect.width - paddingLeft - paddingRight);
-    const cellWidth = Math.max(1, (innerWidth - gap * (columns - 1)) / columns);
-    const centerX = active.left + active.width / 2;
-    const localX = Math.max(0, Math.min(innerWidth - 1, centerX - rect.left - paddingLeft));
-    return Math.max(1, Math.min(columns, Math.floor(localX / (cellWidth + gap)) + 1));
+  const kioskFiltered = kioskHomeState.active && kioskWidgetSet.size > 0;
+  const homeVisible = useMemo(() => {
+    const visible = dashboardWidgets.layout.items.filter((placement) => availableHomeWidgetIds.has(placement.id) && (!kioskFiltered || kioskWidgetSet.has(placement.id)));
+    // A kiosk shows a subset; close the gaps the rest would leave.
+    return kioskFiltered ? packGrid(visible) : visible;
+  }, [dashboardWidgets.layout, availableHomeWidgetIds, kioskFiltered, kioskHomeState.widgetIds.join("|")]);
+  const homeHidden = dashboardWidgets.layout.items.filter((placement) => !homeVisible.some((item) => item.id === placement.id));
+  const homeCanEdit = !kioskHomeState.active && !kioskHomeState.readOnly;
+  const editing = homeEditMode && homeCanEdit;
+  function commitHomeLayout(items: HomeWidgetPlacement[]) {
+    dashboardWidgets.commit([...items, ...homeHidden]);
   }
   function openAttentionTarget(target?: string) {
     if (!target) return;
     const handler = attentionHandlers[target as keyof typeof attentionHandlers];
     if (handler) handler();
   }
+  const optionsPlacement = homeOptionsId ? dashboardWidgets.layout.items.find((item) => item.id === homeOptionsId) || null : null;
   return (
-    <section className="page dashboard-page overview-page-v040 home-page-v091 home-card-diet-v141 cluster-tool-page-v228 home-unified-v231">
+    <section className="page dashboard-page home-page" data-editing={editing ? "true" : "false"}>
       <ToolPageHeader
         title="Home"
-        metrics={[
+        metrics={editing ? [] : [
           { label: "need attention", value: urgentAttentionCount, tone: urgentAttentionCount ? "warning" : "good" },
           { label: "ready", value: `${readinessAverage}%`, tone: readinessAverage >= 75 ? "good" : readinessAverage >= 45 ? "warning" : "danger" },
           { label: "online", value: `${activeUsers}/${users.length || 0}` },
           // Only while clocked in: the Clock in button already says when you are not.
           ...(homeActiveEntry ? [{ label: "on the clock", value: minutesToHuman(activeClockMinutes), tone: "good" as const }] : []),
         ]}
-        actions={
+        actions={editing ? (
           <>
-            {/* Inbox and Projects buttons used to sit here too; the taskbar bell
-                and the sidebar already open both, one click away. */}
-            {!kioskHomeState.active && <ClusterButton type="button" onClick={() => setHomeEditMode((editing) => !editing)} variant={homeEditMode ? "primary" : "secondary"}>
-              {homeEditMode ? "Done" : "Edit"}
-            </ClusterButton>}
+            <ClusterButton type="button" variant="quiet" onClick={() => void confirmCluster({ title: "Reset Home?", message: "Home goes back to the Studio default widgets and layout.", confirmLabel: "Reset", tone: "danger" }).then((ok) => { if (ok) dashboardWidgets.reset(); })}>Reset</ClusterButton>
+            <ClusterButton type="button" variant="quiet" className="home-arrange" onClick={dashboardWidgets.pack}>Auto-arrange</ClusterButton>
+            <HomeWidgetGallery available={availableHomeWidgetIds} placed={new Set(dashboardWidgets.layout.items.map((item) => item.id))} onAdd={dashboardWidgets.add} />
+            <ClusterButton type="button" variant="primary" onClick={() => setHomeEditMode(false)}>Done</ClusterButton>
+          </>
+        ) : (
+          <>
+            {homeCanEdit && <ClusterButton type="button" variant="secondary" onClick={() => setHomeEditMode(true)}>Edit</ClusterButton>}
             {!kioskHomeState.readOnly && <ClusterButton type="button" variant={homeActiveEntry ? "danger" : "primary"} onClick={openHomeClockModal} disabled={clockBusy} data-cluster-kiosk-write-action="true">
               {clockButtonLabel}
             </ClusterButton>}
           </>
-        }
+        )}
       />
 
-      {clockStatus && <p className="home-clock-status-v0109 home-status-v141">{clockStatus}</p>}
+      {clockStatus && <p className="home-clock-status">{clockStatus}</p>}
       <ClockIntentModal open={clockModalOpen} mode={homeActiveEntry ? "out" : "in"} active={homeActiveEntry} projects={projects} title={clockTitle} onTitleChange={setClockTitle} projectIds={clockProjectIds} onProjectIdsChange={setClockProjectIds} busy={clockBusy} onCancel={() => setClockModalOpen(false)} onConfirm={confirmHomeClock} />
+      <HomeWidgetOptions
+        placement={optionsPlacement}
+        onClose={() => setHomeOptionsId(null)}
+        onSave={(id, config) => dashboardWidgets.configure(id, { clockFormat: undefined, noteTitle: undefined, context: undefined, contextId: undefined, timeRange: undefined, filterText: undefined, ...config })}
+        projects={projects.map((project) => ({ id: project.id, label: project.name }))}
+        users={users.map((user) => ({ id: user.id, label: user.displayName || user.username }))}
+        roles={(settings.studioRoleDefinitions || []).filter((role) => role.enabled !== false).map((role) => ({ id: role.id, label: role.label || role.id }))}
+      />
 
-      {!kioskHomeState.active && homeEditMode && (
-        <div className="home-widget-edit-mode-bar-v505" role="toolbar" aria-label="Home layout editing">
-          <div><strong>Editing Home</strong><span>Drag to move, drag a corner to resize.</span></div>
-          <div>
-            <div className="home-widget-edit-inline-setting-v506"><span>Density</span><ClusterSelect ariaLabel="Home widget density" value={homeDensity} options={[{ value: "compact", label: "Compact" }, { value: "balanced", label: "Balanced" }, { value: "expanded", label: "Expanded" }]} onChange={(value) => updateHomeDensity(value as "compact" | "balanced" | "expanded")} /></div>
-            <div className="home-widget-edit-inline-setting-v506"><span>Phone</span><ClusterSelect ariaLabel="Mobile Home layout" value={homeMobileLayout} options={[{ value: "stack", label: "Stack" }, { value: "grid", label: "Grid" }, { value: "carousel", label: "Carousel" }, { value: "focus", label: "Focus" }]} onChange={(value) => updateHomeMobileLayout(value as typeof homeMobileLayout)} /></div>
-            <ClusterButton variant="secondary" size="compact" onClick={() => { setHomeEditorFocusId(null); setHomeEditorOpen(true); }}>Settings</ClusterButton>
-            <ClusterButton variant="quiet" size="compact" onClick={dashboardWidgets.resetLayout}>Reset</ClusterButton>
-            <ClusterButton variant="primary" size="compact" onClick={() => setHomeEditMode(false)}>Done</ClusterButton>
-          </div>
-        </div>
-      )}
-
-      {!kioskHomeState.active && <HomeWidgetEditor
-        open={homeEditorOpen}
-        onClose={() => { setHomeEditorOpen(false); setHomeEditorFocusId(null); }}
-        focusWidgetId={homeEditorFocusId}
-        isAdmin={isAdmin}
-        layout={dashboardWidgets.layout}
-        library={homeWidgetLibrary}
-        availableWidgetIds={availableHomeWidgetIds}
-        onToggle={dashboardWidgets.updateById}
-        onSize={dashboardWidgets.setSizeById}
-        onMove={dashboardWidgets.move}
-        onReorder={dashboardWidgets.reorder}
-        onReset={dashboardWidgets.resetLayout}
-        onQuietDefaults={dashboardWidgets.resetQuietDefaults}
-        onCoreTools={dashboardWidgets.enableCoreTools}
-        onEnableEverything={dashboardWidgets.enableEverything}
-        onConfigure={dashboardWidgets.configure}
-        studioDefaultPreset={studioHomeDefaultPreset}
-        onStudioDefaults={() => dashboardWidgets.applyPresetByName(studioHomeDefaultPreset)}
-        governance={homeWidgetGovernance}
-        profiles={dashboardWidgets.profiles}
-        onSaveProfile={dashboardWidgets.saveProfile}
-        onApplyProfile={(id) => dashboardWidgets.applyProfile(id, homeWidgetLibrary.manifests)}
-        onRemoveProfile={dashboardWidgets.removeProfile}
-        onExportProfiles={dashboardWidgets.exportProfiles}
-        onImportProfiles={dashboardWidgets.importProfiles}
-        onStudioWidgetSet={dashboardWidgets.applyRecommendedWidgetSet}
-        studioRecommendationLabel={homeRecommendationLabel}
-        sharing={homeLayoutSharing}
-        onApplyExternalLayout={(layout) => dashboardWidgets.applyExternalLayout(layout, homeWidgetLibrary.manifests)}
-        mobileLayout={homeMobileLayout}
-        onMobileLayout={updateHomeMobileLayout}
-        projectOptions={projects}
-        userOptions={users}
-        roleOptions={settings.studioRoleDefinitions || []}
-        savedViewOptions={widget2Catalog.savedViews}
-        density={homeDensity}
-      />}
-
-      <DndContext
-        sensors={homeWidgetSensors}
-        collisionDetection={closestCenter}
-        onDragStart={(event) => setDraggedWidgetId(String(event.active.id))}
-        onDragCancel={() => setDraggedWidgetId(null)}
-        onDragEnd={(event: DragEndEvent) => {
-          const activeId = String(event.active.id);
-          const targetId = event.over ? String(event.over.id) : null;
-          const column = homeWidgetDropColumn(event);
-          setDraggedWidgetId(null);
-          if (!targetId) return;
-          const position = homeWidgetDropPosition(event);
-          if (activeId.startsWith("catalog:")) {
-            addHomeWidget(activeId.slice("catalog:".length), targetId, position, column);
-            return;
-          }
-          const activeIndex = homeVisiblePlacements.findIndex((item) => item.id === activeId);
-          if (activeIndex < 0) return;
-          if (targetId === "home-widget-canvas") {
-            if (column) dashboardWidgets.setColumn(activeId, column);
-            return;
-          }
-          const targetIndex = homeVisiblePlacements.findIndex((item) => item.id === targetId);
-          if (targetIndex < 0) return;
-          dashboardWidgets.place(activeId, { column, targetId, position });
-        }}
-      >
-        <div className="home-widget-edit-workspace-v506" data-editing={homeEditMode && !kioskHomeState.readOnly ? "true" : "false"} data-palette-collapsed={homePaletteCollapsed ? "true" : "false"}>
-          {homeEditMode && !kioskHomeState.readOnly && <HomeWidgetPalette
-            layout={dashboardWidgets.layout}
-            library={homeWidgetLibrary}
-            isAdmin={isAdmin}
-            availableWidgetIds={availableHomeWidgetIds}
-            governance={homeWidgetGovernance}
-            onAdd={(id) => addHomeWidget(id)}
-            onAdvanced={() => { setHomeEditorFocusId(null); setHomeEditorOpen(true); }}
-            collapsed={homePaletteCollapsed}
-            onCollapsed={setHomePaletteCollapsed}
-          />}
-          <HomeWidgetCanvasSurface editMode={homeEditMode && !kioskHomeState.readOnly} kioskActive={kioskHomeState.active} density={homeDensity} mobileLayout={homeMobileLayout} widgetIds={mobileHomeWidgetIds} selectedId={activeMobileHomeId} onSelect={setMobileHomeSelectedId}>
-            {homeVisiblePlacements.length ? homeVisiblePlacements.map((placement) => {
-              const widget = placement.source === "custom"
-                ? (() => { const manifest = customManifestMap.get(placement.id)!; return <CustomHomeWidget manifest={manifest} size={placement.size} data={customWidgetData} status={customHomeWidgetStatus(manifest.permissions)} config={placement.config} runtimeContext={homeWidgetRuntimeContext} actions={customWidgetActions} primaryAction={customWidgetPrimaryAction(manifest)} onConfigure={() => setHomeEditorOpen(true)} />; })()
-                : (() => { const definition = homeWidgetDefinitions.get(placement.id)!; return <BuiltInHomeWidget id={definition.key} size={placement.size} config={placement.config} runtimeContext={homeWidgetRuntimeContext} status={builtInHomeWidgetStatus(definition.key)} data={builtInWidgetData} actions={builtInWidgetActions} note={homeNote} onNoteChange={setHomeNote} onAttentionAction={openAttentionTarget} onSnooze={snoozeSignal} onDismiss={dismissSignal} onClock={openHomeClockModal} />; })();
-              return <HomeWidgetPlacement
-                key={placement.id}
-                placement={placement}
-                editMode={homeEditMode && !kioskHomeState.readOnly}
-                dragging={draggedWidgetId === placement.id}
-                onSize={dashboardWidgets.setSizeById}
-                onColumn={dashboardWidgets.setColumn}
-                onMove={dashboardWidgets.move}
-                onRemove={(id) => dashboardWidgets.updateById(id, false)}
-                onConfigure={(id) => { setHomeEditorFocusId(id); setHomeEditorOpen(true); }}
-                gridColumns={homeGridColumns}
-                mobileSelected={placement.id === activeMobileHomeId}
-              >{widget}</HomeWidgetPlacement>;
-            }) : <div className="home-widget-canvas-empty-v485"><strong>Your Home is empty</strong><span>Drag widgets from the palette onto the grid, or restore the Studio default.</span>{!kioskHomeState.active && !homeEditMode && <ClusterButton variant="secondary" size="compact" onClick={() => setHomeEditMode(true)}>Customize Home</ClusterButton>}</div>}
-          </HomeWidgetCanvasSurface>
-        </div>
-        <DragOverlay dropAnimation={null}>
-          {draggedCatalogWidgetLabel ? <div className="home-widget-catalog-drag-overlay-v506"><ClusterIcon name="drag" /><strong>{draggedCatalogWidgetLabel}</strong><span>Drop onto the Home grid</span></div> : null}
-        </DragOverlay>
-      </DndContext>
+      {homeVisible.length ? <HomeWidgetGrid
+        items={homeVisible}
+        editMode={editing}
+        onCommit={commitHomeLayout}
+        onRemove={dashboardWidgets.remove}
+        onOptions={setHomeOptionsId}
+        canRemove={dashboardWidgets.canRemove}
+        renderWidget={(placement) => <BuiltInHomeWidget id={placement.id} size={placement.size} config={placement.config} runtimeContext={homeWidgetRuntimeContext} status={builtInHomeWidgetStatus(placement.id)} data={builtInWidgetData} actions={builtInWidgetActions} note={homeNote} onNoteChange={setHomeNote} onAttentionAction={openAttentionTarget} onSnooze={snoozeSignal} onDismiss={dismissSignal} onClock={openHomeClockModal} />}
+      /> : <div className="home-empty">
+        <strong>Nothing on Home</strong>
+        {homeCanEdit && <span><ClusterButton variant="secondary" size="compact" onClick={() => setHomeEditMode(true)}>Add widgets</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={dashboardWidgets.reset}>Restore default</ClusterButton></span>}
+      </div>}
     </section>
   );
 }

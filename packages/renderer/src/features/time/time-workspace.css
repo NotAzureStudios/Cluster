@@ -286,8 +286,6 @@
 
 .time-entry-row .row-actions:empty { display: none; }
 
-.home-clock-status-v0109 { grid-column: 1 / -1; margin: -2px 6px 0; padding: 8px 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border)); background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--muted); font-size: .78rem; }
-
 .clock-modal-backdrop-v113 { align-items: center; justify-content: center; padding: 24px; }
 .clock-intent-modal-v113 { width: min(680px, calc(100vw - 32px)); max-height: min(760px, calc(100vh - 48px)); overflow: auto; display: grid; gap: 18px; }
 .clock-modal-header-v113 { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }

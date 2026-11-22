@@ -9,7 +9,7 @@ import { ADAPTIVE_MEDIA } from "../../core/adaptive-layout";
 import type { ServerConfigSection, Settings, SettingsSection, SetupStatus, User } from "./application-models";
 import type { AuthConfig } from "../auth/AuthScreens";
 
-const ACCOUNT_SETTINGS_SECTIONS = new Set<SettingsSection>(["profile", "appearance", "performance", "home", "navigation", "privacy", "pin", "shortcuts", "accessibility", "notifications", "desktop", "forms", "licenses", "git"]);
+const ACCOUNT_SETTINGS_SECTIONS = new Set<SettingsSection>(["profile", "appearance", "performance", "navigation", "privacy", "pin", "shortcuts", "accessibility", "notifications", "desktop", "forms", "licenses", "git"]);
 const SERVER_CONFIG_SECTIONS = new Set<ServerConfigSection>(["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"]);
 
 export type NavigationRecoveryNotice = {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -15,17 +15,12 @@ check(/type InventoryCatalogAsset\s*=/.test(inventory),'Catalog typed even throu
 check(/const page: InventoryCatalogAsset\[\] = rows.slice\(0, 100\)/.test(inventory),'Typed inventory page');
 check(inventory.includes('physicalIds = page.filter((asset) =>') && inventory.includes('digitalIds = page.filter((asset) =>'),'Typed physical/digital asset callbacks');
 const home=read('packages/renderer/src/features/application/modules/ApplicationDashboard.tsx');
-const catalog=read('packages/renderer/src/features/home-widgets/use-widget2-catalog-insights.ts');
-const layout=read('packages/renderer/src/features/home-widgets/home-layout-sharing.ts');
-const life=read('packages/renderer/src/features/home-widgets/use-home-delivery-lifecycle.ts');
+const catalog=read('packages/renderer/src/features/home-widgets/use-home-source-control.ts');
 const query=read('packages/renderer/src/core/api/query.ts');
 const security=read('apps/server/src/app/server-request-security-services.ts');
-check(!catalog.includes('if (canSourceControl) void loadSourceControl(true)'),'No forced catalog read on Home mount');
-check(!catalog.includes('if (canIntegrations) void loadIntegrations(true)'),'No forced integration read on Home mount');
-check(!catalog.includes('if (canSavedViews) void loadSavedViews(true)'),'No forced saved-view read on Home mount');
-check(layout.includes('const refresh = useCallback(async (force = false)'),'Home layout uses cache on mount');
-check(layout.includes('refresh: () => refresh(true)'),'User-initiated Home layout refresh bypasses stale cache');
-check(life.includes('queryApi<{ projects?: HomeDeliveryLifecycleSummary[] }>'),'Delivery lifecycle uses deduplicating shared read cache');
+check(catalog.includes('if (enabled) void load();') && !catalog.includes('void load(true);\n'),'No forced source-control read on Home mount');
+check(catalog.includes('onRetry: () => void load(true)'),'User-initiated retry bypasses stale cache');
+check(!existsSync(path.join(root,'packages/renderer/src/features/home-widgets/home-layout-sharing.ts')) && !existsSync(path.join(root,'packages/renderer/src/features/home-widgets/use-home-delivery-lifecycle.ts')),'Retired layout sharing and delivery lanes stay removed');
 check(home.includes('staleMs: 90_000, maxAgeMs: 10 * 60_000, force, tags: ["timeline", "home"]'),'Timeline widget has longer hot cache');
 check(home.includes('staleMs: 20_000, maxAgeMs: 60_000, force, tags: ["inbox", "notifications", "home"]'),'Inbox retains bounded freshness');
 check(home.includes('window.setTimeout(runScheduledHomeRefresh, 1_000)'),'Events coalesce before refresh');
@@ -39,9 +34,7 @@ const changed=[
 'apps/server/src/domains/inventory/studio-inventory-vault-routes.ts',
 'apps/server/src/app/server-request-security-services.ts',
 'packages/renderer/src/features/application/modules/ApplicationDashboard.tsx',
-'packages/renderer/src/features/home-widgets/use-widget2-catalog-insights.ts',
-'packages/renderer/src/features/home-widgets/home-layout-sharing.ts',
-'packages/renderer/src/features/home-widgets/use-home-delivery-lifecycle.ts',
+'packages/renderer/src/features/home-widgets/use-home-source-control.ts',
 'packages/renderer/src/core/api/query.ts',
 ];
 for(const file of changed){const sf=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,file.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);check(sf.parseDiagnostics.length===0,`No parsing errors: ${file}`)}

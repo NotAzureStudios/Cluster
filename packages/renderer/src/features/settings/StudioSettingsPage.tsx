@@ -47,8 +47,7 @@ import { SettingsLoadingState } from "../../components/LoadingState";
 import { RequestErrorState } from "../../components/RequestState";
 import { StudioKioskSettingsSection } from "./StudioKioskSettingsSection";
 import { StudioSystemsSettingsSection } from "./StudioSystemsSettingsSection";
-import { DASHBOARD_WIDGETS, HOME_WIDGET_PERMISSIONS, homeWidgetExtensionPolicyFromSettings, parseHomeWidgetKeyCsv, type HomeWidgetPermission } from "../home-widgets/home-widget-model";
-import { useHomeWidgetLibrary } from "../home-widgets/home-widget-library";
+import { DASHBOARD_WIDGETS, parseHomeWidgetKeyCsv } from "../home-widgets/home-widget-model";
 import { STUDIO_SETTINGS_GROUPS, buildStudioSettingsSections, studioSettingsGroupForSection, studioSettingsSectionLabel, STUDIO_ACTION_RULES } from "./studio-settings-state";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { confirmCluster } from "../../components/cluster-dialog-service";
@@ -63,7 +62,6 @@ const STUDIO_SETTINGS_NAV_ICONS: Record<StudioSettingsSection, import("../../com
   builds: "code", versioning: "timeline", qa: "check", automations: "sync", workflow: "link",
 };
 
-const SETTINGS_EXTENSION_RENDER_BATCH = 80;
 const ROLE_DIRECTORY_FILTER_OPTIONS: readonly { value: RoleDirectoryFilter; label: string; needsCounts?: boolean }[] = [
   { value: "all", label: "All" },
   { value: "enabled", label: "Active" },
@@ -85,12 +83,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
   const loadedRawSettingsRef = useRef<Settings>({});
   const studioSettingsBaseDigestRef = useRef<string | null>(null);
   const conflictDraftRef = useRef<Partial<Settings> | null>(null);
-  const customWidgetPolicy = homeWidgetExtensionPolicyFromSettings(settings.studioCustomWidgetPolicy, settings.studioCustomWidgetAllowedPermissionsCsv, settings.studioCustomWidgetBlockedIdsCsv);
-  const customWidgetLibrary = useHomeWidgetLibrary(customWidgetPolicy);
-  const [extensionRenderLimit, setExtensionRenderLimit] = useState(SETTINGS_EXTENSION_RENDER_BATCH);
-  const visibleInstalledWidgetManifests = useMemo(() => customWidgetLibrary.installedManifests.slice(0, extensionRenderLimit), [customWidgetLibrary.installedManifests, extensionRenderLimit]);
-  const hasMoreInstalledWidgetManifests = visibleInstalledWidgetManifests.length < customWidgetLibrary.installedManifests.length;
-  useEffect(() => { setExtensionRenderLimit(SETTINGS_EXTENSION_RENDER_BATCH); }, [customWidgetLibrary.status?.widgetCount, customWidgetLibrary.status?.lastOperation?.id]);
   const [studioResource, setStudioResource] = useState<{ scope: string; id: string } | null>(() => {
     const inspect = new URLSearchParams(window.location.search).get("inspect") || "";
     const separator = inspect.indexOf(":");
@@ -262,13 +254,9 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
           desktopKioskProfiles: DEFAULT_CLUSTER_KIOSK_PROFILES.map((profile) => ({ ...profile, allowedScreens: [...profile.allowedScreens], publicCards: [...profile.publicCards] })),
           desktopKioskSignedInProfileId: "staff",
           desktopKioskSignedOutProfileId: "guest",
-          studioHomeDefaultPreset: "balanced",
           studioHomeRequiredWidgetsCsv: "",
           studioHomeUnavailableWidgetsCsv: "",
-          studioHomeRecommendedWidgetsCsv: "brief, roleFocus, readiness, upcoming, builds, notifications, people, scheduler, activity, clock",
-          studioCustomWidgetPolicy: "allow",
-          studioCustomWidgetAllowedPermissionsCsv: HOME_WIDGET_PERMISSIONS.join(", "),
-          studioCustomWidgetBlockedIdsCsv: "",
+          studioHomeRecommendedWidgetsCsv: "brief, roleFocus, scheduler, inbox, upcoming, projects, builds, people, activity, clock, quickCapture",
           studioCreateProjectFieldsCsv: DEFAULT_CREATE_PROJECT_FIELDS.join(", "),
           studioCreateBuildFieldsCsv: DEFAULT_CREATE_BUILD_FIELDS.join(", "),
           studioCreateRequiredFieldsCsv: "name, project type, project, version",
@@ -365,12 +353,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
       return next;
     });
   }
-  function toggleCustomWidgetPermission(permission: HomeWidgetPermission, enabled: boolean) {
-    const next = new Set(homeWidgetExtensionPolicyFromSettings("allow", settings.studioCustomWidgetAllowedPermissionsCsv).allowedPermissions);
-    if (enabled) next.add(permission); else next.delete(permission);
-    patch("studioCustomWidgetAllowedPermissionsCsv", HOME_WIDGET_PERMISSIONS.filter((item) => next.has(item)).join(", "));
-  }
-
   function toggleHomeWidgetPolicy(field: "studioHomeRequiredWidgetsCsv" | "studioHomeUnavailableWidgetsCsv" | "studioHomeRecommendedWidgetsCsv", widgetKey: DashboardWidgetKey, enabled: boolean) {
     const next = new Set(parseHomeWidgetKeyCsv(settings[field]));
     if (enabled) next.add(widgetKey); else next.delete(widgetKey);
@@ -1531,17 +1513,13 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 </section>
 
                 <section className="studio-settings-block-v272">
-                  <header><div><strong>Home dashboard</strong></div></header>
-                  <div className="studio-form-grid-v272 compact">
-                    <div className="field"><label>Recommended layout</label><ClusterSelect ariaLabel="Recommended Home layout" value={settings.studioHomeDefaultPreset || "balanced"} options={[{ value: "balanced", label: "Balanced" }, { value: "quiet", label: "Quiet" }, { value: "core-tools", label: "Core + tools" }, { value: "everything", label: "Everything" }]} onChange={(value) => patch("studioHomeDefaultPreset", value as Settings["studioHomeDefaultPreset"])} /></div>
-                    
-                  </div>
-                  <details className="studio-settings-disclosure-v112"><summary>Widget rules · {parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).length} required · {parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).length} unavailable</summary><div className="studio-home-governance-grid-v486">
-                    {DASHBOARD_WIDGETS.filter((widget) => !widget.desktopOnly).map((widget) => {
+                  <header><div><strong>Home</strong><span>The widgets a new Home starts with, which every Home must keep, and which no Home can show.</span></div></header>
+                  <details className="studio-settings-disclosure-v112"><summary>Widgets · {parseHomeWidgetKeyCsv(settings.studioHomeRecommendedWidgetsCsv).length} default · {parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).length} required · {parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).length} hidden</summary><div className="studio-home-governance-grid-v486">
+                    {DASHBOARD_WIDGETS.map((widget) => {
                       const required = parseHomeWidgetKeyCsv(settings.studioHomeRequiredWidgetsCsv).includes(widget.key);
                       const unavailable = parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv).includes(widget.key);
                       const recommended = parseHomeWidgetKeyCsv(settings.studioHomeRecommendedWidgetsCsv).includes(widget.key);
-                      return <article key={widget.key}><div><strong>{widget.label}</strong><span>{widget.detail}</span></div><div className="studio-home-policy-actions-v486"><ClusterButton variant={recommended ? "secondary" : "quiet"} size="compact" disabled={unavailable} aria-pressed={recommended} onClick={() => toggleHomeWidgetPolicy("studioHomeRecommendedWidgetsCsv", widget.key, !recommended)}>Recommend</ClusterButton><ClusterButton variant={required ? "secondary" : "quiet"} size="compact" aria-pressed={required} onClick={() => toggleHomeWidgetPolicy("studioHomeRequiredWidgetsCsv", widget.key, !required)}>Require</ClusterButton><ClusterButton variant={unavailable ? "danger" : "quiet"} size="compact" aria-pressed={unavailable} onClick={() => toggleHomeWidgetPolicy("studioHomeUnavailableWidgetsCsv", widget.key, !unavailable)}>Unavailable</ClusterButton></div></article>;
+                      return <article key={widget.key}><div><strong>{widget.label}</strong><span>{widget.detail}</span></div><div className="studio-home-policy-actions-v486"><ClusterButton variant={recommended ? "secondary" : "quiet"} size="compact" disabled={unavailable} aria-pressed={recommended} onClick={() => toggleHomeWidgetPolicy("studioHomeRecommendedWidgetsCsv", widget.key, !recommended)}>Default</ClusterButton><ClusterButton variant={required ? "secondary" : "quiet"} size="compact" aria-pressed={required} onClick={() => toggleHomeWidgetPolicy("studioHomeRequiredWidgetsCsv", widget.key, !required)}>Require</ClusterButton><ClusterButton variant={unavailable ? "danger" : "quiet"} size="compact" aria-pressed={unavailable} onClick={() => toggleHomeWidgetPolicy("studioHomeUnavailableWidgetsCsv", widget.key, !unavailable)}>Hidden</ClusterButton></div></article>;
                     })}
                   </div>
                   <div className="studio-home-role-recommendations-v487">
@@ -1551,7 +1529,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       if (!role) return <ClusterEmptyState compact kind="empty" title="No active Studio roles" description="Create or enable a role before configuring role-based recommendations." />;
                       const roleRecommended = new Set(parseHomeWidgetKeyCsv(role.homeRecommendedWidgetsCsv));
                       const unavailable = new Set(parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv));
-                      return <div className="studio-home-role-widget-grid-v487">{DASHBOARD_WIDGETS.filter((widget) => !widget.desktopOnly).map((widget) => <ClusterButton key={`${role.id}-${widget.key}`} variant={roleRecommended.has(widget.key) ? "secondary" : "quiet"} size="compact" disabled={unavailable.has(widget.key)} aria-pressed={roleRecommended.has(widget.key)} onClick={() => toggleRoleHomeRecommendation(role.id, widget.key, !roleRecommended.has(widget.key))}>{widget.label}</ClusterButton>)}</div>;
+                      return <div className="studio-home-role-widget-grid-v487">{DASHBOARD_WIDGETS.map((widget) => <ClusterButton key={`${role.id}-${widget.key}`} variant={roleRecommended.has(widget.key) ? "secondary" : "quiet"} size="compact" disabled={unavailable.has(widget.key)} aria-pressed={roleRecommended.has(widget.key)} onClick={() => toggleRoleHomeRecommendation(role.id, widget.key, !roleRecommended.has(widget.key))}>{widget.label}</ClusterButton>)}</div>;
                     })()}
                   </div>
                   <div className="studio-home-department-recommendations-v488">
@@ -1561,35 +1539,12 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       if (!department) return <ClusterEmptyState compact kind="empty" title="No active Studio departments" description="Create or enable a department before configuring department defaults." />;
                       const departmentRecommended = new Set(parseHomeWidgetKeyCsv(department.homeRecommendedWidgetsCsv));
                       const unavailable = new Set(parseHomeWidgetKeyCsv(settings.studioHomeUnavailableWidgetsCsv));
-                      return <div className="studio-home-department-widget-grid-v488">{DASHBOARD_WIDGETS.filter((widget) => !widget.desktopOnly).map((widget) => <ClusterButton key={`${department.id}-${widget.key}`} variant={departmentRecommended.has(widget.key) ? "secondary" : "quiet"} size="compact" disabled={unavailable.has(widget.key)} aria-pressed={departmentRecommended.has(widget.key)} onClick={() => toggleDepartmentHomeRecommendation(department.id, widget.key, !departmentRecommended.has(widget.key))}>{widget.label}</ClusterButton>)}</div>;
+                      return <div className="studio-home-department-widget-grid-v488">{DASHBOARD_WIDGETS.map((widget) => <ClusterButton key={`${department.id}-${widget.key}`} variant={departmentRecommended.has(widget.key) ? "secondary" : "quiet"} size="compact" disabled={unavailable.has(widget.key)} aria-pressed={departmentRecommended.has(widget.key)} onClick={() => toggleDepartmentHomeRecommendation(department.id, widget.key, !departmentRecommended.has(widget.key))}>{widget.label}</ClusterButton>)}</div>;
                     })()}
                   </div>
                 </details>
                 </section>
 
-                <details className="studio-settings-disclosure-v112"><summary>Extension widget settings</summary>
-                <section className="studio-settings-block-v272">
-                  <header><div><strong>Extension widget policy</strong><span>Control declarative Home extensions, review data permissions, and audit the local Desktop widget inventory without enabling executable plugins.</span></div></header>
-                  <div className="studio-form-grid-v272 compact">
-                    <div className="field"><label>Extension policy</label><ClusterSelect ariaLabel="Extension widget policy" value={settings.studioCustomWidgetPolicy || "allow"} options={[{ value: "allow", label: "Allow curated + installed" }, { value: "curated-only", label: "Curated only" }, { value: "disabled", label: "Disable extension widgets" }]} onChange={(value) => patch("studioCustomWidgetPolicy", value as Settings["studioCustomWidgetPolicy"])} /><small>Installed widgets remain declarative JSON. Arbitrary executable widget code is not supported.</small></div>
-                    <div className="field"><label>Blocked widget IDs</label><ClusterInput value={settings.studioCustomWidgetBlockedIdsCsv || ""} onChange={(event) => patch("studioCustomWidgetBlockedIdsCsv", event.target.value)} placeholder="vendor.widget-id, legacy.widget" /><small>Comma-separated installed widget IDs blocked across Studio Home layouts.</small></div>
-                    <div className="info-row"><span>Runtime</span><strong>declarative-v1</strong><small>Validated metric, list, text, and clock blocks only.</small></div>
-                    <div className="info-row"><span>Allowed permissions</span><strong>{customWidgetPolicy.allowedPermissions.length}/{HOME_WIDGET_PERMISSIONS.length}</strong><small>Widgets requesting a blocked permission are hidden and cannot be added.</small></div>
-                  </div>
-                  <div className="studio-home-role-widget-grid-v487">
-                    {HOME_WIDGET_PERMISSIONS.map((permission) => { const allowed = customWidgetPolicy.allowedPermissions.includes(permission); return <ClusterButton key={permission} variant={allowed ? "secondary" : "quiet"} size="compact" aria-pressed={allowed} onClick={() => toggleCustomWidgetPermission(permission, !allowed)}>{permission}</ClusterButton>; })}
-                  </div>
-                  <div className="studio-home-governance-grid-v486">
-                    {customWidgetLibrary.desktop ? visibleInstalledWidgetManifests.map((manifest) => {
-                      const blocked = customWidgetLibrary.blockedManifests.find((entry) => entry.manifest.id === manifest.id);
-                      return <article key={manifest.id}><div><strong>{manifest.name}</strong><span>{manifest.id} · v{manifest.version}{manifest.publisher ? ` · ${manifest.publisher}` : ""}</span><small>{manifest.permissions?.length ? manifest.permissions.join(" · ") : "No data permissions"}{manifest.provenance?.digest ? ` · ${manifest.provenance.digest.slice(0, 12)}` : ""}</small></div><div className="studio-home-policy-actions-v486">{blocked ? <span className="home-widget-managed-badge-v486">Blocked</span> : <span className="home-widget-managed-badge-v486">Allowed</span>}</div></article>;
-                    }) : <ClusterEmptyState compact kind="restricted" title="Desktop inventory unavailable on Web" description="Studio policy still applies, while local widget installation and provenance stay on Cluster Desktop." />}
-                  </div>
-                  {hasMoreInstalledWidgetManifests ? <div className="settings-extension-load-more-v494"><ClusterButton variant="quiet" size="compact" onClick={() => setExtensionRenderLimit((current) => current + SETTINGS_EXTENSION_RENDER_BATCH)}>Show {Math.min(SETTINGS_EXTENSION_RENDER_BATCH, customWidgetLibrary.installedManifests.length - visibleInstalledWidgetManifests.length)} more · {customWidgetLibrary.installedManifests.length - visibleInstalledWidgetManifests.length} remaining</ClusterButton></div> : null}
-                  {customWidgetLibrary.desktop && <div className="home-widget-library-actions-v484"><ClusterButton variant="secondary" size="compact" disabled={customWidgetLibrary.loading} onClick={() => void customWidgetLibrary.refresh()}>Rescan inventory</ClusterButton><ClusterButton variant="secondary" size="compact" onClick={() => void customWidgetLibrary.openFolder()}>Open local library</ClusterButton><span>{customWidgetLibrary.status?.widgetCount || 0} installed · {customWidgetLibrary.status?.invalidCount || 0} rejected</span></div>}
-                  {Boolean(customWidgetLibrary.status?.invalidWidgets?.length) && <div className="home-widget-library-message-v484" role="status"><strong>Rejected local manifests</strong>{customWidgetLibrary.status!.invalidWidgets.slice(0, 5).map((item) => <span key={item.entry}>{item.entry}: {item.reason}</span>)}</div>}
-                </section>
-                </details>
 
                 <section className="studio-settings-block-v272">
                   <header><div><strong>Work item defaults</strong><span>Applied when a card or task is created without an explicit value.</span></div></header>

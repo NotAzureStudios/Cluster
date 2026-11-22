@@ -4,7 +4,6 @@ export type HomeWidgetRuntimeContext = {
   currentUserId: string;
   currentRoleId?: string | null;
   currentProjectId?: string | null;
-  savedViews?: Array<{ id: string; values: Record<string, string> }>;
   now?: Date;
 };
 
@@ -16,7 +15,6 @@ export type HomeWidgetFilterableItem = {
   userId?: string | null;
   roleId?: string | null;
   at?: string | null;
-  savedViewId?: string | null;
   workTarget?: { projectId?: string | null; inspectScope?: string | null; inspectId?: string | null } | null;
 };
 
@@ -50,16 +48,9 @@ export function homeWidgetTimeCutoff(config: HomeWidgetConfig | undefined, now =
 export function filterHomeWidgetItems<T extends HomeWidgetFilterableItem>(items: T[], config: HomeWidgetConfig | undefined, runtime: HomeWidgetRuntimeContext): T[] {
   const context = resolveHomeWidgetContext(config, runtime);
   const cutoff = homeWidgetTimeCutoff(config, runtime.now || new Date());
-  const savedViewId = (config?.savedViewId || "").trim();
-  const savedView = savedViewId ? runtime.savedViews?.find((view) => view.id === savedViewId) : undefined;
-  // A missing context or deleted saved view is not permission to show studio-wide records.
-  if ((context.kind !== "studio" && !context.id) || (savedViewId && !savedView)) return [];
-  const savedValues = savedView?.values || {};
-  const viewNeedle = String(savedValues.q || savedValues.query || savedValues.search || "").trim();
-  const needle = [config?.filterText || "", viewNeedle].filter(Boolean).join(" ").trim().toLowerCase();
-  const viewProjectId = String(savedValues.projectId || savedValues.project || "").trim();
-  const viewUserId = String(savedValues.userId || savedValues.ownerId || savedValues.assigneeId || "").trim();
-  const viewRoleId = String(savedValues.roleId || savedValues.role || "").trim();
+  // A missing context is not permission to show studio-wide records.
+  if (context.kind !== "studio" && !context.id) return [];
+  const needle = (config?.filterText || "").trim().toLowerCase();
   return items.filter((item) => {
     const projectId = item.projectId || item.workTarget?.projectId || null;
     const userId = item.userId || (item.workTarget?.inspectScope === "person" ? item.workTarget.inspectId : null);
@@ -67,14 +58,10 @@ export function filterHomeWidgetItems<T extends HomeWidgetFilterableItem>(items:
     if (context.kind === "project" && projectId !== context.id) return false;
     if (context.kind === "user" && userId !== context.id) return false;
     if (context.kind === "role" && item.roleId !== context.id) return false;
-    if (viewProjectId && projectId !== viewProjectId) return false;
-    if (viewUserId && userId !== viewUserId) return false;
-    if (viewRoleId && item.roleId !== viewRoleId) return false;
     if (cutoff !== null) {
       const timestamp = item.at ? Date.parse(item.at) : NaN;
       if (!Number.isFinite(timestamp) || timestamp < cutoff) return false;
     }
-    if (savedViewId && item.savedViewId && item.savedViewId !== savedViewId) return false;
     if (needle && !`${item.title} ${item.detail || ""}`.toLowerCase().includes(needle)) return false;
     return true;
   });
@@ -88,16 +75,9 @@ export function homeWidgetNeedsScopedAggregates(config?: HomeWidgetConfig): bool
   return Boolean(
     (config.context && config.context !== "studio") ||
     (config.timeRange && config.timeRange !== "all") ||
-    config.filterText?.trim() ||
-    config.savedViewId?.trim(),
+    config.filterText?.trim(),
   );
 }
 
 export const HOME_SCOPED_AGGREGATES_UNAVAILABLE =
   "Scoped totals unavailable. Counts require a server-side aggregate for this filter; visible lists may be incomplete.";
-
-export function homeWidgetConfiguredLimit(config: HomeWidgetConfig | undefined, fallback: number) {
-  const detailDefault = config?.detailLevel === "compact" ? Math.min(3, fallback) : config?.detailLevel === "detailed" ? Math.max(6, fallback) : fallback;
-  const requested = config?.listLimit ?? detailDefault;
-  return Math.max(1, Math.min(12, requested));
-}

@@ -140,15 +140,9 @@ export type Settings = {
   userLargeClickTargets?: boolean;
   userStatusPalette?: "default" | "color-vision-safe" | "monochrome";
   userFocusModeDefault?: boolean;
-  userDashboardDensity?: "compact" | "balanced" | "expanded";
-  userHomeMobileLayout?: "stack" | "grid" | "carousel" | "focus";
-  studioHomeDefaultPreset?: "balanced" | "quiet" | "core-tools" | "everything";
   studioHomeRequiredWidgetsCsv?: string;
   studioHomeUnavailableWidgetsCsv?: string;
   studioHomeRecommendedWidgetsCsv?: string;
-  studioCustomWidgetPolicy?: "allow" | "curated-only" | "disabled";
-  studioCustomWidgetAllowedPermissionsCsv?: string;
-  studioCustomWidgetBlockedIdsCsv?: string;
   userDefaultFilterScope?: "mine" | "team" | "project" | "all";
   tagPresetCsv?: string;
   defaultCardPriority?: Priority;

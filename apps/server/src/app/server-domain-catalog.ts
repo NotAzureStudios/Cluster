@@ -12,7 +12,6 @@ export const SERVER_DOMAIN_CATALOG: readonly ServerDomainDescriptor[] = [
   { key: "access", label: "Authorization & access", routeRoots: ["/api/access", "/api/roles", "/api/departments"], ownerModules: ["domains/access", "domains/roles", "domains/departments"], asyncWork: false },
   { key: "users", label: "Users & team", routeRoots: ["/api/users", "/api/team"], ownerModules: ["domains/users", "domains/presence"], asyncWork: false },
   { key: "projects", label: "Projects & workflows", routeRoots: ["/api/projects"], ownerModules: ["domains/projects", "domains/custom-fields"], asyncWork: true },
-  { key: "home-layouts", label: "Home layout sharing", routeRoots: ["/api/home-layouts"], ownerModules: ["domains/home-layouts"], asyncWork: false, notes: "Authenticated Studio members can read templates/shared profiles; template mutation is admin-only and shared-profile mutation is owner-bound." },
   { key: "boards", label: "Boards & cards", routeRoots: ["/api/boards", "/api/lists", "/api/cards"], ownerModules: ["domains/boards", "domains/cards"], asyncWork: false },
   { key: "tickets", label: "Tickets", routeRoots: ["/api/tickets"], ownerModules: ["domains/tickets"], asyncWork: false },
   { key: "library", label: "Library & packets", routeRoots: ["/api/library", "/api/packets", "/api/desktop-libraries"], ownerModules: ["domains/library"], asyncWork: true },

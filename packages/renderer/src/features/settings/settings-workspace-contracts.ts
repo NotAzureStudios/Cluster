@@ -3,7 +3,7 @@ import type { ToolPermissionKey, ToolPermissionLevel, ToolPermissions } from "..
 import type { AppTheme, ProjectTypePreset, ServerConfigSection, Settings, SettingsSection, StudioSettingsSection, StudioDepartmentDefinition, StudioRoleDefinition, User } from "../application/application-models";
 
 export type AccountSettingsDependencies = {
-  userPreferenceSettingsPayload: any; DASHBOARD_WIDGETS: any[]; useDashboardWidgets: any; DashboardCustomizer: React.ComponentType<any>; projectTypeBadge: any; applyCustomization: any; appearanceKeys: Set<keyof Settings>;
+  userPreferenceSettingsPayload: any; projectTypeBadge: any; applyCustomization: any; appearanceKeys: Set<keyof Settings>;
 };
 export type AccountSettingsPageProps = { theme: AppTheme; onThemeChange: (theme: AppTheme) => void; onSettingsSaved?: (settings: Settings) => void; currentUser: User; onUserUpdated: (user: User) => void; initialSection?: SettingsSection; onSectionChange?: (section: SettingsSection) => void; };
 

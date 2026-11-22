@@ -1,7 +1,7 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
-import { Children, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ClusterButton } from "../../components/ClusterButton";
-import { DesktopClipboardWidget } from "../desktop/DesktopClipboardWidget";
+import { ClusterIcon } from "../../components/ClusterIcon";
 import type { DashboardWidgetKey, QuickCreateMode } from "../application/application-models";
 import { homeWidgetRegistryEntry, type HomeWidgetConfig, type HomeWidgetRuntimeStatus, type HomeWidgetSize } from "./home-widget-model";
 import { WorkActionMenu } from "../workflow/WorkActionMenu";
@@ -9,49 +9,34 @@ import { workSourceFromNavigation } from "../workflow/work-actions";
 import { useVisibleTicker } from "../../core/visible-ticker";
 import { useHomeScopedCounts } from "./home-scoped-aggregate";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
-import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { InlineLoadingState } from "../../components/LoadingState";
 import { RequestStatusLine } from "../../components/RequestState";
-import { HealthStrip } from "../../components/ClusterVisualIntelligence";
-import { ClusterVisualComposition, ClusterVisualMeter, ClusterVisualRankedBars } from "../../components/ClusterVisualMetrics";
 import { CREATE_MODE_CATALOG } from "../create/create-mode-catalog";
 import { filterHomeWidgetItems, homeWidgetNeedsScopedAggregates, HOME_SCOPED_AGGREGATES_UNAVAILABLE, type HomeWidgetRuntimeContext } from "./home-widget-runtime-policy";
 
-export type HomeWidgetListItem = { id: string; title: string; detail?: string; value?: string | number; target?: string; workTarget?: ClusterWorkNavigationTarget | null; projectId?: string | null; userId?: string | null; roleId?: string | null; at?: string | null; savedViewId?: string | null };
+export type HomeWidgetListItem = { id: string; title: string; detail?: string; value?: string | number; target?: string; workTarget?: ClusterWorkNavigationTarget | null; projectId?: string | null; userId?: string | null; roleId?: string | null; at?: string | null };
 export type BuiltInHomeWidgetData = {
   attention: HomeWidgetListItem[];
-  projects: { total: number; ready: number; attention: number; boards: number; whiteboards: number; git: number; discord: number; recent: HomeWidgetListItem[] };
+  projects: { total: number; ready: number; attention: number; boards: number; git: number; recent: HomeWidgetListItem[] };
   myWork: { assigned: number; overdue: number; priority: number; blockers: number; today: number; next: HomeWidgetListItem[] };
   upcoming: HomeWidgetListItem[];
   scheduler: { week: string; running: number; active: boolean; activeDetail: string; today: HomeWidgetListItem[] };
-  today: { scheduled: number; due: number; blockers: number; priority: number; items: HomeWidgetListItem[] };
   notifications: { attention: number; urgent: number };
   people: { total: number; active: number; spotlight: HomeWidgetListItem[] };
   peopleCapacity: { configured: number; totalHours: number; assigned: number; pressured: number; items: HomeWidgetListItem[] };
-  departments: { total: number; staffed: number; active: number; items: HomeWidgetListItem[] };
-  library: { total: number; pinned: number; recent: HomeWidgetListItem[]; topTypes: Array<{ label: string; value: number }> };
-  watchlists: { total: number; muted: number; statusOnly: number; items: HomeWidgetListItem[] };
-  handoff: { changes: number; attention: number; next: number; items: HomeWidgetListItem[] };
+  library: { total: number; pinned: number; recent: HomeWidgetListItem[] };
   builds: { total: number; testing: number; failed: number; approved: number; items: HomeWidgetListItem[] };
   timeline: HomeWidgetListItem[];
   qa: { total: number; open: number; failed: number; blocked: number; items: HomeWidgetListItem[] };
-  releaseReadiness: { total: number; draft: number; ready: number; published: number; blocked: number; items: HomeWidgetListItem[] };
   sourceControl: { total: number; healthy: number; warning: number; failed: number; branches: number; commits: number; items: HomeWidgetListItem[] };
   reviewQueue: { total: number; awaiting: number; ready: number; changesRequested: number; items: HomeWidgetListItem[] };
-  integrationHealth: { total: number; configured: number; healthy: number; attention: number; items: HomeWidgetListItem[] };
-  savedViews: { total: number; scopes: number; shared: number; items: HomeWidgetListItem[] };
   tickets: { total: number; open: number; priority: number; items: HomeWidgetListItem[] };
   activity: HomeWidgetListItem[];
-  digest: HomeWidgetListItem[];
-  workflow: { links: number; recurring: number; watchers: number; closeouts: number; portals: number; attachments: number };
   admin: { setupGaps: number; maintenance: number; corrections: number; breakEntries: number };
-  ticketAttention: { signals: number; projectAttention: number };
 };
 
 export type BuiltInHomeWidgetActions = {
   projects: () => void;
-  project: (projectId: string) => void;
-  board: (boardId: string) => void;
   myWork: () => void;
   scheduler: () => void;
   notifications: () => void;
@@ -62,77 +47,133 @@ export type BuiltInHomeWidgetActions = {
   timeline: () => void;
   tickets: () => void;
   activity: () => void;
-
   admin: () => void;
-  integrations: () => void;
-  sourceControl: () => void;
   quickCreate: (mode: QuickCreateMode) => void;
   work: (target: ClusterWorkNavigationTarget) => void;
 };
 
-function limitFor(size: HomeWidgetSize, configured?: number) {
-  if (configured && Number.isInteger(configured)) return Math.max(1, Math.min(8, configured));
-  return size === "micro" ? 1 : size === "compact" ? 2 : size === "large" ? 6 : size === "feature" ? 8 : 4;
-}
-
-function WidgetHeader({ eyebrow, title, value }: { eyebrow?: string; title: string; value?: string | number }) {
-  return <header className="home-widget-card-head-v484"><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h3>{title}</h3></div>{value !== undefined && <span>{value}</span>}</header>;
-}
-
 /** Home reads at most this many assigned tickets; a full sample shows "N+". */
 const HOME_TICKET_SAMPLE = 40;
 
-function MetricGrid({ items }: { items: Array<{ label: string; value: string | number; detail?: string }> }) {
-  return <div className="home-widget-metrics-v484">{items.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong>{item.detail && <em>{item.detail}</em>}</div>)}</div>;
+type Tone = "good" | "warning" | "danger" | "accent";
+type Stat = { label: string; value: string | number; tone?: Tone };
+
+/* How much a footprint holds. Small is a glance (one number), medium adds a
+   stat row and a couple of rows, large and extra large fill with the list. */
+const LIST_ROWS: Record<HomeWidgetSize, number> = { small: 0, medium: 2, large: 6, xlarge: 6 };
+
+function tone(value: number, kind: Tone): Tone | undefined {
+  return value > 0 ? kind : undefined;
 }
 
-function ItemList({ items, size, limit, onOpen, emptyLabel = "Nothing queued" }: { items: HomeWidgetListItem[]; size: HomeWidgetSize; limit?: number; onOpen?: (item: HomeWidgetListItem) => void; emptyLabel?: string }) {
-  const visible = items.slice(0, limitFor(size, limit));
-  return <div className="home-widget-list-v484">{visible.length ? visible.map((item) => {
-    if (!onOpen) return <div key={item.id}><span><strong>{item.title}</strong>{item.detail && <small>{item.detail}</small>}</span>{item.value !== undefined && <em>{item.value}</em>}</div>;
+function Card({ id, size, status, title, count, onOpen, filtered, children, className = "" }: {
+  id: DashboardWidgetKey;
+  size: HomeWidgetSize;
+  status?: HomeWidgetRuntimeStatus;
+  title?: string;
+  count?: string | number;
+  onOpen?: () => void;
+  filtered?: boolean;
+  children: ReactNode;
+  className?: string;
+}) {
+  const entry = homeWidgetRegistryEntry(id);
+  const label = title || entry?.label || id;
+  const heading = <><ClusterIcon name={entry?.icon || "grid"} /><span>{label}</span>{onOpen && <ClusterIcon name="chevron-right" className="hw-go" />}</>;
+  return (
+    <article className={`hw-card ${className}`} data-widget={id} data-size={size} aria-busy={status?.state === "loading" || undefined}>
+      <header className="hw-head">
+        {onOpen ? <ClusterButton unstyled className="hw-title" onClick={onOpen}>{heading}</ClusterButton> : <h3 className="hw-title">{heading}</h3>}
+        {filtered && <span className="hw-tag" role="status" title={HOME_SCOPED_AGGREGATES_UNAVAILABLE}>Filtered<span className="sr-only">. {HOME_SCOPED_AGGREGATES_UNAVAILABLE}</span></span>}
+        {count !== undefined && !filtered && <span className="hw-count">{count}</span>}
+      </header>
+      <div className="hw-body">
+        {status?.state === "loading" ? <InlineLoadingState label="Loading" lines={size === "small" ? 2 : 3} className="hw-state" />
+          : status?.state === "error" ? <div className="hw-state hw-error"><RequestStatusLine tone="danger" state="error">{status.error || "Couldn't refresh."}</RequestStatusLine>{status.onRetry && <ClusterButton variant="quiet" size="compact" onClick={status.onRetry}>Retry</ClusterButton>}</div>
+          : children}
+      </div>
+    </article>
+  );
+}
+
+function Hero({ value, label, tone: heroTone }: { value: string | number; label: string; tone?: Tone }) {
+  return <div className="hw-hero" data-tone={heroTone}><strong>{value}</strong><span>{label}</span></div>;
+}
+
+function Stats({ items }: { items: Stat[] }) {
+  return <div className="hw-stats">{items.map((item) => <div key={item.label} data-tone={item.tone}><strong>{item.value}</strong><span>{item.label}</span></div>)}</div>;
+}
+
+function Bar({ parts }: { parts: Array<{ label: string; value: number; tone?: Tone }> }) {
+  const total = parts.reduce((sum, part) => sum + part.value, 0);
+  if (!total) return null;
+  return <div className="hw-bar" role="img" aria-label={parts.map((part) => `${part.value} ${part.label}`).join(", ")}>{parts.filter((part) => part.value).map((part) => <i key={part.label} data-tone={part.tone} style={{ flexGrow: part.value }} />)}</div>;
+}
+
+function Rows({ items, limit, empty, onOpen }: { items: HomeWidgetListItem[]; limit: number; empty: string; onOpen?: (item: HomeWidgetListItem) => void }) {
+  if (!limit) return null;
+  const visible = items.slice(0, limit);
+  if (!visible.length) return <p className="hw-empty">{empty}</p>;
+  return <ul className="hw-rows">{visible.map((item) => {
     const source = item.workTarget ? workSourceFromNavigation(item.workTarget, item.title) : null;
-    return <div className="home-widget-list-row-v493" key={item.id}><ClusterButton unstyled type="button" className="home-widget-list-main-v493" onClick={() => onOpen(item)}><span><strong>{item.title}</strong>{item.detail && <small>{item.detail}</small>}</span>{item.value !== undefined && <em>{item.value}</em>}</ClusterButton>{source && item.workTarget ? <WorkActionMenu iconOnly context={{ source, navigation: item.workTarget, projectId: source.projectId || item.workTarget.projectId || null }} label={`${item.title} actions`} allowMention={source.kind === "user"} /> : null}</div>;
-  }) : <ClusterEmptyState compact kind="empty" title={emptyLabel} className="home-widget-empty-v485" />}</div>;
+    const body = <><span><strong>{item.title}</strong>{item.detail && <small>{item.detail}</small>}</span>{item.value !== undefined && <em>{item.value}</em>}</>;
+    return <li key={item.id}>
+      {onOpen ? <ClusterButton unstyled className="hw-row" onClick={() => onOpen(item)}>{body}</ClusterButton> : <div className="hw-row">{body}</div>}
+      {source && item.workTarget ? <WorkActionMenu iconOnly context={{ source, navigation: item.workTarget, projectId: source.projectId || item.workTarget.projectId || null }} label={`${item.title} actions`} allowMention={source.kind === "user"} /> : null}
+    </li>;
+  })}</ul>;
 }
 
-function WidgetLoadingState() {
-  return <InlineLoadingState label="Loading" lines={3} className="home-widget-state-v485 loading" />;
+/** The common shape: a glance number when small, stats and rows as it grows. */
+function Summary({ size, hero, stats = [], bar, list, empty, onOpenItem, footer }: {
+  size: HomeWidgetSize;
+  hero?: { value: string | number; label: string; tone?: Tone };
+  stats?: Stat[];
+  bar?: ReactNode;
+  list?: HomeWidgetListItem[];
+  empty?: string;
+  onOpenItem?: (item: HomeWidgetListItem) => void;
+  footer?: ReactNode;
+}) {
+  if (size === "small") {
+    return <>
+      {hero && <Hero {...hero} />}
+      {stats.length > 0 && <p className="hw-sub">{stats.slice(0, 2).map((stat) => <span key={stat.label} data-tone={stat.tone}>{stat.value} {stat.label.toLowerCase()}</span>)}</p>}
+      {!hero && list && <Rows items={list} limit={1} empty={empty || "Nothing yet"} onOpen={onOpenItem} />}
+      {footer && <div className="hw-foot">{footer}</div>}
+    </>;
+  }
+  const allStats = hero ? [{ label: hero.label, value: hero.value, tone: hero.tone }, ...stats] : stats;
+  const rows = list ? LIST_ROWS[size] - (bar && size !== "medium" ? 1 : 0) - (footer ? 1 : 0) : 0;
+  return <>
+    {allStats.length > 0 && <Stats items={allStats.slice(0, size === "medium" ? 4 : 6)} />}
+    {size !== "medium" && bar}
+    {list && <Rows items={list} limit={Math.max(rows, 1)} empty={empty || "Nothing yet"} onOpen={onOpenItem} />}
+    {!list && size === "medium" && bar}
+    {footer && <div className="hw-foot">{footer}</div>}
+  </>;
 }
 
-function WidgetErrorState({ status }: { status: HomeWidgetRuntimeStatus }) {
-  return <div className="home-widget-state-v485 error"><RequestStatusLine tone="danger" state="error">{status.error || "Cluster could not refresh this Home data."}</RequestStatusLine>{status.onRetry && <ClusterButton variant="secondary" size="compact" onClick={status.onRetry}>Retry</ClusterButton>}</div>;
-}
-
-function WidgetActions({ config, children }: { config?: HomeWidgetConfig; children: ReactNode }) {
-  const actions = Children.toArray(children);
-  const visible = config?.showActions === false ? actions.slice(0, 1) : actions;
-  return visible.length ? <footer className="home-widget-actions-v484">{visible}</footer> : null;
-}
-
-function Shell({ size, className = "", status, children }: { size: HomeWidgetSize; className?: string; status?: HomeWidgetRuntimeStatus; children: ReactNode }) {
-  return <article className={`home-widget-card-v484 ${className} ${status?.state === "error" ? "has-error" : ""}`} data-widget-size={size} aria-busy={status?.state === "loading" || undefined}>{status?.state === "loading" ? <WidgetLoadingState /> : status?.state === "error" ? <WidgetErrorState status={status} /> : children}</article>;
-}
-
-function LocalClock({ size, config, status, onOpen }: { size: HomeWidgetSize; config?: HomeWidgetConfig; status?: HomeWidgetRuntimeStatus; onOpen: () => void }) {
+function LocalClock({ size, config }: { size: HomeWidgetSize; config?: HomeWidgetConfig }) {
   const [now, setNow] = useState(() => new Date());
   useVisibleTicker(() => setNow(new Date()), 30_000);
   const format = config?.clockFormat || "datetime";
-  return <Shell size={size} status={status} className="clock"><WidgetHeader eyebrow="Local" title={format === "date" ? "Date" : "Time"} /><div className="home-widget-clock-v484">{format !== "date" && <strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>}{format !== "time" && <span>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</span>}</div><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={onOpen}>Scheduler</ClusterButton></WidgetActions></Shell>;
+  return <div className="hw-clock">
+    {format !== "date" && <strong>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>}
+    {format !== "time" && <span>{now.toLocaleDateString([], size === "small" ? { weekday: "short", month: "short", day: "numeric" } : { weekday: "long", month: "long", day: "numeric" })}</span>}
+  </div>;
 }
 
-
-function applyBuiltInRuntimePolicy(data: BuiltInHomeWidgetData, config: HomeWidgetConfig | undefined, runtime: HomeWidgetRuntimeContext | undefined): BuiltInHomeWidgetData {
+function applyRuntimePolicy(data: BuiltInHomeWidgetData, config: HomeWidgetConfig | undefined, runtime: HomeWidgetRuntimeContext | undefined): BuiltInHomeWidgetData {
   if (!runtime || !config) return data;
   const apply = (items: HomeWidgetListItem[]) => filterHomeWidgetItems(items, config, runtime);
   return {
     ...data,
-    attention: apply(data.attention), upcoming: apply(data.upcoming), timeline: apply(data.timeline), activity: apply(data.activity), digest: apply(data.digest),
-    projects: { ...data.projects, recent: apply(data.projects.recent) }, myWork: { ...data.myWork, next: apply(data.myWork.next) }, scheduler: { ...data.scheduler, today: apply(data.scheduler.today) }, today: { ...data.today, items: apply(data.today.items) },
-    people: { ...data.people, spotlight: apply(data.people.spotlight) }, peopleCapacity: { ...data.peopleCapacity, items: apply(data.peopleCapacity.items) }, departments: { ...data.departments, items: apply(data.departments.items) },
-    library: { ...data.library, recent: apply(data.library.recent) }, watchlists: { ...data.watchlists, items: apply(data.watchlists.items) }, handoff: { ...data.handoff, items: apply(data.handoff.items) },
-    builds: { ...data.builds, items: apply(data.builds.items) }, qa: { ...data.qa, items: apply(data.qa.items) }, releaseReadiness: { ...data.releaseReadiness, items: apply(data.releaseReadiness.items) },
-    sourceControl: { ...data.sourceControl, items: apply(data.sourceControl.items) }, reviewQueue: { ...data.reviewQueue, items: apply(data.reviewQueue.items) }, integrationHealth: { ...data.integrationHealth, items: apply(data.integrationHealth.items) },
-    savedViews: { ...data.savedViews, items: apply(data.savedViews.items) }, tickets: { ...data.tickets, items: apply(data.tickets.items) },
+    attention: apply(data.attention), upcoming: apply(data.upcoming), timeline: apply(data.timeline), activity: apply(data.activity),
+    projects: { ...data.projects, recent: apply(data.projects.recent) }, myWork: { ...data.myWork, next: apply(data.myWork.next) }, scheduler: { ...data.scheduler, today: apply(data.scheduler.today) },
+    people: { ...data.people, spotlight: apply(data.people.spotlight) }, peopleCapacity: { ...data.peopleCapacity, items: apply(data.peopleCapacity.items) },
+    library: { ...data.library, recent: apply(data.library.recent) }, builds: { ...data.builds, items: apply(data.builds.items) }, qa: { ...data.qa, items: apply(data.qa.items) },
+    sourceControl: { ...data.sourceControl, items: apply(data.sourceControl.items) }, reviewQueue: { ...data.reviewQueue, items: apply(data.reviewQueue.items) }, tickets: { ...data.tickets, items: apply(data.tickets.items) },
   };
 }
 
@@ -151,90 +192,125 @@ export function BuiltInHomeWidget({ id, size, data, actions, note, onNoteChange,
   runtimeContext?: HomeWidgetRuntimeContext;
   status?: HomeWidgetRuntimeStatus;
 }) {
-  const visibleData = applyBuiltInRuntimePolicy(data, config, runtimeContext);
-  // These numeric summaries are computed from server-wide projections, not
-  // from complete filtered datasets. Show only filtered lists in scoped mode.
-  const scopedAggregatesUnavailable = homeWidgetNeedsScopedAggregates(config);
-  const authorizedCounts = useHomeScopedCounts(id === "projects" ? ["projects.total"] : id === "people" ? ["people.total"] : [], config, runtimeContext);
-  if (scopedAggregatesUnavailable && !["clock", "note", "clipboard"].includes(id)) {
-    const availableRows: Partial<Record<DashboardWidgetKey, HomeWidgetListItem[]>> = {
-      projects: visibleData.projects.recent, myWork: visibleData.myWork.next,
-      today: visibleData.today.items, people: visibleData.people.spotlight,
-      peopleCapacity: visibleData.peopleCapacity.items, departments: visibleData.departments.items,
-      builds: visibleData.builds.items, timeline: visibleData.timeline,
-      qa: visibleData.qa.items, library: visibleData.library.recent,
-      tickets: visibleData.tickets.items, activity: visibleData.activity,
-      digest: visibleData.digest, upcoming: visibleData.upcoming,
-      sourceControl: visibleData.sourceControl.items, reviewQueue: visibleData.reviewQueue.items,
-      releaseReadiness: visibleData.releaseReadiness.items,
-      integrationHealth: visibleData.integrationHealth.items, savedViews: visibleData.savedViews.items,
-      watchlists: visibleData.watchlists.items, handoff: visibleData.handoff.items,
-      needs: visibleData.attention, scheduler: visibleData.scheduler.today,
-    };
-    const rows = runtimeContext ? availableRows[id] || [] : [];
-    return <Shell size={size} status={status} className="scoped-unavailable">
-      <WidgetHeader eyebrow="Filtered Home" title={homeWidgetRegistryEntry(id)?.label || "Filtered widget"} />
-      <p className="home-widget-custom-text-v484" role="status">{(id === "projects" && authorizedCounts.values["projects.total"]) || (id === "people" && authorizedCounts.values["people.total"]) ? "The labeled count comes from a complete authorized server query. Other scoped totals remain unavailable." : HOME_SCOPED_AGGREGATES_UNAVAILABLE}</p>
-      {id === "projects" && authorizedCounts.values["projects.total"] && <div className="home-widget-custom-metric-v484"><span>Matching Projects · server verified</span><strong>{authorizedCounts.values["projects.total"].value}</strong></div>}
-      {id === "people" && authorizedCounts.values["people.total"] && <div className="home-widget-custom-metric-v484"><span>Matching people · server verified</span><strong>{authorizedCounts.values["people.total"].value}</strong></div>}
-      {authorizedCounts.pending && (id === "projects" || id === "people") && <small role="status">Checking authorized count…</small>}
-      <ItemList items={rows} size={size} limit={config?.listLimit} emptyLabel="Nothing to show." onOpen={(item) => item.workTarget ? actions.work(item.workTarget) : undefined} />
-    </Shell>;
+  const d = applyRuntimePolicy(data, config, runtimeContext);
+  // Counts come from studio-wide projections, not from the filtered lists.
+  // A scoped widget shows only its filtered rows, plus a server-verified total
+  // where one exists.
+  const scoped = homeWidgetNeedsScopedAggregates(config);
+  const verified = useHomeScopedCounts(id === "projects" ? ["projects.total"] : id === "people" ? ["people.total"] : [], config, runtimeContext);
+  const open = (item: HomeWidgetListItem, fallback: () => void) => item.workTarget ? actions.work(item.workTarget) : fallback();
+  const card = (props: Omit<Parameters<typeof Card>[0], "id" | "size" | "status"> ) => <Card id={id} size={size} status={status} filtered={scoped} {...props} />;
+  const summary = (props: Parameters<typeof Summary>[0]) => scoped
+    ? <>
+      {id === "projects" && verified.values["projects.total"] && <Hero value={verified.values["projects.total"].value} label="Matching projects" />}
+      {id === "people" && verified.values["people.total"] && <Hero value={verified.values["people.total"].value} label="Matching people" />}
+      {/* Without a runtime context the lists are unfiltered: show nothing rather than studio-wide rows. */}
+      <Rows items={runtimeContext ? props.list || [] : []} limit={Math.max(LIST_ROWS[size], 1)} empty="Nothing matches" onOpen={props.onOpenItem} />
+    </>
+    : <Summary {...props} />;
+
+  switch (id) {
+    case "clock":
+      return <Card id={id} size={size} className="hw-card-clock"><LocalClock size={size} config={config} /></Card>;
+    case "note":
+      return <Card id={id} size={size} title={config?.noteTitle || "Note"} className="hw-card-note"><ClusterTextArea value={note} maxLength={600} placeholder="Write something…" aria-label={config?.noteTitle || "Note"} onChange={(event) => onNoteChange(event.target.value)} /></Card>;
+    case "quickCapture":
+      return <Card id={id} size={size} className="hw-card-create"><div className="hw-create">{CREATE_MODE_CATALOG.slice(0, size === "small" ? 4 : 8).map((mode) => <ClusterButton key={mode.id} variant="quiet" size="compact" onClick={() => actions.quickCreate(mode.id)}>{mode.label}</ClusterButton>)}</div></Card>;
+    case "brief": {
+      const top = d.attention[0];
+      return card({
+        count: d.attention.length || undefined,
+        onOpen: actions.notifications,
+        className: "hw-card-brief",
+        children: top ? <>
+          <div className="hw-alert"><strong>{top.title}</strong>{size !== "small" && top.detail && <span>{top.detail}</span>}</div>
+          {size === "large" && <Rows items={d.attention.slice(1)} limit={3} empty="" onOpen={(item) => onAttentionAction(item.target)} />}
+          <div className="hw-foot">
+            <ClusterButton variant="primary" size="compact" onClick={() => onAttentionAction(top.target)}>Open</ClusterButton>
+            {size !== "small" && <ClusterButton variant="quiet" size="compact" onClick={() => onSnooze(top.id)}>Later</ClusterButton>}
+            {size !== "small" && <ClusterButton variant="quiet" size="compact" onClick={() => onDismiss(top.id)}>Dismiss</ClusterButton>}
+          </div>
+        </> : <div className="hw-clear"><ClusterIcon name="check" /><span>All clear</span></div>,
+      });
+    }
+    case "roleFocus":
+      return card({ count: d.myWork.assigned, onOpen: actions.myWork, children: summary({ size,
+        hero: { value: d.myWork.assigned, label: "Assigned" },
+        stats: [{ label: "Overdue", value: d.myWork.overdue, tone: tone(d.myWork.overdue, "danger") }, { label: "Today", value: d.myWork.today }, { label: "Priority", value: d.myWork.priority, tone: tone(d.myWork.priority, "warning") }, { label: "Blocked", value: d.myWork.blockers, tone: tone(d.myWork.blockers, "warning") }],
+        list: d.myWork.next, empty: "Nothing assigned", onOpenItem: (item) => open(item, actions.myWork) }) });
+    case "upcoming":
+      return card({ count: d.upcoming.length, onOpen: actions.myWork, children: summary({ size,
+        hero: size === "small" ? { value: d.upcoming.length, label: "Coming up" } : undefined,
+        list: d.upcoming, empty: "Nothing coming up", onOpenItem: (item) => open(item, actions.myWork) }) });
+    case "scheduler":
+      return card({ title: d.scheduler.active ? "On the clock" : "Time", onOpen: actions.scheduler, children: summary({ size,
+        hero: { value: d.scheduler.week, label: "This week", tone: d.scheduler.active ? "good" : undefined },
+        stats: size === "small" ? [] : [{ label: "Running", value: d.scheduler.running }, { label: "Today", value: d.scheduler.today.length }],
+        list: size === "large" ? d.scheduler.today : undefined, empty: "Nothing scheduled", onOpenItem: (item) => open(item, actions.scheduler),
+        footer: <ClusterButton variant={d.scheduler.active ? "danger" : "primary"} size="compact" onClick={onClock}>{d.scheduler.active ? "Clock out" : "Clock in"}</ClusterButton> }) });
+    case "inbox":
+      return card({ onOpen: actions.notifications, children: summary({ size,
+        hero: { value: d.notifications.attention, label: "Need you", tone: tone(d.notifications.attention, "accent") },
+        stats: [{ label: "Urgent", value: d.notifications.urgent, tone: tone(d.notifications.urgent, "danger") }] }) });
+    case "projects":
+      return card({ count: `${d.projects.ready}/${d.projects.total}`, onOpen: actions.projects, children: summary({ size,
+        hero: { value: `${d.projects.ready}/${d.projects.total}`, label: "Healthy" },
+        stats: [{ label: "Attention", value: d.projects.attention, tone: tone(d.projects.attention, "warning") }, { label: "Boards", value: d.projects.boards }, { label: "Repos", value: d.projects.git }],
+        bar: <Bar parts={[{ label: "healthy", value: d.projects.ready, tone: "good" }, { label: "need attention", value: d.projects.attention, tone: "warning" }, { label: "other", value: Math.max(0, d.projects.total - d.projects.ready - d.projects.attention) }]} />,
+        list: d.projects.recent, empty: "No projects", onOpenItem: (item) => open(item, actions.projects) }) });
+    case "timeline":
+      return card({ count: d.timeline.length, onOpen: actions.timeline, children: summary({ size,
+        hero: size === "small" ? { value: d.timeline.length, label: "Milestones" } : undefined,
+        list: d.timeline, empty: "No milestones", onOpenItem: (item) => open(item, actions.timeline) }) });
+    case "builds":
+      return card({ count: d.builds.total, onOpen: actions.builds, children: summary({ size,
+        hero: { value: d.builds.failed || d.builds.total, label: d.builds.failed ? "Failing" : "Builds", tone: tone(d.builds.failed, "danger") },
+        stats: [{ label: "Testing", value: d.builds.testing, tone: tone(d.builds.testing, "accent") }, { label: "Approved", value: d.builds.approved }],
+        bar: <Bar parts={[{ label: "approved", value: d.builds.approved, tone: "good" }, { label: "testing", value: d.builds.testing, tone: "accent" }, { label: "failed", value: d.builds.failed, tone: "danger" }, { label: "other", value: Math.max(0, d.builds.total - d.builds.testing - d.builds.failed - d.builds.approved) }]} />,
+        list: d.builds.items, empty: "No builds yet", onOpenItem: (item) => open(item, actions.builds) }) });
+    case "qa":
+      return card({ count: d.qa.total, onOpen: actions.qa, children: summary({ size,
+        hero: { value: d.qa.open, label: "Open" },
+        stats: [{ label: "Failed", value: d.qa.failed, tone: tone(d.qa.failed, "danger") }, { label: "Blocked", value: d.qa.blocked, tone: tone(d.qa.blocked, "warning") }],
+        list: d.qa.items, empty: "No QA plans", onOpenItem: (item) => open(item, actions.qa) }) });
+    case "tickets":
+      return card({ count: d.tickets.open, onOpen: actions.tickets, children: summary({ size,
+        hero: { value: d.tickets.total >= HOME_TICKET_SAMPLE ? `${d.tickets.open}+` : d.tickets.open, label: "Open" },
+        stats: [{ label: "Priority", value: d.tickets.priority, tone: tone(d.tickets.priority, "warning") }],
+        list: d.tickets.items, empty: "No open tickets", onOpenItem: (item) => open(item, actions.tickets) }) });
+    case "sourceControl":
+      return card({ count: d.sourceControl.total, onOpen: actions.projects, children: summary({ size,
+        hero: { value: d.sourceControl.failed || d.sourceControl.total, label: d.sourceControl.failed ? "Failing" : "Repositories", tone: tone(d.sourceControl.failed, "danger") },
+        stats: [{ label: "Warning", value: d.sourceControl.warning, tone: tone(d.sourceControl.warning, "warning") }, { label: "Branches", value: d.sourceControl.branches }, { label: "Commits", value: d.sourceControl.commits }],
+        list: d.sourceControl.items, empty: "No repositories", onOpenItem: (item) => open(item, actions.projects) }) });
+    case "reviewQueue":
+      return card({ count: d.reviewQueue.total, onOpen: actions.projects, children: summary({ size,
+        hero: { value: d.reviewQueue.awaiting, label: "Awaiting you", tone: tone(d.reviewQueue.awaiting, "accent") },
+        stats: [{ label: "Ready", value: d.reviewQueue.ready }, { label: "Changes", value: d.reviewQueue.changesRequested, tone: tone(d.reviewQueue.changesRequested, "warning") }],
+        list: d.reviewQueue.items, empty: "No open reviews", onOpenItem: (item) => open(item, actions.projects) }) });
+    case "people":
+      return card({ count: `${d.people.active}/${d.people.total}`, onOpen: actions.people, children: summary({ size,
+        hero: { value: `${d.people.active}/${d.people.total}`, label: "Online", tone: tone(d.people.active, "good") },
+        list: d.people.spotlight, empty: "No one yet", onOpenItem: (item) => open(item, actions.people) }) });
+    case "peopleCapacity":
+      return card({ onOpen: actions.people, children: summary({ size,
+        hero: { value: d.peopleCapacity.pressured, label: "Over capacity", tone: tone(d.peopleCapacity.pressured, "warning") },
+        stats: [{ label: "Assigned", value: d.peopleCapacity.assigned }, { label: "Hours", value: `${d.peopleCapacity.totalHours}h` }],
+        list: d.peopleCapacity.items, empty: "No capacity set", onOpenItem: (item) => open(item, actions.people) }) });
+    case "activity":
+      return card({ onOpen: actions.activity, children: summary({ size, list: d.activity, empty: "No recent activity", onOpenItem: (item) => open(item, actions.activity) }) });
+    case "library":
+      return card({ count: d.library.total, onOpen: actions.library, children: summary({ size,
+        hero: { value: d.library.total, label: "Items" },
+        stats: [{ label: "Pinned", value: d.library.pinned }],
+        list: d.library.recent, empty: "Library is empty", onOpenItem: (item) => open(item, actions.library) }) });
+    case "adminOverview": {
+      const total = d.admin.setupGaps + d.admin.maintenance + d.admin.corrections;
+      return card({ onOpen: actions.admin, children: summary({ size,
+        hero: { value: total, label: "To review", tone: tone(total, "warning") },
+        stats: [{ label: "Setup gaps", value: d.admin.setupGaps, tone: tone(d.admin.setupGaps, "warning") }, { label: "Maintenance", value: d.admin.maintenance }, { label: "Corrections", value: d.admin.corrections }, { label: "Breaks", value: d.admin.breakEntries }] }) });
+    }
+    default:
+      return null;
   }
-  const openItem = (item: HomeWidgetListItem, fallback: () => void) => item.workTarget ? actions.work(item.workTarget) : fallback();
-  const renderers: Partial<Record<DashboardWidgetKey, () => ReactNode>> = {};
-  renderers.clock = () => <LocalClock size={size} config={config} status={status} onOpen={actions.scheduler} />;
-  renderers.clipboard = () => <Shell size={size} status={status} className="native"><WidgetHeader eyebrow="Desktop" title="Clipboard" /><DesktopClipboardWidget /></Shell>;
-  renderers.note = () => <Shell size={size} status={status} className="note"><WidgetHeader eyebrow="Personal" title={config?.noteTitle || "Note"} /><ClusterTextArea value={note} maxLength={600} placeholder="Add a note for Home…" onChange={(event) => onNoteChange(event.target.value)} /><span className="home-widget-note-count-v484">{note.length}/600</span></Shell>;
-
-  renderers.brief = () => {
-    const top = visibleData.attention[0];
-    return <Shell size={size} status={status} className="brief"><WidgetHeader eyebrow="Priority brief" title={top ? top.title : "No critical alerts"} value={visibleData.notifications.urgent ? `${visibleData.notifications.urgent} urgent` : "Clear"} />{top ? <><p className="home-widget-brief-detail-v484">{top.detail}</p><WidgetActions config={config}><ClusterButton variant="primary" size="compact" onClick={() => onAttentionAction(top.target)}>Open</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={() => onSnooze(top.id)}>Snooze 4h</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={() => onDismiss(top.id)}>Dismiss</ClusterButton></WidgetActions></> : <WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.notifications}>Inbox</ClusterButton></WidgetActions>}</Shell>;
-  };
-
-  renderers.roleFocus = renderers.myWork = () => <Shell size={size} status={status}><WidgetHeader eyebrow={id === "roleFocus" ? "Your day" : "My Work"} title={id === "roleFocus" ? "My work" : "My work"} value={visibleData.myWork.assigned} /><MetricGrid items={[{ label: "Assigned", value: visibleData.myWork.assigned }, { label: "Overdue", value: visibleData.myWork.overdue }, { label: "Blocked", value: visibleData.myWork.blockers }, { label: "Priority", value: visibleData.myWork.priority }, { label: "Today", value: visibleData.myWork.today }]} /><ItemList limit={config?.listLimit} items={visibleData.myWork.next} size={size} emptyLabel="Nothing assigned." onOpen={(item) => openItem(item, actions.myWork)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.myWork}>My Work</ClusterButton></WidgetActions></Shell>;
-
-  renderers.upcoming = () => <Shell size={size} status={status}><WidgetHeader eyebrow="My Work" title="Upcoming" value={visibleData.upcoming.length} /><ItemList limit={config?.listLimit} items={visibleData.upcoming} size={size} emptyLabel="Nothing upcoming." onOpen={(item) => openItem(item, actions.myWork)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.myWork}>My Work</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={actions.timeline}>Timeline</ClusterButton></WidgetActions></Shell>;
-
-  renderers.readiness = renderers.projects = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Projects" title={id === "readiness" ? "Readiness" : "Projects"} value={`${visibleData.projects.ready}/${visibleData.projects.total}`} /><ClusterVisualComposition label="Health" total={visibleData.projects.total} parts={[{ label: "Ready", value: visibleData.projects.ready, tone: "good" }, { label: "Attention", value: visibleData.projects.attention, tone: "warning" }, { label: "Other", value: Math.max(0, visibleData.projects.total - visibleData.projects.ready - visibleData.projects.attention), tone: "neutral" }]} /><MetricGrid items={[{ label: "Boards", value: visibleData.projects.boards }, { label: "Repositories", value: visibleData.projects.git }]} /><ItemList limit={config?.listLimit} items={visibleData.projects.recent} size={size} onOpen={(item) => openItem(item, actions.projects)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-
-  renderers.needs = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Signals" title="Needs attention" value={visibleData.attention.length} />{visibleData.attention.length ? <div className="home-widget-attention-list-v484">{visibleData.attention.slice(0, limitFor(size, config?.listLimit)).map((item) => <div key={item.id}><ClusterButton unstyled type="button" onClick={() => onAttentionAction(item.target)}><strong>{item.title}</strong><span>{item.detail}</span></ClusterButton><aside><ClusterButton variant="quiet" size="compact" onClick={() => onSnooze(item.id)}>Later</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={() => onDismiss(item.id)}>Dismiss</ClusterButton></aside></div>)}</div> : <div className="home-widget-empty-v485"><strong>Nothing needs attention</strong><span>Urgent and follow-up signals will appear here.</span></div>}<WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.notifications}>Inbox</ClusterButton></WidgetActions></Shell>;
-
-  renderers.scheduler = renderers.pulse = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Scheduler" title={visibleData.scheduler.active ? "Clocked in" : "Clocked out"} value={visibleData.scheduler.week} /><MetricGrid items={[{ label: "Running", value: visibleData.scheduler.running }, { label: "Today", value: visibleData.scheduler.today.length }, { label: "Online", value: `${visibleData.people.active}/${visibleData.people.total}` }, { label: "Library", value: visibleData.library.total }]} />{visibleData.scheduler.active && <p className="home-widget-brief-detail-v484">{visibleData.scheduler.activeDetail}</p>}<ItemList limit={config?.listLimit} items={visibleData.scheduler.today} size={size} onOpen={(item) => openItem(item, actions.scheduler)} /><WidgetActions config={config}><ClusterButton variant={visibleData.scheduler.active ? "danger" : "primary"} size="compact" onClick={onClock}>{visibleData.scheduler.active ? "Clock out" : "Clock in"}</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={actions.scheduler}>Scheduler</ClusterButton></WidgetActions></Shell>;
-
-  renderers.inbox = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Inbox" title="Inbox" value={visibleData.notifications.attention} /><MetricGrid items={[{ label: "Attention", value: visibleData.notifications.attention }, { label: "Urgent", value: visibleData.notifications.urgent }]} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.notifications}>Inbox</ClusterButton></WidgetActions></Shell>;
-  renderers.today = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Today" title="Today" value={visibleData.today.scheduled + visibleData.today.due} /><MetricGrid items={[{ label: "Schedule", value: visibleData.today.scheduled }, { label: "Due", value: visibleData.today.due }, { label: "Blockers", value: visibleData.today.blockers }, { label: "Priority", value: visibleData.today.priority }]} /><ItemList limit={config?.listLimit} items={visibleData.today.items} size={size} emptyLabel="Nothing due today." onOpen={(item) => openItem(item, actions.myWork)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.myWork}>My Work</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={actions.scheduler}>Scheduler</ClusterButton></WidgetActions></Shell>;
-
-  renderers.people = () => <Shell size={size} status={status}><WidgetHeader eyebrow="People" title="Team" value={`${visibleData.people.active}/${visibleData.people.total}`} /><ClusterVisualMeter label="Online" value={visibleData.people.active} total={visibleData.people.total} tone="good" compact /><ItemList limit={config?.listLimit} items={visibleData.people.spotlight} size={size} onOpen={(item) => openItem(item, actions.people)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.people}>People</ClusterButton></WidgetActions></Shell>;
-  renderers.peopleCapacity = () => <Shell size={size} status={status}><WidgetHeader eyebrow="People" title="Capacity" value={`${visibleData.peopleCapacity.configured}/${visibleData.people.total}`} /><ClusterVisualMeter label="Capacity set" value={visibleData.peopleCapacity.configured} total={visibleData.people.total} tone="good" /><MetricGrid items={[{ label: "Capacity", value: `${visibleData.peopleCapacity.totalHours}h` }, { label: "Assigned", value: visibleData.peopleCapacity.assigned }, { label: "Pressure", value: visibleData.peopleCapacity.pressured }]} /><ItemList limit={config?.listLimit} items={visibleData.peopleCapacity.items} size={size} emptyLabel="No capacity set." onOpen={(item) => openItem(item, actions.people)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.people}>People</ClusterButton></WidgetActions></Shell>;
-  renderers.departments = () => <Shell size={size} status={status}><WidgetHeader eyebrow="People" title="Departments" value={visibleData.departments.total} /><ClusterVisualMeter label="Staffed" value={visibleData.departments.staffed} total={visibleData.departments.total} tone="good" /><MetricGrid items={[{ label: "Online", value: visibleData.departments.active }]} /><ItemList limit={config?.listLimit} items={visibleData.departments.items} size={size} emptyLabel="No departments yet." /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.people}>People</ClusterButton></WidgetActions></Shell>;
-
-  renderers.builds = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Builds" title="Builds" value={visibleData.builds.total} /><ClusterVisualComposition label="Builds" total={visibleData.builds.total} parts={[{ label: "Testing", value: visibleData.builds.testing, tone: "accent" }, { label: "Failed", value: visibleData.builds.failed, tone: "danger" }, { label: "Approved", value: visibleData.builds.approved, tone: "good" }, { label: "Other", value: Math.max(0, visibleData.builds.total - visibleData.builds.testing - visibleData.builds.failed - visibleData.builds.approved), tone: "neutral" }]} /><ItemList limit={config?.listLimit} items={visibleData.builds.items} size={size} emptyLabel="No builds yet." onOpen={(item) => openItem(item, actions.builds)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.builds}>Builds</ClusterButton></WidgetActions></Shell>;
-  renderers.timeline = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Timeline" title="Milestones" value={visibleData.timeline.length} /><ItemList limit={config?.listLimit} items={visibleData.timeline} size={size} onOpen={(item) => openItem(item, actions.timeline)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.timeline}>Timeline</ClusterButton></WidgetActions></Shell>;
-  renderers.activity = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Activity" title="Activity" value={visibleData.activity.length} /><ItemList limit={config?.listLimit} items={visibleData.activity} size={size} onOpen={(item) => openItem(item, actions.activity)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.activity}>Activity</ClusterButton></WidgetActions></Shell>;
-  renderers.digest = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Session" title="What's new" value={visibleData.digest.length} /><ItemList limit={config?.listLimit} items={visibleData.digest} size={size} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.activity}>Activity</ClusterButton></WidgetActions></Shell>;
-
-  renderers.control = renderers.workflow = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Projects" title={id === "control" ? "Controls" : "Workflows"} /><MetricGrid items={[{ label: "Dependencies", value: visibleData.workflow.links }, { label: "Recurring", value: visibleData.workflow.recurring }, { label: "Watchers", value: visibleData.workflow.watchers }, { label: "Closeouts", value: visibleData.workflow.closeouts }]} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.closeout = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Delivery" title="Closeout" /><MetricGrid items={[{ label: "Closeouts", value: visibleData.workflow.closeouts }, { label: "External rules", value: visibleData.workflow.portals }]} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.attachments = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Files" title="Attachments" value={visibleData.workflow.attachments} /><p className="muted">Attachments across projects.</p><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.coverage = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Projects" title="Coverage" /><div className="home-widget-coverage-rc41"><ClusterVisualMeter label="Git connected" value={visibleData.projects.git} total={visibleData.projects.total} /><ClusterVisualMeter label="Discord connected" value={visibleData.projects.discord} total={visibleData.projects.total} /><MetricGrid items={[{ label: "Boards", value: visibleData.projects.boards }, { label: "Whiteboards", value: visibleData.projects.whiteboards }]} /></div><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-
-  renderers.qa = () => <Shell size={size} status={status}><WidgetHeader eyebrow="QA" title="QA" value={visibleData.qa.total} /><HealthStrip label="QA health" items={[{ id: "open", label: "Open", value: visibleData.qa.open, tone: visibleData.qa.open ? "accent" : "neutral" }, { id: "failed", label: "Failed", value: visibleData.qa.failed, tone: visibleData.qa.failed ? "danger" : "good" }, { id: "blocked", label: "Blocked", value: visibleData.qa.blocked, tone: visibleData.qa.blocked ? "warning" : "good" }]} /><ItemList limit={config?.listLimit} items={visibleData.qa.items} size={size} emptyLabel="No QA plans." onOpen={(item) => openItem(item, actions.qa)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.qa}>QA</ClusterButton></WidgetActions></Shell>;
-  renderers.releaseReadiness = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Delivery" title="Releases" value={visibleData.releaseReadiness.total} /><ClusterVisualComposition label="Release health" total={visibleData.releaseReadiness.total} parts={[{ label: "Draft", value: visibleData.releaseReadiness.draft, tone: "neutral" }, { label: "Ready", value: visibleData.releaseReadiness.ready, tone: "good" }, { label: "Published", value: visibleData.releaseReadiness.published, tone: "accent" }, { label: "Blocked", value: visibleData.releaseReadiness.blocked, tone: "danger" }]} /><ItemList limit={config?.listLimit} items={visibleData.releaseReadiness.items} size={size} emptyLabel="No releases yet." onOpen={(item) => openItem(item, actions.builds)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.builds}>Builds</ClusterButton></WidgetActions></Shell>;
-  renderers.sourceControl = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Source Control" title="Repositories" value={visibleData.sourceControl.total} /><HealthStrip label="Repositories" items={[{ id: "healthy", label: "Healthy", value: visibleData.sourceControl.healthy, tone: visibleData.sourceControl.failed || visibleData.sourceControl.warning ? "neutral" : "good" }, { id: "warning", label: "Warning", value: visibleData.sourceControl.warning, tone: visibleData.sourceControl.warning ? "warning" : "good" }, { id: "failed", label: "Failed", value: visibleData.sourceControl.failed, tone: visibleData.sourceControl.failed ? "danger" : "good" }]} /><MetricGrid items={[{ label: "Repositories", value: visibleData.sourceControl.total }, { label: "Branches", value: visibleData.sourceControl.branches }, { label: "Commits", value: visibleData.sourceControl.commits }]} /><ItemList limit={config?.listLimit} items={visibleData.sourceControl.items} size={size} emptyLabel="No repositories." onOpen={(item) => openItem(item, actions.projects)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.reviewQueue = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Source Control" title="Reviews" value={visibleData.reviewQueue.total} /><ClusterVisualRankedBars label="Reviews" rows={[{ id: "awaiting", label: "Awaiting you", value: visibleData.reviewQueue.awaiting }, { id: "ready", label: "Ready", value: visibleData.reviewQueue.ready }, { id: "changes", label: "Changes requested", value: visibleData.reviewQueue.changesRequested }]} /><ItemList limit={config?.listLimit} items={visibleData.reviewQueue.items} size={size} emptyLabel="No open reviews." onOpen={(item) => openItem(item, actions.projects)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.integrationHealth = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Integrations" title="Integrations" value={visibleData.integrationHealth.total} /><HealthStrip label="Integration health" items={[{ id: "healthy", label: "Healthy", value: visibleData.integrationHealth.healthy, tone: visibleData.integrationHealth.attention ? "neutral" : "good" }, { id: "attention", label: "Attention", value: visibleData.integrationHealth.attention, tone: visibleData.integrationHealth.attention ? "warning" : "good" }]} /><ClusterVisualMeter label="Providers" value={visibleData.integrationHealth.configured} total={visibleData.integrationHealth.total} /><ItemList limit={config?.listLimit} items={visibleData.integrationHealth.items} size={size} emptyLabel="No integrations." /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.integrations}>Integrations</ClusterButton></WidgetActions></Shell>;
-  renderers.tickets = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Tickets" title="Tickets" value={visibleData.tickets.open} /><ClusterVisualMeter label="Priority tickets" value={visibleData.tickets.priority} total={visibleData.tickets.total} tone="warning" /><MetricGrid items={[{ label: "Open", value: visibleData.tickets.total >= HOME_TICKET_SAMPLE ? `${visibleData.tickets.open}+` : visibleData.tickets.open }]} /><ItemList limit={config?.listLimit} items={visibleData.tickets.items} size={size} emptyLabel="No open tickets." onOpen={(item) => openItem(item, actions.tickets)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.tickets}>Tickets</ClusterButton></WidgetActions></Shell>;
-  renderers.deliveryAttention = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Tickets" title="Delivery" value={visibleData.ticketAttention.signals} /><MetricGrid items={[{ label: "Signals", value: visibleData.ticketAttention.signals }, { label: "Projects", value: visibleData.ticketAttention.projectAttention }]} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.tickets}>Tickets</ClusterButton></WidgetActions></Shell>;
-  renderers.library = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Library" title="Library" value={visibleData.library.total} /><ClusterVisualRankedBars label="By type" rows={visibleData.library.topTypes.map((type, index) => ({ id: `${index}-${type.label}`, label: type.label, value: type.value }))} /><MetricGrid items={[{ label: "Pinned", value: visibleData.library.pinned }]} /><ItemList limit={config?.listLimit} items={visibleData.library.recent} size={size} emptyLabel="Library is empty." onOpen={(item) => openItem(item, actions.library)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.library}>Library</ClusterButton></WidgetActions></Shell>;
-  renderers.libraryActivity = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Library" title="Recent activity" value={visibleData.library.recent.length} /><MetricGrid items={[{ label: "Pinned", value: visibleData.library.pinned }, ...visibleData.library.topTypes.slice(0, 2)]} /><ItemList limit={config?.listLimit} items={visibleData.library.recent} size={size} emptyLabel="No recent activity." onOpen={(item) => openItem(item, actions.library)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.library}>Library</ClusterButton></WidgetActions></Shell>;
-  renderers.watchlists = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Shared work" title="Watchlists" value={visibleData.watchlists.total} /><MetricGrid items={[{ label: "Watching", value: visibleData.watchlists.total }, { label: "Muted", value: visibleData.watchlists.muted }, { label: "Status only", value: visibleData.watchlists.statusOnly }]} /><ItemList limit={config?.listLimit} items={visibleData.watchlists.items} size={size} emptyLabel="Not watching anything." /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.projects}>Projects</ClusterButton></WidgetActions></Shell>;
-  renderers.savedViews = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Workspace" title="Saved views" value={visibleData.savedViews.total} /><MetricGrid items={[{ label: "Views", value: visibleData.savedViews.total }, { label: "Workspaces", value: visibleData.savedViews.scopes }, { label: "Studio", value: visibleData.savedViews.shared }]} /><ItemList limit={config?.listLimit} items={visibleData.savedViews.items} size={size} emptyLabel="No saved views." onOpen={(item) => item.workTarget ? actions.work(item.workTarget) : undefined} /></Shell>;
-  renderers.quickCapture = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Create" title="Quick create" /><div className="home-widget-action-grid-v484">{CREATE_MODE_CATALOG.map((mode, index) => <ClusterButton key={mode.id} size="compact" variant={index === 0 ? "primary" : "quiet"} onClick={() => actions.quickCreate(mode.id)}>{mode.label}</ClusterButton>)}</div></Shell>;
-  renderers.handoff = () => <Shell size={size} status={status}><WidgetHeader eyebrow="Handoff" title="Resume" value={visibleData.handoff.changes} /><MetricGrid items={[{ label: "Changes", value: visibleData.handoff.changes }, { label: "Attention", value: visibleData.handoff.attention }, { label: "Next", value: visibleData.handoff.next }]} /><ItemList limit={config?.listLimit} items={visibleData.handoff.items} size={size} emptyLabel="Nothing to resume." onOpen={(item) => openItem(item, actions.activity)} /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.activity}>Activity</ClusterButton><ClusterButton variant="quiet" size="compact" onClick={actions.myWork}>My Work</ClusterButton></WidgetActions></Shell>;
-
-  renderers.opsHealth = renderers.adminOverview = renderers.adminHealth = () => <Shell size={size} status={status} className="admin"><WidgetHeader eyebrow="Administration" title={id === "opsHealth" ? "Operations health" : id === "adminOverview" ? "Admin" : "Admin health"} /><ClusterVisualRankedBars label="Admin queues" rows={[{ id: "setup", label: "Setup gaps", value: visibleData.admin.setupGaps }, { id: "maintenance", label: "Maintenance", value: visibleData.admin.maintenance }, { id: "corrections", label: "Corrections", value: visibleData.admin.corrections }, { id: "breaks", label: "Breaks", value: visibleData.admin.breakEntries }]} tone="warning" /><WidgetActions config={config}><ClusterButton variant="quiet" size="compact" onClick={actions.admin}>Admin</ClusterButton></WidgetActions></Shell>;
-
-  const rendererKey = homeWidgetRegistryEntry(id)?.renderer as DashboardWidgetKey | undefined;
-  return renderers[rendererKey || id]?.() ?? null;
 }

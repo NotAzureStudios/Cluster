@@ -21,6 +21,6 @@ check('packages/renderer/src/features/projects/ProjectPortfolioItem.tsx', ['<Clu
 check('packages/renderer/src/features/timeline/TimelineWorkspacePage.tsx', ['className="panel tl-map" aria-label="Roadmap"'], ['label: "Cadence"']);
 check('packages/renderer/src/features/settings/StudioInventoryVaultPanel.tsx', ['ClusterVisualMeter label="Available"','ClusterVisualComposition label="Stock"']);
 check('packages/renderer/src/features/people/PeoplePages.tsx', ['ClusterVisualComposition label="Capacity configured"','ClusterVisualComposition label="Availability"','ClusterVisualMeter label="Allocated"']);
-check('packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx', ['ClusterVisualComposition label="Health"','ClusterVisualComposition label="Builds"','ClusterVisualComposition label="Release health"','ClusterVisualMeter label="Capacity set"']);
+check('packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx', ['<div className="hw-bar" role="img" aria-label={parts.map(','bar: <Bar parts={[{ label: "healthy"','bar: <Bar parts={[{ label: "approved"'], ['ClusterVisualComposition']);
 check('packages/renderer/src/components/ClusterVisualMetrics.tsx', ['role="progressbar"','role="img"','aria-label','visualBarHeight']);
 console.log('RC34 visual metric math and UI integration checks passed');

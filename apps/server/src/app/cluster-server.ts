@@ -64,7 +64,6 @@ import { registerProjectDeliveryRoutes } from "../domains/projects/project-deliv
 import { registerProjectTypeWorkspaceRoutes } from "../domains/projects/project-type-workspace-routes.js";
 import { registerProjectAssetRoutes } from "../domains/projects/project-asset-routes.js";
 import { registerCustomFieldRoutes } from "../domains/custom-fields/custom-field-routes.js";
-import { registerHomeLayoutRoutes } from "../domains/home-layouts/home-layout-routes.js";
 import { registerStudioAutomationRoutes } from "../domains/automation/studio-automation-routes.js";
 import { registerBoardRoutes } from "../domains/boards/board-routes.js";
 import { registerTicketRoutes } from "../domains/tickets/ticket-routes.js";
@@ -833,7 +832,6 @@ registerResourceChangeRoutes({ app, prisma, authorization, changeRuntime, librar
   isConfigurableToolEnabled: (tool) => backgroundTasks.isOwnerEnabled(tool),
 });
 registerServerDataPlatformRoutes({ app, prisma, dataLayout: DATA_LAYOUT, getCurrentUser, decorateUserForClient, authorization, jobQueue, jobWorker, requireAdminUserForRequest, logSecurityEvent, logActivity });
-registerHomeLayoutRoutes({ app, prisma, getCurrentUser, authorization });
 registerStudioAutomationRoutes({ app, authorization, getCurrentUser, service: studioAutomation });
 registerAuditRoutes({ app, authorization, parseJsonObject, auditService, logSecurityEvent });
 configureBackgroundJobExecutionAuthorization({ worker: jobWorker, prisma, authorization, decorateUserForClient, libraryAccess });

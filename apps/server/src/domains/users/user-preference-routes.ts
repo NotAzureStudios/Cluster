@@ -108,12 +108,6 @@ const userPreferenceSchema = z
     userLargeClickTargets: z.boolean().optional(),
     userStatusPalette: z.enum(["default", "color-vision-safe", "monochrome"]).optional(),
     userFocusModeDefault: z.boolean().optional(),
-    userDashboardDensity: z
-      .enum(["compact", "balanced", "expanded"])
-      .optional(),
-    userHomeMobileLayout: z
-      .enum(["stack", "grid", "carousel", "focus"])
-      .optional(),
     userDefaultFilterScope: z
       .enum(["mine", "team", "project", "all"])
       .optional(),

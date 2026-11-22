@@ -16,11 +16,6 @@
 @media (max-width: 980px) {
 .time-correction-form-v123, .admin-settings-map-v123{ grid-template-columns: 1fr; }
 }
-
-.home-widget-settings-v143 {
-  display: grid;
-  gap: 0;
-}
 .work-link-list-v121, .meeting-list-v121, .audit-row-list-v121{ display: grid; gap: 10px; }
 
 .work-link-list-v121 article,

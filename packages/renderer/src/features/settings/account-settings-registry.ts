@@ -19,7 +19,6 @@ export const ACCOUNT_SETTINGS_SECTIONS = [
   { key: "appearance", label: "Appearance", description: "Theme, typography, surfaces, density, and personal color.", domain: "Appearance & Layout", order: 50 },
   { key: "performance", label: "Performance", description: "Device rendering quality, hardware-aware effects, and diagnostics.", domain: "Performance", order: 55 },
   { key: "navigation", label: "Navigation", description: "Landing screen, taskbar labels, search, and pinned tools.", domain: "Navigation", order: 60 },
-  { key: "home", label: "Home", description: "Choose the widgets and density used on Home.", domain: "Appearance & Layout", order: 70 },
   { key: "shortcuts", label: "Shortcuts", description: "Keyboard profile, command palette shortcut, and filters.", domain: "Navigation", order: 80 },
   { key: "accessibility", label: "Accessibility", description: "Motion, target size, focus behavior, and contrast options.", domain: "Accessibility", order: 90 },
   { key: "desktop", label: "Desktop & device", description: "Desktop startup, tray, close, links, and notifications.", domain: "Device", order: 100 },

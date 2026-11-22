@@ -7,7 +7,6 @@ import vm from 'node:vm';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const source = readFileSync(path.join(root, 'packages/renderer/src/features/home-widgets/home-scoped-aggregate.ts'), 'utf8');
-const custom = readFileSync(path.join(root, 'packages/renderer/src/features/home-widgets/CustomHomeWidget.tsx'), 'utf8');
 const builtIn = readFileSync(path.join(root, 'packages/renderer/src/features/home-widgets/BuiltInHomeWidget.tsx'), 'utf8');
 const routes = readFileSync(path.join(root, 'apps/server/src/domains/data-metrics/data-metric-routes.ts'), 'utf8');
 const runtime = readFileSync(path.join(root, 'apps/server/src/app/server-data-platform-runtime.ts'), 'utf8');
@@ -66,19 +65,19 @@ for (const [name, binding, config, runtime] of [
   ['Project-scoped People count', 'people.total', { context: 'project', contextId: 'project-a' }, runtimeContext],
   ['People time range lacking exact semantic parity', 'people.total', { context: 'me', timeRange: 'today' }, runtimeContext],
   ['unsupported metric binding', 'builds.total', { context: 'project', contextId: 'project-a' }, runtimeContext],
-  ['saved view', 'projects.total', { context: 'project', contextId: 'project-a', savedViewId: 'view-a' }, runtimeContext],
   ['free-text filter', 'projects.total', { context: 'project', contextId: 'project-a', filterText: 'confidential' }, runtimeContext],
 ]) check(`Unsupported / incomplete ${name} fails closed`, () => assert.equal(homeScopedCountSpec(binding, config, runtime, now), null));
+check('Retired saved-view scoping cannot reach a stored widget config', () => assert.doesNotMatch(readFileSync(path.join(root, 'packages/renderer/src/features/home-widgets/home-widget-model.ts'), 'utf8'), /savedViewId/));
 check('Server defines authorized count adapters and complete result provenance', () => {
   assert.match(runtime, /const projectCountMetric.*id: "projects.count"/);
   assert.match(runtime, /const peopleCapacityMetric.*id: "people.capacity_total"/);
   assert.match(runtime, /scope: "authorized_query", complete: true/);
   assert.match(routes, /adapter.authorizeActor\(String\(user.id\)\)/);
 });
-check('Custom and built-in widgets consume only scoped authorized projection results', () => {
-  assert.match(custom, /useHomeScopedCounts\(/); assert.match(custom, /scopedCounts\.values\[binding\]/);
-  assert.match(builtIn, /useHomeScopedCounts\(/); assert.match(builtIn, /authorizedCounts\.values\["projects.total"\]/);
-  assert.match(custom, /HOME_SCOPED_AGGREGATES_UNAVAILABLE/);
+check('Built-in widgets consume only scoped authorized projection results', () => {
+  assert.match(builtIn, /const verified = useHomeScopedCounts\(/);
+  assert.match(builtIn, /verified\.values\["projects\.total"\]/); assert.match(builtIn, /verified\.values\["people\.total"\]/);
+  assert.match(builtIn, /HOME_SCOPED_AGGREGATES_UNAVAILABLE/);
 });
 check('Reject fake complete, incomplete, negative, fractional, and stale metric result shapes', () => {
   const fn = vm.runInNewContext('isCompleteAuthorizedCount', sandbox);

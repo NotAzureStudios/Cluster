@@ -36,7 +36,7 @@ check('Home retains owner, project and updatedAt metadata for exact filtered lis
 check('Ticket summary requests are explicitly bounded and sampled counters say so', () => {
   assert.match(dashboard,/assigned-summary\?limit=40/);
   assert.match(builtIn,/const HOME_TICKET_SAMPLE = 40;/);
-  assert.match(builtIn,/tickets\.total >= HOME_TICKET_SAMPLE \? `\$\{visibleData\.tickets\.open\}\+`/);
+  assert.match(builtIn,/tickets\.total >= HOME_TICKET_SAMPLE \? `\$\{d\.tickets\.open\}\+`/);
 });
 check('Failed authorization rule lookups cannot turn into a permissive empty list', () => {
   const route = routes.slice(routes.indexOf('app.get("/api/tickets/assigned-summary"'),routes.indexOf('app.get("/api/tickets/workspace"'));

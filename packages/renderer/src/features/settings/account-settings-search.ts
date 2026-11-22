@@ -21,7 +21,6 @@ const CONTROLS: readonly ClusterSettingsSearchEntry<SettingsSection>[] = [
   { id: "sessions", label: "Sessions and devices", section: "privacy", keywords: "revoke signed in security privacy" },
   { id: "start-screen", label: "Default landing screen", section: "navigation", keywords: "start screen launch taskbar" },
   { id: "sidebar", label: "Sidebar and taskbar", section: "navigation", keywords: "pinned shortcuts tabs search" },
-  { id: "home-widgets", label: "Home widgets", section: "home", keywords: "dashboard widgets layout" },
   { id: "shortcut", label: "Keyboard shortcuts", section: "shortcuts", keywords: "hotkeys command palette" },
   { id: "accessibility", label: "Accessibility options", section: "accessibility", keywords: "font contrast target size focus reduced motion" },
   { id: "desktop-startup", label: "Desktop startup and tray", section: "desktop", keywords: "launch at login close minimize notification device" },

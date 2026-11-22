@@ -161,7 +161,7 @@ function profileFormFromUser(user: User): ProfileForm {
 }
 
 export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, currentUser, onUserUpdated, initialSection = "privacy", onSectionChange }: AccountSettingsPageProps) {
-  const { userPreferenceSettingsPayload, DASHBOARD_WIDGETS, useDashboardWidgets, DashboardCustomizer, projectTypeBadge, applyCustomization, appearanceKeys } = ACCOUNT_SETTINGS_DEPENDENCIES;
+  const { userPreferenceSettingsPayload, projectTypeBadge, applyCustomization, appearanceKeys } = ACCOUNT_SETTINGS_DEPENDENCIES;
   const [settings, setSettings] = useState<Settings>({});
   const [heldAccountDraft, setHeldAccountDraft] = useState<{ settings?: Settings; personalAccentColor?: string; theme?: AppTheme } | null>(null);
   // Read-version of the original Account Settings snapshot, not a freshly fetched
@@ -264,7 +264,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
 
 
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
-  const dashboardWidgets = useDashboardWidgets();
   const accountDraftTimer = useRef<number | null>(null);
   const accountDraftKey = `account-settings:${currentUser.id}`;
   function persistAccountDraft(nextSettings: Settings, nextAccent = personalAccentColor, nextTheme = theme) {
@@ -367,8 +366,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
           userLargeClickTargets: false,
           userStatusPalette: "default",
           userFocusModeDefault: false,
-          userDashboardDensity: "balanced",
-          userHomeMobileLayout: "stack",
           userDefaultFilterScope: "mine",
           notifyCardCreated: false,
           notifyCardMoved: false,
@@ -1143,7 +1140,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
     appearance: settings.interfaceDensity || "compact",
     performance: "device-local",
     navigation: settings.userStartScreen || "dashboard",
-    home: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length} widgets`,
     shortcuts: settings.userShortcutProfile || "default",
     accessibility: settings.userMotionPreference || "system",
     desktop: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "web preview",
@@ -1169,7 +1165,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
       description={`Personal preferences, performance, privacy, notifications, accessibility, and navigation for @${currentUser.username}.`}
       metrics={[
         { label: "Notifications", value: `${enabledNotificationCount}/${NOTIFICATION_CATEGORIES.length}`, tone: enabledNotificationCount ? "good" : "warning" },
-        { label: "Home widgets", value: `${DASHBOARD_WIDGETS.filter((item) => dashboardWidgets.widgets[item.key] !== false).length}/${DASHBOARD_WIDGETS.length}` },
         { label: "Runtime", value: runtimeInfo.kind === "desktop" ? runtimeInfo.platform : "Web" },
       ]}
       actions={section === "licenses" || section === "forms" || section === "git" || (section === "performance" && !dirty) ? null : section === "profile" ? (
@@ -1669,26 +1664,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
             </div>
           )}
 
-          {section === "home" && (
-            <div className="settings-section-v092 settings-home-widgets-v143">
-              <div className="settings-panel-head-v092">
-                <p className="eyebrow">Home</p>
-                <h2>Dashboard layout</h2>
-              </div>
-              <div className="settings-card-grid-v092">
-                <div className="settings-card-v092 span-2 home-widget-settings-card-v143">
-                  <DashboardCustomizer widgets={dashboardWidgets.widgets} layout={dashboardWidgets.layout} onChange={dashboardWidgets.update} onSizeChange={dashboardWidgets.setSize} onResetLayout={dashboardWidgets.resetLayout} onQuietDefaults={dashboardWidgets.resetQuietDefaults} onCoreTools={dashboardWidgets.enableCoreTools} onEnableEverything={dashboardWidgets.enableEverything} />
-                </div>
-                <div className="settings-card-v092 home-widget-note-v143">
-                  <div className="settings-card-head-v092">
-                    <h3>Home rule</h3>
-                    <span>Keep dashboards calm</span>
-                  </div>
-                  <p className="muted tight">Core widgets stay on Home. Search lives in the taskbar. Secondary tools stay grouped in the sidebar under Tools and Administration.</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {section === "notifications" && (
             <div className="settings-section-v092 notification-settings-v261">
@@ -1979,23 +1954,6 @@ export function AccountSettingsPage({ theme, onThemeChange, onSettingsSaved, cur
                         <option value="team">Team</option>
                         <option value="project">Current project</option>
                         <option value="all">Everything</option>
-                      </ClusterNativeSelect>
-                    </div>
-                    <div className="field">
-                      <label>Dashboard density</label>
-                      <ClusterNativeSelect value={settings.userDashboardDensity || "balanced"} onChange={(e) => patch("userDashboardDensity", e.target.value as Settings["userDashboardDensity"])}>
-                        <option value="compact">Compact</option>
-                        <option value="balanced">Balanced</option>
-                        <option value="expanded">Expanded</option>
-                      </ClusterNativeSelect>
-                    </div>
-                    <div className="field">
-                      <label>Mobile Home layout</label>
-                      <ClusterNativeSelect value={settings.userHomeMobileLayout || "stack"} onChange={(e) => patch("userHomeMobileLayout", e.target.value as Settings["userHomeMobileLayout"])}>
-                        <option value="stack">Stack</option>
-                        <option value="grid">Grid</option>
-                        <option value="carousel">Carousel</option>
-                        <option value="focus">Focus</option>
                       </ClusterNativeSelect>
                     </div>
                     <div className="field span-2">
