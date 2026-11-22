@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -73,7 +74,13 @@ func unrealRepo(t *testing.T, lfs bool) (repository, string) {
 func TestStatusKeepsExactPathsForSpacesAndNonASCII(t *testing.T) {
 	repo, _ := unrealRepo(t, false)
 	svc := newTestService()
-	names := []string{"Content/Characters/Hero Mesh.uasset", "Content/Props/Café Table.uasset", "Content/UI/タイトル.uasset", `Content/Quote"d.uasset`}
+	// Double quotes are legal in POSIX filenames, but Windows rejects them.
+	// Exercise Windows-safe punctuation on every OS, and retain the exact
+	// double-quote pathspec regression on platforms that can create that file.
+	names := []string{"Content/Characters/Hero Mesh.uasset", "Content/Props/Café Table.uasset", "Content/UI/タイトル.uasset", "Content/Quote'd.uasset"}
+	if runtime.GOOS != "windows" {
+		names = append(names, `Content/Quote"d.uasset`)
+	}
 	for _, name := range names {
 		writeT(t, repo.RootPath, name, "asset")
 	}

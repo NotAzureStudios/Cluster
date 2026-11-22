@@ -34,6 +34,10 @@ jobs:
       - name: Checkout reviewed release source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          # workflow_run executes on the newest default branch, which can advance
+          # while the Windows installer is compiling. Check out the exact
+          # successful main build SHA before verifying or publishing anything.
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
           persist-credentials: false
 
