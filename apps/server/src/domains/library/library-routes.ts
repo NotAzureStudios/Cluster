@@ -2073,7 +2073,7 @@ export function registerLibraryRoutes({
     ids: z.array(z.string().min(1)).min(1).max(200).refine((ids) => new Set(ids).size === ids.length, "Select distinct Library items."),
     expectedRevisions: z.record(z.number().int().positive()),
     action: z.enum(["move", "archive", "trash", "restore", "tag", "untag", "status", "pin", "rename"]),
-    rename: z.object({ mode: z.enum(["replace", "prefix", "suffix", "number"]), text: z.string().max(160).optional(), replacement: z.string().max(160).optional(), start: z.number().int().min(0).max(999999).optional(), padding: z.number().int().min(1).max(8).optional() }).optional(),
+    rename: z.object({ mode: z.enum(["replace", "prefix", "suffix", "number", "case", "regex", "unreal-prefix"]), text: z.string().max(160).optional(), replacement: z.string().max(160).optional(), start: z.number().int().min(0).max(999999).optional(), padding: z.number().int().min(1).max(8).optional() }).optional(),
     confirmedTitles: z.record(z.string()).optional(),
     parentId: z.string().optional().nullable(),
     tag: z.string().max(80).optional(),

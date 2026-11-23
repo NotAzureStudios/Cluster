@@ -224,3 +224,13 @@
 .lib-link-inspect { display: grid; gap: 8px; }
 .lib-link-inspect .library-grid-preview-v219 { height: 150px; border-radius: 10px; overflow: hidden; }
 .lib-link-inspect__url { font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
+
+/* Type filter chips (scroll sideways when there are many) */
+.lib-type-chips { display: flex; gap: 6px; padding: 6px 12px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+.lib-type-chips::-webkit-scrollbar { display: none; }
+.lib-type-chips > button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.lib-type-chips > button svg { width: 14px; height: 14px; color: var(--muted); }
+.lib-type-chips > button small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lib-type-chips > button:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
+.lib-type-chips > button.active { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.lib-type-chips > button.active svg, .lib-type-chips > button.active small { color: var(--accent); }

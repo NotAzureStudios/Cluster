@@ -56,7 +56,7 @@ const FOLDER_ICONS = ["folder", "game", "image", "video", "model", "code", "note
 const FOLDER_ICON_LABELS: Record<(typeof FOLDER_ICONS)[number], string> = { folder: "Folder", game: "Game", image: "Images", video: "Video", model: "Models", code: "Code", note: "Notes", archive: "Archive", star: "Favorite", palette: "Creative" };
 
 type LibraryCollectionGrant = { userId: string; role: "viewer" | "editor"; user: { id: string; username: string; displayName?: string | null; archived?: boolean } };
-type LibraryBulkRenameMode = "replace" | "prefix" | "suffix" | "number";
+type LibraryBulkRenameMode = "replace" | "prefix" | "suffix" | "number" | "case" | "regex" | "unreal-prefix";
 type LibraryBulkRenameRule = { mode: LibraryBulkRenameMode; text: string; replacement: string; start: number; padding: number };
 type LibraryBulkRenamePreview = { ok: true; renames: Array<{ id: string; from: string; to: string; revision: number }>; changedCount: number };
 type CreateDraft = { kind: "folder" | "link" | "youtube-video" | "youtube-playlist"; title: string; body: string; externalUrl: string; folderColor: string; folderIcon: string; parentId?: string | null };
@@ -2230,6 +2230,18 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             ]} />
           <ClusterButton size="compact" variant="primary" disabled={uploading.active} onClick={() => fileInput.current?.click()}><ClusterIcon name="upload" />{uploading.active ? "Uploading…" : "Upload"}</ClusterButton>
         </header>
+        {(() => {
+          // Unreal-style filter bar: one tap narrows to an asset type.
+          const groups = ([["image", "Images", "image"], ["model", "3D models", "model"], ["video", "Video", "video"], ["audio", "Audio", "audio"], ["text", "Text & code", "code"], ["pdf", "PDFs", "pdf"], ["office", "Documents", "note"], ["archive", "Archives", "archive"], ["ebook", "E-books", "book"]] as Array<[string, string, ClusterIconName]>)
+            .map(([value, label, icon]) => ({ value, label, icon, count: Number((facets as any).byMimeGroup?.[value] || 0) }))
+            .filter((group) => group.count > 0 || filters.mimeGroup === group.value);
+          return groups.length > 1 ? <div className="lib-type-chips" role="toolbar" aria-label="Filter by type">
+            {groups.map((group) => <ClusterButton key={group.value} unstyled type="button" className={filters.mimeGroup === group.value ? "active" : ""} aria-pressed={filters.mimeGroup === group.value}
+              onClick={() => setFilters((value) => ({ ...value, mimeGroup: value.mimeGroup === group.value ? "all" : group.value }))}>
+              <ClusterIcon name={group.icon} /><span>{group.label}</span><small>{group.count}</small>
+            </ClusterButton>)}
+          </div> : null;
+        })()}
         {showFilters ? <div className="lib-filters">
           <ClusterSelect value={filters.projectId} onChange={(projectId) => setFilters((value) => ({ ...value, projectId }))} ariaLabel="Filter Library by project" options={[{ value: "", label: "All projects" }, ...projects.filter((project) => !project.archived).map((project) => ({ value: project.id, label: project.name }))]} />
           <ClusterSelect value={filters.mimeGroup} onChange={(mimeGroup) => setFilters((value) => ({ ...value, mimeGroup }))} ariaLabel="Filter Library by media type" options={[{ value: "all", label: "All files" }, { value: "image", label: "Images" }, { value: "video", label: "Video" }, { value: "audio", label: "Audio" }, { value: "pdf", label: "PDFs" }, { value: "text", label: "Text and code" }, { value: "model", label: "3D models" }, { value: "office", label: "Documents and Office" }, { value: "ebook", label: "E-books" }, { value: "archive", label: "Archives" }]} />
@@ -2396,15 +2408,22 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       }} />}
     {renameRule && <ClusterModal open onClose={() => { if (!renameBusy) { setRenameRule(null); setRenamePreview(null); } }} className="modal panel library-bulk-rename-v533" ariaLabel="Bulk rename Library items">
       <div className="modal-header"><div><p className="eyebrow">Library · selected items</p><h2>Bulk rename {selectedIds.size} items</h2></div><ClusterIconButton label="Close bulk rename" type="button" disabled={renameBusy} onClick={() => { setRenameRule(null); setRenamePreview(null); }}><LibraryIcon name="close" size={20} /></ClusterIconButton></div>
-      <p className="muted">Names only. No folders or underlying stored files are moved. Preview every new title before applying; concurrent changes cancel the batch.</p>
+      <p className="muted">Changes names only, never the extension or stored files. Preview before applying.</p>
       <label className="field"><span>Rename operation</span><ClusterSelect ariaLabel="Bulk rename operation" value={renameRule.mode} disabled={renameBusy} onChange={(mode) => editBulkRenameRule({ mode: mode as LibraryBulkRenameMode })} options={[
         { value: "replace", label: "Find and replace" }, { value: "prefix", label: "Add prefix" },
         { value: "suffix", label: "Add suffix before extension" }, { value: "number", label: "Sequence numbers, keeping extensions" },
+        { value: "case", label: "Change letter case" }, { value: "regex", label: "Pattern replace (regex)" },
+        { value: "unreal-prefix", label: "Unreal prefixes (T_, SM_, A_, MV_)" },
       ]} /></label>
-      <label className="field"><span>{renameRule.mode === "replace" ? "Find exact text" : renameRule.mode === "prefix" ? "Prefix" : renameRule.mode === "suffix" ? "Suffix" : "Number prefix (optional)"}</span>
-        <ClusterTextInput value={renameRule.text} maxLength={160} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ text: event.target.value })} placeholder={renameRule.mode === "replace" ? "IMG_" : renameRule.mode === "number" ? "Asset_" : "Studio_"}/>
-      </label>
-      {renameRule.mode === "replace" ? <label className="field"><span>Replace with (may be empty)</span><ClusterTextInput value={renameRule.replacement} maxLength={160} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ replacement: event.target.value })} /></label> : null}
+      {renameRule.mode === "case" ? <label className="field"><span>Letter case</span><ClusterSelect ariaLabel="Letter case" value={renameRule.text || ""} disabled={renameBusy} onChange={(text) => editBulkRenameRule({ text })} options={[
+        { value: "", label: "Choose…" }, { value: "pascal", label: "PascalCase" }, { value: "snake", label: "snake_case" }, { value: "kebab", label: "kebab-case" },
+        { value: "title", label: "Title Case" }, { value: "lower", label: "lowercase" }, { value: "upper", label: "UPPERCASE" },
+      ]} /></label>
+      : renameRule.mode === "unreal-prefix" ? <p className="muted">Adds T_ to images, SM_ to 3D models, A_ to audio and MV_ to video, in PascalCase. Names that already start with a prefix like T_ are left alone.</p>
+      : <label className="field"><span>{renameRule.mode === "replace" ? "Find exact text" : renameRule.mode === "regex" ? "Pattern" : renameRule.mode === "prefix" ? "Prefix" : renameRule.mode === "suffix" ? "Suffix" : "Number prefix (optional)"}</span>
+        <ClusterTextInput value={renameRule.text} maxLength={160} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ text: event.target.value })} placeholder={renameRule.mode === "replace" ? "IMG_" : renameRule.mode === "regex" ? "(\\w+)_v(\\d+)" : renameRule.mode === "number" ? "Asset_" : "Studio_"}/>
+      </label>}
+      {renameRule.mode === "replace" || renameRule.mode === "regex" ? <label className="field"><span>Replace with (may be empty)</span><ClusterTextInput value={renameRule.replacement} maxLength={160} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ replacement: event.target.value })} placeholder={renameRule.mode === "regex" ? "$1_V$2" : undefined} /></label> : null}
       {renameRule.mode === "number" ? <div className="library-bulk-rename-numbers-v533">
         <label className="field"><span>Start</span><ClusterTextInput type="number" min={0} max={999999} value={String(renameRule.start)} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ start: Number(event.target.value) })} /></label>
         <label className="field"><span>Minimum digits</span><ClusterTextInput type="number" min={1} max={8} value={String(renameRule.padding)} disabled={renameBusy} onChange={(event) => editBulkRenameRule({ padding: Number(event.target.value) })} /></label>
@@ -2416,7 +2435,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       </section> : <p className="muted">A server-checked preview will list every selected item, including any names that stay unchanged.</p>}
       <div className="modal-actions">
         <ClusterButton type="button" variant="secondary" disabled={renameBusy} onClick={() => { setRenameRule(null); setRenamePreview(null); }}>Cancel</ClusterButton>
-        <ClusterButton type="button" variant="secondary" disabled={renameBusy || (!renameRule.text && renameRule.mode !== "number")} onClick={() => void previewBulkRename()}>{renameBusy ? "Checking…" : "Preview names"}</ClusterButton>
+        <ClusterButton type="button" variant="secondary" disabled={renameBusy || (!renameRule.text && renameRule.mode !== "number" && renameRule.mode !== "unreal-prefix")} onClick={() => void previewBulkRename()}>{renameBusy ? "Checking…" : "Preview names"}</ClusterButton>
         <ClusterButton type="button" variant="primary" disabled={renameBusy || !renamePreview || !renamePreview.changedCount} onClick={() => void applyBulkRename()}>Apply reviewed names</ClusterButton>
       </div>
     </ClusterModal>}
