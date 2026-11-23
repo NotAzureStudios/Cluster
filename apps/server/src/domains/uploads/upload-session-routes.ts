@@ -185,10 +185,12 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
           receivedBytes,
         });
       }
-      // A request still waiting for its body when the same browser retries
-      // was abandoned (client timeout); drop it so the retry can proceed.
+      // A request that has sat for 10 s without its full body when the same
+      // browser retries was abandoned (client timeout); drop it so the retry
+      // can proceed. A request still in its first seconds is just busy.
+      const admittedAt = Date.now();
       const release = chunkAdmission.acquire(resolved.session.id, () => {
-        if (request.raw.complete) return false;
+        if (request.raw.complete || Date.now() - admittedAt < 10_000) return false;
         request.raw.destroy();
         return true;
       });
