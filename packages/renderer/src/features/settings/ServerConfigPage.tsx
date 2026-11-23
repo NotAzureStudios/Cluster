@@ -19,6 +19,7 @@ import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
 import { ServerConnectionGuide } from "./ServerConnectionGuide";
 import { ServerUpdateControls } from "./ServerUpdateControls";
+import { StorageLocationsPanel } from "./StorageLocationsPanel";
 import { ServerNetworkTopology } from "./ServerNetworkTopology";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { RequestErrorState } from "../../components/RequestState";
@@ -85,6 +86,9 @@ type MailStatusRead = {
 };
 
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
+
+// Moved with the Locations panel (which copies the data), not typed in.
+const MOVED_BY_STORAGE_PANEL = ["projectsRootOverride", "libraryRootOverride", "usersRootOverride", "backupsRootOverride", "exportsRootOverride", "brandingRootOverride", "uploadRootOverride"];
 
 const STORAGE_OVERRIDE_DOMAINS: Record<string, string> = {
   projectsRootOverride: "projects", libraryRootOverride: "library", usersRootOverride: "users", backupsRootOverride: "backups",
@@ -412,24 +416,24 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     key: "dataRootOverride",
     label: "Data root override",
     section: "storage",
-    group: "Path overrides",
+    group: "Advanced",
     type: "text",
     restart: true,
     wide: true,
   },
-  { key: "projectsRootOverride", label: "Projects location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "libraryRootOverride", label: "Library location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "usersRootOverride", label: "User data location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "backupsRootOverride", label: "Backups location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "logsRootOverride", label: "Logs location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "runtimeRootOverride", label: "Runtime/cache location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "exportsRootOverride", label: "Exports location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
-  { key: "brandingRootOverride", label: "Branding location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "projectsRootOverride", label: "Projects location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "libraryRootOverride", label: "Library location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "usersRootOverride", label: "User data location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "backupsRootOverride", label: "Backups location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "logsRootOverride", label: "Logs location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "runtimeRootOverride", label: "Runtime/cache location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "exportsRootOverride", label: "Exports location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
+  { key: "brandingRootOverride", label: "Branding location", section: "storage", group: "Advanced", type: "text", restart: true, wide: true },
   {
     key: "uploadRootOverride",
     label: "Upload root override",
     section: "storage",
-    group: "Path overrides",
+    group: "Advanced",
     type: "text",
     restart: true,
     wide: true,
@@ -438,7 +442,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     key: "configFileOverride",
     label: "Config file override",
     section: "storage",
-    group: "Path overrides",
+    group: "Advanced",
     type: "text",
     restart: true,
     wide: true,
@@ -447,7 +451,7 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     key: "databaseUrlOverride",
     label: "Database URL override",
     section: "storage",
-    group: "Path overrides",
+    group: "Advanced",
     type: "password",
     restart: true,
     wide: true,
@@ -1976,7 +1980,8 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       )}
       {section === "storage" && (
         <>
-          {renderSectionFields("storage")}
+          <StorageLocationsPanel />
+          {renderSectionFields("storage", MOVED_BY_STORAGE_PANEL)}
         </>
       )}
       {section === "backups" && (

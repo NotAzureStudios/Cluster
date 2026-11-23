@@ -1,0 +1,4 @@
+.library-space-v21 { margin-top: auto; display: grid; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.library-space-v21 > div { display: flex; align-items: baseline; gap: 8px; }
+.library-space-v21 span { font-size: 12px; font-weight: 600; }
+.library-space-v21 small { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }

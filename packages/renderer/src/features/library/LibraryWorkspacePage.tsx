@@ -1,4 +1,5 @@
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
+import { LibrarySpaceIndicator } from "./LibrarySpaceIndicator";
 import { downloadAuthenticatedClusterFile } from "../../core/browser-download-transfers";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
@@ -2156,6 +2157,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setFoldersOpen(!foldersOpen)} aria-expanded={foldersOpen}><LibraryIcon name="chevron" size={14} className={foldersOpen ? "open" : ""} /><strong>Folders</strong><small>{folders.length}</small></ClusterButton><ClusterIconButton label="Create folder" type="button" size="compact" onClick={() => beginCreateFolder(folderId)}><ClusterIcon name="plus" /></ClusterIconButton></div>
           {foldersOpen ? <FolderTree folders={folders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} onDropInto={itemInteraction.dropInto} /> : null}
         </section>
+        <LibrarySpaceIndicator />
       </aside>}>
         <ClusterMasterDetail className="library-master-detail-v429" label="Library items and inspector" masterLabel="Library items" detailLabel="Library inspector" detailOpen={Boolean(activeItem)} onCloseDetail={libraryDetailHistory.closeDetail} detailSize="narrow" persistKey="library" master={<main className="library-main-v217">
           <nav className="library-breadcrumb-v217 library-breadcrumb-v14" aria-label="Library path">

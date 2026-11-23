@@ -1,6 +1,6 @@
 
 import fs from "node:fs/promises";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { type FastifyInstance } from "fastify";
 
@@ -17,6 +17,8 @@ import { OperationCancelledError, withRequestCancellation } from "../core/operat
 import { createClusterStorageManager } from "../core/storage/storage-manager.js";
 import { checkServerConfigPreconditions } from "../core/server-config-preconditions.js";
 import { readNetworkDeploymentStatus } from "../core/server-network-deployment.js";
+import { expectedServerConfigFields } from "../core/server-config-preconditions.js";
+import { MOVABLE_STORAGE, cachedDirectoryUsage, createStorageMoves, driveSpace, requestNativeRestart, type MovableStorageDomain } from "../core/storage-moves.js";
 import { nativeUpdateBinary, readNativeWebUpdate, startNativeUpdateStage } from "../core/server-auto-update.js";
 import { diagnoseLocalNetworkPorts } from "../core/server-network-local-diagnostics.js";
 import { NETWORK_REVIEW_KEYS, reviewBoundDomainPortDrift, reviewNetworkChange } from "../core/server-network-change-review.js";
@@ -446,17 +448,10 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       } catch (error: any) {
         if (error?.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
       }
-      const config = await fs.readFile(CONFIG_FILE_PATH);
-      const configSha256 = createHash("sha256").update(config).digest("hex");
       const requestId = randomUUID();
-      const body = JSON.stringify({ schema: 1, action: "restart", requestId,
-        createdAt: new Date().toISOString(), configSha256 });
-      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
       // O_EXCL protects against duplicate restart submissions. Credentials
       // and PINs never enter this file, and no user-supplied path is accepted.
-      const handle = await fs.open(requestFile, "wx", 0o600);
-      try { await handle.writeFile(body, "utf8"); await handle.sync(); }
-      finally { await handle.close(); }
+      await requestNativeRestart(dir, CONFIG_FILE_PATH, requestId);
       return reply.code(202).send({ ok: true, code: "SERVER_RESTART_ACCEPTED", requestId,
         message: "Native supervisor restart requested. This session may disconnect while Cluster drains and restarts." });
     } catch (error: any) {
@@ -466,6 +461,87 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       return reply.code(503).send({ ok: false, code: "SERVER_RESTART_UNAVAILABLE",
         error: "Unable to publish the restart request to the local Windows supervisor. The configuration remains saved; restart using the native Server Manager." });
     }
+  });
+
+  // Storage locations: where each kind of data lives, how big it is, how
+  // much room its drive has, and moving it somewhere else.
+  const bootStorage = () => {
+    const boot = (RUNTIME_CONFIG as any)?.bootSettings || {};
+    return createClusterStorageManager(DATA_ROOT, {
+      projects: boot.projectsRootOverride, library: boot.libraryRootOverride, users: boot.usersRootOverride, backups: boot.backupsRootOverride,
+      logs: boot.logsRootOverride, runtime: boot.runtimeRootOverride, exports: boot.exportsRootOverride, uploads: boot.uploadRootOverride, branding: boot.brandingRootOverride,
+    });
+  };
+  const storageMoves = createStorageMoves({
+    stateFile: path.join(DATA_ROOT, "system", "runtime", "storage-move.json"),
+    currentPath: (domain) => bootStorage().get(domain),
+    allPaths: () => { const storage = bootStorage(); return (["projects", "library", "users", "backups", "logs", "runtime", "exports", "uploads", "branding", "system"] as const).map((domain) => storage.get(domain)); },
+    pointConfigAt: async (domain, target) => {
+      const key = MOVABLE_STORAGE[domain].key;
+      const existing = await readSettings(true);
+      const changes = { [key]: target };
+      await saveSettings({}, { changedFields: changes, expectedSettings: expectedServerConfigFields(settingsForClient(existing), changes) });
+    },
+    requestRestart: async () => {
+      // Without the native supervisor the move finishes on the next manual restart.
+      if (process.platform !== "win32") { app.log.info({}, "Storage move copied; restart Cluster Server to switch over"); return; }
+      await requestNativeRestart(path.join(DATA_ROOT, "system", "runtime"), CONFIG_FILE_PATH, randomUUID());
+    },
+    log: { info: (data, message) => app.log.info(data, message), error: (data, message) => app.log.error(data, message) },
+  });
+  backgroundTasks.scheduleAdaptive("storage-move-resume", 60_000, async () => {
+    await storageMoves.resume();
+    return { nextDelayMs: 60_000 };
+  }, { runImmediately: true, workloadClass: "maintenance" });
+
+  app.get("/api/admin/storage/locations", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    const storage = bootStorage();
+    const domains = [...Object.keys(MOVABLE_STORAGE), "logs", "runtime", "system"] as Array<keyof typeof MOVABLE_STORAGE | "logs" | "runtime" | "system">;
+    const locations = await Promise.all(domains.map(async (domain) => {
+      const location = storage.get(domain);
+      const movable = domain in MOVABLE_STORAGE;
+      return {
+        domain,
+        label: movable ? MOVABLE_STORAGE[domain as keyof typeof MOVABLE_STORAGE].label : domain === "logs" ? "Logs" : domain === "runtime" ? "Cache" : "Database & system",
+        path: location,
+        movable,
+        usage: cachedDirectoryUsage(location),
+        drive: await driveSpace(location),
+      };
+    }));
+    return { ok: true, dataRoot: DATA_ROOT, configPath: CONFIG_FILE_PATH, locations, move: await storageMoves.read() };
+  });
+
+  app.post("/api/admin/storage/move", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    const body = z.object({ domain: z.enum(Object.keys(MOVABLE_STORAGE) as [MovableStorageDomain, ...MovableStorageDomain[]]), target: z.string().min(1).max(400) }).strict().safeParse(request.body);
+    if (!body.success) return reply.code(400).send({ ok: false, code: "STORAGE_MOVE_INVALID", error: "Choose a location and enter a folder path." });
+    try {
+      const move = await storageMoves.start(body.data.domain, body.data.target);
+      await logActivity({ userId: admin.id, type: "storage", entityType: "storage", entityId: body.data.domain, title: `Moving ${MOVABLE_STORAGE[body.data.domain].label}`, message: `${move.from} → ${move.to}` });
+      return reply.code(202).send({ ok: true, move });
+    } catch (error) {
+      return reply.code(409).send({ ok: false, code: "STORAGE_MOVE_REJECTED", error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // Free space at a folder the admin is about to move data to.
+  app.get("/api/admin/storage/space", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    const target = String((request.query as any)?.path || "").trim();
+    if (!path.isAbsolute(target)) return { ok: true, drive: null };
+    return { ok: true, drive: await driveSpace(target) };
+  });
+
+  app.post("/api/admin/storage/move/dismiss", async (request, reply) => {
+    const admin = await requireAdminUserForRequest(request, reply);
+    if (!admin) return;
+    await storageMoves.dismiss();
+    return { ok: true };
   });
 
   app.get("/api/server-config/restart/status", async (request, reply) => {

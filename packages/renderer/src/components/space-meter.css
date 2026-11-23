@@ -1,0 +1,16 @@
+.cl-space-meter {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  overflow: hidden;
+}
+.cl-space-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.cl-space-meter[data-level="warning"] > span { background: var(--warning); }
+.cl-space-meter[data-level="danger"] > span { background: var(--danger, #e5484d); }

@@ -1,3 +1,4 @@
+import { cachedDirectoryUsage, driveSpace } from "../../core/storage-moves.js";
 import { resolveLibraryEffectiveRetention } from "./library-effective-retention.js";
 import { isLibraryRetentionActive, libraryMetadataMutationDenial } from "./library-retention-relocation.js";
 import { createHash } from "node:crypto";
@@ -871,6 +872,15 @@ export function registerLibraryRoutes({
       });
       throw error;
     }
+  });
+
+  // Library footprint and the free space left on its drive.
+  app.get("/api/library/storage-space", async (request, reply) => {
+    const context = await accessContext(request);
+    if (!context.user) return reply.code(401).send({ ok: false, error: "Sign in required." });
+    const usage = cachedDirectoryUsage(dataLayout.libraryRoot);
+    const drive = await driveSpace(dataLayout.libraryRoot);
+    return { ok: true, usedBytes: usage?.bytes ?? null, freeBytes: drive?.freeBytes ?? null, totalBytes: drive?.totalBytes ?? null };
   });
 
   app.get("/api/library/workspace", async (request, reply) => {
