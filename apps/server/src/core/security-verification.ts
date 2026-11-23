@@ -1,5 +1,11 @@
 export const SECURITY_VERIFICATION_TTL_MS = 5 * 60 * 1000;
-export const SECURITY_VERIFICATION_MAX_TTL_MS = 10 * 60 * 1000;
+// Routine admin work (settings, users, server config) shares one grant that
+// stays valid while it is being used: each use slides it ADMIN_IDLE_MS
+// forward, up to ADMIN_MAX_MS after the PIN was entered.
+const ADMIN_IDLE_MS = 30 * 60 * 1000;
+const ADMIN_MAX_MS = 4 * 60 * 60 * 1000;
+export const SECURITY_VERIFICATION_MAX_TTL_MS = ADMIN_IDLE_MS;
+const ADMIN_PURPOSES: readonly SecurityVerificationPurpose[] = ["server_configuration", "studio_administration"];
 
 export type SecurityVerificationPurpose =
   | "security_export"
@@ -31,8 +37,8 @@ const SECURITY_VERIFICATION_POLICIES: Readonly<Record<SecurityVerificationPurpos
   privacy: { purpose: "privacy", ttlMs: 3 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "knowledge", reasonMode: "optional" },
   session_management: { purpose: "session_management", ttlMs: 3 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "knowledge", reasonMode: "none" },
   mfa: { purpose: "mfa", ttlMs: 3 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "knowledge", reasonMode: "none" },
-  server_configuration: { purpose: "server_configuration", ttlMs: SECURITY_VERIFICATION_TTL_MS, singleUse: false, freshLoginSatisfies: true, minimumStrength: "knowledge", reasonMode: "optional" },
-  studio_administration: { purpose: "studio_administration", ttlMs: SECURITY_VERIFICATION_TTL_MS, singleUse: false, freshLoginSatisfies: true, minimumStrength: "knowledge", reasonMode: "optional" },
+  server_configuration: { purpose: "server_configuration", ttlMs: ADMIN_IDLE_MS, singleUse: false, freshLoginSatisfies: true, minimumStrength: "knowledge", reasonMode: "optional" },
+  studio_administration: { purpose: "studio_administration", ttlMs: ADMIN_IDLE_MS, singleUse: false, freshLoginSatisfies: true, minimumStrength: "knowledge", reasonMode: "optional" },
   context_export: { purpose: "context_export", ttlMs: 2 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "knowledge", reasonMode: "optional" },
   context_secret_export: { purpose: "context_secret_export", ttlMs: 2 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "phishing_resistant", reasonMode: "required" },
   library_administration: { purpose: "library_administration", ttlMs: 3 * 60 * 1000, singleUse: true, freshLoginSatisfies: false, minimumStrength: "knowledge", reasonMode: "optional" },
@@ -88,7 +94,17 @@ export async function issueSecurityVerification(prisma: any, input: {
   const nowMs = input.now ?? Date.now();
   const issuedAt = new Date(nowMs);
   const expiresAt = new Date(nowMs + boundedTtl(input.ttlMs));
-  const grant = await prisma.securityVerificationGrant.upsert({
+  if (ADMIN_PURPOSES.includes(input.purpose)) {
+    for (const sibling of ADMIN_PURPOSES.filter((purpose) => purpose !== input.purpose)) {
+      await upsertGrant(prisma, { ...input, purpose: sibling }, issuedAt, expiresAt);
+    }
+  }
+  const grant = await upsertGrant(prisma, input, issuedAt, expiresAt);
+  return { purpose: grant.purpose as SecurityVerificationPurpose, method: grant.method as SecurityVerificationMethod, issuedAt: grant.issuedAt.getTime(), expiresAt: grant.expiresAt.getTime(), singleUse: Boolean(grant.singleUse) };
+}
+
+function upsertGrant(prisma: any, input: Parameters<typeof issueSecurityVerification>[1], issuedAt: Date, expiresAt: Date) {
+  return prisma.securityVerificationGrant.upsert({
     where: { sessionId_purpose: { sessionId: input.sessionId, purpose: input.purpose } },
     create: {
       sessionId: input.sessionId,
@@ -119,7 +135,6 @@ export async function issueSecurityVerification(prisma: any, input: {
       auditCorrelationId: input.auditCorrelationId || null,
     },
   });
-  return { purpose: grant.purpose as SecurityVerificationPurpose, method: grant.method as SecurityVerificationMethod, issuedAt: grant.issuedAt.getTime(), expiresAt: grant.expiresAt.getTime(), singleUse: Boolean(grant.singleUse) };
 }
 
 export async function hasValidSecurityVerification(prisma: any, input: {
@@ -147,6 +162,12 @@ export async function hasValidSecurityVerification(prisma: any, input: {
       data: { consumedAt: now },
     });
     return consumed.count === 1;
+  }
+  if (ADMIN_PURPOSES.includes(input.purpose)) {
+    const slid = new Date(Math.min(now.getTime() + ADMIN_IDLE_MS, new Date(grant.issuedAt).getTime() + ADMIN_MAX_MS));
+    if (slid > grant.expiresAt) {
+      await prisma.securityVerificationGrant.updateMany({ where: { sessionId: input.sessionId, purpose: { in: [...ADMIN_PURPOSES] }, revokedAt: null, consumedAt: null }, data: { expiresAt: slid } }).catch(() => undefined);
+    }
   }
   return true;
 }

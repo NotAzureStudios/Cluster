@@ -93,8 +93,10 @@ export function assessOperationalHealth(input: {
 
   const failedTasks = input.backgroundTasks.filter((task) => task.consecutiveFailures >= 3);
   const criticalTasks = failedTasks.filter((task) => task.consecutiveFailures >= 8);
-  if (criticalTasks.length) checks.push({ key: "background-tasks", status: "fail", detail: `${criticalTasks.length} background task(s) have at least 8 consecutive failures.` });
-  else if (failedTasks.length) checks.push({ key: "background-tasks", status: "warn", detail: `${failedTasks.length} background task(s) have at least 3 consecutive failures.` });
+  // Name the failing tasks and their last error so the check is actionable.
+  const describe = (tasks: BackgroundTaskSnapshot[]) => tasks.map((task) => `${task.name} failed ${task.consecutiveFailures}× in a row${task.lastError ? `: ${String(task.lastError).slice(0, 160)}` : ""}`).join("; ");
+  if (criticalTasks.length) checks.push({ key: "background-tasks", status: "fail", detail: describe(criticalTasks) });
+  else if (failedTasks.length) checks.push({ key: "background-tasks", status: "warn", detail: describe(failedTasks) });
   else checks.push({ key: "background-tasks", status: "pass", detail: `${input.backgroundTasks.length} background task(s) have no sustained failure streak.` });
 
   const runtimeMode = input.runtimeMode || "normal";

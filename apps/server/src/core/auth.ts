@@ -8,7 +8,7 @@ export const PASSWORD_MAX_LENGTH = 1024;
 export const LOGIN_FAILURE_LIMIT = 8;
 export const LOGIN_LOCK_MS = 15 * 60 * 1000;
 export const LOGIN_FAILURE_DECAY_MS = 24 * 60 * 60 * 1000;
-export const REAUTH_WINDOW_MS = 10 * 60 * 1000;
+export const REAUTH_WINDOW_MS = 30 * 60 * 1000;
 export const DISCORD_LINK_STATE_LIFETIME_MS = 10 * 60 * 1000;
 
 

@@ -26,6 +26,18 @@ type AlertTargetType = "admins" | "user" | "team" | "department";
 type AlertPolicy = { key: string; enabled: boolean; recipientType: AlertTargetType; recipientId: string | null; escalationType: AlertTargetType; escalationId: string | null; acknowledgeMinutes: number; reminderMinutes: number; revision: number };
 type AlertTarget = { id: string; name: string };
 type AlertPolicyPayload = { ok: true; policies: AlertPolicy[]; targets: { users: AlertTarget[]; teams: AlertTarget[]; departments: AlertTarget[] } };
+// Newest first. Alert deliveries (initial, reminders, escalations) fold into
+// the status change that triggered them instead of filling the timeline.
+function compactTimeline(timeline: IncidentTimelineEntry[]) {
+  const rows: Array<{ entry: IncidentTimelineEntry; alerts: number }> = [];
+  for (const entry of timeline) {
+    const last = rows[rows.length - 1];
+    if (entry.kind === "alert" && / delivered to /.test(entry.message) && last) last.alerts += 1;
+    else rows.push({ entry, alerts: 0 });
+  }
+  return rows.reverse();
+}
+
 type OperationsIncident = { acknowledgedAt?: string | null; acknowledgedById?: string | null; alertCycle?: number; id: string; title: string; summary: string; severity: IncidentSeverity; status: IncidentStatus; ownerUserId?: string | null; ownerName?: string | null; correlationId?: string | null; openedByName?: string | null; openedAt: string; resolvedAt?: string | null; closedAt?: string | null; updatedAt: string; resources: IncidentResource[]; timeline: IncidentTimelineEntry[] };
 type NativeEmergencyReceipt = { id: string; code: string; category: string; outcome: string; occurredAt: string; processedAt: string; incidentId: string | null };
 type DurableIncidentsPayload = { ok: boolean; incidents: OperationsIncident[]; counts?: Record<string, number> };
@@ -354,8 +366,8 @@ export function OperationsIncidentsPanel() {
           {selected ? <>
             <h3 className="ao-card__title">{selected.title} <span className="ao-pill" data-tone={severityTone(selected.severity) || "accent"}>{stateLabel(selected.status)}</span></h3>
             <p className="ao-sub">{selected.summary || "No summary."} · {selected.ownerName || "Unassigned"} · opened {timeLabel(selected.openedAt)}{selected.acknowledgedAt ? "" : " · not acknowledged"}{selected.correlationId ? ` · trace ${selected.correlationId}` : ""}</p>
-            <ul className="ao-rows">{selected.timeline.map((entry) => <li key={entry.id} className="ao-row ao-row--plain">
-              <span className="ao-row__main"><b>{stateLabel(entry.kind)}</b><small className="ao-wrap">{entry.message}</small></span>
+            <ul className="ao-rows">{compactTimeline(selected.timeline).map(({ entry, alerts }) => <li key={entry.id} className="ao-row ao-row--plain">
+              <span className="ao-row__main"><b>{stateLabel(entry.kind)}</b><small className="ao-wrap">{entry.message}{alerts ? ` · ${alerts} alert${alerts === 1 ? "" : "s"} sent` : ""}</small></span>
               <span className="ao-row__end"><small>{entry.actorName || "System"} · {timeLabel(entry.createdAt)}</small></span>
             </li>)}</ul>
             <div className="ao-form">

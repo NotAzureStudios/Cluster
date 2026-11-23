@@ -120,7 +120,7 @@ import { CachedReadinessProbe } from "../core/readiness-probe.js";
 import { ApiToolReadinessMonitor, type ApiDependencySignal } from "../core/api-tool-readiness.js";
 import { SustainedDependencyIncidentDetector, reconcileDependencyIncidents } from "../core/operations-dependency-incidents.js";
 import { readNativeJournal } from "../core/operations-native-alert-reader.js";
-import { reconcileNativeEmergencyEvents, findUnreconciledNativeEvents } from "../core/operations-native-alert-reconciliation.js";
+import { reconcileNativeEmergencyEvents, findUnreconciledNativeEvents, resolveSelfEvidentNativeIncidents } from "../core/operations-native-alert-reconciliation.js";
 import { reconcileIncidentEscalations } from "../core/operations-incident-alert-routing.js";
 import { OperationalHealthHistory, WritableStorageProbe, assessOperationalHealth } from "../core/operational-health.js";
 import { verifyStorageSchema as verifyPostgresqlSchema, inspectStorageSchema } from "../core/storage-migrations.js";
@@ -1451,6 +1451,7 @@ export async function startClusterServer() {
             },
           });
         }
+        await resolveSelfEvidentNativeIncidents({ prisma, processStartedAt: new Date(Date.now() - process.uptime() * 1000) });
         return { nextDelayMs };
       }, { runImmediately: true, maxBackoffMs: 15 * 60_000, slowTaskMs: 20_000, workloadClass: "maintenance" });
       backgroundTasks.scheduleAdaptive("studio-tool-availability-reconcile", 60_000, async () => {

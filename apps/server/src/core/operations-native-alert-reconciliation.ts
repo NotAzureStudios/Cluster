@@ -150,3 +150,33 @@ export async function reconcileNativeEmergencyEvents(input: {
   }
   return result;
 }
+
+// The supervisor only journals an explicit recovery for some failures, so
+// host, API and gateway incidents used to stay open for weeks after the
+// Server came back. This process answering requests is the recovery: once it
+// has run cleanly for a while with no newer failure, resolve them.
+const SELF_EVIDENT_CATEGORIES = ["api-process", "api-dependencies", "native-host", "gateway"];
+const QUIET_MS = 15 * 60_000;
+
+export async function resolveSelfEvidentNativeIncidents(input: { prisma: any; processStartedAt: Date; now?: Date }) {
+  const now = input.now || new Date();
+  if (now.getTime() - input.processStartedAt.getTime() < QUIET_MS) return 0;
+  let resolved = 0;
+  for (const category of SELF_EVIDENT_CATEGORIES) {
+    const incident = await input.prisma.operationsIncident.findUnique({ where: { automationKey: nativeEventKey(category) } });
+    if (!incident || !["open", "investigating", "mitigating", "monitoring"].includes(incident.status)) continue;
+    const latest = await input.prisma.operationsNativeAlertReceipt.findFirst({
+      where: { category }, orderBy: [{ occurredAtOrdinal: "desc" }, { id: "desc" }], select: { occurredAt: true },
+    });
+    if (latest && now.getTime() - new Date(latest.occurredAt).getTime() < QUIET_MS) continue;
+    const claim = await input.prisma.operationsIncident.updateMany({
+      where: { id: incident.id, status: incident.status, alertCycle: incident.alertCycle },
+      data: { status: "resolved", resolvedAt: now },
+    });
+    if (claim.count !== 1) continue;
+    await input.prisma.operationsIncidentTimeline.create({ data: { incidentId: incident.id, kind: "resolution",
+      message: "Resolved automatically: the Server has been running normally with no new failures.", correlationId: nativeEventKey(category) } });
+    resolved++;
+  }
+  return resolved;
+}

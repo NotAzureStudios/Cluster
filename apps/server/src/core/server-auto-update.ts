@@ -26,7 +26,9 @@ export async function readNativeWebUpdate(dataRoot: string, action: "check" | "s
   const native = nativeUpdateBinary(dataRoot);
   if (!native) return null;
   const { stdout } = await execFileAsync(native.binary, ["--root", native.root, "--web-server-update", action],
-    { windowsHide: true, timeout: action === "check" ? 16_000 : action === "install" ? 20_000 : 8_000, maxBuffer: 8 * 1024 });
+    // Status re-hashes a staged installer and check hits the feed; on a busy
+    // or antivirus-scanned machine either can take well over 8 s.
+    { windowsHide: true, timeout: 90_000, maxBuffer: 8 * 1024 });
   return JSON.parse(stdout) as NativeUpdateStatus;
 }
 
@@ -79,7 +81,19 @@ export type ServerAutoUpdateDeps = {
 // Check the signed main feed, download what's newer, and hand a verified
 // installer to the protected update broker inside the window. The broker
 // still stops, backs up, installs, verifies and rolls back on failure.
+// An unreachable feed or a native CLI error is an update problem, not a
+// Server health problem: log it and try again later instead of failing the
+// background task (which marks the whole Server degraded).
 export async function serverAutoUpdateTick(deps: ServerAutoUpdateDeps): Promise<{ nextDelayMs: number }> {
+  try {
+    return await autoUpdateStep(deps);
+  } catch (error) {
+    deps.log.info({ error: error instanceof Error ? error.message : String(error) }, "Automatic Server update check failed; retrying later");
+    return { nextDelayMs: 30 * MINUTE };
+  }
+}
+
+async function autoUpdateStep(deps: ServerAutoUpdateDeps): Promise<{ nextDelayMs: number }> {
   const settings = await deps.readSettings();
   const native = deps.native ?? ((action) => readNativeWebUpdate(deps.dataRoot, action));
   if (settings.serverAutoUpdate === false || (!deps.native && !nativeUpdateBinary(deps.dataRoot))) return { nextDelayMs: HOUR };

@@ -86,6 +86,11 @@ type MailStatusRead = {
 
 type RecoveryReadiness = { ok: boolean; state: "ready" | "warning" | "critical"; generatedAt: string; checks: { generationPresent: boolean; completeSchema: boolean; verificationPassed: boolean; restoreDrillPassed: boolean; backupFresh: boolean; drillFresh: boolean; secretKeyAvailable: boolean | null }; latest?: ServerBackupRecord & { schemaVersion?: number; recoveryReady?: boolean; evidence?: { verification?: { checkedAt: string; ok: boolean } | null; restoreDrill?: { checkedAt: string; ok: boolean; mismatchCount: number } | null } }; backupAgeMs?: number | null; restoreDrillAgeMs?: number | null; note?: string };
 
+const STORAGE_OVERRIDE_DOMAINS: Record<string, string> = {
+  projectsRootOverride: "projects", libraryRootOverride: "library", usersRootOverride: "users", backupsRootOverride: "backups",
+  logsRootOverride: "logs", runtimeRootOverride: "runtime", exportsRootOverride: "exports", brandingRootOverride: "branding",
+};
+
 const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
   { key: "serverResourceProfile", label: "Resource scheduling profile", section: "performance", group: "Background worker policy", type: "select", restart: true, wide: true, options: [
     { value: "automatic", label: "Automatic (recommended)" },
@@ -409,25 +414,23 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     section: "storage",
     group: "Path overrides",
     type: "text",
-    placeholder: "D:\\Cluster\\data",
     restart: true,
     wide: true,
   },
-  { key: "projectsRootOverride", label: "Projects location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Projects", restart: true, wide: true },
-  { key: "libraryRootOverride", label: "Library location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Library", restart: true, wide: true },
-  { key: "usersRootOverride", label: "User data location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Users", restart: true, wide: true },
-  { key: "backupsRootOverride", label: "Backups location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "\\\\NAS\\ClusterBackups", restart: true, wide: true },
-  { key: "logsRootOverride", label: "Logs location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Logs", restart: true, wide: true },
-  { key: "runtimeRootOverride", label: "Runtime/cache location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "C:\\ClusterCache", restart: true, wide: true },
-  { key: "exportsRootOverride", label: "Exports location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Exports", restart: true, wide: true },
-  { key: "brandingRootOverride", label: "Branding location", section: "storage", group: "Advanced storage locations", type: "text", placeholder: "E:\\ClusterData\\Branding", restart: true, wide: true },
+  { key: "projectsRootOverride", label: "Projects location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "libraryRootOverride", label: "Library location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "usersRootOverride", label: "User data location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "backupsRootOverride", label: "Backups location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "logsRootOverride", label: "Logs location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "runtimeRootOverride", label: "Runtime/cache location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "exportsRootOverride", label: "Exports location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
+  { key: "brandingRootOverride", label: "Branding location", section: "storage", group: "Advanced storage locations", type: "text", restart: true, wide: true },
   {
     key: "uploadRootOverride",
     label: "Upload root override",
     section: "storage",
     group: "Path overrides",
     type: "text",
-    placeholder: "D:\\Cluster\\data\\uploads",
     restart: true,
     wide: true,
   },
@@ -437,7 +440,6 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     section: "storage",
     group: "Path overrides",
     type: "text",
-    placeholder: "D:\\Cluster\\cluster.config.json",
     restart: true,
     wide: true,
   },
@@ -447,7 +449,6 @@ const SERVER_CONFIG_FIELDS: ServerConfigField[] = [
     section: "storage",
     group: "Path overrides",
     type: "password",
-    placeholder: "postgresql://cluster@127.0.0.1:5432/cluster",
     restart: true,
     wide: true,
   },
@@ -1417,10 +1418,18 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
             {optionsWithCurrent(field.options || [], String(value ?? "")).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </ClusterNativeSelect>
         : <ClusterInput id={inputId} {...(field.type === "password" ? SECRET_INPUT_PROPS : { type: field.type })}
-            value={value === undefined || value === null ? "" : String(value)} placeholder={field.placeholder}
+            value={value === undefined || value === null ? "" : String(value)} placeholder={field.placeholder ?? currentPathPlaceholder(String(field.key))}
             min={field.min} max={field.max} step={field.step}
             onChange={(event) => patch(field.key, field.type === "number" ? (event.target.value === "" ? undefined : Number(event.target.value)) : event.target.value)} />;
     return <div className={className} key={String(field.key)}>{header}{control}</div>;
+  }
+  // Storage overrides are empty until set; show where that data lives now.
+  function currentPathPlaceholder(key: string) {
+    const domain = STORAGE_OVERRIDE_DOMAINS[key];
+    const current = key === "dataRootOverride" ? settings.dataRoot : key === "uploadRootOverride" ? settings.uploadRoot
+      : key === "configFileOverride" ? settings.configPath : key === "databaseUrlOverride" ? settings.databaseUrl
+      : domain ? settings.storageTopology?.[domain] : undefined;
+    return current ? `Default: ${current}` : undefined;
   }
   function renderSectionFields(target: ServerConfigField["section"], excludedKeys: readonly string[] = []) {
     const fields = SERVER_CONFIG_FIELDS.filter((field) => field.section === target && !excludedKeys.includes(String(field.key)));
@@ -1967,38 +1976,6 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
       )}
       {section === "storage" && (
         <>
-          <section className="panel server-config-runtime-v238">
-            <div className="server-config-group-head-v238">
-              <h2>Effective storage paths</h2>
-              <span>Resolved by server</span>
-            </div>
-            <dl>
-              <div>
-                <dt>Data root</dt>
-                <dd>
-                  <code>{settings.dataRoot || "—"}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Upload root</dt>
-                <dd>
-                  <code>{settings.uploadRoot || "—"}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Database URL</dt>
-                <dd>
-                  <code>{settings.databaseUrl || "—"}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Config path</dt>
-                <dd>
-                  <code>{settings.configPath || "—"}</code>
-                </dd>
-              </div>
-            </dl>
-          </section>
           {renderSectionFields("storage")}
         </>
       )}
