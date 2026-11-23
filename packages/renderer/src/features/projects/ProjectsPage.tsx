@@ -80,6 +80,9 @@ const DEFAULT_PROJECT_PROJECTIONS: ClusterDataProjection[] = [
 
 type ProjectStatusFilter = "all" | ClusterProjectStatus | "archived" | "ready" | "attention";
 
+// Portfolio signals and Views & analytics are parked until they get a redesign.
+const SHOW_PORTFOLIO_TOOLS = false;
+
 type PortfolioIntelligence = {
   generatedAt: string; projectCount: number; atRisk: number; danger: number; crossProjectDependencies: number; criticalCrossProjectDependencies: number; highPressureOwners: number; methodology: string;
   departments?: Array<{ department: string; owners: number; active: number; overdue: number; highPressureOwners: number }>; trend?: { samples: number; atRiskDelta: number; dangerDelta: number; highPressureDelta: number; history: Array<{ generatedAt: string; atRisk: number; danger: number; highPressureOwners: number }> };
@@ -140,6 +143,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [viewMode, setViewMode] = useServerState<"list" | "cards" | "table">("user", "projects.portfolio-view", "cards", { merge: (value, fallback) => value === "list" || value === "cards" || value === "table" ? value : fallback });
   const [density, setDensity] = useServerState<"compact" | "comfortable">("user", "projects.portfolio-density", "comfortable", { merge: (value, fallback) => value === "compact" || value === "comfortable" ? value : fallback });
   const [focus, setFocus] = useServerState<ProjectPortfolioFocus>("user", "projects.portfolio-focus", "all");
+  const [typeFilter, setTypeFilter] = useServerState<string>("user", "projects.type-filter", "");
   const [pinnedProjectIds, setPinnedProjectIds] = useServerState<string[]>("user", "projects.pinned", [], { merge: (value) => Array.isArray(value) ? value.map(String) : [] });
   const pinnedProjectSet = useMemo(() => new Set(pinnedProjectIds), [pinnedProjectIds]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
@@ -508,8 +512,15 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     if (sourceFilter === "external" && !external) return false;
     if (priorityFilter !== "all" && (project.priority || "medium") !== priorityFilter) return false;
     if (scheduleFilter !== "all" && fact.scheduleState !== scheduleFilter) return false;
+    if (typeFilter && projectTypeBadge(project) !== typeFilter) return false;
     return focus === "all" ? true : focus === "pinned" ? pinnedProjectSet.has(project.id) : focus === "at_risk" ? fact.attentionScore > 0 : focus === "due_soon" ? fact.scheduleState === "due_soon" : focus === "unscheduled" ? fact.scheduleState === "unscheduled" : fact.latest >= Date.now() - 86_400_000 * 14;
-  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, focus, pinnedProjectSet, projectHasGit, isExternalProject]);
+  }), [facts, statusFilter, sourceFilter, scheduleFilter, priorityFilter, typeFilter, focus, pinnedProjectSet, projectHasGit, isExternalProject]);
+  // Project-type chips: every type in use, most common first.
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const fact of facts) { const label = projectTypeBadge(fact.project); counts.set(label, (counts.get(label) || 0) + 1); }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [facts]);
   const rawPrimarySortMode = normalizedProjectSorts[0]?.fieldId === "project" ? "name" : (normalizedProjectSorts[0]?.fieldId || "attention");
   const primarySortMode = (["updated", "readiness", "attention", "name", "target", "priority", "status", "health", "stage", "source", "people"] as readonly string[]).includes(rawPrimarySortMode) ? rawPrimarySortMode : "attention";
   const sortedFacts = useMemo(() => [...filteredFacts].sort((a, b) => {
@@ -724,7 +735,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       if (condition.fieldId === "priority" && ["low", "medium", "high", "urgent"].includes(value)) setPriorityFilter(value as typeof priorityFilter);
     }
   }
-  function clearFilters() { projectDrilldown.reset(); setQuery(""); setStatusFilter("all"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet({ logic: "or", selections: [] }); persistFocus("all"); }
+  function clearFilters() { projectDrilldown.reset(); setQuery(""); setTypeFilter(""); setStatusFilter("all"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet({ logic: "or", selections: [] }); persistFocus("all"); }
   function navigateSelection(delta: number) { if (!sortedFacts.length) return; const current = sortedFacts.findIndex((fact) => fact.project.id === selectedProject?.id); const next = sortedFacts[(Math.max(0, current) + delta + sortedFacts.length) % sortedFacts.length]; setSelectedProjectId(next.project.id); }
 
   const collections = [...browserFilters.map((item) => ({ id: item.id, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.id === "at_risk" ? "Attention" : item.id === "unscheduled" ? "No date" : item.label, count: item.count, tone: item.id === "at_risk" && item.count ? "warning" : "" })), { id: "archived", label: "Archived", count: 0, tone: "" }];
@@ -796,6 +807,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               <ClusterIconButton size="compact" label={inspectorOpen ? "Hide details" : "Show details"} selected={inspectorOpen} aria-expanded={inspectorOpen} onClick={() => setInspectorOpen((value) => !value)}><ClusterIcon name={inspectorOpen ? "panel-close" : "panel-open"} /></ClusterIconButton>
             </div>
           </div>
+          {typeCounts.length > 1 ? <nav className="pl-types" aria-label="Project types">
+          <ClusterButton unstyled type="button" className={`pl-type ${!typeFilter ? "is-active" : ""}`} aria-pressed={!typeFilter} onClick={() => setTypeFilter("")}>All types<span>{facts.length}</span></ClusterButton>
+          {typeCounts.map(([label, count]) => <ClusterButton unstyled type="button" key={label} className={`pl-type ${typeFilter === label ? "is-active" : ""}`} aria-pressed={typeFilter === label} onClick={() => setTypeFilter(typeFilter === label ? "" : label)}>{label}<span>{count}</span></ClusterButton>)}
+          </nav> : null}
           <div className={`pl-work ${inspectorOpen ? "has-inspector" : ""}`.trim()}>
             <section className="pl-index" aria-label="Project list">
               {viewMode === "table" ? <>
@@ -898,7 +913,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               onOpenReports={onOpenReports}
             /></div> : null}
           </div>
-          <section className="pl-advanced" aria-label="Portfolio management">
+          {SHOW_PORTFOLIO_TOOLS ? <section className="pl-advanced" aria-label="Portfolio management">
             {isAdmin && portfolioProjects.length > 0 ? (
         <ClusterDisclosureGroup className="projects-intelligence-v30d" title="Portfolio signals"  open={intelligenceOpen} onOpenChange={setIntelligenceOpen} headerTrailing={portfolioIntelligence ? <span className={portfolioIntelligence.danger ? "danger" : portfolioIntelligence.atRisk ? "warning" : "good"}>{portfolioIntelligence.atRisk} at risk · {portfolioIntelligence.highPressureOwners} pressured</span> : null}>
           {intelligenceOpen && portfolioIntelligence ?
@@ -929,8 +944,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               {projectExportStatus ? <p className="muted" aria-live="polite">{projectExportStatus}</p> : null}
                 </> : null}
           </ClusterDisclosureGroup>
+          </section> : null}
           <DataExportOperationFeedback jobId={projectExportJobId} onDismiss={() => setProjectExportJobId("")} />
-          </section>
         </>
       )}
     </section>

@@ -312,3 +312,11 @@
   .pl-list--list .pl-card { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "mark id actions" "facts facts status"; }
 }
 .pl-advanced :is(summary, header) :is(h2, h3, strong, span:first-child) { font-size: var(--cluster-font-size-md); font-weight: 600; }
+
+/* Project-type chips under the bar; scrolls sideways when there are many types. */
+.pl-types { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 4px; }
+.pl-types::-webkit-scrollbar { display: none; }
+.pl-type { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--text) 6%, transparent); cursor: pointer; white-space: nowrap; }
+.pl-type span { font-variant-numeric: tabular-nums; opacity: .7; }
+.pl-type:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
+.pl-type.is-active { color: var(--text); background: color-mix(in srgb, var(--accent) 20%, transparent); }
