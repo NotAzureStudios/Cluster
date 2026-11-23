@@ -668,7 +668,7 @@ const SERVER_CONFIG_HELP: Partial<Record<keyof Settings, string>> = {
   securityHeadersEnabled: "Send browser security headers for framing, MIME sniffing, referrers, and related protections.",
   requireMutationOrigin: "Reject write requests whose browser Origin does not match an allowed Cluster origin.",
   avatarUploadLimitMb: "Maximum file size for user and studio profile images.",
-  allowExecutableUploads: "Permit executable or script-like files in Library uploads. Leave disabled unless the storage is tightly controlled.",
+  allowExecutableUploads: "Allow .exe, .dll and script files in Library uploads, such as plugins and tools.",
   allowedUploadMimeCsv: "Comma-separated MIME patterns accepted by the global upload gate. Tool-specific rules can narrow this further.",
   logLevel: "Minimum server log severity. Debug and trace create much larger logs and should be temporary.",
   enableRequestLogs: "Record one log entry for each HTTP request. Useful for diagnosis, noisy for long-term production use.",

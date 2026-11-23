@@ -164,6 +164,9 @@ export function resolvedUploadMime(buffer: Buffer, originalName: string, request
   return OCTET_STREAM;
 }
 
+// Shown wherever the executable policy rejects a file, so owners know the switch.
+export const EXECUTABLE_UPLOADS_OFF = "Executable files (.exe, .dll, scripts) are blocked. An owner can turn on Allow executable uploads in Server settings > Security > Upload policy, or upload them zipped.";
+
 export function isExecutablePayload(buffer: Buffer, originalName: string) {
   const ext = path.extname(originalName).toLowerCase();
   if (EXECUTABLE_EXTENSIONS.has(ext)) return true;
@@ -203,7 +206,7 @@ export function untrustedFileResponseHeaders(mimeType?: string | null, originalN
 
 export function mimePatternAllowed(mime: string, csvValue?: string) {
   const normalizedMime = normalizeMimeType(mime);
-  const patterns = String(csvValue || "image/*,video/*,audio/*,text/*,application/pdf,application/zip,application/gzip,application/json,application/rtf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,application/octet-stream")
+  const patterns = String(csvValue || "image/*,video/*,audio/*,text/*,application/pdf,application/zip,application/gzip,application/x-7z-compressed,application/vnd.rar,application/json,application/rtf,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,application/octet-stream")
     .split(/[\n,]+/)
     .map((item) => item.trim().toLowerCase())
     .filter((pattern) => pattern === "*/*" || /^[a-z0-9!#$&^_.+-]+\/(?:\*|[a-z0-9!#$&^_.+-]+)$/.test(pattern));

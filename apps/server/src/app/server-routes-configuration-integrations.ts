@@ -1176,7 +1176,7 @@ export function registerConfigurationIntegrationRoutes(deps: ServerRouteRegistra
       uploadLimitBytes: UPLOAD_LIMIT_BYTES,
       avatarUploadLimitBytes: AVATAR_UPLOAD_LIMIT_BYTES,
       executableUploadsAllowed: Boolean(ALLOW_EXECUTABLE_UPLOADS || settings.allowExecutableUploads),
-      allowedUploadMimeCsv: settings.allowedUploadMimeCsv || "image/*, video/*, audio/*, PDF, ZIP, JSON, text, binary project files",
+      allowedUploadMimeCsv: settings.allowedUploadMimeCsv || "image/*, video/*, audio/*, PDF, ZIP, 7z, RAR, JSON, text, binary project files",
       externalTimeoutMs: REQUEST_TIMEOUT_MS,
       sessionIdleHours: SESSION_IDLE_HOURS,
       sessionMaxPerUser: SESSION_MAX_PER_USER,

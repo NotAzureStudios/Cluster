@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { isExecutablePayload, isPotentiallyActiveContent, normalizeMimeType } from "./uploads.js";
+import { EXECUTABLE_UPLOADS_OFF, isExecutablePayload, isPotentiallyActiveContent, normalizeMimeType } from "./uploads.js";
 
 export type UploadScanVerdict = "clean" | "suspicious" | "malicious" | "unavailable";
 
@@ -53,7 +53,7 @@ export async function inspectUploadSecurity(input: {
 }): Promise<UploadSecurityDecision> {
   const mimeType = normalizeMimeType(input.mimeType);
   if (!input.allowExecutable && isExecutablePayload(input.prefix, input.fileName)) {
-    return { allowed: false, quarantine: true, code: "EXECUTABLE_UPLOAD_DISABLED", reason: "Executable or script-like upload content is disabled by server policy.", scanner: null };
+    return { allowed: false, quarantine: true, code: "EXECUTABLE_UPLOAD_DISABLED", reason: EXECUTABLE_UPLOADS_OFF, scanner: null };
   }
   if (!input.allowActiveContent && isPotentiallyActiveContent(mimeType, input.fileName)) {
     return { allowed: false, quarantine: true, code: "ACTIVE_CONTENT_UPLOAD_BLOCKED", reason: "Active browser content must not be served from the untrusted upload path.", scanner: null };

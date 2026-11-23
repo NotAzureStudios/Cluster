@@ -6,7 +6,7 @@ import path from "node:path";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { accountNextStep } from "../core/auth.js";
 
-import { decodeDataUrl, detectedMimeType, isExecutablePayload, mimePatternAllowed, normalizeMimeType, resolvedUploadMime, safeFileName, safePathSegment } from "../core/uploads.js";
+import { decodeDataUrl, detectedMimeType, EXECUTABLE_UPLOADS_OFF, isExecutablePayload, mimePatternAllowed, normalizeMimeType, resolvedUploadMime, safeFileName, safePathSegment } from "../core/uploads.js";
 import { currentUploadMalwareScanner, inspectUploadSecurity } from "../core/upload-security.js";
 import { createAuthorizationService } from "../domains/access/authorization.js";
 import { createHttpError } from "../core/http-errors.js";
@@ -356,7 +356,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
       storedMime = detectedMime;
     } else if (kind === "review_asset") {
       if (!ALLOW_EXECUTABLE_UPLOADS && !settings.allowExecutableUploads && isExecutablePayload(buffer, originalName)) {
-        throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", "Executable uploads are disabled in Server Configuration.", 415);
+        throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", EXECUTABLE_UPLOADS_OFF, 415);
       }
       const medium = requireReviewMedium(reviewMedium);
       const inferredMedium = inferReviewMediumFromResource(storedMime, originalName);
@@ -365,7 +365,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
     } else {
       if (!mimePatternAllowed(storedMime, settings.allowedUploadMimeCsv)) throw createHttpError("UPLOAD_TYPE_NOT_ALLOWED", `Upload type ${storedMime} is not allowed by Server Config.`, 415);
       if (!ALLOW_EXECUTABLE_UPLOADS && !settings.allowExecutableUploads && isExecutablePayload(buffer, originalName)) {
-        throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", "Executable uploads are disabled in Server Configuration.", 415);
+        throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", EXECUTABLE_UPLOADS_OFF, 415);
       }
     }
 
@@ -407,7 +407,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
     const header = await readCompletedUploadPrefix(uploadRuntime, resolved, 64 * 1024);
     const storedMime = resolvedUploadMime(header, originalName, clientMime || "application/octet-stream");
     if (!ALLOW_EXECUTABLE_UPLOADS && !settings.allowExecutableUploads && isExecutablePayload(header, originalName)) {
-      throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", "Executable uploads are disabled in Server Configuration.", 415);
+      throw createHttpError("EXECUTABLE_UPLOAD_DISABLED", EXECUTABLE_UPLOADS_OFF, 415);
     }
     if (kind === "review_asset") {
       const medium = requireReviewMedium(reviewMedium);
