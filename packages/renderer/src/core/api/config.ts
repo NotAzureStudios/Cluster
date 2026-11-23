@@ -22,6 +22,8 @@ configureClusterApiClient({
 
 export type ApiRequestOptions = RequestInit & {
   skipCacheInvalidation?: boolean;
+  /** Overrides the default request timeout (e.g. large upload bodies). */
+  timeoutMs?: number;
 };
 
 const SYNC_DEVICE_ID_KEY = "cluster-sync-device-id";

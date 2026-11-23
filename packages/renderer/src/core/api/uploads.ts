@@ -6,6 +6,7 @@ import { ApiError, isApiNetworkFailure, isOnline } from "./errors";
 import { mutationIdempotencyKey } from "./config";
 import { retryDelay } from "./offline-replay";
 import { persistentMutationHeaders } from "./mutation-support";
+import { startLiveUpload } from "../live-uploads";
 
 export type QueueableUploadOptions<T> = {
   method?: "POST" | "PUT";
@@ -52,10 +53,17 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
   const ensureCurrent = () => {
     if (!isCurrent()) throw new Error("Authentication context changed during the upload. Review the original account's transfer history before retrying.");
   };
-  const progress = options.onProgress ? async (value: Parameters<NonNullable<QueueableUploadOptions<T>["onProgress"]>>[0]) => {
-    if (isCurrent()) await options.onProgress?.(value);
-  } : undefined;
   const fileName = uploadFileName(options.file, options.fileName);
+  let live: ReturnType<typeof startLiveUpload> | null = null;
+  const progress = async (value: Parameters<NonNullable<QueueableUploadOptions<T>["onProgress"]>>[0]) => {
+    live?.update(value.receivedBytes, value.phase === "staging" ? "staging" : "verifying");
+    if (isCurrent()) await options.onProgress?.(value);
+  };
+  // Shown in the Transfer Center while this window is sending the file.
+  const transferLive = async <R>(run: () => Promise<R>) => {
+    live = startLiveUpload(fileName, options.file.size);
+    try { return await run(); } finally { live.end(); live = null; }
+  };
   const headers = new Headers(options.headers || {});
   const idempotencyKey = mutationIdempotencyKey(headers);
   const queue = async () => {
@@ -89,7 +97,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
     let directSession: { id: string | null; transferMode: "cluster" | "direct" | null } = { id: null, transferMode: null };
     try {
       ensureCurrent();
-      const result = await finalizeStagedUpload<T>(path, {
+      const result = await transferLive(() => finalizeStagedUpload<T>(path, {
         method: options.method || "POST",
         file: options.file,
         fileName,
@@ -99,7 +107,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
         onUploadSession: async (session) => { ensureCurrent(); directSession = session; await options.onUploadSession?.(session); },
         onProgress: progress,
         ensureCurrent,
-      });
+      }));
       ensureCurrent();
       return { queued: false, result };
     } catch (error) {
@@ -120,7 +128,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
   if (options.queueWhenOffline === false) {
     ensureCurrent();
     if (!isOnline()) throw new ApiError("This upload requires a connection.", 503);
-    const result = await finalizeStagedUpload<T>(path, {
+    const result = await transferLive(() => finalizeStagedUpload<T>(path, {
       method: options.method || "POST",
       file: options.file,
       fileName,
@@ -130,7 +138,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
       onUploadSession: async (session) => { ensureCurrent(); await options.onUploadSession?.(session); },
       onProgress: progress,
       ensureCurrent,
-    });
+    }));
     ensureCurrent();
     return { queued: false, result };
   }
@@ -141,7 +149,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
   } catch (error) {
     ensureCurrent();
     if (!isOnline()) throw error;
-    const result = await finalizeStagedUpload<T>(path, {
+    const result = await transferLive(() => finalizeStagedUpload<T>(path, {
       method: options.method || "POST",
       file: options.file,
       fileName,
@@ -151,7 +159,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
       onUploadSession: async (session) => { ensureCurrent(); await options.onUploadSession?.(session); },
       onProgress: progress,
       ensureCurrent,
-    });
+    }));
     ensureCurrent();
     return { queued: false, result };
   }
@@ -159,7 +167,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
   if (!isOnline()) return { queued: true, upload: durable };
   await updateOfflineUpload(durable.id, { status: "uploading", attempts: 1, lastAttemptAt: Date.now(), lastError: null });
   try {
-    const result = await finalizeStagedUpload<T>(path, {
+    const result = await transferLive(() => finalizeStagedUpload<T>(path, {
       method: options.method || "POST",
       file: options.file,
       fileName,
@@ -179,7 +187,7 @@ export async function uploadApi<T>(path: string, options: QueueableUploadOptions
       },
       onProgress: progress,
       ensureCurrent,
-    });
+    }));
     ensureCurrent();
     await removeOfflineUpload(durable.id);
     return { queued: false, result };
@@ -249,12 +257,16 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
       const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
       await updateOfflineUpload(item.id, { status: "uploading", attempts: item.attempts + 1, lastAttemptAt: Date.now(), lastError: null });
       const control: ActiveQueuedUpload = { controller: new AbortController(), pauseRequested: false, owner };
+      let live: ReturnType<typeof startLiveUpload> | null = null;
       activeQueuedUploads.set(item.id, control);
       try {
         if (control.pauseRequested) throw new Error("Upload paused by the user.");
         const headers = new Headers(item.headers || {});
         headers.set("X-Cluster-Idempotency-Key", item.idempotencyKey);
+        live = startLiveUpload(item.fileName, item.sizeBytes);
+        const progressTarget = live;
         await finalizeStagedUpload(item.path, {
+          onProgress: (value) => { progressTarget.update(value.receivedBytes, value.phase === "staging" ? "staging" : "verifying"); },
           method: item.method,
           file: item.file,
           fileName: item.fileName,
@@ -301,6 +313,7 @@ export async function flushApiUploads(options: { maxUploads?: number } = {}) {
         recordPerformanceMetric({ name: `offline upload ${item.path}`, category: "sync", durationMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt, startedAt: Date.now(), detail: { sizeBytes: item.sizeBytes, success: false, authPaused } });
         if (authPaused || reviewPaused || !terminal) break;
       } finally {
+        live?.end();
         activeQueuedUploads.delete(item.id);
       }
     }

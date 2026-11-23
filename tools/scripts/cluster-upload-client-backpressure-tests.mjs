@@ -49,6 +49,7 @@ function loadUploadApi(error) {
       contractVersion:"1",mutationSchemaVersion:1,
     }),queuedWorkMatchesServerBinding:()=>({ok:true})},
     "../performance": {recordPerformanceMetric:()=>{}},
+    "../live-uploads": {startLiveUpload:()=>({update(){},end(){}})},
     "./errors": {ApiError,isApiNetworkFailure:()=>false,isOnline:()=>true},
     "./config": {mutationIdempotencyKey:()=>"once"},
     "./offline-replay": {retryDelay:()=>500},

@@ -93,15 +93,16 @@ export async function rawApi<T>(path: string, options: ApiRequestOptions = {}): 
   const controller = new AbortController();
   // Reads can be delayed by the server's authoritative Retry-After window.
   // Give those retries time to complete without weakening the timeout on writes.
-  const requestTimeoutMs = method === "GET" || method === "HEAD" ? API_TIMEOUT_MS + 65_000 : API_TIMEOUT_MS;
+  const requestTimeoutMs = options.timeoutMs ?? (method === "GET" || method === "HEAD" ? API_TIMEOUT_MS + 65_000 : API_TIMEOUT_MS);
   const timeout = typeof window !== "undefined" ? window.setTimeout(() => controller.abort(), requestTimeoutMs) : setTimeout(() => controller.abort(), requestTimeoutMs);
   const { signal, cleanup: cleanupSignals } = combineSignals(controller.signal, options.signal);
   const headers = new Headers(options.headers || {});
   if (!headers.has("X-Cluster-Device-Id")) headers.set("X-Cluster-Device-Id", installationDeviceId());
   if (!(options.body instanceof FormData) && options.body != null && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   try {
+    const { timeoutMs: _timeoutMs, ...fetchOptions } = options;
     const res = await clusterApiFetch(path, {
-      ...options,
+      ...fetchOptions,
       credentials: "include",
       signal,
       headers,

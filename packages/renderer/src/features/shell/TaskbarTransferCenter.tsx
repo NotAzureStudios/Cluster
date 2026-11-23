@@ -8,6 +8,7 @@ import { getTransferPolicy, setTransferPolicy, subscribeTransferPolicy } from ".
 import { transferProgressSummary } from "./transfer-progress-summary";
 import { ClusterFloatingSurface } from "../../components/ClusterFloatingSurface";
 import { ClusterIcon } from "../../components/ClusterIcon";
+import { getLiveUploads, subscribeLiveUploads } from "../../core/live-uploads";
 import { useClusterActionFlight } from "../../components/useClusterActionFlight";
 import { createClusterLatestResponse } from "../../components/cluster-action-flight";
 import {
@@ -68,6 +69,7 @@ export function TaskbarTransferCenter() {
   const offline = useSyncExternalStore(subscribeOfflineSync, getOfflineSyncSnapshot, getOfflineSyncSnapshot);
   const browserDownloads = useSyncExternalStore(subscribeBrowserDownloads, getBrowserDownloadSnapshot, getBrowserDownloadSnapshot);
   const transferPolicy = useSyncExternalStore(subscribeTransferPolicy, getTransferPolicy, getTransferPolicy);
+  const liveUploads = useSyncExternalStore(subscribeLiveUploads, getLiveUploads, getLiveUploads);
   const [nativeTransfers, setNativeTransfers] = useState<ClusterNativeTransfer[]>([]);
   const [transferTelemetry, setTransferTelemetry] = useState(EMPTY_TRANSFER_TELEMETRY);
   const [nativeQueueStatus, setNativeQueueStatus] = useState<ClusterNativeTransferQueueStatus | null>(null);
@@ -113,7 +115,11 @@ export function TaskbarTransferCenter() {
     };
   }, []);
 
-  const browserUploads = offline.uploads;
+  // Uploads sending right now are shown from the live store (with progress);
+  // their durable queue record would only say "uploading".
+  const browserUploads = liveUploads.length ? offline.uploads.filter((item) => item.status !== "uploading") : offline.uploads;
+  const liveBytes = liveUploads.reduce((sum, upload) => sum + upload.totalBytes, 0);
+  const livePercent = liveBytes ? Math.round(liveUploads.reduce((sum, upload) => sum + upload.receivedBytes, 0) / liveBytes * 100) : null;
   const activeNative = nativeTransfers.filter((item) => !["complete", "cancelled"].includes(item.state)
     || (item.state === "cancelled" && item.fileSaved && item.evidenceStatus === "cancelled"));
   const completedNative = nativeTransfers.filter((item) => item.state === "complete");
@@ -125,8 +131,11 @@ export function TaskbarTransferCenter() {
   const browserSavingCount = browserDownloads.filter((item) => ["queued", "saving", "retrying", "verifying"].includes(item.state)).length;
   const completedCount = completedNative.length + browserDownloads.filter((item) => ["saved", "handed-off", "completed"].includes(item.state)).length;
   const visibleSpeed = Date.now() - transferTelemetry.at < 10_000 && transferringNative.length > 0;
-  const { activeCount, failedCount, pausedCount, verifyingCount, uploadingCount, downloadingCount, percentage: nativeProgress } =
-    transferProgressSummary(browserUploads, nativeTransfers, browserDownloads);
+  const summary = transferProgressSummary(browserUploads, nativeTransfers, browserDownloads);
+  const { failedCount, pausedCount, verifyingCount, downloadingCount } = summary;
+  const activeCount = summary.activeCount + liveUploads.length;
+  const uploadingCount = summary.uploadingCount + liveUploads.length;
+  const nativeProgress = summary.percentage ?? livePercent;
   const showInsights = activeCount > 0 || browserSavingCount > 0 || pausedCount > 0 || transferTelemetry.points.length > 1;
 
   const nativeJournalInvalid = nativeQueueStatus?.blockedReason === "journal-invalid";
@@ -243,7 +252,7 @@ export function TaskbarTransferCenter() {
         {showInsights ? <div className="cluster-transfer-metrics" aria-label="Transfer metrics">
           <article><span>Download</span><strong className={!visibleSpeed ? "is-muted" : ""}>{visibleSpeed && transferTelemetry.downBps !== null ? `${formatBytes(transferTelemetry.downBps)}/s` : "—"}</strong></article>
           <article><span>Upload</span><strong className={!visibleSpeed ? "is-muted" : ""}>{visibleSpeed && transferTelemetry.upBps !== null ? `${formatBytes(transferTelemetry.upBps)}/s` : "—"}</strong></article>
-          <article><span>In progress</span><strong>{workingNative.filter((item) => ["running", "verifying", "committing"].includes(item.state)).length + browserUploads.filter((item) => item.status === "uploading").length}</strong></article>
+          <article><span>In progress</span><strong>{workingNative.filter((item) => ["running", "verifying", "committing"].includes(item.state)).length + browserUploads.filter((item) => item.status === "uploading").length + liveUploads.length}</strong></article>
           <article><span>Queued</span><strong>{queuedNative.length + browserUploads.filter((item) => item.status === "pending").length}</strong></article>
         </div> : null}
         {transferringNative.length || transferTelemetry.points.length > 1 ? <TransferRateChart samples={transferTelemetry.points} /> : null}
@@ -257,7 +266,17 @@ export function TaskbarTransferCenter() {
         {nativeJournalInvalid ? <p className="cluster-transfer-action-error" role="alert">The local Desktop transfer journal is invalid or unreadable. The original file has been preserved and the queue is read-only. Repair the journal from a trusted backup before retrying. Do not delete the retained transfer files.</p> : null}
         {actionError ? <p className="cluster-transfer-action-error" role="alert">{actionError}</p> : null}
         <div className="cluster-transfer-list">
-          {workingNative.length || otherBrowserUploads.length ? <div className="cluster-transfer-section__heading"><strong>In progress & attention</strong><small>{workingNative.length + otherBrowserUploads.length} listed</small></div> : null}
+          {workingNative.length || otherBrowserUploads.length || liveUploads.length ? <div className="cluster-transfer-section__heading"><strong>In progress & attention</strong><small>{workingNative.length + otherBrowserUploads.length + liveUploads.length} listed</small></div> : null}
+          {liveUploads.map((upload) => {
+            const percent = upload.totalBytes ? Math.min(100, Math.round(upload.receivedBytes / upload.totalBytes * 100)) : 100;
+            return <article key={`live-${upload.id}`} data-state="uploading">
+              <div className="cluster-transfer-list__body">
+                <strong>{upload.fileName}</strong>
+                <span>Upload · {upload.phase === "staging" ? "Sending" : "Verifying on the server"} · {formatBytes(upload.receivedBytes)} / {formatBytes(upload.totalBytes)}</span>
+                <progress value={percent} max={100} aria-label={`${percent}% of ${upload.fileName} uploaded`} />
+              </div>
+            </article>;
+          })}
           {otherBrowserUploads.map(renderBrowserUpload)}
           {workingNative.map((transfer) => {
             const total = Number(transfer.totalBytes || 0);
@@ -336,7 +355,7 @@ export function TaskbarTransferCenter() {
               </div>
             </article>
           ))}
-          {!browserUploads.length && !activeNative.length && !browserDownloads.length && !completedNative.length ? (
+          {!browserUploads.length && !liveUploads.length && !activeNative.length && !browserDownloads.length && !completedNative.length ? (
             <div className="cluster-transfer-empty">
               <ClusterIcon name="check" />
               <strong>Nothing moving</strong>

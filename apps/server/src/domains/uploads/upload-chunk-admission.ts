@@ -50,22 +50,27 @@ export function createBufferedUploadAdmission(maxConcurrent = bufferedUploadAdmi
   let denied = 0;
   // The durable local writer has exactly one committed offset per upload.
   // Do not buffer parallel competing requests for that same upload session.
-  const activeSessions = new Set<string>();
+  // A holder may be superseded: a browser that timed out and retried owns
+  // the upload, while its abandoned request can sit half-received for minutes.
+  const activeSessions = new Map<string, { release: () => void; supersede?: () => boolean }>();
   return {
-    acquire(sessionId?: string): (() => void) | null {
+    acquire(sessionId?: string, supersede?: () => boolean): (() => void) | null {
+      const holder = sessionId !== undefined ? activeSessions.get(sessionId) : undefined;
+      if (holder && holder.supersede?.()) holder.release();
       if (active >= maxConcurrent || (sessionId !== undefined && activeSessions.has(sessionId))) {
         denied++;
         return null;
       }
       active++;
-      if (sessionId !== undefined) activeSessions.add(sessionId);
       let held = true;
-      return () => {
+      const release = () => {
         if (!held) return;
         held = false;
         active--;
-        if (sessionId !== undefined) activeSessions.delete(sessionId);
+        if (sessionId !== undefined && activeSessions.get(sessionId)?.release === release) activeSessions.delete(sessionId);
       };
+      if (sessionId !== undefined) activeSessions.set(sessionId, { release, supersede });
+      return release;
     },
     snapshot() { return { active, limit: maxConcurrent, rejected: denied }; },
   };

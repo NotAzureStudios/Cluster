@@ -185,7 +185,13 @@ export function registerUploadSessionRoutes(deps: UploadSessionDependencies) {
           receivedBytes,
         });
       }
-      const release = chunkAdmission.acquire(resolved.session.id);
+      // A request still waiting for its body when the same browser retries
+      // was abandoned (client timeout); drop it so the retry can proceed.
+      const release = chunkAdmission.acquire(resolved.session.id, () => {
+        if (request.raw.complete) return false;
+        request.raw.destroy();
+        return true;
+      });
       if (!release) {
         reply.header("Retry-After", "1");
         return reply.code(503).send({

@@ -56,9 +56,22 @@ export async function discardUploadSession(uploadId: string) {
   await api(`/api/uploads/${uploadId}`, { method: "DELETE", skipCacheInvalidation: true });
 }
 
+// 30 s plus the time to send the chunk at 64 KB/s.
+function chunkTimeoutMs(bytes: number) {
+  return 30_000 + Math.ceil(bytes / (64 * 1024)) * 1000;
+}
+
+function delay(ms: number, signal?: AbortSignal | null) {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+  });
+}
+
 async function stageClusterUpload(file: File | Blob, session: UploadSessionStart, options: UploadSessionPersistence) {
   const { onProgress, ensureCurrent, signal } = options;
   let offset = Math.max(0, Number(session.receivedBytes || 0));
+  let busyRetries = 0;
   const chunkSize = Math.max(256 * 1024, Math.min(8 * 1024 * 1024, Number(session.chunkSize || 4 * 1024 * 1024)));
   await onProgress?.({ uploadId: session.uploadId, transferMode: "cluster", phase: "staging", receivedBytes: offset, totalBytes: file.size, percent: file.size ? Math.round(offset / file.size * 100) : 100 });
   while (offset < file.size) {
@@ -69,13 +82,34 @@ async function stageClusterUpload(file: File | Blob, session: UploadSessionStart
       "Content-Type": "application/octet-stream",
       "Content-Range": `bytes ${offset}-${endExclusive - 1}/${file.size}`,
     });
-    const progress = await api<UploadSessionProgress>(`/api/uploads/${session.uploadId}/chunks`, {
-      method: "PUT",
-      headers,
-      body: chunk,
-      signal,
-      skipCacheInvalidation: true,
-    });
+    let progress: UploadSessionProgress;
+    try {
+      progress = await api<UploadSessionProgress>(`/api/uploads/${session.uploadId}/chunks`, {
+        method: "PUT",
+        headers,
+        body: chunk,
+        signal,
+        skipCacheInvalidation: true,
+        // Size-based: a slow uplink must not time out a chunk that is still sending.
+        timeoutMs: chunkTimeoutMs(endExclusive - offset),
+      });
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : "";
+      // The server still holds an earlier attempt of this chunk; wait and resend.
+      if (code === "UPLOAD_CHUNK_ADMISSION_BUSY" && busyRetries < 20) {
+        busyRetries += 1;
+        await delay(Math.min(5_000, 500 * busyRetries), signal);
+        continue;
+      }
+      // An earlier attempt landed after all: continue from the server's offset.
+      const received = error instanceof ApiError ? Number((error.payload as any)?.receivedBytes) : NaN;
+      if (code === "UPLOAD_OFFSET_CONFLICT" && Number.isFinite(received) && received >= 0 && received <= file.size) {
+        offset = received;
+        continue;
+      }
+      throw error;
+    }
+    busyRetries = 0;
     ensureCurrent?.();
     const nextOffset = Number(progress.receivedBytes || 0);
     if (nextOffset <= offset || nextOffset > file.size) throw new ApiError("The server returned an invalid upload offset.", 409, progress, null, "UPLOAD_OFFSET_INVALID");

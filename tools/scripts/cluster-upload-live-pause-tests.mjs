@@ -49,6 +49,7 @@ const prefix=[
 'const readOfflineServerBinding=()=>({serverInstanceId:"server-1",serverDataEpoch:"data-1",contractVersion:"1",mutationSchemaVersion:1});',
 'const isOnline=()=>true;',
 'const recordPerformanceMetric=()=>{};',
+'const startLiveUpload=()=>({update(){},end(){}});',
 'const retryDelay=()=>500;',
 'const ApiError=class extends Error{constructor(message,status=500){super(message);this.status=status;}};',
 'const isApiNetworkFailure=()=>false;',

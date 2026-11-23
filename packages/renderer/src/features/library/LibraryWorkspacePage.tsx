@@ -1052,6 +1052,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
       ] : []),
       { id: "pin", label: allPinned ? (many ? `Unpin ${ids.length} items` : "Unpin") : (many ? `Pin ${ids.length} items` : "Pin"), icon: "pin", separatorBefore: many, disabled: inTrash, onSelect: () => bulkOn(ids, "pin", { pinned: !allPinned }) },
       { id: "move", label: many ? `Move ${ids.length} items…` : "Move to…", icon: "forward", disabled: inTrash, onSelect: () => { setSelectedIds(new Set(ids)); window.setTimeout(() => document.querySelector<HTMLElement>('[aria-label="Move selected Library items"]')?.focus(), 60); } },
+      ...(inTrash ? [] : collections.filter((collection) => collection.kind === "manual" && !collection.archived && collection.accessRole !== "viewer").map((collection, index) => ({ id: `collection-${collection.id}`, label: `Add to ${collection.name}`, icon: "folder" as const, separatorBefore: index === 0, onSelect: () => void addSelectedToCollection(collection, ids) }) as ClusterActionMenuItem)),
       ...(inTrash
         ? [{ id: "restore", label: many ? `Restore ${ids.length} items` : "Restore", icon: "refresh", separatorBefore: true, onSelect: () => bulkOn(ids, "restore") } as ClusterActionMenuItem]
         : [
@@ -1841,9 +1842,9 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     if (!available.includes(tag)) { setError(new Error("That tag is not present in the selected Library items.")); return; }
     await runBulk("untag", { tag });
   }
-  async function addSelectedToCollection(collection: LibraryCollection) {
-    if (!selectedIds.size || bulkPendingRef.current || collection.kind !== "manual") return;
-    const ids = [...selectedIds];
+  async function addSelectedToCollection(collection: LibraryCollection, targetIds: string[] = [...selectedIds]) {
+    if (!targetIds.length || bulkPendingRef.current || collection.kind !== "manual") return;
+    const ids = targetIds;
     bulkPendingRef.current = true;
     setBulkBusy(true);
     try {
@@ -2146,7 +2147,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             { id: "manual", label: "New collection", icon: "folder", onSelect: () => void createLibraryCollection("manual") },
             { id: "smart", label: "Save current view as smart collection", icon: "search", onSelect: () => void createLibraryCollection("smart") },
           ]} /></div>
-          {collectionsOpen ? <><nav aria-label="Library collections">{collections.map((collection) => <div key={collection.id} className={`library-collection-row-v10${activeCollection?.id === collection.id && librarySection === "collection" ? " active" : ""}`}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryIcon name={collection.kind === "smart" ? "search" : "folder"} size={15} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
+          {collectionsOpen ? <><nav aria-label="Library collections">{collections.map((collection) => <div key={collection.id} className={`library-collection-row-v10${activeCollection?.id === collection.id && librarySection === "collection" ? " active" : ""}`}
+            onDragOver={(event) => { if (collection.kind === "manual" && collection.accessRole !== "viewer" && event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "link"; event.currentTarget.classList.add("is-drop-target"); } }}
+            onDragLeave={(event) => event.currentTarget.classList.remove("is-drop-target")}
+            onDrop={(event) => { event.currentTarget.classList.remove("is-drop-target"); const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE); if (!raw || collection.kind !== "manual") return; event.preventDefault(); try { const ids = JSON.parse(raw) as string[]; if (ids.length) void addSelectedToCollection(collection, ids); } catch { /* not ours */ } }}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryIcon name={collection.kind === "smart" ? "search" : "folder"} size={15} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
   { id: "share", label: "Share collection", icon: "users", onSelect: () => openLibraryCollectionSharing(collection) },
   { id: "rename", label: "Rename", icon: "note", onSelect: () => renameLibraryCollection(collection) },
   ...(collection.kind === "smart" ? [{ id: "refresh-rules", label: "Update from current view", icon: "refresh" as const, description: "Replace this smart collection's rules with the filters and sorting currently shown.", onSelect: () => updateSmartCollectionFromCurrentView(collection) }] : []),

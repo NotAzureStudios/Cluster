@@ -25,6 +25,7 @@ function harness(){
   };
   const modules={
     '../offline-storage':store,
+    '../live-uploads':{startLiveUpload:()=>({update(){},end(){}})},
     '../user-state-ownership':ownership,
     '../offline-server-binding':{readOfflineServerBinding:()=>null,queuedWorkMatchesServerBinding:()=>({ok:true})},
     '../performance':{recordPerformanceMetric:()=>{}},
