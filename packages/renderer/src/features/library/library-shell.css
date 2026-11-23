@@ -197,3 +197,18 @@
 .lib-page .library-inspector-head-v217 .button-row { flex-wrap: nowrap; }
 .lib-page .cluster-detail-pane-v429 > .cluster-detail-close-v429 { display: none !important; }
 .lib-page .library-inspector-head-v217 .button-row { display: flex !important; align-items: center; }
+
+/* Icon-library glyphs sized like the classic icons */
+.lib-glyph { display: inline-flex; flex: none; align-items: center; justify-content: center; color: var(--library-folder-color, currentColor); }
+.lib-glyph .resource-identity-mark { color: inherit; }
+.lib-glyph .resource-identity-mark svg { width: 100%; height: 100%; }
+.lib-icon-dialog { width: min(520px, 94vw); }
+.lib-page .library-collection-open-v10 { border: 0; background: transparent; font: inherit; font-size: 12.5px; min-height: 26px; display: flex; align-items: center; gap: 8px; padding: 0 8px; color: var(--text); }
+.lib-page .library-collection-row-v10 { min-height: 26px; border-radius: 7px; }
+.lib-page .library-collection-row-v10.active { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.lib-page { min-height: calc(100dvh - var(--cluster-taskbar-height, 48px) - 12px); }
+.lib-page { height: calc(100dvh - var(--cluster-taskbar-height, 48px) - 12px); min-height: 420px; }
+.lib-page .library-folder-icons-v224 { display: flex; flex-wrap: wrap; gap: 4px; }
+.lib-page .library-folder-icons-v224 > button { width: 32px; height: 32px; min-height: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
+.lib-page .library-folder-icons-v224 > button small { display: none; }
+.lib-page .library-folder-icon-field-v227 { display: grid; gap: 8px; }

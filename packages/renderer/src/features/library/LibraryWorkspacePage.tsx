@@ -9,7 +9,8 @@ import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
 import { startVisibleJobPolling } from "../../core/visible-job-polling";
-import { LibraryIcon, folderIconName, itemIconName } from "./LibraryIcons";
+import { LibraryGlyph, LibraryIcon, LibraryItemGlyph, isLibraryIconId, itemIconName } from "./LibraryIcons";
+import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { LibraryAuthenticatedImage, LibraryModelThumbnail, LibraryPreview, LibraryTextPreview, LibraryVideoThumbnail, LibraryViewerModal } from "./LibraryMediaPreview";
 import { libraryFileUrl } from "./library-file-url";
 import { LibraryAudioArtwork } from "./LibraryAudioArtwork";
@@ -100,9 +101,13 @@ function isProtectedLibraryFolder(item?: LibraryItem | null) { return Boolean(it
 function FolderAppearancePicker({ color, icon, onColor, onIcon, compact = false }: { color: string; icon: string; onColor: (value: string) => void; onIcon: (value: string) => void; compact?: boolean }) {
   return <div className={`library-folder-style-v217 library-folder-style-v224${compact ? " compact" : ""}`}>
     <ColorField value={color} onChange={onColor} label="Folder color" swatches={FOLDER_COLORS} />
-    <fieldset className="library-folder-icon-field-v227"><legend>Folder icon</legend><div className="library-folder-icons-v224">
-      {FOLDER_ICONS.map((value) => <ClusterButton unstyled type="button" key={value} className={icon === value ? "active" : ""} onClick={() => onIcon(value)} aria-label={`Use ${FOLDER_ICON_LABELS[value]} folder icon`}><LibraryIcon name={value} size={18} /><small>{FOLDER_ICON_LABELS[value]}</small></ClusterButton>)}
-    </div></fieldset>
+    <fieldset className="library-folder-icon-field-v227"><legend>Folder icon</legend>
+      <div className="library-folder-icons-v224">
+        {FOLDER_ICONS.map((value) => <ClusterButton unstyled type="button" key={value} className={icon === value ? "active" : ""} onClick={() => onIcon(value)} aria-label={`Use ${FOLDER_ICON_LABELS[value]} folder icon`}><LibraryIcon name={value} size={18} /><small>{FOLDER_ICON_LABELS[value]}</small></ClusterButton>)}
+      </div>
+      {/* Any icon from the shared library, including brand marks. */}
+      <ResourceIconPicker label="Folder" value={isLibraryIconId(icon) ? icon : null} onChange={(id) => onIcon(id || "folder")} />
+    </fieldset>
   </div>;
 }
 
@@ -172,7 +177,7 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
             onDragLeave={(event) => event.currentTarget.classList.remove("is-drop-target")}
             onDrop={(event) => { event.currentTarget.classList.remove("is-drop-target"); const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE); if (!onDropInto || !raw) return; event.preventDefault(); try { const ids = (JSON.parse(raw) as string[]).filter((id) => id !== folder.id); if (ids.length) onDropInto(folder, ids); } catch { /* not ours */ } }}>
             <ClusterButton unstyled type="button" className="library-tree-disclosure-v229" onClick={() => hasChildren && toggle(folder.id)} aria-label={`${folderOpen ? "Collapse" : "Expand"} ${folder.title}`} disabled={!hasChildren}><LibraryIcon name="chevron" size={14} className={folderOpen ? "open" : ""} /></ClusterButton>
-            <ClusterButton unstyled type="button" className="library-tree-target-v229" onClick={() => { onOpenFolder(folder.id); if (hasChildren) setExpanded((current) => new Set(current).add(folder.id)); }}><LibraryIcon name={folderIconName(folder)} size={16} /><strong>{folder.title}</strong><em>{folder.childCount || 0}</em></ClusterButton>
+            <ClusterButton unstyled type="button" className="library-tree-target-v229" onClick={() => { onOpenFolder(folder.id); if (hasChildren) setExpanded((current) => new Set(current).add(folder.id)); }}><LibraryItemGlyph item={folder} size={16} /><strong>{folder.title}</strong><em>{folder.childCount || 0}</em></ClusterButton>
             <ClusterActionMenu
               label={`Folder actions for ${folder.title}`}
               iconOnly
@@ -218,7 +223,7 @@ function PinnedShelf({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: L
   if (!items.length) return null;
   return <section className="library-explorer-section-v10 library-pinned-shelf-v217" aria-label="Pinned Library items">
     <div className="library-explorer-section-head-v10 library-pinned-head"><LibraryIcon name="star" size={14} /><strong>Pinned</strong><span>{items.length}</span></div>
-    <nav className="library-section-nav-v504">{items.map((item) => <ClusterButton unstyled key={item.id} type="button" style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)} title={item.title}><LibraryIcon name={itemIconName(item)} size={15} /><span>{item.title}</span></ClusterButton>)}</nav>
+    <nav className="library-section-nav-v504">{items.map((item) => <ClusterButton unstyled key={item.id} type="button" style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)} title={item.title}><LibraryItemGlyph item={item} size={15} /><span>{item.title}</span></ClusterButton>)}</nav>
   </section>;
 }
 
@@ -279,7 +284,7 @@ function LibraryListRows({ items, activeId, selectedIds, onSelect, interact, reo
     {items.map((item) => <div key={item.id} data-library-item-id={item.id} className={`library-file-row-v217${activeId === item.id ? " active" : ""}${selectedIds.has(item.id) ? " selected" : ""}${reorderEnabled ? " is-reorderable-v11" : ""}`} style={item.type === "folder" ? folderStyle(item) : undefined} role="row" aria-selected={selectedIds.has(item.id) || activeId === item.id}
       onClick={(event) => { if ((event.target as HTMLElement).closest("label")) return; interact.pick(item, event); }} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, reorderEnabled, onReorder)}>
       <label aria-label={`Select ${item.title}`} role="cell"><ClusterInput type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => onSelect(item, event.target.checked)} /></label>
-      <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryIcon name={itemIconName(item)} size={20} /></div>
+      <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryItemGlyph item={item} size={20} /></div>
       <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.originalName || item.snippet || item.type}</span></ClusterButton>
       <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} items` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
     </div>)}
@@ -298,7 +303,7 @@ function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEn
           : item.previewKind === "model" ? <LibraryModelThumbnail item={item} />
           : item.previewKind === "audio" ? <LibraryAudioArtwork item={item} compact />
             : isText ? <LibraryTextPreview item={item} compact />
-              : <LibraryIcon name={itemIconName(item)} size={item.type === "folder" ? 58 : 52} />}
+              : <LibraryItemGlyph item={item} size={item.type === "folder" ? 58 : 52} />}
     </ClusterButton>
     <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
   </article>;
@@ -308,7 +313,7 @@ function LibraryFolderTile({ item, active, selected, interact }: { item: Library
   return <div data-library-item-id={item.id} role="button" tabIndex={-1} className={`lib-folder-tile${active ? " active" : ""}${selected ? " selected" : ""}`} style={folderStyle(item)} aria-selected={selected || active}
     aria-label={`${item.title} folder, ${item.childCount || 0} items. Double-click to open`}
     onClick={(event) => interact.pick(item, event)} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, false)}>
-    <LibraryIcon name={itemIconName(item)} size={20} />
+    <LibraryItemGlyph item={item} size={20} />
     <strong>{item.pinned ? <LibraryIcon name="star" size={12} /> : null}{item.title}</strong>
     <small>{item.childCount || 0}</small>
   </div>;
@@ -556,14 +561,14 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
     ? [["preview", "Folder"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]]
     : [["preview", "Preview"], ["description", "Info"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]];
   return <aside className="library-inspector-v217">
-    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryIcon name={itemIconName(item)} size={22} /><span>{item.type === "folder" ? `Folder · ${item.childCount || 0} items` : item.type === "file" ? `${item.extension?.toUpperCase() || "File"} · ${formatBytes(item.sizeBytes)}` : item.type.replace(/-/g, " ")}</span><strong title={item.title}>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
+    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryItemGlyph item={item} size={22} /><span>{item.type === "folder" ? `Folder · ${item.childCount || 0} items` : item.type === "file" ? `${item.extension?.toUpperCase() || "File"} · ${formatBytes(item.sizeBytes)}` : item.type.replace(/-/g, " ")}</span><strong title={item.title}>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
     <div className="library-inspector-tabs-v217" role="tablist" style={runtimeStyle({ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` })}>{tabs.map(([value, label]) => <ClusterButton unstyled type="button" key={value} className={tab === value ? "active" : ""} onClick={() => onTab(value)}>{label}</ClusterButton>)}</div>
     {item.projectId || item.project?.id ? <LinkedWorkPanel projectId={item.projectId || item.project!.id} kind="library" entityId={item.id} compact /> : null}
 
     {tab === "preview" && item.type !== "folder" && <div className="library-inspector-scroll-v217"><LibraryPreview item={item} />{item.hasFile && <div className="library-preview-actions-v217"><ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true }).then(() => setMessage("Download requested. View Transfer Center for progress or browser handoff." )).catch((error) => setMessage(error instanceof Error ? error.message : "Download failed.")); }}>Download</ClusterLinkButton><ClusterButton type="button" className="" onClick={() => onExpand(item)} variant="primary">Open</ClusterButton></div>}<LibraryFileFacts item={item} /></div>}
 
     {tab === "preview" && item.type === "folder" && <div className="library-inspector-scroll-v217 library-folder-editor-v220">
-      <div className="library-folder-hero-v220" style={runtimeStyle({ "--library-folder-color": draft.folderColor || item.folderColor || "#7aa8ff" })}><div><LibraryIcon name={folderIconName({ folderIcon: draft.folderIcon })} size={44} /></div><span>{protectedFolder ? "Managed folder" : "Folder"}</span><strong>{draft.title || item.title}</strong><small>{item.childCount || 0} item{item.childCount === 1 ? "" : "s"}</small></div>
+      <div className="library-folder-hero-v220" style={runtimeStyle({ "--library-folder-color": draft.folderColor || item.folderColor || "#7aa8ff" })}><div><LibraryGlyph icon={draft.folderIcon} size={44} label={draft.title} /></div><span>{protectedFolder ? "Managed folder" : "Folder"}</span><strong>{draft.title || item.title}</strong><small>{item.childCount || 0} item{item.childCount === 1 ? "" : "s"}</small></div>
       <div className="library-folder-actions-v220"><ClusterButton type="button" className="" onClick={() => onOpenFolder(item.id)} variant="primary">Open folder</ClusterButton><ClusterButton type="button" className="" onClick={() => onManagePermissions(item)} variant="secondary">Permissions</ClusterButton><ClusterButton type="button" className="" onClick={save} disabled={saving || !draft.title.trim()} variant="secondary">{saving ? "Saving…" : "Save folder"}</ClusterButton></div>
       <label><span>Name</span><ClusterTextInput value={draft.title} onChange={(event) => setDraft((value) => ({ ...value, title: event.target.value }))} /></label>
       <label><span>Description</span><ClusterTextArea className="library-description-v217" value={draft.body} onChange={(event) => setDraft((value) => ({ ...value, body: event.target.value }))} placeholder="What belongs in this folder?" /></label>
@@ -632,6 +637,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   const [collections, setCollections] = useState<LibraryCollection[]>([]);
   const [activeCollection, setActiveCollection] = useState<LibraryCollection | null>(null);
   const [sharingCollection, setSharingCollection] = useState<LibraryCollection | null>(null);
+  const [iconCollection, setIconCollection] = useState<LibraryCollection | null>(null);
   const [sharingGrants, setSharingGrants] = useState<LibraryCollectionGrant[]>([]);
   const [sharingBusy, setSharingBusy] = useState(false);
   const [sharingLoading, setSharingLoading] = useState(false);
@@ -2060,6 +2066,15 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     } catch (reason) { setError(reason instanceof Error ? reason : new Error("Could not rename Library collection.")); }
   }
 
+  async function setLibraryCollectionIcon(collection: LibraryCollection, icon: string | null) {
+    try {
+      const result = await api<{ ok: true; collection: LibraryCollection }>(`/api/library/collections/${collection.id}`, { method: "PATCH", body: JSON.stringify({ icon, expectedRevision: collection.revision }) });
+      setCollections((current) => current.map((entry) => entry.id === collection.id ? result.collection : entry));
+      setActiveCollection((current) => current?.id === collection.id ? result.collection : current);
+      setIconCollection(null);
+    } catch (reason) { setError(reason instanceof Error ? reason : new Error("Could not change the collection icon.")); }
+  }
+
   async function updateSmartCollectionFromCurrentView(collection: LibraryCollection) {
     if (collection.kind !== "smart") return;
     if (librarySection === "collection") {
@@ -2147,9 +2162,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
           {collectionsOpen ? <><nav aria-label="Library collections">{collections.map((collection) => <div key={collection.id} className={`library-collection-row-v10${activeCollection?.id === collection.id && librarySection === "collection" ? " active" : ""}`}
             onDragOver={(event) => { if (collection.kind === "manual" && collection.accessRole !== "viewer" && event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "link"; event.currentTarget.classList.add("is-drop-target"); } }}
             onDragLeave={(event) => event.currentTarget.classList.remove("is-drop-target")}
-            onDrop={(event) => { event.currentTarget.classList.remove("is-drop-target"); const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE); if (!raw || collection.kind !== "manual") return; event.preventDefault(); try { const ids = JSON.parse(raw) as string[]; if (ids.length) void addSelectedToCollection(collection, ids); } catch { /* not ours */ } }}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryIcon name={collection.kind === "smart" ? "search" : "folder"} size={15} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
+            onDrop={(event) => { event.currentTarget.classList.remove("is-drop-target"); const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE); if (!raw || collection.kind !== "manual") return; event.preventDefault(); try { const ids = JSON.parse(raw) as string[]; if (ids.length) void addSelectedToCollection(collection, ids); } catch { /* not ours */ } }}><ClusterButton unstyled type="button" className="library-collection-open-v10" onClick={() => openCollection(collection)}><LibraryGlyph icon={collection.icon} fallback={collection.kind === "smart" ? "search" : "folder"} size={15} label={collection.name} /><span>{collection.name}</span><small>{collection.kind === "smart" ? "Smart" : collection.itemCount ?? ""}</small></ClusterButton>{collection.accessRole === "owner" ? <ClusterActionMenu label={`Collection actions for ${collection.name}`} iconOnly items={[
   { id: "share", label: "Share collection", icon: "users", onSelect: () => openLibraryCollectionSharing(collection) },
   { id: "rename", label: "Rename", icon: "note", onSelect: () => renameLibraryCollection(collection) },
+  { id: "icon", label: "Change icon…", icon: "palette", onSelect: () => setIconCollection(collection) },
   ...(collection.kind === "smart" ? [{ id: "refresh-rules", label: "Update from current view", icon: "refresh" as const, description: "Replace this smart collection's rules with the filters and sorting currently shown.", onSelect: () => updateSmartCollectionFromCurrentView(collection) }] : []),
   { id: "remove", label: "Remove collection", icon: "trash", danger: true, separatorBefore: true, onSelect: () => deleteLibraryCollection(collection) },
 ]} /> : <small className="muted" title="Collection sharing does not grant access to its underlying files.">{collection.accessRole === "editor" ? "Edit" : "View"}</small>}</div>)}</nav></> : null}
@@ -2290,7 +2306,9 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
             onClick={(event) => { if (!(event.target as HTMLElement).closest("[data-library-item-id]") && selectedIds.size && !event.metaKey && !event.ctrlKey) setSelectedIds(new Set()); }}>
             {loading ? ((layout === "grid" || layout === "compact-grid") ? <CardGridLoadingState label="Loading Library items" cards={8} /> : <TableLoadingState label="Loading Library items" rows={9} columns={6} compact />) : error && !items.length ? null : items.length === 0 ? (
               // Inside a folder, the project scope Cluster applies on open isn't a user filter.
-              activeFilterCount > (currentFolder && filters.projectId ? 1 : 0) ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Try clearing filters or opening another folder." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
+              librarySection === "collection" ? <ClusterEmptyState kind="empty" icon="folder" className="library-empty-v217" title="This collection is empty" description="Drag files onto it in the sidebar, or right-click a file and choose Add to." />
+              : librarySection !== "folder" ? <ClusterEmptyState kind="empty" icon="folder" className="library-empty-v217" title={`Nothing in ${sectionLabel} yet`} />
+              : activeFilterCount > (currentFolder && filters.projectId ? 1 : 0) ? <ClusterEmptyState kind="filtered" icon="search" className="library-empty-v217" title="No Library items match this view" description="Try clearing filters or opening another folder." actions={<><ClusterButton variant="secondary" onClick={clearFilters}>Clear filters</ClusterButton><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton></>} />
               : currentFolder ? <ClusterEmptyState kind="empty" icon="folder" className="library-empty-v217" title="This folder is empty" description="Upload files or add a link when this folder has something worth keeping with the project." actions={<ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton>} />
               : <ClusterEmptyState kind="first-use" icon="library" className="library-empty-v217" title="Add the first Library item" description="Use Library for project files, references, links, media, and durable project context. Start with a file or link instead of building an empty taxonomy first." actions={<><ClusterButton variant="primary" onClick={() => fileInput.current?.click()}>Upload files</ClusterButton><ClusterButton variant="secondary" onClick={() => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" })}>Add link</ClusterButton></>} />
             ) : <div className={`library-result-groups-v11 layout-${layout}`} data-grouped={groupBy !== "none" ? "true" : "false"}>{groupedItems.map((group) => <section key={group.key} className="library-result-group-v11">{group.label ? <header className="lib-section-head"><strong>{group.label}</strong><span>{group.items.length}</span></header> : null}{group.key === "folders" ? <div className="lib-folder-tiles">{group.items.map((item) => <LibraryFolderTile key={item.id} item={item} active={activeId === item.id} selected={selectedIds.has(item.id)} interact={itemInteraction} />)}</div> : layout === "list" || layout === "details" ? <div role="table" aria-label={group.label ? `${group.label} Library items` : "Library items"} className={layout === "list" ? "library-table-v11 is-simple" : "library-table-v11 is-details"}><div className="library-list-head-v217" role="row"><span role="columnheader" aria-label="Selection" /><span role="columnheader" aria-sort={filters.sort.startsWith("title") ? (filters.sort === "title-asc" ? "ascending" : "descending") : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: value.sort === "title-asc" ? "title-desc" : "title-asc" }))}>Name{filters.sort.startsWith("title") ? <ClusterIcon name={filters.sort === "title-asc" ? "chevron-up" : "chevron-down"} /> : null}</ClusterButton></span><span role="columnheader">Project</span><span role="columnheader">Type</span><span role="columnheader" aria-sort={filters.sort.startsWith("size") ? (filters.sort === "size-asc" ? "ascending" : "descending") : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: value.sort === "size-desc" ? "size-asc" : "size-desc" }))}>Size{filters.sort.startsWith("size") ? <ClusterIcon name={filters.sort === "size-asc" ? "chevron-up" : "chevron-down"} /> : null}</ClusterButton></span><span role="columnheader" aria-sort={filters.sort === "updated-desc" ? "descending" : undefined}><ClusterButton unstyled type="button" className="library-sort-head" onClick={() => setFilters((value) => ({ ...value, sort: "updated-desc" }))}>Modified{filters.sort === "updated-desc" ? <ClusterIcon name="chevron-down" /> : null}</ClusterButton></span></div><LibraryListRows items={group.items} activeId={activeId} selectedIds={selectedIds} onSelect={toggleSelection} interact={itemInteraction} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} /></div> : <div className={`library-grid-v217${layout === "compact-grid" ? " is-compact-v11" : ""}`}>{group.items.map((item) => <LibraryGridCard key={item.id} item={item} active={activeId === item.id} selected={selectedIds.has(item.id)} onSelect={(checked) => toggleSelection(item, checked)} interact={itemInteraction} reorderEnabled={reorderEnabled} onReorder={(sourceId, targetId) => void reorderLibraryItem(sourceId, targetId)} />)}</div>}</section>)}</div>}
@@ -2333,6 +2351,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         </div>
       </>}
       <div className="modal-actions"><ClusterButton variant="secondary" disabled={sharingBusy} onClick={() => setSharingCollection(null)}>Done</ClusterButton></div>
+    </ClusterModal>}
+    {iconCollection && <ClusterModal open onClose={() => setIconCollection(null)} className="modal panel lib-icon-dialog" ariaLabel={`Icon for ${iconCollection.name}`}>
+      <div className="modal-header"><h2>Icon for {iconCollection.name}</h2><ClusterIconButton label="Close" onClick={() => setIconCollection(null)}><LibraryIcon name="close" size={20} /></ClusterIconButton></div>
+      <ResourceIconPicker label={iconCollection.name} value={iconCollection.icon || null} onChange={(id) => void setLibraryCollectionIcon(iconCollection, id)} />
     </ClusterModal>}
     {permissionFolder && <ClusterModal open onClose={() => setPermissionFolder(null)} backdropClassName="library-permission-backdrop-v270" className="modal panel library-permission-dialog-v270" ariaLabel={`Folder access ${permissionFolder.title}`}>
       <div className="modal-header"><div><p className="eyebrow">Folder access</p><h2>{permissionFolder.title}</h2></div><ClusterIconButton label="Close folder permissions" type="button" onClick={() => setPermissionFolder(null)}><LibraryIcon name="close" size={22} /></ClusterIconButton></div>

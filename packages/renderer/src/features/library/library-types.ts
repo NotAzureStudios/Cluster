@@ -144,7 +144,7 @@ export const EMPTY_FACETS: LibraryFacets = {
   byMimeGroup: {}
 };
 export type LibraryCollection = {
-  id: string; ownerId: string; projectId?: string | null; name: string; description?: string | null; kind: "manual" | "smart"; query?: Record<string, unknown>; archived?: boolean; revision: number; itemCount?: number; accessRole?: "owner" | "editor" | "viewer"; createdAt: string; updatedAt: string;
+  id: string; ownerId: string; projectId?: string | null; name: string; description?: string | null; kind: "manual" | "smart"; icon?: string | null; query?: Record<string, unknown>; archived?: boolean; revision: number; itemCount?: number; accessRole?: "owner" | "editor" | "viewer"; createdAt: string; updatedAt: string;
 };
 
 export type LibraryOperation = {

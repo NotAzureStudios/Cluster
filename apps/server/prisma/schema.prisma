@@ -2694,6 +2694,7 @@ model LibraryCollection {
     name        String
     description String?
     kind        String   @default("manual")
+    icon        String?
     queryJson   String   @default("{}")
     archived    Boolean  @default(false)
     createdAt   DateTime @default(now())

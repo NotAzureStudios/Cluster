@@ -1,3 +1,4 @@
+import { isResourceIconId } from "../../core/resource-icon.js";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -414,6 +415,7 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
       name: collection.name,
       description: collection.description,
       kind: collection.kind,
+      icon: collection.icon || null,
       query: parseJson(collection.queryJson, {}),
       archived: Boolean(collection.archived),
       revision: collection.revision,
@@ -450,13 +452,13 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
     const { collectionId } = z.object({ collectionId: idSchema }).parse(request.params);
     const access = await requireCollectionAccess(request, reply, collectionId, "manage");
     if (!access) return;
-    const body = z.object({ name: z.string().trim().min(1).max(160).optional(), description: z.string().trim().max(1000).nullable().optional(), query: z.unknown().optional(), expectedRevision: z.number().int().positive() }).parse(request.body || {});
+    const body = z.object({ name: z.string().trim().min(1).max(160).optional(), description: z.string().trim().max(1000).nullable().optional(), icon: z.string().max(200).refine(isResourceIconId, "Unknown icon.").nullable().optional(), query: z.unknown().optional(), expectedRevision: z.number().int().positive() }).parse(request.body || {});
     if (body.expectedRevision !== access.collection.revision) return reply.code(409).send({ ok: false, code: "REVISION_CONFLICT", error: "Collection changed on another client.", current: serializeCollection(access.collection, access.role) });
     if (access.collection.kind !== "smart" && body.query !== undefined) return reply.code(409).send({ ok: false, code: "LIBRARY_COLLECTION_QUERY_INVALID", error: "Manual collections do not use a smart query." });
     const updatedQuery = body.query !== undefined ? librarySmartCollectionWhere(body.query) : null;
     if (updatedQuery?.query.folderScope && (await authorizedCollectionScope(request, reply, updatedQuery)) === false) return;
     const queryJson = updatedQuery ? JSON.stringify(updatedQuery.query) : undefined;
-    const changed = await prisma.libraryCollection.updateMany({ where: { id: collectionId, archived: false, revision: body.expectedRevision }, data: { ...(body.name !== undefined ? { name: body.name } : {}), ...(body.description !== undefined ? { description: body.description } : {}), ...(queryJson !== undefined ? { queryJson } : {}), revision: { increment: 1 } } });
+    const changed = await prisma.libraryCollection.updateMany({ where: { id: collectionId, archived: false, revision: body.expectedRevision }, data: { ...(body.name !== undefined ? { name: body.name } : {}), ...(body.description !== undefined ? { description: body.description } : {}), ...(body.icon !== undefined ? { icon: body.icon } : {}), ...(queryJson !== undefined ? { queryJson } : {}), revision: { increment: 1 } } });
     if (changed.count !== 1) return reply.code(409).send({ ok: false, code: "REVISION_CONFLICT", error: "Collection changed during the update. Refresh and retry." });
     const row = await prisma.libraryCollection.findUnique({ where: { id: collectionId }, include: { _count: { select: { memberships: true } } } });
     return { ok: true, collection: serializeCollection(row, access.role) };
