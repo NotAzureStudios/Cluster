@@ -342,23 +342,29 @@ function groupLibraryItems(items: LibraryItem[], mode: LibraryGroupMode, mixed =
 }
 
 function LibraryFileFacts({ item }: { item: LibraryItem }) {
-  return <dl className="library-preview-facts-v219">
-    <div><dt>Type</dt><dd>{item.extension?.toUpperCase() || item.mimeType || item.type}</dd></div>
-    <div><dt>Size</dt><dd>{formatBytes(item.sizeBytes)}</dd></div>
-    <div><dt>Modified</dt><dd>{formatDate(item.fileModifiedAt || item.updatedAt)}</dd></div>
-    <div><dt>Owner</dt><dd>{userName(item.owner)}</dd></div>
-    <div><dt>Project</dt><dd>{item.project?.name || "Workspace"}</dd></div>
-    <div><dt>Status</dt><dd>{item.lifecycleState}</dd></div>
-    <div><dt>Review</dt><dd>{String(item.reviewState || "draft").replace(/-/g, " ")}</dd></div>
-    <div><dt>Classification</dt><dd>{item.classification}</dd></div>
-    <div><dt>Integrity</dt><dd>{item.integrityState || (item.checksumSha256 ? "verified" : "unverified")}</dd></div>
-    <div><dt>Versions</dt><dd>{item.versionCount || 0}</dd></div>
-    <div><dt>Backlinks</dt><dd>{item.backlinkCount || 0}</dd></div>
-    {item.legalHold && <div className="full"><dt>Retention</dt><dd>Legal/administrative hold</dd></div>}
-    {item.retentionUntil && <div className="full"><dt>Retain until</dt><dd>{formatDate(item.retentionUntil)}</dd></div>}
-    {item.originalName && <div className="full"><dt>Original file</dt><dd>{item.originalName}</dd></div>}
-    {item.checksumSha256 && <div className="full"><dt>SHA-256</dt><dd className="library-checksum-v217">{item.checksumSha256}</dd></div>}
-  </dl>;
+  return <div className="lib-facts">
+    <dl>
+      <div><dt>Type</dt><dd>{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeType || "File") : item.type}</dd></div>
+      {item.type === "file" ? <div><dt>Size</dt><dd>{formatBytes(item.sizeBytes)}</dd></div> : null}
+      <div><dt>Modified</dt><dd>{formatDate(item.fileModifiedAt || item.updatedAt)}</dd></div>
+      <div><dt>Owner</dt><dd>{userName(item.owner)}</dd></div>
+      <div><dt>Project</dt><dd>{item.project?.name || "Workspace"}</dd></div>
+      <div><dt>Status</dt><dd>{item.lifecycleState}</dd></div>
+      {item.versionCount ? <div><dt>Versions</dt><dd>{item.versionCount}</dd></div> : null}
+      {item.legalHold ? <div><dt>Retention</dt><dd>Legal hold</dd></div> : null}
+    </dl>
+    <ClusterDisclosureGroup title="More details" className="lib-facts-more">
+      <dl>
+        <div><dt>Review</dt><dd>{String(item.reviewState || "draft").replace(/-/g, " ")}</dd></div>
+        <div><dt>Classification</dt><dd>{item.classification}</dd></div>
+        <div><dt>Integrity</dt><dd>{item.integrityState || (item.checksumSha256 ? "verified" : "unverified")}</dd></div>
+        <div><dt>Backlinks</dt><dd>{item.backlinkCount || 0}</dd></div>
+        {item.retentionUntil ? <div><dt>Retain until</dt><dd>{formatDate(item.retentionUntil)}</dd></div> : null}
+        {item.originalName ? <div><dt>Original file</dt><dd>{item.originalName}</dd></div> : null}
+        {item.checksumSha256 ? <div><dt>SHA-256</dt><dd className="library-checksum-v217">{item.checksumSha256}</dd></div> : null}
+      </dl>
+    </ClusterDisclosureGroup>
+  </div>;
 }
 
 function LibraryInspector({ item, folders, projects, users, currentUser, tab, onTab, onSaved, onOpenFolder, onExpand, onManagePermissions, favorite, onToggleFavorite, onClose }: {
@@ -550,18 +556,18 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
     ? [["preview", "Folder"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]]
     : [["preview", "Preview"], ["description", "Info"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]];
   return <aside className="library-inspector-v217">
-    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryIcon name={itemIconName(item)} size={22} /><span>{item.mimeType || item.type}</span><strong>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
+    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryIcon name={itemIconName(item)} size={22} /><span>{item.type === "folder" ? `Folder · ${item.childCount || 0} items` : item.type === "file" ? `${item.extension?.toUpperCase() || "File"} · ${formatBytes(item.sizeBytes)}` : item.type.replace(/-/g, " ")}</span><strong title={item.title}>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
     <div className="library-inspector-tabs-v217" role="tablist" style={runtimeStyle({ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` })}>{tabs.map(([value, label]) => <ClusterButton unstyled type="button" key={value} className={tab === value ? "active" : ""} onClick={() => onTab(value)}>{label}</ClusterButton>)}</div>
     {item.projectId || item.project?.id ? <LinkedWorkPanel projectId={item.projectId || item.project!.id} kind="library" entityId={item.id} compact /> : null}
 
-    {tab === "preview" && item.type !== "folder" && <div className="library-inspector-scroll-v217"><LibraryPreview item={item} />{item.hasFile && <div className="library-preview-actions-v217"><ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true }).then(() => setMessage("Download requested. View Transfer Center for progress or browser handoff." )).catch((error) => setMessage(error instanceof Error ? error.message : "Download failed.")); }}>Download</ClusterLinkButton><ClusterButton type="button" className="" onClick={() => onExpand(item)} variant="primary">Expand</ClusterButton></div>}<LibraryFileFacts item={item} /></div>}
+    {tab === "preview" && item.type !== "folder" && <div className="library-inspector-scroll-v217"><LibraryPreview item={item} />{item.hasFile && <div className="library-preview-actions-v217"><ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true }).then(() => setMessage("Download requested. View Transfer Center for progress or browser handoff." )).catch((error) => setMessage(error instanceof Error ? error.message : "Download failed.")); }}>Download</ClusterLinkButton><ClusterButton type="button" className="" onClick={() => onExpand(item)} variant="primary">Open</ClusterButton></div>}<LibraryFileFacts item={item} /></div>}
 
     {tab === "preview" && item.type === "folder" && <div className="library-inspector-scroll-v217 library-folder-editor-v220">
       <div className="library-folder-hero-v220" style={runtimeStyle({ "--library-folder-color": draft.folderColor || item.folderColor || "#7aa8ff" })}><div><LibraryIcon name={folderIconName({ folderIcon: draft.folderIcon })} size={44} /></div><span>{protectedFolder ? "Managed folder" : "Folder"}</span><strong>{draft.title || item.title}</strong><small>{item.childCount || 0} item{item.childCount === 1 ? "" : "s"}</small></div>
       <div className="library-folder-actions-v220"><ClusterButton type="button" className="" onClick={() => onOpenFolder(item.id)} variant="primary">Open folder</ClusterButton><ClusterButton type="button" className="" onClick={() => onManagePermissions(item)} variant="secondary">Permissions</ClusterButton><ClusterButton type="button" className="" onClick={save} disabled={saving || !draft.title.trim()} variant="secondary">{saving ? "Saving…" : "Save folder"}</ClusterButton></div>
       <label><span>Name</span><ClusterTextInput value={draft.title} onChange={(event) => setDraft((value) => ({ ...value, title: event.target.value }))} /></label>
       <label><span>Description</span><ClusterTextArea className="library-description-v217" value={draft.body} onChange={(event) => setDraft((value) => ({ ...value, body: event.target.value }))} placeholder="What belongs in this folder?" /></label>
-      <label><span>Parent folder</span><ClusterSelect value={draft.parentId} onChange={() => {}} ariaLabel="Parent folder" disabled options={[{ value: "", label: "Library root" }, ...folders.filter((folder) => folder.id !== item.id).map((folder) => ({ value: folder.id, label: folder.title }))]} /></label><p className="library-managed-folder-note-v271">{protectedFolder ? "Cluster manages this folder; it cannot be moved." : "For a safe folder relocation, select it in Library and use Move to review the complete hierarchy and retention rules."}</p>
+      <label><span>Parent folder</span><ClusterSelect value={draft.parentId} onChange={() => {}} ariaLabel="Parent folder" disabled options={[{ value: "", label: "Library root" }, ...folders.filter((folder) => folder.id !== item.id).map((folder) => ({ value: folder.id, label: folder.title }))]} /></label>{protectedFolder ? <p className="library-managed-folder-note-v271">Managed by Cluster; can't be moved.</p> : null}
       <FolderAppearancePicker color={draft.folderColor} icon={draft.folderIcon} onColor={(folderColor) => setDraft((value) => ({ ...value, folderColor }))} onIcon={(folderIcon) => setDraft((value) => ({ ...value, folderIcon }))} compact />
       {message && <div className={message.includes("saved") ? "status-box slim" : "error-box slim"}>{message}</div>}
       <LibraryFileFacts item={item} />
@@ -572,7 +578,7 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
       <label><span>Description</span><ClusterTextArea className="library-description-v217" value={draft.body} onChange={(event) => setDraft((value) => ({ ...value, body: event.target.value }))} placeholder="Describe the file, context, usage, or decision…" /></label>
       <label><span>Tags</span><ClusterTextInput value={draft.tags} onChange={(event) => setDraft((value) => ({ ...value, tags: event.target.value }))} placeholder="environment, reference, approved" /></label>
       {item.externalUrl && <label><span>Link URL</span><ClusterTextInput value={draft.externalUrl} onChange={(event) => setDraft((value) => ({ ...value, externalUrl: event.target.value }))} /></label>}
-      <div className="library-field-pair-v217"><label><span>Folder</span><ClusterSelect value={draft.parentId} onChange={() => {}} ariaLabel="Library folder" disabled options={[{ value: "", label: "Library root" }, ...folders.filter((folder) => folder.id !== item.id).map((folder) => ({ value: folder.id, label: folder.title }))]} /></label><label><span>Project</span><ClusterSelect value={draft.projectId} onChange={() => {}} ariaLabel="Library project" disabled options={[{ value: "", label: "Workspace" }, ...projects.filter((project) => !project.archived).map((project) => ({ value: project.id, label: project.name }))]} /></label></div><p className="library-managed-folder-note-v271">Use the Library Move action for folder changes. Moving an asset between Projects requires a separately authorized Project transfer workflow; editing its metadata does not change access ownership.</p>
+      <div className="library-field-pair-v217"><label><span>Folder</span><ClusterSelect value={draft.parentId} onChange={() => {}} ariaLabel="Library folder" disabled options={[{ value: "", label: "Library root" }, ...folders.filter((folder) => folder.id !== item.id).map((folder) => ({ value: folder.id, label: folder.title }))]} /></label><label><span>Project</span><ClusterSelect value={draft.projectId} onChange={() => {}} ariaLabel="Library project" disabled options={[{ value: "", label: "Workspace" }, ...projects.filter((project) => !project.archived).map((project) => ({ value: project.id, label: project.name }))]} /></label></div><p className="library-managed-folder-note-v271">Use Move to change folder or project.</p>
       <div className="library-field-pair-v217"><label><span>Owner</span><ClusterSelect value={draft.ownerId} onChange={(ownerId) => setDraft((value) => ({ ...value, ownerId }))} ariaLabel="Library owner" options={[{ value: "", label: "Unassigned" }, ...users.map((user) => ({ value: user.id, label: userName(user) }))]} /></label><label><span>Status</span><ClusterSelect value={draft.status} onChange={(status) => setDraft((value) => ({ ...value, status }))} ariaLabel="Library status" options={[{ value: "active", label: "Active" }, { value: "draft", label: "Draft" }, { value: "in-review", label: "In review" }, { value: "approved", label: "Approved" }, { value: "needs-update", label: "Needs update" }, { value: "deprecated", label: "Deprecated" }, { value: "archived", label: "Archived" }]} /></label></div>
       <label><span>Visibility</span><ClusterSelect value={draft.visibility} onChange={(visibility) => setDraft((value) => ({ ...value, visibility }))} ariaLabel="Library visibility" options={[{ value: "internal", label: "Internal" }, { value: "project", label: "Project members" }, { value: "private", label: "Private" }]} /></label>
       {item.type === "folder" && <FolderAppearancePicker color={draft.folderColor} icon={draft.folderIcon} onColor={(folderColor) => setDraft((value) => ({ ...value, folderColor }))} onIcon={(folderIcon) => setDraft((value) => ({ ...value, folderIcon }))} compact />}
@@ -2124,11 +2130,14 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     <ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} />
     <ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
     <ClusterResizableRail className="lib-body" label="Library sidebar" persistKey="library-folders" minWidth={184} defaultWidth={232} maxWidth={360} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217 lib-side" aria-label="Library sidebar">
-      <ClusterActionMenu label="New in Library" triggerLabel="New" icon="plus" align="start" className="lib-new" items={newItems} />
-      <nav className="lib-nav" aria-label="Library views">
+      <div className="lib-side-head">
+        <ClusterActionMenu label="New in Library" triggerLabel="New" icon="plus" align="start" className="lib-new" items={newItems} />
+        <ClusterIconButton label={viewsOpen ? "Hide locations" : "Show locations"} size="compact" variant="quiet" selected={!viewsOpen} onClick={() => setViewsOpen(!viewsOpen)}><ClusterIcon name={viewsOpen ? "chevron-up" : "chevron-down"} /></ClusterIconButton>
+      </div>
+      {viewsOpen ? <nav className="lib-nav" aria-label="Library views">
         <ClusterButton unstyled type="button" className={atRoot ? "active" : ""} onClick={() => openLibrarySection("folder")}><ClusterIcon name="library" /><span>Library</span></ClusterButton>
         {([["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
-      </nav>
+      </nav> : null}
       <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
       <section className="library-explorer-section-v10 library-collections-v504">
           <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setCollectionsOpen(!collectionsOpen)} aria-expanded={collectionsOpen}><LibraryIcon name="chevron" size={14} className={collectionsOpen ? "open" : ""} /><strong>Collections</strong><small>{collections.length}</small></ClusterButton><ClusterActionMenu label="Create collection" iconOnly icon="plus" items={[

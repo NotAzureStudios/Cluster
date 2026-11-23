@@ -125,3 +125,75 @@
 @container (max-width: 820px) {
   .lib-page .lib-toolbar > .lib-search { order: 10; flex: 1 1 100%; }
 }
+
+/* ---- Density pass: fit as much as possible on screen ---- */
+.lib-page .lib-side-head { display: flex; align-items: center; gap: 4px; padding: 0 2px; }
+.lib-page .lib-side-head .lib-new { margin: 0; flex: none; }
+.lib-page .lib-side { gap: 10px; padding: 8px 6px; }
+.lib-page .lib-nav > button { min-height: 26px; padding: 0 8px; font-size: 12.5px; gap: 8px; }
+.lib-page .lib-nav > button svg { width: 15px; height: 15px; }
+.lib-page .lib-side .library-section-nav-v504 > button { min-height: 24px; padding: 0 8px; font-size: 12px; }
+.lib-page .lib-side .library-explorer-section-head-v10 { min-height: 22px; font-size: 10.5px; }
+.lib-page .lib-side .library-tree-row-v229 { min-height: 26px; font-size: 12.5px; }
+.lib-page .lib-toolbar { padding: 6px 10px; gap: 4px; }
+.lib-page .lib-path { font-size: 14px; }
+.lib-page .lib-search { min-height: 28px; }
+.lib-page .lib-search input { min-height: 26px; font-size: 13px; }
+.lib-page .library-results-v217 { padding: 2px 12px 16px; }
+.lib-page .library-result-group-v11 { margin-top: 10px; }
+.lib-page .lib-section-head { margin: 0 2px 6px; }
+.lib-page .lib-section-head strong { font-size: 12px; }
+.lib-folder-tiles { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.lib-folder-tile { height: 34px; padding: 0 10px; gap: 8px; border-radius: 8px; }
+.lib-folder-tile strong { font-size: 12.5px; }
+.lib-page .library-grid-v217 { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.lib-page .library-grid-card-v219 { grid-template-rows: 96px auto; border-radius: 9px; contain-intrinsic-size: 140px; }
+.lib-page .library-grid-v217 .library-grid-preview-v219 { height: 96px; min-height: 96px; }
+.lib-page .library-grid-card-v219 .library-grid-name-v217 { padding: 6px 8px 7px; }
+.lib-page .library-grid-card-v219 .library-grid-name-v217 strong { font-size: 12.5px; }
+.lib-page .library-grid-card-v219 .library-grid-name-v217 span { font-size: 11px; }
+.lib-page .library-file-row-v217 { min-height: 34px; }
+.content-shell:has(.lib-page) { padding: 0 8px 8px; }
+.page.lib-page { padding: 0; }
+.lib-page .lib-body { border-radius: 12px; }
+
+/* ---- Details panel ---- */
+.lib-master .cluster-detail-close-v429 { display: none; }
+.lib-page .library-inspector-v217 { padding: 0; gap: 0; background: transparent; border: 0; }
+.lib-page .library-inspector-head-v217 { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 12px; border: 0; background: none; }
+.lib-page .library-inspector-head-v217 > div:first-child { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; min-width: 0; flex: 1; }
+.lib-page .library-inspector-head-v217 > div:first-child svg { grid-row: span 2; color: var(--library-folder-color, var(--accent)); }
+.lib-page .library-inspector-head-v217 > div:first-child strong { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; order: -1; }
+.lib-page .library-inspector-head-v217 > div:first-child span { font-size: 11.5px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.lib-page .library-inspector-head-v217 .button-row { flex: none; gap: 0; }
+.lib-page .library-inspector-tabs-v217 { display: flex !important; gap: 2px; padding: 0 10px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); background: none; }
+.lib-page .library-inspector-tabs-v217 > button { flex: none; padding: 6px 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); font: inherit; font-size: 12.5px; }
+.lib-page .library-inspector-tabs-v217 > button.active { color: var(--text); border-bottom-color: var(--accent); }
+.lib-page .library-inspector-scroll-v217 { display: grid; gap: 10px; padding: 10px 12px 16px; }
+.lib-page .library-inspector-scroll-v217 label > span { font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.lib-page .library-preview-actions-v217 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.lib-page .library-preview-actions-v217 > * { min-height: 30px; text-decoration: none; }
+.lib-page .library-folder-hero-v220 { padding: 14px; min-height: 0; border-radius: 10px; }
+.lib-page .library-folder-actions-v220 { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-page .library-folder-actions-v220 > * { flex: 1 1 auto; min-height: 30px; }
+
+/* Facts: plain two-column list, no boxes */
+.lib-facts dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 0; }
+.lib-facts dl > div { min-width: 0; }
+.lib-facts dt { font-size: 11px; color: var(--muted); }
+.lib-facts dd { margin: 1px 0 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+.lib-facts .library-checksum-v217 { white-space: normal; overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: 11px; text-transform: none; }
+.lib-facts-more { margin-top: 10px; border: 0; padding: 0; background: none; }
+.lib-facts-more dl > div:has(.library-checksum-v217) { grid-column: 1 / -1; }
+.lib-page .cluster-detail-close-v429 { display: none; }
+.lib-page .cluster-master-detail-v429 { height: 100%; min-height: 0; }
+@media (min-width: 900px) {
+  .lib-page .cluster-detail-pane-v429 { position: relative; top: 0; align-self: stretch; height: 100%; max-height: none; overflow: auto; background: color-mix(in srgb, var(--surface-soft) 50%, transparent); border-inline-start: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+}
+.lib-page .library-inspector-head-v217 > div:first-child { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto auto; }
+.lib-page .library-inspector-head-v217 > div:first-child svg { grid-column: 1; grid-row: 1 / span 2; }
+.lib-page .library-inspector-head-v217 > div:first-child strong { grid-column: 2; grid-row: 1; order: 0; }
+.lib-page .library-inspector-head-v217 > div:first-child span { grid-column: 2; grid-row: 2; }
+.lib-page .library-inspector-head-v217 .button-row { flex-wrap: nowrap; }
+.lib-page .cluster-detail-pane-v429 > .cluster-detail-close-v429 { display: none !important; }
+.lib-page .library-inspector-head-v217 .button-row { display: flex !important; align-items: center; }
