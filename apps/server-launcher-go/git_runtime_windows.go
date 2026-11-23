@@ -11,13 +11,22 @@ import (
 	"unsafe"
 )
 
-// The Server runs `git` from PATH. A service account, or a launcher started
-// before Git was installed, has a PATH without it, and restarting the Server
-// inherits the same stale PATH. Find Git for Windows the way a fresh logon
-// would and put its cmd directory (which also provides git-lfs) first.
-func gitRuntimeDirectory() string {
+// The Server runs `git` from PATH. Installs ship a private MinGit and Git LFS
+// under bin/runtime, used first so Git works on a machine without Git for
+// Windows. Otherwise find Git for Windows the way a fresh logon would (a
+// service account, or a launcher started before Git was installed, has a
+// stale PATH) and put its cmd directory (which also provides git-lfs) first.
+func gitRuntimeDirectories(root string) []string {
+	private := filepath.Join(root, "bin", "runtime", "git", "cmd")
+	if fileExists(filepath.Join(private, "git.exe")) {
+		dirs := []string{private}
+		if lfs := filepath.Join(root, "bin", "runtime", "git-lfs"); fileExists(filepath.Join(lfs, "git-lfs.exe")) {
+			dirs = append(dirs, lfs)
+		}
+		return dirs
+	}
 	if _, err := exec.LookPath("git"); err == nil {
-		return ""
+		return nil
 	}
 	var candidates []string
 	for _, root := range []syscall.Handle{syscall.HKEY_LOCAL_MACHINE, syscall.HKEY_CURRENT_USER} {
@@ -42,10 +51,10 @@ func gitRuntimeDirectory() string {
 	for _, dir := range candidates {
 		dir = strings.Trim(strings.TrimSpace(dir), `"`)
 		if dir != "" && fileExists(filepath.Join(dir, "git.exe")) {
-			return dir
+			return []string{dir}
 		}
 	}
-	return ""
+	return nil
 }
 
 var procRegGetValue = syscall.NewLazyDLL("advapi32.dll").NewProc("RegGetValueW")

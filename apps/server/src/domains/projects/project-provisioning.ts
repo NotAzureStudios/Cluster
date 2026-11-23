@@ -112,7 +112,7 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
       const inspection = await input.gitRuntime.inspect?.(true);
       if (inspection && (!inspection.available || (sourcePlan.defaults.lfs && !inspection.lfsAvailable))) {
         const message = !inspection.available
-          ? `${inspection.message} Install Git for Windows, restart Cluster Server, and retry.`
+          ? `${inspection.message} Cluster ships its own Git; update or repair Cluster Server, then retry.`
           : "Git LFS is required for this project type but is unavailable to Cluster Server. Install Git LFS, restart Cluster Server, and retry.";
         throw Object.assign(new Error(`${message} No project was created.`), {
           code: !inspection.available ? "PROJECT_SOURCE_RUNTIME_UNAVAILABLE" : "PROJECT_SOURCE_LFS_UNAVAILABLE",

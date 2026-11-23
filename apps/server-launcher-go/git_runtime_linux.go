@@ -3,4 +3,4 @@
 package main
 
 // Linux deployments provide git on PATH.
-func gitRuntimeDirectory() string { return "" }
+func gitRuntimeDirectories(root string) []string { return nil }

@@ -23,7 +23,8 @@ const requiredRuntime=[
  'apps/server/dist/generated/prisma/client.js','apps/web/dist/index.html',
  'node_modules/@prisma/client/package.json','bin/ClusterServer.exe',
  'bin/Cluster Server.exe','bin/cluster-host.exe','bin/cluster-update-helper.exe',
- 'bin/cluster-workstation-service.exe','tools/scripts/cluster-rc-preflight.mjs',
+ 'bin/cluster-workstation-service.exe','bin/runtime/git/cmd/git.exe','bin/runtime/git-lfs/git-lfs.exe',
+ 'tools/scripts/cluster-rc-preflight.mjs',
  'tools/scripts/cluster-rc-smoke.mjs','tools/scripts/cluster-rc-runtime-admission.mjs'
 ];
 const excludedFolders=new Set(prebuilt?['.git','.cache','__pycache__']:['node_modules','.git','.cache','dist','build','.next','coverage','__pycache__']);

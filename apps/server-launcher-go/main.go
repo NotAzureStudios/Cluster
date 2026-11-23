@@ -270,8 +270,10 @@ func managedHostCommand(options launcherOptions, node string, env map[string]str
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	configureChildProcess(cmd)
 	cmd.Env = mergeEnvironment(os.Environ(), env)
-	if gitDir := gitRuntimeDirectory(); gitDir != "" {
-		cmd.Env = prependPath(cmd.Env, gitDir)
+	// Prepend in reverse so the first directory ends up first on PATH.
+	gitDirs := gitRuntimeDirectories(options.root)
+	for i := len(gitDirs) - 1; i >= 0; i-- {
+		cmd.Env = prependPath(cmd.Env, gitDirs[i])
 	}
 	if nodeDir := filepath.Dir(node); nodeDir != "" {
 		cmd.Env = prependPath(cmd.Env, nodeDir)

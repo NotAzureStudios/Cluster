@@ -69,6 +69,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Project provisioning data-preservation regression failed' }
           node tools/scripts/cluster-platform-release-tests.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Release profile contract regression failed' }
+      - name: Download hash-verified private Git and Git LFS
+        shell: pwsh
+        run: |
+          # Shipped in bin/runtime so the Server has Git without Git for Windows installed.
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path 'bin/runtime/git', 'bin/runtime/git-lfs' | Out-Null
+          $gitUrl = 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip'
+          $lfsUrl = 'https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-windows-amd64-v3.8.1.zip'
+          Invoke-WebRequest -Uri $gitUrl -OutFile "$env:RUNNER_TEMP/mingit.zip"
+          Invoke-WebRequest -Uri $lfsUrl -OutFile "$env:RUNNER_TEMP/git-lfs.zip"
+          if ((Get-FileHash "$env:RUNNER_TEMP/mingit.zip" -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877') { throw 'MinGit publisher hash mismatch' }
+          if ((Get-FileHash "$env:RUNNER_TEMP/git-lfs.zip" -Algorithm SHA256).Hash.ToLowerInvariant() -ne '5bb771c12b3dacc535e912d0270a010c209d4da2e63819c5918e3547c2defed9') { throw 'Git LFS publisher hash mismatch' }
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP/mingit.zip" -DestinationPath 'bin/runtime/git'
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP/git-lfs.zip" -DestinationPath "$env:RUNNER_TEMP/lfs-unpacked"
+          $lfs = Get-ChildItem -LiteralPath "$env:RUNNER_TEMP/lfs-unpacked" -Recurse -File -Filter git-lfs.exe | Select-Object -First 1
+          if ($null -eq $lfs) { throw 'Git LFS executable not found in verified official package' }
+          Copy-Item -LiteralPath $lfs.FullName -Destination 'bin/runtime/git-lfs/git-lfs.exe'
+          node tools/scripts/verify-desktop-git-runtime.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Private Git runtime version check failed' }
       - name: Build complete precompiled Windows Server installer
         shell: pwsh
         env:

@@ -297,6 +297,8 @@ function TestPrebuiltRuntime([string]$source) {
     'bin/cluster-host.exe',
     'bin/cluster-update-helper.exe',
     'bin/cluster-workstation-service.exe',
+    'bin/runtime/git/cmd/git.exe',
+    'bin/runtime/git-lfs/git-lfs.exe',
     'tools/scripts/cluster-rc-preflight.mjs',
     'tools/scripts/cluster-rc-smoke.mjs',
     'tools/scripts/cluster-rc-runtime-admission.mjs'
