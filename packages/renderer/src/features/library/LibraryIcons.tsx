@@ -94,3 +94,29 @@ export function itemIconName(item: LibraryItem): IconName {
   if (item.type === "note" || item.type === "spec" || item.type === "decision") return "note";
   return "file";
 }
+
+
+/** Host of a link item's URL without "www.", or "" when it isn't a web URL. */
+export function linkDomain(url?: string | null) {
+  try {
+    const parsed = new URL(String(url || ""));
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.hostname.replace(/^www\./, "") : "";
+  } catch { return ""; }
+}
+
+// Sites studios link to most, mapped to their brand mark in the icon library.
+const LINK_BRANDS: Array<[RegExp, string]> = [
+  [/(^|\.)github\.com$/, "github"], [/(^|\.)gitlab\.com$/, "gitlab"], [/(^|\.)(youtube\.com|youtu\.be)$/, "youtube"],
+  [/(^|\.)(discord\.com|discord\.gg)$/, "discord"], [/(^|\.)(steampowered\.com|steamcommunity\.com)$/, "steam"],
+  [/(^|\.)curseforge\.com$/, "curseforge"], [/(^|\.)(epicgames\.com|fortnite\.com)$/, "epicgames"], [/(^|\.)unrealengine\.com$/, "unrealengine"],
+  [/^docs\.google\.com$/, "googledocs"], [/^drive\.google\.com$/, "googledrive"], [/(^|\.)figma\.com$/, "figma"], [/(^|\.)notion\.(so|site)$/, "notion"],
+  [/(^|\.)dropbox\.com$/, "dropbox"], [/(^|\.)(x\.com|twitter\.com)$/, "x"], [/(^|\.)reddit\.com$/, "reddit"], [/(^|\.)twitch\.tv$/, "twitch"],
+  [/(^|\.)artstation\.com$/, "artstation"], [/(^|\.)sketchfab\.com$/, "sketchfab"], [/(^|\.)itch\.io$/, "itchdotio"], [/(^|\.)trello\.com$/, "trello"],
+  [/(^|\.)miro\.com$/, "miro"], [/(^|\.)atlassian\.net$/, "jira"], [/(^|\.)blender\.org$/, "blender"],
+  [/(^|\.)modrinth\.com$/, "modrinth"], [/(^|\.)patreon\.com$/, "patreon"], [/(^|\.)vimeo\.com$/, "vimeo"], [/(^|\.)instagram\.com$/, "instagram"],
+  [/(^|\.)tiktok\.com$/, "tiktok"], [/(^|\.)fab\.com$/, "epicgames"],
+];
+export function linkBrandIcon(domain: string) {
+  const hit = LINK_BRANDS.find(([pattern]) => pattern.test(domain));
+  return hit ? `icon:simple-icons:${hit[1]}` : null;
+}

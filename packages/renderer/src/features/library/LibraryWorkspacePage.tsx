@@ -9,7 +9,7 @@ import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
 import { startVisibleJobPolling } from "../../core/visible-job-polling";
-import { LibraryGlyph, LibraryIcon, LibraryItemGlyph, isLibraryIconId, itemIconName } from "./LibraryIcons";
+import { LibraryGlyph, LibraryIcon, LibraryItemGlyph, isLibraryIconId, itemIconName, linkBrandIcon, linkDomain } from "./LibraryIcons";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { LibraryAuthenticatedImage, LibraryModelThumbnail, LibraryPreview, LibraryTextPreview, LibraryVideoThumbnail, LibraryViewerModal } from "./LibraryMediaPreview";
 import { libraryFileUrl } from "./library-file-url";
@@ -285,10 +285,24 @@ function LibraryListRows({ items, activeId, selectedIds, onSelect, interact, reo
       onClick={(event) => { if ((event.target as HTMLElement).closest("label")) return; interact.pick(item, event); }} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, reorderEnabled, onReorder)}>
       <label aria-label={`Select ${item.title}`} role="cell"><ClusterInput type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => onSelect(item, event.target.checked)} /></label>
       <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryItemGlyph item={item} size={20} /></div>
-      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.originalName || item.snippet || item.type}</span></ClusterButton>
+      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{isWebLink(item) ? linkDomain(item.externalUrl) : item.originalName || item.snippet || item.type}</span></ClusterButton>
       <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} items` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
     </div>)}
   </div>;
+}
+
+function isWebLink(item: LibraryItem) { return (item.type === "link" || item.type === "reference") && Boolean(linkDomain(item.externalUrl)); }
+
+// A link card: the site's brand mark (or a globe), its domain and the note.
+function LibraryLinkPreview({ item }: { item: LibraryItem }) {
+  const domain = linkDomain(item.externalUrl);
+  const brand = linkBrandIcon(domain);
+  const hue = [...domain].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) % 360, 7);
+  return <span className="lib-link-card" style={{ "--lib-link-hue": hue } as CSSProperties}>
+    <span className="lib-link-card__mark">{brand ? <LibraryGlyph icon={brand} size={30} label={domain} /> : <ClusterIcon name="globe" width={28} height={28} />}</span>
+    <span className="lib-link-card__domain">{domain}</span>
+    {item.body ? <span className="lib-link-card__desc">{item.body}</span> : null}
+  </span>;
 }
 
 function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEnabled = false, onReorder }: { item: LibraryItem; active: boolean; selected: boolean; onSelect: (checked: boolean) => void; interact: LibraryItemInteraction; reorderEnabled?: boolean; onReorder?: (sourceId: string, targetId: string) => void }) {
@@ -298,6 +312,7 @@ function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEn
     <label><ClusterInput type="checkbox" checked={selected} onChange={(event) => onSelect(event.target.checked)} aria-label={`Select ${item.title}`} /></label>
     <ClusterButton unstyled type="button" className={`library-grid-preview-v219 ${item.mimeGroup || item.type}`} aria-label={`${item.title}. Double-click to ${item.type === "folder" ? "open" : "preview"}`}>
       {(item.previewKind === "youtube-video" || item.previewKind === "youtube-playlist") && item.youtubeThumbnailUrl ? <span className="library-youtube-card-v229"><img src={item.youtubeThumbnailUrl} alt="" loading="lazy" /><span><LibraryIcon name={item.previewKind === "youtube-playlist" ? "playlist" : "youtube"} size={16} />{item.previewKind === "youtube-playlist" ? "Playlist" : "YouTube"}</span></span>
+        : isWebLink(item) ? <LibraryLinkPreview item={item} />
         : item.previewKind === "image" && item.fileUrl ? <LibraryAuthenticatedImage item={item} compact />
         : item.previewKind === "video" ? <LibraryVideoThumbnail item={item} />
           : item.previewKind === "model" ? <LibraryModelThumbnail item={item} />
@@ -305,7 +320,7 @@ function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEn
             : isText ? <LibraryTextPreview item={item} compact />
               : <LibraryItemGlyph item={item} size={item.type === "folder" ? 58 : 52} />}
     </ClusterButton>
-    <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
+    <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : isWebLink(item) ? linkDomain(item.externalUrl) : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
   </article>;
 }
 
@@ -565,7 +580,7 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
     <div className="library-inspector-tabs-v217" role="tablist" style={runtimeStyle({ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` })}>{tabs.map(([value, label]) => <ClusterButton unstyled type="button" key={value} className={tab === value ? "active" : ""} onClick={() => onTab(value)}>{label}</ClusterButton>)}</div>
     {item.projectId || item.project?.id ? <LinkedWorkPanel projectId={item.projectId || item.project!.id} kind="library" entityId={item.id} compact /> : null}
 
-    {tab === "preview" && item.type !== "folder" && <div className="library-inspector-scroll-v217"><LibraryPreview item={item} />{item.hasFile && <div className="library-preview-actions-v217"><ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true }).then(() => setMessage("Download requested. View Transfer Center for progress or browser handoff." )).catch((error) => setMessage(error instanceof Error ? error.message : "Download failed.")); }}>Download</ClusterLinkButton><ClusterButton type="button" className="" onClick={() => onExpand(item)} variant="primary">Open</ClusterButton></div>}<LibraryFileFacts item={item} /></div>}
+    {tab === "preview" && item.type !== "folder" && <div className="library-inspector-scroll-v217">{isWebLink(item) ? <div className="lib-link-inspect"><div className="library-grid-preview-v219"><LibraryLinkPreview item={item} /></div><a href={String(item.externalUrl)} target="_blank" rel="noreferrer noopener" className="lib-link-inspect__url">{item.externalUrl}</a><div className="library-preview-actions-v217"><ClusterButton type="button" variant="secondary" onClick={() => { void navigator.clipboard?.writeText(String(item.externalUrl)); setMessage("Link copied."); }}>Copy link</ClusterButton><ClusterButton type="button" variant="primary" onClick={() => window.open(String(item.externalUrl), "_blank", "noopener,noreferrer")}>Open link</ClusterButton></div></div> : <LibraryPreview item={item} />}{item.hasFile && <div className="library-preview-actions-v217"><ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary" onClick={(event) => { event.preventDefault(); void downloadAuthenticatedClusterFile({ url: libraryFileUrl(item, true), fileName: item.originalName || item.title, sizeBytes: item.sizeBytes, expectedSha256: item.checksumSha256, preferDiskStreaming: true }).then(() => setMessage("Download requested. View Transfer Center for progress or browser handoff." )).catch((error) => setMessage(error instanceof Error ? error.message : "Download failed.")); }}>Download</ClusterLinkButton><ClusterButton type="button" className="" onClick={() => onExpand(item)} variant="primary">Open</ClusterButton></div>}<LibraryFileFacts item={item} /></div>}
 
     {tab === "preview" && item.type === "folder" && <div className="library-inspector-scroll-v217 library-folder-editor-v220">
       <div className="library-folder-hero-v220" style={runtimeStyle({ "--library-folder-color": draft.folderColor || item.folderColor || "#7aa8ff" })}><div><LibraryGlyph icon={draft.folderIcon} size={44} label={draft.title} /></div><span>{protectedFolder ? "Managed folder" : "Folder"}</span><strong>{draft.title || item.title}</strong><small>{item.childCount || 0} item{item.childCount === 1 ? "" : "s"}</small></div>
@@ -1030,6 +1045,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   }
   function openLibraryItem(item: LibraryItem) {
     if (item.type === "folder") { libraryDetailHistory.closeDetail(); setFolderId(item.id); setActiveId(null); setActiveItem(null); setSelectedIds(new Set()); return; }
+    if (isWebLink(item)) { window.open(String(item.externalUrl), "_blank", "noopener,noreferrer"); return; }
     void openItemViewer(item);
   }
   async function renameLibraryItem(item: LibraryItem) {
@@ -1079,6 +1095,10 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
         { id: "open", label: item.type === "folder" ? "Open" : "Open preview", icon: item.type === "folder" ? "folder" : "fullscreen", onSelect: () => openLibraryItem(item) } as ClusterActionMenuItem,
         { id: "info", label: "Show details", icon: "panel-open", onSelect: () => void selectItem(item) } as ClusterActionMenuItem,
         ...(item.type === "file" && item.hasFile ? [{ id: "download", label: "Download", icon: "download", onSelect: () => downloadLibraryItem(item) } as ClusterActionMenuItem] : []),
+        ...(isWebLink(item) ? [
+          { id: "open-link", label: "Open link", icon: "globe", onSelect: () => { window.open(String(item.externalUrl), "_blank", "noopener,noreferrer"); } } as ClusterActionMenuItem,
+          { id: "copy-link", label: "Copy link", icon: "link", onSelect: () => { void navigator.clipboard?.writeText(String(item.externalUrl)); setStatus("Link copied."); } } as ClusterActionMenuItem,
+        ] : []),
         { id: "rename", label: "Rename…", icon: "note", separatorBefore: true, disabled: inTrash, onSelect: () => void renameLibraryItem(item) } as ClusterActionMenuItem,
         { id: "favorite", label: favoriteIds.has(item.id) ? "Remove from favorites" : "Add to favorites", icon: "star", onSelect: () => void toggleFavorite(item) } as ClusterActionMenuItem,
       ] : []),
