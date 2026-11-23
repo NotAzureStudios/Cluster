@@ -89,7 +89,7 @@
 .lib-page .lib-nav > button { font-size: 13px; min-height: 30px; }
 .lib-page .lib-side .library-section-nav-v504 > button { font-size: 12.5px; }
 .lib-page .lib-side .library-collections-v504 nav:empty { display: none; }
-.lib-page .lib-side .library-tree-row-v229 { border: 0; box-shadow: none; }
+
 
 /* Toolbar adapts to the width left beside the details panel */
 .lib-page .lib-main { container-type: inline-size; }
@@ -234,3 +234,45 @@
 .lib-type-chips > button:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
 .lib-type-chips > button.active { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .lib-type-chips > button.active svg, .lib-type-chips > button.active small { color: var(--accent); }
+
+
+/* Storage sits at the top of the sidebar */
+.lib-page .lib-side .library-space-v21 { margin-top: 0; padding: 2px 6px 10px; border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+
+/* Folders use the same cards as files */
+.lib-page .library-grid-card-v219 .library-grid-preview-v219.folder svg { color: var(--library-folder-color, var(--accent)); }
+
+/* File tree: flat rows, guide lines, actions on hover */
+.lib-page .library-tree-shell-v229, .lib-page .library-folder-tree-v229 { padding: 0; margin: 0; border: 0; background: none; box-shadow: none; }
+.lib-page .library-tree-branch-v229 { position: relative; }
+.lib-page .library-tree-row-v229 {
+  position: relative; display: flex; align-items: center; gap: 2px; min-height: 28px; padding-right: 2px;
+  border: 0 !important; border-radius: 7px; background: none; box-shadow: none !important; margin: 0;
+}
+.lib-page .library-tree-row-v229::before { display: none; }
+.lib-page .library-tree-row-v229:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.lib-page .library-tree-row-v229.active { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.lib-page .library-tree-row-v229.active strong { color: var(--text); font-weight: 600; }
+.lib-page .library-tree-disclosure-v229 { flex: none; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; background: none; color: var(--muted); }
+.lib-page .library-tree-disclosure-v229:disabled { visibility: hidden; }
+.lib-page .library-tree-disclosure-v229 svg { transition: transform .15s ease; }
+.lib-page .library-tree-target-v229 { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 4px; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--text); text-align: left; }
+.lib-page .library-tree-target-v229 svg { flex: none; width: 15px; height: 15px; color: var(--library-folder-color, var(--muted)); }
+.lib-page .library-tree-target-v229 strong { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-page .library-tree-target-v229 em { font-style: normal; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lib-page .library-tree-folder-actions-v14 { flex: none; opacity: 0; transition: opacity .12s ease; }
+.lib-page .library-tree-row-v229:hover .library-tree-folder-actions-v14,
+.lib-page .library-tree-row-v229.active .library-tree-folder-actions-v14,
+.lib-page .library-tree-folder-actions-v14:focus-within { opacity: 1; }
+.lib-page .library-tree-folder-actions-v14 button { width: 22px; height: 22px; min-height: 0; }
+.lib-page .library-tree-file-v229 { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 26px; border: 0; background: none; border-radius: 7px; font: inherit; font-size: 12px; color: var(--muted); }
+.lib-page .library-tree-file-v229:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+
+/* Filters: compact controls that wrap, not full-width stacks */
+.lib-page .lib-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.lib-page .lib-filters > .cluster-select-v227 { flex: 0 0 168px; width: 168px; }
+.lib-page .lib-filters > input, .lib-page .lib-filters > .cluster-text-input, .lib-page .lib-filters > label { flex: 0 0 140px; width: 140px; }
+.lib-page .lib-filters .library-clear-filters-v217 { flex: none; width: auto; min-height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--accent); }
+.lib-page .lib-filters .library-tag-shortcuts-v14 { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.lib-page .lib-side > .library-space-v21 { display: grid; justify-content: stretch; text-transform: none; letter-spacing: normal; font-size: inherit; color: var(--text); }
+.lib-page .lib-side > .library-space-v21 > div { display: flex; padding: 0; }
