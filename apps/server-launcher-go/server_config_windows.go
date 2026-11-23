@@ -138,7 +138,6 @@ func nativeSettingsForSection(section string) []nativeSettingSpec {
 	if section == "Updates" {
 		return []nativeSettingSpec{
 			{Key: "native.updateChannel", Label: "Server update channel", Section: "Updates", Kind: settingSelect, Default: "main", Options: []string{"main", "development"}, Help: "Main uses reviewed Server releases; development uses test releases. This never changes Desktop or Web update channels."},
-			{Key: "native.updateManifestUrl", Label: "Main: signed manifest feed (override)", Section: "Updates", Kind: settingText, Default: defaultOfficialMainServerUpdateFeedURL, Help: "Uses the signed Server main channel when published. Until then Check Updates reads official release metadata only; unsigned releases require manual review/install. Override only with a trusted signed JSON feed, not an EXE or GitHub release page."},
 			{Key: "native.developmentUpdateManifestUrl", Label: "Development: signed manifest feed", Section: "Updates", Kind: settingText, Default: "", Help: "Paste the HTTPS URL for a development-channel signed JSON Cluster Server manifest. Do not paste an installer, repository or release page."},
 		}
 	}
@@ -278,7 +277,6 @@ type nativePanelPreferences struct {
 	MinimizeToTray      bool   `json:"minimizeToTray"`
 	CloseToTray         bool   `json:"closeToTray"`
 	StartMinimized      bool   `json:"startMinimized"`
-	UpdateManifestURL   string `json:"updateManifestUrl"`
 	DevelopmentUpdateManifestURL string `json:"developmentUpdateManifestUrl"`
 	UpdateChannel string `json:"updateChannel"`
 }
@@ -352,8 +350,6 @@ func settingDisplayValue(root string, spec nativeSettingSpec) (string, bool, err
 			return strconv.FormatBool(prefs.StartWithWindows), prefs.Configured, nil
 		case "native.updateChannel":
 			return prefs.UpdateChannel, prefs.UpdateChannel != "", nil
-		case "native.updateManifestUrl":
-			return prefs.UpdateManifestURL, prefs.UpdateManifestURL != "", nil
 		case "native.developmentUpdateManifestUrl":
 			return prefs.DevelopmentUpdateManifestURL, prefs.DevelopmentUpdateManifestURL != "", nil
 		}
@@ -391,7 +387,7 @@ func parseNativeSettingValue(spec nativeSettingSpec, raw string) (any, error) {
 	value := strings.TrimSpace(raw)
 	// A release EXE is not a JSON feed. Reject this mistake at Save instead
 	// of downloading megabytes just to show an opaque 256 KiB error.
-	if (spec.Key == "native.updateManifestUrl" || spec.Key == "native.developmentUpdateManifestUrl") && value != "" {
+	if spec.Key == "native.developmentUpdateManifestUrl" && value != "" {
 		uri, err := url.Parse(value)
 		if err != nil || !allowedServerUpdateURL(uri) {
 			return nil, fmt.Errorf("Server update feeds require credential-free HTTPS (localhost HTTP only)")
@@ -476,8 +472,6 @@ func saveNativeSetting(root string, spec nativeSettingSpec, raw string, clear bo
 				prefs.StartWithWindows = false
 			case "native.updateChannel":
 				prefs.UpdateChannel = "main"
-			case "native.updateManifestUrl":
-				prefs.UpdateManifestURL = ""
 			case "native.developmentUpdateManifestUrl":
 				prefs.DevelopmentUpdateManifestURL = ""
 			}
@@ -505,8 +499,6 @@ func saveNativeSetting(root string, spec nativeSettingSpec, raw string, clear bo
 				prefs.StartWithWindows = parsed.(bool)
 			case "native.updateChannel":
 				prefs.UpdateChannel = parsed.(string)
-			case "native.updateManifestUrl":
-				prefs.UpdateManifestURL = strings.TrimSpace(fmt.Sprint(parsed))
 			case "native.developmentUpdateManifestUrl":
 				prefs.DevelopmentUpdateManifestURL = strings.TrimSpace(fmt.Sprint(parsed))
 			}
@@ -592,8 +584,9 @@ func configuredUpdateManifestURL(root string) string {
 	}
 	if override := strings.TrimSpace(os.Getenv("CLUSTER_SERVER_MAIN_MANIFEST_URL")); override != "" { return override }
 	if legacy := strings.TrimSpace(os.Getenv("CLUSTER_UPDATE_MANIFEST_URL")); legacy != "" { return legacy }
-	if saved := strings.TrimSpace(prefs.UpdateManifestURL); saved != "" {return saved}
- return defaultOfficialMainServerUpdateFeedURL
+	// Main releases are signed with the pinned publisher key, so only the
+	// official feed can serve them; a saved custom main URL is ignored.
+	return defaultOfficialMainServerUpdateFeedURL
 }
 
 // A missing publisher-signed feed still permits a DISPLAY-ONLY check of the

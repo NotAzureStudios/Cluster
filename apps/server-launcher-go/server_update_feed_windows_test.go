@@ -8,7 +8,7 @@ import (
  "testing"
 )
 
-func TestServerMainFeedAutomaticallyConfiguredButCanBeOverridden(t *testing.T) {
+func TestServerMainFeedIsOfficialUnlessOperatorOverrides(t *testing.T) {
  root:=t.TempDir()
  for _,name:=range []string{"CLUSTER_UPDATE_MANIFEST_URL","CLUSTER_SERVER_MAIN_MANIFEST_URL","CLUSTER_SERVER_DEVELOPMENT_MANIFEST_URL"}{
   t.Setenv(name,"")
@@ -18,9 +18,8 @@ func TestServerMainFeedAutomaticallyConfiguredButCanBeOverridden(t *testing.T) {
  }
  prefs:=loadNativePanelPreferences(root)
  prefs.UpdateChannel="main"
- prefs.UpdateManifestURL="https://custom.example.test/server/main.json"
  if err:=saveNativePanelPreferences(root,prefs);err!=nil{t.Fatal(err)}
- if got:=configuredUpdateManifestURL(root);got!=prefs.UpdateManifestURL{t.Fatalf("saved override ignored: %s",got)}
+ if got:=configuredUpdateManifestURL(root);got!=defaultOfficialMainServerUpdateFeedURL{t.Fatalf("main must use the official signed feed: %s",got)}
  t.Setenv("CLUSTER_SERVER_MAIN_MANIFEST_URL","https://env.example.test/server/main.json")
  if got:=configuredUpdateManifestURL(root);got!="https://env.example.test/server/main.json"{t.Fatalf("operator override ignored: %s",got)}
  t.Setenv("CLUSTER_SERVER_MAIN_MANIFEST_URL","")

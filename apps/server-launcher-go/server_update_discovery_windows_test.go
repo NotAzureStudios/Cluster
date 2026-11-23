@@ -105,7 +105,7 @@ func TestCustomServerFeedAndInvalidOfficialSignatureNeverUseUnsignedFallback(t *
 			root := serverUpdateDiscoveryFixture(t)
 			prefs := loadNativePanelPreferences(root)
 			prefs.UpdateChannel = "main"
-			prefs.UpdateManifestURL = test.source
+			t.Setenv("CLUSTER_SERVER_MAIN_MANIFEST_URL", test.source)
 			if err := saveNativePanelPreferences(root, prefs); err != nil {
 				t.Fatal(err)
 			}
