@@ -7,6 +7,8 @@ import { Suspense, useState, type ComponentType } from "react";
 import { ClusterStatus } from "../../components/ClusterStatus";
 import { ProjectFileDropZone, ProjectOverviewWorkbench } from "./ProjectOverviewWorkbench";
 import { ProjectPinnedLinks } from "./ProjectPinnedLinks";
+import { ProjectWorkList } from "./ProjectWorkList";
+import { useProjectFocus } from "./project-focus";
 import { LazyLibraryWorkspacePage } from "../application/application-entrypoints";
 import { api } from "../../core/api";
 import { canUseTool } from "../../core/permissions";
@@ -15,6 +17,8 @@ import {
   isVideoProject,
   projectAssignedIds,
   projectCompleteness,
+  projectMemberIds,
+  projectMemberRoles,
   projectHasDiscord,
   projectHasGit,
   projectSetupGaps,
@@ -31,7 +35,6 @@ import type {
   LibraryItem,
   AccessTargetKind,
 } from "../application/application-models";
-import { ProjectIssuesPanel } from "./ProjectIssuesPanel";
 import { ProjectOverviewDashboard } from "./ProjectOverviewDashboard";
 import { ProjectPlanningPanel, type ProjectPlanDraft } from "./ProjectPlanningPanel";
 import { ProjectTeamPanel } from "./ProjectTeamPanel";
@@ -138,6 +141,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     loadProjectControlCenter,
     loadProjectIntelligence,
   } = useProjectDetailWorkspace(project?.id);
+  const { focus: projectFocus, reload: reloadProjectFocus } = useProjectFocus(project?.id || "");
   const [projectSaveBusy, setProjectSaveBusy] = useState(false);
   const [projectSaveStatus, setProjectSaveStatus] = useState("");
   const projectWhiteboards = project ? (project.whiteboards?.length ? project.whiteboards : whiteboards.filter((whiteboard) => whiteboard.projectId === project.id)) : [];
@@ -206,6 +210,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
           description: draft.description.trim() || null,
           objective: draft.objective.trim() || null,
           clientName: draft.clientName.trim() || null,
+          departmentId: draft.departmentId || null,
           startDate: draft.startDate || null,
           targetDate: draft.targetDate || null,
           priority: draft.priority,
@@ -319,7 +324,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
   const reviewOpenNoteCount = visibleVideos.reduce((total: number, video: ReviewAsset) => total + (video.comments || []).filter((comment) => (comment.status || "open") !== "resolved").length, 0);
   const primaryBoard = visibleBoards[0] || null;
   const primaryWhiteboard = visibleWhiteboards[0] || null;
-  const assignedSet = new Set(assignedIds);
+  const teamCrewIds = (projectFocus?.teams || []).flatMap((team) => team.memberIds);
+  const assignedSet = new Set([...assignedIds, ...teamCrewIds]);
   const projectTeamMembers = projectUsers
     .filter((user) => assignedSet.has(user.id))
     .map((user) => ({
@@ -478,7 +484,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               onOpenBoard={onOpenBoard}
               onOpenWhiteboard={onOpenWhiteboard}
               onOpenTimeline={onOpenTimeline}
-              onOpenTickets={() => onOpenTickets(project.id)}
+              onOpenTickets={() => setTab("tickets")}
               onOpenTime={() => onOpenTime(project.id)}
               onOpenPlan={() => setTab("plan")}
               availableSections={tabs.map((item) => item.id)}
@@ -487,12 +493,16 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               canManage={capabilities.canManage}
               canContribute={capabilities.canContribute}
               currentUserId={currentUser?.id}
+              department={projectFocus?.department?.name || ""}
+              teams={(projectFocus?.teams || []).map((team) => team.name)}
+              addableUsers={capabilities.canManageTeam ? projectUsers.filter((user) => !user.archived && !projectMemberIds(project).includes(user.id)).map((user) => ({ id: user.id, name: user.displayName || user.username })) : []}
+              onAddMember={capabilities.canManageTeam ? (userId) => saveProjectTeam([...projectMemberIds(project), userId], { ...projectMemberRoles(project), [userId]: "Contributor" }) : undefined}
               RelatedRecordsPanel={RelatedRecordsPanel}
               CustomFieldValuesPanel={CustomFieldValuesPanel}
               VersionHistoryPanel={VersionHistoryPanel}
               onRestore={restoreProjectSnapshot}
             >
-              <ProjectOverviewWorkbench project={project} canEdit={capabilities.canEditProject} canContribute={capabilities.canContribute} onSaved={onReloadProjects} onOpenFiles={() => setTab("library")} onOpenLibrary={onOpenLibrary} onOpenBoard={onOpenBoard} onOpenTickets={() => onOpenTickets(project.id)} onOpenSection={(section) => setTab(section as typeof tab)} />
+              <ProjectOverviewWorkbench project={project} currentUserId={currentUser?.id} canEdit={capabilities.canEditProject} canContribute={capabilities.canContribute} onSaved={onReloadProjects} onOpenFiles={() => setTab("library")} onOpenLibrary={onOpenLibrary} onOpenBoard={onOpenBoard} onOpenTickets={() => setTab("tickets")} onOpenSection={(section) => setTab(section as typeof tab)} />
             </ProjectOverviewDashboard>
             <CollaborationPanel entityType="project" entityId={project.id} title="Discussion" users={projectUsers} currentUser={currentUser} compact />
             </ProjectFileDropZone>
@@ -509,7 +519,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             items={settingsSections.map((item) => ({ id: item.id, label: settingsLabels[item.id] || item.label, detail: item.detail }))}>
           {view === "plan" && (
             <>
-              <ProjectPlanningPanel project={project} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
+              <ProjectPlanningPanel project={project} users={projectUsers} focus={projectFocus} onReloadFocus={reloadProjectFocus} canEdit={capabilities.canEditProject} canManage={capabilities.canManage} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectPlan} onLifecycleAction={runProjectLifecycleAction} onUploadIcon={uploadProjectIcon} />
               <ClusterDisclosureGroup className="project-secondary-details-v57 project-plan-handoff-v57"
                 contentClassName="project-plan-handoff-body-v57" title="Workflow handoff"
                 summary="Recurring work, dependencies, meetings, and ownership handoff">
@@ -535,6 +545,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             <ProjectTeamPanel
               project={project}
               users={projectUsers}
+              teams={projectFocus?.teams || []}
               canManage={capabilities.canManageTeam}
               busy={projectSaveBusy}
               status={projectSaveStatus}
@@ -552,7 +563,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
           {activeTab === "closeout" && <CloseoutPortalPanel project={project} projects={projects} media={media} currentUser={currentUser} onArchiveProject={refreshAfterCloseout} />}
 
 
-          {activeTab === "tickets" && <ProjectIssuesPanel project={project} onOpenBoard={onOpenBoard} />}
+          {activeTab === "tickets" && <ProjectWorkList project={project} currentUser={currentUser} users={projectUsers} canContribute={capabilities.canContribute} onOpenBoard={onOpenBoard} />}
 
           {activeTab === "builds" && <ProjectBuildsPanel project={project} projects={projects} onOpenTimeline={onOpenTimeline} onOpenQa={() => setTab("qa")} currentUser={currentUser} users={projectUsers} canContribute={capabilities.canContribute} canManage={capabilities.canManage} permissionReason={capabilities.reason} />}
 

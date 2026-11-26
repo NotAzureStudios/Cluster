@@ -42,8 +42,8 @@ check('Taskbar Tickets use stage rather than List fallback', () => {
   const ui = read('packages/renderer/src/features/application/modules/ApplicationProjectTabs.tsx');
   assert.match(ui, /isClosedTicketStage\(card\.ticketStage\)/);
 });
-check('Issues and Project QA use common mixed Card/Ticket logic', () => {
-  for (const path of ['ProjectIssuesPanel.tsx', 'ProjectQAPanel.tsx']) {
+check('Project work list and Project QA use common mixed Card/Ticket logic', () => {
+  for (const path of ['ProjectWorkList.tsx', 'ProjectQAPanel.tsx']) {
     const source = read(`packages/renderer/src/features/projects/${path}`);
     assert.match(source, /isClosedBoardWorkItem\(/);
   }
@@ -64,8 +64,8 @@ check('QA coverage and Operations counts use the shared mixed Card/Ticket lifecy
 });
 check('Mixed Project QA and Issue closed queues are not mislabeled resolved', () => {
   const qa = read('packages/renderer/src/features/projects/ProjectQAPanel.tsx');
-  const issues = read('packages/renderer/src/features/projects/ProjectIssuesPanel.tsx');
+  const work = read('packages/renderer/src/features/projects/ProjectWorkList.tsx');
   assert.match(qa, /\{id:"closed",label:"Closed"\}/);
-  assert.match(issues, /label: "Closed", value: closed\.length/);
+  assert.match(work, /\["done", "Done", done\.length\]/);
 });
 console.log(`Batch A Ticket lifecycle: ${count}/${count} passed`);

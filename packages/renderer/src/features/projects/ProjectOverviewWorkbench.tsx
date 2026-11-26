@@ -1,15 +1,17 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { api, queryApi, uploadApi } from "../../core/api";
 import { formatRelativeTime } from "../../core/format";
-import { ClusterButton, ClusterLinkButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
+import { ClusterTextInput } from "../../components/ClusterTextInput";
 import type { Project } from "../application/application-models";
 
 type FocusCard = { id: string; title: string; priority: string; dueDate?: string | null; revision: number; listTitle: string; boardId: string; boardName: string; doneListId: string | null };
 type FocusBuild = { id: string; title: string; version: string; platform: string; channel: string; artifactUrl: string; qaStatus: string; approval: string; createdAt: string };
 type FocusCommit = { id: string; shortRevision: string; message: string; authorName?: string | null; committedAt: string; webUrl?: string | null };
-type ProjectFocus = { projectId: string; myCards: FocusCard[]; latestBuild: FocusBuild | null; commits: FocusCommit[] };
+type ProjectFocus = { projectId: string; myCards: FocusCard[]; latestBuild: FocusBuild | null; commits: FocusCommit[]; quickAddListId?: string | null; files?: FocusFile[] };
+type FocusFile = { id: string; title: string; type: string; pinned: boolean; updatedAt?: string };
 
 function dueLabel(value?: string | null) {
   if (!value) return null;
@@ -22,8 +24,9 @@ function dueLabel(value?: string | null) {
 
 // Overview working area: your next tickets, shared notes, the newest build
 // and commits, and recent files.
-export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSaved, onOpenFiles, onOpenLibrary, onOpenBoard, onOpenTickets, onOpenSection }: {
+export function ProjectOverviewWorkbench({ project, currentUserId, canEdit, canContribute, onSaved, onOpenFiles, onOpenLibrary, onOpenBoard, onOpenTickets, onOpenSection }: {
   project: Project;
+  currentUserId?: string;
   canEdit: boolean;
   canContribute: boolean;
   onSaved: () => Promise<void> | void;
@@ -35,11 +38,36 @@ export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSa
 }) {
   const [focus, setFocus] = useState<ProjectFocus | null>(null);
   const [doneIds, setDoneIds] = useState<Set<string>>(new Set());
+  const [draft, setDraft] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [pinOverrides, setPinOverrides] = useState<Record<string, boolean>>({});
   const loadFocus = useCallback(async (force = false) => {
     const next = await queryApi<ProjectFocus>(`/api/projects/${project.id}/focus`, { force, staleMs: 10_000, maxAgeMs: 60_000, tags: [`project:${project.id}`] }).catch(() => null);
     if (next?.projectId === project.id) setFocus(next);
   }, [project.id]);
-  useEffect(() => { setFocus(null); setDoneIds(new Set()); void loadFocus(); }, [loadFocus]);
+  useEffect(() => { setFocus(null); setDoneIds(new Set()); setDraft(null); setPinOverrides({}); void loadFocus(); }, [loadFocus]);
+
+  // Quick add: a new ticket on the project's first board, assigned to you.
+  async function addCard() {
+    const title = draft?.trim();
+    if (!title || !focus?.quickAddListId || adding) return;
+    setAdding(true);
+    try {
+      await api("/api/cards", { method: "POST", body: JSON.stringify({ listId: focus.quickAddListId, title, priority: "medium", labels: [], assigneeId: currentUserId || null }) });
+      setDraft("");
+      await loadFocus(true);
+    } finally { setAdding(false); }
+  }
+
+  async function togglePin(id: string, pinned: boolean) {
+    setPinOverrides((current) => ({ ...current, [id]: pinned }));
+    try {
+      await api(`/api/library/${id}`, { method: "PATCH", body: JSON.stringify({ pinned }) });
+      await loadFocus(true);
+    } catch {
+      setPinOverrides((current) => ({ ...current, [id]: !pinned }));
+    }
+  }
 
   async function completeCard(card: FocusCard) {
     if (!card.doneListId) return;
@@ -52,8 +80,18 @@ export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSa
     }
   }
 
-  const files = (project.libraryItems || []).filter((item) => item.id !== project.libraryFolderId && item.type !== "folder")
+  const allFiles = focus?.files || [];
+  const isPinned = (item: FocusFile) => pinOverrides[item.id] ?? Boolean(item.pinned);
+  const pinnedFiles = allFiles.filter(isPinned).sort((a, b) => a.title.localeCompare(b.title));
+  const files = allFiles.filter((item) => !isPinned(item))
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))).slice(0, 6);
+  const canPin = canContribute;
+  const fileRow = (item: (typeof allFiles)[number]) => <li key={item.id} data-pinned={isPinned(item) || undefined}>
+    <ClusterButton unstyled type="button" onClick={() => onOpenLibrary?.(item.id)}>
+      <ClusterIcon name="file" /><span>{item.title}</span><small>{isPinned(item) || !item.updatedAt ? "" : formatRelativeTime(item.updatedAt)}</small>
+    </ClusterButton>
+    {canPin ? <ClusterIconButton size="compact" className="pj-pin" label={isPinned(item) ? `Unpin ${item.title}` : `Pin ${item.title}`} aria-pressed={isPinned(item)} onClick={() => void togglePin(item.id, !isPinned(item))}><ClusterIcon name="star" /></ClusterIconButton> : null}
+  </li>;
   const build = focus?.latestBuild;
   const commits = focus?.commits || [];
   const cards = focus?.myCards || [];
@@ -61,7 +99,14 @@ export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSa
   return <div className="pj-bench">
     <div className="pj-bench__col">
       <section className="pv-card pj-next">
-        <header><h3>Up next</h3>{cards.length ? <span className="pv-count">{cards.length}</span> : null}<ClusterButton type="button" size="compact" variant="quiet" onClick={onOpenTickets}>All tickets</ClusterButton></header>
+        <header><h3>Up next</h3>{cards.length ? <span className="pv-count">{cards.length}</span> : null}
+          {canContribute && focus?.quickAddListId && draft === null ? <ClusterIconButton size="compact" className="pv-add" label="Add a ticket for me" onClick={() => setDraft("")}><ClusterIcon name="plus" /></ClusterIconButton> : null}
+          <ClusterButton type="button" size="compact" variant="quiet" onClick={onOpenTickets}>All tickets</ClusterButton></header>
+        {draft !== null ? <form className="pv-quick" onSubmit={(event) => { event.preventDefault(); void addCard(); }}>
+          <ClusterTextInput autoFocus value={draft} disabled={adding} placeholder="What needs doing?" aria-label="New ticket for me" onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setDraft(null); }} />
+          <ClusterButton type="submit" size="compact" variant="primary" disabled={adding || !draft.trim()}>Add</ClusterButton>
+          <ClusterIconButton size="compact" label="Done adding" onClick={() => setDraft(null)}><ClusterIcon name="close" /></ClusterIconButton>
+        </form> : null}
         {!focus ? <p className="pv-empty">Loading…</p> : cards.length ? <ul className="pj-next__list">{cards.map((card) => {
           const due = dueLabel(card.dueDate);
           const done = doneIds.has(card.id);
@@ -74,7 +119,7 @@ export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSa
             {card.priority === "urgent" || card.priority === "high" ? <span className="pj-tag" data-tone={card.priority === "urgent" ? "danger" : "warning"}>{card.priority === "urgent" ? "Urgent" : "High"}</span> : null}
             {due ? <span className="pj-tag" data-tone={due.tone}>{due.text}</span> : null}
           </li>;
-        })}</ul> : <p className="pv-empty">Nothing assigned to you.</p>}
+        })}</ul> : draft !== null ? null : <p className="pv-empty">Nothing assigned to you.</p>}
       </section>
       <ProjectNotes project={project} canEdit={canEdit} onSaved={onSaved} />
     </div>
@@ -95,10 +140,9 @@ export function ProjectOverviewWorkbench({ project, canEdit, canContribute, onSa
         })}</ul>
       </section> : null}
       <section className="pv-card pj-recent">
-        <header><h3>Recent files</h3>{project.libraryFolderId ? <ClusterButton type="button" size="compact" variant="quiet" onClick={onOpenFiles}>All files</ClusterButton> : null}</header>
-        {files.length ? <ul>{files.map((item) => <li key={item.id}><ClusterButton unstyled type="button" onClick={() => onOpenLibrary?.(item.id)}>
-          <ClusterIcon name="file" /><span>{item.title}</span><small>{item.updatedAt ? formatRelativeTime(item.updatedAt) : ""}</small>
-        </ClusterButton></li>)}</ul> : <p className="pv-empty">{project.libraryFolderId ? "Drop files anywhere here to add them." : "No project folder."}</p>}
+        <header><h3>Files</h3>{project.libraryFolderId ? <ClusterButton type="button" size="compact" variant="quiet" onClick={onOpenFiles}>All files</ClusterButton> : null}</header>
+        {pinnedFiles.length ? <ul className="pj-recent__pinned" aria-label="Pinned files">{pinnedFiles.map(fileRow)}</ul> : null}
+        {files.length ? <ul aria-label="Recent files">{files.map(fileRow)}</ul> : pinnedFiles.length ? null : <p className="pv-empty">{project.libraryFolderId ? "Drop files anywhere here to add them." : "No project folder."}</p>}
       </section>
     </div>
   </div>;

@@ -82,6 +82,7 @@ export function createCardRepository(prisma: any) {
           memberIds: body.memberIds ? JSON.stringify(body.memberIds) : undefined,
           watcherIds: body.watcherIds ? JSON.stringify(body.watcherIds) : undefined,
           assigneeId: body.assigneeId === undefined ? undefined : body.assigneeId || null,
+          milestoneId: body.milestoneId === undefined ? undefined : body.milestoneId || null,
           externalUrl: body.externalUrl,
           archived: body.archived,
         }, actorUserId);

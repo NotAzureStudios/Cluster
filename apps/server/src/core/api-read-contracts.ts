@@ -26,7 +26,7 @@ export const API_READ_CONTRACTS = Object.freeze([
   { id: "projects.types", method: "GET", route: "/api/project-types", cache: "private-revalidate", budget: { maxQueries: 4, maxDatabaseMs: 150, maxSlowQueries: 1, maxPayloadBytes: 256 * KIB } },
   { id: "whiteboards.list", method: "GET", route: "/api/whiteboards", cache: "private-revalidate", budget: { maxQueries: 30, maxDatabaseMs: 350, maxSlowQueries: 1, maxPayloadBytes: 512 * KIB } },
   { id: "project.overview", method: "GET", route: "/api/projects/:projectId/overview", cache: "no-store", budget: { maxQueries: 40, maxDatabaseMs: 1_000, maxSlowQueries: 3, maxPayloadBytes: 1536 * KIB } },
-  { id: "project.focus", method: "GET", route: "/api/projects/:projectId/focus", cache: "no-store", budget: { maxQueries: 12, maxDatabaseMs: 500, maxSlowQueries: 2, maxPayloadBytes: 64 * KIB } },
+  { id: "project.focus", method: "GET", route: "/api/projects/:projectId/focus", cache: "no-store", budget: { maxQueries: 20, maxDatabaseMs: 500, maxSlowQueries: 2, maxPayloadBytes: 64 * KIB } },
   { id: "changes.poll", method: "GET", route: "/api/changes", cache: "no-store", budget: { maxQueries: 8, maxDatabaseMs: 350, maxSlowQueries: 2, maxPayloadBytes: 512 * KIB } },
   { id: "activity.list", method: "GET", route: "/api/activity", cache: "private-revalidate", budget: { maxQueries: 24, maxDatabaseMs: 450, maxSlowQueries: 2, maxPayloadBytes: 1024 * KIB } },
   { id: "notifications.summary", method: "GET", route: "/api/notifications/summary", cache: "private-revalidate", budget: { maxQueries: 28, maxDatabaseMs: 300, maxSlowQueries: 1, maxPayloadBytes: 256 * KIB } },

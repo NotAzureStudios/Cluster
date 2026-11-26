@@ -622,6 +622,7 @@ model Department {
   employments Employment[]
   jobRoles JobRole[]
   teams StudioTeam[]
+  projects Project[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId, archived, name])
@@ -893,6 +894,8 @@ model Project {
   toolSettingOverrides ProjectToolSettingOverride[]
   libraryFolderId String? @unique
   libraryFolder LibraryItem? @relation("ProjectLibraryFolder", fields: [libraryFolderId], references: [id], onDelete: SetNull)
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, archived, updatedAt])
   @@index([workspaceId, status, archived, updatedAt])
@@ -901,6 +904,7 @@ model Project {
   @@index([priority, archived, updatedAt])
   @@index([externalName])
   @@index([codename])
+  @@index([departmentId, archived])
 }
 
 model IntegrationConnection {
@@ -2028,6 +2032,7 @@ model Card {
   estimatePoints    Int?
   memberIds         String   @default("[]")
   watcherIds        String   @default("[]")
+  milestoneId       String?
   assigneeId        String?
   externalUrl       String?
   archived          Boolean  @default(false)
@@ -2037,6 +2042,7 @@ model Card {
 
   list           BoardList       @relation(fields: [listId], references: [id], onDelete: Cascade)
   savedOperations CardSavedOperation[]
+  milestone      TimelineItem?   @relation("CardMilestone", fields: [milestoneId], references: [id], onDelete: SetNull)
   assignee       User?           @relation("CardAssignee", fields: [assigneeId], references: [id])
   checklistItems ChecklistItem[]
   comments       CardComment[]
@@ -2054,6 +2060,7 @@ model Card {
   @@index([priority, archived, dueDate])
   @@index([archived, deferredUntil])
   @@index([listId, stateEnteredAt])
+  @@index([milestoneId])
 }
 
 
@@ -2517,6 +2524,7 @@ model TimelineItem {
 
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cards   Card[]   @relation("CardMilestone")
 
   @@index([startsAt])
   @@index([type])

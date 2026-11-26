@@ -127,6 +127,11 @@ export function registerCardRoutes(deps: CardRouteDependencies) {
     if ((body.archived === false || body.archived === undefined) && (existing.list?.archived || existing.list?.board?.archived)) return reply.code(409).send({ ok: false, code: "LIST_ARCHIVED", error: "Restore the column before editing or restoring this Card." });
     if (body.ticketStage !== undefined && existing.workItemKind !== "ticket") return reply.code(400).send({ ok: false, code: "TICKET_STAGE_ONLY", error: "Only Tickets have a triage stage." });
     if (body.expectedRevision !== undefined && body.expectedRevision !== existing.revision) return sendRevisionConflict(reply, "card", await serializeCardWithLinks(existing));
+    // A milestone must belong to the card's own project.
+    if (body.milestoneId) {
+      const milestone = await prisma.timelineItem.findFirst({ where: { id: body.milestoneId, projectId: existing.list?.board?.projectId || "__none__", type: "milestone" }, select: { id: true } });
+      if (!milestone) return reply.code(400).send({ ok: false, code: "MILESTONE_NOT_IN_PROJECT", error: "Choose a milestone from this card's project." });
+    }
     const result = await service.update(existing, body, user?.id);
     if ("conflict" in result) return sendRevisionConflict(reply, "card", result.conflict ? await serializeCardWithLinks(result.conflict) : null);
     const projectId = result.card?.list?.board?.projectId || null;

@@ -23,11 +23,11 @@ await check('Cross-realm thrown objects retain truthful warning', async () => {
   assert.equal(await reconcileAfterCommit(async () => { throw { message: 'Cache reset failed' }; }), 'Cache reset failed');
 });
 for (const [label,path,method] of [
-  ['Project Issues','packages/renderer/src/features/projects/ProjectIssuesPanel.tsx','createIssue'],
+  ['Project work list','packages/renderer/src/features/projects/ProjectWorkList.tsx','createTicket'],
   ['Project QA','packages/renderer/src/features/projects/ProjectQAPanel.tsx','createBug'],
 ]) await check(`${label} creates once, guards pending request, distinguishes post-commit from failed POST`, () => {
   const ui = read(path);
-  const fn = ui.slice(ui.indexOf(`async function ${method}()`), ui.indexOf(method==='createBug'?'  return <section':'  return (', ui.indexOf(`async function ${method}()`)));
+  const fn = ui.slice(ui.indexOf(`async function ${method}()`), ui.indexOf(method==='createBug'?'  return <section':'\n  }\n', ui.indexOf(`async function ${method}()`)));
   assert.match(ui, /useRef\(false\)/);
   assert.match(ui, /reconcileAfterCommit/);
   assert.match(ui, /disabled=\{createBusy/);
@@ -40,11 +40,10 @@ for (const [label,path,method] of [
   const warnPos = fn.indexOf('const warning');
   assert.ok(commitPos >= 0 && warnPos > commitPos, 'Only post-commit work may be best effort');
 });
-await check('Partial Project issue Board loads report incomplete coverage', () => {
-  const ui = read('packages/renderer/src/features/projects/ProjectIssuesPanel.tsx');
+await check('Partial Project work Board loads report incomplete coverage', () => {
+  const ui = read('packages/renderer/src/features/projects/ProjectWorkList.tsx');
   assert.match(ui,/Promise\.allSettled/);
-  assert.match(ui,/Issue totals are partial/);
-  assert.match(ui,/throw failure\?\.status === "rejected"/);
+  assert.match(ui,/Totals are partial/);
 });
 await check('Partial QA Board loads report incomplete coverage', () => {
   const ui = read('packages/renderer/src/features/projects/ProjectQAPanel.tsx');
@@ -53,7 +52,7 @@ await check('Partial QA Board loads report incomplete coverage', () => {
 });
 await check('Background reads are scoped to the current Project and newest request', () => {
   for (const [path,sequence] of [
-    ['packages/renderer/src/features/projects/ProjectIssuesPanel.tsx', 'loadSequenceRef'],
+    ['packages/renderer/src/features/projects/ProjectWorkList.tsx', 'loadSequenceRef'],
     ['packages/renderer/src/features/projects/ProjectQAPanel.tsx', 'qaLoadSequenceRef'],
   ]) {
     const ui = read(path);
@@ -65,7 +64,7 @@ await check('Background reads are scoped to the current Project and newest reque
 });
 await check('Previous Project Boards are hidden synchronously during Project switches', () => {
   for (const path of [
-    'packages/renderer/src/features/projects/ProjectIssuesPanel.tsx',
+    'packages/renderer/src/features/projects/ProjectWorkList.tsx',
     'packages/renderer/src/features/projects/ProjectQAPanel.tsx',
   ]) {
     const ui = read(path);

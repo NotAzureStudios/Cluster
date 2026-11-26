@@ -77,6 +77,7 @@ export type Project = {
   description?: string | null;
   objective?: string | null;
   clientName?: string | null;
+  departmentId?: string | null;
   startDate?: string | null;
   targetDate?: string | null;
   tags?: string[];
@@ -238,6 +239,7 @@ export type Card = {
   id: string;
   listId: string;
   assigneeId?: string | null;
+  milestoneId?: string | null;
   assignee?: User | null;
   title: string;
   description?: string | null;

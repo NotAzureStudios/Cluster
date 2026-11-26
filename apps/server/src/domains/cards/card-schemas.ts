@@ -22,6 +22,7 @@ export const createCardSchema = z.object({
   memberIds: z.array(z.string()).max(50).optional().default([]),
   watcherIds: z.array(z.string()).max(100).optional().default([]),
   assigneeId: z.string().optional().nullable(),
+  milestoneId: z.string().max(200).optional().nullable(),
   externalUrl: z.string().optional().nullable(),
 });
 

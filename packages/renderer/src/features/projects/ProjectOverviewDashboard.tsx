@@ -1,6 +1,6 @@
 import { CLUSTER_WORKFLOW_RELATIONSHIP_META, type ClusterProjectTypeDefinition, type ClusterWorkflowRelationship } from "@cluster/shared";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { api } from "../../core/api";
+import { api, queryApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
@@ -8,6 +8,7 @@ import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
+import { ClusterNativeSelect } from "../../components/ClusterNativeControls";
 import "./project-overview.css";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { personPresence } from "../people/person-summary";
@@ -33,9 +34,10 @@ type ProjectTeamMember = {
   archived?: boolean;
   connectionVisibility?: string | null;
 };
+type MilestoneProgress = { id: string; total: number; done: number };
 type ProjectAttentionItem = { id: string; label: string; detail: string; tone: "warning" | "danger"; action: () => void };
 
-export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore, children, canContribute = false, currentUserId }: {
+export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore, children, canContribute = false, currentUserId, addableUsers = [], onAddMember, department = "", teams = [] }: {
   project: Project;
   projectType: ClusterProjectTypeDefinition;
   snapshot: ProjectSnapshot | null;
@@ -66,10 +68,25 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   canManage?: boolean;
   canContribute?: boolean;
   currentUserId?: string;
+  addableUsers?: Array<{ id: string; name: string }>;
+  department?: string;
+  teams?: string[];
+  onAddMember?: (userId: string) => Promise<void>;
 }) {
   const lastSeenBefore = useProjectLastSeen(project.id);
   const [milestoneDraft, setMilestoneDraft] = useState<{ title: string; date: string } | null>(null);
   const [milestoneBusy, setMilestoneBusy] = useState(false);
+  const [addingMember, setAddingMember] = useState(false);
+  // Card progress per milestone (cards tagged to it on the boards).
+  const [milestoneProgress, setMilestoneProgress] = useState<Record<string, MilestoneProgress>>({});
+  useEffect(() => {
+    let live = true;
+    setMilestoneProgress({});
+    void queryApi<{ projectId: string; milestones?: MilestoneProgress[] }>(`/api/projects/${project.id}/focus`, { staleMs: 10_000, maxAgeMs: 60_000, tags: [`project:${project.id}`] })
+      .then((focus) => { if (live && focus?.projectId === project.id) setMilestoneProgress(Object.fromEntries((focus.milestones || []).map((item) => [item.id, item]))); })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, [project.id, dashboard]);
   async function addMilestone() {
     if (!milestoneDraft?.title.trim() || !milestoneDraft.date) return;
     setMilestoneBusy(true);
@@ -174,14 +191,27 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
           {dashboard?.timeline.upcoming.length
             ? <ul className="pv-list">{dashboard.timeline.upcoming.slice(0, 5).map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" onClick={onOpenTimeline}>
                 <time className="pv-date">{formatProjectDate(item.startsAt)}</time>
-                <span className="pv-row__copy"><strong>{item.title}</strong><small>{item.type || "Milestone"}</small></span>
+                <span className="pv-row__copy"><strong>{item.title}</strong>{milestoneProgress[item.id]?.total
+                  ? <span className="pv-progress" role="img" aria-label={`${milestoneProgress[item.id].done} of ${milestoneProgress[item.id].total} done`}><span><i style={{ inlineSize: `${Math.round((milestoneProgress[item.id].done / milestoneProgress[item.id].total) * 100)}%` }} /></span><small>{milestoneProgress[item.id].done}/{milestoneProgress[item.id].total}</small></span>
+                  : <small>{item.type || "Milestone"}</small>}</span>
               </ClusterButton></li>)}</ul>
             : milestoneDraft ? null : <p className="pv-empty">Nothing scheduled</p>}
         </section>
         <section className="pv-card">
-          <header><h3>Team</h3>{teamMembers.length ? <span className="pv-count">{teamMembers.length}</span> : null}<ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
+          <header><h3>Team</h3>{teamMembers.length ? <span className="pv-count">{teamMembers.length}</span> : null}
+            {onAddMember && addableUsers.length && !addingMember ? <ClusterIconButton size="compact" className="pv-add" label="Add someone" onClick={() => setAddingMember(true)}><ClusterIcon name="plus" /></ClusterIconButton> : null}
+            <ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
+          {addingMember && onAddMember ? <div className="pv-quick">
+            <ClusterNativeSelect autoFocus value="" aria-label="Add to team" onChange={(event) => { const id = event.target.value; if (id) void onAddMember(id).finally(() => setAddingMember(false)); }} onKeyDown={(event) => { if (event.key === "Escape") setAddingMember(false); }}>
+              <option value="">Add someone…</option>
+              {addableUsers.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+            </ClusterNativeSelect>
+            <ClusterIconButton size="compact" label="Cancel" onClick={() => setAddingMember(false)}><ClusterIcon name="close" /></ClusterIconButton>
+          </div> : null}
           <dl className="pv-facts">
             <div><dt>Lead</dt><dd data-empty={ownerLabel === "Unassigned" || undefined}>{ownerLabel}</dd></div>
+            {department ? <div><dt>Department</dt><dd>{department}</dd></div> : null}
+            {teams.length ? <div><dt>Teams</dt><dd>{teams.join(" · ")}</dd></div> : null}
           </dl>
           {teamMembers.length
             ? <ul className="pv-team">{teamMembers.slice(0, 12).map((member) => <li key={member.id} title={member.name}><PresenceAvatar

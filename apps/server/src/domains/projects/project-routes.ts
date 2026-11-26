@@ -211,7 +211,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
   // newest build and the latest commits. Each part follows its tool permission.
   app.get("/api/projects/:projectId/focus", async (request, reply) => {
     const params = z.object({ projectId: z.string() }).parse(request.params);
-    const project = await prisma.project.findUnique({ where: { id: params.projectId } });
+    const project = await prisma.project.findUnique({ where: { id: params.projectId }, include: { department: { select: { id: true, name: true, color: true } } } });
     if (!project) return reply.code(404).send({ ok: false, error: "Project not found." });
     if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "view"))) return;
     const user = await getCurrentUser(request);
@@ -228,6 +228,38 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       hasTool("builds") ? prisma.deliveryBuild.findFirst({ where: { projectId: project.id, archived: false }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, version: true, platform: true, channel: true, artifactUrl: true, qaStatus: true, approval: true, createdAt: true } }) : Promise.resolve(null),
       hasTool("sourceControl") ? prisma.projectSourceBinding.findMany({ where: { projectId: project.id, archived: false }, select: { repositoryId: true }, take: 10 }) : Promise.resolve([]),
     ]);
+    // Milestones with how many of their cards are done, and the column quick
+    // add lands in (the first open column of the oldest board).
+    const [milestones, firstBoard] = await Promise.all([
+      prisma.timelineItem.findMany({ where: { projectId: project.id, type: "milestone" }, orderBy: { startsAt: "asc" }, take: 30, select: { id: true, title: true, startsAt: true } }),
+      hasTool("boards") ? prisma.board.findFirst({ where: { projectId: project.id, archived: false }, orderBy: { createdAt: "asc" }, select: { lists: { where: { archived: false, isDone: false }, orderBy: { position: "asc" }, take: 1, select: { id: true } } } }) : Promise.resolve(null),
+    ]);
+    // Pinned files first, then the most recently changed, filtered by item access.
+    const fileCandidates = hasTool("library") ? await prisma.libraryItem.findMany({
+      where: { projectId: project.id, type: { not: "folder" }, status: "active", lifecycleState: "active" },
+      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+      take: 24,
+      select: { id: true, title: true, type: true, pinned: true, updatedAt: true },
+    }) : [];
+    const files = (await authorization.filterTargetsForRequest(request, fileCandidates, "library", project, "view") as any[])
+      .map((item) => ({ id: item.id, title: item.title, type: item.type, pinned: Boolean(item.pinned), updatedAt: item.updatedAt }));
+    // Teams assigned to the project are active team allow rules on it; their
+    // members count as crew.
+    const teamRules = await prisma.accessRule.findMany({
+      where: { targetKind: "project", targetId: project.id, subjectKind: "team", effect: "allow", status: "active", OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      orderBy: { subjectName: "asc" },
+      select: { id: true, subjectId: true, subjectName: true, level: true },
+    });
+    const teamMembers = teamRules.length ? await prisma.studioTeamMember.findMany({
+      where: { teamId: { in: teamRules.map((rule: any) => String(rule.subjectId)) }, archived: false, team: { archived: false }, user: { archived: false } },
+      select: { teamId: true, userId: true },
+    }) : [];
+    const teams = teamRules.map((rule: any) => ({ ruleId: rule.id, id: rule.subjectId, name: rule.subjectName, level: rule.level, memberIds: (teamMembers as any[]).filter((member) => member.teamId === rule.subjectId).map((member) => member.userId) }));
+    const milestoneCards = milestones.length ? await prisma.card.findMany({ where: { milestoneId: { in: milestones.map((item: any) => item.id) }, archived: false }, select: { milestoneId: true, list: { select: { isDone: true } } } }) : [];
+    const milestoneProgress = milestones.map((item: any) => {
+      const cards = (milestoneCards as any[]).filter((card) => card.milestoneId === item.id);
+      return { ...item, total: cards.length, done: cards.filter((card) => card.list?.isDone).length };
+    });
     const commits = bindings.length ? await prisma.sourceCommit.findMany({
       where: { repositoryId: { in: bindings.map((binding: any) => binding.repositoryId) } },
       orderBy: [{ committedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
@@ -243,7 +275,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         return overdue(a) - overdue(b) || (rank[a.priority] ?? 2) - (rank[b.priority] ?? 2) || (a.dueDate ? new Date(a.dueDate).getTime() : Infinity) - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity);
       })
       .slice(0, 8);
-    return { projectId: project.id, myCards, latestBuild: build, commits: commits.map((commit: any) => ({ ...commit, committedAt: commit.committedAt || commit.createdAt })) };
+    return { projectId: project.id, myCards, latestBuild: build, commits: commits.map((commit: any) => ({ ...commit, committedAt: commit.committedAt || commit.createdAt })), milestones: milestoneProgress, quickAddListId: firstBoard?.lists[0]?.id || null, files, department: project.department || null, teams };
   });
 
   app.get("/api/projects/:projectId/overview", async (request, reply) => {
@@ -815,11 +847,13 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         description: z.string().optional().nullable(),
         objective: z.string().max(4000).optional().nullable(),
         clientName: z.string().max(160).optional().nullable(),
+        departmentId: z.string().max(200).optional().nullable(),
         startDate: z.coerce.date().optional().nullable(),
         targetDate: z.coerce.date().optional().nullable(),
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
         tags: z.array(z.string().trim().min(1).max(48)).max(24).optional(),
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
+        iconId: z.union([z.string().refine(isResourceIconId), z.string().regex(/^asset:[a-f0-9]{24}-[a-zA-Z0-9._-]{1,100}\.(?:png|jpg|webp)$/)]).optional().nullable(),
         healthNote: z.string().max(1000).optional().nullable(),
         pinnedLinks: z.array(z.object({ label: z.string().trim().min(1).max(60), url: z.string().trim().url().max(2000).refine((value) => /^https?:\/\//i.test(value), "Links must be http(s).") })).max(12).optional(),
         memberRoles: z.record(z.string().max(80)).optional(),
@@ -869,6 +903,10 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       return;
     }
 
+    if (body.departmentId) {
+      const department = await prisma.department.findFirst({ where: { id: body.departmentId, workspaceId: existingProject.workspaceId, archived: false }, select: { id: true } });
+      if (!department) return reply.code(400).send({ ok: false, code: "DEPARTMENT_INVALID", error: "Choose an active department." });
+    }
     const effectiveStart = body.startDate === undefined ? existingProject.startDate : body.startDate;
     const effectiveTarget = body.targetDate === undefined ? existingProject.targetDate : body.targetDate;
     if (effectiveStart && effectiveTarget && new Date(effectiveTarget).getTime() < new Date(effectiveStart).getTime()) {
@@ -993,6 +1031,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         tags: body.tags ? JSON.stringify(unique(body.tags)) : undefined,
         aliases: body.aliases ? JSON.stringify(unique(body.aliases)) : undefined,
         pinnedLinks: body.pinnedLinks ? JSON.stringify(body.pinnedLinks) : undefined,
+        departmentId: body.departmentId === undefined ? undefined : body.departmentId || null,
         revision: { increment: 1 },
       };
     // Optimistic header CAS and crew replacement MUST commit or roll back together.
