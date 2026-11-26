@@ -220,10 +220,11 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
 
 /** Pinned items sit at the top of the Explorer, like a sidebar of favourites. */
 function PinnedShelf({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: LibraryItem) => void }) {
+  const [open, setOpen] = useState(true);
   if (!items.length) return null;
   return <section className="library-explorer-section-v10 library-pinned-shelf-v217" aria-label="Pinned Library items">
-    <div className="library-explorer-section-head-v10 library-pinned-head"><LibraryIcon name="star" size={14} /><strong>Pinned</strong><span>{items.length}</span></div>
-    <nav className="library-section-nav-v504">{items.map((item) => <ClusterButton unstyled key={item.id} type="button" style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)} title={item.title}><LibraryItemGlyph item={item} size={15} /><span>{item.title}</span></ClusterButton>)}</nav>
+    <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setOpen(!open)} aria-expanded={open}><LibraryIcon name="chevron" size={14} className={open ? "open" : ""} /><strong>Pinned</strong><small>{items.length}</small></ClusterButton></div>
+    {open ? <nav className="library-section-nav-v504">{items.map((item) => <ClusterButton unstyled key={item.id} type="button" style={item.type === "folder" ? folderStyle(item) : undefined} onClick={() => onOpen(item)} title={item.title}><LibraryItemGlyph item={item} size={15} /><span>{item.title}</span></ClusterButton>)}</nav> : null}
   </section>;
 }
 
@@ -286,7 +287,7 @@ function LibraryListRows({ items, activeId, selectedIds, onSelect, interact, reo
       <label aria-label={`Select ${item.title}`} role="cell"><ClusterInput type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => onSelect(item, event.target.checked)} /></label>
       <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryItemGlyph item={item} size={20} /></div>
       <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{isWebLink(item) ? linkDomain(item.externalUrl) : item.originalName || item.snippet || item.type}</span></ClusterButton>
-      <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} items` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
+      <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} ${item.childCount === 1 ? "item" : "items"}` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
     </div>)}
   </div>;
 }
@@ -320,7 +321,7 @@ function LibraryGridCard({ item, active, selected, onSelect, interact, reorderEn
             : isText ? <LibraryTextPreview item={item} compact />
               : <LibraryItemGlyph item={item} size={item.type === "folder" ? 58 : 52} />}
     </ClusterButton>
-    <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} items` : isWebLink(item) ? linkDomain(item.externalUrl) : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
+    <ClusterButton unstyled type="button" className="library-grid-name-v217" tabIndex={-1}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{item.type === "folder" ? `${item.childCount || 0} ${item.childCount === 1 ? "item" : "items"}` : isWebLink(item) ? linkDomain(item.externalUrl) : `${item.extension?.toUpperCase() || item.type} · ${formatBytes(item.sizeBytes)}`}</span></ClusterButton>
   </article>;
 }
 
@@ -566,7 +567,7 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
     ? [["preview", "Folder"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]]
     : [["preview", "Preview"], ["description", "Info"], ["references", "Links"], ["lifecycle", "Lifecycle"], ["activity", "History"]];
   return <aside className="library-inspector-v217">
-    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryItemGlyph item={item} size={22} /><span>{item.type === "folder" ? `Folder · ${item.childCount || 0} items` : item.type === "file" ? `${item.extension?.toUpperCase() || "File"} · ${formatBytes(item.sizeBytes)}` : item.type.replace(/-/g, " ")}</span><strong title={item.title}>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
+    <div className="library-inspector-head-v217" style={item.type === "folder" ? folderStyle(item) : undefined}><div><LibraryItemGlyph item={item} size={22} /><span>{item.type === "folder" ? `Folder · ${item.childCount || 0} ${item.childCount === 1 ? "item" : "items"}` : item.type === "file" ? `${item.extension?.toUpperCase() || "File"} · ${formatBytes(item.sizeBytes)}` : item.type.replace(/-/g, " ")}</span><strong title={item.title}>{item.title}</strong></div><div className="button-row"><ClusterIconButton type="button" className={favorite ? "library-favorite-toggle-v504 active" : "library-favorite-toggle-v504"} onClick={() => onToggleFavorite(item)} label={favorite ? "Remove from favorites" : "Add to favorites"}><LibraryIcon name="star" size={20} /></ClusterIconButton><WorkActionMenu iconOnly context={{ source: { kind: "library", id: item.id, projectId: item.projectId || item.project?.id || null, label: item.title }, navigation: { screen: "library", projectId: item.projectId || item.project?.id || null, inspectScope: "library-item", inspectId: item.id }, projectId: item.projectId || item.project?.id || null }} label={`${item.title} work actions`} /><ClusterIconButton className="library-inspector-close-v220" onClick={onClose} label="Close inspector"><LibraryIcon name="close" size={21} /></ClusterIconButton></div></div>
     <div className="library-inspector-tabs-v217" role="tablist" style={runtimeStyle({ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` })}>{tabs.map(([value, label]) => <ClusterButton unstyled type="button" key={value} className={tab === value ? "active" : ""} onClick={() => onTab(value)}>{label}</ClusterButton>)}</div>
     {item.projectId || item.project?.id ? <LinkedWorkPanel projectId={item.projectId || item.project!.id} kind="library" entityId={item.id} compact /> : null}
 
@@ -2205,7 +2206,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
             ]} /> : null}
           </nav>
           <div className="library-search-v217 lib-search"><LibraryIcon name="search" size={16} /><ClusterTextInput type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${searchScopeLabel.toLowerCase()}`} aria-label={`Search Library · ${searchScopeLabel}`} />{query && <ClusterButton unstyled type="button" onClick={() => setQuery("")} aria-label="Clear search"><LibraryIcon name="close" size={14} /></ClusterButton>}</div>
-          <ClusterButton size="compact" variant="quiet" selected={showFilters || activeFilterCount > 0} onClick={() => setShowFilters((value) => !value)}><ClusterIcon name="settings" />Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}</ClusterButton>
+          <ClusterButton size="compact" variant="quiet" selected={showFilters || activeFilterCount > 0} onClick={() => setShowFilters((value) => !value)} aria-label="Filters"><ClusterIcon name="settings" /><span className="lib-tb-label">Filters</span>{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}</ClusterButton>
           <ClusterSelect value={filters.sort} onChange={(sort) => setFilters((value) => ({ ...value, sort }))} ariaLabel="Sort Library" options={[{ value: "updated-desc", label: "Recently updated" }, { value: "created-desc", label: "Recently added" }, { value: "title-asc", label: "Name A–Z" }, { value: "title-desc", label: "Name Z–A" }, { value: "size-desc", label: "Largest first" }, { value: "size-asc", label: "Smallest first" }, { value: "custom", label: "Custom order" }]} />
           <ClusterSegmentedControl value={layout === "list" || layout === "details" ? "details" : "grid"} onChange={(value) => setLayout(value as LayoutMode)} label="Library layout" size="compact" options={[{ value: "grid", label: "Grid" }, { value: "details", label: "List" }]} />
           <ClusterActionMenu label="Library selection and background edits" iconOnly items={[
@@ -2222,7 +2223,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
               ...(currentUser.isAdmin ? [{ id: "upload-recovery", label: "Upload recovery", description: "Read-only diagnostics for interrupted uploads.", icon: "upload" as const, separatorBefore: true, onSelect: () => setShowUploadRecovery(true) }] : []),
               ...(currentUser.isAdmin ? [{ id: "audit-storage", label: "Audit storage", description: "Read-only orphan inventory; nothing is deleted.", icon: "inventory" as const, disabled: Boolean(orphanAudit && !["SUCCEEDED", "CANCELLED", "DEAD_LETTER"].includes(orphanAudit.status)), onSelect: () => void startLibraryOrphanAudit() }] : []),
             ]} />
-          <ClusterButton size="compact" variant="primary" disabled={uploading.active} onClick={() => fileInput.current?.click()}><ClusterIcon name="upload" />{uploading.active ? "Uploading…" : "Upload"}</ClusterButton>
+          <ClusterButton size="compact" variant="primary" disabled={uploading.active} onClick={() => fileInput.current?.click()} aria-label="Upload"><ClusterIcon name="upload" /><span className="lib-tb-label">{uploading.active ? "Uploading…" : "Upload"}</span></ClusterButton>
         </header>
         {(() => {
           // Unreal-style filter bar: one tap narrows to an asset type.

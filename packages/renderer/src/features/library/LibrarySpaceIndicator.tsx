@@ -17,7 +17,7 @@ export function LibrarySpaceIndicator() {
   }, []);
   if (!space?.totalBytes || space.freeBytes == null) return null;
   return <div className="library-space-v21" title={`Library ${space.usedBytes == null ? "size is being measured" : `uses ${formatBytes(space.usedBytes)}`} · ${formatBytes(space.freeBytes)} free on its drive`}>
-    <div><span>Storage</span><small>{space.usedBytes == null ? "…" : formatBytes(space.usedBytes)} · {formatBytes(space.freeBytes)} free</small></div>
+    <div><span>Storage</span><small>{formatBytes(space.freeBytes)} free</small></div>
     <SpaceMeter usedBytes={space.totalBytes - space.freeBytes} totalBytes={space.totalBytes} />
   </div>;
 }
