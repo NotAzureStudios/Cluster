@@ -644,3 +644,47 @@
 .search-command-results-v294 > button > .search-result-copy-v495 { flex: 1 1 auto; min-width: 0; }
 .search-command-results-v294 > button > .search-command-hint-v495 { flex: 0 1 auto; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search-command-results-v294 > button > svg { flex: none; width: 14px; height: 14px; opacity: .5; }
+
+/* ---- Search, consolidated look ----
+   One field (no box inside a box), one header row (Search/Commands, count,
+   save, syntax), icon-led two-line results, short key hints. */
+.cluster-taskbar-search-field-v546 { gap: 6px; }
+html body .cl-tb .cluster-taskbar-search-field-v546 input.cluster-text-input-v491[type="search"],
+.search-command-input-v294 input {
+  min-height: 0 !important; height: 100%; padding: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important; outline: none;
+}
+
+.search-command-palette-v294 .search-mode-strip-v415 { display: flex; align-items: center; gap: 4px; padding: 10px 12px 6px; }
+.search-command-palette-v294 .search-mode-strip-v415 > .search-mode-strip-v415__count {
+  display: inline; margin-left: auto; padding-right: 4px; color: var(--muted); font-size: var(--cluster-font-size-xs); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.search-command-palette-v294 .search-mode-strip-v415 > .cluster-icon-button-v425 { width: 28px; height: 28px; min-height: 0 !important; color: var(--muted); }
+.search-command-palette-v294 .search-mode-strip-v415 > .cluster-icon-button-v425[aria-pressed="true"] { color: var(--accent); }
+
+.search-command-palette-v294 .search-command-scopes-v294 { padding: 0 12px 8px; mask-image: linear-gradient(90deg, #000 calc(100% - 32px), transparent); }
+
+.search-command-results-v294 > button > .search-kind-v294 {
+  display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 0;
+}
+.search-command-results-v294 > button > .search-kind-v294 svg { width: 15px; height: 15px; }
+.search-command-results-v294 > button > .search-kind-v294:is(.kind-page, .kind-action) { background: var(--cluster-button-fill); color: var(--muted); }
+.search-command-results-v294 > button > .search-kind-v294.kind-activity { background: transparent; color: var(--muted); }
+.cluster-taskbar-search-results-v546 .search-command-results-v294 > button { min-height: 44px; padding: 6px 10px; column-gap: 10px; }
+.search-command-results-v294 > button .search-result-copy-v495 strong { font-size: var(--cluster-font-size-sm); font-weight: 600; }
+.search-command-results-v294 > button .search-result-copy-v495 em { color: var(--muted); font-size: var(--cluster-font-size-xs); font-style: normal; }
+.search-command-results-v294 > button .search-result-copy-v495 mark { background: none; color: var(--accent); }
+
+.search-result-preview-v303 > .search-kind-v294 { width: fit-content; }
+.search-command-footer-v294 { gap: 14px; color: var(--muted); font-size: var(--cluster-font-size-2xs); }
+
+/* Phones: no keyboard hints; rows are a little taller for thumbs; the header
+   keeps Search/Commands on one line (syntax and diagnostics are desktop tools). */
+@media (max-width: 720px) {
+  .search-command-palette-v294 .search-mode-strip-v415 > button { flex: none; white-space: nowrap; }
+  .search-command-palette-v294 .search-mode-strip-v415 > :is([aria-label="Search syntax"], [aria-label="Search diagnostics"]) { display: none; }
+  .search-command-footer-v294 { display: none; }
+  .cluster-taskbar-search-results-v546 .search-command-results-v294 > button { min-height: 52px; }
+  .search-command-palette-v294 .search-mode-strip-v415 > .search-mode-strip-v415__count { display: inline; }
+}

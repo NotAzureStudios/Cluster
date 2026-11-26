@@ -143,11 +143,9 @@ export function SearchResultPreview({ item, onOpen }: SearchResultPreviewProps) 
         {item.priority && <><dt>Priority</dt><dd>{item.priority}</dd></>}
         {item.dueDate && <><dt>Due</dt><dd>{new Date(item.dueDate).toLocaleString()}</dd></>}
         {item.relationshipSummary?.total ? <><dt>Linked work</dt><dd>{item.relationshipSummary.total} relationship{item.relationshipSummary.total === 1 ? "" : "s"}{item.relationshipSummary.blockers ? ` · ${item.relationshipSummary.blockers} blocker${item.relationshipSummary.blockers === 1 ? "" : "s"}` : ""}{item.relationshipSummary.critical ? ` · ${item.relationshipSummary.critical} critical` : ""}{item.relationshipSummary.labels?.length ? ` · ${item.relationshipSummary.labels.join(", ")}` : ""}</dd></> : null}
-        {item.matchReason && <><dt>Matched by</dt><dd>{item.matchReason}</dd></>}
-        {item.createdAt && <><dt>Created</dt><dd>{new Date(item.createdAt).toLocaleString()}</dd></>}
-        {item.updatedAt && <><dt>Updated</dt><dd>{new Date(item.updatedAt).toLocaleString()}</dd></>}
+        {item.updatedAt && <><dt>Updated</dt><dd>{new Date(item.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</dd></>}
       </dl>
-      <div className="search-preview-actions-v493"><ClusterButton type="button" className="" onClick={onOpen} variant="primary">Open result</ClusterButton>{item.workContext ? <WorkActionMenu context={item.workContext} label={`${item.title} actions`} triggerLabel="Actions" allowMention={item.kind === "person"} /> : null}</div>
+      <div className="search-preview-actions-v493"><ClusterButton type="button" className="" onClick={onOpen} variant="primary">Open</ClusterButton>{item.workContext ? <WorkActionMenu context={item.workContext} label={`${item.title} actions`} triggerLabel="Actions" allowMention={item.kind === "person"} /> : null}</div>
     </aside>
   );
 }

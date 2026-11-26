@@ -1,6 +1,7 @@
 import { readPreferenceStorage, writePreferenceStorage } from "../../core/preference-storage";
 import { CLUSTER_SEARCH_SCOPE_IDS, CLUSTER_SEARCH_SCOPE_MANIFEST, COMMAND_SEARCH_KNOWN_OPERATORS, COMMAND_SEARCH_OPERATOR_ALIASES, type ClusterSearchScope } from "@cluster/shared";
 import type { CommandSearchResultKind } from "../application/application-models";
+import type { ClusterIconName } from "../../components/ClusterIcon";
 
 export type SearchScope = ClusterSearchScope;
 
@@ -257,4 +258,17 @@ export function searchKindLabel(kind: SearchDocument["kind"]) {
   if (kind === "action") return "Action";
   if (kind === "page") return "Page";
   return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
+const SEARCH_KIND_ICONS: Record<string, ClusterIconName> = {
+  project: "project", person: "user", card: "note", ticket: "ticket", board: "grid", whiteboard: "palette",
+  file: "file", packet: "packet", policy: "book", timeline: "timeline", comment: "comment", calendar: "calendar",
+  control: "warning", build: "game", qa: "check", release: "upload", source_review: "code", source_commit: "code",
+  studio_form: "list", form_submission: "mail", approval: "check", activity: "activity", scheduler: "clock",
+  inbox: "bell", settings: "settings", action: "spark", page: "pages",
+};
+
+/** One glyph per result kind; the kind's name stays in the row's tooltip. */
+export function searchKindIcon(kind: SearchDocument["kind"]): ClusterIconName {
+  return SEARCH_KIND_ICONS[kind] || "search";
 }

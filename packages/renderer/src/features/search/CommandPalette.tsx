@@ -1,6 +1,6 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
 import { ClusterTextInput } from "../../components/ClusterTextInput";
-import { ClusterButton } from "../../components/ClusterButton";
+import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { promptCluster } from "../../components/cluster-dialog-service";
 import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,6 +36,7 @@ import {
   readSearchUsage,
   recordSearchUsage,
   scoreSearchDocument,
+  searchKindIcon,
   searchKindLabel,
   searchUsageBoost,
   type SearchScope,
@@ -629,12 +630,14 @@ export function CommandPalette(props: CommandPaletteProps) {
       if (navigation.route === "project" && !projects.some((project) => project.id === navigation.context.projectId)) return [];
       if ((navigation.route === "board" || navigation.route === "whiteboard") && navigation.context.projectId &&
         !projects.some((project) => project.id === navigation.context.projectId)) return [];
+      const title = recentWorkspaceTitle(navigation, projects);
+      const place = screenLabel(navigation.route);
       return [{
         key: `recent-navigation-${item.route}`,
-        kind: "page" as const,
+        kind: navigation.route === "project" || navigation.route === "board" || navigation.route === "whiteboard" ? navigation.route : "page" as const,
         group: "recent" as const,
-        title: recentWorkspaceTitle(navigation, projects),
-        detail: `Recently visited · ${screenLabel(navigation.route)}`,
+        title,
+        detail: place === title ? "" : place,
         keywords: [navigation.route, "recent", "history", "visited"],
         updatedAt: item.visitedAt,
         score: 32,
@@ -679,7 +682,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       };
     });
 
-    const favoriteToggleAction: PaletteItem[] = pinnableRoute && canonicalWorkspaceFavorite(window.location.hash) ? [{
+    const favoriteToggleAction: PaletteItem[] = pinnableRoute && (commandMode || searchTerm) && canonicalWorkspaceFavorite(window.location.hash) ? [{
       key: "action-toggle-workspace-favorite",
       kind: "action" as const,
       group: "context" as const,
@@ -703,9 +706,8 @@ export function CommandPalette(props: CommandPaletteProps) {
     const currentProjectActions: PaletteItem[] = currentProject ? ([
       ["overview", "Open project overview", "Dashboard, status, and current project context", ["home", "summary"]],
       ["builds", "Open project Builds", "Artifacts, release gates, and delivery history", ["build", "artifact"]],
-      ["qa", "Open project QA", "Test plans, runs, reports, and verification", ["test", "quality"]],
-      ["control", "Open project Control", "Risks, decisions, blockers, and operating control", ["risk", "decision"]],
-      ["library", "Open project Library", "Project files, references, and assets", ["files", "assets"]],
+      ["tickets", "Open project Tickets", "Issues and requests for this project", ["issues", "bugs"]],
+      ["library", "Open project Files", "Project files, references, and assets", ["files", "assets", "library"]],
     ] as const).map(([tab, title, detail, keywords]) => ({
       key: `context-project-${currentProject.id}-${tab}`,
       kind: "action",
@@ -777,8 +779,12 @@ export function CommandPalette(props: CommandPaletteProps) {
           ? ["context", "recent", "matches", "navigation", "actions", "desktop"]
           : ["context", "recent", "navigation", "actions", "matches", "desktop"];
     const groupRank = new Map(groupOrder.map((group, index) => [group, index]));
+    // Activity log entries echo the work they describe; outside an explicit
+    // activity: search they rank after it and only the newest three show.
+    let activityShown = 0;
     return scored
-      .sort((a, b) => (groupRank.get(a.group) ?? 99) - (groupRank.get(b.group) ?? 99) || b.score - a.score || a.title.localeCompare(b.title))
+      .sort((a, b) => (groupRank.get(a.group) ?? 99) - (groupRank.get(b.group) ?? 99) || Number(a.kind === "activity") - Number(b.kind === "activity") || b.score - a.score || a.title.localeCompare(b.title))
+      .filter((item) => parsed.scope === "activity" || item.kind !== "activity" || ++activityShown <= 3)
       .slice(0, 40);
   }, [projects, remoteResults, remoteResultOwner, requestIdentity, recentNavigation, desktopRecents, desktopRecentsOwner, searchOwner, desktopHost, parsed.scope, parsed.explicit, remoteTerm, searchTerm, query, deferredQuery, user, usage, localSearch.workerReady, localSearch.scores, networkOnline, onOpenQuickCreate, onOpenProject, onOpenBoard, onOpenWhiteboard, onOpenLibrary, projectTypeLabel, setScreen, commandMode, currentProjectId, currentScreen, currentProject, contextAware, preferredSearchScope, searchUsageContext, activeWorkContext, settings, storedFavorites, currentScreen]);
 
@@ -1003,8 +1009,6 @@ export function CommandPalette(props: CommandPaletteProps) {
             placeholder={commandMode ? "Run a command…" : "Search everything"}
           />
           {searching && <span className="search-command-spinner-v294" aria-label="Searching" />}
-          {!commandMode && <ClusterButton className="" type="button" aria-pressed={showOperatorHelp} onClick={() => setShowOperatorHelp((value) => !value)} variant="quiet" size="compact">Operators</ClusterButton>}
-          {!commandMode && <ClusterButton type="button" className="" disabled={!query.trim()} onClick={saveCurrentSearch} variant="quiet" size="compact">Save</ClusterButton>}
           <ClusterButton type="button" className="cluster-taskbar-search-field__close" onClick={() => closeSearch(true)} variant="quiet" size="compact" aria-label="Close search"><ClusterIcon name="close" /></ClusterButton>
         </div>, taskbarSlot) : null}
       <ClusterFloatingSurface
@@ -1022,7 +1026,10 @@ export function CommandPalette(props: CommandPaletteProps) {
           <ClusterButton unstyled type="button" className={!commandMode ? "active" : ""} aria-pressed={!commandMode} onClick={() => setQuery((value) => value.trimStart().startsWith(">") ? value.trimStart().slice(1).trimStart() : value)}>Search</ClusterButton>
           <ClusterButton unstyled type="button" className={commandMode ? "active" : ""} aria-pressed={commandMode} onClick={() => setQuery((value) => value.trimStart().startsWith(">") ? value : `> ${value}`)}>Commands</ClusterButton>
           {(favoriteRoutes.length > 0 || showFavoritesManager) && <ClusterButton type="button" variant="quiet" size="compact" aria-expanded={showFavoritesManager} onClick={() => setShowFavoritesManager((value) => !value)}>{showFavoritesManager ? "Close favorites" : `Manage favorites (${favoriteRoutes.length})`}</ClusterButton>}
-          <span>{preferredSearchScope === "workspace" ? "Workspace content" : preferredSearchScope === "current" ? "Current context first" : currentProjectId && contextAware ? "Current project boosted" : "Workspace ranking"}</span>
+          <span id="cluster-search-status" className="search-mode-strip-v415__count" aria-live="polite">{searchError ? "Search unavailable" : searching && !resultMeta ? "Searching…" : `${items.length} result${items.length === 1 ? "" : "s"}`}</span>
+          {!commandMode && <ClusterIconButton size="compact" label={query.trim() ? "Save this search" : "Type something to save a search"} disabled={!query.trim()} onClick={saveCurrentSearch}><ClusterIcon name="star" /></ClusterIconButton>}
+          {!commandMode && <ClusterIconButton size="compact" label="Search syntax" aria-pressed={showOperatorHelp} onClick={() => setShowOperatorHelp((value) => !value)}><ClusterIcon name="info" /></ClusterIconButton>}
+          {user.isAdmin && <ClusterIconButton size="compact" label="Search diagnostics" aria-pressed={showDiagnostics} onClick={toggleDiagnostics}><ClusterIcon name="activity" /></ClusterIconButton>}
         </div>
 
         {!commandMode && <nav className="search-command-scopes-v294" aria-label="Search scope">
@@ -1039,11 +1046,6 @@ export function CommandPalette(props: CommandPaletteProps) {
           ))}
         </nav>}
 
-        <div id="cluster-search-status" className="search-command-status-v294" aria-live="polite">
-          <span>{commandMode ? "Command mode" : parsed.explicit ? `Scope: ${parsed.scope}` : preferredSearchScope === "workspace" ? "Workspace content only · use a scope prefix to override" : currentProjectId && contextAware ? "Context-aware search · current project first" : "All searchable work"}</span>
-          <span>{searchError || (resultMeta ? `${resultMeta.count} results · ${resultMeta.elapsedMs} ms${resultMeta.cached ? " · ranking reused" : ""}${resultMeta.rebuilding || resultMeta.indexDirty ? " · refreshing index" : ""}${user.isAdmin && resultMeta.refreshingProjects ? ` · ${resultMeta.refreshingProjects} project refresh${resultMeta.refreshingProjects === 1 ? "" : "es"}` : ""}` : searching ? "Searching…" : `${items.length} result${items.length === 1 ? "" : "s"}${!networkOnline && localSearch.workerReady ? ` · local index ${localSearch.elapsedMs} ms` : ""}`)}</span>
-          {user.isAdmin && <ClusterButton type="button" className="" aria-pressed={showDiagnostics} onClick={toggleDiagnostics} variant="quiet" size="compact">Diagnostics</ClusterButton>}
-        </div>
         {currentCommandError ? <div className="search-command-action-error-v546" role="alert">{currentCommandError}</div> : null}
         {(!networkOnline || searchError) && (
           <div className="search-degraded-v495" role="status">
@@ -1167,14 +1169,15 @@ export function CommandPalette(props: CommandPaletteProps) {
                   role="option"
                   aria-selected={index === activeIndex}
                   className={index === activeIndex ? "active" : ""}
-                  onMouseEnter={() => setActiveIndex(index)}
+                  // Mouse only: a tap's emulated hover must not move the selection
+                  // (it scrolled phones to the row under the finger).
+                  onPointerMove={(event) => { if (event.pointerType === "mouse" && index !== activeIndex) setActiveIndex(index); }}
                   onClick={() => run(item)}
                 >
-                  <span className={`search-kind-v294 kind-${item.kind}`}>{searchKindLabel(item.kind)}</span>
+                  <span className={`search-kind-v294 kind-${item.kind}`} title={searchKindLabel(item.kind)}><ClusterIcon name={searchKindIcon(item.kind)} /></span>
                   <span className="search-result-copy-v495">
                     <strong>{highlight(item.title, searchTerm)}</strong>
-                    <em>{highlight(item.detail, searchTerm)}</em>
-                    {(item.projectName || item.boardName || item.status || item.priority || item.matchReason) ? <small>{[item.projectName, item.boardName, item.status, item.priority, item.matchReason].filter(Boolean).slice(0, 4).join(" · ")}</small> : null}
+                    <em>{highlight(item.detail || [item.projectName, item.boardName, item.status].filter(Boolean).join(" · "), searchTerm)}</em>
                   </span>
                   {(item.shortcut || item.aliases?.length) && <span className="search-command-hint-v495" aria-label={item.shortcut ? `Shortcut ${item.shortcut}` : `Aliases ${(item.aliases || []).join(", ")}`}>{item.shortcut || item.aliases?.slice(0, 2).join(" · ")}</span>}
                   <ClusterIcon name="chevron-right" aria-hidden="true" />
@@ -1192,11 +1195,9 @@ export function CommandPalette(props: CommandPaletteProps) {
         </div>
         <footer className="search-command-footer-v294">
           <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-          <span><kbd>Home</kbd><kbd>End</kbd> jump</span>
           <span><kbd>Enter</kbd> open</span>
           {desktopHost && <span><kbd>Ctrl</kbd><kbd>Enter</kbd> new window</span>}
           <span><kbd>&gt;</kbd> commands</span>
-          {settings?.userCommandPaletteHotkey && <span><kbd>{settings.userCommandPaletteHotkey}</kbd> reopen palette</span>}
           <span><kbd>Esc</kbd> close</span>
         </footer>
       </ClusterFloatingSurface>
