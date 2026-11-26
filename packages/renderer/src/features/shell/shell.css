@@ -349,10 +349,11 @@ html[data-cluster-kiosk-touch="true"] a{ min-height: 44px; }html[data-cluster-ki
 /* RC17 icon integrity: canonical Iconify artwork owns its own fill/stroke geometry. */
 
 /* WIP22 shell cleanup: stable taskbar, centered nav geometry, floating menus, and compact project tabs. */
+/* top/bottom come from the floating positioner: phones dock the panel to
+   the bottom edge, and a forced bottom: auto pushed it below the screen. */
 .taskbar-floating-menu-v522.cluster-floating-surface-v504 {
   position: fixed;
   right: auto;
-  bottom: auto !important;
   z-index: 1900;
   background: color-mix(in srgb, var(--cluster-workbench-panel-raised) 98%, transparent) !important;
   border-color: var(--cluster-workbench-border-strong) !important;
