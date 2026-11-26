@@ -181,3 +181,26 @@
 }
 .pv-col { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
 .pv > .project-secondary-details-v57 { border: 0; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
+
+/* ---------- workbench: notes and recent files ---------- */
+.pj-bench { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-3); min-width: 0; }
+@media (max-width: 900px) { .pj-bench { grid-template-columns: 1fr; } }
+.pj-bench > .pv-card { align-content: start; }
+.pj-bench__state { margin-left: auto; color: var(--muted); font-size: .78rem; }
+.pv-card.pj-notes textarea.cluster-text-area-v495 {
+  min-height: 180px !important; height: auto; resize: vertical; border: 0; background: transparent !important; box-shadow: none;
+  padding: 0; border-radius: 0 !important; font: inherit; line-height: 1.55; color: var(--text);
+}
+.pv-card.pj-notes textarea.cluster-text-area-v495:focus { outline: none; box-shadow: none; }
+.pj-recent ul, .pj-files__list { list-style: none; margin: 0; padding: 0; display: grid; }
+.pj-recent li > button, .pj-files__list li > button {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2);
+  width: 100%; padding: 6px var(--space-1); border-radius: 8px; color: var(--text); text-align: left;
+}
+.pj-recent li > button:hover, .pj-files__list li > button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.pj-recent li span, .pj-files__list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-recent li small, .pj-files__list li small { color: var(--muted); font-size: .78rem; }
+.pj-files { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); }
+.pj-files__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.pj-files__empty { margin: 0; color: var(--muted); }
+.project-content-v312 > .collaboration-panel-v227 { margin-top: var(--space-3); }

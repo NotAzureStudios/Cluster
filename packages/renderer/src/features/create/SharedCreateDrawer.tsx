@@ -502,9 +502,10 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const productionProfiles = useMemo(() => enabledClusterProductionProfiles(settings?.studioEnabledProductionProfileIds, selectedProjectType), [settings?.studioEnabledProductionProfileIds, selectedProjectType.id, selectedProjectType.category]);
   const selectedProductionProfile = productionProfiles.find((profile) => profile.id === productionProfile) || productionProfiles[0] || CLUSTER_PRODUCTION_PROFILE_DEFINITIONS[0];
   const selectedProjectTypeTemplates = selectedProjectType.productionTemplates || [];
+  // No blueprint by default: a new project starts clean instead of seeded
+  // with production records.
   useEffect(() => {
-    if (!selectedProjectTypeTemplates.length) { if (projectTypeTemplate) setProjectTypeTemplate(""); return; }
-    if (!selectedProjectTypeTemplates.includes(projectTypeTemplate)) setProjectTypeTemplate(selectedProjectTypeTemplates[0]);
+    if (projectTypeTemplate && !selectedProjectTypeTemplates.includes(projectTypeTemplate)) setProjectTypeTemplate("");
   }, [selectedProjectType.id, selectedProjectTypeTemplates.join("|"), projectTypeTemplate]);
   const studioDefaultBuildProfile = BUILD_PLATFORM_PROFILES.find((profile) => profile.key === settings?.defaultBuildProfileKey);
   useEffect(() => {

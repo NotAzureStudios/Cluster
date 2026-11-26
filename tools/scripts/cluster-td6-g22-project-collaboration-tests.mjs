@@ -153,8 +153,8 @@ await check('delete rejects stale version then records metadata-only deletion ev
 });
 await check('watch and history UI expose the existing shared controls rather than parallel stores',()=>{
  const page=source('packages/renderer/src/features/projects/ProjectDetailPage.tsx');
- assert.match(page,/<SharedWorkWatchControl entity=\{\{ kind: "project"/);
- assert.match(page,/<SharedWorkActivityPanel entity=\{\{ kind: "project"/);
+ // Project discussion sits open on Overview; it carries its own follow control.
+ assert.match(page,/<CollaborationPanel entityType="project"/);
  assert.match(source('apps/server/src/domains/comments/entity-comment-routes.ts'),/publishCommentChange\(commentContext\)/);
  const board=source('packages/renderer/src/features/boards/BoardWorkspacePage.tsx');
  assert.match(board, /<SharedWorkWatchControl entity=\{\{ kind: "board"/);

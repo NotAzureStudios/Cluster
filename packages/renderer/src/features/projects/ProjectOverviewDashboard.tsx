@@ -1,5 +1,5 @@
 import { CLUSTER_WORKFLOW_RELATIONSHIP_META, type ClusterProjectTypeDefinition, type ClusterWorkflowRelationship } from "@cluster/shared";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
@@ -32,7 +32,7 @@ type ProjectTeamMember = {
 };
 type ProjectAttentionItem = { id: string; label: string; detail: string; tone: "warning" | "danger"; action: () => void };
 
-export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore }: {
+export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore, children }: {
   project: Project;
   projectType: ClusterProjectTypeDefinition;
   snapshot: ProjectSnapshot | null;
@@ -59,6 +59,7 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   CustomFieldValuesPanel: ComponentType<any>;
   VersionHistoryPanel: ComponentType<any>;
   onRestore: (snapshot: Project) => Promise<void>;
+  children?: ReactNode;
   canManage?: boolean;
   canContribute?: boolean;
 }) {
@@ -72,7 +73,6 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   const readiness = snapshot?.readiness.score ?? (setupChecklist.length ? Math.round((setupChecklist.filter((item) => item.done).length / setupChecklist.length) * 100) : 0);
   const fallbackSchedule = projectScheduleMeta(project, project.archived ? "archived" : String(project.status || "active"));
   const schedule = snapshot ? { label: snapshot.schedule.label, tone: snapshot.schedule.state === "overdue" ? "danger" : snapshot.schedule.state === "due_soon" || snapshot.schedule.state === "unscheduled" ? "warning" : snapshot.schedule.state === "scheduled" ? "good" : "neutral" } : fallbackSchedule;
-  const readinessGaps = snapshot?.readiness.gaps ?? setupGaps;
   const buildFailures = dashboard?.workflow.builds.failed || 0;
   const qaAttention = dashboard?.workflow.qa.attention || 0;
   const relationshipBlockers = dashboard?.workflow.relationships.blockers || 0;
@@ -81,8 +81,7 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   const projectRelationshipTypes = [...new Set(projectRelationships.map((item) => item.relationship.replaceAll("_", " ")))].slice(0, 3);
   const overdueWork = dashboard?.cards.overdue || 0;
   const blockedWork = dashboard?.cards.blocked || 0;
-  const controlAttention = controlCenter?.summary.attention.length || 0;
-  const attentionCount = overdueWork + blockedWork + (supportsBuilds ? buildFailures : 0) + (supportsQa ? qaAttention : 0) + (supportsReview ? reviewOpenNoteCount : 0) + relationshipBlockers + controlAttention;
+  const attentionCount = overdueWork + blockedWork + (supportsBuilds ? buildFailures : 0) + (supportsQa ? qaAttention : 0) + (supportsReview ? reviewOpenNoteCount : 0) + relationshipBlockers;
   const delivery = dashboard?.workflow.delivery || null;
   const qaTotal = (dashboard?.workflow.qa.sessions || 0) + (dashboard?.workflow.qa.plans || 0);
 
@@ -100,9 +99,7 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
     ...(supportsReview && reviewOpenNoteCount ? [{ id: "review", label: `${reviewOpenNoteCount} open note${reviewOpenNoteCount === 1 ? "" : "s"}`, detail: `${reviewAssetCount} review version${reviewAssetCount === 1 ? "" : "s"}`, tone: "warning" as const, action: () => onOpenSection("viewer") }] : []),
     ...(supportsBuilds && buildFailures ? [{ id: "builds", label: `${buildFailures} failed build${buildFailures === 1 ? "" : "s"}`, detail: delivery?.recommendedAction || "", tone: "danger" as const, action: () => onOpenSection("builds") }] : []),
     ...(supportsQa && qaAttention ? [{ id: "qa", label: `${qaAttention} QA flag${qaAttention === 1 ? "" : "s"}`, detail: `${qaTotal} records`, tone: "danger" as const, action: () => onOpenSection("qa") }] : []),
-    ...(relationshipBlockers ? [{ id: "relationships", label: `${relationshipBlockers} blocking dependenc${relationshipBlockers === 1 ? "y" : "ies"}`, detail: dashboard?.workflow.relationships.critical ? `${dashboard.workflow.relationships.critical} critical` : "", tone: "warning" as const, action: () => onOpenSection("control") }] : []),
-    ...(controlCenter?.summary.attention.slice(0, 2).map((item) => ({ id: `control-${item.id}`, label: item.title, detail: item.reason, tone: item.tone === "danger" ? "danger" as const : "warning" as const, action: () => onOpenSection("control") })) || []),
-    ...readinessGaps.slice(0, attentionItemsRoom(overdueWork, supportsBuilds ? buildFailures : 0, supportsQa ? qaAttention : 0, relationshipBlockers, controlCenter?.summary.attention.length || 0)).map((gap: string, index: number) => ({ id: `setup-${index}`, label: gap, detail: "", tone: "warning" as const, action: onOpenPlan })),
+    ...(relationshipBlockers ? [{ id: "relationships", label: `${relationshipBlockers} blocking dependenc${relationshipBlockers === 1 ? "y" : "ies"}`, detail: dashboard?.workflow.relationships.critical ? `${dashboard.workflow.relationships.critical} critical` : "", tone: "warning" as const, action: onOpenTickets }] : []),
   ].slice(0, 5);
 
   const blockedTotal = blockedWork + relationshipBlockers;
@@ -132,7 +129,7 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
           <span className="pv-tile__copy"><strong>{item.value}</strong><small>{item.label}{item.sub ? <em> · {item.sub}</em> : null}</small></span>
         </ClusterButton>)}
       </section>
-
+      {children}
       <div className="pv-grid">
         <div className="pv-col">
         <section className="pv-card" data-tone={attentionItems.length ? attentionItems.some((item) => item.tone === "danger") ? "danger" : "warning" : "good"}>
@@ -150,7 +147,6 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
           <header><h3>Team</h3>{teamMembers.length ? <span className="pv-count">{teamMembers.length}</span> : null}<ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
           <dl className="pv-facts">
             <div><dt>Lead</dt><dd data-empty={ownerLabel === "Unassigned" || undefined}>{ownerLabel}</dd></div>
-            <div><dt>Phase</dt><dd data-empty={!activePhase || undefined}>{productionPhaseLabel}</dd></div>
             {integrationCount ? <div><dt>Links</dt><dd>{integrationCount}</dd></div> : null}
           </dl>
           {teamMembers.length
@@ -191,9 +187,4 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
 
     </div>
   );
-}
-
-function attentionItemsRoom(overdue: number, builds: number, qa: number, relationships: number, control: number) {
-  const occupied = Number(Boolean(overdue)) + Number(Boolean(builds)) + Number(Boolean(qa)) + Number(Boolean(relationships)) + Math.min(2, control);
-  return Math.max(0, 5 - occupied);
 }

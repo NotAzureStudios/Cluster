@@ -139,7 +139,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const [sourceFilter, setSourceFilter] = useState<"all" | "git" | "manual" | "external">("all");
   const [scheduleFilter, setScheduleFilter] = useState<"all" | "due_soon" | "overdue" | "unscheduled" | "scheduled">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | "low" | "medium" | "high" | "urgent">("all");
-  const [projectSorts, setProjectSorts] = useState<ClusterDataSort[]>([{ fieldId: "attention", direction: "desc" }]);
+  const [projectSorts, setProjectSorts] = useState<ClusterDataSort[]>([{ fieldId: "updated", direction: "desc" }]);
   const [viewMode, setViewMode] = useServerState<"list" | "cards" | "table">("user", "projects.portfolio-view", "cards", { merge: (value, fallback) => value === "list" || value === "cards" || value === "table" ? value : fallback });
   const [density, setDensity] = useServerState<"compact" | "comfortable">("user", "projects.portfolio-density", "comfortable", { merge: (value, fallback) => value === "compact" || value === "comfortable" ? value : fallback });
   const [focus, setFocus] = useServerState<ProjectPortfolioFocus>("user", "projects.portfolio-focus", "all");
@@ -572,7 +572,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "stage", header: "Stage", defaultWidth: 170, sortValue: (fact) => fact.stage.label, groupValue: (fact) => fact.stage.label, cell: (fact) => fact.stage.label },
     { id: "source", header: "Source", defaultWidth: 150, sortValue: (fact) => fact.source.label, groupValue: (fact) => fact.source.label, groupSummaryValue: (fact) => isExternalProject(fact.project) ? "external" : projectHasGit(fact.project) ? "git" : "manual", cell: (fact) => fact.source.label },
     { id: "people", header: "People", defaultWidth: 100, sortValue: (fact) => fact.memberCount, cell: (fact) => fact.memberCount },
-    { id: "target", header: "Target", defaultWidth: 150, sortValue: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate) : null, cell: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate).toLocaleDateString() : "Unscheduled" },
+    { id: "target", header: "Target", defaultWidth: 150, sortValue: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate) : null, cell: (fact) => fact.project.targetDate ? new Date(fact.project.targetDate).toLocaleDateString() : "No due date" },
     { id: "attention", header: "Attention", hiddenByDefault: true, sortValue: (fact) => fact.attentionScore, cell: (fact) => fact.attentionScore },
     { id: "updated", header: "Updated", hiddenByDefault: true, sortValue: (fact) => fact.latest, cell: (fact) => new Date(fact.latest).toLocaleString() },
     { id: "priority", header: "Priority", hiddenByDefault: true, sortValue: (fact) => PROJECT_PRIORITY_SCORE[fact.project.priority || "medium"] || 0, groupValue: (fact) => fact.project.priority || "medium", cell: (fact) => fact.project.priority || "medium" },
@@ -634,9 +634,6 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     { id: "all", label: "All projects", count: focusCounts.all, icon: "project" as const },
     { id: "pinned", label: "Starred", count: focusCounts.pinned, icon: "star" as const },
     { id: "recent", label: "Recently updated", count: focusCounts.recent, icon: "clock" as const },
-    { id: "at_risk", label: "Needs attention", count: focusCounts.at_risk, icon: "warning" as const },
-    { id: "due_soon", label: "Due soon", count: focusCounts.due_soon, icon: "calendar" as const },
-    { id: "unscheduled", label: "No target date", count: focusCounts.unscheduled, icon: "calendar" as const },
   ] as const;
   function openInspector(projectId: string, trigger: HTMLElement) {
     // Row actions can be rendered inside a floating menu. Restore keyboard
@@ -708,7 +705,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     setPriorityFilter((["low", "medium", "high", "urgent"] as string[]).includes(nextPriority) ? nextPriority as typeof priorityFilter : "all");
     setFocus((["at_risk", "due_soon", "unscheduled", "pinned"] as string[]).includes(nextFocus) ? nextFocus as ProjectPortfolioFocus : "all");
     const savedSorts = normalizeClusterDataSorts(view.query.sorts, new Set(["attention", "updated", "readiness", "name", "target", "priority", "status", "health", "stage", "source", "people"]));
-    setProjectSorts(savedSorts.length ? savedSorts : [{ fieldId: "attention", direction: "desc" }]);
+    setProjectSorts(savedSorts.length ? savedSorts : [{ fieldId: "updated", direction: "desc" }]);
     setProjectGroups((view.query.groups || []).filter((group) => projectDataFields.some((field) => field.id === group.fieldId && field.groupable)).slice(0, 3));
     setProjectProjections(view.query.projections?.length ? view.query.projections : DEFAULT_PROJECT_PROJECTIONS);
     setProjectDerivedFields(view.query.derivedFields || []);
@@ -738,7 +735,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   function clearFilters() { projectDrilldown.reset(); setQuery(""); setTypeFilter(""); setStatusFilter("all"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet({ logic: "or", selections: [] }); persistFocus("all"); }
   function navigateSelection(delta: number) { if (!sortedFacts.length) return; const current = sortedFacts.findIndex((fact) => fact.project.id === selectedProject?.id); const next = sortedFacts[(Math.max(0, current) + delta + sortedFacts.length) % sortedFacts.length]; setSelectedProjectId(next.project.id); }
 
-  const collections = [...browserFilters.map((item) => ({ id: item.id, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.id === "at_risk" ? "Attention" : item.id === "unscheduled" ? "No date" : item.label, count: item.count, tone: item.id === "at_risk" && item.count ? "warning" : "" })), { id: "archived", label: "Archived", count: 0, tone: "" }];
+  const collections = [...browserFilters.map((item) => ({ id: item.id, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.label, count: item.count, tone: "" })), { id: "archived", label: "Archived", count: 0, tone: "" }];
   const activeCollection = statusFilter === "archived" ? "archived" : focus;
   const statusFilterCount = Number(statusFilter !== "all" && statusFilter !== "archived");
 
@@ -749,7 +746,6 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
       <header className="pl-head">
         <h1>Projects</h1>
         <div className="pl-head__actions">
-          {portfolioProjects.length > 0 && <ClusterButton variant="quiet" size="compact" onClick={onOpenBuilds}>Releases</ClusterButton>}
           {isAdmin ? <DataImportBuilder resourceKind="project" label="Projects" /> : null}
           <DataExportBuilder fields={projectExportFields} selectionCount={selectedProjectIds.size} busy={projectExporting} onExport={({ format, fieldIds, scope, delivery }) => exportProjects(format, fieldIds, scope, delivery)} />
           {isAdmin && <ClusterButton variant="primary" size="compact" onClick={onCreateProject}><ClusterIcon name="plus" /> New project</ClusterButton>}

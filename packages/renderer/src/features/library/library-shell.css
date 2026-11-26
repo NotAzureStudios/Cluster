@@ -276,3 +276,6 @@
 .lib-page .lib-filters .library-tag-shortcuts-v14 { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .lib-page .lib-side > .library-space-v21 { display: grid; justify-content: stretch; text-transform: none; letter-spacing: normal; font-size: inherit; color: var(--text); }
 .lib-page .lib-side > .library-space-v21 > div { display: flex; padding: 0; }
+
+/* Embedded in a project's Files tab */
+.lib-page.lib-page--embedded { height: calc(100vh - 190px); min-height: 480px; }

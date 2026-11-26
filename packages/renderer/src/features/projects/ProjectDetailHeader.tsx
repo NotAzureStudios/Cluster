@@ -33,6 +33,7 @@ type Props = {
   onOpenTimeline: () => void;
   onOpenTickets: () => void;
   allowCloseout?: boolean;
+  onLifecycle?: (action: "complete" | "reopen") => void;
 };
 
 /* The project header, two rows: identity and key facts, then the tabs.
@@ -41,13 +42,12 @@ type Props = {
    dropdown, then a presence bar — about 230px before any content. The facts
    from Info sit on the title line as small indicators instead, so nothing is
    hidden behind a click. */
-export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets, allowCloseout = false }: Props) {
+export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets, allowCloseout = false, onLifecycle }: Props) {
   const status = projectStatusLabel(project);
   const statusTone = projectStatusMeta(project).tone;
   const target = project.targetDate ? new Date(project.targetDate) : null;
   const daysToTarget = target ? Math.ceil((target.getTime() - Date.now()) / 86_400_000) : null;
   const targetLabel = target ? target.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null;
-  const readinessTone = readiness >= 75 ? "good" : readiness >= 40 ? "warning" : "danger";
   // Settings is a gear at the end of the tab bar, always visible; Closeout is
   // opened from the menu. Neither competes for a tab slot.
   const hasSettings = tabs.some((item) => item.id === "settings");
@@ -63,7 +63,6 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
         <span className="pj-status" data-tone={statusTone}>{status}</span>
         <ul className="pj-facts" aria-label="Project facts">
           <li title="Type">{typeLabel}</li>
-          <li><ClusterMiniRing label="Readiness" percent={readiness} tone={readinessTone} /></li>
           {targetLabel ? <li title={`Target ${target!.toLocaleDateString()}`} data-tone={daysToTarget != null && daysToTarget < 0 ? "danger" : daysToTarget != null && daysToTarget <= 7 ? "warning" : undefined}><ClusterIcon name="calendar" />{targetLabel}{daysToTarget != null ? <small>{daysToTarget < 0 ? `${-daysToTarget}d late` : daysToTarget === 0 ? "today" : `${daysToTarget}d`}</small> : null}</li> : null}
           <li title={`${teamCount} on the team`}><ClusterIcon name="users" />{teamCount}</li>
           {project.priority === "urgent" || project.priority === "high" ? <li data-tone={project.priority === "urgent" ? "danger" : "warning"}>{project.priority === "urgent" ? "Urgent" : "High priority"}</li> : null}
@@ -74,7 +73,9 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
           <ClusterActionMenu label="Go to" iconOnly items={[
             { id: "timeline", label: "Timeline", icon: "timeline", onSelect: onOpenTimeline },
             { id: "tickets", label: "Tickets", icon: "ticket", onSelect: onOpenTickets },
-            ...(hasCloseout ? [{ id: "closeout", label: project.archived ? "Closeout record" : "Close out project…", icon: "archive" as const, onSelect: () => onTabChange("closeout") }] : []),
+            ...(onLifecycle && !project.archived && project.status !== "cancelled" ? [project.status === "completed"
+              ? { id: "reopen", label: "Reopen project", icon: "refresh" as const, separatorBefore: true, onSelect: () => onLifecycle("reopen") }
+              : { id: "complete", label: "Mark complete", icon: "check" as const, separatorBefore: true, onSelect: () => onLifecycle("complete") }] : []),
           ]} />
         </div>
       </div>

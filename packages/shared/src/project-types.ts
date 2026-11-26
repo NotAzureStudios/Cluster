@@ -368,6 +368,8 @@ export function sanitizeClusterProjectTypeDefinition(input: Partial<ClusterProje
 
 /** Starting points offered by "Add type"; a studio's own list never merges them back in. */
 export const CLUSTER_PROJECT_TYPE_TEMPLATES = CLUSTER_PROJECT_TYPE_DEFINITIONS;
+/** The few starting points offered when adding a project type. */
+export const CLUSTER_PROJECT_TYPE_STARTERS = CLUSTER_PROJECT_TYPE_DEFINITIONS.filter((type) => ["general", "game", "video"].includes(type.id));
 
 export function resolveClusterProjectTypes(custom?: unknown): ClusterProjectTypeDefinition[] {
   if (Array.isArray(custom) && custom.some((entry) => entry && typeof entry === "object" && (entry as { source?: unknown }).source === "studio")) {

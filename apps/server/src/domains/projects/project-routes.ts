@@ -1011,7 +1011,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
     const user = await getCurrentUser(request);
     const params = z.object({ projectId: z.string() }).parse(request.params);
     const body = z.object({
-      action: z.enum(["cancel", "reactivate"]),
+      action: z.enum(["cancel", "reactivate", "complete", "reopen"]),
       reason: z.string().trim().max(1000).optional().nullable(),
       expectedRevision: z.number().int().positive().optional(),
     }).parse(request.body || {});
@@ -1019,7 +1019,10 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
     if (!project) return reply.code(404).send({ ok: false, error: "Project not found." });
     if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "manage"))) return;
     if (body.expectedRevision !== undefined && body.expectedRevision !== project.revision) return sendRevisionConflict(reply, "project", serializeProjectSummary(project));
-    const targetStatus = body.action === "cancel" ? "cancelled" : "active";
+    const targetStatus = body.action === "cancel" ? "cancelled" : body.action === "complete" ? "completed" : "active";
+    // Complete/reopen: a plain, reversible "done" with no due date or closeout needed.
+    if (body.action === "complete" && project.status === "completed") return reply.code(409).send({ ok: false, code: "PROJECT_LIFECYCLE_TRANSITION_INVALID", error: "Project is already complete." });
+    if (body.action === "reopen" && project.status !== "completed") return reply.code(409).send({ ok: false, code: "PROJECT_LIFECYCLE_TRANSITION_INVALID", error: "Only completed projects can be reopened." });
     if (body.action === "cancel" && !body.reason) return reply.code(400).send({ ok: false, code: "PROJECT_CANCELLATION_REASON_REQUIRED", error: "Cancellation requires a reason." });
     if (body.action === "cancel" && ["completed", "cancelled"].includes(String(project.status))) return reply.code(409).send({ ok: false, code: "PROJECT_LIFECYCLE_TRANSITION_INVALID", error: `Project cannot be cancelled from ${project.status}.` });
     if (body.action === "reactivate" && project.status !== "cancelled") return reply.code(409).send({ ok: false, code: "PROJECT_LIFECYCLE_TRANSITION_INVALID", error: "Only cancelled projects can be reactivated through this action." });
@@ -1030,7 +1033,8 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
       return sendRevisionConflict(reply, "project", current ? serializeProjectSummary(current) : null);
     }
     const updated = await prisma.project.findUniqueOrThrow({ where: { id: project.id }, include: { memberships: { where: { status: "active" }, orderBy: [{ isLead: "desc" }, { createdAt: "asc" }] } } });
-    await logActivity({ userId: user?.id, projectId: project.id, type: body.action === "cancel" ? "cancelled" : "reactivated", entityType: "project", entityId: project.id, title: body.action === "cancel" ? "Project cancelled" : "Project reactivated", message: body.reason || project.name, metadata: { previousStatus: project.status, status: targetStatus, reason: body.reason || null } });
+    const lifecycleTitle = { cancel: "Project cancelled", reactivate: "Project reactivated", complete: "Project completed", reopen: "Project reopened" }[body.action];
+    await logActivity({ userId: user?.id, projectId: project.id, type: { cancel: "cancelled", reactivate: "reactivated", complete: "completed", reopen: "reopened" }[body.action], entityType: "project", entityId: project.id, title: lifecycleTitle, message: body.reason || project.name, metadata: { previousStatus: project.status, status: targetStatus, reason: body.reason || null } });
     const decorated = await decorateUserForClient(user);
     const accessRules = decorated?.isAdmin ? [] : await projectRepository.listActiveAccessRulesForProject(project.id);
     return serializeWithCapabilities(updated, user, decorated, accessRules);

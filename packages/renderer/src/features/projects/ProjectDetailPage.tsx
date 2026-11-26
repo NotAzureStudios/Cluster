@@ -1,11 +1,12 @@
 import { ClusterButton } from "../../components/ClusterButton";
 import { CollaborationPanel } from "../../components/CollaborationPanel";
-import { SharedWorkActivityPanel } from "../../components/SharedWorkActivityPanel";
-import { SharedWorkWatchControl } from "../../components/SharedWorkWatchControl";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
 import { clusterProjectCapabilitiesForDefinition } from "@cluster/shared";
 import type * as React from "react";
-import { useState, type ComponentType } from "react";
+import { Suspense, useState, type ComponentType } from "react";
+import { ClusterStatus } from "../../components/ClusterStatus";
+import { ProjectOverviewWorkbench } from "./ProjectOverviewWorkbench";
+import { LazyLibraryWorkspacePage } from "../application/application-entrypoints";
 import { api } from "../../core/api";
 import { canUseTool } from "../../core/permissions";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
@@ -42,7 +43,13 @@ import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell"
 /* Settings holds configuration only: details, integrations, access.
    Plan (the control center) is work and has its own tab; Closeout is a
    lifecycle step opened from the header menu. */
-const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "links", "access"];
+// Settings holds project details, crew, integrations and access.
+const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "people", "links", "access"];
+// Parked: the planning console, intelligence, production entities, assets,
+// closeout and whiteboards stay built but leave the tab bar for now. QA is
+// reached from Builds rather than its own tab.
+const PARKED_PROJECT_TABS: readonly string[] = ["intelligence", "control", "production", "assets", "closeout", "whiteboards"];
+const SECONDARY_PROJECT_TABS: readonly string[] = ["qa"];
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel";
 import { ProjectVideoWorkspace } from "./ProjectVideoWorkspace";
 import { ProjectAssetWorkspace } from "./ProjectAssetWorkspace";
@@ -234,10 +241,10 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       await onReloadProjects();
     } finally { bitmap.close(); }
   }
-  async function runProjectLifecycleAction(action: "cancel" | "reactivate", reason: string) {
+  async function runProjectLifecycleAction(action: "cancel" | "reactivate" | "complete" | "reopen", reason: string) {
     if (!project || !getProjectCapabilities(currentUser, project).canManage) return;
     setProjectSaveBusy(true);
-    setProjectSaveStatus(action === "cancel" ? "Cancelling project…" : "Reactivating project…");
+    setProjectSaveStatus({ cancel: "Cancelling project…", reactivate: "Reactivating project…", complete: "Completing project…", reopen: "Reopening project…" }[action]);
     try {
       await api(`/api/projects/${project.id}/lifecycle`, {
         method: "POST",
@@ -245,7 +252,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       });
       await onReloadProjects();
       await Promise.all([loadProjectSnapshot(), loadProjectDashboard()]);
-      setProjectSaveStatus(action === "cancel" ? "Project cancelled." : "Project reactivated.");
+      setProjectSaveStatus({ cancel: "Project cancelled.", reactivate: "Project reactivated.", complete: "Project marked complete.", reopen: "Project reopened." }[action]);
     } catch (error) {
       setProjectSaveStatus(error instanceof Error ? error.message : "Project lifecycle could not be changed.");
     } finally {
@@ -361,7 +368,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
   const toolLabel = (id: string, fallback: string) => type.terminology?.[id] || fallback;
   const productionLabel = type.category === "game" ? "Production" : type.category === "software" ? "Delivery" : type.category === "creative" ? "Studio" : "Production";
   const tabDetails: Record<ProjectWorkspaceTabId, string> = {
-    overview: `${readiness}%`,
+    overview: "",
     intelligence: intelligence ? `${intelligence.score}%` : "",
     plan: project.targetDate ? new Date(project.targetDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "setup",
     control: controlCenter?.summary.attention.length ? `${controlCenter.summary.attention.length}` : controlCenter?.records.length ? `${controlCenter.records.length}` : "setup",
@@ -381,8 +388,9 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     closeout: project.archived ? "archived" : "",
     settings: "",
   };
-  const tabLabelFallbacks: Partial<Record<ProjectWorkspaceTabId, string>> = { production: productionLabel };
+  const tabLabelFallbacks: Partial<Record<ProjectWorkspaceTabId, string>> = { production: productionLabel, library: "Files", viewer: "Review" };
   const allTabs = PROJECT_WORKSPACE_SECTIONS
+    .filter((item) => !PARKED_PROJECT_TABS.includes(item.id))
     .filter((item) => item.id === "settings" || !hiddenToolIds.has(item.id as any) && (!projectToolIds.size || projectToolIds.has(item.id as any) || PROJECT_SETTINGS_SECTION_IDS.includes(item.id)) && (item.id !== "assets" || canUseTool(currentUser, "library", "view")) && (item.id !== "source" || canUseTool(currentUser, "sourceControl", "view")))
     .map((item): ProjectDetailTab => ({
       id: item.id,
@@ -391,8 +399,9 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       group: item.mode,
     }));
   const settingsSections = allTabs.filter((item) => PROJECT_SETTINGS_SECTION_IDS.includes(item.id));
-  const settingsLabels: Partial<Record<ProjectWorkspaceTabId, string>> = { plan: "Details", links: "Integrations", access: "Access & sharing" };
-  const tabs = allTabs.filter((item) => !PROJECT_SETTINGS_SECTION_IDS.includes(item.id) && (item.id !== "settings" || settingsSections.length > 0) && (item.id !== "closeout" || tab === "closeout"));
+  const settingsLabels: Partial<Record<ProjectWorkspaceTabId, string>> = { plan: "Details", people: "Crew", links: "Integrations", access: "Access & sharing" };
+  // QA stays reachable (Builds links to it) but only shows as a tab while open.
+  const tabs = allTabs.filter((item) => !PROJECT_SETTINGS_SECTION_IDS.includes(item.id) && (item.id !== "settings" || settingsSections.length > 0) && (!SECONDARY_PROJECT_TABS.includes(item.id) || tab === item.id));
   const settingsSection = (settingsSections.some((item) => item.id === tab) ? tab : settingsSections[0]?.id) as ProjectWorkspaceTabId | undefined;
   const activeTab = PROJECT_SETTINGS_SECTION_IDS.includes(tab) && settingsSection ? "settings" : tabs.some((item: ProjectDetailTab) => item.id === tab) ? tab : (tabs[0]?.id || "overview");
   const view = activeTab === "settings" ? settingsSection : activeTab;
@@ -422,9 +431,9 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
                 await loadProjectDashboard();
               };
   const primaryTabCandidates: ProjectWorkspaceTabId[] = isVideoType
-    ? ["overview", "control", "viewer", "boards", "library", "people"]
-    : ["overview", "control", ...(supportsSource ? ["source" as const] : []), ...(type.workspaceEntities?.length ? ["production" as const] : []), ...(supportsBuilds ? ["builds" as const] : ["tickets" as const]), ...(supportsQa && supportsBuilds ? ["qa" as const] : []), "boards", "people"];
-  const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id)).slice(0, 6);
+    ? ["overview", "viewer", "tickets", "boards", "library", "settings"]
+    : ["overview", "tickets", "boards", ...(supportsBuilds ? ["builds" as const] : []), ...(supportsQa && tab === "qa" ? ["qa" as const] : []), "library", ...(supportsSource ? ["source" as const] : []), "settings"];
+  const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id));
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
       <ProjectDetailHeader
@@ -441,7 +450,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
         onOpenBoard={onOpenBoard}
         onOpenTimeline={onOpenTimeline}
         onOpenTickets={() => onOpenTickets(project.id)}
-        allowCloseout={allTabs.some((item) => item.id === "closeout")}
+        onLifecycle={capabilities.canManage ? (action) => void runProjectLifecycleAction(action, "") : undefined}
       />
       {activeTab !== "source" ? <ProjectCollaborationStrip tool="project" projectId={project.id} activity={`Project · ${tabs.find((item: ProjectDetailTab) => item.id === activeTab)?.label || activeTab}`} /> : null}
 
@@ -479,16 +488,10 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               CustomFieldValuesPanel={CustomFieldValuesPanel}
               VersionHistoryPanel={VersionHistoryPanel}
               onRestore={restoreProjectSnapshot}
-            />
-            <ClusterDisclosureGroup
-              className="project-secondary-details-v57"
-              title="Project discussion & history"
-              summary="Shared decisions, replies, mentions, updates and follow-up notifications"
             >
-              <SharedWorkWatchControl entity={{ kind: "project", id: project.id, projectId: project.id, label: project.name }} compact />
-              <CollaborationPanel entityType="project" entityId={project.id} title="Project discussion" users={projectUsers} currentUser={currentUser} compact />
-              <SharedWorkActivityPanel entity={{ kind: "project", id: project.id, projectId: project.id, label: project.name }} title="Project discussion activity" limit={12} compact />
-            </ClusterDisclosureGroup>
+              <ProjectOverviewWorkbench project={project} canEdit={capabilities.canEditProject} onSaved={onReloadProjects} onOpenFiles={() => setTab("library")} onOpenLibrary={onOpenLibrary} />
+            </ProjectOverviewDashboard>
+            <CollaborationPanel entityType="project" entityId={project.id} title="Discussion" users={projectUsers} currentUser={currentUser} compact />
             </>
           )}
 
@@ -525,6 +528,16 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             </>
           )}
 
+          {view === "people" && (
+            <ProjectTeamPanel
+              project={project}
+              users={projectUsers}
+              canManage={capabilities.canManageTeam}
+              busy={projectSaveBusy}
+              status={projectSaveStatus}
+              onSave={saveProjectTeam}
+            />
+          )}
           {view === "links" && (
             <ProjectConnectionsPanel project={project} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
           )}
@@ -577,23 +590,12 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             />
           )}
 
-          {activeTab === "library" && (
-            <ProjectResourceHubPanel kind="library" project={project} onOpenLibrary={onOpenLibrary} />
-          )}
+          {activeTab === "library" && (project.libraryFolderId && canUseTool(currentUser, "library", "view")
+            ? <Suspense fallback={<ClusterStatus state="loading">Loading files…</ClusterStatus>}><LazyLibraryWorkspacePage key={project.id} projects={projects} currentUser={currentUser} initialFolderId={project.libraryFolderId} embedded /></Suspense>
+            : <ProjectResourceHubPanel kind="library" project={project} onOpenLibrary={onOpenLibrary} />)}
 
           {activeTab === "assets" && canUseTool(currentUser, "library", "view") && (
             <ProjectAssetWorkspace project={project} currentUser={currentUser} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} canManage={capabilities.canManage && canUseTool(currentUser, "library", "edit")} bytesToSize={bytesToSize} onReloadMedia={loadMedia} />
-          )}
-
-          {activeTab === "people" && (
-            <ProjectTeamPanel
-              project={project}
-              users={projectUsers}
-              canManage={capabilities.canManageTeam}
-              busy={projectSaveBusy}
-              status={projectSaveStatus}
-              onSave={saveProjectTeam}
-            />
           )}
 
           {activeTab === "source" && (

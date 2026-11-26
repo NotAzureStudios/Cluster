@@ -6,7 +6,7 @@ import { ClusterNativeSelect, ClusterInput, ClusterTextarea } from "../../compon
 import type * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, queryApi } from "../../core/api";
-import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_PROJECT_TYPE_TEMPLATES, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
+import { clusterProjectBundleCap, CLUSTER_PROJECT_TOOL_IDS, CLUSTER_PROJECT_TOOL_MANIFEST, setClusterProjectToolState, CLUSTER_PRODUCTION_PROFILE_DEFINITIONS, CLUSTER_PROJECT_TYPE_TEMPLATES, CLUSTER_PROJECT_TYPE_STARTERS, CLUSTER_TOOL_PERMISSION_KEYS, type ClusterProjectToolId, resolveAssignedPermissionBundles, type ClusterPermissionBundle, CLUSTER_PROFILE_FIELD_TYPES, CLUSTER_PROFILE_FIELD_VISIBILITIES, DEFAULT_CLUSTER_KIOSK_PROFILES } from "@cluster/shared";
 import { clearOfflineDraft, readOfflineDraft, saveOfflineDraft } from "../../core/offline-storage";
 import { DEFAULT_MEMBER_TOOL_PERMISSIONS, TOOL_PERMISSION_OPTIONS, type ToolPermissionKey, type ToolPermissionLevel } from "../../core/permissions";
 import { unique } from "../../core/storage";
@@ -2118,7 +2118,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                 <div><h2>Project types</h2><span>Your studio's own list. Templates are copies you can change or delete.</span></div>
                 <ClusterActionMenu label="Add project type" triggerLabel="Add type" items={[
                   { id: "blank", label: "Blank type", icon: "plus", onSelect: () => addProjectTypeFromTemplate("blank") },
-                  ...CLUSTER_PROJECT_TYPE_TEMPLATES.map((template, index) => ({ id: template.id, label: template.label, description: template.note, icon: "project" as const, separatorBefore: index === 0, onSelect: () => addProjectTypeFromTemplate(template.id) })),
+                  ...CLUSTER_PROJECT_TYPE_STARTERS.map((template, index) => ({ id: template.id, label: template.label, description: template.note, icon: "project" as const, separatorBefore: index === 0, onSelect: () => addProjectTypeFromTemplate(template.id) })),
                 ]} />
               </div>
               <section className="pt-profiles" aria-label="Technology profiles">
@@ -2162,7 +2162,7 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                       <div className="field span-2"><label>Project tool availability</label>
                         <small>One state per tool. On = shown by default, Optional = available when needed, Off = hidden for this Project Type.</small>
                         <div className="project-type-tool-matrix-v5123">
-                          {CLUSTER_PROJECT_TOOL_IDS.filter((tool) => tool !== "settings").map((tool) => {
+                          {CLUSTER_PROJECT_TOOL_IDS.filter((tool) => ["tickets", "boards", "builds", "qa", "library", "source", "viewer"].includes(tool)).map((tool) => {
                             const state = (preset.defaultTools || []).includes(tool) ? "on" : (preset.hiddenTools || []).includes(tool) ? "off" : "optional";
                             return <label key={tool} className="project-type-tool-row-v5123"><span>{CLUSTER_PROJECT_TOOL_MANIFEST[tool].label}</span><ClusterNativeSelect aria-label={`${CLUSTER_PROJECT_TOOL_MANIFEST[tool].label} availability`} value={state} onChange={(event) => updateProjectTypePreset(preset.id, setClusterProjectToolState(preset, tool, event.target.value as "on" | "optional" | "off"))}><option value="on">On</option><option value="optional">Optional</option><option value="off">Off</option></ClusterNativeSelect></label>;
                           })}

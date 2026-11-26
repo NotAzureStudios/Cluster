@@ -28,9 +28,10 @@ function scheduleFor(project: any, now: Date): ClusterProjectSnapshot["schedule"
   if (project.archived || ["completed", "cancelled"].includes(status)) {
     return { state: "closed", label: project.archived ? "Archived" : "Closed", targetDate: toIso(project.targetDate), daysToTarget: null };
   }
-  if (!project.targetDate) return { state: "unscheduled", label: "Unscheduled", targetDate: null, daysToTarget: null };
+  // No due date is a normal, ongoing project, not a problem.
+  if (!project.targetDate) return { state: "unscheduled", label: "No due date", targetDate: null, daysToTarget: null };
   const target = new Date(project.targetDate);
-  if (!Number.isFinite(target.getTime())) return { state: "unscheduled", label: "Unscheduled", targetDate: null, daysToTarget: null };
+  if (!Number.isFinite(target.getTime())) return { state: "unscheduled", label: "No due date", targetDate: null, daysToTarget: null };
   const days = Math.ceil((target.getTime() - now.getTime()) / DAY_MS);
   if (days < 0) return { state: "overdue", label: `${Math.abs(days)}d overdue`, targetDate: target.toISOString(), daysToTarget: days };
   if (days === 0) return { state: "due_soon", label: "Due today", targetDate: target.toISOString(), daysToTarget: 0 };
@@ -41,8 +42,6 @@ function scheduleFor(project: any, now: Date): ClusterProjectSnapshot["schedule"
 function buildReadiness(project: any, capabilities: { boards: boolean; people: boolean; library: boolean }) {
   const checks: Array<{ label: string; done: boolean }> = [
     { label: "Project brief", done: Boolean(String(project.description || "").trim()) },
-    { label: "Project objective", done: Boolean(String(project.objective || "").trim()) },
-    { label: "Target date", done: Boolean(project.targetDate) },
   ];
   if (capabilities.boards) checks.push({ label: "Primary board", done: Number(project._count?.boards || 0) > 0 });
   if (capabilities.people) checks.push({ label: "Project lead", done: Boolean((project.memberships || []).some((membership: any) => membership.isLead)) });
@@ -57,9 +56,7 @@ function healthFor(input: { schedule: ClusterProjectSnapshot["schedule"]; readin
   let attentionScore = 0;
   if (input.schedule.state === "overdue") { attentionScore += 30; reasons.push("Target date is overdue"); }
   else if (input.schedule.state === "due_soon") { attentionScore += 10; reasons.push("Target date is approaching"); }
-  else if (input.schedule.state === "unscheduled") { attentionScore += 8; reasons.push("Target date is not set"); }
-  if (input.readiness.score < 70) { attentionScore += 20; reasons.push("Project setup is incomplete"); }
-  else if (!input.readiness.ready) { attentionScore += 8; reasons.push("Project setup has remaining gaps"); }
+  // Missing optional setup (brief, lead, board...) is not a health problem.
   if ((input.failedBuilds || 0) > 0) { attentionScore += 30; reasons.push(`${input.failedBuilds} build${input.failedBuilds === 1 ? "" : "s"} need attention`); }
   if ((input.qaAttention || 0) > 0) { attentionScore += 25; reasons.push(`${input.qaAttention} QA item${input.qaAttention === 1 ? "" : "s"} need attention`); }
   if (input.priority === "urgent") { attentionScore += 10; reasons.push("Priority is urgent"); }

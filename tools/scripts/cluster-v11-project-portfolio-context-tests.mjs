@@ -40,7 +40,7 @@ new Function("exports", "module", "require", compiled.outputText)(mod.exports, m
 const { ProjectPortfolioItem } = mod.exports;
 const project = {
   id: "test-project", name: "Wildlife Simulator", objective: "Create a responsive and accessible ecosystem simulation",
-  description: "Alternate project description", projectType: "unreal", status: "active",
+  description: "Alternate project description", projectType: "unreal", status: "active", targetDate: "2026-12-05",
   color: "#57c1ff", priority: "medium", boards: [], tags: [],
 };
 const baseline = {
@@ -59,13 +59,12 @@ test("Comfortable project card shows type, objective and indicators", () => {
   assert.match(html, /Unreal Engine/);
   assert.match(html, /Create a responsive and accessible ecosystem simulation/);
   assert.doesNotMatch(html, /Alternate project description/);
-  // Gaps are an indicator (count) with the gap names in the tooltip.
-  assert.match(html, /title="Add team members · Set target date"/);
-  assert.match(html, /data-icon="warning"[^>]*><\/span>2</);
+  // Setup gaps and readiness are not card indicators.
+  assert.doesNotMatch(html, /Set target date/);
   assert.match(html, /Planning/);
   assert.match(html, /9d/);
   assert.match(html, /title="3 people"/);
-  assert.match(html, /data-ring="Ready">68/);
+  assert.doesNotMatch(html, /data-ring="Ready"/);
 });
 
 test("Compact density keeps identity and drops the objective", () => {

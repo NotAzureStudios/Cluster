@@ -30,7 +30,9 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const typeId = `project-portfolio-type-${project.id}`;
   const summaryId = `project-portfolio-summary-${project.id}`;
   const summary = density === "comfortable" ? (project.objective || project.description || "").trim() : "";
-  const tone = health.tone === "danger" || health.tone === "warning" ? health.tone : "good";
+  // Only real problems (blocked, at risk) replace the status; setup nags don't.
+  const tone = health.tone === "danger" ? "danger" : "good";
+  const scheduled = Boolean(project.targetDate);
   const scheduleTone = scheduleMeta.tone === "danger" || scheduleMeta.tone === "warning" ? scheduleMeta.tone : undefined;
   const scheduleShort = scheduleMeta.label.replace(/^Due in /, "").replace(/^Overdue by /, "−");
   /* One project: identity, a status chip, then indicators — readiness dial,
@@ -47,10 +49,8 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
       {summary ? <p id={summaryId} className="pl-card__summary" title={summary}>{summary}</p> : null}
       <span className="pl-status" data-tone={tone} title={health.label}>{tone === "good" ? statusLabel : health.label}</span>
       <ul className="pl-card__facts">
-        <li title={`Ready: ${completeness}%`}><ClusterMiniRing label="Ready" percent={completeness} tone={completeness < 50 ? "warning" : "accent"} /></li>
-        <li data-tone={scheduleTone} title={scheduleMeta.detail || scheduleMeta.label}><ClusterIcon name="calendar" />{scheduleShort}</li>
+        {scheduled ? <li data-tone={scheduleTone} title={scheduleMeta.detail || scheduleMeta.label}><ClusterIcon name="calendar" />{scheduleShort}</li> : null}
         <li title={`${memberCount} people`}><ClusterIcon name="users" />{memberCount}</li>
-        {gaps.length ? <li data-tone="warning" title={gaps.join(" · ")}><ClusterIcon name="warning" />{gaps.length}</li> : null}
         {project.priority === "urgent" || project.priority === "high" ? <li data-tone={project.priority === "urgent" ? "danger" : "warning"} title={`${project.priority} priority`}><ClusterIcon name="spark" />{project.priority === "urgent" ? "Urgent" : "High"}</li> : null}
         {stageLabel ? <li className="pl-card__soft" title={`Stage: ${stageLabel}`}>{stageLabel}</li> : null}
       </ul>

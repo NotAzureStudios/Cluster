@@ -628,12 +628,17 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
   </aside>;
 }
 
-export default function LibraryWorkspacePage({ projects, currentUser }: { projects: Project[]; currentUser: User }) {
+// embedded: runs inside another page (a project's Files tab), opened at
+// initialFolderId with the sidebar hidden.
+export default function LibraryWorkspacePage({ projects, currentUser, initialFolderId = null, embedded = false }: { projects: Project[]; currentUser: User; initialFolderId?: string | null; embedded?: boolean }) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [folders, setFolders] = useState<LibraryItem[]>([]);
   const [treeFiles, setTreeFiles] = useState<LibraryItem[]>([]);
   const [showTreeFiles, setShowTreeFiles] = useServerState<boolean>("user", "library.show-tree-files", false, { merge: (value) => value === true || Number(value) === 1 });
-  const [explorerCollapsed, setExplorerCollapsed] = useServerState<boolean>("user", "library.explorer-collapsed", false, { merge: (value) => value === true || Number(value) === 1 });
+  const [storedExplorerCollapsed, setStoredExplorerCollapsed] = useServerState<boolean>("user", "library.explorer-collapsed", false, { merge: (value) => value === true || Number(value) === 1 });
+  const [embeddedSidebarOpen, setEmbeddedSidebarOpen] = useState(false);
+  const explorerCollapsed = embedded ? !embeddedSidebarOpen : storedExplorerCollapsed;
+  const setExplorerCollapsed = (value: boolean) => embedded ? setEmbeddedSidebarOpen(!value) : setStoredExplorerCollapsed(value);
   const [viewsOpen, setViewsOpen] = useServerState<boolean>("user", "library.explorer.locations-open", false, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
   const [collectionsOpen, setCollectionsOpen] = useServerState<boolean>("user", "library.explorer.collections-open", true, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
   const [foldersOpen, setFoldersOpen] = useServerState<boolean>("user", "library.explorer.folders-open", true, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
@@ -654,7 +659,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
   const [facets, setFacets] = useState(EMPTY_FACETS);
   const [pagination, setPagination] = useState<LibraryWorkspace["pagination"]>({ cursor: null, hasMore: false, limit: PAGE_SIZE, loaded: 0 });
   const [users, setUsers] = useState<User[]>([]);
-  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const [librarySection, setLibrarySection] = useState<LibrarySection>("folder");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
@@ -2150,7 +2155,7 @@ export default function LibraryWorkspacePage({ projects, currentUser }: { projec
     { id: "link", label: "Add link", icon: "link", onSelect: () => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" }) },
   ];
   const atRoot = librarySection === "folder" && !folderId;
-  return <section className="page cluster-library-workspace lib-page">
+  return <section className={`page cluster-library-workspace lib-page${embedded ? " lib-page--embedded" : ""}`}>
     <ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} />
     <ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
     <ClusterResizableRail className="lib-body" label="Library sidebar" persistKey="library-folders" minWidth={184} defaultWidth={232} maxWidth={360} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217 lib-side" aria-label="Library sidebar">

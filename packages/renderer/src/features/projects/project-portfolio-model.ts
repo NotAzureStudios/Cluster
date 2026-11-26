@@ -9,9 +9,9 @@ export function projectScheduleMeta(project: Project, status: string, now = Date
   if (project.archived || ["completed", "cancelled"].includes(status)) {
     return { label: project.archived ? "Archived" : "Closed", detail: "Delivery closed", tone: "neutral" as ProjectScheduleTone, days: null };
   }
-  if (!project.targetDate) return { label: "Unscheduled", detail: "Target date missing", tone: "warning" as ProjectScheduleTone, days: null };
+  if (!project.targetDate) return { label: "No due date", detail: "Ongoing", tone: "neutral" as ProjectScheduleTone, days: null };
   const target = new Date(project.targetDate).getTime();
-  if (!Number.isFinite(target)) return { label: "Unscheduled", detail: "Target date invalid", tone: "warning" as ProjectScheduleTone, days: null };
+  if (!Number.isFinite(target)) return { label: "No due date", detail: "Ongoing", tone: "neutral" as ProjectScheduleTone, days: null };
   const days = Math.ceil((target - now) / DAY_MS);
   if (days < 0) return { label: `${Math.abs(days)}d overdue`, detail: "Target date passed", tone: "danger" as ProjectScheduleTone, days };
   if (days === 0) return { label: "Due today", detail: "Target date is today", tone: "danger" as ProjectScheduleTone, days };
@@ -67,7 +67,7 @@ export function projectMatchesFocus({
   return schedule.tone === "danger" || setupGaps > 0 || completeness < 70 || project.priority === "urgent" || status === "on_hold" || status === "paused";
 }
 
-export function formatProjectDate(value?: string | null, fallback = "Unscheduled") {
+export function formatProjectDate(value?: string | null, fallback = "No due date") {
   if (!value) return fallback;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return fallback;

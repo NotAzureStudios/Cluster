@@ -27,9 +27,18 @@ export function ProjectResourceHubPanel({ kind, project, boards = [], whiteboard
   const defaultName = kind === "boards" ? `${project.name} Board` : `${project.name} Whiteboard`;
   const updated = useMemo(() => resources.reduce<string | undefined>((latest, item) => !latest || (item.updatedAt || "") > latest ? item.updatedAt : latest, undefined), [resources]);
   if (kind === "library") {
-    const folder = project.libraryItems?.find((item) => item.id === project.libraryFolderId);
-    return <section className="project-subpage-v312 project-resource-hub-v312"><ProjectSectionHeader eyebrow="Project resources" title={title} description={description} metrics={[{ label: "Folder", value: project.libraryFolderId ? "Linked" : "Missing", tone: project.libraryFolderId ? "good" : "warning" }, { label: "Library items", value: project.libraryItems?.length || 0 }, { label: "Access", value: "Folder rules" }]} actions={project.libraryFolderId ? <ClusterButton type="button" className="" onClick={() => onOpenLibrary?.(project.libraryFolderId!)} variant="primary">Open folder</ClusterButton> : null} /><ProjectSurface title={folder?.title || `${project.name} Library`} description="The project folder is the home for files and reference material." tone="accent"><div className="project-library-modern-v312"><div><span>Storage</span><strong>Project-bound Library folder</strong><small>Organized, searchable, and permission-aware.</small></div><div><span>Permissions</span><strong>Inherited folder access</strong><small>Manage access without duplicating project roles.</small></div><div><span>Workflow</span><strong>Files stay attached to context</strong><small>Open assets from Projects, Boards, QA, and Builds.</small></div></div></ProjectSurface></section>;
+    // The project's files, newest first; the Library itself does the rest.
+    const items = (project.libraryItems || []).filter((item) => item.id !== project.libraryFolderId)
+      .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""))).slice(0, 60);
+    if (!project.libraryFolderId) return <section className="project-subpage-v312"><ProjectEmptyState title="No project folder" description="This project has no Library folder yet." /></section>;
+    return <section className="project-subpage-v312 pj-files">
+      <header className="pj-files__head"><strong>{items.length ? `${items.length} item${items.length === 1 ? "" : "s"}` : "Empty folder"}</strong><ClusterButton type="button" variant="primary" size="compact" onClick={() => onOpenLibrary?.(project.libraryFolderId!)}>Open in Library</ClusterButton></header>
+      {items.length ? <ul className="pj-files__list">{items.map((item) => <li key={item.id}><ClusterButton unstyled type="button" onClick={() => onOpenLibrary?.(item.id)}>
+        <ClusterIcon name={item.type === "folder" ? "folder" : "file"} /><span>{item.title}</span><small>{item.updatedAt ? formatRelativeTime(item.updatedAt) : ""}</small>
+      </ClusterButton></li>)}</ul> : <p className="pj-files__empty">Drop files into the project folder in the Library to see them here.</p>}
+    </section>;
   }
+
   return (
     <section className="project-subpage-v312 project-resource-hub-v312">
       <ProjectSectionHeader eyebrow="Project workspaces" title={title} description={description} metrics={[{ label: "Total", value: resources.length, tone: resources.length ? "accent" : "neutral" }, { label: "Recently updated", value: updated ? formatRelativeTime(updated) : "Never" }, { label: "Project", value: project.name }]} actions={<div className="project-inline-create-v312"><ClusterTextInput value={name} onChange={(event) => setName(event.target.value)} placeholder={defaultName} onKeyDown={(event) => { if (event.key === "Enter" && onCreate) { void onCreate(name.trim() || defaultName); setName(""); } }} /><ClusterButton type="button" className="" disabled={busy} onClick={() => { if (onCreate) void onCreate(name.trim() || defaultName); setName(""); }} variant="primary">{busy ? "Creating…" : `New ${kind === "boards" ? "board" : "whiteboard"}`}</ClusterButton></div>} />
