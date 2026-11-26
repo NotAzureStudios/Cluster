@@ -183,7 +183,7 @@
 .pv > .project-secondary-details-v57 { border: 0; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
 
 /* ---------- workbench: up next, notes, build, commits, files ---------- */
-.pj-bench { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-3); min-width: 0; align-items: start; }
+.pj-bench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); min-width: 0; align-items: start; }
 @media (max-width: 900px) { .pj-bench { grid-template-columns: 1fr; } }
 .pj-bench__col { display: grid; gap: var(--space-3); min-width: 0; }
 .pj-bench .pv-card { align-content: start; }
