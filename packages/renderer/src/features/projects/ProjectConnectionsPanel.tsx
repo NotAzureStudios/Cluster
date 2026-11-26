@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, formatApiError } from "../../core/api";
 import type { IntegrationConnectionSummary, Project, ProjectIntegrationBinding, ProjectSourceBinding, SourceRepositorySummary } from "../application/application-models";
 import { ProjectSectionHeader, ProjectSectionStatus, ProjectSurface } from "./ProjectWorkspacePrimitives";
+import "./project-settings.css";
 
 export type ProjectConnectionsDraft = {
   repositoryId: string;
@@ -97,7 +98,54 @@ const createDraft = (project: Project): ProjectConnectionsDraft => ({
   discordConnectionId: activeDiscordBinding(project)?.connectionId || "",
 });
 
-export function ProjectConnectionsPanel({ project, canManage, permissionReason, busy, status, onSave }: {
+function repoHostInitial(url?: string | null) {
+  try { return url ? new URL(url).hostname.replace(/^www\./, "").slice(0, 1).toUpperCase() : "G"; } catch { return "G"; }
+}
+
+/** Repositories on the project: the primary one plus any linked by URL. */
+function LinkedRepositories({ project, canManage, onChanged }: { project: Project; canManage: boolean; onChanged: () => Promise<void> | void }) {
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const bindings = project.sourceBindings || [];
+  async function link() {
+    if (!url.trim()) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await api<{ alreadyLinked?: boolean }>(`/api/projects/${project.id}/repositories`, { method: "POST", body: JSON.stringify({ url: url.trim() }) });
+      setUrl("");
+      if (result.alreadyLinked) setMessage("Already linked.");
+      await onChanged();
+    } catch (error) { setMessage(formatApiError(error) || "That repository could not be linked."); } finally { setBusy(false); }
+  }
+  async function unlink(repositoryId: string) {
+    setBusy(true); setMessage("");
+    try {
+      await api(`/api/projects/${project.id}/repositories/${repositoryId}`, { method: "DELETE" });
+      await onChanged();
+    } catch (error) { setMessage(formatApiError(error) || "That repository could not be unlinked."); } finally { setBusy(false); }
+  }
+  return <div className="pc-repos">
+    {bindings.length ? <ul className="pc-repos__list">{bindings.map((binding) => {
+      const repository = binding.repository;
+      const native = repository?.hostingMode === "cluster";
+      return <li key={binding.id}>
+        <span className="pc-repos__mark" data-native={native || undefined}>{native ? "C" : repoHostInitial(repository?.remoteUrl)}</span>
+        <span className="pc-repos__copy"><strong>{repository?.name || "Repository"}</strong><small>{[binding.isPrimary ? "Primary" : "Linked", native ? "Cluster" : repository?.connection ? repository.connection.displayName : "Link only", repository?.defaultBranch].filter(Boolean).join(" · ")}</small></span>
+        {repository?.remoteUrl ? <ClusterLinkButton href={repository.remoteUrl} target="_blank" rel="noreferrer" variant="quiet" size="compact">Open</ClusterLinkButton> : null}
+        {canManage ? <ClusterButton variant="quiet" size="compact" disabled={busy} onClick={() => void unlink(binding.repositoryId)}>Unlink</ClusterButton> : null}
+      </li>;
+    })}</ul> : <p className="pv-empty">No repositories.</p>}
+    {canManage ? <form className="pv-quick" onSubmit={(event) => { event.preventDefault(); void link(); }}>
+      <ClusterInput value={url} disabled={busy} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/org/repo" aria-label="Repository address" />
+      <ClusterButton type="submit" size="compact" variant="primary" disabled={busy || !url.trim()}>Link</ClusterButton>
+    </form> : null}
+    {message ? <small className="pc-repos__message" role="status">{message}</small> : null}
+  </div>;
+}
+
+export function ProjectConnectionsPanel({ project, canManage, permissionReason, busy, status, onSave, onChanged }: {
+  onChanged: () => Promise<void> | void;
   project: Project;
   canManage: boolean;
   permissionReason: string;
@@ -253,8 +301,11 @@ export function ProjectConnectionsPanel({ project, canManage, permissionReason, 
       />
       <ProjectSectionStatus tone={statusText.toLowerCase().includes("failed") || catalogError || healthError ? "danger" : canManage ? "good" : "neutral"}>{statusText}</ProjectSectionStatus>
       <fieldset className="project-connection-grid-v312 project-permission-fieldset-v316" disabled={!canManage}>
+        <ProjectSurface title="Repositories" className="span-2" tone={(project.sourceBindings || []).length ? "accent" : "neutral"}>
+          <LinkedRepositories project={project} canManage={canManage} onChanged={onChanged} />
+        </ProjectSurface>
         <ProjectSurface
-          title="Source repository"
+          title="Primary repository"
             tone={draft.repositoryId ? "accent" : "neutral"}
           action={selectedRepository?.remoteUrl ? <ClusterLinkButton className="" href={selectedRepository.remoteUrl} target="_blank" rel="noreferrer" variant="secondary" size="compact">Open repository</ClusterLinkButton> : null}
         >

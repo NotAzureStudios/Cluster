@@ -87,6 +87,27 @@ function markdownReport(project: any, report: any) {
   return lines.join("\n");
 }
 
+
+// "https://github.com/org/repo(.git)" -> web URL, clone URL, "org/repo".
+function externalRepository(value: string) {
+  let url: URL;
+  try { url = new URL(/^[a-z]+:\/\//i.test(value.trim()) ? value.trim() : `https://${value.trim()}`); } catch { return null; }
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+  const parts = url.pathname.replace(/\.git$/i, "").split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  const path = parts.slice(0, parts.length > 2 && /gitlab/i.test(url.hostname) ? parts.length : 2).join("/");
+  const web = `https://${url.hostname.toLowerCase()}/${path}`;
+  return { host: url.hostname.toLowerCase(), path, web, clone: `${web}.git` };
+}
+
+function connectionHost(connection: any) {
+  try {
+    const config = JSON.parse(connection.configuration || "{}");
+    const base = String(config.baseUrl || config.url || config.apiBaseUrl || "");
+    return base ? new URL(base).hostname.toLowerCase().replace(/^api\./, "") : "";
+  } catch { return ""; }
+}
+
 export function registerProjectControlIntegrationRoutes({ app, prisma, getCurrentUser, enforceTargetAccess, logActivity, readSettings, fetchWithTimeout, sourceProvider }: Dependencies) {
 
   app.get("/api/projects/:projectId/connections/catalog", async (request, reply) => {
@@ -199,6 +220,57 @@ export function registerProjectControlIntegrationRoutes({ app, prisma, getCurren
     });
     const updated = await ensureProject(prisma, project.id);
     return { ok: true, projectId: project.id, revision: updated.revision, sourceBinding: updated.sourceBindings[0] || null, discordBinding: updated.integrationBindings.find((binding: any) => binding.connection?.providerId === "communication.discord") || null };
+  });
+
+  // Link a repository hosted elsewhere (GitHub, GitLab, Gitea…) by URL. With a
+  // matching provider connection it can sync; without one it is a link.
+  app.post("/api/projects/:projectId/repositories", async (request, reply) => {
+    const user = await getCurrentUser(request);
+    const params = z.object({ projectId: z.string() }).parse(request.params);
+    const body = z.object({ url: z.string().trim().min(3).max(2048), name: z.string().trim().max(160).optional() }).parse(request.body || {});
+    const project = await ensureProject(prisma, params.projectId);
+    if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "manage"))) return;
+    const external = externalRepository(body.url);
+    if (!external) throw createHttpError("SOURCE_REPOSITORY_URL_INVALID", "Paste the repository's https address, like https://github.com/org/repo.", 400);
+    let repository = await prisma.sourceRepository.findFirst({ where: { workspaceId: project.workspaceId, archived: false, OR: [{ remoteUrl: external.web }, { cloneUrl: external.clone }] } });
+    if (!repository) {
+      const connections = await prisma.integrationConnection.findMany({ where: { workspaceId: project.workspaceId, category: "source-control", archived: false, status: { not: "disabled" } } });
+      const connection = connections.find((row: any) => connectionHost(row) === external.host)
+        || connections.find((row: any) => !connectionHost(row) && ((row.providerId === "source.github" && external.host === "github.com") || (row.providerId === "source.gitlab" && external.host === "gitlab.com")));
+      const base = body.name || external.path;
+      let name = base;
+      for (let suffix = 2; await prisma.sourceRepository.findFirst({ where: { workspaceId: project.workspaceId, name }, select: { id: true } }); suffix += 1) name = `${base} (${suffix})`;
+      repository = await prisma.sourceRepository.create({
+        data: { workspaceId: project.workspaceId, connectionId: connection?.id || null, name, hostingMode: "remote", remoteUrl: external.web, cloneUrl: external.clone, providerRepositoryId: external.path, defaultBranch: "main", healthState: connection ? "unknown" : "warning", healthMessage: connection ? null : "Linked by URL. Add a provider connection to sync it." },
+      });
+    }
+    const existing = project.sourceBindings.find((binding: any) => binding.repositoryId === repository.id);
+    if (existing) return { ok: true, repositoryId: repository.id, alreadyLinked: true };
+    const primary = !project.sourceBindings.some((binding: any) => binding.isPrimary);
+    await prisma.projectSourceBinding.upsert({
+      where: { projectId_repositoryId: { projectId: project.id, repositoryId: repository.id } },
+      create: { projectId: project.id, repositoryId: repository.id, role: primary ? "primary" : "linked", branchRole: "development", defaultBranch: repository.defaultBranch, isPrimary: primary },
+      update: { archived: false, role: primary ? "primary" : "linked", isPrimary: primary },
+    });
+    await logActivity({ userId: user?.id, projectId: project.id, type: "updated", entityType: "source_repository", entityId: repository.id, title: "Repository linked", message: repository.name });
+    return reply.code(201).send({ ok: true, repositoryId: repository.id, primary });
+  });
+
+  app.delete("/api/projects/:projectId/repositories/:repositoryId", async (request, reply) => {
+    const user = await getCurrentUser(request);
+    const params = z.object({ projectId: z.string(), repositoryId: z.string() }).parse(request.params);
+    const project = await ensureProject(prisma, params.projectId);
+    if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "manage"))) return;
+    const binding = project.sourceBindings.find((row: any) => row.repositoryId === params.repositoryId);
+    if (!binding) return reply.code(404).send({ ok: false, error: "That repository is not linked to this project." });
+    // Only the link goes; the repository record and its history stay.
+    await prisma.$transaction(async (tx: any) => {
+      await tx.projectSourceBinding.delete({ where: { id: binding.id } });
+      const next = binding.isPrimary ? project.sourceBindings.find((row: any) => row.id !== binding.id) : null;
+      if (next) await tx.projectSourceBinding.update({ where: { id: next.id }, data: { isPrimary: true, role: "primary" } });
+    });
+    await logActivity({ userId: user?.id, projectId: project.id, type: "updated", entityType: "source_repository", entityId: params.repositoryId, title: "Repository unlinked", message: binding.repository?.name || "" });
+    return { ok: true };
   });
 
   app.get("/api/projects/:projectId/connections/health", async (request, reply) => {

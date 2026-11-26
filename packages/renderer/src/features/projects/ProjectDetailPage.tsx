@@ -558,7 +558,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             />
           )}
           {view === "links" && (
-            <ProjectConnectionsPanel project={project} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
+            <ProjectConnectionsPanel project={project} onChanged={onReloadProjects} canManage={capabilities.canManageConnections} permissionReason={capabilities.reason} busy={projectSaveBusy} status={projectSaveStatus} onSave={saveProjectConnections} />
           )}
           {view === "access" && <ProjectAccessPanel project={project} media={{ reviewAssets: visibleVideos, files: visibleFiles }} currentUser={currentUser} />}
           </SettingsWorkspaceShell> : null}

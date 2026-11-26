@@ -1,5 +1,5 @@
 // Source repository configuration is authoritative on the server, not only
-// in the admin form. A disconnected remote repo cannot fetch, mirror or sync.
+// in the admin form. A remote repo without a connection is linked, not synced.
 export type RepositoryHostingInput = {
   hostingMode: "cluster" | "remote";
   connectionId?: string | null;
@@ -19,7 +19,8 @@ export function validateRepositoryHosting(input: RepositoryHostingInput): string
     }
     return null;
   }
-  if (!connectionId) return "Remote repositories require an active Source Control provider connection.";
+  // Without a provider connection a remote repository is a link: it needs a URL.
+  if (!connectionId && !remoteUrl && !cloneUrl) return "Provide the repository's remote Git URL, or choose a provider connection.";
   if (!remoteUrl && !cloneUrl && !providerRepositoryId) {
     return "Provide a remote Git URL or a provider repository identifier before adding a connected repository.";
   }
