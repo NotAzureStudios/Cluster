@@ -46,6 +46,7 @@ export type LibraryItem = {
   tags: string[];
   externalUrl?: string | null;
   pinned?: boolean;
+  source?: string | null;
   versionLabel?: string | null;
   reviewDueAt?: string | null;
   approvedAt?: string | null;

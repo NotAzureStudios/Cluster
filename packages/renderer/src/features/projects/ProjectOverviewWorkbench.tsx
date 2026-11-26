@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type MutableRefObject, type ReactNode } from "react";
 import { api, queryApi, uploadApi } from "../../core/api";
 import { formatRelativeTime } from "../../core/format";
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
@@ -235,7 +235,16 @@ function ProjectNotes({ project, canEdit, onSaved }: { project: Project; canEdit
 
 /* ---------- drop files anywhere on Overview ---------- */
 
-export function ProjectFileDropZone({ project, enabled, onUploaded, children }: { project: Project; enabled: boolean; onUploaded: () => Promise<void> | void; children: ReactNode }) {
+/** Drop files anywhere inside to upload them to the project folder (or `resolveFolder`'s folder). */
+export function ProjectFileDropZone({ project, enabled, onUploaded, children, label, resolveFolder, uploadRef }: {
+  project: Project;
+  enabled: boolean;
+  onUploaded: () => Promise<void> | void;
+  children: ReactNode;
+  label?: string;
+  resolveFolder?: () => Promise<string | null>;
+  uploadRef?: MutableRefObject<((files: File[]) => void) | null>;
+}) {
   const [over, setOver] = useState(false);
   const [status, setStatus] = useState("");
   const depth = useRef(0);
@@ -245,18 +254,20 @@ export function ProjectFileDropZone({ project, enabled, onUploaded, children }: 
   async function upload(files: File[]) {
     let done = 0;
     try {
+      const parentId = resolveFolder ? await resolveFolder() : project.libraryFolderId;
+      if (!parentId) throw new Error("This project has no Library folder.");
       for (const file of files) {
         setStatus(`Uploading ${file.name} (${done + 1}/${files.length})…`);
         await uploadApi("/api/library/transfers/finalize", {
           file,
           label: `Transfer ${file.name}`,
-          body: { parentId: project.libraryFolderId, projectId: project.id, originalName: file.name, relativePath: file.name, mimeType: file.type || "application/octet-stream", conflictPolicy: "rename", classification: "internal", tags: [], metadata: { browserLastModified: file.lastModified } },
+          body: { parentId, projectId: project.id, originalName: file.name, relativePath: file.name, mimeType: file.type || "application/octet-stream", conflictPolicy: "rename", classification: "internal", tags: [], metadata: { browserLastModified: file.lastModified } },
           invalidate: ["/api/library"],
           persistBeforeTransfer: false,
         });
         done += 1;
       }
-      setStatus(`${done} file${done === 1 ? "" : "s"} added to the project folder.`);
+      setStatus(`${done} file${done === 1 ? "" : "s"} added to ${label || "the project folder"}.`);
       // Transfers finish processing on the server; refresh twice to pick them up.
       await onUploaded();
       window.setTimeout(() => void onUploaded(), 4000);
@@ -266,6 +277,7 @@ export function ProjectFileDropZone({ project, enabled, onUploaded, children }: 
     window.setTimeout(() => setStatus(""), 6000);
   }
 
+  if (uploadRef) uploadRef.current = active ? (files) => void upload(files) : null;
   return <div className="pj-drop" data-over={over || undefined}
     onDragEnter={(event) => { if (!active || !hasFiles(event)) return; event.preventDefault(); depth.current += 1; setOver(true); }}
     onDragOver={(event) => { if (!active || !hasFiles(event)) return; event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }}
@@ -279,7 +291,7 @@ export function ProjectFileDropZone({ project, enabled, onUploaded, children }: 
       if (files.length) void upload(files);
     }}>
     {children}
-    {over ? <div className="pj-drop__veil" aria-hidden="true"><ClusterIcon name="upload" /><strong>Drop to add to {project.name}</strong></div> : null}
+    {over ? <div className="pj-drop__veil" aria-hidden="true"><ClusterIcon name="upload" /><strong>Drop to add to {label || project.name}</strong></div> : null}
     {status ? <div className="pj-drop__status" role="status">{status}</div> : null}
   </div>;
 }

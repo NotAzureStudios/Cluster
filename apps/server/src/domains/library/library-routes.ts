@@ -186,6 +186,7 @@ export function registerLibraryRoutes({
   }
 
   const serializeLibraryItem = createLibraryItemSerializer(serializeUserLite);
+  const PROJECT_FOLDER_SOURCE = "project-folder";
   const libraryContextSelect = {
     id: true, projectId: true, ownerId: true, reviewerId: true, parentId: true, creatorId: true, uploaderId: true, lastEditorId: true, generatedForUserId: true,
     title: true, type: true, status: true, priority: true, tags: true, externalUrl: true, pinned: true, versionLabel: true, reviewDueAt: true, approvedAt: true,
@@ -346,7 +347,7 @@ export function registerLibraryRoutes({
       treeFiles: [],
       facets: libraryFacetCounts(visibleSummary),
       recent: visibleSummary.slice(0, 12).map((item: any) => serializeLibraryItem(item)),
-      pinned: visibleSummary.filter((item: any) => item.pinned).slice(0, 24).map((item: any) => serializeLibraryTreeItem(item)),
+      pinned: visibleSummary.filter((item: any) => item.pinned && item.source !== PROJECT_FOLDER_SOURCE).slice(0, 24).map((item: any) => serializeLibraryTreeItem(item)),
       favoriteIds: favoriteRows.map((entry: any) => String(entry.itemId)),
       storageBytes: visibleSummary.reduce((sum: number, item: any) => sum + Number(item.sizeBytes || 0), 0)
     };
@@ -435,7 +436,7 @@ export function registerLibraryRoutes({
       q: z.string().max(300).optional().default(""),
       parentId: z.string().optional(),
       scope: z.enum(["folder", "descendants", "project", "all"]).optional().default("folder"),
-      section: z.enum(["folder", "recent", "favorites", "shared", "created", "generated", "trash"]).optional().default("folder"),
+      section: z.enum(["folder", "projects", "recent", "favorites", "shared", "created", "generated", "trash"]).optional().default("folder"),
       projectId: z.string().optional().default(""),
       ownerId: z.string().optional().default(""),
       type: z.string().optional().default("all"),
@@ -476,6 +477,9 @@ export function registerLibraryRoutes({
     if (query.tag) where.tags = { contains: query.tag };
     if (query.pinned !== "all") where.pinned = query.pinned === "yes";
     if (query.section === "folder" && query.scope === "folder") where.parentId = !query.parentId || query.parentId === "root" ? null : query.parentId;
+    // Project folders live in their own section, not at the Library root.
+    if (query.section === "folder" && query.scope === "folder" && where.parentId === null) where.source = { not: PROJECT_FOLDER_SOURCE };
+    if (query.section === "projects") { where.source = PROJECT_FOLDER_SOURCE; where.type = "folder"; }
     if (query.section === "folder" && query.scope === "descendants") {
       const anchorId = !query.parentId || query.parentId === "root" ? null : query.parentId;
       if (anchorId) {

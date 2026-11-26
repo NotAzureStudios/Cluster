@@ -5,7 +5,7 @@ export function projectPrimaryTabIds<Id extends string>(
   available: readonly { id: Id }[],
   requested: readonly Id[],
   active: Id,
-  limit = 6,
+  limit = 8,
 ): Id[] {
   if (!Number.isInteger(limit) || limit < 1) return [];
   const allowed = new Set(available.map((item) => item.id));

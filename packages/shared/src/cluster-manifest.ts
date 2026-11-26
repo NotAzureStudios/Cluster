@@ -272,6 +272,8 @@ export const CLUSTER_PROJECT_TOOL_MANIFEST = {
   qa: { label: PRODUCT_TERMS.qa, mode: "Produce & Validate", order: 70, lifecycle: "active" },
   boards: { label: PRODUCT_TERMS.boards, mode: "Spaces & Assets", order: 80, lifecycle: "active" },
   whiteboards: { label: PRODUCT_TERMS.whiteboards, mode: "Spaces & Assets", order: 90, lifecycle: "active" },
+  media: { label: "Media", mode: "Spaces & Assets", order: 96, lifecycle: "active" },
+  references: { label: "References", mode: "Spaces & Assets", order: 98, lifecycle: "active" },
   library: { label: PRODUCT_TERMS.library, mode: "Spaces & Assets", order: 100, lifecycle: "active" },
   assets: { label: "Assets", mode: "Spaces & Assets", order: 110, lifecycle: "active" },
   production: { label: "Production", mode: "Produce & Validate", order: 120, lifecycle: "active" },

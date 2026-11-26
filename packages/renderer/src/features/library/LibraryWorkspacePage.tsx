@@ -61,7 +61,7 @@ type LibraryBulkRenameRule = { mode: LibraryBulkRenameMode; text: string; replac
 type LibraryBulkRenamePreview = { ok: true; renames: Array<{ id: string; from: string; to: string; revision: number }>; changedCount: number };
 type CreateDraft = { kind: "folder" | "link" | "youtube-video" | "youtube-playlist"; title: string; body: string; externalUrl: string; folderColor: string; folderIcon: string; parentId?: string | null };
 type FolderAccess = "none" | "view" | "contribute" | "edit" | "manage";
-type LibrarySection = "folder" | "recent" | "favorites" | "shared" | "created" | "generated" | "trash" | "collection";
+type LibrarySection = "folder" | "projects" | "recent" | "favorites" | "shared" | "created" | "generated" | "trash" | "collection";
 type FolderPermissionPayload = { ok: boolean; folderId: string; users: User[]; permissions: Array<{ userId: string; access: FolderAccess }> };
 type LibraryAccessExplanation = { allowed: boolean; required: FolderAccess | "view"; effectiveAccess: FolderAccess | "none"; reasonCode: string; contributors: Array<{ kind: string; id?: string | null; access?: string | null; inherited?: boolean; detail: string }> };
 type LibraryAccessExplanationPayload = { ok: boolean; itemId: string; currentUser: LibraryAccessExplanation; roster: Array<{ user: User; explanation: LibraryAccessExplanation }> | null };
@@ -111,7 +111,8 @@ function FolderAppearancePicker({ color, icon, onColor, onIcon, compact = false 
   </div>;
 }
 
-function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFolder, onOpenItem, onCreateFolder, onManagePermissions, onDropInto }: {
+function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFolder, onOpenItem, onCreateFolder, onManagePermissions, onDropInto, footer }: {
+  footer?: ReactNode;
   onDropInto?: (folder: LibraryItem, ids: string[]) => void;
   folders: LibraryItem[];
   files: LibraryItem[];
@@ -214,6 +215,7 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
         ]} />
       </div>
       {renderBranch(null, 0)}
+      {footer}
     </nav>
   </div>;
 }
@@ -940,7 +942,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     libraryDetailHistory.openDetail(item.id);
   }
   async function openItemViewer(item: LibraryItem) {
-    if (item.type === "folder") { setFolderId(item.id); setActiveId(null); setActiveItem(null); return; }
+    if (item.type === "folder") { setLibrarySection("folder"); setActiveCollection(null); setFolderId(item.id); setActiveId(null); setActiveItem(null); return; }
     setActiveId(item.id); setInspectorTab("preview");
     const sequence = ++detailRequestSequence.current;
     try { const detail = await fetchDetail(item); if (sequence !== detailRequestSequence.current) return; setActiveItem(detail); setViewerItem(detail); } catch (reason) { if (sequence === detailRequestSequence.current) setError(reason instanceof Error ? reason : new Error("Could not open preview.")); }
@@ -2142,7 +2144,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
 
   const currentFolder = folderById.get(folderId || "") || null;
   const parentFolderId = currentFolder?.parentId || null;
-  const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
+  const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", projects: "Projects", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
   const storageBytes = useMemo(() => items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0), [items]);
   const popularTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -2173,6 +2175,10 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     { id: "link", label: "Add link", icon: "link", onSelect: () => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" }) },
   ];
   const atRoot = librarySection === "folder" && !folderId;
+  // Project folders have their own section; keep them out of the root tree.
+  const inProjectTree = folderById.get(path[0]?.id || currentFolder?.id || "")?.source === "project-folder";
+  const projectFolderCount = folders.filter((folder) => !folder.parentId && folder.source === "project-folder").length;
+  const treeFolders = folders.filter((folder) => folder.parentId || folder.source !== "project-folder");
   return <section className={`page cluster-library-workspace lib-page${embedded ? " lib-page--embedded" : ""}`}>
     <ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} />
     <ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
@@ -2184,7 +2190,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       </div>
       {viewsOpen ? <nav className="lib-nav" aria-label="Library views">
         <ClusterButton unstyled type="button" className={atRoot ? "active" : ""} onClick={() => openLibrarySection("folder")}><ClusterIcon name="library" /><span>Library</span></ClusterButton>
-        {([["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
+        {([["projects", "Projects", "project"], ["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
       </nav> : null}
       <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
       <section className="library-explorer-section-v10 library-collections-v504">
@@ -2205,7 +2211,8 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
         </section>
       <section className="library-explorer-section-v10">
           <div className="library-explorer-section-actions-v10"><ClusterButton unstyled type="button" className="library-explorer-section-head-v10" onClick={() => setFoldersOpen(!foldersOpen)} aria-expanded={foldersOpen}><LibraryIcon name="chevron" size={14} className={foldersOpen ? "open" : ""} /><strong>Folders</strong><small>{folders.length}</small></ClusterButton><ClusterIconButton label="Create folder" type="button" size="compact" onClick={() => beginCreateFolder(folderId)}><ClusterIcon name="plus" /></ClusterIconButton></div>
-          {foldersOpen ? <FolderTree folders={folders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} onDropInto={itemInteraction.dropInto} /> : null}
+          {foldersOpen ? <FolderTree folders={treeFolders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} onDropInto={itemInteraction.dropInto}
+            footer={projectFolderCount ? <div className={`library-tree-row-v229 root${librarySection === "projects" ? " active" : ""}`}><span className="library-tree-disclosure-v229" aria-hidden="true" /><ClusterButton unstyled type="button" className="library-tree-target-v229" onClick={() => openLibrarySection("projects")}><ClusterIcon name="project" /><strong>Projects</strong><em>{projectFolderCount}</em></ClusterButton></div> : null} /> : null}
         </section>
     </aside>}>
       {drawerSidebar && drawerSidebarOpen ? <ClusterButton unstyled type="button" className="lib-scrim" aria-label="Close sidebar" onClick={() => setDrawerSidebarOpen(false)} /> : null}
@@ -2214,8 +2221,9 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
         <header className="lib-toolbar">
           <ClusterIconButton label={explorerCollapsed ? "Show sidebar" : "Hide sidebar"} size="compact" variant="quiet" onClick={() => setExplorerCollapsed(!explorerCollapsed)}><ClusterIcon name="panel-open" /></ClusterIconButton>
           <nav className="lib-path" aria-label="Library path">
-            {librarySection === "folder" && currentFolder ? <ClusterIconButton label="Up one folder" size="compact" variant="quiet" onClick={() => { setFolderId(parentFolderId); setActiveItem(null); setActiveId(null); }}><LibraryIcon name="previous" size={15} /></ClusterIconButton> : null}
+            {librarySection === "folder" && currentFolder ? <ClusterIconButton label="Up one folder" size="compact" variant="quiet" onClick={() => { if (!parentFolderId && inProjectTree) { openLibrarySection("projects"); return; } setFolderId(parentFolderId); setActiveItem(null); setActiveId(null); }}><LibraryIcon name="previous" size={15} /></ClusterIconButton> : null}
             <ClusterButton unstyled type="button" onClick={() => openLibrarySection("folder")}>Library</ClusterButton>
+            {librarySection === "folder" && inProjectTree ? <span><i>/</i><ClusterButton unstyled type="button" onClick={() => openLibrarySection("projects")}>Projects</ClusterButton></span> : null}
             {librarySection === "folder" ? <>{path.map((entry) => <span key={entry.id}><i>/</i><ClusterButton unstyled type="button" onClick={() => { setLibrarySection("folder"); setFolderId(entry.id); setActiveItem(null); setActiveId(null); }}>{entry.title}</ClusterButton></span>)}{currentFolder && !path.some((entry) => entry.id === currentFolder.id) ? <span><i>/</i><strong>{currentFolder.title}</strong></span> : null}</> : <span><i>/</i><strong>{sectionLabel}</strong></span>}
             {refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}
             {librarySection === "folder" ? <ClusterActionMenu label={currentFolder ? `${currentFolder.title} folder actions` : "Library root actions"} iconOnly className="library-breadcrumb-actions-v14" items={[

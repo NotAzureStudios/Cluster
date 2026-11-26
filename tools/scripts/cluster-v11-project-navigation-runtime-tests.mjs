@@ -64,7 +64,7 @@ test("Per-project stored choice and default Overview are validated", () => {
 test("Primary navigation promotes an active More tool while preserving first-priority choices", () => {
   const items = ["overview", "plan", "tickets", "builds", "boards", "people", "qa", "intelligence"].map((id) => ({ id }));
   const requested = ["overview", "plan", "tickets", "builds", "boards", "people"];
-  assert.deepEqual(Array.from(projectPrimaryTabIds(items, requested, "qa")), ["overview", "plan", "tickets", "builds", "boards", "qa"]);
+  assert.deepEqual(Array.from(projectPrimaryTabIds(items, requested, "qa", 6)), ["overview", "plan", "tickets", "builds", "boards", "qa"]);
   assert.deepEqual(Array.from(projectPrimaryTabIds(items, requested, "overview")), requested);
   assert.deepEqual(Array.from(projectPrimaryTabIds(items, requested, "not-allowed")), requested);
   assert.deepEqual(Array.from(projectPrimaryTabIds(items, requested, "intelligence", 3)), ["overview", "plan", "intelligence"]);
