@@ -118,3 +118,12 @@
   .bd-pipe { overflow-x: auto; }
   .bd-pipe > li { flex: 0 0 auto; min-width: 140px; }
 }
+
+/* Phones: the release track keeps every dot but names only the current or
+   blocked step (seven labels overlapped at this width); lanes scroll. */
+@media (max-width: 640px) {
+  .dl-track > li:not([data-state="active"], [data-state="blocked"]) button { font-size: 0; }
+  .dl-track > li:is([data-state="active"], [data-state="blocked"]) button { white-space: nowrap; }
+  .bd-pipe { overflow-x: auto; scrollbar-width: none; }
+  .bd-pipe > li { flex: 0 0 auto; min-width: 136px; }
+}

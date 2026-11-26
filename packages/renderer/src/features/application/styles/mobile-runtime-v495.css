@@ -329,3 +329,10 @@ min-height: 42px;
 }
 .project-page-v312 .project-section-shell-actions-v312 { flex-wrap: wrap; }
 }
+
+/* The page veil's backdrop-filter made the scrolling content area the
+   containing block for fixed children, so the bottom bar scrolled away with
+   long pages. Phones keep the veil colour without the filter. */
+@media (max-width: 767px) {
+  .content-shell { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

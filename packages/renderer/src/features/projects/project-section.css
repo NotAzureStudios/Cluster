@@ -94,3 +94,10 @@ button.ps-chip:focus-visible { outline: 2px solid var(--accent); outline-offset:
 
 /* ---------- page ---------- */
 .ps-page { display: grid; align-content: start; gap: var(--space-3); min-width: 0; }
+
+/* Phones: section stats on one line, actions (search, New) full width below. */
+@media (max-width: 640px) {
+  .ps-head { flex-wrap: wrap; }
+  .ps-head > .ps-actions { flex: 1 1 100%; justify-content: flex-start; flex-wrap: wrap; }
+  .ps-head > .ps-actions > .project-inline-create-v312 { flex: 1 1 100%; grid-template-columns: minmax(0, 1fr) auto; }
+}

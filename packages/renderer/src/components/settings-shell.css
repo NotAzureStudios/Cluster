@@ -194,7 +194,7 @@
 
 /* ---------- narrow ---------- */
 @media (max-width: 960px) {
-  .st-body { grid-template-columns: minmax(0, 1fr); }
+  .st-body, .st--inline .st-body { grid-template-columns: minmax(0, 1fr); }
   .st-nav { position: static; max-height: none; display: flex; gap: var(--space-1); overflow-x: auto; }
   .st-nav__top { display: none; }
   .st-nav__group { display: flex; gap: 2px; }
@@ -238,3 +238,9 @@
 .st-summary { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--muted); font-size: var(--cluster-font-size-sm); }
 .st-summary strong { color: var(--text); font-variant-numeric: tabular-nums; }
 .st-summary [data-tone="warning"] strong { color: var(--warning, #f3b64c); }
+
+/* Phones: two-column forms collapse to one instead of a 380px minimum
+   running off the screen. */
+@media (max-width: 640px) {
+  .st-main .project-form-layout-v312, .st-main .server-config-groups-v238 { grid-template-columns: minmax(0, 1fr); }
+}
