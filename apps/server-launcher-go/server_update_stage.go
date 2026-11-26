@@ -92,8 +92,12 @@ func stageServerUpdateWithKey(root,feedText,channel string,key ed25519.PublicKey
  if _,err=io.ReadFull(partial,header);err!=nil||string(header)!="MZ" {return "",errors.New("signed artifact is not a Windows PE installer")}
  if err=partial.Sync();err!=nil{return "",err}
  if err=partial.Close();err!=nil{return "",err}
- // Do not follow/overwrite an existing target. An operator can explicitly
- // remove stale files after inspection rather than replacing them silently.
+ // The installer filename is the same for every release, so an older staged
+ // installer (staged but never applied, or applied but not retired) would
+ // block every later update. Clear exactly that older evidence; a staged
+ // release newer than this one is never touched.
+ if err=clearSupersededStaging(staging,target,manifest.Sequence);err!=nil{return "",err}
+ // Do not follow/overwrite an existing target.
  if _,err=os.Lstat(target);err==nil {return "",errors.New("Server update target already exists; refusing overwrite")}
  if !errors.Is(err,os.ErrNotExist){return "",err}
  if err=os.Rename(tempName,target);err!=nil{return "",err}

@@ -6,6 +6,7 @@ package main
 // signed main-channel download from being staged at all. The durable update
 // journal, cold PostgreSQL snapshot, and application rollback remain intact.
 import (
+    "encoding/json"
     "errors"
     "fmt"
     "os"
@@ -53,6 +54,41 @@ func retireCommittedStagingFiles(dir string,candidate inspectedStagedServerUpdat
     }
     for _,item:=range files {
         if err:=os.Remove(item.path);err!=nil{return fmt.Errorf("signed staging retirement incomplete: %w",err)}
+    }
+    return nil
+}
+
+// clearSupersededStaging removes a staged installer and its receipt/manifest
+// when they belong to a release older than the one being staged now (the same
+// release is left in place: it is already staged). Only the three exact sibling files in the staging directory are
+// considered; anything that is not a plain regular file stops the update.
+func clearSupersededStaging(dir,target string,nextSequence int)error{
+    if !strings.EqualFold(filepath.Clean(filepath.Dir(target)),filepath.Clean(dir)) {
+        return errors.New("refusing to clear a file outside the signed staging directory")
+    }
+    receiptPath:=target+".receipt.json"
+    staged:=0
+    if raw,err:=os.ReadFile(receiptPath);err==nil{
+        var receipt struct{ Sequence int `json:"sequence"` }
+        // An unreadable receipt is not evidence of anything; treat as stale.
+        if json.Unmarshal(raw,&receipt)==nil { staged=receipt.Sequence }
+    } else if !errors.Is(err,os.ErrNotExist){
+        return err
+    }
+    if staged==nextSequence {
+        return errors.New("this update is already downloaded and verified; apply it instead of downloading again")
+    }
+    if staged>nextSequence {
+        return fmt.Errorf("a newer signed update (sequence %d) is already staged; apply it before staging %d",staged,nextSequence)
+    }
+    for _,path:=range []string{receiptPath,target+".manifest.json",target}{
+        info,err:=os.Lstat(path)
+        if errors.Is(err,os.ErrNotExist){continue}
+        if err!=nil{return err}
+        if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink!=0 {
+            return fmt.Errorf("staged update file is not a regular file; inspect %s",filepath.Base(path))
+        }
+        if err:=os.Remove(path);err!=nil{return fmt.Errorf("could not clear the older staged update: %w",err)}
     }
     return nil
 }

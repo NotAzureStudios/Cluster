@@ -63,3 +63,32 @@ func TestSignedStagingRejectsUnsafeRetirementBeforeAnyDeletion(t *testing.T){
         })
     }
 }
+
+func TestStagingClearsOlderStagedReleaseButKeepsNewer(t *testing.T) {
+    dir:=t.TempDir()
+    installer:=filepath.Join(dir,"Cluster-Installer.exe")
+    write:=func(sequence string){
+        for _,p:=range []string{installer,installer+".manifest.json"}{
+            if err:=os.WriteFile(p,[]byte("MZ staged"),0600);err!=nil{t.Fatal(err)}
+        }
+        if err:=os.WriteFile(installer+".receipt.json",[]byte(`{"sequence":`+sequence+`}`),0600);err!=nil{t.Fatal(err)}
+    }
+    keep:=filepath.Join(dir,"unrelated.txt")
+    if err:=os.WriteFile(keep,[]byte("retain"),0600);err!=nil{t.Fatal(err)}
+
+    write("200100015")
+    if err:=clearSupersededStaging(dir,installer,200100026);err!=nil{t.Fatal(err)}
+    for _,p:=range []string{installer,installer+".receipt.json",installer+".manifest.json"}{
+        if _,err:=os.Stat(p);!os.IsNotExist(err){t.Fatalf("older staged file not cleared: %s",p)}
+    }
+    if _,err:=os.Stat(keep);err!=nil{t.Fatalf("unrelated file deleted: %v",err)}
+
+    write("200100030")
+    if err:=clearSupersededStaging(dir,installer,200100026);err==nil{t.Fatal("a newer staged release must not be cleared")}
+    if _,err:=os.Stat(installer);err!=nil{t.Fatalf("newer staged installer was removed: %v",err)}
+
+    // An installer left without any receipt (interrupted staging) is stale.
+    _ = os.Remove(installer+".receipt.json")
+    if err:=clearSupersededStaging(dir,installer,200100026);err!=nil{t.Fatal(err)}
+    if _,err:=os.Stat(installer);!os.IsNotExist(err){t.Fatal("receipt-less installer not cleared")}
+}
