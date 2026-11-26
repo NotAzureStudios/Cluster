@@ -126,6 +126,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const [projectExternal, setProjectExternal] = useState((settings?.defaultProjectSource || "internal") === "external");
   const [externalOwnerId, setExternalOwnerId] = useState("");
   const [projectLeadId, setProjectLeadId] = useState("");
+  const [copyFromProjectId, setCopyFromProjectId] = useState("");
   const [projectObjective, setProjectObjective] = useState("");
   const [projectClientName, setProjectClientName] = useState("");
   const [projectStartDate, setProjectStartDate] = useState(() => toLocalDateInput());
@@ -317,6 +318,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setProjectExternal((settings?.defaultProjectSource || "internal") === "external");
     setExternalOwnerId("");
     setProjectLeadId(currentUser.id);
+    setCopyFromProjectId("");
     setProjectObjective("");
     setProjectClientName("");
     setProjectStartDate(toLocalDateInput());
@@ -1034,7 +1036,7 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
           startDate: projectStartDate || null, targetDate: projectTargetDate || null, priority: projectPriority,
           tags: projectTags.split(",").map((tag) => tag.trim()).filter(Boolean), color: projectColor, healthNote: null,
           projectType: selectedProjectType.id, productionProfile: selectedProductionProfile.id, blueprintKey: projectTypeTemplate || null, workspacePresetKey, projectTypeTemplate: projectTypeTemplate || null,
-          status: projectStatus, external: projectExternal, memberIds, leadId: projectLeadId, roleLabels, provisioningKey: projectProvisioningKey, sourceControl: "auto" as const,
+          status: projectStatus, external: projectExternal, memberIds, leadId: projectLeadId, roleLabels, provisioningKey: projectProvisioningKey, sourceControl: "auto" as const, copyFromProjectId: copyFromProjectId || null,
           createDefaultBoard: createStarterBoard, boardName: settings?.defaultProjectBoardNameMode === "project" ? `${title.trim()} Board` : selectedProjectType.starterBoardName || `${selectedProjectType.label} Board`,
           createWhiteboard: createStarterWhiteboard, whiteboardName: `${title.trim()} Whiteboard`, whiteboardDescription: details || selectedProjectType.note || null,
           createLibraryFolder: createStarterLibrary, libraryFolderName: `${title.trim()} Library`, libraryFolderDescription: details || selectedProjectType.note || null,
@@ -1542,6 +1544,19 @@ ${bugActual}`,
 
               {mode === "project" && (
                 <>
+                  {projects.some((project) => !project.archived) ? <div className="field">
+                    <label>Copy setup from</label>
+                    <ClusterSelect
+                      value={copyFromProjectId}
+                      onChange={(value) => {
+                        setCopyFromProjectId(value);
+                        const source = projects.find((project) => project.id === value);
+                        if (source && projectTypePresets.some((preset) => preset.id === source.projectType)) setProjectType(source.projectType as ProjectKind);
+                      }}
+                      ariaLabel="Copy setup from"
+                      options={[{ value: "", label: "Nothing (blank)" }, ...projects.filter((project) => !project.archived).map((project) => ({ value: project.id, label: project.name }))]}
+                    />
+                  </div> : null}
                   <div className="field">
                     <label>Project type</label>
                     <ClusterSelect

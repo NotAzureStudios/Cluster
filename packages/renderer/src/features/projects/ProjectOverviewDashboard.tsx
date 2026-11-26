@@ -1,5 +1,8 @@
 import { CLUSTER_WORKFLOW_RELATIONSHIP_META, type ClusterProjectTypeDefinition, type ClusterWorkflowRelationship } from "@cluster/shared";
-import type { ComponentType, ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { api } from "../../core/api";
+import { useServerState } from "../../core/server-state";
+import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterMetricStrip } from "../../components/ClusterMetricStrip";
 import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup";
@@ -32,7 +35,7 @@ type ProjectTeamMember = {
 };
 type ProjectAttentionItem = { id: string; label: string; detail: string; tone: "warning" | "danger"; action: () => void };
 
-export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore, children }: {
+export function ProjectOverviewDashboard({ project, projectType, snapshot, reviewAssetCount = 0, reviewOpenNoteCount = 0, dashboard, controlCenter, loading, setupChecklist, setupGaps, teamMembers, primaryBoard, primaryWhiteboard, onOpenBoard, onOpenWhiteboard, onOpenTimeline, onOpenTickets, onOpenTime, onOpenPlan, onOpenSection, availableSections = [], onRefresh, RelatedRecordsPanel, CustomFieldValuesPanel, VersionHistoryPanel, onRestore, children, canContribute = false, currentUserId }: {
   project: Project;
   projectType: ClusterProjectTypeDefinition;
   snapshot: ProjectSnapshot | null;
@@ -62,7 +65,20 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   children?: ReactNode;
   canManage?: boolean;
   canContribute?: boolean;
+  currentUserId?: string;
 }) {
+  const lastSeenBefore = useProjectLastSeen(project.id);
+  const [milestoneDraft, setMilestoneDraft] = useState<{ title: string; date: string } | null>(null);
+  const [milestoneBusy, setMilestoneBusy] = useState(false);
+  async function addMilestone() {
+    if (!milestoneDraft?.title.trim() || !milestoneDraft.date) return;
+    setMilestoneBusy(true);
+    try {
+      await api("/api/timeline/items", { method: "POST", body: JSON.stringify({ projectId: project.id, title: milestoneDraft.title.trim(), type: "milestone", startsAt: new Date(`${milestoneDraft.date}T12:00:00`).toISOString() }) });
+      setMilestoneDraft(null);
+      onRefresh();
+    } finally { setMilestoneBusy(false); }
+  }
   const projectToolSet = new Set([...(projectType.defaultTools || []), ...(projectType.optionalTools || [])]);
   const hiddenToolSet = new Set(projectType.hiddenTools || []);
   const isVideoType = projectType.category === "video" || projectType.id === "video";
@@ -121,6 +137,10 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
   /* Overview. One row of indicators, then four cards: what needs attention,
      what's next, who's on it, what changed. Each fact appears once; the tabs
      above are the way into each tool, so there's no launchpad here. */
+  // "Since you last looked": others' activity newer than your previous visit.
+  const isNewActivity = (item: { createdAt: string; user?: { id: string } | null }) => Boolean(lastSeenBefore && item.createdAt > lastSeenBefore && item.user?.id !== currentUserId);
+  const newActivity = (dashboard?.activity || []).slice(0, 8).filter(isNewActivity).length;
+
   return (
     <div className="pv">
       <section className="pv-pulse" aria-label="Project pulse">
@@ -132,22 +152,36 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
       {children}
       <div className="pv-grid">
         <div className="pv-col">
-        <section className="pv-card" data-tone={attentionItems.length ? attentionItems.some((item) => item.tone === "danger") ? "danger" : "warning" : "good"}>
-          <header><h3>Attention</h3>{attentionItems.length ? <span className="pv-count">{attentionItems.length}</span> : null}<ClusterIconButton size="compact" className="pv-refresh" label={loading ? "Refreshing" : "Refresh"} disabled={loading} onClick={onRefresh}><ClusterIcon name="refresh" /></ClusterIconButton></header>
-          {healthNote && attentionItems.length ? <p className="pv-note">{healthNote}</p> : null}
-          {attentionItems.length
-            ? <ul className="pv-list">{attentionItems.map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" data-tone={item.tone} onClick={item.action}>
-                <i className="pv-dot" aria-hidden="true" />
-                <span className="pv-row__copy"><strong>{item.label}</strong>{item.detail ? <small>{item.detail}</small> : null}</span>
-                <ClusterIcon name="chevron-right" className="pv-row__go" />
+        {attentionItems.length ? <section className="pv-card" data-tone={attentionItems.some((item) => item.tone === "danger") ? "danger" : "warning"}>
+          <header><h3>Attention</h3><span className="pv-count">{attentionItems.length}</span><ClusterIconButton size="compact" className="pv-refresh" label={loading ? "Refreshing" : "Refresh"} disabled={loading} onClick={onRefresh}><ClusterIcon name="refresh" /></ClusterIconButton></header>
+          {healthNote ? <p className="pv-note">{healthNote}</p> : null}
+          <ul className="pv-list">{attentionItems.map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" data-tone={item.tone} onClick={item.action}>
+            <i className="pv-dot" aria-hidden="true" />
+            <span className="pv-row__copy"><strong>{item.label}</strong>{item.detail ? <small>{item.detail}</small> : null}</span>
+            <ClusterIcon name="chevron-right" className="pv-row__go" />
+          </ClusterButton></li>)}</ul>
+        </section> : null}
+        <section className="pv-card">
+          <header><h3>Milestones</h3>
+            {canContribute && !milestoneDraft ? <ClusterIconButton size="compact" className="pv-add" label="Add milestone" onClick={() => setMilestoneDraft({ title: "", date: "" })}><ClusterIcon name="plus" /></ClusterIconButton> : null}
+            <ClusterButton variant="quiet" size="compact" onClick={onOpenTimeline}>Timeline</ClusterButton></header>
+          {milestoneDraft ? <form className="pv-quick" onSubmit={(event) => { event.preventDefault(); void addMilestone(); }}>
+            <ClusterTextInput autoFocus value={milestoneDraft.title} placeholder="Milestone" aria-label="Milestone name" onChange={(event) => setMilestoneDraft({ ...milestoneDraft, title: event.target.value })} onKeyDown={(event) => { if (event.key === "Escape") setMilestoneDraft(null); }} />
+            <ClusterTextInput type="date" value={milestoneDraft.date} aria-label="Milestone date" onChange={(event) => setMilestoneDraft({ ...milestoneDraft, date: event.target.value })} />
+            <ClusterButton type="submit" size="compact" variant="primary" disabled={milestoneBusy || !milestoneDraft.title.trim() || !milestoneDraft.date}>Add</ClusterButton>
+            <ClusterIconButton size="compact" label="Cancel" onClick={() => setMilestoneDraft(null)}><ClusterIcon name="close" /></ClusterIconButton>
+          </form> : null}
+          {dashboard?.timeline.upcoming.length
+            ? <ul className="pv-list">{dashboard.timeline.upcoming.slice(0, 5).map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" onClick={onOpenTimeline}>
+                <time className="pv-date">{formatProjectDate(item.startsAt)}</time>
+                <span className="pv-row__copy"><strong>{item.title}</strong><small>{item.type || "Milestone"}</small></span>
               </ClusterButton></li>)}</ul>
-            : <p className="pv-clear"><ClusterIcon name="check" />All clear</p>}
+            : milestoneDraft ? null : <p className="pv-empty">Nothing scheduled</p>}
         </section>
         <section className="pv-card">
           <header><h3>Team</h3>{teamMembers.length ? <span className="pv-count">{teamMembers.length}</span> : null}<ClusterButton variant="quiet" size="compact" onClick={() => onOpenSection("people")}>Manage</ClusterButton></header>
           <dl className="pv-facts">
             <div><dt>Lead</dt><dd data-empty={ownerLabel === "Unassigned" || undefined}>{ownerLabel}</dd></div>
-            {integrationCount ? <div><dt>Links</dt><dd>{integrationCount}</dd></div> : null}
           </dl>
           {teamMembers.length
             ? <ul className="pv-team">{teamMembers.slice(0, 12).map((member) => <li key={member.id} title={member.name}><PresenceAvatar
@@ -164,18 +198,9 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
         </div>
         <div className="pv-col">
         <section className="pv-card">
-          <header><h3>Milestones</h3><ClusterButton variant="quiet" size="compact" onClick={onOpenTimeline}>Timeline</ClusterButton></header>
-          {dashboard?.timeline.upcoming.length
-            ? <ul className="pv-list">{dashboard.timeline.upcoming.slice(0, 5).map((item) => <li key={item.id}><ClusterButton unstyled type="button" className="pv-row" onClick={onOpenTimeline}>
-                <time className="pv-date">{formatProjectDate(item.startsAt)}</time>
-                <span className="pv-row__copy"><strong>{item.title}</strong><small>{item.type || "Milestone"}</small></span>
-              </ClusterButton></li>)}</ul>
-            : <p className="pv-empty">Nothing scheduled</p>}
-        </section>
-        <section className="pv-card">
-          <header><h3>Activity</h3></header>
+          <header><h3>Activity</h3>{newActivity ? <span className="pv-count pv-count--new">{newActivity} new</span> : null}{attentionItems.length ? null : <ClusterIconButton size="compact" className="pv-refresh" label={loading ? "Refreshing" : "Refresh"} disabled={loading} onClick={onRefresh}><ClusterIcon name="refresh" /></ClusterIconButton>}</header>
           {dashboard?.activity.length
-            ? <ul className="pv-feed">{dashboard.activity.slice(0, 6).map((item) => <li key={item.id}>
+            ? <ul className="pv-feed">{dashboard.activity.slice(0, 8).map((item) => <li key={item.id} data-new={isNewActivity(item) || undefined}>
                 {item.user?.avatarUrl ? <img loading="lazy" decoding="async" src={item.user.avatarUrl} alt="" /> : <span className="pv-feed__mark" aria-hidden="true">{(item.user?.displayName || item.user?.username || item.title || "•").slice(0, 1).toUpperCase()}</span>}
                 <p><strong>{item.title}</strong><small>{item.message || item.entityType}</small></p>
                 <time>{formatRelativeTime(item.createdAt)}</time>
@@ -187,4 +212,24 @@ export function ProjectOverviewDashboard({ project, projectType, snapshot, revie
 
     </div>
   );
+}
+
+/** Records this visit and returns when you last opened the project before it. */
+export function useProjectLastSeen(projectId: string) {
+  const [lastSeen, setLastSeen, state] = useServerState<Record<string, string>>("user", "projects.last-seen", {}, { merge: (value) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, string> : {} });
+  const [before, setBefore] = useState<string | null>(null);
+  const recorded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!state.hydrated || recorded.current === projectId) return;
+    recorded.current = projectId;
+    setBefore(lastSeen[projectId] || null);
+    const stamp = (current: Record<string, string>) => {
+      const next = { ...current, [projectId]: new Date().toISOString() };
+      // Keep the map small: the 200 most recently opened projects.
+      return Object.fromEntries(Object.entries(next).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 200));
+    };
+    setLastSeen(stamp);
+    return () => setLastSeen(stamp);
+  }, [state.hydrated, projectId]);
+  return before;
 }

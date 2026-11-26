@@ -8,7 +8,7 @@ import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
 import { ClusterRowActions } from "../../components/ClusterContextActions";
 
-export function ProjectPortfolioItem({ project, selected, pinned, density, health, schedule, completeness, stageLabel, statusLabel, typeLabel, gaps, memberCount, onSelect, onInspect, onTogglePin }: {
+export function ProjectPortfolioItem({ project, selected, pinned, density, health, schedule, completeness, stageLabel, statusLabel, typeLabel, gaps, memberCount, fresh = false, onSelect, onInspect, onTogglePin }: {
   project: Project;
   selected: boolean;
   pinned: boolean;
@@ -21,6 +21,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   typeLabel: string;
   gaps: string[];
   memberCount: number;
+  fresh?: boolean;
   onSelect: () => void;
   onInspect: (event: MouseEvent<HTMLButtonElement>) => void;
   onTogglePin: () => void;
@@ -29,7 +30,9 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const titleId = `project-portfolio-title-${project.id}`;
   const typeId = `project-portfolio-type-${project.id}`;
   const summaryId = `project-portfolio-summary-${project.id}`;
-  const summary = density === "comfortable" ? (project.objective || project.description || "").trim() : "";
+  // The description doubles as project notes; show its first real line.
+  const noteLine = (project.description || "").split("\n").map((line) => line.replace(/^\s*(?:[-*] (?:\[[ xX]\] )?|#{1,3} )/, "").trim()).find(Boolean) || "";
+  const summary = density === "comfortable" ? (project.objective || noteLine).trim() : "";
   // Only real problems (blocked, at risk) replace the status; setup nags don't.
   const tone = health.tone === "danger" ? "danger" : "good";
   const scheduled = Boolean(project.targetDate);
@@ -43,7 +46,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
       <ClusterButton unstyled type="button" className="pl-card__hit" aria-labelledby={typeLabel ? `${titleId} ${typeId}` : titleId} aria-describedby={summary ? summaryId : undefined} onClick={onSelect} title={`Open ${project.name}`} />
       <span className="pl-card__mark"><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType} label={project.name} accentColor={project.color} /></span>
       <span className="pl-card__id">
-        <strong id={titleId}>{project.name}</strong>
+        <strong id={titleId}>{project.name}{fresh ? <i className="pl-card__fresh" title="New activity since you last looked" aria-label="New activity" /> : null}</strong>
         {typeLabel ? <small id={typeId}>{typeLabel}</small> : null}
       </span>
       {summary ? <p id={summaryId} className="pl-card__summary" title={summary}>{summary}</p> : null}

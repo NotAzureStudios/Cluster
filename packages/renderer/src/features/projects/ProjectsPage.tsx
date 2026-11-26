@@ -551,6 +551,36 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
 
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
+  // Finished projects fold into a "Done" group unless a status filter is on.
+  const isDoneProject = (project: Project) => Boolean(project.archived) || project.status === "completed" || project.status === "cancelled";
+  const groupDone = statusFilter === "all";
+  const activeFacts = visibleFacts.filter((fact) => !isDoneProject(fact.project));
+  const doneFacts = visibleFacts.filter((fact) => isDoneProject(fact.project));
+  const [doneOpen, setDoneOpen] = useServerState<boolean>("user", "projects.done-open", false, { merge: (value) => value === true });
+  const [lastSeen] = useServerState<Record<string, string>>("user", "projects.last-seen", {}, { merge: (value) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, string> : {} });
+  const isFresh = (project: Project) => Boolean(lastSeen[project.id] && project.updatedAt && project.updatedAt > lastSeen[project.id]);
+  const renderFact = (fact: (typeof visibleFacts)[number]) => (
+
+                  <ProjectPortfolioItem
+                    key={fact.project.id}
+                    project={fact.project}
+                    selected={(inspectorOpen || Boolean(query.trim())) && selectedProject?.id === fact.project.id}
+                    pinned={pinnedProjectSet.has(fact.project.id)}
+                    density={density}
+                    health={fact.health}
+                    schedule={fact.snapshot ? { label: fact.snapshot.schedule.label, tone: projectSnapshotScheduleTone(fact.snapshot), detail: fact.snapshot.schedule.label } : undefined}
+                    completeness={fact.completeness}
+                    stageLabel={fact.stage.label}
+                    statusLabel={projectStatusLabel(fact.project)}
+                    typeLabel={projectTypeBadge(fact.project)}
+                    gaps={fact.gaps}
+                    memberCount={fact.memberCount}
+                    fresh={isFresh(fact.project)}
+                    onSelect={() => onOpenProject(fact.project.id)}
+                    onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
+                    onTogglePin={() => toggleProjectPin(fact.project.id)}
+                  />
+  );
   const loadedHealth = useMemo(() => summarizeLoadedProjectHealth(sortedFacts), [sortedFacts]);
   const projectServerAnalytics = projectCursor.dataView?.analytics || null;
   const projectAnalyticsExact = !["ready", "attention"].includes(statusFilter) && ["all", "due_soon", "unscheduled"].includes(focus);
@@ -840,26 +870,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 incremental={{ hasMore: projectCursor.hasMore, loading: projectCursor.loading, prefetchRows: 24, loadLabel: "Load 80 more projects", onLoadMore: projectCursor.loadMore }}
                 empty={<ClusterEmptyState kind="filtered" compact className="flat-empty-v146" title="No projects match this view" description="The portfolio still has projects. Clear the current search and filters to bring them back into view." actions={<ClusterButton variant="secondary" size="compact" onClick={clearFilters}>Clear filters</ClusterButton>} />}
               /></> : <div className={`pl-list pl-list--${viewMode}`}>
-                {sortedFacts.length ? visibleFacts.map((fact) => (
-                  <ProjectPortfolioItem
-                    key={fact.project.id}
-                    project={fact.project}
-                    selected={(inspectorOpen || Boolean(query.trim())) && selectedProject?.id === fact.project.id}
-                    pinned={pinnedProjectSet.has(fact.project.id)}
-                    density={density}
-                    health={fact.health}
-                    schedule={fact.snapshot ? { label: fact.snapshot.schedule.label, tone: projectSnapshotScheduleTone(fact.snapshot), detail: fact.snapshot.schedule.label } : undefined}
-                    completeness={fact.completeness}
-                    stageLabel={fact.stage.label}
-                    statusLabel={projectStatusLabel(fact.project)}
-                    typeLabel={projectTypeBadge(fact.project)}
-                    gaps={fact.gaps}
-                    memberCount={fact.memberCount}
-                    onSelect={() => onOpenProject(fact.project.id)}
-                    onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
-                    onTogglePin={() => toggleProjectPin(fact.project.id)}
-                  />
-                )) : (
+                {sortedFacts.length ? <>{(groupDone ? activeFacts : visibleFacts).map(renderFact)}{groupDone && doneFacts.length ? <>
+                  <ClusterButton unstyled type="button" className="pl-group" aria-expanded={doneOpen} onClick={() => setDoneOpen(!doneOpen)}><ClusterIcon name={doneOpen ? "chevron-down" : "chevron-right"} /><span>Done</span><small>{doneFacts.length}</small></ClusterButton>
+                  {doneOpen ? doneFacts.map(renderFact) : null}
+                </> : null}</> : (
                   <ClusterEmptyState
                     kind="filtered"
                     compact

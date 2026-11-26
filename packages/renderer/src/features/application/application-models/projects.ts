@@ -103,6 +103,7 @@ export type Project = {
   whiteboards?: WhiteboardSummary[];
   libraryItems?: LibraryItem[];
   libraryFolderId?: string | null;
+  pinnedLinks?: Array<{ label: string; url: string }>;
   ownerId?: string | null;
   priority?: Priority | string | null;
   external?: boolean;

@@ -17,6 +17,11 @@ export const PROJECT_WORKFLOW_KINDS = [
 
 type ProjectWorkflowKind = (typeof PROJECT_WORKFLOW_KINDS)[number];
 
+const WORKFLOW_KIND_LABELS: Record<string, string> = { dependency: "Dependency", recurring: "Recurring work", watcher: "Watcher", meeting: "Meeting", versionSnapshot: "Version snapshot", boardView: "Board view", whiteboardComponent: "Whiteboard component" };
+const workflowLabel = (kind: string) => WORKFLOW_KIND_LABELS[kind] || kind;
+// Automatic bookkeeping that would only flood the project activity feed.
+const QUIET_WORKFLOW_KINDS = new Set(["versionSnapshot", "boardView"]);
+
 type ProjectWorkflowRouteDependencies = {
   app: FastifyInstance;
   prisma: any;
@@ -215,7 +220,7 @@ export function registerProjectWorkflowRoutes(deps: ProjectWorkflowRouteDependen
         if (!(await enforceWorkflowResourceAccess({ prisma, enforceTargetAccess, request, reply, project, resource: target, min: "view" }))) return;
       }
       const record = await upsertCanonicalProjectWorkflowRecord({ prisma, kind: params.kind, project, entityId: params.entityId, payload: incomingPayload, actorUserId: user?.id || null, expectedRevision: body.expectedRevision });
-      await logActivity({ userId: user?.id, projectId: project.id, type: "updated", entityType: `project_${params.kind}`, entityId: record.entityId, title: `${params.kind} updated`, message: record.validationSummary || "Canonical workflow authority updated." });
+      await logActivity({ userId: user?.id, projectId: project.id, type: "updated", entityType: `project_${params.kind}`, entityId: record.entityId, title: `${workflowLabel(params.kind)} updated`, message: record.validationSummary || "Canonical workflow authority updated." });
       return record;
     }
     const existing = await prisma.clusterPersistenceRecord.findFirst({
@@ -284,13 +289,13 @@ export function registerProjectWorkflowRoutes(deps: ProjectWorkflowRouteDependen
       summary: `${existing ? "Updated" : "Created"} ${params.kind}: ${record.title}`,
       metadata: { projectId: project.id, entityId: params.entityId, revision: record.revision },
     });
-    await logActivity({
+    if (!QUIET_WORKFLOW_KINDS.has(params.kind)) await logActivity({
       userId: user?.id,
       projectId: project.id,
       type: existing ? "updated" : "created",
       entityType: `project_${params.kind}`,
       entityId: params.entityId,
-      title: `${params.kind} ${existing ? "updated" : "created"}`,
+      title: `${workflowLabel(params.kind)} ${existing ? "updated" : "created"}`,
       message: record.title,
     });
     return serializeWorkflowRecord(record, parseJsonObject);
@@ -307,7 +312,7 @@ export function registerProjectWorkflowRoutes(deps: ProjectWorkflowRouteDependen
       const requiresManage = params.kind === "watcher" && watcherUserId && watcherUserId !== String(user?.id || "");
       if (!(await enforceTargetAccess(request, reply, "project", project.id, project, requiresManage ? "manage" : "contribute"))) return;
       const result = await deleteCanonicalProjectWorkflowRecord({ prisma, kind: params.kind, project, entityId: params.entityId, expectedRevision: query.expectedRevision });
-      await logActivity({ userId: user?.id, projectId: project.id, type: "archived", entityType: `project_${params.kind}`, entityId: params.entityId, title: `${params.kind} removed`, message: "Canonical workflow authority updated." });
+      await logActivity({ userId: user?.id, projectId: project.id, type: "archived", entityType: `project_${params.kind}`, entityId: params.entityId, title: `${workflowLabel(params.kind)} removed`, message: "Canonical workflow authority updated." });
       return result;
     }
     if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "contribute"))) return;
@@ -339,7 +344,7 @@ export function registerProjectWorkflowRoutes(deps: ProjectWorkflowRouteDependen
       });
     }
     await logPersistenceAudit({ recordId: record.id, kind: params.kind, action: "project_workflow_archived", actorId: user?.id || null, summary: `Archived ${params.kind}: ${record.title}`, metadata: { projectId: project.id, entityId: params.entityId } });
-    await logActivity({ userId: user?.id, projectId: project.id, type: "archived", entityType: `project_${params.kind}`, entityId: params.entityId, title: `${params.kind} archived`, message: record.title });
+    await logActivity({ userId: user?.id, projectId: project.id, type: "archived", entityType: `project_${params.kind}`, entityId: params.entityId, title: `${workflowLabel(params.kind)} archived`, message: record.title });
     return { ok: true, archived: true, revision: record.revision };
   });
 

@@ -182,25 +182,106 @@
 .pv-col { display: grid; gap: var(--space-3); align-content: start; min-width: 0; }
 .pv > .project-secondary-details-v57 { border: 0; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); }
 
-/* ---------- workbench: notes and recent files ---------- */
-.pj-bench { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-3); min-width: 0; }
+/* ---------- workbench: up next, notes, build, commits, files ---------- */
+.pj-bench { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-3); min-width: 0; align-items: start; }
 @media (max-width: 900px) { .pj-bench { grid-template-columns: 1fr; } }
-.pj-bench > .pv-card { align-content: start; }
-.pj-bench__state { margin-left: auto; color: var(--muted); font-size: .78rem; }
+.pj-bench__col { display: grid; gap: var(--space-3); min-width: 0; }
+.pj-bench .pv-card { align-content: start; }
+.pj-bench .pv-card > header > .cluster-button-v425:last-child { margin-left: auto; }
+.pj-bench__state { margin-left: auto; color: var(--muted); font-size: var(--cluster-font-size-xs); }
+.pj-bench__state + .cluster-button-v425 { margin-left: 0 !important; }
+.pv-count--new { background: color-mix(in srgb, var(--accent) 18%, transparent) !important; color: var(--accent) !important; }
+.pv-add.cluster-icon-button-v425 { margin-left: auto; color: var(--muted); }
+.pv-add.cluster-icon-button-v425 + .cluster-button-v425 { margin-left: 0 !important; }
+
+/* Up next */
+.pj-next__list { display: grid; margin: 0; padding: 0; list-style: none; }
+.pj-next__list li { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: 4px 0; transition: opacity .2s ease; }
+.pj-next__list li[data-done] { opacity: .45; }
+.pj-next__list li[data-done] strong { text-decoration: line-through; }
+.pj-check {
+  display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; min-height: 0 !important; padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 70%, transparent) !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; color: transparent; cursor: pointer;
+}
+.pj-check svg.cluster-icon-svg { inline-size: 12px; block-size: 12px; }
+button.pj-check:hover, .pj-check[aria-pressed="true"] { border-color: var(--success) !important; color: var(--success); }
+.pj-check[aria-pressed="true"] { background: color-mix(in srgb, var(--success) 18%, transparent) !important; }
+.pj-check--static { border-style: dashed; cursor: default; }
+.pj-next__item { display: grid; flex: 1; min-width: 0; min-height: 0 !important; padding: 2px 0; border: 0 !important; background: transparent !important; box-shadow: none !important; text-align: left; color: var(--text); font: inherit; line-height: 1.25; cursor: pointer; }
+.pj-next__item strong { overflow: hidden; font-size: var(--cluster-font-size-sm); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.pj-next__item small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pj-next__item:hover strong { color: var(--accent); }
+.pj-tag { flex: none; padding: 1px 7px; border-radius: 999px; background: var(--cluster-button-fill); color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; white-space: nowrap; }
+.pj-tag[data-tone="warning"] { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+.pj-tag[data-tone="danger"] { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+
+/* Notes */
 .pv-card.pj-notes textarea.cluster-text-area-v495 {
-  min-height: 180px !important; height: auto; resize: vertical; border: 0; background: transparent !important; box-shadow: none;
-  padding: 0; border-radius: 0 !important; font: inherit; line-height: 1.55; color: var(--text);
+  min-height: 200px !important; height: auto; resize: vertical; border: 0; background: transparent !important; box-shadow: none;
+  padding: 0; border-radius: 0 !important; font: inherit; font-size: var(--cluster-font-size-sm); line-height: 1.55; color: var(--text);
 }
 .pv-card.pj-notes textarea.cluster-text-area-v495:focus { outline: none; box-shadow: none; }
+.pj-notes__view { display: grid; gap: 2px; min-height: 48px; font-size: var(--cluster-font-size-sm); line-height: 1.5; overflow-wrap: anywhere; border-radius: 6px; }
+.pj-notes__view[role="button"] { cursor: text; }
+.pj-notes__view:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.pj-notes__view p { margin: 0; }
+.pj-notes__view a { color: var(--accent); }
+.pj-notes__bullet { position: relative; padding-left: 14px; }
+.pj-notes__bullet::before { content: ""; position: absolute; left: 3px; top: .65em; width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+.pj-notes__heading { margin-top: 6px; font-weight: 700; }
+.pj-notes__gap { height: 6px; }
+.pj-notes__check { display: flex; align-items: flex-start; gap: var(--space-2); cursor: pointer; }
+.pj-notes__check input { flex: none; width: 15px; height: 15px; min-height: 0 !important; margin: 3px 0 0; accent-color: var(--accent); cursor: pointer; }
+.pj-notes__check[data-done] span { color: var(--muted); text-decoration: line-through; }
+
+/* Latest build and commits */
+.pj-build__row { display: flex; align-items: center; gap: var(--space-2-5); min-width: 0; }
+.pj-build__mark { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 9px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.pj-build__row p { display: grid; flex: 1; min-width: 0; margin: 0; line-height: 1.25; }
+.pj-build__row strong { overflow: hidden; font-size: var(--cluster-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.pj-build__row a { text-decoration: none; }
+.pj-build__row small { overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+.pj-commits ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.pj-commits li > a, .pj-commits li > button {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "rev msg" ". meta"; column-gap: var(--space-2);
+  width: 100%; min-height: 0 !important; padding: 4px var(--space-1); border: 0 !important; border-radius: 8px; background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+}
+.pj-commits li > a:hover, .pj-commits li > button:hover { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+.pj-commits code { grid-area: rev; color: var(--accent); font-size: var(--cluster-font-size-xs); }
+.pj-commits span { grid-area: msg; overflow: hidden; font-size: var(--cluster-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.pj-commits small { grid-area: meta; overflow: hidden; color: var(--muted); font-size: var(--cluster-font-size-xs); text-overflow: ellipsis; white-space: nowrap; }
+
+/* Recent files and the Files tab fallback list */
 .pj-recent ul, .pj-files__list { list-style: none; margin: 0; padding: 0; display: grid; }
 .pj-recent li > button, .pj-files__list li > button {
   display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2);
-  width: 100%; padding: 6px var(--space-1); border-radius: 8px; color: var(--text); text-align: left;
+  width: 100%; min-height: 0 !important; padding: 5px var(--space-1); border: 0 !important; border-radius: 8px; background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; text-align: left; font-size: var(--cluster-font-size-sm); cursor: pointer;
 }
-.pj-recent li > button:hover, .pj-files__list li > button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.pj-recent li > button:hover, .pj-files__list li > button:hover { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
 .pj-recent li span, .pj-files__list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pj-recent li small, .pj-files__list li small { color: var(--muted); font-size: .78rem; }
+.pj-recent li small, .pj-files__list li small { color: var(--muted); font-size: var(--cluster-font-size-xs); }
 .pj-files { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--cluster-radius-card); background: var(--cluster-workbench-panel); }
 .pj-files__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .pj-files__empty { margin: 0; color: var(--muted); }
-.project-content-v312 > .collaboration-panel-v227 { margin-top: var(--space-3); }
+
+/* Quick milestone */
+.pv-quick { display: flex; align-items: center; gap: var(--space-1-5, 6px); min-width: 0; }
+.pv-quick > :first-child { flex: 1; min-width: 0; }
+.pv-quick input[type="date"] { width: 150px; flex: none; }
+
+/* Since you last looked */
+.pv-feed li[data-new] strong::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 6px 1px 0; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+
+/* Drop files anywhere on Overview */
+.pj-drop { position: relative; display: grid; gap: var(--space-3); min-width: 0; }
+.pj-drop__veil {
+  position: absolute; inset: -6px; z-index: 20; display: grid; place-content: center; justify-items: center; gap: var(--space-2);
+  border: 2px dashed var(--accent); border-radius: var(--cluster-radius-card);
+  background: color-mix(in srgb, var(--cluster-workbench-panel) 82%, var(--accent)); color: var(--accent); pointer-events: none;
+}
+.pj-drop__veil svg.cluster-icon-svg { inline-size: 32px; block-size: 32px; }
+.pj-drop__status {
+  position: fixed; right: 24px; bottom: 24px; z-index: 60; max-width: min(420px, calc(100vw - 48px)); padding: 10px 14px;
+  border-radius: 12px; background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); font-size: var(--cluster-font-size-sm);
+}
+.project-content-v312 .pj-drop > .collaboration-panel-v227 { margin-top: 0; }

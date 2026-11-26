@@ -50,6 +50,12 @@ export const projectProvisioningRequestSchema = z.object({
   sourceRequireQa: z.boolean().default(false),
   sourceRequireBuild: z.boolean().default(false),
   provisioningKey: z.string().trim().min(8).max(160),
+  // "Copy setup from" another project. The route fills the copied* fields
+  // from the source project; client values for them are discarded.
+  copyFromProjectId: z.string().trim().min(1).max(200).optional().nullable(),
+  copiedBoardColumns: z.array(z.object({ title: z.string().max(120), isDone: z.boolean() })).max(40).optional(),
+  copiedFolderNames: z.array(z.string().max(200)).max(60).optional(),
+  copiedPinnedLinks: z.array(z.object({ label: z.string().max(60), url: z.string().max(2000) })).max(12).optional(),
 });
 
 export type ProjectProvisioningRequest = z.infer<typeof projectProvisioningRequestSchema>;
@@ -142,6 +148,7 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
           tags: JSON.stringify(unique(request.tags)),
           color: request.color || null,
           healthNote: request.healthNote || null,
+          pinnedLinks: JSON.stringify(request.copiedPinnedLinks || []),
           projectType,
           productionProfile: profile.id,
           blueprintKey: request.blueprintKey || request.projectTypeTemplate || null,
@@ -182,7 +189,9 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
     if (request.createDefaultBoard) {
       let board = await input.prisma.board.findFirst({ where: { projectId: project.id, name: request.boardName, archived: false }, include: { lists: true } });
       if (!board) {
-        board = await input.prisma.board.create({ data: { projectId: project.id, name: request.boardName, lists: { create: (parsed.typeDefinition.boardColumns || ["Backlog", "To Do", "In Progress", "Review", "Done"]).map((title: string, position: number) => ({ title, position, isDone: ["Done", "Approved", "Release", "Publish", "Delivered"].includes(title) })) } }, include: { lists: true } });
+        board = await input.prisma.board.create({ data: { projectId: project.id, name: request.boardName, lists: { create: request.copiedBoardColumns?.length
+          ? request.copiedBoardColumns.map((column, position) => ({ title: column.title, position, isDone: column.isDone }))
+          : (parsed.typeDefinition.boardColumns || ["Backlog", "To Do", "In Progress", "Review", "Done"]).map((title: string, position: number) => ({ title, position, isDone: ["Done", "Approved", "Release", "Publish", "Delivered"].includes(title) })) } }, include: { lists: true } });
         stepReceipts.push({ id: "board", state: "created", resourceId: board.id });
       } else stepReceipts.push({ id: "board", state: "reused", resourceId: board.id });
     } else stepReceipts.push({ id: "board", state: "skipped" });
@@ -205,6 +214,9 @@ export function registerProjectProvisioningJobHandlers(input: { worker: DurableJ
       if (!folder) folder = await input.prisma.libraryItem.create({ data: { projectId: project.id, title: request.libraryFolderName || `${request.name} Library`, body: request.libraryFolderDescription || request.description || "Project-bound library folder.", type: "folder", status: "active", priority: "medium", tags: JSON.stringify(unique(["project-library", "folder", projectType, profile.id])), pinned: true, source: "project-folder" } });
       if (project.libraryFolderId !== folder.id) await input.prisma.project.update({ where: { id: project.id }, data: { libraryFolderId: folder.id } });
       for (const userId of memberIds) await input.prisma.folderPermission.upsert({ where: { folderId_userId: { folderId: folder.id, userId } }, update: { access: userId === request.leadId ? "manage" : "edit" }, create: { folderId: folder.id, userId, access: userId === request.leadId ? "manage" : "edit" } });
+      if (!existed) for (const [index, title] of (request.copiedFolderNames || []).entries()) {
+        await input.prisma.libraryItem.create({ data: { projectId: project.id, parentId: folder.id, title, body: "", type: "folder", status: "active", priority: "medium", tags: "[]", manualOrder: index } });
+      }
       stepReceipts.push({ id: "library", state: existed ? "reused" : "created", resourceId: folder.id });
     } else stepReceipts.push({ id: "library", state: "skipped" });
 

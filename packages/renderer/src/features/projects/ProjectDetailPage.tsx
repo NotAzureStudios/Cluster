@@ -5,7 +5,8 @@ import { clusterProjectCapabilitiesForDefinition } from "@cluster/shared";
 import type * as React from "react";
 import { Suspense, useState, type ComponentType } from "react";
 import { ClusterStatus } from "../../components/ClusterStatus";
-import { ProjectOverviewWorkbench } from "./ProjectOverviewWorkbench";
+import { ProjectFileDropZone, ProjectOverviewWorkbench } from "./ProjectOverviewWorkbench";
+import { ProjectPinnedLinks } from "./ProjectPinnedLinks";
 import { LazyLibraryWorkspacePage } from "../application/application-entrypoints";
 import { api } from "../../core/api";
 import { canUseTool } from "../../core/permissions";
@@ -451,6 +452,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
         onOpenTimeline={onOpenTimeline}
         onOpenTickets={() => onOpenTickets(project.id)}
         onLifecycle={capabilities.canManage ? (action) => void runProjectLifecycleAction(action, "") : undefined}
+        links={<ProjectPinnedLinks project={project} canEdit={capabilities.canEditProject} onSaved={onReloadProjects} />}
       />
       {activeTab !== "source" ? <ProjectCollaborationStrip tool="project" projectId={project.id} activity={`Project · ${tabs.find((item: ProjectDetailTab) => item.id === activeTab)?.label || activeTab}`} /> : null}
 
@@ -458,7 +460,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
       <div className="project-workspace-v312">
         <main className="project-content-v312">
           {activeTab === "overview" && (
-            <>
+            <ProjectFileDropZone project={project} enabled={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} onUploaded={onReloadProjects}>
             <ProjectOverviewDashboard
               project={project}
               projectType={type}
@@ -484,15 +486,16 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
               onRefresh={() => Promise.all([loadProjectSnapshot(), loadProjectDashboard(), loadProjectControlCenter()]).catch(() => undefined)}
               canManage={capabilities.canManage}
               canContribute={capabilities.canContribute}
+              currentUserId={currentUser?.id}
               RelatedRecordsPanel={RelatedRecordsPanel}
               CustomFieldValuesPanel={CustomFieldValuesPanel}
               VersionHistoryPanel={VersionHistoryPanel}
               onRestore={restoreProjectSnapshot}
             >
-              <ProjectOverviewWorkbench project={project} canEdit={capabilities.canEditProject} onSaved={onReloadProjects} onOpenFiles={() => setTab("library")} onOpenLibrary={onOpenLibrary} />
+              <ProjectOverviewWorkbench project={project} canEdit={capabilities.canEditProject} canContribute={capabilities.canContribute} onSaved={onReloadProjects} onOpenFiles={() => setTab("library")} onOpenLibrary={onOpenLibrary} onOpenBoard={onOpenBoard} onOpenTickets={() => onOpenTickets(project.id)} onOpenSection={(section) => setTab(section as typeof tab)} />
             </ProjectOverviewDashboard>
             <CollaborationPanel entityType="project" entityId={project.id} title="Discussion" users={projectUsers} currentUser={currentUser} compact />
-            </>
+            </ProjectFileDropZone>
           )}
 
           {activeTab === "intelligence" && <ProjectIntelligencePanel project={project} projects={projects} users={projectUsers} snapshot={intelligence} loading={intelligenceLoading} canManage={capabilities.canManage} onRefresh={loadProjectIntelligence} onOpenSection={(section) => setTab(section as typeof tab)} />}

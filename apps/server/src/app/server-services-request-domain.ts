@@ -579,6 +579,7 @@ export function createRequestDomainServices(deps: Record<string, any>) {
       productionTracks: parseLabels(project.productionTracks),
       tags: parseLabels(project.tags),
       aliases: parseLabels(project.aliases),
+      pinnedLinks: (() => { try { const links = JSON.parse(project.pinnedLinks || "[]"); return Array.isArray(links) ? links : []; } catch { return []; } })(),
       boards: (project.boards || []).map((board: any) => ({
         ...board,
         assignedUserIds: parseLabels(board.assignedUserIds),

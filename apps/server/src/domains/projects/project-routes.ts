@@ -207,6 +207,45 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
     return sendPrivateRevalidated(request, reply, snapshot);
   });
 
+  // What the current user works from on Overview: their open tickets, the
+  // newest build and the latest commits. Each part follows its tool permission.
+  app.get("/api/projects/:projectId/focus", async (request, reply) => {
+    const params = z.object({ projectId: z.string() }).parse(request.params);
+    const project = await prisma.project.findUnique({ where: { id: params.projectId } });
+    if (!project) return reply.code(404).send({ ok: false, error: "Project not found." });
+    if (!(await enforceTargetAccess(request, reply, "project", project.id, project, "view"))) return;
+    const user = await getCurrentUser(request);
+    const decorated = await decorateUserForClient(user);
+    const role = decorated?.workspaceRole;
+    const hasTool = (tool: string) => Boolean(decorated?.isAdmin || hasToolPermission(user, role, tool, "view"));
+    const [cards, build, bindings] = await Promise.all([
+      hasTool("boards") && user?.id ? prisma.card.findMany({
+        where: { assigneeId: user.id, archived: false, list: { isDone: false, archived: false, board: { projectId: project.id, archived: false } } },
+        orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { updatedAt: "desc" }],
+        take: 30,
+        select: { id: true, title: true, priority: true, dueDate: true, revision: true, list: { select: { title: true, board: { select: { id: true, name: true, lists: { where: { isDone: true, archived: false }, orderBy: { position: "asc" }, take: 1, select: { id: true } } } } } } },
+      }) : Promise.resolve([]),
+      hasTool("builds") ? prisma.deliveryBuild.findFirst({ where: { projectId: project.id, archived: false }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, version: true, platform: true, channel: true, artifactUrl: true, qaStatus: true, approval: true, createdAt: true } }) : Promise.resolve(null),
+      hasTool("sourceControl") ? prisma.projectSourceBinding.findMany({ where: { projectId: project.id, archived: false }, select: { repositoryId: true }, take: 10 }) : Promise.resolve([]),
+    ]);
+    const commits = bindings.length ? await prisma.sourceCommit.findMany({
+      where: { repositoryId: { in: bindings.map((binding: any) => binding.repositoryId) } },
+      orderBy: [{ committedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+      take: 5,
+      select: { id: true, shortRevision: true, message: true, authorName: true, committedAt: true, createdAt: true, webUrl: true },
+    }) : [];
+    const rank: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+    const now = Date.now();
+    const myCards = (cards as any[])
+      .map((card) => ({ id: card.id, title: card.title, priority: card.priority, dueDate: card.dueDate, revision: card.revision, listTitle: card.list.title, boardId: card.list.board.id, boardName: card.list.board.name, doneListId: card.list.board.lists[0]?.id || null }))
+      .sort((a, b) => {
+        const overdue = (card: any) => card.dueDate && new Date(card.dueDate).getTime() < now ? 0 : 1;
+        return overdue(a) - overdue(b) || (rank[a.priority] ?? 2) - (rank[b.priority] ?? 2) || (a.dueDate ? new Date(a.dueDate).getTime() : Infinity) - (b.dueDate ? new Date(b.dueDate).getTime() : Infinity);
+      })
+      .slice(0, 8);
+    return { projectId: project.id, myCards, latestBuild: build, commits: commits.map((commit: any) => ({ ...commit, committedAt: commit.committedAt || commit.createdAt })) };
+  });
+
   app.get("/api/projects/:projectId/overview", async (request, reply) => {
     const params = z.object({ projectId: z.string() }).parse(request.params);
     const project = await prisma.project.findUnique({ where: { id: params.projectId }, include: { memberships: { where: { status: "active" } } } });
@@ -782,6 +821,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         tags: z.array(z.string().trim().min(1).max(48)).max(24).optional(),
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
         healthNote: z.string().max(1000).optional().nullable(),
+        pinnedLinks: z.array(z.object({ label: z.string().trim().min(1).max(60), url: z.string().trim().url().max(2000).refine((value) => /^https?:\/\//i.test(value), "Links must be http(s).") })).max(12).optional(),
         memberRoles: z.record(z.string().max(80)).optional(),
         projectType: z.string().min(1).max(64).optional(),
         productionProfile: z.string().min(1).max(64).optional(),
@@ -952,6 +992,7 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         productionTracks: configuredTypeUpdate || productionProfileUpdate ? JSON.stringify(Array.from(new Set([...(configuredTypeUpdate?.tracks || parseLabels(existingProject.productionTracks)), ...(productionProfileUpdate?.tracks || [])]))) : undefined,
         tags: body.tags ? JSON.stringify(unique(body.tags)) : undefined,
         aliases: body.aliases ? JSON.stringify(unique(body.aliases)) : undefined,
+        pinnedLinks: body.pinnedLinks ? JSON.stringify(body.pinnedLinks) : undefined,
         revision: { increment: 1 },
       };
     // Optimistic header CAS and crew replacement MUST commit or roll back together.
@@ -996,7 +1037,9 @@ export function registerProjectRoutes(deps: ProjectRouteDependencies) {
         memberships: { where: { status: "active" }, orderBy: [{ isLead: "desc" }, { createdAt: "asc" }] },
       },
     });
-    await logActivity({
+    // Notes autosave and link pins are not worth a feed entry each time.
+    const quietEdit = changedKeys.every((key) => ["description", "pinnedLinks", "expectedRevision"].includes(key));
+    if (!quietEdit) await logActivity({
       userId: user?.id,
       projectId: project.id,
       type: changesArchiveState ? (project.archived ? "archived" : "restored") : "updated",

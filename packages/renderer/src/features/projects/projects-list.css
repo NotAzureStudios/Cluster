@@ -320,3 +320,15 @@
 .pl-type span { font-variant-numeric: tabular-nums; opacity: .7; }
 .pl-type:hover { color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); }
 .pl-type.is-active { color: var(--text); background: color-mix(in srgb, var(--accent) 20%, transparent); }
+
+/* Finished projects fold into one "Done" group at the end of the list. */
+.pl-group {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 0 !important; margin-top: var(--space-2); padding: 6px 4px;
+  border: 0 !important; background: transparent !important; box-shadow: none !important; cursor: pointer; font: inherit;
+  color: var(--muted); font-size: var(--cluster-font-size-sm); font-weight: 600; text-align: left;
+}
+.pl-group:hover { color: var(--text); }
+.pl-group small { padding: 0 7px; border-radius: 999px; background: var(--cluster-button-fill); font-size: var(--cluster-font-size-2xs); }
+.pl-group svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
+/* New activity since you last opened the project. */
+.pl-card__fresh { display: inline-block; flex: none; width: 7px; height: 7px; margin: 0 0 2px 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }

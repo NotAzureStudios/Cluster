@@ -26,6 +26,29 @@ export function registerProjectProvisioningRoutes(input: {
     return { user, decorated };
   }
 
+  // Structure only: board columns, top-level folder names, crew and pinned
+  // links. Cards, files and history stay with the source project.
+  async function copiedSetup(projectId: string, auth: { user: any; decorated: any }) {
+    const source = await prisma.project.findFirst({
+      where: { id: projectId, archived: false, ...(auth.decorated?.isAdmin ? {} : { memberships: { some: { userId: auth.user?.id, status: "active" } } }) },
+      select: {
+        pinnedLinks: true, libraryFolderId: true,
+        memberships: { where: { status: "active", user: { archived: false } }, select: { userId: true, roleLabel: true } },
+        boards: { where: { archived: false }, orderBy: { createdAt: "asc" }, take: 1, select: { lists: { where: { archived: false }, orderBy: { position: "asc" }, select: { title: true, isDone: true } } } },
+      },
+    });
+    if (!source) return null;
+    const folders = source.libraryFolderId ? await prisma.libraryItem.findMany({ where: { parentId: source.libraryFolderId, type: "folder", deletedAt: null, status: { notIn: ["archived", "trashed"] } }, orderBy: [{ manualOrder: "asc" }, { title: "asc" }], take: 60, select: { title: true } }) : [];
+    let pinnedLinks: Array<{ label: string; url: string }> = [];
+    try { const parsed = JSON.parse(source.pinnedLinks || "[]"); if (Array.isArray(parsed)) pinnedLinks = parsed.slice(0, 12); } catch { /* keep none */ }
+    return {
+      boardColumns: (source.boards[0]?.lists || []).map((list: any) => ({ title: String(list.title), isDone: Boolean(list.isDone) })),
+      folderNames: folders.map((folder: any) => String(folder.title)),
+      pinnedLinks,
+      members: source.memberships.map((member: any) => ({ userId: String(member.userId), roleLabel: String(member.roleLabel || "Member") })),
+    };
+  }
+
   async function validateRequest(request: FastifyRequest, reply: FastifyReply) {
     const auth = await requireCreateAccess(request, reply);
     if (!auth) return null;
@@ -33,6 +56,16 @@ export function registerProjectProvisioningRoutes(input: {
     if (body.startDate && body.targetDate && body.targetDate.getTime() < body.startDate.getTime()) return reply.code(400).send({ ok: false, code: "PROJECT_DATE_RANGE_INVALID", error: "Project target date must be on or after the start date." }) as any;
     const workspace = await prisma.workspace.findFirst();
     if (!workspace) return reply.code(409).send({ ok: false, code: "WORKSPACE_NOT_READY", error: "Complete workspace setup before creating projects." }) as any;
+    const copied = body.copyFromProjectId ? await copiedSetup(body.copyFromProjectId, auth) : null;
+    if (body.copyFromProjectId && !copied) return reply.code(404).send({ ok: false, code: "PROJECT_COPY_SOURCE_NOT_FOUND", error: "The project to copy from was not found." }) as any;
+    body.copiedBoardColumns = copied?.boardColumns;
+    body.copiedFolderNames = copied?.folderNames;
+    body.copiedPinnedLinks = copied?.pinnedLinks;
+    if (copied) {
+      body.memberIds = [...body.memberIds, ...copied.members.map((member: { userId: string }) => member.userId)];
+      const copiedLabels = copied.members.filter((member: { userId: string }) => member.userId !== body.leadId).map((member: { userId: string; roleLabel: string }) => [member.userId, member.roleLabel === "Project Lead" ? "Member" : member.roleLabel]);
+      body.roleLabels = { ...Object.fromEntries(copiedLabels), ...body.roleLabels };
+    }
     const memberIds = Array.from(new Set([body.leadId, ...body.memberIds]));
     if (!memberIds.includes(body.leadId)) memberIds.unshift(body.leadId);
     const members = await prisma.workspaceMember.findMany({ where: { workspaceId: workspace.id, userId: { in: memberIds }, user: { archived: false } }, select: { userId: true } });

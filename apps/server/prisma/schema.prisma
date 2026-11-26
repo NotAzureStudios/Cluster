@@ -853,6 +853,7 @@ model Project {
   blueprintKey  String?
   workspacePresetKey String?
   provisioningKey String? @unique
+  pinnedLinks   String   @default("[]")
   status        String   @default("active")
   productionTracks String @default("[\"studio\"]")
   archived      Boolean  @default(false)

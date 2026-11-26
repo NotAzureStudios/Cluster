@@ -1,5 +1,5 @@
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
-import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
+import type { ReactNode } from "react";
 import "./project-head.css";
 import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { ClusterIcon } from "../../components/ClusterIcon";
@@ -34,6 +34,7 @@ type Props = {
   onOpenTickets: () => void;
   allowCloseout?: boolean;
   onLifecycle?: (action: "complete" | "reopen") => void;
+  links?: ReactNode;
 };
 
 /* The project header, two rows: identity and key facts, then the tabs.
@@ -42,7 +43,7 @@ type Props = {
    dropdown, then a presence bar — about 230px before any content. The facts
    from Info sit on the title line as small indicators instead, so nothing is
    hidden behind a click. */
-export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets, allowCloseout = false, onLifecycle }: Props) {
+export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, primaryBoardId, tabs, primaryTabIds, activeTab, onTabChange, onBack, onOpenBoard, onOpenTimeline, onOpenTickets, allowCloseout = false, onLifecycle, links }: Props) {
   const status = projectStatusLabel(project);
   const statusTone = projectStatusMeta(project).tone;
   const target = project.targetDate ? new Date(project.targetDate) : null;
@@ -69,6 +70,7 @@ export function ProjectDetailHeader({ project, typeLabel, readiness, teamCount, 
           {project.updatedAt ? <li className="pj-facts__soft" title={new Date(project.updatedAt).toLocaleString()}>Updated {formatRelativeTime(project.updatedAt)}</li> : null}
         </ul>
         <div className="pj-head__actions">
+          {links}
           {primaryBoardId ? <ClusterButton variant="primary" size="compact" onClick={() => onOpenBoard(primaryBoardId)}><ClusterIcon name="grid" />Board</ClusterButton> : null}
           <ClusterActionMenu label="Go to" iconOnly items={[
             { id: "timeline", label: "Timeline", icon: "timeline", onSelect: onOpenTimeline },
