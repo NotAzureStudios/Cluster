@@ -332,3 +332,12 @@
 .pl-group svg.cluster-icon-svg { inline-size: 14px; block-size: 14px; }
 /* New activity since you last opened the project. */
 .pl-card__fresh { display: inline-block; flex: none; width: 7px; height: 7px; margin: 0 0 2px 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; }
+
+/* Phones: search takes the row; table view and the details panel need a wide
+   screen, so their toggles step aside. */
+@media (max-width: 640px) {
+  .pl-bar__tools { gap: var(--space-1); min-width: 0; }
+  .pl-search { min-width: 0; }
+  .pl-seg > :nth-child(3), .pl-bar__tools > .cluster-icon-button-v425:last-child { display: none; }
+  .pl-tabs { overflow-x: auto; scrollbar-width: none; }
+}

@@ -540,3 +540,7 @@
   .shared-create-workspace-v254.form-mode-v455 .shared-create-main-v254 { height: auto; min-height: 0; }
   .shared-create-workspace-v254.form-mode-v455 .shared-create-scroll-v254 { height: auto; max-height: calc(100dvh - 200px); min-height: 160px; }
 }
+
+/* Type rows read left to right on every width (phones centred the labels). */
+.shared-create-type-group-v458 .cluster-button-v425 { text-align: left; }
+.shared-create-type-copy-v458 { justify-self: start; text-align: left; }

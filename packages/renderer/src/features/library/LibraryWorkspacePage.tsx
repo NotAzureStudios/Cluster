@@ -218,6 +218,18 @@ function FolderTree({ folders, files, activeId, showFiles, onShowFiles, onOpenFo
   </div>;
 }
 
+function useNarrowLibraryScreen() {
+  const query = "(max-width: 980px)";
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setNarrow(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
 /** Pinned items sit at the top of the Explorer, like a sidebar of favourites. */
 function PinnedShelf({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: LibraryItem) => void }) {
   const [open, setOpen] = useState(true);
@@ -637,9 +649,12 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   const [treeFiles, setTreeFiles] = useState<LibraryItem[]>([]);
   const [showTreeFiles, setShowTreeFiles] = useServerState<boolean>("user", "library.show-tree-files", false, { merge: (value) => value === true || Number(value) === 1 });
   const [storedExplorerCollapsed, setStoredExplorerCollapsed] = useServerState<boolean>("user", "library.explorer-collapsed", false, { merge: (value) => value === true || Number(value) === 1 });
-  const [embeddedSidebarOpen, setEmbeddedSidebarOpen] = useState(false);
-  const explorerCollapsed = embedded ? !embeddedSidebarOpen : storedExplorerCollapsed;
-  const setExplorerCollapsed = (value: boolean) => embedded ? setEmbeddedSidebarOpen(!value) : setStoredExplorerCollapsed(value);
+  // Embedded and narrow screens: the sidebar is a drawer, closed until asked for.
+  const narrowScreen = useNarrowLibraryScreen();
+  const drawerSidebar = embedded || narrowScreen;
+  const [drawerSidebarOpen, setDrawerSidebarOpen] = useState(false);
+  const explorerCollapsed = drawerSidebar ? !drawerSidebarOpen : storedExplorerCollapsed;
+  const setExplorerCollapsed = (value: boolean) => drawerSidebar ? setDrawerSidebarOpen(!value) : setStoredExplorerCollapsed(value);
   const [viewsOpen, setViewsOpen] = useServerState<boolean>("user", "library.explorer.locations-open", false, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
   const [collectionsOpen, setCollectionsOpen] = useServerState<boolean>("user", "library.explorer.collections-open", true, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
   const [foldersOpen, setFoldersOpen] = useServerState<boolean>("user", "library.explorer.folders-open", true, { merge: (value, fallback) => value == null ? fallback : value === true || Number(value) === 1 });
@@ -662,6 +677,8 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   const [users, setUsers] = useState<User[]>([]);
   const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const [librarySection, setLibrarySection] = useState<LibrarySection>("folder");
+  // Picking a place in the drawer closes it on narrow screens.
+  useEffect(() => { if (narrowScreen) setDrawerSidebarOpen(false); }, [narrowScreen, folderId, librarySection, activeCollection?.id]);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
   const [searchScope, setSearchScope] = useServerState<LibrarySearchScope>("user", "library.search-scope", "library", { merge: (value, fallback) => ["folder", "descendants", "project", "library"].includes(String(value)) ? value as LibrarySearchScope : fallback });
@@ -2159,7 +2176,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   return <section className={`page cluster-library-workspace lib-page${embedded ? " lib-page--embedded" : ""}`}>
     <ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} />
     <ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-    <ClusterResizableRail className="lib-body" label="Library sidebar" persistKey="library-folders" minWidth={184} defaultWidth={232} maxWidth={360} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217 lib-side" aria-label="Library sidebar">
+    <ClusterResizableRail className={`lib-body${drawerSidebar ? " lib-body--drawer" : ""}`} label="Library sidebar" persistKey="library-folders" minWidth={184} defaultWidth={232} maxWidth={360} collapsed={explorerCollapsed} rail={<aside className="library-sidebar-v217 lib-side" aria-label="Library sidebar">
       <LibrarySpaceIndicator />
       <div className="lib-side-head">
         <ClusterActionMenu label="New in Library" triggerLabel="New" icon="plus" align="start" className="lib-new" items={newItems} />
@@ -2191,6 +2208,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
           {foldersOpen ? <FolderTree folders={folders} files={treeFiles} activeId={folderId} showFiles={showTreeFiles} onShowFiles={setShowTreeFiles} onOpenFolder={(id) => { setLibrarySection("folder"); setFolderId(id); setActiveItem(null); setActiveId(null); }} onOpenItem={(item) => void selectItem(item)} onCreateFolder={beginCreateFolder} onManagePermissions={(item) => void openFolderPermissions(item)} onDropInto={itemInteraction.dropInto} /> : null}
         </section>
     </aside>}>
+      {drawerSidebar && drawerSidebarOpen ? <ClusterButton unstyled type="button" className="lib-scrim" aria-label="Close sidebar" onClick={() => setDrawerSidebarOpen(false)} /> : null}
       <ClusterMasterDetail className="library-master-detail-v429 lib-master" label="Library items and details" masterLabel="Library items" detailLabel="Library details" detailOpen={Boolean(activeItem)} onCloseDetail={libraryDetailHistory.closeDetail} detailSize="narrow" persistKey="library" master={<main className={`library-main-v217 lib-main${dropActive ? " is-dropping" : ""}`} onDragEnter={handleLibraryDragEnter} onDragOver={handleLibraryDragOver} onDragLeave={handleLibraryDragLeave} onDrop={handleLibraryDrop}>
         {dropActive ? <div className="library-drop-overlay-v531" aria-hidden="true"><span><LibraryIcon name="upload" size={28} /></span><strong>Drop files to upload</strong><small>{folderId ? `Into ${currentFolder?.title || "this folder"}` : "Into Library"}</small></div> : null}
         <header className="lib-toolbar">

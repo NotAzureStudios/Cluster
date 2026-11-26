@@ -74,6 +74,9 @@
   align-items: center;
   gap: var(--space-3);
   height: var(--cl-titlebar-h);
+  /* Bleeds into the page gutter on both sides; a generic max-width: 100%
+     clipped it short of the right edge. */
+  max-width: none;
   margin: 0 calc(-1 * var(--cl-gutter));
   padding: 0 var(--cl-gutter);
   border: 0;

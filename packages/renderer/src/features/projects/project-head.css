@@ -164,3 +164,16 @@
 .pj-links__add.cluster-icon-button-v425 { color: var(--muted); }
 @media (max-width: 1200px) { .pj-links a span { display: none; } .pj-links a { padding: 0 8px; } }
 @media (max-width: 700px) { .pj-links { display: none; } }
+
+/* Phones: the title gets the room; Board shrinks to its icon and the status
+   chip to a dot. */
+@media (max-width: 640px) {
+  .pj-head__row { gap: var(--space-1-5, 6px); }
+  .pj-head__mark { display: none; }
+  .pj-head h1 { flex: 1 1 auto; font-size: var(--cluster-font-size-lg); }
+  .pj-status { width: 22px; padding: 0; justify-content: center; font-size: 0; }
+  .pj-status::before { width: 8px; height: 8px; }
+  .pj-head__actions .cluster-button-v425.primary { width: 32px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+  .pj-head__actions .cluster-button-v425.primary svg { width: 16px; height: 16px; }
+  .pj-tabbar > .compact-section-nav-v204 { overflow-x: auto; scrollbar-width: none; }
+}

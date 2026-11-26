@@ -60,3 +60,13 @@
   .adm-nav__group { display: flex; gap: 2px; }
   .adm-nav__item { width: auto; }
 }
+
+/* Phones: one row of full labels that scrolls sideways instead of wrapping
+   into truncated stubs. */
+@media (max-width: 640px) {
+  .adm-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 4px; }
+  .adm-nav::-webkit-scrollbar { display: none; }
+  .adm-nav__group { flex: none; }
+  .adm-nav__item { flex: none; white-space: nowrap; }
+  .adm-nav__item > span, .adm-nav__item strong { overflow: visible; text-overflow: clip; max-width: none; }
+}

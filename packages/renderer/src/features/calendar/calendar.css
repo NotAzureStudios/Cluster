@@ -286,3 +286,17 @@
 .calendar-selected-list-v189 button:hover { background: var(--cluster-button-fill); }
 .calendar-selected-list-v189 button strong { color: var(--text); }
 .calendar-page-v189 .calendar-toolbar-v190.panel, .calendar-page-v189 .calendar-main-v189.panel { --cluster-panel-pad: 10px; }
+
+/* Phones: the range row wraps (date jump on its own line, nothing clipped),
+   filters stack full width, layer toggles share one row. */
+@media (max-width: 640px) {
+  .calendar-page-v189 .calendar-toolbar-v190 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+  .calendar-page-v189 .calendar-toolbar-v190 > .cl-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-range-control-v189 { flex-wrap: wrap; row-gap: 6px; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-range-control-v189 > .calendar-date-jump-v11 { flex: 1 1 100%; min-width: 0; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-date-jump-v11 input { width: 100%; min-width: 0; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-filter-row-v190 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-filter-row-v190 > :first-child { grid-column: 1 / -1; }
+  .calendar-page-v189 .calendar-toolbar-v190 .calendar-filter-row-v190 > * { width: 100%; min-width: 0; flex: none; }
+  .calendar-page-v189 .calendar-layer-controls-v11 { display: flex; flex-wrap: wrap; gap: 4px; }
+}

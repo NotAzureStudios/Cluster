@@ -371,3 +371,33 @@
 @container (max-width: 460px) {
   .lib-page .lib-toolbar > .cluster-select-v227 { flex: 0 0 104px; width: 104px; }
 }
+
+/* Drawer sidebar (narrow screens and the project Files tab): the content
+   keeps the full width and the sidebar slides over it. */
+.lib-page .lib-body.lib-body--drawer { position: relative; display: block; }
+.lib-page .lib-body--drawer > .cluster-resizable-rail-handle-v497 { display: none; }
+.lib-page .lib-body--drawer > .cluster-resizable-main-v497 { width: 100%; height: 100%; }
+.lib-page .lib-body--drawer > .cluster-resizable-rail-content-v497 {
+  position: absolute; inset: 0 auto 0 0; z-index: 25; display: block; width: min(300px, 86%); height: 100%;
+  background: var(--cluster-workbench-panel, var(--panel)); box-shadow: 12px 0 32px color-mix(in srgb, #000 35%, transparent);
+}
+.lib-page .lib-body--drawer .lib-side { max-height: none; height: 100%; border: 0; }
+.lib-page .lib-body--drawer .library-folder-tree-v229 { display: grid; grid-template-columns: minmax(0, 1fr); }
+.lib-page .lib-scrim { position: absolute; inset: 0; z-index: 24; width: 100%; height: 100%; min-height: 0 !important; padding: 0; border: 0 !important; border-radius: 0; background: color-mix(in srgb, #000 35%, transparent) !important; box-shadow: none !important; }
+.lib-page .cluster-resizable-main-v497 { position: relative; }
+.lib-page .library-file-name-v217 strong > svg { display: inline; margin-right: 4px; vertical-align: -2px; color: var(--warning, #f5c451); }
+
+/* Narrow path: keep only the current folder; the up arrow walks back. */
+@container (max-width: 640px) {
+  .lib-page .lib-path > button:not(.cluster-icon-button-v425):has(+ span),
+  .lib-page .lib-path > span:not(:last-of-type) { display: none; }
+  .lib-page .lib-path > span:last-of-type > i { display: none; }
+  .lib-page .lib-path > span > button, .lib-page .lib-path > span > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+.lib-page .library-preview-actions-v217 > a { text-decoration: none; }
+.lib-page .library-inspector-tabs-v217 { overflow-x: auto; scrollbar-width: none; }
+.lib-page .library-inspector-tabs-v217 > button { white-space: nowrap; }
+/* The details sheet can render outside .lib-page on phones. */
+.library-preview-actions-v217 > a { text-decoration: none; }
+.library-inspector-tabs-v217 { overflow-x: auto; scrollbar-width: none; }
+.library-inspector-tabs-v217 > button { white-space: nowrap; }
