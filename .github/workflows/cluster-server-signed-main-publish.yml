@@ -206,9 +206,16 @@ jobs:
           [IO.File]::WriteAllText($jsonPath,($payload | ConvertTo-Json -Depth 3),[Text.UTF8Encoding]::new($false))
           gh api -X PUT "repos/$env:GITHUB_REPOSITORY/contents/$feedFile" --input "$jsonPath" | Out-Null
           if ($LASTEXITCODE -ne 0) { throw 'Versioned Server release was published, but signed main pointer was not advanced; recover manually, never overwrite the immutable release' }
-          $published = gh api -X GET "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw 'Could not independently read the signed update pointer' }
-          $publishedBytes = [Convert]::FromBase64String(([string]$published.content -replace '\s',''))
-          $publishedDigest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($publishedBytes)).ToLowerInvariant()
+          # The contents API can serve the previous blob for a few seconds after
+          # a write, so the independent read-back retries before failing.
+          $publishedDigest = ''
+          for ($attempt = 1; $attempt -le 6; $attempt++) {
+            $published = gh api -X GET -H "Cache-Control: no-cache" "repos/$env:GITHUB_REPOSITORY/contents/${feedFile}?ref=$feedBranch" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Could not independently read the signed update pointer' }
+            $publishedBytes = [Convert]::FromBase64String(([string]$published.content -replace '\s',''))
+            $publishedDigest = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($publishedBytes)).ToLowerInvariant()
+            if ($publishedDigest -eq $feedDigest) { break }
+            Start-Sleep -Seconds (5 * $attempt)
+          }
           if ($publishedDigest -ne $feedDigest) { throw 'Published signed update pointer differs from signed release manifest' }
           Write-Host "Published immutable signed Server $($metadata.release) and verified updated signed main pointer."
