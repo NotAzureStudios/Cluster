@@ -42,3 +42,15 @@
 .packets-page-v248 .packets-status-slot-v250:not(.has-message) { display: none; }
 .packet-catalog-grid-v269 .packet-card-v248 { text-align: left; justify-content: start; }
 .packet-catalog-grid-v269 .packet-card-v248 > span { justify-items: start; }
+
+/* Phones: title reads from the left like every other page; the catalog
+   toolbar stacks so search fits; list covers shrink to a small mark. */
+@media (max-width: 640px) {
+  .packets-page-v248 > .packets-header-v248 { display: grid !important; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 8px; }
+  .packets-page-v248 > .packets-header-v248 > .button-row { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px; min-width: 0; max-width: 100%; }
+  .packets-page-v248 > .packets-header-v248 > :first-child { margin: 0; justify-content: flex-start !important; text-align: left; }
+  .packets-page-v248 .packet-catalog-toolbar-v269 { grid-template-columns: minmax(0, 1fr); }
+  .packets-page-v248 .packet-shelf-tools-v248 { grid-template-columns: minmax(0, 1fr) auto; width: 100%; min-width: 0; }
+  .packets-page-v248 .packet-catalog-grid-v269.list > button { grid-template-columns: 36px minmax(0, 1fr); }
+  .packets-page-v248 .packet-catalog-grid-v269.list .packet-cover-v248 { width: 36px; height: 36px; }
+}

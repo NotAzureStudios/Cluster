@@ -914,3 +914,14 @@ max-width: 230px;
 .tl-map__empty { padding: var(--space-6) var(--space-3); color: var(--muted); text-align: center; }
 .timeline-page-v156 .timeline-header-filters-v254 :is(.field, .cluster-select-v227) { width: auto; flex: none; }
 .timeline-page-v156 .timeline-header-filters-v254 .timeline-preset-row-v154 { display: inline-flex; grid-template-columns: none; }
+
+/* Phones: header and filter cards span the same width as the map below;
+   filters sit in an even two-column grid. */
+@media (max-width: 640px) {
+  .timeline-page-v156 .timeline-commandbar-v254 { padding: 0 !important; gap: 8px !important; }
+  .timeline-page-v156 .timeline-header-filters-v254 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 8px; }
+  .timeline-page-v156 .timeline-header-filters-v254 > .timeline-preset-row-v154 { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .timeline-page-v156 .timeline-header-filters-v254 > .field { width: 100%; min-width: 0; }
+  .timeline-page-v156 .timeline-header-filters-v254 > .field > * { width: 100%; min-width: 0; }
+  .timeline-page-v156 .timeline-commandbar-v254 .page-head-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+}

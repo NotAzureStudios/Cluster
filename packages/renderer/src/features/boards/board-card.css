@@ -107,3 +107,12 @@
 .ce .card-cover-color-v300 :is(button, label) { white-space: nowrap; }
 .ce :is(.ce-more, .card-subsections.ce-side-sections) { grid-column: 1 / -1; }
 .ce .ce-more { display: block; width: 100%; }
+
+/* Phones: the full-screen card sheet is opaque; at 94% the board text
+   behind it showed through between fields. */
+@media (max-width: 760px) {
+  .modal.card-editor.card-editor-fullscreen-v254 { background: var(--cluster-workbench-panel, var(--panel)) !important; }
+  /* Footer: secondary actions in one sideways-scrolling row, Cancel/Save below. */
+  .card-editor-fullscreen-v254 > .modal-actions.split-actions > .button-row:first-child { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+  .card-editor-fullscreen-v254 > .modal-actions.split-actions > .button-row:first-child > .cluster-button-v425 { flex: none; min-height: 32px; height: 32px; padding: 0 10px; font-size: var(--cluster-font-size-sm); }
+}

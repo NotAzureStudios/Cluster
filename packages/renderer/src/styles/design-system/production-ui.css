@@ -480,3 +480,14 @@ body,
 .cluster-filter-bar-v537{background:var(--cluster-surface-2,var(--panel-2));border:1px solid var(--border)}
 .cluster-field-v425[aria-label]>.cluster-toolbar-v425{background:var(--cluster-surface-2,var(--panel-2));border:1px solid var(--border);border-radius:var(--cluster-radius-control);padding:6px}
 .cluster-field-v425[aria-label]>.cluster-toolbar-v425+.cluster-toolbar-v425{margin-top:5px}
+
+/* Phones: table filters in an even two-column grid instead of ragged
+   half-width selects. */
+@media (max-width: 640px) {
+  .cluster-filter-bar-v537 { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .cluster-filter-bar-v537 > * { width: 100%; min-width: 0; max-width: none; }
+  .cluster-filter-bar-v537 .cluster-select-v227, .cluster-filter-bar-v537 .cluster-select-trigger-v227 { width: 100%; }
+}
+@media (max-width: 640px) {
+  .cluster-data-toolbar-v289 > .cluster-filter-bar-v537 { flex: 1 1 100%; width: 100%; }
+}

@@ -90,3 +90,16 @@
 
 .setup-access-guidance-rc46{display:grid;gap:6px;background:var(--surface-soft);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text)}
 .setup-access-guidance-rc46 span{color:var(--soft-text);font-size:.76rem;line-height:1.4}
+
+/* Phones: presence fields stack, label above control. */
+@media (max-width: 640px) {
+  .account-presence-grid-v547 .field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .account-presence-grid-v547 .field > * { width: 100%; min-width: 0; }
+}
+/* Phones: settings fields stack (label above control) instead of squeezing
+   controls into the right half. Switch rows keep their side-by-side layout. */
+@media (max-width: 640px) {
+  .settings-card-v092 .compact-fields-v092 > .field:not(:has(.cluster-toggle-v533)) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .settings-card-v092 .compact-fields-v092 > .field > * { min-width: 0; max-width: 100%; }
+  .settings-card-v092 .studio-logo-controls-v239 { justify-content: flex-start; }
+}

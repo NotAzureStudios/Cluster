@@ -1467,40 +1467,13 @@ export function workflowAttentionItems(
   return items;
 }
 
-export function closeoutAttentionItems(
+// Only external projects missing a client portal raise attention here:
+// completing a project is final, so finished projects raise none.
+export function externalPortalAttentionItems(
   projects: Project[] = [],
-  records: ProjectCloseoutRecord[] = [],
   portalRules: ExternalPortalRule[] = [],
 ) {
   const items: AttentionItem[] = [];
-  projects
-    .filter((project) => !project.archived && normalizeProjectStatus(project.status) === "completed")
-    .forEach((project) => {
-      const record = normalizeCloseout(
-        project,
-        records.find((item) => item.projectId === project.id),
-      );
-      const blockers = closeoutBlockingItems(record);
-      if (blockers.length) {
-        items.push(
-          makeAttentionItem({
-            id: `closeout-${project.id}`,
-            source: "closeout",
-            severity: blockers.length > 3 ? "high" : "medium",
-            title: `${project.name} needs closeout`,
-            detail: `${closeoutScore(record)}% ready · ${blockers
-              .slice(0, 3)
-              .map((item) => item.label)
-              .join(" · ")}`,
-            projectId: project.id,
-            projectName: project.name,
-            createdAt: record.updatedAt || record.createdAt,
-            actionLabel: "Open closeout",
-            target: "projects",
-          }),
-        );
-      }
-    });
   projects.filter(isExternalProject).forEach((project) => {
     const summary = projectExternalPortalSummary(project, portalRules);
     if (!summary.total)

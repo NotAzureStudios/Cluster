@@ -301,3 +301,9 @@ button.hw-row { cursor: pointer; }
   .hw-item, .hw-slot { transition: none; }
   .hw-item[data-dragging="true"] { transform: none; }
 }
+
+/* Phones: a card with nothing to show ("All clear") takes one row, not the
+   full height it was laid out with on desktop. */
+@media (max-width: 640px) {
+  .hw-grid[data-mode="flow"] .hw-item:has(.hw-clear) { grid-row: span 1; }
+}

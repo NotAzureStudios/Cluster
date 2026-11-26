@@ -283,3 +283,9 @@
 .vault-tool-workspace .cluster-vault-toolbar > input { flex: 1 1 200px; height: 32px !important; min-height: 32px !important; font-size: var(--cluster-font-size-sm) !important; }
 .vault-tool-workspace .cluster-vault-toolbar > select { width: auto !important; height: 32px; min-height: 32px; padding-block: 0; font-size: var(--cluster-font-size-sm); }
 .vault-tool-workspace .cluster-vault-toolbar-spacer { flex: 1 0 0 !important; }
+
+/* Phones: search and state filter share the row edge to edge. */
+@media (max-width: 640px) {
+  .cluster-inventory-toolbar > .cluster-inventory-search { flex: 1 1 160px; min-width: 0; }
+  .cluster-inventory-toolbar > .cluster-inventory-filters { flex: 0 0 auto; }
+}

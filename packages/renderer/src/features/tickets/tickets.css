@@ -146,11 +146,11 @@
 .tickets-virtual-row-v296 .tickets-row-v184 > button > div:first-child { gap: 2px; }
 .tickets-virtual-row-v296 .tickets-row-v184 > button > div:first-child strong { font-size: var(--cluster-font-size-sm); font-weight: 600; }
 
-/* Phones: queue tabs and filters scroll sideways instead of stacking. */
+/* Phones: queue tabs scroll sideways; filters sit two per row. */
 @media (max-width: 720px) {
   .tickets-workspace-v186 .tickets-queue-tabs-v216 { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .tickets-workspace-v186 .tickets-queue-tabs-v216 > button { flex: none; min-width: 0; }
-  .tickets-workspace-v186 .cluster-data-filters-v289 { display: flex !important; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }
-  .tickets-workspace-v186 .cluster-data-filters-v289 > * { flex: none; width: auto; min-width: 0; }
-  .tickets-workspace-v186 .cluster-data-filters-v289 .cluster-select-trigger-v227 { width: auto; min-width: 120px; }
+  .tickets-workspace-v186 .cluster-data-filters-v289 { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .tickets-workspace-v186 .cluster-data-filters-v289 > * { width: 100%; min-width: 0; }
+  .tickets-workspace-v186 .cluster-data-filters-v289 .cluster-select-v227, .tickets-workspace-v186 .cluster-data-filters-v289 .cluster-select-trigger-v227 { width: 100%; min-width: 0; }
 }

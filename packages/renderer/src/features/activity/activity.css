@@ -173,3 +173,10 @@
   .activity-row-v245 > .activity-row-copy-v245 { grid-column:2; grid-row:1; }
   .activity-row-v245 > .activity-row-context-v245 { grid-column:2 / -1; grid-row:2; display:flex; flex-wrap:wrap; gap:4px; }
 }
+
+/* Phones: search on its own line, filters two per row, nothing off screen. */
+@media (max-width: 640px) {
+  .activity-page-v245 .activity-filterbar-v245 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .activity-page-v245 .activity-filterbar-v245 > :first-child { grid-column: 1 / -1; }
+  .activity-page-v245 .activity-filterbar-v245 > * { width: 100%; min-width: 0; }
+}
