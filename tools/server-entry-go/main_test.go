@@ -98,3 +98,11 @@ func TestLegacyUTF8BOMInstallMarker(t *testing.T) {
     got, err := chooseLaunch(p)
     if err != nil || got.Path != p.NativeManager { t.Fatalf("BOM-encoded legacy marker not accepted: %+v, %v", got, err) }
 }
+
+func TestManagedBinCopyOpensItsOwnInstall(t *testing.T) {
+    base := filepath.Join(string(filepath.Separator), "Studio")
+    paths := pathsForExecutable(filepath.Join(base, "Cluster", "Server", "bin", "Cluster Server.exe"))
+    if paths.ServerRoot != filepath.Join(base, "Cluster", "Server") {
+        t.Fatalf("bin copy resolved %s", paths.ServerRoot)
+    }
+}

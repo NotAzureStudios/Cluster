@@ -27,6 +27,13 @@ type entryPaths struct {
 
 func pathsForExecutable(executable string) entryPaths {
     base := filepath.Dir(executable)
+    // The managed copy in <base>\Cluster\Server\bin opens the same install.
+    // Drive-root installs have no root-level copy, so this one is the entry.
+    if bin := base; strings.EqualFold(filepath.Base(bin), "bin") &&
+        strings.EqualFold(filepath.Base(filepath.Dir(bin)), "Server") &&
+        strings.EqualFold(filepath.Base(filepath.Dir(filepath.Dir(bin))), "Cluster") {
+        base = filepath.Dir(filepath.Dir(filepath.Dir(bin)))
+    }
     managed := filepath.Join(base, "Cluster")
     server := filepath.Join(managed, "Server")
     return entryPaths{
