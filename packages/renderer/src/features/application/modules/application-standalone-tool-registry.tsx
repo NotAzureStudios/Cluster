@@ -17,7 +17,6 @@ export type StandaloneToolModule = Readonly<{
 const inventoryLoader = () => import("../../inventory/InventoryWorkspacePage");
 const integrationsLoader = () => import("../../admin/ProductionIntegrationAdminPages");
 const Inventory = lazy(() => inventoryLoader().then((module) => ({ default: module.InventoryWorkspacePage })));
-const Vault = lazy(() => inventoryLoader().then((module) => ({ default: module.VaultWorkspacePage })));
 const Integrations = lazy(() => integrationsLoader().then((module) => ({ default: module.IntegrationsAdminPage })));
 
 /** One entry per canonical standalone route. Adding a tool should never
@@ -29,7 +28,8 @@ export const STANDALONE_TOOL_MODULES: Readonly<Record<ClusterStandaloneToolRoute
   },
   vault: {
     preload: inventoryLoader,
-    render: () => <Vault />,
+    // Vault lives in Inventory; the route opens that tab.
+    render: ({ isAdmin, pinConfigured }) => <Inventory isAdmin={isAdmin} pinConfigured={pinConfigured} initialSection="vault" />,
   },
   integrations: {
     preload: integrationsLoader,

@@ -105,11 +105,11 @@ function ColorPickerPanel({ value, onChange, swatches, label, onDone }: { value:
   const [recent, setRecent] = useState<string[]>(() => readRecentColors());
   const [view, setView] = useState<"palette" | "custom">("palette");
   const planeRef = useRef<HTMLDivElement | null>(null);
-  const palette = useMemo(() => Array.from(new Set(swatches.map((color) => normalizeHex(color)))), [swatches]);
   const studio = studioColor();
+  // Studio colour leads the palette; no separate row for it.
+  const palette = useMemo(() => Array.from(new Set([studio, ...swatches.map((color) => normalizeHex(color))])), [swatches, studio]);
   const whiteContrast = contrastRatio(safeValue, "#ffffff");
   const blackContrast = contrastRatio(safeValue, "#000000");
-  const bestText = whiteContrast >= blackContrast ? "#ffffff" : "#000000";
   const bestContrast = Math.max(whiteContrast, blackContrast);
 
   useEffect(() => {
@@ -166,13 +166,13 @@ function ColorPickerPanel({ value, onChange, swatches, label, onDone }: { value:
 
   const swatchButton = (color: string, recentColor = false) => {
     const active = safeValue === color;
-    return <ClusterButton unstyled key={`${recentColor ? "recent" : "palette"}-${color}`} type="button" className={active ? "active" : ""} style={runtimeStyle({ "--cluster-swatch": color })} onClick={() => apply(color, true)} aria-label={`Use ${recentColor ? "recent " : ""}color ${color}`} aria-pressed={active}><span aria-hidden="true" />{active ? <ClusterIcon name="check" /> : null}</ClusterButton>;
+    return <ClusterButton unstyled key={`${recentColor ? "recent" : "palette"}-${color}`} type="button" className={active ? "active" : ""} style={runtimeStyle({ "--cluster-swatch": color })} onClick={() => apply(color, true)} aria-label={`Use ${recentColor ? "recent " : color === studio ? "studio " : ""}color ${color}`} title={color === studio && !recentColor ? `Studio color ${color.toUpperCase()}` : color.toUpperCase()} aria-pressed={active} data-studio={color === studio && !recentColor ? true : undefined}><span aria-hidden="true" />{active ? <ClusterIcon name="check" /> : null}</ClusterButton>;
   };
 
   return <div className="cluster-color-popover-v455 cluster-color-popover-v457 cluster-color-popover-v458 cluster-color-popover-v467">
     <header className="cluster-color-preview-v455 cluster-color-preview-v457 cluster-color-preview-v458 cluster-color-preview-v467">
       <span className="cluster-color-preview-swatch-v455" style={runtimeStyle({ "--cluster-swatch": safeValue })} aria-hidden="true" />
-      <span className="cluster-color-preview-copy-v458"><strong>{label}</strong><code>{safeValue.toUpperCase()}</code></span>
+      <span className="cluster-color-preview-copy-v458"><strong>{label}</strong><code>{safeValue.toUpperCase()} · <span title={bestContrast >= 4.5 ? "Readable text pairing" : "Low contrast for text"} data-tone={bestContrast >= 4.5 ? undefined : "warning"}>{bestContrast.toFixed(1)}:1</span></code></span>
       <ClusterButton type="button" className="" onClick={() => { rememberColor(safeValue); onDone(); }} variant="quiet" size="compact">Done</ClusterButton>
     </header>
 
@@ -182,11 +182,7 @@ function ColorPickerPanel({ value, onChange, swatches, label, onDone }: { value:
     </div>
 
     {view === "palette" ? <div className="cluster-color-palette-view-v458">
-      <ClusterButton unstyled type="button" className={`cluster-color-studio-v457 cluster-color-studio-v458 cluster-color-studio-v467 ${safeValue === studio ? "active" : ""}`} onClick={() => apply(studio, true)} aria-pressed={safeValue === studio}>
-        <span style={runtimeStyle({ "--cluster-swatch": studio })} aria-hidden="true" /><span><strong>Studio color</strong><small>Workspace accent</small></span><code>{studio.toUpperCase()}</code>{safeValue === studio ? <ClusterIcon name="check" /> : null}
-      </ClusterButton>
       <section className="cluster-color-section-v455 cluster-color-section-v458" aria-label="Suggested colors">
-        <span className="cluster-color-section-label-v455">Palette</span>
         <div className="cluster-color-grid-v455 cluster-color-grid-v458">{palette.map((color) => swatchButton(color))}</div>
       </section>
       {recent.length > 0 ? <section className="cluster-color-section-v455 cluster-color-section-v458" aria-label="Recent colors">
@@ -206,11 +202,6 @@ function ColorPickerPanel({ value, onChange, swatches, label, onDone }: { value:
       </div>
     </div>}
 
-    <footer className="cluster-color-contrast-row-v458">
-      <span className="cluster-color-contrast-chip-v458" style={runtimeStyle({ "--cluster-preview-bg": safeValue, "--cluster-preview-text": bestText })}>Aa</span>
-      <span><strong>{bestContrast.toFixed(1)}:1 contrast</strong><small>{bestContrast >= 4.5 ? "Readable text pairing" : "Low contrast for text"}</small></span>
-      {view === "custom" ? <ClusterButton type="button" className="" onClick={() => { apply(studio, true); setView("palette"); }} variant="quiet" size="compact">Use Studio</ClusterButton> : null}
-    </footer>
   </div>;
 }
 

@@ -21,7 +21,7 @@
 .ao-chip { display: inline-grid; grid-auto-flow: column; align-items: baseline; gap: 6px; height: 30px; padding: 0 var(--space-2-5); border-radius: var(--cluster-radius-control); background: var(--cluster-workbench-panel); box-shadow: var(--cluster-elevation-card); font-size: var(--cluster-font-size-xs); line-height: 30px; white-space: nowrap; }
 .ao-chip b { color: var(--ao-tone, var(--text)); font-size: var(--cluster-font-size-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
 .ao-chip span { color: var(--muted); }
-button.ao-chip { border: 0; color: inherit; font: inherit; cursor: pointer; }
+button.ao-chip { border: 0; color: inherit; font-family: inherit; cursor: pointer; }
 button.ao-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, var(--cluster-workbench-panel)); }
 
 /* Cards of rows */

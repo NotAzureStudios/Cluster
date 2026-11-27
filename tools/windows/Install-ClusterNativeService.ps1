@@ -7,7 +7,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $Root = [IO.Path]::GetFullPath($Root)
-$Executable = Join-Path $Root 'ClusterServer.exe'
+$Executable = Join-Path $Root 'bin\ClusterServer.exe'
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {

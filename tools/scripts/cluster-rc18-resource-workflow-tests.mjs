@@ -40,7 +40,7 @@ assert.match(inventory,/assetCreatorOpen && <div className="settings-card-v092 c
 assert.ok(inventory.indexOf('assetCreatorOpen && <div')>inventory.indexOf('<section className="studio-systems-editor-v34f">'),'Asset creation must use the full editor width');
 assert.match(inventory,/setAssignmentOpen\(false\)/);
 assert.match(inventory,/cluster-resource-disclosure" open=\{assignmentOpen\}/);
-assert.match(shell,/useState<InventorySection>\(isAdmin \? "assets" : "mine"\)/);
+assert.match(shell,/useState<InventorySection>\(initialSection && \(isAdmin \|\| initialSection === "mine"\) \? initialSection : isAdmin \? "assets" : "mine"\)/);
 assert.match(vault,/params\.set\("kind", kindFilter\)/);
 assert.match(vault,/params\.set\("status", statusFilter\)/);
 const metadataLoad=vault.slice(vault.indexOf('  async function load(next:'),vault.indexOf('  useEffect(() => {'));

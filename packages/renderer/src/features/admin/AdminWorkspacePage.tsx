@@ -23,7 +23,6 @@ import { ClusterActionMenu } from "../../components/ClusterContextActions";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
 import { confirmCluster } from "../../components/cluster-dialog-service";
 import { ActivityPage } from "../activity/ActivityPage";
-import { ChangelogPage } from "../application/application-entrypoints";
 import { AdminApprovalCenter } from "./AdminApprovalCenter";
 import { AdminAuditStreamPanel } from "./AdminAuditStreamPanel";
 import { AdminSetupChecklist } from "./AdminSetupChecklist";
@@ -31,11 +30,12 @@ import { ServerAdminExperiencePanel } from "./ServerAdminExperiencePanel";
 import { StudioKnowledgeOperationsPanel } from "../operations/StudioKnowledgeOperationsPanel";
 import { AdminUtilitySections } from "./AdminUtilitySections";
 import { OperationsCenterPanel } from "./BackgroundJobsPanel";
+import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import { OperationsEvidencePanel } from "./OperationsEvidencePanel";
 import { OperationsIncidentsPanel } from "./OperationsIncidentsPanel";
 import { SecurityCenterPanel } from "./SecurityCenterPanel";
 import { OperationsSystemsPanel } from "./OperationsSystemsPanel";
-import { adminUserNeedsAccessReview, adminUserNeedsOnboarding, buildAdminWorkspaceNav, coerceAdminWorkspaceSection, canonicalAdminOperationsSection, ADMIN_OPERATIONS_CONTEXT, deriveAdminOperationsState, filterAdminUsers, type AdminUserListMode } from "./admin-workspace-state";
+import { adminUserNeedsAccessReview, adminUserNeedsOnboarding, buildAdminWorkspaceNav, coerceAdminWorkspaceSection, canonicalAdminOperationsSection, ADMIN_OPERATIONS_CONTEXT, ADMIN_HEALTH_TABS, adminHealthTab, deriveAdminOperationsState, filterAdminUsers, type AdminUserListMode } from "./admin-workspace-state";
 import { displayUserName, presenceLabel, presenceState, userInitial } from "../people/people-utils";
 import { PROJECT_STATUS_OPTIONS, isExternalProject, isVideoProject, normalizeProjectStatus, projectAssignedIds, projectMemberIds, projectHasGit, projectSetupGaps, projectStatusLabel } from "../projects/projects-utils";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
@@ -53,7 +53,6 @@ export type AdminPageDependencies = {
   PersistenceBridgePanel: React.ComponentType<any>;
   AdminMaintenanceToolsPanel: React.ComponentType<any>;
   PermissionMatrixControls: React.ComponentType<any>;
-  TemplateStudioPanel: React.ComponentType<any>;
   toDateInputValue: (value?: string | null) => string;
   USER_DEPARTMENT_PRESETS: string[];
   USER_TEAM_PRESETS: string[];
@@ -74,7 +73,7 @@ export type AdminPageDependencies = {
 export type AdminPageProps = { projects: Project[]; whiteboards: WhiteboardSummary[]; currentUser: User; onReloadProjects: () => Promise<void>; onReloadWhiteboards: () => Promise<void>; previewUser: User | null; onStartPreview: (user: User) => void; onStopPreview: () => void; onOpenBoard: (boardId: string) => void; onOpenWhiteboard: (whiteboardId: string) => void; settings?: Settings; scope?: AdminPageScope; initialSection?: AdminSection; onOpenUserAdmin?: () => void; onOpenProjects?: () => void; onOpenProject?: (projectId: string) => void; onOpenToolInfrastructure?: () => void; onOpenServerConfig?: () => void; onOpenStudioSettings?: () => void; onOpenTickets?: () => void; onOpenQa?: () => void; onOpenTime?: () => void; };
 
 export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects, onReloadWhiteboards, previewUser, onStartPreview, onStopPreview, onOpenBoard, onOpenWhiteboard, settings, scope = "operations", initialSection, onOpenUserAdmin, onOpenProjects, onOpenProject, onOpenToolInfrastructure, onOpenServerConfig, onOpenStudioSettings, onOpenTickets, onOpenQa, onOpenTime }: AdminPageProps) {
-  const { PersistenceBridgePanel, AdminMaintenanceToolsPanel, PermissionMatrixControls, TemplateStudioPanel, toDateInputValue, USER_DEPARTMENT_PRESETS, USER_TEAM_PRESETS, enabledStudioDepartmentsFromSettings, enabledStudioRolesFromSettings, rolePermissionsFromSettings, projectTypePresetsFromSettings, PROJECT_INTAKE_TEMPLATES, projectTypeBadge, readFileAsDataUrl, UserEditorForm, ImportToolsPanel, TOOL_INFRASTRUCTURE_CATALOG, AdminReportsPanel, getProjectPermission, projectPermissionReason } = ADMIN_PAGE_DEPENDENCIES;
+  const { PersistenceBridgePanel, AdminMaintenanceToolsPanel, PermissionMatrixControls, toDateInputValue, USER_DEPARTMENT_PRESETS, USER_TEAM_PRESETS, enabledStudioDepartmentsFromSettings, enabledStudioRolesFromSettings, rolePermissionsFromSettings, projectTypePresetsFromSettings, PROJECT_INTAKE_TEMPLATES, projectTypeBadge, readFileAsDataUrl, UserEditorForm, ImportToolsPanel, TOOL_INFRASTRUCTURE_CATALOG, AdminReportsPanel, getProjectPermission, projectPermissionReason } = ADMIN_PAGE_DEPENDENCIES;
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [projectType, setProjectType] = useState<ProjectKind>(() => (settings?.defaultProjectTypeId || projectTypePresetsFromSettings(settings)[0]?.id || "general") as ProjectKind);
@@ -1040,11 +1039,11 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
       }
       status={status}
       navLabel={scope === "users" ? "People management sections" : "Operations sections"}
-      activeId={adminSection}
+      activeId={adminHealthTab(adminSection) ? "systems" : adminSection}
       onChange={setAdminSection}
       items={buildAdminWorkspaceNav(scope, { userCount: users.length, pendingApprovals: adminPendingApprovals }).flatMap((item): CompactSectionNavItem<AdminSection>[] => {
         const context = scope === "operations" ? ADMIN_OPERATIONS_CONTEXT[item.id as keyof typeof ADMIN_OPERATIONS_CONTEXT] : undefined;
-        const label = item.id === "overview" ? "Dashboard" : item.label;
+        const label = item.label;
         if (!context) return [{ id: item.id, label, detail: item.detail }];
         return context.map((destination) => ({ id: destination.id as AdminSection, label: destination.label, group: item.label,
           detail: destination.id === "approvals" ? item.detail : undefined, detailTone: destination.id === "approvals" && adminPendingApprovals ? "warning" as const : undefined }));
@@ -1053,29 +1052,27 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
 
       {adminSection === "approvals" && <AdminApprovalCenter projects={projects} />}
 
-      {canonicalAdminOperationsSection(adminSection) === "jobs" && <>
-        <OperationsCenterPanel />
-        <section className="panel admin-jobs-evidence-v11">
-          <div className="button-row">
-            <ClusterButton type="button" variant="secondary" aria-expanded={jobsEvidenceOpen}
-              onClick={() => setJobsEvidenceOpen((current) => !current)}>
-              <ClusterIcon name="activity" aria-hidden="true" /> {jobsEvidenceOpen ? "Hide events" : "Event history"}
-            </ClusterButton>
-            <span className="muted">Logs & traces · on demand</span>
-          </div>
-          {jobsEvidenceOpen ? <OperationsEvidencePanel /> : null}
-        </section>
-      </>}
-
-      {adminSection === "incidents" && <OperationsIncidentsPanel />}
-
-      {(adminSection === "systems" || canonicalAdminOperationsSection(adminSection) === "systems") && (
-        <div className="admin-consolidated-stack-v15">
-          {adminSection === "systems" ? <OperationsSystemsPanel /> : null}
-          {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
-          {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
-        </div>
-      )}
+      {adminHealthTab(adminSection) && <div className="admin-health">
+        <ClusterSegmentedControl value={adminHealthTab(adminSection) as string} onChange={(value: string) => setAdminSection(value as AdminSection)} label="Health" size="compact"
+          options={ADMIN_HEALTH_TABS.map((tab) => ({ value: tab.id, label: tab.label }))} />
+        {adminHealthTab(adminSection) === "systems" ? <OperationsSystemsPanel /> : null}
+        {adminSection === "incidents" ? <OperationsIncidentsPanel /> : null}
+        {adminHealthTab(adminSection) === "jobs" ? <>
+          <OperationsCenterPanel />
+          <section className="panel admin-jobs-evidence-v11">
+            <div className="button-row">
+              <ClusterButton type="button" variant="secondary" aria-expanded={jobsEvidenceOpen}
+                onClick={() => setJobsEvidenceOpen((current) => !current)}>
+                <ClusterIcon name="activity" aria-hidden="true" /> {jobsEvidenceOpen ? "Hide events" : "Event history"}
+              </ClusterButton>
+              <span className="muted">Logs & traces · on demand</span>
+            </div>
+            {jobsEvidenceOpen ? <OperationsEvidencePanel /> : null}
+          </section>
+        </> : null}
+        {adminSection === "maintenance" ? <AdminMaintenanceToolsPanel projects={projects} users={users} onOpenOperationsCenter={() => setAdminSection("jobs")} /> : null}
+        {adminSection === "persistence" ? <PersistenceBridgePanel /> : null}
+      </div>}
 
       {adminSection === "security-center" && (
         <div className="admin-consolidated-stack-v15">
@@ -1091,8 +1088,6 @@ export function AdminPage({ projects, whiteboards, currentUser, onReloadProjects
           <AdminAuditStreamPanel projects={projects} users={users} />
           </> : null}
           {adminSection === "imports" ? <ImportToolsPanel projects={projects} users={users} onReloadProjects={onReloadProjects} /> : null}
-          {adminSection === "templates" ? <TemplateStudioPanel projects={projects} users={users} /> : null}
-          {adminSection === "changelog" ? <ChangelogPage /> : null}
 
           {adminSection === "reports" ? <section className="management-panel admin-resource-panel admin-activity-report-v470">
             <header className="admin-report-drilldown-head-v470">

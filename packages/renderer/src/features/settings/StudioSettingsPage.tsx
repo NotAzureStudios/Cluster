@@ -37,6 +37,7 @@ import type { DashboardWidgetKey, Priority, ProjectStatus, ProjectTypePreset, Se
 import "./settings-workspace.css";
 import "./people-management-layout-v11.css";
 import { WorkforceDepartmentManager } from "./WorkforceDepartmentManager";
+import { StudioTemplatesPanel } from "./StudioTemplatesPanel";
 import { RoleMembershipReviewPanel, type RoleMemberSnapshot } from "./RoleMembershipReviewPanel";
 import { ClusterEntityPicker } from "../../components/ClusterEntityPicker";
 import { ClusterEffectiveAccessInspector, type ClusterEffectiveAccessPreview } from "../../components/ClusterEffectiveAccessInspector";
@@ -1564,6 +1565,10 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
                   </div>
                 </section>
               </div>
+              <section className="studio-settings-block-v272 studio-templates-block">
+                <header><div><strong>Templates</strong><span>Starting text and checklists for new cards, tickets, builds and more.</span></div></header>
+                <StudioTemplatesPanel />
+              </section>
             </div>
           )}
 

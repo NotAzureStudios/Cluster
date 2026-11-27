@@ -10,8 +10,8 @@ import "./admin-frame.css";
    without their own navigation (SettingsWorkspaceShell publishes its
    sections here instead). The sidebar shows one Admin entry. */
 
-export type AdminScreen = "admin" | "people" | "studioSettings" | "serverConfig" | "integrations" | "toolInfrastructure" | "vault";
-export const ADMIN_FRAME_SCREENS: readonly string[] = ["admin", "studioSettings", "serverConfig", "integrations", "toolInfrastructure", "vault"];
+export type AdminScreen = "admin" | "people" | "studioSettings" | "serverConfig" | "integrations" | "toolInfrastructure";
+export const ADMIN_FRAME_SCREENS: readonly string[] = ["admin", "studioSettings", "serverConfig", "integrations", "toolInfrastructure"];
 
 type Entry = { screen: AdminScreen; section?: string; label: string; icon: ClusterIconName; group: string };
 const ENTRIES: Entry[] = [
@@ -22,7 +22,6 @@ const ENTRIES: Entry[] = [
   { screen: "integrations", label: "Integrations", icon: "link", group: "Tools" },
   { screen: "toolInfrastructure", section: "source-control", label: "Repositories", icon: "code", group: "Tools" },
   { screen: "toolInfrastructure", label: "Tool infrastructure", icon: "tools", group: "Tools" },
-  { screen: "vault", label: "Vault", icon: "lock", group: "Tools" },
 ];
 
 export function AdminFrame({ screen, section, onNavigate, children }: {

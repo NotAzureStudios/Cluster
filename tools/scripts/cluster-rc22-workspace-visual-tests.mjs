@@ -20,7 +20,7 @@ const creator=read('packages/renderer/src/features/create/SharedCreateDrawer.tsx
 check(()=>assert.match(icon,/\| "inventory"/));
 check(()=>assert.match(generator,/inventory:'package-duotone'/));
 check(()=>assert.match(generator,/inventory:'package'/));
-check(()=>assert.match(inventory,/useState<InventorySection>\(isAdmin \? "assets" : "mine"\)/));
+check(()=>assert.match(inventory,/useState<InventorySection>\(initialSection && \(isAdmin \|\| initialSection === "mine"\) \? initialSection : isAdmin \? "assets" : "mine"\)/));
 check(()=>assert.match(inventory,/<ToolPageHeader title="Inventory" icon="inventory"/));
 check(()=>assert.match(resource,/className="settings-section-v092 inventory-recipient-keys inventory-resources-v22"/));
 check(()=>assert.match(reviews,/inventory-review-heading-v22/));

@@ -8,11 +8,9 @@ export type AdminUserListMode = "all" | "resets" | "onboarding" | "access" | "su
 export const ADMIN_WORKSPACE_SECTIONS = [
   { id: "users", scope: "users", label: "Directory", group: "People", nav: true, order: 10 },
   { id: "exports", scope: "users", label: "Exports", group: "People", nav: true, order: 20 },
-  { id: "overview", scope: "operations", label: "Command Center", group: "Monitor", nav: true, order: 10 },
-  { id: "incidents", scope: "operations", label: "Incidents", group: "Monitor", nav: true, order: 20 },
-  { id: "jobs", scope: "operations", label: "Jobs", group: "Monitor", nav: true, order: 25 },
+  { id: "overview", scope: "operations", label: "Dashboard", group: "Monitor", nav: true, order: 10 },
+  { id: "systems", scope: "operations", label: "Health", group: "Monitor", nav: true, order: 20 },
   { id: "approvals", scope: "operations", label: "Governance", group: "Govern", nav: true, order: 30 },
-  { id: "systems", scope: "operations", label: "Systems", group: "Operate", nav: true, order: 40 },
   { id: "reports", scope: "operations", label: "Data & Audit", group: "Operate", nav: true, order: 50 },
 ] as const satisfies ReadonlyArray<{
   id: AdminSection;
@@ -35,34 +33,41 @@ export const ADMIN_OPERATIONS_CONTEXT = {
     { id: "approvals", label: "Approvals" },
     { id: "security-center", label: "Security Center" },
   ],
-  systems: [
-    { id: "systems", label: "System health" },
-    { id: "maintenance", label: "Maintenance" },
-    { id: "persistence", label: "Data persistence" },
-  ],
   reports: [
     { id: "reports", label: "Reports & audit" },
     { id: "imports", label: "Imports" },
-    { id: "templates", label: "Templates" },
-    { id: "changelog", label: "Changelog" },
   ],
 } as const;
 
+/** Health is one page: status, incidents, jobs, maintenance and data integrity
+ * are its tabs rather than five separate destinations. */
+export const ADMIN_HEALTH_TABS = [
+  { id: "systems", label: "Status" },
+  { id: "incidents", label: "Incidents" },
+  { id: "jobs", label: "Jobs" },
+  { id: "maintenance", label: "Maintenance" },
+  { id: "persistence", label: "Data integrity" },
+] as const satisfies ReadonlyArray<{ id: AdminSection; label: string }>;
+export function adminHealthTab(section: AdminSection): AdminSection | null {
+  if (section === "operations-center") return "jobs";
+  if (section === "system") return "systems";
+  return ADMIN_HEALTH_TABS.some((tab) => tab.id === section) ? section : null;
+}
+
 export function canonicalAdminOperationsSection(section: AdminSection): AdminSection {
   if (section === "permissions" || section === "security-center") return "approvals";
-  if (section === "operations-center" || section === "jobs") return "jobs";
-  if (section === "maintenance" || section === "persistence" || section === "system") return "systems";
+  if (adminHealthTab(section)) return "systems";
   if (section === "imports" || section === "templates" || section === "changelog" || section === "activity") return "reports";
   return section;
 }
 
 export function coerceAdminWorkspaceSection(scope: AdminPageScope, requested?: AdminSection | null): AdminSection {
   if (scope === "users") return requested === "exports" ? "exports" : "users";
-  if (requested === "incidents" || requested === "jobs" || requested === "security-center" || requested === "systems" || requested === "reports" || requested === "overview" || requested === "approvals") return requested;
+  if (requested === "security-center" || requested === "reports" || requested === "imports" || requested === "overview" || requested === "approvals") return requested;
   if (requested === "permissions") return "security-center";
-  if (requested === "operations-center") return "jobs";
-  if (["maintenance", "system", "persistence"].includes(String(requested || ""))) return "systems";
-  if (["activity", "imports", "changelog", "templates"].includes(String(requested || ""))) return "reports";
+  const health = requested ? adminHealthTab(requested) : null;
+  if (health) return health;
+  if (["activity", "changelog", "templates"].includes(String(requested || ""))) return "reports";
   return "overview";
 }
 

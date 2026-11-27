@@ -42,7 +42,7 @@ assert.match(broker,/inspectStagedServerUpdate\(root,\s*"main"\)/);
 assert.match(broker,/updateBrokerDispatchPath/);
 assert.match(webNative,/queueBrokerSignedServerUpdate/);
 assert.match(webNative,/os\.O_CREATE\|os\.O_EXCL/);
-assert.match(admin,/canonicalAdminOperationsSection\(adminSection\) === "jobs"/);
+assert.match(admin,/adminHealthTab\(adminSection\) === "jobs"/);
 assert.match(jobs,/JOB_FILTERS\.map/);
 assert.match(jobs,/window\.setTimeout\(\(\) => setDebouncedSearch\(search\.trim\(\)\), 300\)/);
 assert.match(studio,/navTop=\{<ClusterSettingsSearch/);

@@ -10,10 +10,9 @@ const studio=read("packages/renderer/src/features/settings/StudioSettingsPage.ts
 const studioState=read("packages/renderer/src/features/settings/studio-settings-state.ts");
 const server=read("packages/renderer/src/features/settings/ServerConfigPage.tsx");
 const sidebar=read("packages/renderer/src/features/application/modules/ApplicationSidebar.tsx");
-assert.match(nav, /id: "jobs", scope: "operations", label: "Jobs"/);
-assert.match(nav, /if \(section === "operations-center" \|\| section === "jobs"\) return "jobs"/);
-assert.match(nav, /if \(requested === "operations-center"\) return "jobs"/);
-assert.match(admin, /canonicalAdminOperationsSection\(adminSection\) === "jobs"/);
+assert.match(nav, /\{ id: "jobs", label: "Jobs" \}/, "Jobs is a Health tab");
+assert.match(nav, /if \(section === "operations-center"\) return "jobs"/);
+assert.match(admin, /adminHealthTab\(adminSection\) === "jobs"/);
 assert.equal((admin.match(/<OperationsCenterPanel \/>/g)||[]).length,1,"one Jobs panel mount, not a second Systems subscriber");
 assert.match(admin, /setAdminSection\("jobs"\)/);
 assert.match(admin, /jobsEvidenceOpen \? <OperationsEvidencePanel \/> : null/);

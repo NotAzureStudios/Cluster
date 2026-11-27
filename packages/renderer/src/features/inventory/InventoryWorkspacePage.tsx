@@ -10,12 +10,12 @@ import { ToolPageHeader } from "../../components/ToolPageHeader";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import "./inventory-workspace.css";
 
-type InventorySection = "mine" | "assets" | "domains" | "keys" | "approvals";
+export type InventorySection = "mine" | "assets" | "domains" | "keys" | "vault" | "approvals";
 type Person = { id: string; displayName: string; username: string; profileRevision: number };
 
 /** A genuine tool route, not an admin settings subsection. The server remains the authority for mutations. */
-export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: boolean; pinConfigured: boolean }) {
-  const [section, setSection] = useState<InventorySection>(isAdmin ? "assets" : "mine");
+export function InventoryWorkspacePage({ isAdmin, pinConfigured, initialSection }: { isAdmin: boolean; pinConfigured: boolean; initialSection?: InventorySection }) {
+  const [section, setSection] = useState<InventorySection>(initialSection && (isAdmin || initialSection === "mine") ? initialSection : isAdmin ? "assets" : "mine");
   const [people, setPeople] = useState<Person[]>([]);
   const [peopleError, setPeopleError] = useState("");
   useEffect(() => {
@@ -32,7 +32,7 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
       <nav className="cluster-resource-workspace__tabs" aria-label="Inventory sections">
         <ClusterSegmentedControl value={section} onChange={(value) => setSection(value as InventorySection)} label="Inventory sections" size="compact" options={[
           { value: "mine", label: "My items" },
-          ...(isAdmin ? [{ value: "assets", label: "Catalog" }, { value: "domains", label: "Domains" }, { value: "keys", label: "Key pools" }, { value: "approvals", label: "Approvals" }] : []),
+          ...(isAdmin ? [{ value: "assets", label: "Catalog" }, { value: "domains", label: "Domains" }, { value: "keys", label: "Key pools" }, { value: "vault", label: "Vault" }, { value: "approvals", label: "Approvals" }] : []),
         ]} />
       </nav>
     } />
@@ -40,18 +40,12 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
       {section === "mine" && <MyInventoryLicensesPanel pinConfigured={pinConfigured} />}
       {section === "assets" && isAdmin && <StudioInventoryPanel includeKeyPools={false} />}
       {section === "domains" && isAdmin && <DomainsManager />}
+      {section === "vault" && isAdmin && <VaultManager />}
       {section === "approvals" && isAdmin && <StudioInventoryApprovalPanel />}
       {section === "keys" && isAdmin && <>
         {peopleError && <p role="alert">{peopleError} <ClusterButton size="compact" onClick={() => setSection("assets")}>Manage assets instead</ClusterButton></p>}
         <StudioInventoryKeyPools people={people} />
       </>}
     </section>
-  </main>;
-}
-
-export function VaultWorkspacePage() {
-  return <main className="cluster-resource-workspace vault-tool-workspace" aria-label="Vault workspace">
-    <ToolPageHeader title="Vault" icon="lock" />
-    <VaultManager />
   </main>;
 }
