@@ -91,3 +91,9 @@ func TestRollbackDoesNotQuarantineExternallyOwnedShortcutWhenOriginalWasAbsent(t
   t.Fatal("externally owned shortcut was changed")
  }
 }
+
+func TestPortableLauncherOnDriveRootIsUnmanaged(t *testing.T){
+ sep:=string(filepath.Separator)
+ if !portableLauncherOnDriveRoot(filepath.Join(sep,"Cluster","Server")){t.Fatal("drive-root install must treat the root launcher as unmanaged")}
+ if portableLauncherOnDriveRoot(filepath.Join(sep,"Studio","Cluster","Server")){t.Fatal("nested install keeps the managed root launcher")}
+}

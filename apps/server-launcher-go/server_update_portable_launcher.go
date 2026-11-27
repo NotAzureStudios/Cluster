@@ -27,6 +27,25 @@ func serverPortableLauncherPaths(root string)(string,string){
  workRoot:=filepath.Dir(root)
  return filepath.Join(filepath.Dir(workRoot),"Cluster Server.exe"),filepath.Join(workRoot,"root-launcher.manifest.json")
 }
+// The installer never publishes the convenience launcher on a drive root
+// (C:\Cluster Server.exe): standard users cannot write there. Anything at that
+// path is a leftover from an early installer and is not part of the update.
+func portableLauncherOnDriveRoot(root string)bool{
+ parent:=filepath.Dir(filepath.Dir(filepath.Clean(root)))
+ return parent==filepath.VolumeName(parent)+string(filepath.Separator)
+}
+const portableLauncherUnmanagedSentinel="cluster-native-root-launcher-unmanaged-v1\n"
+func writeRecoverySentinel(root,id,name,content string)error{
+ recovery,err:=coldServerUpdateRecoveryPath(root,id)
+ if err!=nil{return err}
+ file,err:=os.OpenFile(filepath.Join(recovery,name),os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
+ if err!=nil{return err}
+ _,err=file.WriteString(content)
+ if err==nil{err=file.Sync()}
+ closeErr:=file.Close()
+ if err!=nil{return err}
+ return closeErr
+}
 func inspectPortableServerLauncher(root string)(portableServerLauncherOwner,error){
  var record portableServerLauncherOwner
  launcher,manifest:=serverPortableLauncherPaths(root)
@@ -62,6 +81,9 @@ func serverFileSHA256(path string)(string,error){
 }
 func capturePreviousPortableServerLauncher(root,id string)error{
  if err:=validateManagedRepairRoot(root);err!=nil{return err}
+ if portableLauncherOnDriveRoot(root){
+  return writeRecoverySentinel(root,id,"previous-root-launcher.unmanaged",portableLauncherUnmanagedSentinel)
+ }
  launcher,manifest:=serverPortableLauncherPaths(root)
  _,exeErr:=os.Lstat(launcher)
  _,manifestErr:=os.Lstat(manifest)
@@ -69,16 +91,7 @@ func capturePreviousPortableServerLauncher(root,id string)error{
   // The new installer may create a root-level launcher even when the old
   // installation had none. Record verified absence so rollback can remove
   // ONLY a newly installer-owned shortcut, not an unrelated user file.
-  recovery,err:=coldServerUpdateRecoveryPath(root,id)
-  if err!=nil{return err}
-  sentinel:=filepath.Join(recovery,"previous-root-launcher.absent")
-  file,err:=os.OpenFile(sentinel,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
-  if err!=nil{return err}
-  _,err=file.WriteString("cluster-native-root-launcher-absent-v1\n")
-  if err==nil{err=file.Sync()}
-  closeErr:=file.Close()
-  if err!=nil{return err}
-  return closeErr
+  return writeRecoverySentinel(root,id,"previous-root-launcher.absent","cluster-native-root-launcher-absent-v1\n")
  }
  if exeErr!=nil||manifestErr!=nil{return errors.New("portable Server launcher/ownership pair is incomplete")}
  record,err:=inspectPortableServerLauncher(root)
@@ -103,6 +116,10 @@ func capturePreviousPortableServerLauncher(root,id string)error{
 func restorePreviousPortableServerLauncher(root,id string)error{
  recovery,err:=coldServerUpdateRecoveryPath(root,id)
  if err!=nil{return err}
+ if raw,readErr:=os.ReadFile(filepath.Join(recovery,"previous-root-launcher.unmanaged"));readErr==nil{
+  if string(raw)!=portableLauncherUnmanagedSentinel{return errors.New("unrecognized portable launcher baseline; manual recovery required")}
+  return nil
+ }
  previous:=filepath.Join(recovery,"previous-root-launcher.manifest.json")
  data,err:=os.ReadFile(previous)
  if errors.Is(err,os.ErrNotExist){
