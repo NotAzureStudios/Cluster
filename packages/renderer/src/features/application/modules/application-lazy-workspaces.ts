@@ -1,5 +1,6 @@
 import { lazy } from "react";
 
+export const LazyChatPage = lazy(() => import("../../chat/ChatPage").then((module) => ({ default: module.ChatPage })));
 export const LazyProjectTabsBar = lazy(() => import("./ApplicationProjectTabs").then((module) => ({ default: module.ProjectTabsBar })));
 export const LazySetupWizard = lazy(() => import("./ApplicationSetupWizard").then((module) => ({ default: module.SetupWizard })));
 export const LazyDesktopPresencePublisher = lazy(() => import("../../desktop/DesktopPresencePublisher").then((module) => ({ default: module.DesktopPresencePublisher })));

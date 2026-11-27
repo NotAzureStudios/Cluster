@@ -117,6 +117,7 @@ export function Sidebar({ status, screen, currentRoute, setScreen, user, setting
           <SidebarNavItem icon="home" label={screenLabel("dashboard")} active={screen === "dashboard"} onClick={() => navigate("dashboard")} />
           {canOpenScreen(user, "mywork") && <SidebarNavItem icon="check" label={screenLabel("mywork")} active={screen === "mywork"}
             onPointerEnter={() => prefetch("mywork")} onFocus={() => prefetch("mywork")} onClick={() => navigate("mywork")} />}
+          {canOpenScreen(user, "chat") && <SidebarNavItem icon="comment" label={screenLabel("chat")} active={screen === "chat"} onClick={() => navigate("chat")} />}
           {canSeeProjects && <SidebarNavItem icon="project" label="Projects" active={screen === "projects" || screen === "project"}
             badge={visibleProjects.length || undefined} onPointerEnter={() => prefetch("projects")} onFocus={() => prefetch("projects")}
             onClick={() => navigate("projects")} />}
