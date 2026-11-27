@@ -122,7 +122,7 @@ export function registerTimelineRoutes({
     if (query.type && query.type !== "all") itemWhere.type = query.type;
 
     const timelineSettings = await readSettings();
-    const [items, events, dueCards, scheduleBlocks, timeEntries] = await Promise.all([
+    const [items, events, dueCards, scheduleBlocks, timeEntries, dueProjects] = await Promise.all([
       prisma.timelineItem.findMany({ where: itemWhere, include: { project: { include: { memberships: { where: { status: "active" } } } }, user: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }, orderBy: { startsAt: "asc" } }),
       timelineSettings.timelineIncludeCalendar === false ? Promise.resolve([]) : prisma.calendarEvent.findMany({
         where: { startsAt: { gte: start, lte: end }, ...(query.projectId ? { projectId: query.projectId } : {}) },
@@ -145,6 +145,11 @@ export function registerTimelineRoutes({
         orderBy: { startedAt: "asc" },
         take: SCHEDULING_CONTRACT.timeline.maximumTimeEntries,
       }),
+      timelineSettings.timelineIncludeDueDates === false ? Promise.resolve([]) : prisma.project.findMany({
+        where: { archived: false, status: { notIn: ["cancelled", "shelved"] }, targetDate: { gte: start, lte: end }, ...(query.projectId ? { id: query.projectId } : {}) },
+        include: { memberships: { where: { status: "active" } } },
+        orderBy: { targetDate: "asc" },
+      }),
     ]);
 
     const visibleItems = await filterAuthorized(items, (item) => canViewTimelineItem(request, item));
@@ -152,6 +157,7 @@ export function registerTimelineRoutes({
     const visibleDueCards = await filterAuthorized(dueCards, (card) => canViewCard(request, card));
     const visibleScheduleBlocks = await filterAuthorized(scheduleBlocks, (block) => canViewScheduleBlock(request, block));
     const visibleTimeEntries = await filterAuthorized(timeEntries, (entry) => canViewTimeEntry(request, entry));
+    const visibleProjects = await filterAuthorized(dueProjects, (project: any) => authorization.requestCanTarget(request, "project", project.id, project, "view"));
 
     const entries = [
       ...visibleItems.map((item: any) => ({
@@ -184,6 +190,12 @@ export function registerTimelineRoutes({
         description: `${entry.user?.displayName || entry.user?.username || "Unknown"} · ${minutesBetween(new Date(entry.startedAt), entry.endedAt ? new Date(entry.endedAt) : new Date())} min`,
         startsAt: entry.startedAt, endsAt: entry.endedAt, color: entry.endedAt ? "#14b8a6" : "#22c55e", externalUrl: null,
         project: entry.project ? { id: entry.project.id, name: entry.project.name } : null,
+      })),
+      ...visibleProjects.map((project: any) => ({
+        id: project.id, source: "project", type: "deadline", title: `${project.name} due`,
+        description: project.status === "completed" ? "Project · Completed" : "Project due date", startsAt: project.targetDate, endsAt: null,
+        color: project.color || "#57c1ff", externalUrl: null, ownerId: null, projectId: project.id,
+        project: { id: project.id, name: project.name },
       })),
     ].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 

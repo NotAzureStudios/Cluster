@@ -24,7 +24,7 @@ import { SharedCreateProjectAdvancedOptions } from "./SharedCreateProjectAdvance
 import { SharedCreateOptionalDisclosure } from "./SharedCreateOptionalDisclosure";
 import { useSmartCreateMemory } from "./use-smart-create-memory";
 import { createClusterCreateIntentControl } from "./create-intent-control";
-import { CREATE_MODE_CATALOG, CREATE_MODE_GROUPS, CREATE_MODE_GUIDANCE, CREATE_PRIMARY_MODE_IDS, CREATE_SPECIALIZED_MODE_IDS, createModeMatches } from "./create-mode-catalog";
+import { CREATE_MODE_CATALOG, CREATE_MODE_GROUPS, CREATE_PRIMARY_MODE_IDS, CREATE_SPECIALIZED_MODE_IDS, createModeMatches } from "./create-mode-catalog";
 import { createReadinessIssues } from "./create-readiness";
 import { canOfferCreateMode as canOfferMode } from "./create-mode-access";
 import { BUILD_PLATFORM_PROFILES, defaultPlatformMeta } from "../projects/ProjectBuildsPanel";
@@ -71,6 +71,18 @@ export interface SharedCreateDrawerFeatureProps {
   onOpenTime: () => void;
   dependencies: SharedCreateDrawerDependencies;
 }
+
+// Modes that cannot exist outside a project; everything else defaults to none.
+const CREATE_PROJECT_REQUIRED = new Set<QuickCreateMode>(["card", "build", "meeting"]);
+// Screens where "the current project" is what the person is looking at.
+const PROJECT_SCOPED_SCREENS = new Set(["project", "board", "whiteboard", "tickets", "qa"]);
+// Modes whose time fields lead; Project follows them.
+const TIME_FIRST_MODES = new Set<QuickCreateMode>(["calendar", "timeline", "scheduler"]);
+const CREATE_MODE_TITLES: Record<QuickCreateMode, string> = {
+  project: "New project", card: "New card", ticket: "New ticket", bug: "New bug", build: "New build",
+  timeline: "New timeline point", calendar: "New event", scheduler: "New schedule block",
+  meeting: "New meeting", whiteboard: "New whiteboard", packet: "New packet",
+};
 
 export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps) {
   const { dependencies, ...drawerProps } = props;
@@ -276,9 +288,9 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
   const serializedDraftSnapshot = JSON.stringify(draftSnapshot);
   const draftMeaningful = Boolean(title.trim() || details.trim() || labelsText.trim() || bugEnvironment.trim() || bugSteps.trim() || bugExpected.trim() || bugActual.trim() || buildVersion.trim() || buildRevision.trim() || buildArtifactUrl.trim() || calendarLocation.trim() || projectObjective.trim() || projectClientName.trim() || projectTags.trim() || (mode === "packet" && (packetVersionLabel.trim() !== "1.0" || packetAudience.mode !== "all" || packetCompletionMode !== "none" || packetRequired || packetDueDays.trim() || packetRecertifyDays.trim() || packetRecordCompletion)));
   useEffect(() => {
-    if (!projectId && projects[0]) setProjectId(projects[0].id);
+    if (!projectId && projects[0] && CREATE_PROJECT_REQUIRED.has(mode)) setProjectId(projects[0].id);
     if (!boardId && boards[0]) setBoardId(boards[0].id);
-  }, [projects, boards, projectId, boardId]);
+  }, [projects, boards, projectId, boardId, mode]);
   useEffect(() => {
     if (!open) { initializedCreateRef.current = false; return; }
     if (initializedCreateRef.current) return;
@@ -293,9 +305,13 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setShowAdvanced(false);
     setShowValidation(false);
     const memory = createMemory.read(nextMode);
-    const contextProjectId = context?.projectId && projects.some((project) => project.id === context.projectId) ? context.projectId : "";
-    const memoryProjectId = memory?.projectId && projects.some((project) => project.id === memory.projectId) ? memory.projectId : "";
-    const preferredProjectId = handoff?.projectId || contextProjectId || memoryProjectId || projects[0]?.id || "";
+    // A project is preselected only when the person is inside one (or the
+    // opener named one). Global screens start with no project.
+    const projectRequired = CREATE_PROJECT_REQUIRED.has(nextMode);
+    const insideProject = Boolean(context?.screen && PROJECT_SCOPED_SCREENS.has(context.screen));
+    const contextProjectId = insideProject && context?.projectId && projects.some((project) => project.id === context.projectId) ? context.projectId : "";
+    const memoryProjectId = projectRequired && memory?.projectId && projects.some((project) => project.id === memory.projectId) ? memory.projectId : "";
+    const preferredProjectId = handoff?.projectId || contextProjectId || memoryProjectId || (projectRequired ? projects[0]?.id || "" : "");
     const handoffBoardCandidate = handoff?.boardId ? boards.find((board) => board.id === handoff.boardId) : null;
     const contextBoardCandidate = context?.boardId ? boards.find((board) => board.id === context.boardId) : null;
     const memoryBoardCandidate = memory?.boardId ? boards.find((board) => board.id === memory.boardId) : null;
@@ -522,8 +538,6 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     ...defaultPlatformMeta(selectedBuildProfile),
     ...buildMeta,
   };
-  const selectedMode = modes.find((item) => item.id === mode);
-  const activeGuidance = CREATE_MODE_GUIDANCE[mode];
   useEffect(() => {
     if (mode !== "build") return;
     setBuildLane(selectedBuildProfile.lanes[0]?.id || "internal");
@@ -662,7 +676,8 @@ export function SharedCreateDrawerFeature(props: SharedCreateDrawerFeatureProps)
     setDuplicateMatches([]);
     setDuplicateOverride(false);
     const rememberedBoard = memory?.boardId ? boards.find((board) => board.id === memory.boardId) : null;
-    const rememberedProjectId = memory?.projectId && projects.some((project) => project.id === memory.projectId)
+    const rememberedProjectId = !CREATE_PROJECT_REQUIRED.has(nextMode) ? ""
+      : memory?.projectId && projects.some((project) => project.id === memory.projectId)
       ? memory.projectId
       : rememberedBoard?.projectId || "";
     if (rememberedProjectId) setProjectId(rememberedProjectId);
@@ -1397,6 +1412,21 @@ ${bugActual}`,
       setBusy(false);
     }
   }
+  const projectField = (
+    <div className="field">
+      <label>Project</label>
+      <ClusterSelect
+        value={projectId}
+        onChange={changeCreateProject}
+        ariaLabel="Project"
+        options={[
+          { value: "", label: CREATE_PROJECT_REQUIRED.has(mode) ? "Choose a project" : "None" },
+          ...projects.map((project) => ({ value: project.id, label: project.name, meta: projectTypeBadge(project) })),
+        ]}
+      />
+    </div>
+  );
+
   return (
     <ClusterModal
       open={open}
@@ -1436,44 +1466,15 @@ ${bugActual}`,
           />
         ) : <main className="shared-create-main-v254">
           <header className="shared-create-header-v254">
-            <ClusterButton type="button" variant="quiet" size="compact" className="shared-create-back-v455" onClick={() => setShowModePicker(true)} disabled={busy} aria-label="Choose a different item type">
-              <ClusterIcon name="chevron-left" /><span>Create</span>
+            <ClusterButton type="button" variant="quiet" size="compact" className="shared-create-back-v455" onClick={() => setShowModePicker(true)} disabled={busy} aria-label="Choose a different item type" title="Choose a different item type">
+              <ClusterIcon name="chevron-left" />
             </ClusterButton>
-            <div className="shared-create-title-v448">
-              <span className="shared-create-title-icon-v448" data-create-mode={mode}><ClusterIcon name={mode === "project" ? "project" : selectedMode?.icon || "plus"} treatment="duotone" /></span>
-              <span className="shared-create-title-copy-v448"><h2 id="shared-create-title-v370">{selectedMode?.label || "Item"}</h2></span>
-            </div>
+            <h2 id="shared-create-title-v370" className="shared-create-title-v448">{CREATE_MODE_TITLES[mode]}</h2>
             <ClusterButton type="button" variant="quiet" size="compact" className="shared-create-close-v448" onClick={() => void requestClose()} disabled={busy} aria-label="Close item creator">
               <ClusterIcon name="close" />
             </ClusterButton>
           </header>
           <div className="shared-create-scroll-v254">
-            <div className="create-context-strip-v161">
-              <span>
-                <b>{selectedMode?.label || "Item"}</b>
-                <em>{mode === "project" ? `${selectedProjectType.label} · ${levelLabel(projectStatus)}` : selectedProject ? `${selectedProject.name} · ${projectTypeBadge(selectedProject)}` : "No project selected"}</em>
-              </span>
-              {mode === "build" && (
-                <span>
-                  <b>{selectedBuildProfile.label}</b>
-                  <em>
-                    {selectedBuildProfile.artifactLabel} · {selectedBuildProfile.versionLabel}
-                  </em>
-                </span>
-              )}
-              {mode === "card" && (
-                <span>
-                  <b>{selectedBoard?.name || "No board"}</b>
-                  <em>{firstList?.title || "No list available"}</em>
-                </span>
-              )}
-              {(mode === "bug" || mode === "ticket") && (
-                <span>
-                  <b>{assigneeId ? displayUserName(createUsers.find((user) => user.id === assigneeId)) : "Unassigned"}</b>
-                  <em>{mode === "bug" ? "QA bug workflow" : `${ticketType} ticket`}</em>
-                </span>
-              )}
-            </div>
             {activeHandoff?.source && (
               <section className="smart-create-context-v276 smart-create-context-compact-v521">
                 <span><strong>From:</strong> {activeHandoff.source.label || activeHandoff.source.kind}{activeHandoff.relationship ? ` · ${activeHandoff.relationship.replace(/_/g, " ")}` : ""}</span>
@@ -1540,7 +1541,6 @@ ${bugActual}`,
                 <label>{mode === "bug" ? "Bug title" : mode === "ticket" ? "Ticket title" : mode === "timeline" ? "Timeline title" : mode === "calendar" ? "Event title" : mode === "scheduler" ? "Schedule block title" : mode === "meeting" ? "Meeting name" : mode === "build" ? selectedBuildProfile.artifactLabel : mode === "packet" ? "Packet name" : "Title"}</label>
                 <ClusterTextInput value={title} onChange={(event) => setTitle(event.target.value)} placeholder={mode === "project" ? "New project" : mode === "build" ? `${selectedBuildProfile.artifactLabel} ${buildVersion || "0.1.0"}` : "Name it"} />
               </div>
-              <SharedCreateOptionalDisclosure open={showAdvanced} guidance={activeGuidance} onToggle={() => setShowAdvanced((value) => !value)} />
 
               {mode === "project" && (
                 <>
@@ -1640,24 +1640,7 @@ ${bugActual}`,
                 </>
               )}
 
-              {mode !== "project" && (
-                <div className="field">
-                  <label>Assigned project</label>
-                  <ClusterSelect
-                    value={projectId}
-                    onChange={changeCreateProject}
-                    ariaLabel="Assigned project"
-                    options={[
-                      { value: "", label: "No project" },
-                      ...projects.map((project) => ({
-                        value: project.id,
-                        label: project.name,
-                        meta: projectTypeBadge(project),
-                      })),
-                    ]}
-                  />
-                </div>
-              )}
+              {mode !== "project" && !TIME_FIRST_MODES.has(mode) && projectField}
               {mode === "card" && (
                 <>
                   <div className="field">
@@ -1820,6 +1803,10 @@ ${bugActual}`,
               {mode === "timeline" && (
                 <>
                   <div className="field">
+                    <label>Start date</label>
+                    <ClusterTextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+                  </div>
+                  <div className="field">
                     <label>Type</label>
                     <ClusterSelect
                       value={timelineType}
@@ -1835,14 +1822,11 @@ ${bugActual}`,
                       ]}
                     />
                   </div>
-                  <div className="field">
-                    <label>Start date</label>
-                    <ClusterTextInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-                  </div>
+                  {projectField}
                   {showAdvanced && <>
                   <div className="field">
                     <label>Start time</label>
-                    <ClusterTextInput type="scheduler" value={timelineStartTime} onChange={(event) => setTimelineStartTime(event.target.value)} />
+                    <ClusterTextInput type="time" value={timelineStartTime} onChange={(event) => setTimelineStartTime(event.target.value)} />
                   </div>
                   <div className="field">
                     <label>End date</label>
@@ -1850,7 +1834,7 @@ ${bugActual}`,
                   </div>
                   <div className="field">
                     <label>End time</label>
-                    <ClusterTextInput type="scheduler" value={timelineEndTime} onChange={(event) => setTimelineEndTime(event.target.value)} />
+                    <ClusterTextInput type="time" value={timelineEndTime} onChange={(event) => setTimelineEndTime(event.target.value)} />
                   </div>
                   <ColorField value={timelineColor} onChange={setTimelineColor} label="Timeline color" />
                   </>}
@@ -1858,6 +1842,16 @@ ${bugActual}`,
               )}
               {mode === "calendar" && (
                 <>
+                  <div className="field">
+                    <label>Starts</label>
+                    <ClusterTextInput type="datetime-local" value={calendarStartsAt} onChange={(event) => setCalendarStartsAt(event.target.value)} />
+                  </div>
+                  {!calendarAllDay && (
+                    <div className="field">
+                      <label>Ends</label>
+                      <ClusterTextInput type="datetime-local" min={calendarStartsAt} value={calendarEndsAt} onChange={(event) => setCalendarEndsAt(event.target.value)} />
+                    </div>
+                  )}
                   <div className="field">
                     <label>Event type</label>
                     <ClusterSelect
@@ -1874,6 +1868,11 @@ ${bugActual}`,
                       ]}
                     />
                   </div>
+                  {projectField}
+                  <label className="tool-check">
+                    <ClusterInput type="checkbox" checked={calendarAllDay} onChange={(event) => setCalendarAllDay(event.target.checked)} /> All-day event
+                  </label>
+                  {showAdvanced && <>
                   <div className="field">
                     <label>Status</label>
                     <ClusterSelect
@@ -1888,17 +1887,6 @@ ${bugActual}`,
                       ]}
                     />
                   </div>
-                  <div className="field">
-                    <label>Starts</label>
-                    <ClusterTextInput type="datetime-local" value={calendarStartsAt} onChange={(event) => setCalendarStartsAt(event.target.value)} />
-                  </div>
-                  {!calendarAllDay && (
-                    <div className="field">
-                      <label>Ends</label>
-                      <ClusterTextInput type="datetime-local" min={calendarStartsAt} value={calendarEndsAt} onChange={(event) => setCalendarEndsAt(event.target.value)} />
-                    </div>
-                  )}
-                  {showAdvanced && <>
                   <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={createPeople} label="Owner" emptyLabel="Current user" ariaLabel="Calendar owner" />
                   <PeopleMultiPicker values={attendeeIds} onChange={setAttendeeIds} people={createPeople} label="Attendees" emptyLabel="Add attendee" />
                   <div className="field">
@@ -1921,15 +1909,20 @@ ${bugActual}`,
                     <label>Location or meeting link</label>
                     <ClusterTextInput value={calendarLocation} onChange={(event) => setCalendarLocation(event.target.value)} placeholder="Studio, Discord channel, room, or URL" />
                   </div>
-                  <label className="tool-check">
-                    <ClusterInput type="checkbox" checked={calendarAllDay} onChange={(event) => setCalendarAllDay(event.target.checked)} /> All-day event
-                  </label>
                   <ColorField value={timelineColor} onChange={setTimelineColor} label="Event color" />
                   </>}
                 </>
               )}
               {mode === "scheduler" && (
                 <>
+                  <div className="field">
+                    <label>Starts</label>
+                    <ClusterTextInput type="datetime-local" value={timeStartsAt} onChange={(event) => setTimeStartsAt(event.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Ends</label>
+                    <ClusterTextInput type="datetime-local" min={timeStartsAt} value={timeEndsAt} onChange={(event) => setTimeEndsAt(event.target.value)} />
+                  </div>
                   <div className="field">
                     <label>Block type</label>
                     <ClusterSelect
@@ -1946,14 +1939,7 @@ ${bugActual}`,
                       ]}
                     />
                   </div>
-                  <div className="field">
-                    <label>Starts</label>
-                    <ClusterTextInput type="datetime-local" value={timeStartsAt} onChange={(event) => setTimeStartsAt(event.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Ends</label>
-                    <ClusterTextInput type="datetime-local" min={timeStartsAt} value={timeEndsAt} onChange={(event) => setTimeEndsAt(event.target.value)} />
-                  </div>
+                  {projectField}
                   {showAdvanced ? <>
                     <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={createPeople} label="Scheduled person" emptyLabel="Current user" ariaLabel="Scheduled person" />
                     <ColorField value={timeColor} onChange={setTimeColor} label="Block color" />
@@ -2080,9 +2066,10 @@ ${bugActual}`,
               )}
 
               {mode !== "packet" && (showAdvanced || mode === "bug" || mode === "meeting") ? <div className="field full">
-                <label>{mode === "meeting" ? "Meeting agenda / outcome" : mode === "build" ? "Build notes / changelog" : mode === "bug" ? "Additional evidence / notes" : mode === "ticket" ? "Ticket details and acceptance criteria" : mode === "timeline" ? "Timeline notes" : mode === "whiteboard" ? "Whiteboard purpose" : mode === "project" ? "Project brief" : "Card description"}</label>
+                <label>{mode === "meeting" ? "Meeting agenda / outcome" : mode === "build" ? "Build notes / changelog" : mode === "bug" ? "Additional evidence / notes" : mode === "ticket" ? "Ticket details and acceptance criteria" : mode === "timeline" ? "Timeline notes" : mode === "whiteboard" ? "Whiteboard purpose" : mode === "project" ? "Project brief" : mode === "card" ? "Description" : "Notes"}</label>
                 <ClusterTextArea value={details} onChange={(event) => setDetails(event.target.value)} placeholder={mode === "bug" ? "Logs, screenshots, frequency, workaround, or related ticket." : mode === "ticket" ? "Context, requested outcome, acceptance criteria, links, and dependencies." : mode === "project" ? "Goals, scope, deliverables, stakeholders, and constraints." : "Add the context required for this item."} />
               </div> : null}
+              <SharedCreateOptionalDisclosure open={showAdvanced} onToggle={() => setShowAdvanced((value) => !value)} />
             </div>
           </div>
           <footer className="shared-create-footer-v254">
@@ -2093,9 +2080,9 @@ ${bugActual}`,
               <ClusterButton type="button" variant="secondary" onClick={() => void requestClose()} disabled={busy}>
                 {createIntentRef.current.committed ? "Close" : "Cancel"}
               </ClusterButton>
-              <ClusterButton type="button" variant="secondary" onClick={() => void submitSharedCreate("another")} disabled={busy || createIntentRef.current.committed} title="Create this item and stay in the drawer">Create another</ClusterButton>
+              <ClusterButton type="button" variant="secondary" onClick={() => void submitSharedCreate("another")} disabled={busy || createIntentRef.current.committed} title="Create this item and start another">Create another</ClusterButton>
               <ClusterButton type="button" variant="primary" onClick={() => void submitSharedCreate("open")} disabled={createIntentRef.current.committed} busy={busy} busyLabel="Creating…" title={createIntentRef.current.committed ? "This Create already committed; close to review the item" : "Create · Ctrl/Cmd+Enter"}>
-                {createIntentRef.current.committed ? "Already created" : mode === "project" && projectProvisionRetryId ? "Retry project setup" : duplicateOverride ? "Create anyway & open" : `Create & open ${selectedMode?.label || "item"}`}
+                {createIntentRef.current.committed ? "Already created" : mode === "project" && projectProvisionRetryId ? "Retry project setup" : duplicateOverride ? "Create anyway" : "Create"}
               </ClusterButton>
             </div>
           </footer>

@@ -34,7 +34,7 @@ export const CLUSTER_PROJECT_STATUS_DEFINITIONS: ReadonlyArray<{
 }> = [
   { value: "active", label: "Active", tone: "good", description: "Currently moving." },
   { value: "on_hold", label: "On Hold", tone: "warning", description: "Temporarily paused for scheduling, staffing, or dependency reasons." },
-  { value: "paused", label: "Paused", tone: "neutral", description: "Inactive but not closed." },
+  { value: "paused", label: "Shelved", tone: "neutral", description: "Set aside for now, not closed." },
   { value: "completed", label: "Completed", tone: "accent", description: "Delivered or wrapped." },
   { value: "cancelled", label: "Cancelled", tone: "danger", description: "Closed without further work." },
 ];

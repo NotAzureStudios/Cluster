@@ -33,8 +33,8 @@ check(()=>assert.match(library,/className="library-views-flyout-v22"/));
 check(()=>assert.doesNotMatch(library,/\n\s*\{showSavedViews \? <SavedViewsToolbar/));
 check(()=>assert.match(read('packages/renderer/src/features/library/library-workspace.css'),/\.library-views-flyout-v22\{position:absolute/));
 check(()=>assert.match(inspector,/<section className="pl-insp__section">\s*<h3>Setup <span>\{done\}\/\{checklist\.length\}<\/span><\/h3>/));
-check(()=>assert.match(creator,/mode === "project" \? "project" : selectedMode\?\.icon/));
-check(()=>assert.match(read('packages/renderer/src/features/create/shared-create-drawer.css'),/data-create-mode="project"/));
+check(()=>assert.match(creator,/<h2 id="shared-create-title-v370" className="shared-create-title-v448">\{CREATE_MODE_TITLES\[mode\]\}<\/h2>/));
+check(()=>assert.doesNotMatch(read('packages/renderer/src/features/create/shared-create-drawer.css'),/create-context-strip-v161/));
 // Parse every changed TSX surface, not just string-match markup.
 for(const file of ['packages/renderer/src/features/inventory/InventoryWorkspacePage.tsx','packages/renderer/src/features/settings/MyInventoryLicensesPanel.tsx','packages/renderer/src/features/settings/StudioInventoryApprovalPanel.tsx','packages/renderer/src/features/library/LibraryWorkspacePage.tsx','packages/renderer/src/features/projects/ProjectPortfolioInspector.tsx','packages/renderer/src/features/projects/ProjectsPage.tsx','packages/renderer/src/features/create/SharedCreateDrawer.tsx','packages/renderer/src/components/ClusterIcon.tsx']){
  const parsed=ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);

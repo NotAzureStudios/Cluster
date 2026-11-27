@@ -66,7 +66,7 @@ await check('Post-commit Create never auto-saves a completed draft or mislabels 
  assert.match(form,/if \(createIntentRef.current.inFlight \|\| createIntentRef.current.committed\) return/);
  assert.match(form,/async function requestClose\(\) \{[\s\S]*?if \(createIntentRef.current.committed\) \{[\s\S]*?clearOfflineDraft\(draftKey\)/);
  assert.match(form,/\{createIntentRef.current.committed \? "Close" : "Cancel"\}/);
- assert.match(form,/disabled=\{busy \|\| createIntentRef.current.committed\} title="Create this item and stay in the drawer"/);
+ assert.match(form,/disabled=\{busy \|\| createIntentRef.current.committed\} title="Create this item and start another"/);
 });
 await check('Completed Create separates local post-commit storage failures from server mutation failures',async()=>{
  const form=read('packages/renderer/src/features/create/SharedCreateDrawer.tsx');

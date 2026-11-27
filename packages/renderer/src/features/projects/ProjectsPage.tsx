@@ -80,6 +80,14 @@ const DEFAULT_PROJECT_PROJECTIONS: ClusterDataProjection[] = [
 ];
 
 type ProjectStatusFilter = "all" | ClusterProjectStatus | "archived" | "ready" | "attention";
+// Closed projects each get their own tab; "paused" is shown as Shelved.
+const CLOSED_COLLECTIONS = [
+  { status: "completed", label: "Completed" },
+  { status: "cancelled", label: "Cancelled" },
+  { status: "paused", label: "Shelved" },
+  { status: "archived", label: "Archived" },
+] as const;
+const isClosedProject = (project: Pick<Project, "status" | "archived">) => Boolean(project.archived) || project.status === "completed" || project.status === "cancelled" || project.status === "paused";
 
 // Portfolio signals and Views & analytics are parked until they get a redesign.
 const SHOW_PORTFOLIO_TOOLS = false;
@@ -209,8 +217,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     ];
     return {
       search: deferredQuery.trim() || undefined,
-      // Archived holds archived projects and cancelled ones on their way out.
-      filters: mergeClusterDataFilterGroups(conditions.length ? { logic: "and", conditions } : null, statusFilter === "archived" ? { logic: "or", conditions: [{ fieldId: "archived", operator: "equals" as const, value: true }, { fieldId: "status", operator: "equals" as const, value: "cancelled" }] } : null, clusterDataSelectionSetFilterGroup(projectAnalyticalSelectionSet)),
+      filters: mergeClusterDataFilterGroups(conditions.length ? { logic: "and", conditions } : null, statusFilter === "archived" ? { logic: "and", conditions: [{ fieldId: "archived", operator: "equals" as const, value: true }] } : null, clusterDataSelectionSetFilterGroup(projectAnalyticalSelectionSet)),
       sorts: projectServerSorts,
       facets: analyticsOpen ? ["status", "source", "schedule", "priority"] : [],
       aggregations: analyticsOpen ? [{ id: "count", kind: "count", label: "Projects" }] : [],
@@ -492,7 +499,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     return { project, snapshot, entries, members, memberCount, gaps, status, completeness, source, stage, health, attentionScore, scheduleState, projectWhiteboards, latest: projectLatestTimestamp(project) };
   }), [portfolioProjects, projectSnapshots, timelineEntriesByProject, whiteboardsByProject, users, importantBuildEntries, projectMembers, projectSetupGaps, normalizeProjectStatus, projectCompleteness, projectSourceMeta, projectBuildStage, projectLatestTimestamp, projectHealth, projectAssignedIds]);
   const focusCounts = useMemo(() => facts.reduce<Record<ProjectPortfolioFocus, number>>((counts, fact) => {
-    if (fact.project.archived || fact.project.status === "cancelled") return counts;
+    if (isClosedProject(fact.project)) return counts;
     const pinned = pinnedProjectSet.has(fact.project.id);
     const matches = (key: ProjectPortfolioFocus) => key === "all" ? true
       : key === "pinned" ? pinned
@@ -508,8 +515,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     const health = fact.health;
     if (statusFilter === "ready" && health.tone !== "good") return false;
     if (statusFilter === "attention" && health.tone === "good") return false;
-    const retired = Boolean(project.archived) || project.status === "cancelled";
-    if (statusFilter === "archived" ? !retired : retired && statusFilter !== "cancelled") return false;
+    // Closed projects live only in their own tab: Completed, Cancelled,
+    // Shelved or Archived. Every other view is work still in motion.
+    if (statusFilter === "archived" ? !project.archived : project.archived) return false;
+    if (!project.archived && isClosedProject(project) && statusFilter !== project.status) return false;
     if (!["all", "ready", "attention", "archived"].includes(statusFilter) && status !== statusFilter) return false;
     const external = isExternalProject(project);
     const gitLinked = projectHasGit(project);
@@ -557,12 +566,6 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
 
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
-  // Finished projects fold into a "Done" group unless a status filter is on.
-  const isDoneProject = (project: Project) => project.status === "completed";
-  const groupDone = statusFilter === "all";
-  const activeFacts = visibleFacts.filter((fact) => !isDoneProject(fact.project));
-  const doneFacts = visibleFacts.filter((fact) => isDoneProject(fact.project));
-  const [doneOpen, setDoneOpen] = useServerState<boolean>("user", "projects.done-open", false, { merge: (value) => value === true });
   const [lastSeen] = useServerState<Record<string, string>>("user", "projects.last-seen", {}, { merge: (value) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, string> : {} });
   const isFresh = (project: Project) => Boolean(lastSeen[project.id] && project.updatedAt && project.updatedAt > lastSeen[project.id]);
   const renderFact = (fact: (typeof visibleFacts)[number]) => (
@@ -585,14 +588,15 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     onSelect={() => onOpenProject(fact.project.id)}
                     onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
-                    retiredActions={statusFilter === "archived" ? { onRestore: () => void restoreProject(fact.project), onDelete: isAdmin ? () => void deleteProjectForGood(fact.project) : undefined } : undefined}
+                    retiredActions={CLOSED_COLLECTIONS.some((tab) => tab.status === statusFilter) ? { onRestore: () => void restoreProject(fact.project), onDelete: isAdmin ? () => void deleteProjectForGood(fact.project) : undefined } : undefined}
                   />
   );
-  // Archived: restore a cancelled or archived project, or remove it for good.
+  // Closed tabs: bring a project back to Active, or remove it for good.
   async function restoreProject(project: Project) {
     try {
-      if (project.status === "cancelled") await api(`/api/projects/${project.id}/lifecycle`, { method: "POST", body: JSON.stringify({ action: "reactivate", reason: null, expectedRevision: project.revision }) });
-      else await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ archived: false, expectedRevision: project.revision }) });
+      if (project.archived) await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ archived: false, expectedRevision: project.revision }) });
+      else if (project.status === "cancelled" || project.status === "completed") await api(`/api/projects/${project.id}/lifecycle`, { method: "POST", body: JSON.stringify({ action: project.status === "cancelled" ? "reactivate" : "reopen", reason: null, expectedRevision: project.revision }) });
+      else await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ status: "active", expectedRevision: project.revision }) });
       await onReloadProjects?.();
     } catch (error) { await confirmCluster({ title: "Not restored", message: error instanceof Error ? error.message : "The project could not be restored.", confirmLabel: "OK", tone: "default" }); }
   }
@@ -787,9 +791,13 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   function clearFilters() { projectDrilldown.reset(); setQuery(""); setTypeFilter(""); setStatusFilter("all"); setSourceFilter("all"); setScheduleFilter("all"); setPriorityFilter("all"); setProjectAnalyticalSelection(null); setProjectAnalyticalSelectionSet({ logic: "or", selections: [] }); persistFocus("all"); }
   function navigateSelection(delta: number) { if (!sortedFacts.length) return; const current = sortedFacts.findIndex((fact) => fact.project.id === selectedProject?.id); const next = sortedFacts[(Math.max(0, current) + delta + sortedFacts.length) % sortedFacts.length]; setSelectedProjectId(next.project.id); }
 
-  const collections = [...browserFilters.map((item) => ({ id: item.id, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.label, count: item.count, tone: "" })), { id: "archived", label: "Archived", count: 0, tone: "" }];
-  const activeCollection = statusFilter === "archived" ? "archived" : focus;
-  const statusFilterCount = Number(statusFilter !== "all" && statusFilter !== "archived");
+  const collections = [
+    ...browserFilters.map((item) => ({ id: item.id as string, label: item.id === "all" ? "All" : item.id === "recent" ? "Recent" : item.label, count: item.count, status: null as ProjectStatusFilter | null })),
+    ...CLOSED_COLLECTIONS.map((tab) => ({ id: tab.status, label: tab.label, count: 0, status: tab.status as ProjectStatusFilter | null })),
+  ];
+  const closedCollection = CLOSED_COLLECTIONS.find((tab) => tab.status === statusFilter);
+  const activeCollection = closedCollection ? closedCollection.status : focus;
+  const statusFilterCount = Number(statusFilter !== "all" && !closedCollection);
 
   /* Projects. Title row, then one bar: collections as tabs on the left,
      search, filters and layout on the right. The list is the page. */
@@ -820,10 +828,10 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
               {collections.map((item) => <ClusterButton unstyled key={item.id} type="button"
                 className={`pl-tab ${activeCollection === item.id ? "is-active" : ""}`.trim()}
                 aria-current={activeCollection === item.id ? "page" : undefined}
-                onClick={() => item.id === "archived"
-                  ? (setStatusFilter("archived"), setSourceFilter("all"), setScheduleFilter("all"), setPriorityFilter("all"), persistFocus("all"), setInspectorOpen(false))
+                onClick={() => item.status
+                  ? (setStatusFilter(item.status), setSourceFilter("all"), setScheduleFilter("all"), setPriorityFilter("all"), persistFocus("all"), setInspectorOpen(false))
                   : chooseBrowserFocus(item.id as ProjectPortfolioFocus)}>
-                {item.label}{item.count ? <span className="pl-tab__count" data-tone={item.tone || undefined}>{item.count}</span> : null}
+                {item.label}{item.count ? <span className="pl-tab__count">{item.count}</span> : null}
               </ClusterButton>)}
             </nav>
             <div className="pl-bar__tools">
@@ -892,10 +900,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                 incremental={{ hasMore: projectCursor.hasMore, loading: projectCursor.loading, prefetchRows: 24, loadLabel: "Load 80 more projects", onLoadMore: projectCursor.loadMore }}
                 empty={<ClusterEmptyState kind="filtered" compact className="flat-empty-v146" title="No projects match this view" description="The portfolio still has projects. Clear the current search and filters to bring them back into view." actions={<ClusterButton variant="secondary" size="compact" onClick={clearFilters}>Clear filters</ClusterButton>} />}
               /></> : <div className={`pl-list pl-list--${viewMode}`}>
-                {sortedFacts.length ? <>{(groupDone ? activeFacts : visibleFacts).map(renderFact)}{groupDone && doneFacts.length ? <>
-                  <ClusterButton unstyled type="button" className="pl-group" aria-expanded={doneOpen} onClick={() => setDoneOpen(!doneOpen)}><ClusterIcon name={doneOpen ? "chevron-down" : "chevron-right"} /><span>Done</span><small>{doneFacts.length}</small></ClusterButton>
-                  {doneOpen ? doneFacts.map(renderFact) : null}
-                </> : null}</> : (
+                {sortedFacts.length ? visibleFacts.map(renderFact) : (
                   <ClusterEmptyState
                     kind="filtered"
                     compact

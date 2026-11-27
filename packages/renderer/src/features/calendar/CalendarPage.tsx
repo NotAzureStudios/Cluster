@@ -109,7 +109,7 @@ type TimelineEntry = {
 type TimelinePayload = { entries: TimelineEntry[]; manualItems: unknown[]; range: { start: string; end: string } };
 type CalendarDisplayItem = CalendarEvent & {
   overlay?: {
-    source: "timeline" | "card";
+    source: "timeline" | "card" | "project";
     sourceId: string;
     boardId?: string | null;
     readOnly: true;
@@ -351,7 +351,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     try {
       const result = await queryApi<TimelinePayload>(timelinePath, { staleMs: 15_000, maxAgeMs: 5 * 60_000, staleWhileRevalidate: true, force, tags: ["timeline", "calendar-overlays"] });
       if (sequence !== timelineRequestSequence.current) return;
-      setTimelineEntries(result.entries.filter((entry) => entry.source === "manual" || entry.source === "card"));
+      setTimelineEntries(result.entries.filter((entry) => entry.source === "manual" || entry.source === "card" || entry.source === "project"));
       setTimelineSnapshotPath(timelinePath);
     } catch (error) {
       if (sequence === timelineRequestSequence.current) setStatus(error instanceof Error ? error.message : "Timeline overlays unavailable");
@@ -428,14 +428,14 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
     location: null,
     startsAt: entry.startsAt,
     endsAt: entry.endsAt || null,
-    allDay: false,
+    allDay: entry.source === "project",
     color: entry.color || (entry.source === "card" ? "#60a5fa" : "#3b82f6"),
     externalUrl: entry.externalUrl || null,
-    eventType: entry.source === "card" ? "deadline" : entry.type,
+    eventType: entry.source === "card" || entry.source === "project" ? "deadline" : entry.type,
     status: "source",
     ownerId: entry.ownerId || null,
     attendeeIds: [],
-    overlay: { source: entry.source === "card" ? "card" : "timeline", sourceId: entry.id, boardId: entry.boardId || null, readOnly: true },
+    overlay: { source: entry.source === "card" || entry.source === "project" ? entry.source : "timeline", sourceId: entry.id, boardId: entry.boardId || null, readOnly: true },
   })), [visibleTimelineEntries]);
 
   const filteredEvents = useMemo<CalendarDisplayItem[]>(() => filterCalendarDisplayItems(
@@ -451,7 +451,9 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
       return;
     }
     const projectId = item.projectId || null;
-    const resource = item.overlay.source === "card"
+    const resource = item.overlay.source === "project"
+      ? { kind: "project" as const, id: item.overlay.sourceId, projectId }
+      : item.overlay.source === "card"
       ? { kind: "card" as const, id: item.overlay.sourceId, projectId }
       : { kind: "timeline" as const, id: item.overlay.sourceId, projectId };
     if (!openClusterWorkNavigation(clusterResourceNavigation(resource))) {
@@ -599,7 +601,7 @@ export default function CalendarPage({ projects }: { projects: Project[] }) {
           {([
             ["events", "Events"],
             ["timeline", "Timeline"],
-            ["cards", "Card deadlines"],
+            ["cards", "Deadlines"],
           ] as const).map(([layer, label]) => (
             <ClusterButton key={layer} size="compact" variant="quiet"
               className="calendar-layer-toggle-v11" selected={layers[layer]} aria-pressed={layers[layer]}

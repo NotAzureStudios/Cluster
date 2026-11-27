@@ -24,7 +24,7 @@ export type CalendarLayerItem = {
   eventType?: string | null;
   status?: string | null;
   ownerId?: string | null;
-  overlay?: { source: "timeline" | "card" } | null;
+  overlay?: { source: "timeline" | "card" | "project" } | null;
 };
 
 export type CalendarDisplayFilters = {
@@ -36,7 +36,7 @@ export type CalendarDisplayFilters = {
 };
 
 export function calendarItemLayer(item: CalendarLayerItem): CalendarLayer {
-  return item.overlay?.source === "card" ? "cards"
+  return item.overlay?.source === "card" || item.overlay?.source === "project" ? "cards"
     : item.overlay?.source === "timeline" ? "timeline"
       : "events";
 }

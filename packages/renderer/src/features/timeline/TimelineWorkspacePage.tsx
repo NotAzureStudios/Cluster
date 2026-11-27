@@ -39,6 +39,7 @@ function timelineEntryResource(entry: TimelineEntry): ClusterResourceAddress | n
   if (entry.source === "calendar") return { kind: "calendar", id: entry.id, projectId };
   if (entry.source === "schedule") return { kind: "scheduler", id: entry.id, projectId };
   if (entry.source === "manual") return { kind: "timeline", id: entry.id, projectId };
+  if (entry.source === "project") return { kind: "project", id: entry.id, projectId };
   return null;
 }
 
@@ -333,6 +334,7 @@ export function TimelineWorkspacePage({ projects, currentUser }: TimelineWorkspa
     if (source === "card") return "Due date";
     if (source === "schedule") return "Schedule";
     if (source === "time") return "Scheduler";
+    if (source === "project") return "Project";
     return "Manual";
   }
   const manualItems = payload?.manualItems || [];
