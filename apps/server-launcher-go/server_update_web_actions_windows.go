@@ -26,6 +26,9 @@ type webServerUpdateStatus struct {
  SHA256 string `json:"sha256,omitempty"`
  ManualReleaseURL string `json:"manualReleaseUrl,omitempty"`
  InstallSupported bool `json:"installSupported"`
+ Step string `json:"step,omitempty"`
+ Progress int `json:"progress,omitempty"`
+ FailedSequence int `json:"failedSequence,omitempty"`
  UpdatedAt string `json:"updatedAt"`
 }
 func webUpdateRuntimeFile(root,name string)string{
@@ -141,7 +144,11 @@ func runWebServerUpdateAction(root,action string)error{
   }
   // Do not repaint a queued, installed, failed-recovery or active
   // transaction as "verified" merely because the staged installer remains.
-  if !pending && state.State!="installed" && state.State!="blocked" &&
+  // A newer release than the one that rolled back is a fresh start.
+  if state.State=="recovered" {
+    if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil && candidate.Sequence!=state.FailedSequence && candidate.Sequence>installedServerReleaseSequence(root){state.State="verified"}
+  }
+  if !pending && state.State!="blocked" &&
     state.State!="recovered" && state.State!="installing" {
     if candidate,err:=inspectStagedServerUpdate(root,"main");err==nil && candidate.Sequence>installedServerReleaseSequence(root){
       state.OK=true
@@ -169,7 +176,7 @@ func runWebServerUpdateAction(root,action string)error{
   }
   if pending && state.State!="installing" && state.State!="blocked" && state.State!="recovered" {state.State="queued";state.Message="Signed update awaits native broker claim or is being applied."}
   state.InstallSupported=false
-  if !pending && state.State=="verified" {
+  if !pending && (state.State=="verified" || state.State=="recovered") {
     if err:=requireOwnedUpdateBroker(root);err==nil {
       if err:=requireOwnedClusterUpdateService(root);err==nil{
         state.InstallSupported=true

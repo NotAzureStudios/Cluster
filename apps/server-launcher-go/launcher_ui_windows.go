@@ -639,6 +639,20 @@ func runWindowsControlPanel(options launcherOptions) error {
 	if !options.noAutostart && !controller.serviceManaged {
 		procPostMessageW.Call(hwnd, wmAppAutostart, 0, 0)
 	}
+	// Every Server runs as a Windows Service: offer the one-time switch the
+	// first time a panel opens an install that still runs in this window.
+	if !controller.serviceManaged && !prefs.ServiceSetupOffered {
+		prefs.ServiceSetupOffered = true
+		_ = saveNativePanelPreferences(options.root, prefs)
+		go func() {
+			time.Sleep(1500 * time.Millisecond)
+			if messageBox(hwnd, "Cluster Server", "Run Cluster as a Windows Service? It starts with Windows, keeps running when you sign out, and installs updates without prompts. This panel still controls it.\r\n\r\nWindows will ask for administrator approval once.", mbYesNo|mbIconQuestion) == idYes {
+				controller.mu.Lock(); controller.updateInFlight = true; controller.mu.Unlock()
+				ui.postState()
+				controller.switchToService(false)
+			}
+		}()
+	}
 
 	var msg winMsg
 	for {
@@ -1991,13 +2005,70 @@ func (c *windowsServerController) BeginSignedServerInstallation(){
   go c.switchToServiceAndInstall()
   return
  }
- c.launchSignedServerInstall()
+ if loadNativePanelPreferences(c.options.root).UpdateChannel=="development" {
+  c.launchSignedServerInstall()
+  return
+ }
+ if requireOwnedUpdateBroker(c.options.root)!=nil || updateBrokerStale(c.options.root) {
+  // Installs without the updater service, or with an older copy of it, get
+  // it set up once; later releases refresh it themselves.
+  if messageBox(c.ui.hwnd,"Cluster Server Update","Cluster needs its updater service to install updates. Set it up now? Windows will ask for administrator approval once; after that, updates install without prompts.",mbYesNo|mbIconQuestion)!=idYes { return }
+  c.mu.Lock(); c.updateInFlight=true; c.mu.Unlock()
+  c.ui.postState()
+  go func(){
+   c.reportServerUpdateResult("Setting up the updater… approve the administrator prompt.")
+   if err:=runSelfElevatedAndWait(c.ui.hwnd,"--root",c.options.root,"--update-broker-install");err!=nil{
+    c.mu.Lock(); c.updateInFlight=false; c.mu.Unlock()
+    c.reportServerUpdateResult("The updater was not set up: "+err.Error())
+    return
+   }
+   c.installViaBroker()
+  }()
+  return
+ }
+ c.mu.Lock(); c.updateInFlight=true; c.mu.Unlock()
+ c.ui.postState()
+ go c.installViaBroker()
+}
+
+// installViaBroker hands the verified release to the updater service and
+// shows its progress here until it finishes. The panel stays open; Cluster
+// restarts underneath it.
+func (c *windowsServerController) installViaBroker() {
+ done:=func(message string, icon uintptr){
+  c.mu.Lock(); c.updateInFlight=false; c.mu.Unlock()
+  c.reportServerUpdateResult(message)
+  c.ui.postState()
+  messageBox(c.ui.hwnd,"Cluster Server Update",message,icon)
+ }
+ queued,err:=queueBrokerSignedServerUpdate(c.options.root)
+ if err!=nil{ done("The update could not start: "+err.Error(),mbIconError); return }
+ c.reportServerUpdateResult("Updating to "+queued.Release+" · waiting for the updater")
+ deadline:=time.Now().Add(45*time.Minute)
+ for time.Now().Before(deadline) {
+  time.Sleep(2*time.Second)
+  status:=readWebUpdateStatus(c.options.root)
+  switch status.State {
+  case "installed":
+   c.refreshServiceState()
+   done("Cluster "+status.Release+" is installed and running.",0)
+   return
+  case "recovered", "blocked", "failed":
+   done(status.Message,mbIconError)
+   return
+  case "installing":
+   c.reportServerUpdateResult(fmt.Sprintf("%s · %d%% · updating to %s",status.Step,status.Progress,status.Release))
+  }
+ }
+ done("The update is still running after 45 minutes. Check Admin › Server for its status.",mbIconError)
 }
 
 // switchToServiceAndInstall stops the interactive Server, installs the
 // Windows Service (elevated), then hands over to the supervised updater. Any
 // failure starts the interactive Server again and says why.
-func (c *windowsServerController) switchToServiceAndInstall() {
+func (c *windowsServerController) switchToServiceAndInstall() { c.switchToService(true) }
+
+func (c *windowsServerController) switchToService(installAfter bool) {
  restart:=func(message string){
   c.mu.Lock(); c.updateInFlight=false; c.mu.Unlock()
   c.reportServerUpdateResult(message)
@@ -2015,13 +2086,19 @@ func (c *windowsServerController) switchToServiceAndInstall() {
   return
  }
  c.refreshServiceState()
- c.mu.Lock(); managed:=c.serviceManaged; c.updateInFlight=false; c.mu.Unlock()
+ c.mu.Lock(); managed:=c.serviceManaged; c.mu.Unlock()
  if !managed {
   restart("The Windows Service was not found after installation. Cluster is running in this window again.")
   return
  }
+ if !installAfter {
+  c.mu.Lock(); c.updateInFlight=false; c.mu.Unlock()
+  c.reportServerUpdateResult("Cluster now runs as a Windows Service.")
+  c.ui.postState()
+  return
+ }
  c.reportServerUpdateResult("Cluster now runs as a Windows Service. Starting the update…")
- c.launchSignedServerInstall()
+ c.installViaBroker()
 }
 
 func (c *windowsServerController) launchSignedServerInstall() {

@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../core/api";
 import { requestSecurityPin, requestSecurityPinSetup } from "../../core/security-pin";
 import { ClusterButton } from "../../components/ClusterButton";
 import { SettingsStateChip } from "../../components/SettingsStateChip";
+import { runtimeStyle } from "../../core/runtime-style";
+import "./server-update-controls.css";
 
 type ServerUpdateStatus = {
   ok: boolean;
@@ -11,149 +13,126 @@ type ServerUpdateStatus = {
   message: string;
   release?: string;
   sequence?: number;
-  sha256?: string;
-  manualReleaseUrl?: string;
   installSupported?: boolean;
+  step?: string;
+  progress?: number;
   updatedAt?: string;
 };
 
+const ACTIVE = ["staging", "queued", "installing"];
+
+async function authorize(title: string, pinConfigured: boolean) {
+  return pinConfigured
+    ? requestSecurityPin({ title, description: "Confirm with your security PIN.", purpose: "apply_server_configuration", confirmLabel: "Continue" })
+    : requestSecurityPinSetup({ title: "Create security PIN", description: "Server updates need a security PIN.", purpose: "setup_for_apply_server_configuration" });
+}
+
+/** Server updates: one action at a time, live progress, plain results.
+ *  The Windows updater service verifies, backs up, installs and rolls back. */
 export function ServerUpdateControls({ owner, pinConfigured }: { owner: boolean; pinConfigured: boolean }) {
   const [status, setStatus] = useState<ServerUpdateStatus | null>(null);
-  const [check, setCheck] = useState<ServerUpdateStatus | null>(null);
-  const [busy, setBusy] = useState<"check" | "stage" | "status" | "install" | null>(null);
+  const [available, setAvailable] = useState<ServerUpdateStatus | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [restarting, setRestarting] = useState(false);
+  const wasInstalling = useRef(false);
 
-  async function refreshStatus(quiet = false) {
-    if (!quiet) setBusy("status");
+  async function refresh() {
     try {
       const data = await api<ServerUpdateStatus>("/api/admin/server-updates/status");
+      setRestarting(false);
       setStatus(data);
-      if (!quiet) setError("");
-    } catch (cause) {
-      if (!quiet) setError(cause instanceof Error ? cause.message : "Native Server update status is unavailable.");
-    } finally {
-      if (!quiet) setBusy(null);
+      return data;
+    } catch {
+      // While an install runs the Server restarts; keep waiting quietly.
+      if (wasInstalling.current) setRestarting(true);
+      return null;
     }
   }
 
-  useEffect(() => { void refreshStatus(); }, []);
-  // Poll only while the user-requested native staging process is running.
-  // Idle maintenance settings never poll the update feed.
+  useEffect(() => { void refresh(); }, []);
   useEffect(() => {
-    if (!status || !["staging", "queued", "installing"].includes(status.state)) return;
-    // Repeating timer intentionally survives unchanged native status timestamps.
-    // A single timeout would poll only once if the staged update takes longer
-    // than one interval to finish.
-    const timer = window.setInterval(() => void refreshStatus(true), 4_000);
+    const active = ACTIVE.includes(status?.state || "") || restarting;
+    if (status?.state === "installing" || status?.state === "queued") wasInstalling.current = true;
+    if (status?.state === "installed" && wasInstalling.current) {
+      // New web app ships with the new Server: load it.
+      const timer = window.setTimeout(() => window.location.reload(), 2500);
+      return () => window.clearTimeout(timer);
+    }
+    if (!active) return;
+    const timer = window.setInterval(() => void refresh(), 2_000);
     return () => window.clearInterval(timer);
-  }, [status?.state]);
+  }, [status?.state, restarting]);
 
-  async function checkForUpdates() {
-    setBusy("check");
-    setError("");
+  async function check() {
+    setBusy(true); setError("");
     try {
       const value = await api<ServerUpdateStatus>("/api/admin/server-updates/check");
-      setCheck(value);
-      await refreshStatus(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Signed Server update check failed.");
-    } finally { setBusy(null); }
+      setAvailable(value.available ? value : null);
+      if (!value.available) setError(value.message || "Cluster is up to date.");
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Couldn't reach the update feed."); }
+    finally { setBusy(false); }
   }
 
-  async function downloadVerifiedUpdate() {
-    if (!owner || busy || !check?.available) return;
-    if (!window.confirm("Download and verify this publisher-signed Cluster Server update? This does not install or restart the Server.")) return;
-    const pin = pinConfigured
-      ? await requestSecurityPin({
-          title: "Download signed Cluster Server update",
-          description: "Authorize an exact-purpose native Server update download. No installer will run.",
-          purpose: "apply_server_configuration",
-          confirmLabel: "Authorize download",
-        })
-      : await requestSecurityPinSetup({
-          title: "Create security PIN",
-          description: "Set up a PIN before authorizing signed Server update staging.",
-          purpose: "setup_for_apply_server_configuration",
-        });
+  async function download() {
+    const pin = await authorize("Download update", pinConfigured);
     if (!pin) return;
-    setBusy("stage");
-    setError("");
+    setBusy(true); setError("");
     try {
-      await api("/api/admin/server-updates/stage", {
-        method: "POST",
-        body: JSON.stringify({ securityPin: pin, confirmation: "DOWNLOAD SIGNED SERVER UPDATE" }),
-      });
-      setStatus({ ok: true, state: "staging", message: "Native signed download started." });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Server update download could not start.");
-    } finally { setBusy(null); }
+      await api("/api/admin/server-updates/stage", { method: "POST", body: JSON.stringify({ securityPin: pin, confirmation: "DOWNLOAD SIGNED SERVER UPDATE" }) });
+      setStatus({ ok: true, state: "staging", message: "Downloading and verifying…" });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The download couldn't start."); }
+    finally { setBusy(false); }
   }
 
-  async function installVerifiedUpdate() {
-    if (!owner || busy || !status?.installSupported || status.state !== "verified") return;
-    if (!window.confirm(`Install signed Cluster Server ${status.release || ""}? The Windows Service will stop, back up PostgreSQL, install and restart. Browser access will temporarily disconnect.`)) return;
-    const pin = pinConfigured
-      ? await requestSecurityPin({
-          title: "Install signed Cluster Server update",
-          description: "Authorize exactly one publisher-signed Server update and its native backup/recovery transaction.",
-          purpose: "apply_server_configuration",
-          confirmLabel: "Authorize installation",
-        })
-      : await requestSecurityPinSetup({
-          title: "Create security PIN",
-          description: "A Security PIN is required before signed Server installation.",
-          purpose: "setup_for_apply_server_configuration",
-        });
+  async function install() {
+    if (!window.confirm(`Install Cluster ${status?.release || ""} now? Cluster will be unavailable for a few minutes while it backs up, installs and restarts.`)) return;
+    const pin = await authorize("Install update", pinConfigured);
     if (!pin) return;
-    setBusy("install");
-    setError("");
+    setBusy(true); setError("");
     try {
-      const result = await api<ServerUpdateStatus>("/api/admin/server-updates/install", {
-        method: "POST",
-        body: JSON.stringify({ securityPin: pin, confirmation: "INSTALL SIGNED SERVER UPDATE" }),
-      });
+      const result = await api<ServerUpdateStatus>("/api/admin/server-updates/install", { method: "POST", body: JSON.stringify({ securityPin: pin, confirmation: "INSTALL SIGNED SERVER UPDATE" }) });
+      wasInstalling.current = true;
       setStatus(result);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Installation admission could not be confirmed. Inspect native status before retrying.");
-      void refreshStatus(true);
-    } finally { setBusy(null); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The install couldn't start."); void refresh(); }
+    finally { setBusy(false); }
   }
+
+  const state = status?.state || "idle";
+  const installing = state === "queued" || state === "installing" || restarting;
+  const ready = (state === "verified" || state === "recovered") && status?.installSupported;
+  const tone = state === "installed" ? "success" : state === "recovered" || state === "blocked" || state === "failed" ? "warning" : "neutral";
+  const label = restarting ? "Restarting" : ({ installed: "Up to date", installing: "Installing", queued: "Starting", verified: "Ready to install", staging: "Downloading", recovered: "Rolled back", blocked: "Needs attention", failed: "Failed" } as Record<string, string>)[state] || "Updates";
+  const percent = restarting ? 85 : status?.progress || (state === "queued" ? 2 : 0);
 
   return (
-    <section className="panel server-config-operations-v238" aria-label="Signed Cluster Server updates">
-      <div className="server-config-group-head-v238">
+    <section className="panel server-update" aria-label="Server updates">
+      <header className="server-update__head">
         <div>
           <h2>Server updates</h2>
-          <p className="muted tight">Signed releases from main. Install now, or let them install in the maintenance window.</p>
+          <p className="muted tight">Installs automatically overnight. Install now any time.</p>
         </div>
-        <SettingsStateChip tone={["verified", "installed"].includes(status?.state || "") ? "success" : ["failed", "blocked", "recovered"].includes(status?.state || "") ? "warning" : "neutral"}>
-          {status?.state === "installed" ? "Installed" : status?.state === "installing" ? "Installing" : status?.state === "queued" ? "Queued" : status?.state === "verified" ? "Signed download verified" : status?.state === "staging" ? "Downloading" : status?.state === "blocked" ? "Recovery needs review" : "Signed updates"}
-        </SettingsStateChip>
-      </div>
-      <div className="button-row">
-        <ClusterButton type="button" variant="secondary" busy={busy === "check"} disabled={busy !== null} onClick={() => void checkForUpdates()}>
+        <SettingsStateChip tone={tone}>{label}</SettingsStateChip>
+      </header>
+
+      {installing ? <div className="server-update__progress" aria-live="polite">
+        <div className="server-update__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><i style={runtimeStyle({ width: `${percent}%` })} /></div>
+        <p><strong>{restarting ? "Restarting Cluster" : status?.step || "Starting"}</strong> · updating to {status?.release}</p>
+        <p className="muted tight">This page reloads by itself when the update finishes.</p>
+      </div> : status?.message && state !== "idle" ? <p className={state === "recovered" || state === "blocked" || state === "failed" ? "server-update__note is-warn" : "server-update__note"} aria-live="polite">{status.message}</p> : null}
+
+      {!installing ? <div className="button-row">
+        {ready ? <ClusterButton variant="primary" busy={busy} disabled={!owner || busy} onClick={() => void install()}>
+          {state === "recovered" ? "Try again" : `Install ${status?.release || "update"}`}
+        </ClusterButton> : available && state !== "staging" ? <ClusterButton variant="primary" busy={busy} disabled={!owner || busy} onClick={() => void download()}>
+          Download {available.release || "update"}
+        </ClusterButton> : <ClusterButton variant="secondary" busy={busy} disabled={busy || state === "staging"} onClick={() => void check()}>
           Check for updates
-        </ClusterButton>
-        <ClusterButton type="button" variant="secondary" busy={busy === "stage"} disabled={!owner || !check?.available || busy !== null} onClick={() => void downloadVerifiedUpdate()}>
-          Download &amp; verify
-        </ClusterButton>
-        <ClusterButton type="button" variant="secondary" disabled={busy !== null} onClick={() => void refreshStatus()}>
-          Refresh status
-        </ClusterButton>
-        <ClusterButton type="button" variant="primary" busy={busy === "install"} disabled={!owner || !status?.installSupported || status.state !== "verified" || busy !== null}
-          onClick={() => void installVerifiedUpdate()}
-          title={status?.installSupported ? "Authorize one verified native Server installation" : "Requires a locally provisioned and running privileged Windows Update Broker"}>
-          Install verified update
-        </ClusterButton>
-      </div>
-      {check && <p role="status">{check.message}</p>}
-      {status && <div aria-live="polite">
-        <p><strong>Native status:</strong> {status.state}{status.release ? ` · Server ${status.release}` : ""}</p>
-        <p className="muted tight">{status.message}</p>
-        {status.sha256 && <p className="muted tight">Verified installer SHA-256: <code>{status.sha256}</code></p>}
-      </div>}
-      {error && <p role="alert">{error}</p>}
-      <p className="muted tight">The Windows Update Broker verifies the signature, backs up the database, installs, and rolls back if startup fails.</p>
+        </ClusterButton>}
+        {(state === "verified" || state === "recovered") && !status?.installSupported ? <span className="muted">Open the Cluster Server panel on the server once to finish setting up the updater.</span> : null}
+      </div> : null}
+      {error ? <p className="muted tight" role="status">{error}</p> : null}
     </section>
   );
 }

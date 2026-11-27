@@ -202,9 +202,14 @@ func installUpdateBroker(root string) error {
 	elevated, err := windowsProcessElevated()
 	if err != nil { return err }
 	if !elevated { return errors.New("privileged Update Broker provisioning requires local Windows administrator approval") }
-	info, _, err := queryBrokerService()
+	info, image, err := queryBrokerService()
 	if err != nil { return err }
-	if info.Installed { return errors.New("Update Broker is already installed; do not replace running privileged code") }
+	if info.Installed {
+		if !strings.EqualFold(strings.TrimSpace(image), updateBrokerCommand(root)) {
+			return errors.New("an Update Broker for another installation is registered")
+		}
+		return refreshUpdateBroker(root)
+	}
 	if err := copyUpdateBrokerBinary(root); err != nil { return err }
 	manager, _, callErr := apiOpenSCManager.Call(0, 0, scManagerCreateService)
 	if manager == 0 { return serviceError("open SCM for update broker", callErr) }
@@ -347,13 +352,24 @@ func runUpdateBrokerService(root string) error {
 func runBrokerQueue(root string, stop <-chan struct{}) error {
 	ticker := time.NewTicker(brokerPollInterval)
 	defer ticker.Stop()
+	_ = os.Remove(updateBrokerExecutable(root) + ".old")
 	for {
+		if refreshed, err := swapInRefreshedBroker(root); err != nil {
+			fmt.Fprintln(os.Stderr, "Update Broker refresh failed:", err)
+		} else if refreshed {
+			return nil
+		}
+		// A rejected request is set aside, never replayed; the broker keeps
+		// serving later requests instead of stopping for good.
 		if err := consumeBrokerIntent(root); err != nil {
-			_ = publishWebUpdateStatus(root, webServerUpdateStatus{
-				OK:false, State:"blocked", Message:"Update Broker blocked the signed installation. Examine native recovery evidence locally."})
-			// Fail stopped rather than retrying a rejected or partially executed
-			// privileged action on subsequent service polling ticks.
-			return err
+			if _, statErr := os.Lstat(nativeBrokerServerUpdateRequestPath(root)); statErr == nil {
+				_ = os.Rename(nativeBrokerServerUpdateRequestPath(root), nativeBrokerServerUpdateRequestPath(root)+".rejected-"+time.Now().UTC().Format("20060102T150405"))
+			}
+			current := readWebUpdateStatus(root)
+			if current.State != "recovered" && current.State != "blocked" {
+				_ = publishWebUpdateStatus(root, webServerUpdateStatus{OK:false, State:"failed",
+					Message:"The update could not start: " + err.Error()})
+			}
 		}
 		select {
 		case <-stop: return nil
@@ -411,15 +427,23 @@ func consumeBrokerIntent(root string) error {
 	command.Dir = filepath.Dir(filepath.Dir(root))
 	command.Stdout, command.Stderr = io.Discard, io.Discard
 	err = command.Run()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 3 {
+		// Failed and rolled back: the worker published why. Clear one-shot
+		// admission so a retry or a newer release can proceed.
+		_ = os.Remove(nativeBrokerServerUpdateRequestPath(root)+".claimed")
+		_ = os.Remove(updateBrokerDispatchPath(root))
+		_ = os.Remove(worker)
+		return nil
+	}
 	if err != nil {
-		_ = publishWebUpdateStatus(root,webServerUpdateStatus{
-			OK:false,State:"blocked",Release:candidate.Release,Sequence:candidate.Sequence,
-			Message:"Native update failed or recovered. Inspect the durable update journal and service health before further installation."})
+		if current := readWebUpdateStatus(root); current.State != "blocked" {
+			_ = publishWebUpdateStatus(root,webServerUpdateStatus{
+				OK:false,State:"blocked",Release:candidate.Release,Sequence:candidate.Sequence,
+				Message:"The update stopped and could not confirm a safe state. Cluster kept its backup and will not install again until this is reviewed."})
+		}
 		return err
 	}
-	_ = publishWebUpdateStatus(root,webServerUpdateStatus{
-		OK:true,State:"installed",Release:candidate.Release,Sequence:candidate.Sequence,
-		Message:"Verified signed update installed; Windows Service restarted and readiness checked."})
 	// A successful worker committed the release and re-opened access only after
 	// readiness. Remove one-shot admission artifacts to allow future newer
 	// signed updates. The independent durable journal remains untouched.
@@ -464,3 +488,77 @@ func copyBrokerWorkerExecutable(sourcePath, dest string) error {
 	ok=true
 	return nil
 }
+
+// swapInRefreshedBroker replaces this broker with the updater carried by the
+// last installed release (staged as .next by the SYSTEM worker), then restarts
+// the service so the new code runs. Windows allows renaming a running image.
+func swapInRefreshedBroker(root string) (bool, error) {
+	current := updateBrokerExecutable(root)
+	next := filepath.Join(updateBrokerDirectory(root), "ClusterUpdateBroker.next.exe")
+	info, err := os.Lstat(next)
+	if errors.Is(err, os.ErrNotExist) { return false, nil }
+	if err != nil { return false, err }
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 { return false, errors.New("refreshed broker is not a regular file") }
+	old := current + ".old"
+	_ = os.Remove(old)
+	if err := os.Rename(current, old); err != nil { return false, err }
+	if err := os.Rename(next, current); err != nil {
+		_ = os.Rename(old, current)
+		return false, err
+	}
+	restart := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+		"Start-Sleep -Seconds 5; Start-Service -Name "+clusterUpdateBrokerServiceName)
+	restart.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x00000008 | 0x00000200}
+	if err := restart.Start(); err != nil { return false, err }
+	_ = restart.Process.Release()
+	return true, nil
+}
+
+// updateBrokerStale reports whether the broker runs older updater code than
+// this installation's own launcher.
+func updateBrokerStale(root string) bool {
+	self, err := os.Executable()
+	if err != nil { return false }
+	a, errA := serverFileSHA256(self)
+	b, errB := serverFileSHA256(updateBrokerExecutable(root))
+	return errA == nil && errB == nil && !strings.EqualFold(a, b)
+}
+
+// refreshUpdateBroker replaces an installed broker's code with this
+// launcher (administrator approval required): stop, swap, start.
+func refreshUpdateBroker(root string) error {
+	manager, _, callErr := apiOpenSCManager.Call(0, 0, scManagerConnect)
+	if manager == 0 { return serviceError("open SCM for update broker", callErr) }
+	defer closeServiceHandle(manager)
+	service, _, callErr := apiOpenService.Call(manager,
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(clusterUpdateBrokerServiceName))),
+		serviceQueryStatus|serviceStartAccess|serviceStopAccess)
+	if service == 0 { return serviceError("open update broker", callErr) }
+	defer closeServiceHandle(service)
+	var status windowsServiceStatus
+	if ok, _, callErr := apiControlService.Call(service, serviceControlStop, uintptr(unsafe.Pointer(&status))); ok == 0 && !errors.Is(callErr, syscall.Errno(1062)) {
+		return serviceError("stop update broker", callErr)
+	}
+	for deadline := time.Now().Add(60 * time.Second); ; {
+		info, _, err := queryBrokerService()
+		if err != nil { return err }
+		if info.State == serviceStopped { break }
+		if time.Now().After(deadline) { return errors.New("the Update Broker did not stop; an update may be running") }
+		time.Sleep(500 * time.Millisecond)
+	}
+	self, err := os.Executable()
+	if err != nil { return err }
+	trusted := false
+	for _, path := range nativeServerServicePaths(root) { if strings.EqualFold(self, path) { trusted = true; break } }
+	if !trusted { return errors.New("the updater can be refreshed only from the installed Server Manager") }
+	next := filepath.Join(updateBrokerDirectory(root), "ClusterUpdateBroker.next.exe")
+	_ = os.Remove(next)
+	if err := copyBrokerWorkerExecutable(self, next); err != nil { return err }
+	current := updateBrokerExecutable(root)
+	_ = os.Remove(current + ".old")
+	if err := os.Rename(current, current+".old"); err != nil { return err }
+	if err := os.Rename(next, current); err != nil { _ = os.Rename(current+".old", current); return err }
+	if ok, _, callErr := apiStartService.Call(service, 0, 0); ok == 0 { return serviceError("start update broker", callErr) }
+	return nil
+}
+

@@ -72,12 +72,16 @@ await check('no protected broker: never installs', async () => {
   await serverAutoUpdateTick(deps);
   assert.deepEqual(calls, ['status']);
 });
-await check('rolled-back or blocked installs wait for an owner', async () => {
-  for (const state of ['recovered', 'blocked']) {
-    const { deps, calls } = harness({ state });
-    assert.deepEqual(await serverAutoUpdateTick(deps), { nextDelayMs: HOUR });
-    assert.deepEqual(calls, ['status']);
-  }
+await check('a blocked install waits for a person', async () => {
+  const { deps, calls } = harness({ state: 'blocked' });
+  assert.deepEqual(await serverAutoUpdateTick(deps), { nextDelayMs: HOUR });
+  assert.deepEqual(calls, ['status']);
+});
+await check('a rolled-back release is never retried, but a newer one still downloads', async () => {
+  const { deps, calls } = harness({ state: 'recovered' });
+  assert.deepEqual(await serverAutoUpdateTick(deps), { nextDelayMs: 6 * HOUR });
+  assert.ok(!calls.includes('install'));
+  assert.deepEqual(calls.slice(0, 2), ['status', 'check']);
 });
 await check('a failed download retries after an hour, not sooner', async () => {
   const recent = harness({ state: 'failed', updatedAt: new Date(night - 10 * MIN).toISOString() });

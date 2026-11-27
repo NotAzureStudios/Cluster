@@ -1,0 +1,9 @@
+.server-update { display: grid; gap: 12px; }
+.server-update__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.server-update__head h2 { margin: 0; }
+.server-update__progress { display: grid; gap: 6px; }
+.server-update__progress p { margin: 0; }
+.server-update__bar { height: 6px; overflow: hidden; border-radius: 999px; background: var(--cluster-surface-2); }
+.server-update__bar > i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
+.server-update__note { margin: 0; }
+.server-update__note.is-warn { color: var(--warning, #f5a524); }

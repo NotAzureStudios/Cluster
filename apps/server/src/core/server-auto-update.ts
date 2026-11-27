@@ -19,7 +19,9 @@ export type NativeUpdateStatus = {
 export function nativeUpdateBinary(dataRoot: string) {
   if (process.platform !== "win32" || path.basename(dataRoot).toLowerCase() !== "data") return null;
   const root = path.dirname(dataRoot);
-  return { root, binary: path.join(root, "bin", "Cluster Server.exe") };
+  // ClusterServer.exe is the native manager; "Cluster Server.exe" is only the
+  // small starter that opens the panel and ignores these arguments.
+  return { root, binary: path.join(root, "bin", "ClusterServer.exe") };
 }
 
 export async function readNativeWebUpdate(dataRoot: string, action: "check" | "status" | "install") {
@@ -101,8 +103,14 @@ async function autoUpdateStep(deps: ServerAutoUpdateDeps): Promise<{ nextDelayMs
   const status = await native("status");
   if (!status) return { nextDelayMs: HOUR };
   if (["staging", "queued", "installing"].includes(status.state)) return { nextDelayMs: 5 * MINUTE };
-  // A rolled-back or blocked install waits for an owner to review it.
-  if (["blocked", "recovered"].includes(status.state)) return { nextDelayMs: HOUR };
+  // Blocked waits for a person. A rolled-back release is never retried
+  // automatically, but a newer release still downloads and installs.
+  if (status.state === "blocked") return { nextDelayMs: HOUR };
+  if (status.state === "recovered") {
+    const newer = await native("check");
+    if (newer?.available) await (deps.stage ?? (() => startNativeUpdateStage(deps.dataRoot)))();
+    return { nextDelayMs: 6 * HOUR };
+  }
   if (status.state === "failed" && now - Date.parse(status.updatedAt || "") < HOUR) return { nextDelayMs: HOUR };
   if (status.state === "verified") {
     if (!status.installSupported || !inServerUpdateWindow(settings, now)) return { nextDelayMs: 5 * MINUTE };

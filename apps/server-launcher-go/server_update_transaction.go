@@ -46,6 +46,9 @@ type serverUpdateTransactionHooks struct {
  Record func(serverUpdatePhase,string)
 }
 
+// errUpdateRolledBack marks a failed update whose previous release was restored.
+var errUpdateRolledBack = errors.New("update rolled back")
+
 type serverUpdateTransactionResult struct {
  Phase serverUpdatePhase
  Err error

@@ -279,6 +279,7 @@ type nativePanelPreferences struct {
 	StartMinimized      bool   `json:"startMinimized"`
 	DevelopmentUpdateManifestURL string `json:"developmentUpdateManifestUrl"`
 	UpdateChannel string `json:"updateChannel"`
+	ServiceSetupOffered bool `json:"serviceSetupOffered,omitempty"`
 }
 
 // New installs expose the performance dashboard by default. An explicit saved

@@ -31,8 +31,8 @@ assert.match(api,/<ServerUpdateControls owner=\{currentUser\.workspaceRole === "
 assert.match(server,/\/api\/admin\/server-updates\/install/);
 assert.match(server,/INSTALL SIGNED SERVER UPDATE/);
 assert.match(server,/verifyUserPin\(user, parsed\.data\.securityPin/);
-assert.match(update,/Install verified update/);
-assert.match(update,/!status\?\.installSupported/);
+assert.match(update,/Install \$\{status\?\.release \|\| "update"\}/);
+assert.match(update,/status\?\.installSupported/);
 assert.match(update,/\/api\/admin\/server-updates\/install/);
 const broker = read("apps/server-launcher-go/server_update_broker_windows.go");
 const webNative = read("apps/server-launcher-go/server_update_web_actions_windows.go");

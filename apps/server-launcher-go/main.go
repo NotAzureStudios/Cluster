@@ -827,6 +827,10 @@ func fatal(err error) {
 			_, _ = bufio.NewReader(os.Stdin).ReadString('\n')
 		}
 	}
+	// The broker reads 3 as "failed and rolled back": safe to try again.
+	if errors.Is(err, errUpdateRolledBack) {
+		os.Exit(3)
+	}
 	os.Exit(1)
 }
 

@@ -145,6 +145,7 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
   case strings.Contains(state,"blocked")||strings.Contains(state,"uncertain"):allowed="blocked"
   }
   if err:=journal.append(phase,allowed);err!=nil{journalError=err}
+  publishUpdateProgress(root,claimed.Candidate,phase,allowed)
  }
  installer:=""
  previousSequence:=installedServerReleaseSequence(root)
@@ -210,6 +211,9 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
     return errors.New("installed Server release marker does not match authorized signed candidate")
    }
    if _,_,err:=inspectServerApplicationRollback(root,id);err!=nil{return fmt.Errorf("application rollback was not retained: %w",err)}
+   // The Server is still stopped: carry the new release's updater code into
+   // the protected Update Broker folder so the next update runs it.
+   if err:=stageUpdateBrokerRefresh(root);err!=nil{fmt.Fprintln(os.Stderr,"Update Broker refresh was not staged:",err)}
    return nil
   },
   StartCandidate:func(ctx context.Context)error{
@@ -271,6 +275,12 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
  }
  transaction:=runServerUpdateTransaction(context.Background(),hooks)
  if transaction.Err!=nil{
+  publishUpdateFailure(root,claimed.Candidate,transaction)
+  if transaction.Recovered{
+   // The previous release is running again; clear one-shot admission so the
+   // next attempt (or a newer release) is not blocked behind this one.
+   _=os.Remove(claimed.ClaimPath)
+  }
   if transaction.Recovered && !brokerAuthorized{
    messageBox(0,"Cluster Server Update Recovered",
     "The new Server could not be installed or verified. The previous Server was restarted and verified. Review the UpdateProgress journal before retrying.",mbIconError)
@@ -278,6 +288,7 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
    messageBox(0,"Cluster Server Update Blocked",
     "The update failed and safe recovery could not be completed automatically. Cluster has retained the write hold, snapshots and journal. Do not remove them or restart the Server until recovery is reviewed.",mbIconError)
   }
+  if transaction.Recovered{return fmt.Errorf("%w: %v",errUpdateRolledBack,transaction.Err)}
   return transaction.Err
  }
  if journalError!=nil{return journalError}
@@ -288,6 +299,10 @@ func runNativeServerUpdateInstall(root,channel string, brokerAuthorized bool)err
  if err:=retireAppliedServerUpdate(root,claimed.Candidate);err!=nil{
   fmt.Fprintln(os.Stderr,"Signed Server update installed, but old staging files need local review:",err)
  }
+ _=os.Remove(claimed.ClaimPath)
+ _=publishWebUpdateStatus(root,webServerUpdateStatus{OK:true,State:"installed",Release:claimed.Candidate.Release,
+  Sequence:claimed.Candidate.Sequence,Step:"Done",Progress:100,
+  Message:"Cluster "+claimed.Candidate.Release+" is installed and running."})
  if !brokerAuthorized { messageBox(0,"Cluster Server Updated",
   fmt.Sprintf("Cluster Server %s installed, Windows Service restarted and healthy, and the update write hold released. Rollback evidence remains preserved.",claimed.Candidate.Release),0) }
  return nil
