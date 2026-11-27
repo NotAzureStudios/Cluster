@@ -436,7 +436,7 @@ export function registerLibraryRoutes({
       q: z.string().max(300).optional().default(""),
       parentId: z.string().optional(),
       scope: z.enum(["folder", "descendants", "project", "all"]).optional().default("folder"),
-      section: z.enum(["folder", "projects", "recent", "favorites", "shared", "created", "generated", "trash"]).optional().default("folder"),
+      section: z.enum(["folder", "projects", "recent", "favorites", "shared", "created", "generated", "archived", "trash"]).optional().default("folder"),
       projectId: z.string().optional().default(""),
       ownerId: z.string().optional().default(""),
       type: z.string().optional().default("all"),
@@ -467,6 +467,7 @@ export function registerLibraryRoutes({
     if (query.ownerId) where.ownerId = query.ownerId;
     if (query.type !== "all") where.type = query.type;
     if (query.section === "trash") where.status = "trashed";
+    else if (query.section === "archived") where.status = "archived";
     else if (query.status === "active") where.status = { notIn: ["archived", "trashed"] };
     else if (query.status !== "all") where.status = query.status;
     if (query.visibility !== "all") where.visibility = query.visibility;

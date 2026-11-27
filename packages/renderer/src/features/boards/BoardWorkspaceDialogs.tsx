@@ -528,6 +528,15 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
   const [deferredUntil, setDeferredUntil] = useState(toDateInputValue(card?.deferredUntil));
   const [completionCriteria, setCompletionCriteria] = useState(card?.completionCriteria || "");
   const [category, setCategory] = useState(card?.category || "");
+  const [milestoneId, setMilestoneId] = useState(card?.milestoneId || "");
+  const [milestones, setMilestones] = useState<Array<{ id: string; title: string }>>([]);
+  useEffect(() => {
+    if (!projectId) return;
+    let live = true;
+    void queryApi<{ milestones?: Array<{ id: string; title: string }> }>(`/api/projects/${projectId}/focus`, { staleMs: 30_000, tags: [`project:${projectId}`] })
+      .then((focus) => { if (live) setMilestones(focus?.milestones || []); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [projectId]);
   const [coverColor, setCoverColor] = useState(card?.coverColor || "");
   const [coverImage, setCoverImage] = useState(card?.coverImage || "");
   const [estimatePoints, setEstimatePoints] = useState(card?.estimatePoints == null ? "" : String(card.estimatePoints));
@@ -863,6 +872,7 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
         watcherIds: Array.from(new Set([...(card?.watcherIds || []).filter((id) => id !== currentUser.id), ...(watching ? [currentUser.id] : [])])),
         assigneeId: assigneeId || null,
         externalUrl: externalUrl || null,
+        ...(milestones.length || card?.milestoneId ? { milestoneId: milestoneId || null } : {}),
       };
       // Metadata Save must not implicitly move a Card that a collaborator moved.
       // Moving columns is a separate explicit Board operation.
@@ -1064,6 +1074,13 @@ export function CardModal({ mode, listId, projectId, boardId, card: initialCard,
                 </ClusterNativeSelect>
               </div>
               <PeoplePicker value={assigneeId} onChange={setAssigneeId} people={users} label="Assignee" ariaLabel="Card assignee" />
+              {milestones.length || milestoneId ? <div className="field">
+                <label>Milestone</label>
+                <ClusterNativeSelect value={milestoneId} onChange={(e) => setMilestoneId(e.target.value)} aria-label="Card milestone">
+                  <option value="">None</option>
+                  {milestones.map((milestone) => <option key={milestone.id} value={milestone.id}>{milestone.title}</option>)}
+                </ClusterNativeSelect>
+              </div> : null}
             </div>
             <div className="field span-2">
               <label>Labels</label>

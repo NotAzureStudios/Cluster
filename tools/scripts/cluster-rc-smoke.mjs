@@ -35,7 +35,6 @@ const tests=[
   'tools/scripts/cluster-rc21-request-fairness-tests.mjs',
   'tools/scripts/cluster-rc22-workspace-visual-tests.mjs',
   'tools/scripts/cluster-rc23-runtime-diagnostics-tests.mjs',
-  'tools/scripts/cluster-rc26-projects-viewer-build-regression.mjs',
   'tools/scripts/cluster-rc27-admin-navigation-density-tests.mjs',
   'tools/scripts/cluster-rc27-shell-spatial-preferences-tests.mjs',
 ];

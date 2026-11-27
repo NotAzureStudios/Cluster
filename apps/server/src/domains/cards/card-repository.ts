@@ -26,6 +26,7 @@ export function createCardRepository(prisma: any) {
           title: body.title,
           description: body.description,
           priority: body.priority,
+          milestoneId: body.milestoneId || null,
           dueDate: body.dueDate ? new Date(body.dueDate) : null,
           startDate: body.startDate ? new Date(body.startDate) : null,
           deferredUntil: body.deferredUntil ? new Date(body.deferredUntil) : null,
@@ -57,7 +58,7 @@ export function createCardRepository(prisma: any) {
       const last = await prisma.card.findFirst({ where: { listId: source.listId, archived: false }, orderBy: { position: "desc" } });
       return prisma.card.create({
         data: {
-          listId: source.listId, title: (title || `${source.title} copy`).slice(0, 240), description: source.description, priority: source.priority, workItemKind: source.workItemKind, ticketStage: source.workItemKind === "ticket" ? "new" : null, dueDate: source.dueDate, startDate: source.startDate, deferredUntil: source.deferredUntil, completionCriteria: source.completionCriteria, labels: source.labels, category: source.category, coverColor: source.coverColor, coverImage: source.coverImage, estimatePoints: source.estimatePoints, memberIds: source.memberIds, watcherIds: source.watcherIds, assigneeId: source.assigneeId, externalUrl: source.externalUrl, completedAt: source.workItemKind === "ticket" ? null : source.list.isDone ? new Date() : null, stateEnteredAt: new Date(), position: last ? last.position + 1 : 0,
+          listId: source.listId, title: (title || `${source.title} copy`).slice(0, 240), description: source.description, priority: source.priority, milestoneId: source.milestoneId, workItemKind: source.workItemKind, ticketStage: source.workItemKind === "ticket" ? "new" : null, dueDate: source.dueDate, startDate: source.startDate, deferredUntil: source.deferredUntil, completionCriteria: source.completionCriteria, labels: source.labels, category: source.category, coverColor: source.coverColor, coverImage: source.coverImage, estimatePoints: source.estimatePoints, memberIds: source.memberIds, watcherIds: source.watcherIds, assigneeId: source.assigneeId, externalUrl: source.externalUrl, completedAt: source.workItemKind === "ticket" ? null : source.list.isDone ? new Date() : null, stateEnteredAt: new Date(), position: last ? last.position + 1 : 0,
           checklistItems: { create: source.checklistItems.map((item: any) => ({ text: item.text, completed: item.completed, position: item.position })) },
           activity: { create: { type: "created", message: `Duplicated from ${source.title}` } },
         },

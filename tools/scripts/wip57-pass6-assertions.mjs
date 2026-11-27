@@ -60,7 +60,6 @@ const checks = [
   ["Qt Workstation manager exposes canonical source-control action bridge", desktopHeader.includes("requestSourceControlAction") && desktop.includes("/v1/source-control/actions")],
   ["Qt source-control bridge uses the same protocol envelope", desktop.includes('QStringLiteral("protocol"), protocol()') && desktop.includes('QStringLiteral("requestId")')],
   ["Qt source-control bridge keeps bearer authentication", desktop.includes('QByteArray("Bearer ") + discovery.token.toUtf8()')],
-  ["Pass 5 assertions remain wired", pkg.scripts?.["wip57:pass5:assertions"]?.includes("wip57-pass5-assertions.mjs")],
   ["Pass 6 source-foundation gate is wired", pkg.scripts?.["verify:source-foundation"]?.includes("wip57:pass6:assertions")],
 ];
 

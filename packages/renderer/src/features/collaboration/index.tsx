@@ -467,13 +467,15 @@ export function CollaborationStrip({ presence, actions, currentUserId, followedU
 }
 
 
-export function ProjectCollaborationStrip({ tool, projectId, activity, editing = null }: {
+export function ProjectCollaborationStrip({ tool, projectId, resourceId = projectId, activity, editing = null }: {
   tool: Exclude<CollaborationTool, "board" | "whiteboard">;
   projectId: string;
+  /** The room: the project for project tools, the item for Library. */
+  resourceId?: string;
   activity: string;
   editing?: CollaborationEntityRef | null;
 }) {
-  const collaboration = useToolCollaboration(tool, projectId, projectId);
+  const collaboration = useToolCollaboration(tool, resourceId, projectId);
   useEffect(() => {
     collaboration.updatePresence({ activity, editing }, true);
   }, [activity, editing?.entityType, editing?.entityId, editing?.label, collaboration.updatePresence]);

@@ -70,13 +70,14 @@ const loaded = [{id:'folder',title:'References',type:'folder',revision:3},{id:'a
 check('Library describes selected folders and their descendant uncertainty', () => {
   const impact = describeLibraryBulkImpact('move',['folder','asset'],loaded,'Marketing');
   assert.equal(impact.count,2);
-  assert.match(impact.message,/descendants/);
+  assert.match(impact.message,/everything inside/);
   assert.match(impact.message,/Marketing/);
   assert.equal(impact.needsConfirmation,true);
 });
-check('Library always previews Trash and Restore, large non-destructive batches', () => {
+check('Library always previews Trash, folders and large batches; plain archive/restore do not ask', () => {
   assert.equal(describeLibraryBulkImpact('trash',['asset'],loaded).needsConfirmation,true);
-  assert.equal(describeLibraryBulkImpact('restore',['asset'],loaded).needsConfirmation,true);
+  assert.equal(describeLibraryBulkImpact('restore',['asset'],loaded).needsConfirmation,false);
+  assert.equal(describeLibraryBulkImpact('archive',['folder'],loaded).needsConfirmation,true);
   assert.equal(describeLibraryBulkImpact('pin',['asset'],loaded).needsConfirmation,false);
   assert.equal(describeLibraryBulkImpact('pin',Array.from({length:30},(_,i)=>String(i)),[]).needsConfirmation,true);
 });

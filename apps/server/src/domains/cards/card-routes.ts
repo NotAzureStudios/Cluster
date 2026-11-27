@@ -100,8 +100,11 @@ export function registerCardRoutes(deps: CardRouteDependencies) {
     const user = await getCurrentUser(request);
     const body = createCardSchema.parse(request.body);
     if (!(await policy.requireList(request, reply, body.listId, "contribute"))) return;
-    const destination = await prisma.boardList.findUnique({ where: { id: body.listId }, select: { archived: true, board: { select: { archived: true } } } });
+    const destination = await prisma.boardList.findUnique({ where: { id: body.listId }, select: { archived: true, board: { select: { archived: true, projectId: true } } } });
     if (!destination || destination.archived || destination.board?.archived) return reply.code(409).send({ ok: false, code: "LIST_ARCHIVED", error: "Restore the destination Board and column before creating work." });
+    if (body.milestoneId && !(await prisma.timelineItem.findFirst({ where: { id: body.milestoneId, projectId: destination.board?.projectId || "__none__", type: "milestone" }, select: { id: true } }))) {
+      return reply.code(400).send({ ok: false, code: "MILESTONE_NOT_IN_PROJECT", error: "Choose a milestone from this card's project." });
+    }
     return serializeCardWithLinks(await service.create(body, user?.id));
   });
 

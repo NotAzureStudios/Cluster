@@ -14,25 +14,27 @@ export function describeLibraryBulkImpact(
   const count = selectedIds.length;
   const selected = new Set(selectedIds);
   const visible = loaded.filter((item) => selected.has(item.id));
-  const names = visible.slice(0, 5).map((item) => `• ${item.title}`).join("\n");
-  const remainder = count - Math.min(visible.length, 5);
   const labels: Record<LibraryBulkIntent, string> = {
     move: "Move", archive: "Archive", restore: "Restore", trash: "Move to Trash",
     pin: "Change pinning for", tag: "Tag", untag: "Remove tag from", status: "Change status for",
   };
-  const target = detail.trim() ? `\nDestination / change: ${detail.trim()}` : "";
   const folderCount = visible.filter((item) => item.type === "folder").length;
-  const descendants = scope
-    ? `\nNested contents: ${scope.descendantCount} additional item${scope.descendantCount === 1 ? "" : "s"} (location/status may be affected).\nTotal selected + nested: ${scope.totalAffectedByLocation}.`
-    : folderCount ? `\n${folderCount} selected folder${folderCount === 1 ? "" : "s"} may contain descendants not counted here.` : "";
+  const nested = scope?.descendantCount ?? 0;
   if (scope && (scope.selectedCount !== count || scope.action !== action)) throw new Error("Library bulk preview no longer matches the selected operation.");
-  const caution = action === "trash" ? "\nItems in Trash may be subject to retention or deletion policies." : "";
+  const lines = [
+    count > 1 ? visible.slice(0, 5).map((item) => `• ${item.title}`).join("\n") + (count > 5 ? `\n…and ${count - Math.min(visible.length, 5)} more` : "") : "",
+    detail.trim() ? `To: ${detail.trim()}` : "",
+    nested ? `Includes ${nested} item${nested === 1 ? "" : "s"} inside.` : folderCount ? "Folders include everything inside them." : "",
+    action === "archive" ? "You can restore from Archived." : action === "trash" ? "You can restore from Trash until it is emptied." : "",
+  ].filter(Boolean);
+  const single = count === 1 && visible[0] ? `“${visible[0].title}”` : `${count} items`;
+  const sizable = folderCount > 0 || nested > 0;
   return {
-    title: `${labels[action]} ${count} Library item${count === 1 ? "" : "s"}?`,
-    message: `Affected selected items: ${count}\n${names}${remainder > 0 ? `\n…and ${remainder} more` : ""}${target}${descendants}${caution}\nOnly explicitly selected items will be sent. The server checks revisions and permissions again before writing; nested contents are not individually rewritten.`,
-    // Moving a few plain files is reversible and needs no prompt (drag-to-folder);
-    // folders, nested contents, lifecycle changes and large batches still confirm.
-    needsConfirmation: (action === "move" ? (folderCount > 0 || (scope?.descendantCount ?? 0) > 0 || count >= 10) : ["archive", "trash", "restore"].includes(action)) || count >= 25,
+    title: `${labels[action]} ${single}?`,
+    message: lines.join("\n"),
+    // Archive, restore and moves of plain files are easy to undo, so they only
+    // confirm for folders, nested contents or big batches. Trash always asks.
+    needsConfirmation: action === "trash" || (["move", "archive", "restore"].includes(action) && (sizable || count >= 10)) || count >= 25,
     count,
   };
 }

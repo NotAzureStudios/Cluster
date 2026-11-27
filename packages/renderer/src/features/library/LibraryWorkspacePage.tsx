@@ -6,6 +6,8 @@ import { confirmCluster, promptCluster } from "../../components/cluster-dialog-s
 import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { filesFromDrop } from "../../core/drop-files";
+import { canUseTool } from "../../core/permissions";
+import { NoteDocument } from "../notes/NoteDocument";
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
@@ -62,7 +64,7 @@ type LibraryBulkRenameRule = { mode: LibraryBulkRenameMode; text: string; replac
 type LibraryBulkRenamePreview = { ok: true; renames: Array<{ id: string; from: string; to: string; revision: number }>; changedCount: number };
 type CreateDraft = { kind: "folder" | "link" | "youtube-video" | "youtube-playlist"; title: string; body: string; externalUrl: string; folderColor: string; folderIcon: string; parentId?: string | null };
 type FolderAccess = "none" | "view" | "contribute" | "edit" | "manage";
-type LibrarySection = "folder" | "projects" | "recent" | "favorites" | "shared" | "created" | "generated" | "trash" | "collection";
+type LibrarySection = "folder" | "projects" | "recent" | "favorites" | "shared" | "created" | "generated" | "archived" | "trash" | "collection";
 type FolderPermissionPayload = { ok: boolean; folderId: string; users: User[]; permissions: Array<{ userId: string; access: FolderAccess }> };
 type LibraryAccessExplanation = { allowed: boolean; required: FolderAccess | "view"; effectiveAccess: FolderAccess | "none"; reasonCode: string; contributors: Array<{ kind: string; id?: string | null; access?: string | null; inherited?: boolean; detail: string }> };
 type LibraryAccessExplanationPayload = { ok: boolean; itemId: string; currentUser: LibraryAccessExplanation; roster: Array<{ user: User; explanation: LibraryAccessExplanation }> | null };
@@ -96,6 +98,8 @@ const MODEL_FILE_EXTENSIONS = new Set(["obj", "stl", "ply", "gltf", "glb", "fbx"
 const MODEL_COMPANION_EXTENSIONS = new Set(["mtl", "png", "jpg", "jpeg", "webp", "avif", "bmp", "gif", "bin", "tga", "dds", "hdr", "exr"]);
 function fileExtension(name: string) { return name.split(".").pop()?.trim().toLowerCase() || ""; }
 function fileBundleName(file: File) { return file.webkitRelativePath || file.name; }
+// Notes are Markdown; list rows show their text without the syntax.
+const plainSnippet = (text?: string | null) => (text || "").replace(/\[[ xX]\]/g, "").replace(/[#*_>`~]|^\s*-\s/gm, "").replace(/\s+-\s/g, " · ").replace(/\s+/g, " ").trim();
 function folderStyle(item: LibraryItem): CSSProperties { return { "--library-folder-color": projectFolderIdentity(item)?.color || item.folderColor || "#7aa8ff" } as CSSProperties; }
 function isProtectedLibraryFolder(item?: LibraryItem | null) { return Boolean(item?.type === "folder" && ["packets-root", "project-folder"].includes(String(item.source || ""))); }
 
@@ -301,7 +305,7 @@ function LibraryListRows({ items, activeId, selectedIds, onSelect, interact, reo
       onClick={(event) => { if ((event.target as HTMLElement).closest("label")) return; interact.pick(item, event); }} onDoubleClick={() => interact.open(item)} onContextMenu={(event) => interact.menu(item, event)} {...libraryDragProps(item, interact, reorderEnabled, onReorder)}>
       <label aria-label={`Select ${item.title}`} role="cell"><ClusterInput type="checkbox" checked={selectedIds.has(item.id)} onChange={(event) => onSelect(item, event.target.checked)} /></label>
       <div role="cell" className={`library-file-icon-v217 ${item.mimeGroup || item.type}`} aria-hidden="true"><LibraryItemGlyph item={item} size={20} /></div>
-      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{isWebLink(item) ? linkDomain(item.externalUrl) : item.originalName || item.snippet || item.type}</span></ClusterButton>
+      <ClusterButton unstyled type="button" role="cell" className="library-file-name-v217" aria-label={`${item.title}. Double-click to open`}><strong>{item.pinned && <LibraryIcon name="star" size={13} />}{item.title}</strong><span>{isWebLink(item) ? linkDomain(item.externalUrl) : item.originalName || plainSnippet(item.snippet) || item.type}</span></ClusterButton>
       <span role="cell">{item.project?.name || "Workspace"}</span><span role="cell">{item.type === "file" ? (item.extension?.toUpperCase() || item.mimeGroup || "File") : item.type}</span><span role="cell">{item.type === "folder" ? `${item.childCount || 0} ${item.childCount === 1 ? "item" : "items"}` : formatBytes(item.sizeBytes)}</span><span role="cell">{formatDate(item.updatedAt)}</span>
     </div>)}
   </div>;
@@ -695,6 +699,8 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   const [showSavedViews, setShowSavedViews] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<LibraryItem | null>(null);
+  const [noteOpenId, setNoteOpenId] = useState<string | null>(null);
+  const canEditLibrary = canUseTool(currentUser, "library", "edit");
   const [viewerItem, setViewerItem] = useState<LibraryItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -1063,6 +1069,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   function openLibraryItem(item: LibraryItem) {
     if (item.type === "folder") { libraryDetailHistory.closeDetail(); setFolderId(item.id); setActiveId(null); setActiveItem(null); setSelectedIds(new Set()); return; }
     if (isWebLink(item)) { window.open(String(item.externalUrl), "_blank", "noopener,noreferrer"); return; }
+    if (item.type === "note") { setNoteOpenId(item.id); return; }
     void openItemViewer(item);
   }
   async function renameLibraryItem(item: LibraryItem) {
@@ -1097,9 +1104,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   function libraryMenuItems(item: LibraryItem | null): ClusterActionMenuItem[] {
     const inTrash = librarySection === "trash";
     if (!item) return [
-      { id: "new-folder", label: "New folder", icon: "folder", onSelect: () => beginCreateFolder() },
-      { id: "upload", label: "Upload files…", icon: "upload", onSelect: () => fileInput.current?.click() },
-      { id: "link", label: "Add link…", icon: "link", onSelect: () => setCreateDraft({ kind: "link", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder" }) },
+      ...newItems,
       { id: "select-all", label: "Select all", icon: "check", separatorBefore: true, disabled: !items.length, onSelect: selectLoadedLibraryItems },
       { id: "refresh", label: "Refresh", icon: "refresh", onSelect: () => void loadWorkspace(true, true) },
     ];
@@ -1125,7 +1130,9 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       ...(inTrash
         ? [{ id: "restore", label: many ? `Restore ${ids.length} items` : "Restore", icon: "refresh", separatorBefore: true, onSelect: () => bulkOn(ids, "restore") } as ClusterActionMenuItem]
         : [
-          { id: "archive", label: many ? `Archive ${ids.length} items` : "Archive", icon: "archive", separatorBefore: true, onSelect: () => bulkOn(ids, "archive") } as ClusterActionMenuItem,
+          librarySection === "archived"
+            ? { id: "restore", label: many ? `Restore ${ids.length} items` : "Restore", icon: "refresh", separatorBefore: true, onSelect: () => bulkOn(ids, "restore") } as ClusterActionMenuItem
+            : { id: "archive", label: many ? `Archive ${ids.length} items` : "Archive", icon: "archive", separatorBefore: true, onSelect: () => bulkOn(ids, "archive") } as ClusterActionMenuItem,
           { id: "trash", label: many ? `Move ${ids.length} items to Trash` : "Move to Trash", icon: "trash", danger: true, onSelect: () => bulkOn(ids, "trash") } as ClusterActionMenuItem,
         ]),
     ];
@@ -1458,7 +1465,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
         : undefined;
       const impact = describeLibraryBulkImpact(action, ids, items, destination, scope);
       if (impact.needsConfirmation) {
-        const approved = await confirmCluster({ title: impact.title, message: impact.message, confirmLabel: "Apply to selected", tone: action === "trash" ? "danger" : "default" });
+        const approved = await confirmCluster({ title: impact.title, message: impact.message, confirmLabel: ({ trash: "Move to Trash", archive: "Archive", restore: "Restore", move: "Move" } as Record<string, string>)[action] || "Apply", tone: action === "trash" ? "danger" : "default" });
         if (!approved) return;
       }
       const result = await api<{ ok: true; updated: number; committed?: boolean; reconciled?: boolean; warning?: string; reconciliationJobId?: string }>("/api/library/bulk", { method: "POST", body: JSON.stringify({ ids, action, expectedRevisions, ...extra }) });
@@ -1947,6 +1954,14 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     } catch (reason) { setError(reason instanceof Error ? reason : new Error("Could not remove collection references. Refresh and retry.")); }
     finally { bulkPendingRef.current = false; setBulkBusy(false); }
   }
+  async function createNote() {
+    try {
+      const parentId = librarySection === "folder" ? folderId : null;
+      const item = await api<LibraryItem>("/api/library", { method: "POST", body: JSON.stringify({ title: "Untitled", type: "note", body: "", parentId }) });
+      setNoteOpenId(item.id);
+      void loadWorkspace(true, true);
+    } catch (reason) { setError(reason instanceof Error ? reason : new Error("The note was not created.")); }
+  }
   function beginCreateFolder(parentId: string | null = folderId) {
     setCreateDraft({ kind: "folder", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder", parentId });
   }
@@ -2146,7 +2161,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
 
   const currentFolder = folderById.get(folderId || "") || null;
   const parentFolderId = currentFolder?.parentId || null;
-  const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", projects: "Projects", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
+  const sectionLabel = librarySection === "collection" ? (activeCollection?.name || "Collection") : ({ folder: "Library", projects: "Projects", archived: "Archived", recent: "Recent", favorites: "Favorites", shared: "Shared with me", created: "Created by me", generated: "Generated", trash: "Trash" } as Record<Exclude<LibrarySection, "collection">, string>)[librarySection];
   const storageBytes = useMemo(() => items.reduce((sum, item) => sum + Number(item.sizeBytes || 0), 0), [items]);
   const popularTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -2170,7 +2185,9 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     setSelectedIds(new Set());
   }
 
+  // The one New menu: sidebar, empty-space menu and the folder menu all use it.
   const newItems: ClusterActionMenuItem[] = [
+    { id: "new-note", label: "New note", icon: "note", onSelect: () => void createNote() },
     { id: "upload", label: "Upload files", icon: "upload", onSelect: () => fileInput.current?.click() },
     { id: "upload-model-bundle", label: "Upload model bundle", description: "A model with its companion files.", icon: "model", onSelect: () => modelBundleInput.current?.click() },
     { id: "new-folder", label: currentFolder ? "New subfolder" : "New folder", icon: "folder", separatorBefore: true, onSelect: () => beginCreateFolder(folderId) },
@@ -2192,7 +2209,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       </div>
       {viewsOpen ? <nav className="lib-nav" aria-label="Library views">
         <ClusterButton unstyled type="button" className={atRoot ? "active" : ""} onClick={() => openLibrarySection("folder")}><ClusterIcon name="library" /><span>Library</span></ClusterButton>
-        {([["projects", "Projects", "project"], ["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
+        {([["projects", "Projects", "project"], ["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["archived", "Archived", "archive"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
       </nav> : null}
       <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
       <section className="library-explorer-section-v10 library-collections-v504">
@@ -2229,7 +2246,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
             {librarySection === "folder" ? <>{path.map((entry) => <span key={entry.id}><i>/</i><ClusterButton unstyled type="button" onClick={() => { setLibrarySection("folder"); setFolderId(entry.id); setActiveItem(null); setActiveId(null); }}>{entry.title}</ClusterButton></span>)}{currentFolder && !path.some((entry) => entry.id === currentFolder.id) ? <span><i>/</i><strong>{currentFolder.title}</strong></span> : null}</> : <span><i>/</i><strong>{sectionLabel}</strong></span>}
             {refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}
             {librarySection === "folder" ? <ClusterActionMenu label={currentFolder ? `${currentFolder.title} folder actions` : "Library root actions"} iconOnly className="library-breadcrumb-actions-v14" items={[
-              { id: "new-folder", label: currentFolder ? "New subfolder" : "New folder", icon: "plus", onSelect: () => beginCreateFolder(folderId) },
+              ...newItems,
               ...(currentFolder ? [{ id: "permissions", label: "Folder permissions", icon: "lock" as const, onSelect: () => void openFolderPermissions(currentFolder) }] : []),
             ]} /> : null}
           </nav>
@@ -2284,7 +2301,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
           {popularTags.length ? <div className="library-tag-shortcuts-v14" aria-label="Popular loaded tags"><span>Tags</span>{popularTags.map(([tag, count]) => <ClusterButton key={tag} size="compact" variant="quiet" selected={filters.tag === tag} onClick={() => setFilters((value) => ({ ...value, tag: value.tag === tag ? "" : tag }))}>{tag}<small>{count}</small></ClusterButton>)}</div> : null}
         </>
         </div> : null}
-        {activeItem?.projectId ? <ProjectCollaborationStrip tool="library" projectId={activeItem.projectId} activity={`Library · ${activeItem.title}`} /> : null}
+        {activeItem?.projectId ? <ProjectCollaborationStrip tool="library" projectId={activeItem.projectId} resourceId={activeItem.id} activity={`Library · ${activeItem.title}`} /> : null}
         {currentUser.isAdmin && showUploadRecovery ? <LibraryUploadRecoveryPanel onClose={() => setShowUploadRecovery(false)} /> : null}
           {currentUser.isAdmin && orphanAudit ? <section role="status" aria-live="polite" className="library-background-bulk-status" aria-label="Read-only Library storage audit">
             <strong>Storage orphan audit: {orphanAudit.status.toLowerCase()} (read-only)</strong>
@@ -2462,6 +2479,11 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
         <ClusterButton type="button" variant="primary" disabled={renameBusy || !renamePreview || !renamePreview.changedCount} onClick={() => void applyBulkRename()}>Apply reviewed names</ClusterButton>
       </div>
     </ClusterModal>}
+    {noteOpenId ? <ClusterModal open onClose={() => { setNoteOpenId(null); void loadWorkspace(true, true); }} className="modal panel library-note-modal" ariaLabel="Note">
+      <NoteDocument key={noteOpenId} id={noteOpenId} canEdit={canEditLibrary} autoFocusTitle closeIcon="close" closeLabel="Close note"
+        onClose={() => { setNoteOpenId(null); void loadWorkspace(true, true); }}
+        onDelete={() => { setNoteOpenId(null); void loadWorkspace(true, true); }} />
+    </ClusterModal> : null}
     {createDraft && <ClusterModal open onClose={() => setCreateDraft(null)} className="modal panel library-create-v217 library-link-create-v229" ariaLabel={createDraft.kind === "folder" ? "Create Library folder" : "Add Library item"}>
       <div className="modal-header"><div><p className="eyebrow">{createDraft.kind === "folder" ? `Create in ${currentFolder?.title || "Library"}` : "Add to Library"}</p><h2>{createDraft.kind === "folder" ? "New folder" : createDraft.kind === "youtube-video" ? "YouTube video" : createDraft.kind === "youtube-playlist" ? "YouTube playlist" : "Add link"}</h2></div><ClusterIconButton label="Close create dialog" type="button" onClick={() => setCreateDraft(null)}><LibraryIcon name="close" size={20} /></ClusterIconButton></div>
       {createDraft.kind !== "folder" && <div className="library-link-kind-v229" role="tablist" aria-label="Link type">

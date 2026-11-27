@@ -1,3 +1,5 @@
+import { renderMarkdown } from "../../core/markdown";
+import "../notes/notes.css";
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
 import { useEffect, useRef, useState } from "react";
 import { ClusterModal } from "../../components/ClusterModal";
@@ -268,7 +270,7 @@ export function LibraryPreview({ item, expanded = false, controls }: { item: Lib
   if (["office", "archive", "ebook"].includes(item.previewKind)) return <LibraryDocumentPreview item={item} />;
   if (item.previewKind === "external" && item.externalUrl) return <LibraryExternalLinkPreview item={item} expanded={expanded} />;
   if (item.previewKind === "folder") return <div className="library-preview-empty-v217"><LibraryIcon name="folder" size={48} style={runtimeStyle({ color: item.folderColor || undefined })} /><strong>{item.childCount || 0} {item.childCount === 1 ? "item" : "items"}</strong><p>Open this folder to browse its contents.</p></div>;
-  if (item.previewKind === "document") return <article className="library-document-preview-v217"><h3>{item.title}</h3><p>{item.body || item.snippet || "No document body."}</p></article>;
+  if (item.previewKind === "document") return <article className="library-document-preview-v217 pj-notes__read"><h3>{item.title}</h3>{(item.body || item.snippet || "").trim() ? renderMarkdown(item.body || item.snippet || "") : <p className="pv-empty">Empty note.</p>}</article>;
   return <div className="library-preview-empty-v217"><LibraryIcon name={itemIconName(item)} size={44} /><strong>Preview unavailable</strong><p>This format can still be downloaded and organized in Library.</p>{source && <ClusterLinkButton className="" href={libraryFileUrl(item, true)} variant="secondary">Download file</ClusterLinkButton>}</div>;
 }
 

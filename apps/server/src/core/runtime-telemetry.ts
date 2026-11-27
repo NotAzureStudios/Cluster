@@ -147,7 +147,9 @@ export class RuntimeTelemetry {
   private databasePressure = { poolMax: 0, totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingConnections: 0, utilization: 0, sampledAt: null as string | null };
   private admissionCache: { at: number; snapshot: RuntimeSaturationSignals } | null = null;
 
-  constructor(private readonly options: { maxSamples?: number; maxRoutes?: number; slowRequestMs?: number } = {}) {
+  private readonly options: { maxSamples?: number; maxRoutes?: number; slowRequestMs?: number };
+  constructor(options: { maxSamples?: number; maxRoutes?: number; slowRequestMs?: number } = {}) {
+    this.options = options;
     this.eventLoop.enable();
     this.gcObserver = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
