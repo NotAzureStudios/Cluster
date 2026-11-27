@@ -5,11 +5,12 @@ import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { confirmCluster, promptCluster } from "../../components/cluster-dialog-service";
 import { ClusterTextArea } from "../../components/ClusterTextArea";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { filesFromDrop } from "../../core/drop-files";
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
 import { startVisibleJobPolling } from "../../core/visible-job-polling";
-import { LibraryGlyph, LibraryIcon, LibraryItemGlyph, isLibraryIconId, itemIconName, linkBrandIcon, linkDomain } from "./LibraryIcons";
+import { LibraryGlyph, LibraryIcon, LibraryItemGlyph, isLibraryIconId, itemIconName, linkBrandIcon, linkDomain, projectFolderIdentity, setLibraryProjectIdentities } from "./LibraryIcons";
 import { ResourceIconPicker } from "../../components/ResourceIconPicker";
 import { LibraryAuthenticatedImage, LibraryModelThumbnail, LibraryPreview, LibraryTextPreview, LibraryVideoThumbnail, LibraryViewerModal } from "./LibraryMediaPreview";
 import { libraryFileUrl } from "./library-file-url";
@@ -95,7 +96,7 @@ const MODEL_FILE_EXTENSIONS = new Set(["obj", "stl", "ply", "gltf", "glb", "fbx"
 const MODEL_COMPANION_EXTENSIONS = new Set(["mtl", "png", "jpg", "jpeg", "webp", "avif", "bmp", "gif", "bin", "tga", "dds", "hdr", "exr"]);
 function fileExtension(name: string) { return name.split(".").pop()?.trim().toLowerCase() || ""; }
 function fileBundleName(file: File) { return file.webkitRelativePath || file.name; }
-function folderStyle(item: LibraryItem): CSSProperties { return { "--library-folder-color": item.folderColor || "#7aa8ff" } as CSSProperties; }
+function folderStyle(item: LibraryItem): CSSProperties { return { "--library-folder-color": projectFolderIdentity(item)?.color || item.folderColor || "#7aa8ff" } as CSSProperties; }
 function isProtectedLibraryFolder(item?: LibraryItem | null) { return Boolean(item?.type === "folder" && ["packets-root", "project-folder"].includes(String(item.source || ""))); }
 
 function FolderAppearancePicker({ color, icon, onColor, onIcon, compact = false }: { color: string; icon: string; onColor: (value: string) => void; onIcon: (value: string) => void; compact?: boolean }) {
@@ -273,7 +274,7 @@ function libraryDragProps(item: LibraryItem, interact: LibraryItemInteraction, r
       // Files dragged in from the desktop upload straight into this folder.
       if (item.type === "folder" && event.dataTransfer.files.length) {
         event.preventDefault(); event.stopPropagation();
-        interact.uploadInto(item, Array.from(event.dataTransfer.files));
+        void filesFromDrop(event.dataTransfer).then((files) => interact.uploadInto(item, files));
         return;
       }
       const raw = event.dataTransfer.getData(LIBRARY_DRAG_TYPE);
@@ -646,6 +647,8 @@ function LibraryInspector({ item, folders, projects, users, currentUser, tab, on
 // embedded: runs inside another page (a project's Files tab), opened at
 // initialFolderId with the sidebar hidden.
 export default function LibraryWorkspacePage({ projects, currentUser, initialFolderId = null, embedded = false }: { projects: Project[]; currentUser: User; initialFolderId?: string | null; embedded?: boolean }) {
+  // Before children render, so project folders draw their project's mark.
+  useMemo(() => setLibraryProjectIdentities(projects), [projects]);
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [folders, setFolders] = useState<LibraryItem[]>([]);
   const [treeFiles, setTreeFiles] = useState<LibraryItem[]>([]);
@@ -1320,10 +1323,9 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     event.preventDefault();
     event.stopPropagation();
     setDropActive(false);
-    const files = Array.from(event.dataTransfer.files || []).filter((file) => file.size >= 0);
-    if (!files.length) return;
     if (uploading.active) { setStatus("Finish the current transfer before starting another batch."); return; }
-    void uploadSelection(files, false, folderId);
+    const target = folderId;
+    void filesFromDrop(event.dataTransfer).then((files) => { if (files.length) void uploadSelection(files, false, target); });
   }
 
   async function uploadFiles(event: ChangeEvent<HTMLInputElement>) {

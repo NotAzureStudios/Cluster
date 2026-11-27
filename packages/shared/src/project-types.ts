@@ -25,7 +25,7 @@ export type ClusterProjectSourceControlDefaults = {
 
 export const CLUSTER_PROJECT_STATUSES = ["active", "on_hold", "paused", "completed", "cancelled"] as const;
 export type ClusterProjectStatus = (typeof CLUSTER_PROJECT_STATUSES)[number];
-export type ClusterProjectStatusTone = "good" | "warning" | "neutral" | "danger";
+export type ClusterProjectStatusTone = "good" | "warning" | "neutral" | "danger" | "accent";
 export const CLUSTER_PROJECT_STATUS_DEFINITIONS: ReadonlyArray<{
   value: ClusterProjectStatus;
   label: string;
@@ -35,7 +35,7 @@ export const CLUSTER_PROJECT_STATUS_DEFINITIONS: ReadonlyArray<{
   { value: "active", label: "Active", tone: "good", description: "Currently moving." },
   { value: "on_hold", label: "On Hold", tone: "warning", description: "Temporarily paused for scheduling, staffing, or dependency reasons." },
   { value: "paused", label: "Paused", tone: "neutral", description: "Inactive but not closed." },
-  { value: "completed", label: "Completed", tone: "good", description: "Delivered or wrapped." },
+  { value: "completed", label: "Completed", tone: "accent", description: "Delivered or wrapped." },
   { value: "cancelled", label: "Cancelled", tone: "danger", description: "Closed without further work." },
 ];
 

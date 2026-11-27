@@ -1,6 +1,8 @@
 // G26 source-closeout: effective parent protection is resolved at read/commit
 // time; it is NOT copied into child fields or silently removed by moving a file.
 // This is an advisory/protective decision, never a physical disposal permit.
+// Project is not part of lineage: an item moved into a project folder joins
+// that project (see adoptLibraryProject) and inherits its chain's protection.
 export const LIBRARY_RETENTION_ANCESTOR_LIMIT = 128;
 export class LibraryRetentionLineageError extends Error {
   // A refused move or write, not a server fault: answer 409 with the reason.
@@ -20,11 +22,9 @@ export async function resolveLibraryEffectiveRetention(tx: any, item: {
   let current: typeof item | null = item;
   let maxDate: Date | null = null, legalHold = false;
   const governingIds: string[] = [], lineage: LibraryRetentionEvidence["lineage"] = [];
-  const project = item.projectId ?? null;
   for (let depth = 0; current; depth++) {
     if (depth >= LIBRARY_RETENTION_ANCESTOR_LIMIT) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_ANCESTOR_LIMIT", "Retention ancestry too deep to verify.");
     if (!current.id || visited.has(current.id)) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_CYCLE", "Retention ancestry contains a cycle.");
-    if ((current.projectId ?? null) !== project) throw new LibraryRetentionLineageError("LIBRARY_RETENTION_PROJECT_BOUNDARY", "Items can only move within the same project. Transfer the item to that project first.");
     visited.add(current.id);
     const hold = Boolean(current.legalHold);
     const raw = current.retentionUntil;
@@ -45,4 +45,20 @@ export async function resolveLibraryEffectiveRetention(tx: any, item: {
     current = parent;
   }
   return { legalHold, retentionUntil: maxDate, governingIds, lineage };
+}
+
+/** Give a moved subtree its new folder's project (null at the Library root). */
+export async function adoptLibraryProject(tx: any, rootIds: string[], parentId: string | null) {
+  if (!rootIds.length) return;
+  const parent = parentId ? await tx.libraryItem.findUnique({ where: { id: parentId }, select: { projectId: true } }) : null;
+  const projectId = parent?.projectId ?? null;
+  // Walk down a level at a time; folders are shallow and this stays inside
+  // the caller's transaction.
+  const seen = new Set<string>(rootIds);
+  for (let level = rootIds; level.length;) {
+    await tx.libraryItem.updateMany({ where: { id: { in: level } }, data: { projectId } });
+    const children: Array<{ id: string }> = await tx.libraryItem.findMany({ where: { parentId: { in: level } }, select: { id: true } });
+    level = children.map((child) => child.id).filter((id) => !seen.has(id));
+    level.forEach((id) => seen.add(id));
+  }
 }

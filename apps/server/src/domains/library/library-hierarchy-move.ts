@@ -1,3 +1,4 @@
+import { adoptLibraryProject } from "./library-effective-retention.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { DurableJobWorker } from "../jobs/job-worker.js";
@@ -163,6 +164,7 @@ export function registerLibraryHierarchyMoveJob(input: { worker: DurableJobWorke
             data: { parentId: command.parentId, revision: { increment: 1 }, lastEditorId: command.actorId },
           });
           if (updated.count !== 1) throw new LibraryBulkGuardError("LIBRARY_HIERARCHY_PREVIEW_STALE", "The source moved concurrently; refresh before retrying.");
+          await adoptLibraryProject(tx, [target.id], command.parentId || null);
           // This uses the existing queue table and existing storage job owner.
           // The repair intent is in the *same* transaction as the moved root;
           // merely enqueueing after commit would lose it on crash/cancellation.

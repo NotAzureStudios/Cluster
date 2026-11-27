@@ -91,9 +91,9 @@ await test('cycle in destination ancestry fails closed',async()=>{
 await test('missing destination ancestry fails closed',async()=>{
   await assert.rejects(guard.assertLibraryMovePreservesRetention(db([]),row('file'),'missing'),sameCode('LIBRARY_RETENTION_PARENT_MISSING'));
 });
-await test('cross-project destination cannot weaken boundary',async()=>{
+await test('moving into another project folder is allowed (the item joins it)',async()=>{
   const a=row('a',null,{type:'folder',projectId:'different'});
-  await assert.rejects(guard.assertLibraryMovePreservesRetention(db([a]),row('file'), 'a'),sameCode('LIBRARY_RETENTION_PROJECT_BOUNDARY'));
+  await guard.assertLibraryMovePreservesRetention(db([a]),row('file'), 'a');
 });
 await test('single-item bulk Trash rejects inherited hold',async()=>{
   const a=row('a',null,{type:'folder',legalHold:true}),file=row('file','a');

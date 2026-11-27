@@ -30,9 +30,11 @@ await test('cycles cannot bypass policy',async()=>{
  const rows={a:{id:'a',parentId:'b',revision:1},b:{id:'b',parentId:'a',revision:1}};
  await assert.rejects(resolveLibraryEffectiveRetention(fixture(rows).db,rows.a),e=>e.code==='LIBRARY_RETENTION_CYCLE');
 });
-await test('cross-project folder ancestry is rejected',async()=>{
- const rows={parent:{id:'parent',parentId:null,projectId:'other',revision:1}};
- await assert.rejects(resolveLibraryEffectiveRetention(fixture(rows).db,{id:'leaf',projectId:'mine',parentId:'parent'}),e=>e.code==='LIBRARY_RETENTION_PROJECT_BOUNDARY');
+await test('a parent in another project still governs retention',async()=>{
+ const rows={parent:{id:'parent',parentId:null,projectId:'other',revision:1,legalHold:true}};
+ const evidence=await resolveLibraryEffectiveRetention(fixture(rows).db,{id:'leaf',projectId:'mine',parentId:'parent'});
+ assert.equal(evidence.legalHold,true);
+ assert.deepEqual(evidence.lineage.map((entry)=>entry.id),['leaf','parent']);
 });
 await test('corrupt ancestor dates fail closed',async()=>{
  const rows={parent:{id:'parent',parentId:null,retentionUntil:'bogus'}};

@@ -253,8 +253,10 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
       classification: z.enum(["public", "internal", "confidential", "restricted"]).default("internal"),
       tags: z.array(z.string().trim().min(1).max(120)).max(100).default([]),
     }).parse(request.body || {});
+    let inheritedProjectId: string | null = null;
     if (body.parentId) {
       const parent = await prisma.libraryItem.findUnique({ where: { id: body.parentId }, include: { project: { include: { memberships: { where: { status: "active" } } } } } });
+      inheritedProjectId = parent?.projectId || null;
       if (!parent || parent.type !== "folder") return reply.code(404).send({ ok: false, code: "LIBRARY_FOLDER_NOT_FOUND", error: "Destination Library folder not found." });
       if (!(await libraryAccess.canAccessItem(request, parent, "contribute"))) return reply.code(403).send({ ok: false, code: "LIBRARY_ACCESS_DENIED", error: "Library contribute access is required for the destination folder." });
       if (body.projectId && parent.projectId !== body.projectId) return reply.code(409).send({ ok: false, code: "LIBRARY_SCOPE_MISMATCH", error: "Destination folder and requested project scope do not match." });
@@ -268,7 +270,7 @@ export function registerLibrary9E2Routes(deps: Library9E2RouteDependencies) {
       maxAttempts: 4,
       priority: 30,
       costUnits: 2,
-      payload: { ...body, actorId: auth.user.id },
+      payload: { ...body, projectId: inheritedProjectId || body.projectId || null, actorId: auth.user.id },
       authorization: { actorUserId: auth.user.id, action: "contribute", resource: { kind: "tool", tool: "library" }, minimum: "edit", tool: "library" },
     });
     reply.code(202);

@@ -482,3 +482,5 @@
 .cluster-library-workspace .library-views-flyout-v22>header strong{font-size:.81rem}
 .cluster-library-workspace .library-filter-primary-v219{overflow:visible}
 @media(max-width:640px){.cluster-library-workspace .library-views-flyout-v22{right:-70px;width:min(330px,calc(100vw - 28px))}}
+.lib-glyph--project { display: inline-grid; place-items: center; flex: none; }
+.lib-glyph--project > * { width: 100%; height: 100%; }

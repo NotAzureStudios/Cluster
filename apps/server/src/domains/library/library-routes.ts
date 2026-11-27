@@ -1,5 +1,5 @@
 import { cachedDirectoryUsage, driveSpace } from "../../core/storage-moves.js";
-import { resolveLibraryEffectiveRetention } from "./library-effective-retention.js";
+import { adoptLibraryProject, resolveLibraryEffectiveRetention } from "./library-effective-retention.js";
 import { isLibraryRetentionActive, libraryMetadataMutationDenial } from "./library-retention-relocation.js";
 import { createHash } from "node:crypto";
 import type { BackgroundJobQueue } from "../jobs/job-queue-service.js";
@@ -1295,7 +1295,8 @@ export function registerLibraryRoutes({
     const item = await prisma.libraryItem.create({
       data: {
         parentId: body.parentId || null,
-        projectId: body.projectId || null,
+        // Anything made inside a project folder belongs to that project.
+        projectId: (body.parentId ? (await prisma.libraryItem.findUnique({ where: { id: body.parentId }, select: { projectId: true } }))?.projectId : null) || body.projectId || null,
         ownerId: body.ownerId || user.id,
         creatorId: user.id,
         uploaderId: user.id,
@@ -1367,7 +1368,8 @@ export function registerLibraryRoutes({
     const item = await prisma.libraryItem.create({
       data: {
         parentId: body.parentId || null,
-        projectId: body.projectId || null,
+        // Anything made inside a project folder belongs to that project.
+        projectId: (body.parentId ? (await prisma.libraryItem.findUnique({ where: { id: body.parentId }, select: { projectId: true } }))?.projectId : null) || body.projectId || null,
         ownerId: body.ownerId || user.id,
         creatorId: user.id,
         lastEditorId: user.id,
@@ -2495,6 +2497,7 @@ export function registerLibraryRoutes({
           const updated = await tx.libraryItem.updateMany({ where: { id: item.id, revision: body.expectedRevisions[item.id] }, data });
           if (updated.count !== 1) throw new BulkRevisionConflict();
         }
+        if (body.action === "move") await adoptLibraryProject(tx, items.map((item: any) => item.id), body.parentId || null);
         // The same commit that changes a hierarchy records who changed it and
         // which IDs were requested. An activity failure rolls back the writes.
         if (["move", "archive", "trash", "restore"].includes(body.action)) {

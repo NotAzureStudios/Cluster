@@ -50,6 +50,8 @@
 .pj-status[data-tone="good"] { --pj-tone: var(--success); }
 .pj-status[data-tone="warning"] { --pj-tone: var(--warning); }
 .pj-status[data-tone="danger"] { --pj-tone: var(--danger); }
+.pj-status[data-tone="neutral"] { --pj-tone: var(--muted); }
+.pj-status[data-tone="accent"] { --pj-tone: var(--accent); }
 
 .pj-facts {
   display: flex;

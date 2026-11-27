@@ -34,7 +34,8 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
   const noteLine = (project.description || "").split("\n").map((line) => line.replace(/^\s*(?:[-*] (?:\[[ xX]\] )?|#{1,3} )/, "").trim()).find(Boolean) || "";
   const summary = density === "comfortable" ? (project.objective || noteLine).trim() : "";
   // Only real problems (blocked, at risk) replace the status; setup nags don't.
-  const tone = health.tone === "danger" ? "danger" : "good";
+  // Problems first; otherwise the pill shows the project's status colour.
+  const tone = health.tone === "danger" ? "danger" : project.archived ? "neutral" : ({ on_hold: "warning", paused: "neutral", completed: "accent", cancelled: "danger" } as Record<string, string>)[project.status || ""] || "good";
   const scheduled = Boolean(project.targetDate);
   const scheduleTone = scheduleMeta.tone === "danger" || scheduleMeta.tone === "warning" ? scheduleMeta.tone : undefined;
   const scheduleShort = scheduleMeta.label.replace(/^Due in /, "").replace(/^Overdue by /, "−");
@@ -50,7 +51,7 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
         {typeLabel ? <small id={typeId}>{typeLabel}</small> : null}
       </span>
       {summary ? <p id={summaryId} className="pl-card__summary" title={summary}>{summary}</p> : null}
-      <span className="pl-status" data-tone={tone} title={health.label}>{tone === "good" ? statusLabel : health.label}</span>
+      <span className="pl-status" data-tone={tone} title={health.label}>{health.tone === "danger" ? health.label : statusLabel}</span>
       <ul className="pl-card__facts">
         {scheduled ? <li data-tone={scheduleTone} title={scheduleMeta.detail || scheduleMeta.label}><ClusterIcon name="calendar" />{scheduleShort}</li> : null}
         <li title={`${memberCount} people`}><ClusterIcon name="users" />{memberCount}</li>

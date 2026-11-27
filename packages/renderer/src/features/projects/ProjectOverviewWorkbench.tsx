@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type MutableRefObject, type ReactNode } from "react";
+import { filesFromDrop } from "../../core/drop-files";
 import { api, queryApi, uploadApi } from "../../core/api";
 import { formatRelativeTime } from "../../core/format";
 import { ClusterButton, ClusterIconButton, ClusterLinkButton } from "../../components/ClusterButton";
@@ -287,8 +288,7 @@ export function ProjectFileDropZone({ project, enabled, onUploaded, children, la
       event.preventDefault();
       depth.current = 0;
       setOver(false);
-      const files = Array.from(event.dataTransfer.files || []);
-      if (files.length) void upload(files);
+      void filesFromDrop(event.dataTransfer).then((files) => { if (files.length) void upload(files); });
     }}>
     {children}
     {over ? <div className="pj-drop__veil" aria-hidden="true"><ClusterIcon name="upload" /><strong>Drop to add to {label || project.name}</strong></div> : null}

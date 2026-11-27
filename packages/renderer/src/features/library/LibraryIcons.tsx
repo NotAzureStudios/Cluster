@@ -68,8 +68,20 @@ export function LibraryGlyph({ icon, fallback = "folder", size = 20, label = "" 
   return <LibraryIcon name={name} size={size} />;
 }
 
+// Project folders wear their project's icon and colour, like the project list.
+type ProjectIdentity = { id: string; name: string; iconId?: string | null; projectType?: string | null; color?: string | null };
+let projectIdentities = new Map<string, ProjectIdentity>();
+export function setLibraryProjectIdentities(projects: ProjectIdentity[]) {
+  projectIdentities = new Map(projects.map((project) => [project.id, project]));
+}
+export function projectFolderIdentity(item: Pick<LibraryItem, "type" | "source" | "projectId">) {
+  return item.type === "folder" && item.source === "project-folder" && item.projectId ? projectIdentities.get(item.projectId) : undefined;
+}
+
 /** The icon for a Library item: folders honor their chosen icon. */
 export function LibraryItemGlyph({ item, size = 20 }: { item: LibraryItem; size?: number }) {
+  const project = projectFolderIdentity(item);
+  if (project) return <span className="lib-glyph lib-glyph--project" style={{ width: size, height: size }}><ResourceIdentityMark iconId={project.iconId} projectId={project.id} projectType={project.projectType || undefined} label={project.name} accentColor={project.color} /></span>;
   return item.type === "folder" ? <LibraryGlyph icon={item.folderIcon} size={size} label={item.title} /> : <LibraryIcon name={itemIconName(item)} size={size} />;
 }
 

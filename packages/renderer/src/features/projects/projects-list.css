@@ -183,6 +183,8 @@
 .pl-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .pl-status[data-tone="warning"] { --pl-tone: var(--warning); }
 .pl-status[data-tone="danger"] { --pl-tone: var(--danger); }
+.pl-status[data-tone="neutral"] { --pl-tone: var(--muted); }
+.pl-status[data-tone="accent"] { --pl-tone: var(--accent); }
 
 .pl-card__facts {
   grid-area: facts;
