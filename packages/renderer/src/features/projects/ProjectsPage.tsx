@@ -7,6 +7,7 @@ import { ClusterDisclosureGroup } from "../../components/ClusterDisclosureGroup"
 import { ClusterFilterPopover } from "../../components/ClusterFilterPopover";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../core/api";
+import { confirmCluster } from "../../components/cluster-dialog-service";
 import { subscribeResourceChanges, subscribeResourceChangeFeedResets } from "../../core/resource-change-client";
 import { useVisibleRefresh } from "../../core/visible-refresh";
 import { useClusterCursorData, type ClusterCursorPage } from "../../components/useClusterCursorData";
@@ -125,10 +126,11 @@ export interface ProjectsPageProps {
   onOpenReports: () => void;
   isAdmin: boolean;
   helpers: ProjectListHelpers;
+  onReloadProjects?: () => Promise<void> | void;
   onCreateProject: () => void;
 }
 
-export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhiteboard, onOpenProject, onOpenTimeline, onOpenBuilds, onOpenActivity, onOpenReports, isAdmin, helpers, onCreateProject }: ProjectsPageProps) {
+export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhiteboard, onOpenProject, onOpenTimeline, onOpenBuilds, onOpenActivity, onOpenReports, isAdmin, helpers, onCreateProject, onReloadProjects }: ProjectsPageProps) {
   const { projectMembers, projectSetupGaps, projectBuildStage, importantBuildEntries, projectTypeBadge, projectStatusLabel, projectSourceMeta, projectHealth, normalizeProjectStatus, projectHasGit, isExternalProject, projectCompleteness, projectLatestTimestamp, projectBuildMilestones, projectAssignedIds, projectHasDiscord, isVideoProject, projectStatusMeta } = helpers;
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [users, setUsers] = useState<UserActivitySummary[]>([]);
@@ -198,7 +200,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   }, [projectGroups, statusFilter, focus]);
   const projectServerDataQuery = useMemo<ClusterDataQuery>(() => {
     const conditions = [
-      ...(statusFilter === "archived" ? [{ fieldId: "archived", operator: "equals" as const, value: true }] : []),
+
       ...(!["all", "archived", "ready", "attention"].includes(statusFilter) ? [{ fieldId: "status", operator: "equals" as const, value: statusFilter }] : []),
       ...(sourceFilter !== "all" ? [{ fieldId: "source", operator: "equals" as const, value: sourceFilter }] : []),
       ...(scheduleFilter !== "all" ? [{ fieldId: "schedule", operator: "equals" as const, value: scheduleFilter }] : []),
@@ -207,7 +209,8 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     ];
     return {
       search: deferredQuery.trim() || undefined,
-      filters: mergeClusterDataFilterGroups(conditions.length ? { logic: "and", conditions } : null, clusterDataSelectionSetFilterGroup(projectAnalyticalSelectionSet)),
+      // Archived holds archived projects and cancelled ones on their way out.
+      filters: mergeClusterDataFilterGroups(conditions.length ? { logic: "and", conditions } : null, statusFilter === "archived" ? { logic: "or", conditions: [{ fieldId: "archived", operator: "equals" as const, value: true }, { fieldId: "status", operator: "equals" as const, value: "cancelled" }] } : null, clusterDataSelectionSetFilterGroup(projectAnalyticalSelectionSet)),
       sorts: projectServerSorts,
       facets: analyticsOpen ? ["status", "source", "schedule", "priority"] : [],
       aggregations: analyticsOpen ? [{ id: "count", kind: "count", label: "Projects" }] : [],
@@ -489,6 +492,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     return { project, snapshot, entries, members, memberCount, gaps, status, completeness, source, stage, health, attentionScore, scheduleState, projectWhiteboards, latest: projectLatestTimestamp(project) };
   }), [portfolioProjects, projectSnapshots, timelineEntriesByProject, whiteboardsByProject, users, importantBuildEntries, projectMembers, projectSetupGaps, normalizeProjectStatus, projectCompleteness, projectSourceMeta, projectBuildStage, projectLatestTimestamp, projectHealth, projectAssignedIds]);
   const focusCounts = useMemo(() => facts.reduce<Record<ProjectPortfolioFocus, number>>((counts, fact) => {
+    if (fact.project.archived || fact.project.status === "cancelled") return counts;
     const pinned = pinnedProjectSet.has(fact.project.id);
     const matches = (key: ProjectPortfolioFocus) => key === "all" ? true
       : key === "pinned" ? pinned
@@ -504,7 +508,9 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
     const health = fact.health;
     if (statusFilter === "ready" && health.tone !== "good") return false;
     if (statusFilter === "attention" && health.tone === "good") return false;
-    if (!["all", "ready", "attention"].includes(statusFilter) && status !== statusFilter) return false;
+    const retired = Boolean(project.archived) || project.status === "cancelled";
+    if (statusFilter === "archived" ? !retired : retired && statusFilter !== "cancelled") return false;
+    if (!["all", "ready", "attention", "archived"].includes(statusFilter) && status !== statusFilter) return false;
     const external = isExternalProject(project);
     const gitLinked = projectHasGit(project);
     if (sourceFilter === "git" && (!gitLinked || external)) return false;
@@ -552,7 +558,7 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
   const visibleFacts = useMemo(() => sortedFacts.slice(0, projectRenderLimit), [sortedFacts, projectRenderLimit]);
   const hasMoreProjects = visibleFacts.length < sortedFacts.length;
   // Finished projects fold into a "Done" group unless a status filter is on.
-  const isDoneProject = (project: Project) => Boolean(project.archived) || project.status === "completed" || project.status === "cancelled";
+  const isDoneProject = (project: Project) => project.status === "completed";
   const groupDone = statusFilter === "all";
   const activeFacts = visibleFacts.filter((fact) => !isDoneProject(fact.project));
   const doneFacts = visibleFacts.filter((fact) => isDoneProject(fact.project));
@@ -579,8 +585,24 @@ export function ProjectsPage({ projects, whiteboards, onOpenBoard, onOpenWhitebo
                     onSelect={() => onOpenProject(fact.project.id)}
                     onInspect={(event) => openInspector(fact.project.id, event.currentTarget)}
                     onTogglePin={() => toggleProjectPin(fact.project.id)}
+                    retiredActions={statusFilter === "archived" ? { onRestore: () => void restoreProject(fact.project), onDelete: isAdmin ? () => void deleteProjectForGood(fact.project) : undefined } : undefined}
                   />
   );
+  // Archived: restore a cancelled or archived project, or remove it for good.
+  async function restoreProject(project: Project) {
+    try {
+      if (project.status === "cancelled") await api(`/api/projects/${project.id}/lifecycle`, { method: "POST", body: JSON.stringify({ action: "reactivate", reason: null, expectedRevision: project.revision }) });
+      else await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ archived: false, expectedRevision: project.revision }) });
+      await onReloadProjects?.();
+    } catch (error) { await confirmCluster({ title: "Not restored", message: error instanceof Error ? error.message : "The project could not be restored.", confirmLabel: "OK", tone: "default" }); }
+  }
+  async function deleteProjectForGood(project: Project) {
+    if (!await confirmCluster({ title: `Delete ${project.name}?`, message: "This removes the project with its boards, cards and whiteboards. It cannot be undone.", confirmLabel: "Delete project", tone: "danger" })) return;
+    try {
+      await api(`/api/projects/${project.id}`, { method: "DELETE", body: JSON.stringify({ expectedRevision: project.revision }) });
+      await onReloadProjects?.();
+    } catch (error) { await confirmCluster({ title: "Not deleted", message: error instanceof Error ? error.message : "The project could not be deleted.", confirmLabel: "OK", tone: "default" }); }
+  }
   const loadedHealth = useMemo(() => summarizeLoadedProjectHealth(sortedFacts), [sortedFacts]);
   const projectServerAnalytics = projectCursor.dataView?.analytics || null;
   const projectAnalyticsExact = !["ready", "attention"].includes(statusFilter) && ["all", "due_soon", "unscheduled"].includes(focus);

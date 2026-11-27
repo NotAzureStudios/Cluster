@@ -1453,6 +1453,7 @@ export default function App() {
             onOpenActivity={() => setScreen(activeUser.isAdmin ? "admin" : "activity")}
             onOpenReports={() => setScreen("tickets")}
             isAdmin={Boolean(activeUser.isAdmin)}
+            onReloadProjects={loadProjects}
             onCreateProject={() => openSharedCreate("project")}
             onOpenProject={openProject}
             onOpenBoard={(id) => {

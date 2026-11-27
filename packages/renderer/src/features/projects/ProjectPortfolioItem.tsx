@@ -8,7 +8,8 @@ import { ResourceIdentityMark } from "../../components/ResourceIdentityMark";
 import { ClusterMiniRing } from "../../components/ClusterVisualMetrics";
 import { ClusterRowActions } from "../../components/ClusterContextActions";
 
-export function ProjectPortfolioItem({ project, selected, pinned, density, health, schedule, completeness, stageLabel, statusLabel, typeLabel, gaps, memberCount, fresh = false, onSelect, onInspect, onTogglePin }: {
+export function ProjectPortfolioItem({ project, selected, pinned, density, health, schedule, completeness, stageLabel, statusLabel, typeLabel, gaps, memberCount, fresh = false, onSelect, onInspect, onTogglePin, retiredActions }: {
+  retiredActions?: { onRestore: () => void; onDelete?: () => void };
   project: Project;
   selected: boolean;
   pinned: boolean;
@@ -60,6 +61,8 @@ export function ProjectPortfolioItem({ project, selected, pinned, density, healt
       </ul>
       <span className="pl-card__actions">
         <ClusterRowActions label={`${project.name} actions`}>
+          {retiredActions ? <ClusterIconButton label={`Restore ${project.name}`} size="compact" onClick={retiredActions.onRestore}><ClusterIcon name="refresh" /></ClusterIconButton> : null}
+          {retiredActions?.onDelete ? <ClusterIconButton label={`Delete ${project.name}`} size="compact" onClick={retiredActions.onDelete}><ClusterIcon name="trash" /></ClusterIconButton> : null}
           <ClusterIconButton label={pinned ? `Unstar ${project.name}` : `Star ${project.name}`} size="compact" selected={pinned} onClick={onTogglePin} className="pl-card__pin"><ClusterIcon name={pinned ? "star-filled" : "star"} /></ClusterIconButton>
           <ClusterIconButton label={`Details for ${project.name}`} size="compact" onClick={onInspect}><ClusterIcon name="panel-open" /></ClusterIconButton>
         </ClusterRowActions>
