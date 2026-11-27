@@ -71,7 +71,7 @@ const metadataSchema = z.record(metadataValueSchema).optional().default({});
 const lifecycleStatusSchema = z.enum(["draft", "active", "in-review", "approved", "needs-update", "deprecated", "archived", "trashed"]);
 const libraryClassificationSchema = z.enum(["public", "internal", "confidential", "restricted"]);
 const libraryLifecycleSchema = z.enum(["active", "in-review", "approved", "deprecated", "trashed"]);
-const libraryCreateTypeSchema = z.enum(["folder", "link", "youtube-video", "youtube-playlist"]);
+const libraryCreateTypeSchema = z.enum(["folder", "note", "link", "youtube-video", "youtube-playlist"]);
 
 function pathInsideRoot(root: string, candidate: string) {
   const resolvedRoot = path.resolve(root);
@@ -2033,7 +2033,11 @@ export function registerLibraryRoutes({
     const repair = storageChange
       ? await scheduleCommittedLibraryStorageRepair(jobQueue, user.id, body.parentId !== undefined ? "item-move" : "folder-rename")
       : null;
-    await logActivity({ userId: user.id, projectId: item.projectId, type: "updated", entityType: "library", entityId: item.id, title: "Library item updated", message: item.title, metadata: { type: item.type, status: item.status, ...(repair ? { reconciliationQueued: repair.reconciliationQueued, reconciliationJobId: repair.reconciliationJobId } : {}) } });
+    // Writing in a note saves often; one activity entry per person per note
+    // every ten minutes is enough.
+    const textOnlyEdit = Object.keys(body).every((key) => ["title", "body", "expectedRevision"].includes(key));
+    const recentlyLogged = textOnlyEdit && await prisma.activityEvent.findFirst({ where: { entityType: "library", entityId: item.id, userId: user.id, type: "updated", createdAt: { gt: new Date(Date.now() - 10 * 60_000) } }, select: { id: true } });
+    if (!recentlyLogged) await logActivity({ userId: user.id, projectId: item.projectId, type: "updated", entityType: "library", entityId: item.id, title: "Library item updated", message: item.title, metadata: { type: item.type, status: item.status, ...(repair ? { reconciliationQueued: repair.reconciliationQueued, reconciliationJobId: repair.reconciliationJobId } : {}) } });
     clearLibraryContextCache();
     if (repair) {
       reply.code(202);

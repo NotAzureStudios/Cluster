@@ -7,6 +7,7 @@ import { libraryFileUrl } from "../library/library-file-url";
 import type { LibraryItem } from "../library/library-types";
 import type { Project } from "../application/application-models";
 import { ProjectFileDropZone } from "./ProjectOverviewWorkbench";
+import { ensureProjectSubfolder, findProjectSubfolder, listLibraryFolder } from "./project-subfolders";
 import "./project-shelf.css";
 
 export type ProjectShelfKind = "media" | "references";
@@ -16,8 +17,6 @@ const SHELF: Record<ProjectShelfKind, { title: string; source: string; accept: s
   references: { title: "References", source: "project-references", accept: "", empty: "Drop reference images and documents, or add a link." },
 };
 
-type WorkspacePage = { items: LibraryItem[] };
-const listUrl = (parentId: string) => `/api/library/workspace?${new URLSearchParams({ parentId, scope: "folder", section: "folder", includeContext: "0", sort: "updated-desc", limit: "200" })}`;
 
 function iconFor(item: LibraryItem): ClusterIconName {
   if (item.previewKind === "video") return "video";
@@ -43,22 +42,16 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
   const scope = useRef("");
   scope.current = `${project.id}:${kind}`;
 
-  const findFolder = useCallback(async () => {
-    if (!project.libraryFolderId) return null;
-    const page = await api<WorkspacePage>(listUrl(project.libraryFolderId));
-    return page.items.find((item) => item.type === "folder" && item.source === shelf.source)
-      || page.items.find((item) => item.type === "folder" && item.title.toLowerCase() === shelf.title.toLowerCase())
-      || null;
-  }, [project.libraryFolderId, shelf.source, shelf.title]);
+  const findFolder = useCallback(() => findProjectSubfolder(project, shelf), [project.libraryFolderId, shelf]);
 
   const load = useCallback(async () => {
     const key = `${project.id}:${kind}`;
     try {
       const folder = await findFolder();
-      const page = folder ? await api<WorkspacePage>(listUrl(folder.id)) : { items: [] };
+      const items = folder ? await listLibraryFolder(folder.id) : [];
       if (scope.current !== key) return;
       setFolderId(folder?.id || null);
-      setItems(page.items);
+      setItems(items);
       setError("");
     } catch (reason) {
       if (scope.current === key) { setItems([]); setError(reason instanceof Error ? reason.message : `${shelf.title} could not be loaded.`); }
@@ -69,12 +62,9 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
   // The folder is made the first time something is added.
   async function ensureFolder() {
     if (folderId) return folderId;
-    const existing = await findFolder();
-    if (existing) { setFolderId(existing.id); return existing.id; }
-    if (!project.libraryFolderId) return null;
-    const created = await api<LibraryItem>("/api/library", { method: "POST", body: JSON.stringify({ title: shelf.title, type: "folder", parentId: project.libraryFolderId, projectId: project.id, source: shelf.source }) });
-    setFolderId(created.id);
-    return created.id;
+    const id = await ensureProjectSubfolder(project, shelf);
+    setFolderId(id);
+    return id;
   }
 
   async function addLink() {

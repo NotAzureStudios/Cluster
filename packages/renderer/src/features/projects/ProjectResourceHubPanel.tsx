@@ -1,11 +1,12 @@
 import { ClusterTextInput } from "../../components/ClusterTextInput";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { formatRelativeTime } from "../../core/format";
 import { runtimeStyle } from "../../core/runtime-style";
 import type { BoardSummary, Project, WhiteboardSummary } from "../application/application-models";
-import { ProjectEmptyState, ProjectSectionHeader, ProjectSurface } from "./ProjectWorkspacePrimitives";
+import { ProjectEmptyState } from "./ProjectWorkspacePrimitives";
+import "./project-shelf.css";
 
 type ResourceKind = "boards" | "whiteboards" | "library";
 
@@ -20,12 +21,6 @@ export function ProjectResourceHubPanel({ kind, project, boards = [], whiteboard
   onOpen?: (id: string) => void;
   onOpenLibrary?: (id: string) => void;
 }) {
-  const [name, setName] = useState("");
-  const resources = kind === "boards" ? boards : whiteboards;
-  const title = kind === "boards" ? "Boards" : kind === "whiteboards" ? "Whiteboards" : "Project Library";
-  const description = kind === "boards" ? "Plan delivery in focused Kanban workspaces tied to this project." : kind === "whiteboards" ? "Map systems, flows, references, and collaborative thinking without leaving the project." : "Files, references, links, and working documents managed through the project folder.";
-  const defaultName = kind === "boards" ? `${project.name} Board` : `${project.name} Whiteboard`;
-  const updated = useMemo(() => resources.reduce<string | undefined>((latest, item) => !latest || (item.updatedAt || "") > latest ? item.updatedAt : latest, undefined), [resources]);
   if (kind === "library") {
     // The project's files, newest first; the Library itself does the rest.
     const items = (project.libraryItems || []).filter((item) => item.id !== project.libraryFolderId)
@@ -39,11 +34,46 @@ export function ProjectResourceHubPanel({ kind, project, boards = [], whiteboard
     </section>;
   }
 
-  return (
-    <section className="project-subpage-v312 project-resource-hub-v312">
-      <ProjectSectionHeader eyebrow="Project workspaces" title={title} description={description} metrics={[{ label: "Total", value: resources.length, tone: resources.length ? "accent" : "neutral" }, { label: "Recently updated", value: updated ? formatRelativeTime(updated) : "Never" }, { label: "Project", value: project.name }]} actions={<div className="project-inline-create-v312"><ClusterTextInput value={name} onChange={(event) => setName(event.target.value)} placeholder={defaultName} onKeyDown={(event) => { if (event.key === "Enter" && onCreate) { void onCreate(name.trim() || defaultName); setName(""); } }} /><ClusterButton type="button" className="" disabled={busy} onClick={() => { if (onCreate) void onCreate(name.trim() || defaultName); setName(""); }} variant="primary">{busy ? "Creating…" : `New ${kind === "boards" ? "board" : "whiteboard"}`}</ClusterButton></div>} />
-      {status ? <div className="project-section-status-v312 neutral">{status}</div> : null}
-      {resources.length ? <div className="project-resource-grid-v312">{resources.map((item) => <ClusterButton unstyled type="button" key={item.id} className="project-resource-card-v312" onClick={() => onOpen?.(item.id)} style={kind === "boards" ? runtimeStyle({ "--resource-accent": (item as BoardSummary).backgroundColor || project.color || "var(--cluster-blue-400)" }) : undefined}><span className="project-resource-icon-v312" aria-hidden="true"><ClusterIcon name={kind === "boards" ? "grid" : "project"} treatment="duotone" /></span><div><strong>{item.name}</strong><p>{item.description || (kind === "boards" ? "Project board" : "Planning canvas")}</p><footer><span>{kind === "boards" ? `${(item as BoardSummary).lists?.length || 0} lists` : `${(item as WhiteboardSummary).canvasWidth || 0} × ${(item as WhiteboardSummary).canvasHeight || 0}`}</span><span>{item.updatedAt ? `Updated ${formatRelativeTime(item.updatedAt)}` : "Ready"}</span></footer></div><em>Open</em></ClusterButton>)}</div> : <ProjectEmptyState title={`No ${kind} yet`} description={kind === "boards" ? "Create a delivery board for tasks, milestones, and ownership." : "Create a canvas for diagrams, references, and collaborative planning."} action={<ClusterButton type="button" className="" onClick={() => { if (onCreate) void onCreate(defaultName); }} variant="primary">Create {kind === "boards" ? "board" : "whiteboard"}</ClusterButton>} />}
-    </section>
-  );
+  return <ProjectSpaces project={project} boards={boards} whiteboards={whiteboards} onCreateBoard={kind === "boards" ? onCreate : undefined} onOpenBoard={onOpen} />;
+}
+
+/** The project's boards and whiteboards side by side, one tab. */
+export function ProjectSpaces({ project, boards, whiteboards, onCreateBoard, onCreateWhiteboard, onOpenBoard, onOpenWhiteboard }: {
+  project: Project;
+  boards: BoardSummary[];
+  whiteboards: WhiteboardSummary[];
+  onCreateBoard?: (name: string) => Promise<void> | void;
+  onCreateWhiteboard?: (name: string) => Promise<void> | void;
+  onOpenBoard?: (id: string) => void;
+  onOpenWhiteboard?: (id: string) => void;
+}) {
+  const [creating, setCreating] = useState<"board" | "whiteboard" | null>(null);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function create() {
+    const action = creating === "board" ? onCreateBoard : onCreateWhiteboard;
+    if (!action) return;
+    setBusy(true);
+    try { await action(name.trim() || `${project.name} ${creating === "board" ? "Board" : "Whiteboard"}`); setCreating(null); setName(""); } finally { setBusy(false); }
+  }
+  const tile = (kind: "board" | "whiteboard", item: BoardSummary | WhiteboardSummary) => <li key={item.id}>
+    <button type="button" className="pj-space" data-kind={kind} style={kind === "board" ? runtimeStyle({ "--space-accent": (item as BoardSummary).backgroundColor || project.color || "var(--accent)" }) : undefined} onClick={() => kind === "board" ? onOpenBoard?.(item.id) : onOpenWhiteboard?.(item.id)}>
+      <span className="pj-space__art" aria-hidden="true"><ClusterIcon name={kind === "board" ? "grid" : "shapes"} /></span>
+      <span className="pj-space__copy"><strong>{item.name}</strong><small>{[kind === "board" ? `${(item as BoardSummary).lists?.length || 0} lists` : "Whiteboard", item.updatedAt ? formatRelativeTime(item.updatedAt) : ""].filter(Boolean).join(" · ")}</small></span>
+    </button>
+  </li>;
+  const group = (kind: "board" | "whiteboard", items: Array<BoardSummary | WhiteboardSummary>, canCreate: boolean) => <section className="pj-spaces__group">
+    <header><h3>{kind === "board" ? "Boards" : "Whiteboards"}</h3>{items.length ? <span className="pv-count">{items.length}</span> : null}
+      {canCreate ? <ClusterButton size="compact" variant="quiet" onClick={() => { setCreating(kind); setName(""); }}><ClusterIcon name="plus" />New</ClusterButton> : null}</header>
+    {creating === kind ? <form className="pv-quick" onSubmit={(event) => { event.preventDefault(); void create(); }}>
+      <ClusterTextInput autoFocus value={name} disabled={busy} placeholder={`${project.name} ${kind === "board" ? "Board" : "Whiteboard"}`} aria-label={`New ${kind} name`} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") setCreating(null); }} />
+      <ClusterButton type="submit" size="compact" variant="primary" disabled={busy}>Create</ClusterButton>
+      <ClusterButton type="button" size="compact" variant="quiet" onClick={() => setCreating(null)}>Cancel</ClusterButton>
+    </form> : null}
+    {items.length ? <ul className="pj-spaces__grid">{items.map((item) => tile(kind, item))}</ul> : creating === kind ? null : <p className="pv-empty">{kind === "board" ? "No boards." : "No whiteboards."}</p>}
+  </section>;
+  return <div className="pj-spaces">
+    {group("board", boards, Boolean(onCreateBoard))}
+    {group("whiteboard", whiteboards, Boolean(onCreateWhiteboard))}
+  </div>;
 }

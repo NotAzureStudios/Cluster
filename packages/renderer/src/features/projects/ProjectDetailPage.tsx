@@ -10,6 +10,7 @@ import { ProjectPinnedLinks } from "./ProjectPinnedLinks";
 import { ProjectWorkList } from "./ProjectWorkList";
 import { useProjectFocus } from "./project-focus";
 import { ProjectShelf } from "./ProjectShelf";
+import { ProjectNotes } from "./ProjectNotes";
 import { LazyLibraryWorkspacePage } from "../application/application-entrypoints";
 import { api } from "../../core/api";
 import { canUseTool } from "../../core/permissions";
@@ -41,7 +42,7 @@ import { ProjectPlanningPanel, type ProjectPlanDraft } from "./ProjectPlanningPa
 import { ProjectTeamPanel } from "./ProjectTeamPanel";
 import { ProjectConnectionsPanel, type ProjectConnectionsDraft } from "./ProjectConnectionsPanel";
 import { ProjectChangesPanel } from "./ProjectChangesPanel";
-import { ProjectResourceHubPanel } from "./ProjectResourceHubPanel";
+import { ProjectResourceHubPanel, ProjectSpaces } from "./ProjectResourceHubPanel";
 import { ProjectControlCenterPanel } from "./ProjectControlCenterPanel";
 import { SettingsWorkspaceShell } from "../../components/SettingsWorkspaceShell";
 
@@ -53,8 +54,8 @@ const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "people", "link
 // Parked: the planning console, intelligence, production entities, assets,
 // closeout and whiteboards stay built but leave the tab bar for now. QA is
 // reached from Builds rather than its own tab.
-// Media and References are every project's Library subfolders, not opt-in tools.
-const PROJECT_SHELF_TABS: readonly string[] = ["media", "references"];
+// Notes, Media and References are every project's Library subfolders, not opt-in tools.
+const PROJECT_SHELF_TABS: readonly string[] = ["notes", "media", "references"];
 const PARKED_PROJECT_TABS: readonly string[] = ["intelligence", "control", "production", "assets", "closeout", "whiteboards"];
 const SECONDARY_PROJECT_TABS: readonly string[] = ["qa"];
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel";
@@ -386,9 +387,10 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     source: projectHasGit(project) ? (project.sourceBindings?.find((binding) => binding.isPrimary)?.repository?.defaultBranch || "linked") : "",
     builds: projectBuildArtifacts.length ? `${projectBuildArtifacts.length}` : projectHasBuildSignals(project, projectBuildArtifacts) ? "live" : "",
     qa: activeQaSessionCount ? `${activeQaSessionCount}` : projectQaPlanCount ? `${projectQaPlanCount}` : "",
-    boards: visibleBoards.length ? `${visibleBoards.length}` : "",
+    boards: visibleBoards.length + visibleWhiteboards.length ? `${visibleBoards.length + visibleWhiteboards.length}` : "",
     whiteboards: visibleWhiteboards.length ? `${visibleWhiteboards.length}` : "",
     library: project.libraryFolderId ? "linked" : "",
+    notes: "",
     media: "",
     references: "",
     assets: visibleFiles.length ? `${visibleFiles.length}` : "",
@@ -443,8 +445,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
                 await loadProjectDashboard();
               };
   const primaryTabCandidates: ProjectWorkspaceTabId[] = isVideoType
-    ? ["overview", "viewer", "tickets", "boards", "media", "references", "library", "settings"]
-    : ["overview", "tickets", "boards", ...(supportsBuilds ? ["builds" as const] : []), ...(supportsQa && tab === "qa" ? ["qa" as const] : []), ...(supportsSource ? ["source" as const] : []), "media", "references", "library", "settings"];
+    ? ["overview", "viewer", "tickets", "boards", "notes", "media", "references", "library", "settings"]
+    : ["overview", "tickets", "boards", ...(supportsBuilds ? ["builds" as const] : []), ...(supportsQa && tab === "qa" ? ["qa" as const] : []), ...(supportsSource ? ["source" as const] : []), "notes", "media", "references", "library", "settings"];
   const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id));
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
@@ -574,12 +576,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
 
           {activeTab === "qa" && <ProjectQAPanel project={project} onOpenBoard={onOpenBoard} onOpenBuilds={() => setTab("builds")} currentUser={currentUser} users={projectUsers} canContribute={capabilities.canContribute} canManage={capabilities.canManage} permissionReason={capabilities.reason} />}
 
-          {activeTab === "boards" && (
-            <ProjectResourceHubPanel kind="boards" project={project} boards={visibleBoards} onCreate={capabilities.canCreateSpaces ? createBoardForProject : undefined} onOpen={onOpenBoard} />
-          )}
-
-          {activeTab === "whiteboards" && (
-            <ProjectResourceHubPanel kind="whiteboards" project={project} whiteboards={visibleWhiteboards} onCreate={capabilities.canCreateSpaces ? createWhiteboardForProject : undefined} onOpen={onOpenWhiteboard} />
+          {(activeTab === "boards" || activeTab === "whiteboards") && (
+            <ProjectSpaces project={project} boards={visibleBoards} whiteboards={visibleWhiteboards} onCreateBoard={capabilities.canCreateSpaces ? createBoardForProject : undefined} onCreateWhiteboard={capabilities.canCreateSpaces ? createWhiteboardForProject : undefined} onOpenBoard={onOpenBoard} onOpenWhiteboard={onOpenWhiteboard} />
           )}
 
           {activeTab === "production" && <ProjectTypeProductionWorkspace project={project} type={type} users={projectUsers} canContribute={capabilities.canContribute} canManage={capabilities.canManage} isAdmin={Boolean(currentUser.isAdmin)} onReloadProjects={onReloadProjects} />}
@@ -612,6 +610,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
           {activeTab === "library" && (project.libraryFolderId && canUseTool(currentUser, "library", "view")
             ? <Suspense fallback={<ClusterStatus state="loading">Loading files…</ClusterStatus>}><LazyLibraryWorkspacePage key={project.id} projects={projects} currentUser={currentUser} initialFolderId={project.libraryFolderId} embedded /></Suspense>
             : <ProjectResourceHubPanel kind="library" project={project} onOpenLibrary={onOpenLibrary} />)}
+
+          {activeTab === "notes" && <ProjectNotes key={project.id} project={project} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} />}
 
           {(activeTab === "media" || activeTab === "references") && <ProjectShelf key={`${project.id}:${activeTab}`} project={project} kind={activeTab} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} onOpenLibrary={onOpenLibrary} />}
 
