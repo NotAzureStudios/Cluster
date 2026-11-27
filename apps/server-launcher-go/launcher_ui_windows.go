@@ -6,6 +6,7 @@ import (
 	nativealerts "cluster.local/native-alerts"
 	processjob "cluster.local/native-process-job"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -1982,9 +1983,48 @@ func (c *windowsServerController) BeginSignedServerInstallation(){
   return
  }
  if !managed {
-  messageBox(c.ui.hwnd,"Cluster Server Update","Automatic installation currently requires the dedicated ClusterStudioServer Windows Service. Interactive-only Server installations remain on the verified manual-upgrade path.",mbIconError)
+  // Updates install through the supervised Windows Service updater (cold
+  // backup, install, health check, rollback). Offer the one-time switch.
+  if messageBox(c.ui.hwnd,"Cluster Server Update","Updates install automatically when Cluster runs as a Windows Service. It runs in the background, starts with Windows, and this panel still controls it.\r\n\r\nSwitch to the Windows Service and install the update now? Windows will ask for administrator approval.",mbYesNo|mbIconQuestion)!=idYes { return }
+  c.mu.Lock(); c.updateInFlight=true; c.mu.Unlock()
+  c.ui.postState()
+  go c.switchToServiceAndInstall()
   return
  }
+ c.launchSignedServerInstall()
+}
+
+// switchToServiceAndInstall stops the interactive Server, installs the
+// Windows Service (elevated), then hands over to the supervised updater. Any
+// failure starts the interactive Server again and says why.
+func (c *windowsServerController) switchToServiceAndInstall() {
+ restart:=func(message string){
+  c.mu.Lock(); c.updateInFlight=false; c.mu.Unlock()
+  c.reportServerUpdateResult(message)
+  c.Start(false)
+ }
+ c.reportServerUpdateResult("Stopping Cluster to switch to the Windows Service…")
+ c.StopAndWait(serverUpdateStopTimeout)
+ if state,_:=c.snapshot(); state!=panelStopped && state!=panelError {
+  restart("Cluster did not stop, so nothing was changed.")
+  return
+ }
+ c.reportServerUpdateResult("Installing the Windows Service… approve the administrator prompt.")
+ if err:=runSelfElevatedAndWait(c.ui.hwnd,"--root",c.options.root,"--service-install");err!=nil{
+  if errors.Is(err,errElevationDeclined){ restart("Switch cancelled. Cluster is running in this window again.") } else { restart("The Windows Service could not be installed ("+err.Error()+"). Cluster is running in this window again.") }
+  return
+ }
+ c.refreshServiceState()
+ c.mu.Lock(); managed:=c.serviceManaged; c.updateInFlight=false; c.mu.Unlock()
+ if !managed {
+  restart("The Windows Service was not found after installation. Cluster is running in this window again.")
+  return
+ }
+ c.reportServerUpdateResult("Cluster now runs as a Windows Service. Starting the update…")
+ c.launchSignedServerInstall()
+}
+
+func (c *windowsServerController) launchSignedServerInstall() {
  prefs:=loadNativePanelPreferences(c.options.root)
  channel:=prefs.UpdateChannel
  if channel!="development"{channel="main"}
