@@ -23,7 +23,6 @@ type ConnectionStatus = { checkedAt: string; local: { web: string; api: string }
 const connectionProviders: Record<ConnectionMode, ConnectionProvider[]> = {
   lan: ["manual", "caddy", "nginx"], private_vpn: ["tailscale", "wireguard", "custom"], reverse_proxy: ["caddy", "nginx", "custom"], direct_https: ["manual", "caddy", "nginx"], managed_tunnel: ["cloudflare", "custom"],
 };
-type Challenge = { host: string; type: "TXT"; value: string };
 type DnsStatus = { checkedAt: string; ownership: "present" | "missing" | "unavailable"; routing: "matching" | "mismatch" | "unavailable" | "not_configured"; tls: "not_checked"; connectivity: "not_checked"; serverIdentityRecorded: boolean };
 
 /** Accept the common paste of an HTTPS origin, but never silently discard
@@ -42,28 +41,23 @@ export function bindingHostnameFromDraft(value: string): string {
 
 /** Studio owns registration and proof. Server Configuration owns routing.
  * Vault is only an inventory reference and contains no domain mutations. */
-export function StudioDomainsPanel() { return <DomainsAdministrationPanel surface="studio" />; }
-export function ServerDomainsPanel() { return <DomainsAdministrationPanel surface="server" />; }
-function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" }) {
+export { DomainsManager as StudioDomainsPanel } from "./DomainsManager";
+/** Server settings → Domains: point a verified hostname at this server. */
+export function ServerDomainsPanel() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [domainsLoading, setDomainsLoading] = useState(true);
   const [domainsLoadError, setDomainsLoadError] = useState("");
   const listRequestSequence = useRef(0);
   const [selectedId, setSelectedId] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<Domain | null>(null);
-  const [newDomain, setNewDomain] = useState("");
   const [search, setSearch] = useState("");
   const [cursor, setCursor] = useState("");
   const [cursorHistory, setCursorHistory] = useState<string[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [challenge, setChallenge] = useState<(Challenge & { domainId: string }) | null>(null);
   const [dnsStatus, setDnsStatus] = useState<DnsStatus | null>(null);
   const [hostname, setHostname] = useState("");
   const [dnsType, setDnsType] = useState<"A" | "AAAA" | "CNAME">("CNAME");
   const [dnsTarget, setDnsTarget] = useState("");
-  const [registrar, setRegistrar] = useState("");
-  const [expiresOn, setExpiresOn] = useState("");
-  const [domainNote, setDomainNote] = useState("");
   const [connection, setConnection] = useState<ConnectionProfile>({ mode: "managed_tunnel", provider: "cloudflare", webPort: 3000, apiPort: 4000, publicPort: 443 });
   const [connectionPlan, setConnectionPlan] = useState<ConnectionPlan | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
@@ -109,11 +103,10 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     let active = true;
     void api<{ intent: { domain: string; mode: ConnectionMode; provider: ConnectionProvider } | null }>("/api/admin/domains/setup-intent")
       .then(({ intent }) => { if (!active || !intent) return;
-        if (surface === "studio") setNewDomain(current => current || intent.domain);
-        if (surface === "server") setConnection(current => ({ ...current, mode: intent.mode, provider: intent.provider, publicPort: intent.mode === "lan" ? 80 : 443 }));
+        setConnection(current => ({ ...current, mode: intent.mode, provider: intent.provider, publicPort: intent.mode === "lan" ? 80 : 443 }));
       }).catch(() => undefined);
     return () => { active = false; };
-  }, [surface]);
+  }, []);
   useEffect(() => {
     if (!selectedId || domains.some(row => row.id === selectedId)) return;
     let cancelled = false;
@@ -127,9 +120,6 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     setHostname(selected?.bindingHostname || (selected ? `cluster.${selected.domain}` : ""));
     setDnsType(selected?.bindingDnsType || "CNAME");
     setDnsTarget(selected?.bindingDnsTarget || "");
-    setRegistrar(selected?.registrar || "");
-    setExpiresOn(selected?.expiresOn?.slice(0, 10) || "");
-    setDomainNote(selected?.note || "");
   }, [selectedId, selected?.revision]);
   useEffect(() => {
     if (!selectedId) { setConnectionPlan(null); setConnectionStatus(null); return; }
@@ -158,8 +148,6 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     } catch (err) { setError(formatApiError(err)); }
     finally { setBusy(false); }
   }
-  const expiresMs = selected?.expiresOn ? new Date(selected.expiresOn).getTime() : null;
-  const daysUntilExpiry = expiresMs !== null && Number.isFinite(expiresMs) ? Math.ceil((expiresMs - Date.now()) / 86400000) : null;
   const ownershipVerified = selected?.verificationState === "verified";
   const bindingVerified = ownershipVerified && connectionBound && Boolean(selected?.bindingHostname);
   const gatewayPlanSaved = Boolean(connectionPlan && connectionBound);
@@ -169,24 +157,15 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     : dnsStatus?.routing === "not_configured" || dnsStatus?.routing === "unavailable" ? "warning"
     : "neutral";
 
-  return <section className={`cluster-panel cluster-domains-rc46 ${surface === "server" ? "cluster-server-domains-v103" : "cluster-studio-domains-v103"}`} aria-label={surface === "studio" ? "Studio domain registry" : "Server domain connectivity"}>
+  return <section className="cluster-panel cluster-domains-rc46 cluster-server-domains-v103" aria-label="Server domain connectivity">
     <header className="cluster-domain-header-v103">
       <div>
-        <h2 title={surface === "studio" ? "Register domains and verify them with a DNS TXT record." : "Bind a verified hostname to this installation and verify the live route."}>{surface === "studio" ? "Domains" : "Connect a domain"}</h2>
+        <h2>Connect a domain</h2>
       </div>
-      {surface === "server" && <SettingsStateChip tone={bindingVerified ? "success" : "warning"} icon={bindingVerified ? "check" : "link"}>{bindingVerified ? "Hostname bound · public access unverified" : "Setup incomplete"}</SettingsStateChip>}
+      {<SettingsStateChip tone={bindingVerified ? "success" : "warning"} icon={bindingVerified ? "check" : "link"}>{bindingVerified ? "Hostname bound · public access unverified" : "Setup incomplete"}</SettingsStateChip>}
     </header>
     {error && <div className="cluster-domain-message-v103 is-error" role="alert">{error}</div>}
     {notice && <div className="cluster-domain-message-v103" role="status">{notice}</div>}
-    {surface === "studio" && <div className="cluster-form-row">
-      <label>Register domain <ClusterInput value={newDomain} onChange={event => setNewDomain(event.target.value)} placeholder="example.com" /></label>
-      <ClusterButton disabled={busy || !newDomain.trim()} onClick={() => void mutate(async () => {
-        const result = await api<{ domain: Domain; dnsChallenge: Challenge }>("/api/admin/domains", { method: "POST", body: JSON.stringify({ domain: newDomain }) });
-        setNewDomain(""); setSelectedId(result.domain.id); setSelectedRecord(result.domain); setChallenge({ ...result.dnsChallenge, domainId: result.domain.id });
-        setNotice("Domain registered. Publish its TXT challenge before verifying ownership.");
-        return result;
-      })}>Register</ClusterButton>
-    </div>}
     <div className="cluster-domain-browser-v103">
     <div className="cluster-form-row">
       <label>Find domains <ClusterInput value={search} onChange={event => { setSearch(event.target.value); setCursor(""); setCursorHistory([]); }} placeholder="Search domains" /></label>
@@ -206,11 +185,11 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
       <ClusterButton type="button" variant="secondary" disabled={domainsLoading} onClick={() => void refreshPage().catch(() => undefined)}>Retry loading domains</ClusterButton>
     </div>}
     {!selected && !domainsLoading && !domainsLoadError && <div className="cluster-domain-empty-v103" role="status">
-      <h3>{search.trim() ? "No matching domains" : surface === "server" ? "No domain selected" : "No domains yet"}</h3>
-      {surface === "server" ? <p>Register and verify a domain under Studio → Domains first.</p> : null}
+      <h3>{search.trim() ? "No matching domains" : "No domain selected"}</h3>
+      <p>Add and verify a domain in Inventory → Domains first.</p>
     </div>}
     </div>
-    {surface === "server" && selected && <div className="cluster-domain-progress-v103" aria-label="Domain setup status">
+    {selected && <div className="cluster-domain-progress-v103" aria-label="Domain setup status">
       <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="lock" aria-hidden="true" /> 01 · Ownership</span><SettingsStateChip tone={ownershipVerified ? "success" : "warning"}>{ownershipVerified ? "TXT verified" : "Verification needed"}</SettingsStateChip></div>
       <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="link" aria-hidden="true" /> 02 · Server binding</span><SettingsStateChip tone={bindingVerified ? "success" : "warning"}>{bindingVerified ? "Bound locally" : "Binding needed"}</SettingsStateChip></div>
       <div><span className="cluster-domain-stage-label-v103"><ClusterIcon name="cloud" aria-hidden="true" /> 03 · Gateway profile</span><SettingsStateChip tone={gatewayPlanSaved ? "info" : "neutral"} icon={gatewayPlanSaved ? "file" : "minus"}>{gatewayPlanSaved ? "Plan saved · not deployed" : "Not configured"}</SettingsStateChip></div>
@@ -219,41 +198,7 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
     {selected && <div className="cluster-panel cluster-domain-detail-v103">
       <h3>{selected.domain}</h3>
       <p>Ownership: <strong>{selected.verificationState}</strong> {selected.verifiedAt ? `· verified ${new Date(selected.verifiedAt).toLocaleDateString()}` : ""}</p>
-      {surface === "studio" && <><details className="cluster-domain-help-rc46"><summary>About renewal records</summary><p>Registrar and renewal information is entered by administrators and is not automatically checked against your registrar.</p></details>
-      {daysUntilExpiry !== null && <p role={daysUntilExpiry <= 30 ? "alert" : undefined}>{daysUntilExpiry < 0 ? `Reported domain expiry passed ${-daysUntilExpiry} day(s) ago.` : `Reported renewal date is in ${daysUntilExpiry} day(s).`}</p>}
-      <label>Registrar <ClusterInput value={registrar} onChange={event => setRegistrar(event.target.value)} placeholder="Optional registrar name" /></label>
-      <label>Reported expiration date <input type="date" value={expiresOn} onChange={event => setExpiresOn(event.target.value)} /></label>
-      <label>Notes <ClusterInput value={domainNote} onChange={event => setDomainNote(event.target.value)} placeholder="Internal ownership and renewal notes" /></label>
-      <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
-        const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}`, { method: "PATCH", body: JSON.stringify({ expectedRevision: selected.revision, registrar: registrar.trim() || null, expiresOn: expiresOn || null, note: domainNote.trim() || null }) });
-        setNotice("Domain management details updated."); return response;
-      })}>Save domain details</ClusterButton>
-      <div className="cluster-panel">
-        <h3>Prove DNS ownership</h3>
-        <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
-          const response = await api<{ dnsChallenge: Challenge }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/challenge`);
-          setChallenge({ ...response.dnsChallenge, domainId: selected.id });
-        })}>Show TXT challenge</ClusterButton>
-        {challenge?.domainId === selected.id && <div className="cluster-panel">
-          <p>Publish this DNS TXT record before verifying:</p>
-          <p>Host: <code>{challenge.host}</code></p>
-          <p>Value: <code>{challenge.value}</code></p>
-          <ClusterButton onClick={() => copyClusterText(challenge.host)}>Copy TXT host</ClusterButton>
-          <ClusterButton onClick={() => copyClusterText(challenge.value)}>Copy TXT value</ClusterButton>
-        </div>}
-        <ClusterButton disabled={busy} onClick={() => void mutate(async () => {
-          const response = await api<{ domain: Domain }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/verify`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision }) });
-          setNotice("DNS ownership verified."); return response;
-        })}>Verify ownership</ClusterButton>
-        <ClusterButton disabled={busy} onClick={() => {
-          if (!window.confirm("Rotate the DNS ownership challenge? This revokes the current proof and removes the server binding. DNS and TLS records are NOT removed automatically.")) return;
-          void mutate(async () => {
-            const response = await api<{ domain: Domain; dnsChallenge: Challenge }>(`/api/admin/domains/${encodeURIComponent(selected.id)}/rotate-challenge`, { method: "POST", body: JSON.stringify({ expectedRevision: selected.revision }) });
-            setChallenge({ ...response.dnsChallenge, domainId: selected.id }); setDnsStatus(null); setNotice("Previous proof and binding revoked. Publish the new TXT challenge."); return response;
-          });
-        }}>Rotate ownership proof</ClusterButton>
-      </div></>}
-      {surface === "server" && <><div className="cluster-panel cluster-domain-workflow-card-v103">
+      {<><div className="cluster-panel cluster-domain-workflow-card-v103">
         <div className="cluster-domain-step-header-v103"><span className="cluster-domain-step-index-v103"><ClusterIcon name="link" aria-hidden="true" /></span><div><h3>Bind a hostname</h3><p>Verify ownership, select the exact DNS hostname, and attach it to this Cluster installation.</p></div><SettingsStateChip tone={bindingVerified ? "success" : "warning"}>{bindingVerified ? "Bound" : "Action needed"}</SettingsStateChip></div>
         <p>Server: <strong>{selected.bindingServerLabel || "This Cluster installation"}</strong></p>
         <p>{selected.bindingServerInstanceId ? <>Installation ID: <code>{selected.bindingServerInstanceId}</code></> : "No verified server binding yet."}</p>
@@ -364,26 +309,5 @@ function DomainsAdministrationPanel({ surface }: { surface: "studio" | "server" 
         </div>}
       </div></>}
     </div>}
-  </section>;
-}
-
-/** Vault is an inventory view only; domain secrets and live network controls
- * are handled by Studio and Server Configuration respectively. */
-export function DomainInventoryPanel() {
-  const [domains, setDomains] = useState<Domain[]>([]);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    let active = true;
-    void api<{ domains: Domain[] }>("/api/admin/domains")
-      .then(result => { if (active) setDomains(result.domains || []); })
-      .catch(reason => { if (active) setError(formatApiError(reason)); });
-    return () => { active = false; };
-  }, []);
-  return <section className="cluster-panel" aria-label="Domain inventory">
-    <h2>Domain inventory</h2>
-    <p>Reference only. Register domains in Studio Settings and configure server connections in Server Configuration.</p>
-    {error && <p role="alert">{error}</p>}
-    {domains.map(domain => <p key={domain.id}><strong>{domain.domain}</strong> · {domain.verificationState} · {domain.bindingHostname || "Not bound"}</p>)}
-    {!domains.length && !error && <p>No domains on this page. Use Studio Settings to manage the full registry.</p>}
   </section>;
 }

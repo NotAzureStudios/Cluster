@@ -4327,6 +4327,12 @@ model StudioInventoryAsset {
   provider    String?
   reference   String?
   capacity    Int      @default(1)
+  location    String?
+  url         String?
+  cost        String?
+  purchasedOn DateTime?
+  renewsOn    DateTime?
+  notes       String?
   status      String   @default("active")
   revision    Int      @default(1)
   createdById String?
@@ -4336,6 +4342,7 @@ model StudioInventoryAsset {
   managedPackageSeatRequirements ManagedPackageSeatRequirement[]
 
   @@index([kind, status, title])
+  @@index([renewsOn])
 }
 
 model StudioInventoryAllocation {

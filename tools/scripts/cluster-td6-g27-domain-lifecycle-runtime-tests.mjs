@@ -61,7 +61,7 @@ const prisma = {
 };
 const auditService = { async recordSecurityInTransaction() { if (failAudit) throw new Error('audit store down'); return {ok:true}; } };
 registerDomainManagementRoutes({
-  app: { get(path,handler) { routes.set(`GET ${path}`,handler); }, post(path,handler) { routes.set(`POST ${path}`,handler); }, patch(path,handler) { routes.set(`PATCH ${path}`,handler); } },
+  app: { get(path,handler) { routes.set(`GET ${path}`,handler); }, post(path,handler) { routes.set(`POST ${path}`,handler); }, patch(path,handler) { routes.set(`PATCH ${path}`,handler); }, delete(path,handler) { routes.set(`DELETE ${path}`,handler); } },
   prisma, authorization: { async requireAdmin() { return adminAllowed; } }, getCurrentUser: async () => ({id:'admin'}), auditService,
   readSettings: async () => ({serverInstanceId:serverId,serverDisplayName:'Studio Primary'}),
   dnsLookup: async () => dnsProof ? [[`cluster-domain-verification=${dnsProof}`]] : [],

@@ -140,6 +140,18 @@ export function registerDomainManagementRoutes({ app, prisma, authorization, get
       return { ok: true, domain };
     } catch { return deny(reply, "DOMAIN_METADATA_CONFLICT"); }
   });
+  // Remove a domain from the registry. A domain still bound to a server must
+  // be unbound first (in Server settings) so routing never points at nothing.
+  app.delete("/api/admin/domains/:id", async (request: any, reply: any) => {
+    if (!(await admin(request, reply))) return;
+    const params = idParams.safeParse(request.params);
+    if (!params.success) return deny(reply, "INVALID_INPUT", 400);
+    const current = await prisma.studioManagedDomain.findUnique({ where: { id: params.data.id }, select: { id: true, domain: true, bindingHostname: true } });
+    if (!current) return deny(reply, "DOMAIN_NOT_FOUND", 404);
+    if (current.bindingHostname) return reply.code(409).send({ ok: false, code: "DOMAIN_BOUND", error: "Unbind this domain in Server settings first." });
+    await securedChange(request, "domain.removed", { id: current.id, domain: current.domain }, (tx: any) => tx.studioManagedDomain.delete({ where: { id: current.id } }));
+    return { ok: true };
+  });
   // Rotate proof only by explicitly invalidating the previous verification and
   // any server binding, in the same transaction. A compromised TXT token cannot
   // keep authorizing new bindings after the challenge has changed.

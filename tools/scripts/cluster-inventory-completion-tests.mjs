@@ -146,5 +146,5 @@ result=await invoke('POST','/api/admin/inventory/assets/:id/lifecycle',{status:'
 check(()=>assert.equal(result.res,undefined),'Lifecycle transition requires explicit confirmation');
 confirmAllowed=true;
 check(()=>assert.ok(events.some(x=>x.event==='inventory.allocation_transferred') && events.some(x=>x.event==='inventory.asset_retired')),'Sensitive Inventory mutations are audited');
-check(()=>{for(const literal of ['Save changes','Confirm transfer','Confirm disposition','Show allocation history','Retire asset','Reactivate asset','expectedRevision','inFlight.current'])assert.ok(ui.includes(literal),`Inventory UI missing ${literal}`)},'Inventory UI exposes complete asset and assignment workflow');
+check(()=>{for(const literal of ['Save changes','Confirm transfer','Confirm disposition','Show history','Retire asset','Reactivate asset','expectedRevision','inFlight.current'])assert.ok(ui.includes(literal),`Inventory UI missing ${literal}`)},'Inventory UI exposes complete asset and assignment workflow');
 console.log(`${passed}/${passed} Inventory behavioral and integration assertions passed`);

@@ -289,3 +289,14 @@
   .cluster-inventory-toolbar > .cluster-inventory-search { flex: 1 1 160px; min-width: 0; }
   .cluster-inventory-toolbar > .cluster-inventory-filters { flex: 0 0 auto; }
 }
+
+/* Asset facts: one compact grid under the asset name */
+.inv-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 16px; margin: 0 0 var(--space-2); padding: 10px 12px; border-radius: 10px; background: var(--cluster-button-fill); }
+.inv-facts div { display: grid; gap: 1px; min-width: 0; }
+.inv-facts dt { color: var(--muted); font-size: var(--cluster-font-size-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.inv-facts dd { overflow: hidden; margin: 0; font-size: var(--cluster-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.inv-facts dd a { color: var(--accent); }
+.inv-facts .inv-facts__notes { grid-column: 1 / -1; }
+.inv-facts .inv-facts__notes dd { white-space: pre-wrap; }
+.inv-facts [data-tone="warning"], .inv-renew[data-tone="warning"] { color: var(--warning); }
+.inv-facts [data-tone="danger"], .inv-renew[data-tone="danger"] { color: var(--danger); }

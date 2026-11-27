@@ -14,7 +14,25 @@ const assetInput = z.object({
   provider: z.string().trim().max(160).nullable().optional(),
   reference: z.string().trim().max(160).nullable().optional(),
   capacity: z.number().int().min(1).max(1_000_000).default(1),
+  location: z.string().trim().max(160).nullable().optional(),
+  url: z.string().trim().max(2048).nullable().optional(),
+  cost: z.string().trim().max(80).nullable().optional(),
+  purchasedOn: z.string().trim().max(10).nullable().optional(),
+  renewsOn: z.string().trim().max(10).nullable().optional(),
+  notes: z.string().trim().max(4000).nullable().optional(),
 }).strict();
+// Calendar days arrive as YYYY-MM-DD; links must be http(s). Blank clears.
+class AssetDetailError extends Error {}
+function assetDetails<T extends { url?: string | null; purchasedOn?: string | null; renewsOn?: string | null }>(body: T) {
+  const day = (value?: string | null) => {
+    if (value === undefined) return undefined;
+    if (!value) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T12:00:00Z`))) throw new AssetDetailError("Use a date like 2026-12-31.");
+    return new Date(`${value}T12:00:00Z`);
+  };
+  if (body.url && !/^https?:\/\/\S+$/i.test(body.url)) throw new AssetDetailError("Links must start with http:// or https://.");
+  return { ...body, url: body.url === undefined ? undefined : body.url || null, purchasedOn: day(body.purchasedOn), renewsOn: day(body.renewsOn) };
+}
 const assetEditInput = assetInput.extend({ expectedRevision: z.number().int().positive() }).strict();
 const assetLifecycleInput = z.object({ expectedRevision: z.number().int().positive(), status: z.enum(["active", "retired"]) }).strict();
 const equipmentDispositionInput = z.object({ disposition: z.enum(["returned", "written_off"]), reason: z.string().trim().min(3).max(1000) }).strict();
@@ -43,7 +61,7 @@ const keyPublicSelect = { id: true, poolId: true, status: true, userId: true, as
 export function inventoryKeyFingerprint(poolId: string, value: string) { return clusterSecretFingerprint(value, `inventory:key-pool:${poolId}`); }
 const paramsId = z.object({ id: z.string().min(1).max(160) });
 
-const assetPublicSelect = { id: true, title: true, kind: true, provider: true, reference: true, capacity: true, status: true, revision: true, createdById: true, createdAt: true, updatedAt: true } as const;
+const assetPublicSelect = { id: true, title: true, kind: true, provider: true, reference: true, capacity: true, location: true, url: true, cost: true, purchasedOn: true, renewsOn: true, notes: true, status: true, revision: true, createdById: true, createdAt: true, updatedAt: true } as const;
 // This route receives a dynamic Prisma handle. Type its catalog projection rather
 // than allowing an implicit any to escape into the renderer-facing inventory API.
 type InventoryCatalogAsset = {
@@ -169,6 +187,11 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
     const now = new Date();
     const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const digital = { status: "active", asset: { kind: { in: ["digital", "license"] } } };
+    const month = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const [renewalsDue, domainsExpiring] = await Promise.all([
+      prisma.studioInventoryAsset.count({ where: { status: "active", renewsOn: { lte: month } } }),
+      prisma.studioManagedDomain.count({ where: { expiresOn: { lte: month } } }),
+    ]);
     const [digitalSeatsExpiring, digitalSeatsPastDue, physicalCustodyOpen, keysExpiring, keysPastDue, vaultExpiring, vaultPastDue] = await Promise.all([
       prisma.studioInventoryAllocation.count({ where: { ...digital, expiresAt: { gt: now, lte: soon } } }),
       prisma.studioInventoryAllocation.count({ where: { ...digital, expiresAt: { lte: now } } }),
@@ -178,7 +201,7 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
       prisma.studioVaultSecret.count({ where: { revokedAt: null, expiresAt: { gt: now, lte: soon } } }),
       prisma.studioVaultSecret.count({ where: { revokedAt: null, expiresAt: { lte: now } } }),
     ]);
-    return { ok: true, asOf: now.toISOString(), windowDays: 7, digitalSeatsExpiring, digitalSeatsPastDue, physicalCustodyOpen, keysExpiring, keysPastDue, vaultExpiring, vaultPastDue };
+    return { ok: true, asOf: now.toISOString(), windowDays: 7, renewalsDue, domainsExpiring, digitalSeatsExpiring, digitalSeatsPastDue, physicalCustodyOpen, keysExpiring, keysPastDue, vaultExpiring, vaultPastDue };
   });
 
   // Offboarding does not close physical custody. This drilldown is explicit,
@@ -208,7 +231,7 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
     const where = {
       ...(query.kind ? { kind: query.kind } : {}),
       ...(query.status ? { status: query.status } : {}),
-      ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { provider: { contains: q, mode: "insensitive" } }, { reference: { contains: q, mode: "insensitive" } }, { kind: { contains: q, mode: "insensitive" } }] } : {}),
+      ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { provider: { contains: q, mode: "insensitive" } }, { reference: { contains: q, mode: "insensitive" } }, { location: { contains: q, mode: "insensitive" } }, { kind: { contains: q, mode: "insensitive" } }] } : {}),
     };
     const rows = await prisma.studioInventoryAsset.findMany({
       where,
@@ -234,7 +257,8 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
 
   app.post("/api/admin/inventory/assets", async (request: any, reply: any) => {
     const actor = await admin(request, reply); if (!actor) return;
-    const body = assetInput.parse(request.body || {});
+    let body;
+    try { body = assetDetails(assetInput.parse(request.body || {})); } catch (error) { if (error instanceof AssetDetailError) return reply.code(400).send({ ok: false, code: "INVALID_ASSET_DETAIL", error: error.message }); throw error; }
     const row = await prisma.studioInventoryAsset.create({ data: { ...body, createdById: actor.id }, select: assetPublicSelect });
     await audit(request, actor, "inventory.asset_created", row.id);
     reply.header("Cache-Control", "no-store");
@@ -246,7 +270,8 @@ export function registerStudioInventoryVaultRoutes(deps: any) {
   app.patch("/api/admin/inventory/assets/:id", async (request: any, reply: any) => {
     const actor = await admin(request, reply); if (!actor) return;
     const { id } = paramsId.parse(request.params);
-    const body = assetEditInput.parse(request.body || {});
+    let body;
+    try { body = assetDetails(assetEditInput.parse(request.body || {})); } catch (error) { if (error instanceof AssetDetailError) return reply.code(400).send({ ok: false, code: "INVALID_ASSET_DETAIL", error: error.message }); throw error; }
     const { expectedRevision, ...data } = body;
     const result = await prisma.$transaction(async (tx: any) => {
       const locked = await tx.$queryRaw`SELECT "id" FROM "StudioInventoryAsset" WHERE "id" = ${id} FOR UPDATE`;

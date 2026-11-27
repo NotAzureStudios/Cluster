@@ -5,11 +5,12 @@ import { MyInventoryLicensesPanel } from "../settings/MyInventoryLicensesPanel";
 import { StudioInventoryKeyPools, StudioInventoryPanel } from "../settings/StudioInventoryVaultPanel";
 import { StudioInventoryApprovalPanel } from "../settings/StudioInventoryApprovalPanel";
 import { VaultManager } from "./VaultManager";
+import { DomainsManager } from "../domains/DomainsManager";
 import { ToolPageHeader } from "../../components/ToolPageHeader";
 import { ClusterSegmentedControl } from "../../components/ClusterSegmentedControl";
 import "./inventory-workspace.css";
 
-type InventorySection = "mine" | "assets" | "keys" | "approvals";
+type InventorySection = "mine" | "assets" | "domains" | "keys" | "approvals";
 type Person = { id: string; displayName: string; username: string; profileRevision: number };
 
 /** A genuine tool route, not an admin settings subsection. The server remains the authority for mutations. */
@@ -31,13 +32,14 @@ export function InventoryWorkspacePage({ isAdmin, pinConfigured }: { isAdmin: bo
       <nav className="cluster-resource-workspace__tabs" aria-label="Inventory sections">
         <ClusterSegmentedControl value={section} onChange={(value) => setSection(value as InventorySection)} label="Inventory sections" size="compact" options={[
           { value: "mine", label: "My items" },
-          ...(isAdmin ? [{ value: "assets", label: "Catalog" }, { value: "keys", label: "Key pools" }, { value: "approvals", label: "Approvals" }] : []),
+          ...(isAdmin ? [{ value: "assets", label: "Catalog" }, { value: "domains", label: "Domains" }, { value: "keys", label: "Key pools" }, { value: "approvals", label: "Approvals" }] : []),
         ]} />
       </nav>
     } />
     <section className="cluster-resource-workspace__body" aria-live="off">
       {section === "mine" && <MyInventoryLicensesPanel pinConfigured={pinConfigured} />}
       {section === "assets" && isAdmin && <StudioInventoryPanel includeKeyPools={false} />}
+      {section === "domains" && isAdmin && <DomainsManager />}
       {section === "approvals" && isAdmin && <StudioInventoryApprovalPanel />}
       {section === "keys" && isAdmin && <>
         {peopleError && <p role="alert">{peopleError} <ClusterButton size="compact" onClick={() => setSection("assets")}>Manage assets instead</ClusterButton></p>}
