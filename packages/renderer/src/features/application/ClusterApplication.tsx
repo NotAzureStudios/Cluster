@@ -75,7 +75,7 @@ import { canUseProject, getProjectPermission } from "../projects/project-access-
 import { MAX_PROJECT_TABS, THEME_STORAGE_KEY, applyCustomization, applyTheme, getStoredTheme, userPreferencesFromUser } from "./modules/application-shell-runtime";
 import { openSharedCreate } from "../create/shared-create-handoff";
 import { clearIncompatibleRouteContext, clearProjectSwitchRouteContext, nextOpenProjectTabs } from "./modules/project-tab-workspace";
-import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyChatPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazySourceControlAdminPage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
+import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyChatPage, LazyFormsPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazySourceControlAdminPage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
 import { toolConfigSettingsPatch } from "./modules/tool-config-settings";
 import { Sidebar } from "./modules/ApplicationSidebar";
 
@@ -947,7 +947,11 @@ export default function App() {
         void setScreen("admin", { section: "incidents" });
         return;
       }
-      if (target.screen === "studioSettings" && (target.inspectScope === "studio-form" || target.inspectScope === "form-submission" || target.inspectScope === "studio-application" || target.inspectScope === "studio-announcement" || target.inspectScope === "studio-announcement-new" || target.inspectScope === "studio-announcement-list")) {
+      if (target.screen === "studioSettings" && (target.inspectScope === "studio-form" || target.inspectScope === "form-submission" || target.inspectScope === "studio-application")) {
+        void setScreen("forms");
+        return;
+      }
+      if (target.screen === "studioSettings" && (target.inspectScope === "studio-announcement" || target.inspectScope === "studio-announcement-new" || target.inspectScope === "studio-announcement-list")) {
         void setScreen("studioSettings", { section: "studioSystems" });
         return;
       }
@@ -1407,6 +1411,7 @@ export default function App() {
           />
         )}
         {screen === "chat" && <LazyFeatureBoundary label="Chat"><LazyChatPage /></LazyFeatureBoundary>}
+        {screen === "forms" && <LazyFeatureBoundary label="Forms"><LazyFormsPage manager={Boolean(activeUser.isAdmin)} /></LazyFeatureBoundary>}
         {screen === "mywork" && (
           <LazyFeatureBoundary label="My Work"><LazyMyWorkPage
             user={activeUser}

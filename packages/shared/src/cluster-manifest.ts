@@ -297,7 +297,7 @@ export function clusterProjectToolDefinition(id: ClusterProjectToolId) {
 export type ClusterAppRouteGroup = "home" | "work" | "projects" | "planning" | "library" | "people" | "control" | "system" | "hidden";
 export type ClusterAppSidebarSection = "work" | "planning" | "library" | "people" | "administration" | "system";
 export type ClusterAppRouteFeatureFlag = "ticketsEnabled" | "timelineEnabled" | "calendarEnabled" | "schedulerEnabled" | "libraryEnabled" | "packetsEnabled";
-export type ClusterAppNavigationIcon = "activity" | "bell" | "grid" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette";
+export type ClusterAppNavigationIcon = "activity" | "bell" | "grid" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette" | "file";
 export type ClusterApplicationActionGroup = "navigation" | "desktop";
 
 export type ClusterApplicationActionDescriptor = Readonly<{
@@ -344,6 +344,7 @@ export const CLUSTER_APP_ROUTE_MANIFEST = {
   people: { label: PRODUCT_TERMS.people, group: "people", tool: "people", action: { id: "navigation.people", group: "navigation", description: "Directory, profiles, and contact information.", aliases: ["people", "team", "users"], keywords: ["users", "team"], paletteKey: "page-people" } },
   mywork: { label: PRODUCT_TERMS.myWork, group: "work", tool: "mywork", startEligible: true, action: { id: "navigation.my-work", group: "navigation", description: "Personal assignments and due items.", aliases: ["mw", "mine", "assignments"], paletteKey: "page-mywork" } },
   chat: { label: "Chat", group: "work", tool: "inbox", startEligible: true, action: { id: "navigation.chat", group: "navigation", description: "Channels, announcements and messages.", aliases: ["announcements", "messages"], paletteKey: "page-chat" } },
+  forms: { label: "Forms", group: "work", tool: "inbox", startEligible: true, sidebar: { section: "work", order: 30, icon: "file" }, action: { id: "navigation.forms", group: "navigation", description: "Fill, build and review forms and applications.", aliases: ["applications", "surveys"], paletteKey: "page-forms" } },
   inbox: { label: PRODUCT_TERMS.inbox, group: "work", tool: "inbox", startEligible: true, action: { id: "navigation.inbox", group: "navigation", description: "Assignments, mentions, approvals, reminders, and attention items.", aliases: ["in", "mentions", "notifications"], paletteKey: "page-inbox" } },
   projects: { label: PRODUCT_TERMS.projects, group: "projects", tool: "projects", startEligible: true, action: { id: "navigation.projects", group: "navigation", description: "Project directory.", aliases: ["p", "proj", "projects"], paletteKey: "page-projects" } },
   project: { label: "Project", group: "projects", tool: "projects", parent: "projects", projectContext: true },

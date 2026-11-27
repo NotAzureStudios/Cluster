@@ -23,7 +23,7 @@ try {
   check('Canonical route, permission and standalone registry are consistent',()=>{
     const result=run('check');
     assert.equal(result.status,0,result.stderr);
-    assert.match(result.stdout,/29 routes, 22 permission identities, 3 standalone modules/);
+    assert.match(result.stdout,/30 routes, 22 permission identities, 3 standalone modules/);
   });
   check('Existing tool routes require no individual app rendering branches',()=>{
     const app=read(appPath);const prefetch=read(prefetchPath);const registry=read(registryPath);

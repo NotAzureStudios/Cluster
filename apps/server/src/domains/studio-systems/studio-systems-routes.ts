@@ -191,9 +191,10 @@ export function registerStudioSystemsRoutes(deps: any) {
       title: z.string().trim().min(1).max(200),
       description: z.string().trim().max(4000).default(""),
       audience: studioAudienceSchema,
+      status: z.enum(["draft", "active", "archived"]).optional(),
     }).parse(request.body || {});
     if (body.audience.mode !== "all" && !body.audience.targets?.length) return reply.code(400).send({ ok: false, code: "FORM_AUDIENCE_REQUIRED", error: "Choose audience targets or use the whole studio." });
-    const changed = await prisma.studioForm.updateMany({ where: { id: formId, updatedAt: new Date(body.expectedUpdatedAt) }, data: { title: body.title, description: body.description || null, audienceJson: JSON.stringify(body.audience) } });
+    const changed = await prisma.studioForm.updateMany({ where: { id: formId, updatedAt: new Date(body.expectedUpdatedAt) }, data: { title: body.title, description: body.description || null, audienceJson: JSON.stringify(body.audience), ...(body.status ? { status: body.status } : {}) } });
     if (changed.count !== 1) return reply.code(409).send({ ok: false, code: "FORM_ACCESS_STALE", error: "This form changed since you opened it. Refresh before editing its audience." });
     const updated = await prisma.studioForm.findUniqueOrThrow({ where: { id: formId }, include: { versions: { orderBy: { version: "desc" }, take: 20 } } });
     await logActivity?.({ userId: actor?.id, type: "updated", entityType: "studio_form", entityId: formId, title: "Form details and audience updated", message: body.title });

@@ -1,0 +1,61 @@
+/* Forms: list + document-style editor. Dense, no side borders. */
+.fs { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; min-height: calc(100dvh - 150px); }
+.fs-list { display: flex; flex-direction: column; gap: 2px; align-self: start; padding: 10px; border-radius: 14px; background: var(--cluster-surface-1); }
+.fs-list__bar { display: flex; gap: 6px; margin-bottom: 6px; }
+.fs-list .fs-search.fs-search { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 0 !important; border-radius: 8px; background: var(--cluster-surface-2) !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: .76rem; }
+.fs-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; text-align: left; }
+.fs-item:hover { background: var(--surface-hover); }
+.fs-item.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.fs-item__icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.fs-item__icon svg { width: 15px; height: 15px; }
+.fs-item strong { display: block; overflow: hidden; font-size: .78rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.fs-item small { color: var(--muted); font-size: .64rem; }
+.fs-item > i { width: 7px; height: 7px; border-radius: 50%; background: var(--cluster-border); }
+.fs-item > i[data-live] { background: var(--success, #3ecf8e); }
+.fs-empty { margin: 8px; color: var(--muted); font-size: .74rem; }
+.fs-main { min-width: 0; }
+.fs-blank { display: grid; place-items: center; align-content: center; gap: 10px; min-height: 320px; border-radius: 14px; background: var(--cluster-surface-1); color: var(--muted); }
+.fs-blank > svg { width: 28px; height: 28px; opacity: .5; }
+.fs-blank p { margin: 0; }
+.fe { display: grid; gap: 12px; }
+.fe-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--cluster-surface-1); }
+.fe-head__end { display: flex; align-items: center; gap: 8px; }
+.fe-msg { color: var(--muted); font-size: .7rem; }
+.fe-state { padding: 2px 8px; border-radius: 999px; background: var(--cluster-surface-2); color: var(--muted); font-size: .64rem; font-weight: 700; }
+.fe-state[data-live] { background: color-mix(in srgb, var(--success, #3ecf8e) 18%, transparent); color: var(--success, #3ecf8e); }
+.fe-doc { display: grid; gap: 10px; width: min(760px, 100%); margin: 0 auto; }
+.fe-card { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; background: var(--cluster-surface-1); }
+.fe-card--title { box-shadow: inset 0 3px 0 var(--accent); }
+.fe.fe.fe .fe-card.fe-card :is(input, textarea).fe-title.fe-title,
+.fe.fe.fe .fe-card.fe-card :is(input, textarea).fe-desc.fe-desc,
+.fe.fe.fe .fe-card.fe-card input.fe-q__label.fe-q__label,
+.fe.fe.fe .fe-card.fe-card input.fe-q__help.fe-q__help,
+.fe.fe.fe .fe-opt.fe-opt input { width: 100%; min-height: 0; padding: 4px 2px; border: 0 !important; border-radius: 0; background: transparent !important; box-shadow: inset 0 -1px 0 transparent !important; color: var(--text); font: inherit; resize: none; outline: none; }
+.fe .fe-card :is(input, textarea).fe-title { font-size: 1.35rem; font-weight: 700; }
+.fe .fe-card :is(input, textarea).fe-desc, .fe .fe-card input.fe-q__help { color: var(--muted); font-size: .78rem; }
+.fe .fe-card input.fe-q__label { font-size: .9rem; font-weight: 600; }
+.fe .fe-card :is(input, textarea):focus { box-shadow: inset 0 -1px 0 var(--accent) !important; }
+.fe-q { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 10px; align-items: center; }
+.fe .fe-card select.fe-q__type { height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--cluster-surface-2); color: var(--text); font: inherit; font-size: .74rem; }
+.fe-opts { display: grid; gap: 4px; }
+.fe-opt { display: grid; grid-template-columns: 16px minmax(0, 1fr) 24px; align-items: center; gap: 8px; }
+.fe-opt__mark { width: 13px; height: 13px; border: 1.5px solid var(--muted); border-radius: 50%; }
+.fe-opt__mark[data-type="multi_select"] { border-radius: 3px; }
+.fe-opt__mark[data-type="select"] { border: 0; }
+.fe.fe.fe .fe-opt.fe-opt input { height: 28px; padding: 0 2px; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: .78rem; }
+.fe-opt button, .fe-q__foot button { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.fe-opt button svg, .fe-q__foot button svg { width: 14px; height: 14px; }
+.fe-opt button:hover, .fe-q__foot button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+.fe-q__foot button:disabled { opacity: .35; cursor: default; }
+.fe-opt__add { justify-self: start; margin-left: 24px; padding: 2px 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: .74rem; cursor: pointer; }
+.fe-preview { padding: 6px 2px; color: var(--muted); font-size: .72rem; box-shadow: inset 0 -1px 0 var(--cluster-border); }
+.fe-q__foot { display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding-top: 6px; box-shadow: inset 0 1px 0 var(--cluster-border); }
+.fe-req { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; color: var(--muted); font-size: .72rem; }
+.fe-add { display: flex; gap: 6px; justify-content: center; padding: 4px 0 20px; }
+.fe-set h3 { margin: 0; font-size: .82rem; }
+.fe-check { display: flex; align-items: center; gap: 8px; font-size: .76rem; }
+.fe-field { display: grid; gap: 4px; font-size: .72rem; color: var(--muted); }
+.fe .fe-field :is(input, textarea) { width: 100%; }
+.fe-muted { margin: 0; color: var(--muted); font-size: .7rem; }
+.fe-panel { min-width: 0; }
+@media (max-width: 860px) { .fs { grid-template-columns: 1fr; } .fe-q { grid-template-columns: 1fr; } }

@@ -29,7 +29,7 @@ const checks = [
   ["discord OAuth configuration is not a live test", integrations.includes("people linked")],
   ["integration telemetry scoped styling", adminCss.includes(".admin-integration-health-cell-v103")],
   ["form/policy version publication from records", systems.includes('version.status === "published"') && systems.includes("formsWithPublishedVersion") && systems.includes("policiesWithPublishedVersion")],
-  ["form/policy chips", systems.includes("formTone(") && systems.includes("policyTone(")],
+  ["policy chips", systems.includes("policyTone(")],
   ["personal forms use due states", forms.includes('item.dueState === "overdue"') && forms.includes('item.dueState === "completed"')],
   ["personal forms retain separate reviewer entitlement", forms.includes("Separate permission") && forms.includes("reviewForms.length")],
   ["automation queue sample not total", automation.includes("Loaded queue sample") && automation.includes("jobs.filter((job) => job.status ===")],
