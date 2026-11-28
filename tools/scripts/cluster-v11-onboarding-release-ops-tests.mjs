@@ -14,17 +14,15 @@ function load(name) {
   vm.runInNewContext(compiled, { module: mod, exports: mod.exports });
   return mod.exports;
 }
-const releases = load("packages/renderer/src/features/changelog/data/cluster-changelog.ts").CLUSTER_CHANGELOG;
-assert.deepEqual(Array.from(releases, r => r.version), ["v1.2.3", "v1.2.2", "v1.2.1", "v1.2.0", "v1.1.2", "v1.1.1", "v1.1.0", "v1.0.5", "v1.0.4", "v1.0.2", "v1.0.1", "v1.0.0"]);
-for (const r of releases) {
-  assert.match(r.version, /^v[1-9]\d*\.\d+\.\d+$/);
-  assert.equal(r.sourceUrl, "https://github.com/NotAzureStudios/Cluster/releases/tag/" + r.version);
-  assert.ok(r.changes.every(x => !x.includes("release work, compatibility updates")));
-}
+// Release notes come from GitHub releases through the server, not a hardcoded list.
+const changelog = read("apps/server/src/domains/changelog/changelog-routes.ts");
+assert.match(changelog, /api\.github\.com\/repos\/NotAzureStudios\/Cluster\/releases/);
+assert.match(changelog, /\^v\\d/);
 const page = read("packages/renderer/src/features/changelog/ChangelogPage.tsx");
 assert.match(page, /<details/);
 assert.match(page, /release\.sourceUrl/);
 assert.match(page, /APP_VERSION_LABEL/);
+assert.match(page, /\/api\/changelog/);
 const guide = load("packages/renderer/src/features/people/account-first-sign-in-guide.ts").formatAccountFirstSignInGuide;
 const message = guide({ username: "new-user", temporaryPassword: "TEMP-ONLY", signInUrl: "https://cluster.example/" });
 assert.match(message, /Username: new-user/);

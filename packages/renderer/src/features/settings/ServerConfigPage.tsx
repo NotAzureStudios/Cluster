@@ -1536,6 +1536,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
 
       {section === "overview" && (
         <div className="server-config-overview-v238">
+          <ServerUpdateControls owner={currentUser.workspaceRole === "owner"} pinConfigured={currentUser.pinConfigured === true} />
           <div className="server-config-metrics-v238">
             <ClusterButton unstyled type="button" onClick={() => selectSection("security")}>
               <div className="server-config-stat-head-v103"><ClusterIcon name="lock" aria-hidden="true" /><span>Security</span></div>
