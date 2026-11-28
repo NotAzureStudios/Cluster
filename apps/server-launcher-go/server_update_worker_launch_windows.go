@@ -86,6 +86,11 @@ func stageNativeServerUpdateIntent(root,channel string)(string,string,error){
  raw,err:=json.Marshal(request)
  if err!=nil{return "","",err}
  path:=nativeServerUpdateRequestPath(root)
+ // An unclaimed request older than a few minutes belongs to a worker that
+ // never started (declined or unseen approval prompt); it holds nothing.
+ if info,statErr:=os.Lstat(path);statErr==nil && info.Mode().IsRegular() && time.Since(info.ModTime())>5*time.Minute {
+  if _,claimErr:=os.Lstat(path+".claimed");errors.Is(claimErr,os.ErrNotExist){_ = os.Remove(path)}
+ }
  intent,err:=os.OpenFile(path,os.O_CREATE|os.O_EXCL|os.O_WRONLY,0600)
  if err!=nil{return "","",fmt.Errorf("another installer request exists or cannot be created: %w",err)}
  if _,err=intent.Write(raw);err!=nil{intent.Close();_ = os.Remove(path);return "","",err}
