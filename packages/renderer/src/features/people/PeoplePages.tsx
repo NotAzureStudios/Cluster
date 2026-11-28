@@ -26,6 +26,7 @@ import { ToolPageHeader } from "../../components/ToolPageHeader";
 import { ClusterMasterDetail, readClusterDetailSelection, useClusterDetailHistory } from "../../components/ClusterMasterDetail";
 import { InspectorLoadingState, LoadingState } from "../../components/LoadingState";
 import { PersonSummary } from "../../components/PersonSummary";
+import { ProfileHero } from "./ProfileHero";
 import { DepartmentIdentityMark, type DepartmentIdentity } from "../../components/DepartmentIdentityMark";
 import { useProgressiveList } from "../../components/useProgressiveList";
 import { useClusterCursorData, type ClusterCursorPage } from "../../components/useClusterCursorData";
@@ -995,12 +996,21 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
         detail={<main className="panel people-detail-v244">
           {profile ? (
             <>
-              <header className="pp-head">
-                {profileExpanded && <ClusterIconButton size="compact" className="pp-back" label={adminMode && onBack ? "Back to users" : "Back to directory"} onClick={() => { if (adminMode && onBack) onBack(); else setProfileExpanded(false); }}><ClusterIcon name="chevron-left" /></ClusterIconButton>}
-                <PersonSummary person={profile} profileAction={false} avatarProfilePeek={false} showCapacity={profile.capacityHours != null} departmentIdentity={departmentForPerson(profile)} className="pp-identity" />
-                <div className="pp-actions">
+              <ProfileHero
+                person={profile as any}
+                isSelf={profile.id === currentUser.id}
+                onSaved={() => void selectProfile(profile.id)}
+                leading={profileExpanded && <ClusterIconButton size="compact" className="pp-back" label={adminMode && onBack ? "Back to users" : "Back to directory"} onClick={() => { if (adminMode && onBack) onBack(); else setProfileExpanded(false); }}><ClusterIcon name="chevron-left" /></ClusterIconButton>}
+                subtitle={profile.title || (!departmentForPerson(profile) ? profile.department : null) || undefined}
+                departmentIdentity={departmentForPerson(profile)}
+                stats={[
+                  { label: "Projects", value: profileProjects.length, onClick: () => setProfileView("work") },
+                  { label: "Teams", value: profileTeams.length },
+                  { label: "Cards", value: profileCards.length, onClick: () => setProfileView("work") },
+                  ...(directReports.length ? [{ label: "Reports", value: directReports.length }] : []),
+                ]}
+                actions={<>
                   {effectiveAdminMode && !profile.archived && <ClusterButton size="compact" variant={profileView === "edit" ? "primary" : "secondary"} onClick={() => setProfileView("edit")}>Edit</ClusterButton>}
-                  {profile.id === currentUser.id && onEditProfile && <ClusterButton size="compact" variant="secondary" onClick={onEditProfile}>Edit profile</ClusterButton>}
                   {!(adminMode && onBack) && <ClusterIconButton size="compact" label={profileExpanded ? "Show in directory" : "Open full page"} onClick={() => setProfileExpanded((current) => !current)}><ClusterIcon name={profileExpanded ? "minimize" : "fullscreen"} /></ClusterIconButton>}
                   <ClusterActionMenu iconOnly label={`${displayUserName(profile)} actions`} items={resolveClusterResourceActions({ kind: "user", id: profile.id }, [
                     { id: "copy-profile-link", resourceKinds: ["user"] as const, allowed: () => true, label: "Copy profile link", icon: "link", onSelect: () => copyProfileLink(profile) },
@@ -1009,8 +1019,8 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                     ...(effectiveAdminMode && profile.id !== currentUser.id && !profile.archived ? [{ id: "reset-password", resourceKinds: ["user"] as const, allowed: () => true, label: "Reset password", icon: "lock" as const, separatorBefore: true, onSelect: () => { setProfileView("access"); void issuePasswordResetForProfile(); } }] : []),
                     ...(currentUser.isAdmin && profile.id !== currentUser.id ? [{ id: "manage-access", resourceKinds: ["user"] as const, allowed: () => true, label: effectiveAdminMode ? "Manage access" : "View access", icon: "lock" as const, separatorBefore: true, onSelect: () => setProfileView("access") }] : []),
                   ])} />
-                </div>
-              </header>
+                </>}
+              />
 
               <nav className="pp-tabs" aria-label="Profile views">
                 {([
@@ -1048,14 +1058,6 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                   const hasContact = Boolean(profile.email || profile.phoneNumber || profile.profileDiscordUsername || profile.discordUsername || profile.profileWebsite);
                   return <div className="pp-overview">
                     <div className="pp-main">
-                      {profile.profileBio ? <p className="pp-bio">{profile.profileBio}</p> : null}
-                      <div className="pp-stats" aria-label="Summary">
-                        <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileProjects.length}</strong><span>Projects</span></ClusterButton>
-                        <ClusterButton unstyled type="button" onClick={() => setProfileView("work")}><strong>{profileCards.length}</strong><span>Cards</span></ClusterButton>
-                        <div><strong>{profileTeams.length}</strong><span>Teams</span></div>
-                        {directReports.length ? <div><strong>{directReports.length}</strong><span>Reports</span></div> : null}
-                        {profileWork?.overdue ? <div className="warn"><strong>{profileWork.overdue}</strong><span>Overdue</span></div> : null}
-                      </div>
                       {facts.length ? <dl className="pp-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl> : null}
                       {expertise.length ? <section className="pp-section"><h3>Skills</h3><div className="pp-chips">{expertise.map((item) => <span key={item.name}>{item.name}{item.level ? <small>{item.level}{item.years != null ? ` · ${item.years}y` : ""}</small> : null}</span>)}</div></section> : null}
                       {profileShowcaseProjects.length > 0 && <section className="pp-section"><h3>Showcase</h3><div className="profile-showcase-grid-v473">{profileShowcaseProjects.map((project) => <ClusterButton unstyled type="button" key={project.id} onClick={() => onOpenProject(project.id)}><strong>{project.name}</strong><span>{project.projectType || project.status || "Project"}</span></ClusterButton>)}</div></section>}

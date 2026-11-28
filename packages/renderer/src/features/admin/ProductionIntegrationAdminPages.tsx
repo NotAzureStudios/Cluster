@@ -525,6 +525,7 @@ export function IntegrationsAdminPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [displayName, setDisplayName] = useState("Studio Discord");
+  const [credentialError, setCredentialError] = useState("");
   const [guildId, setGuildId] = useState("");
   const [forumChannelId, setForumChannelId] = useState("");
   const [chatChannelId, setChatChannelId] = useState("");
@@ -635,14 +636,14 @@ export function IntegrationsAdminPage() {
   const providerLabel = (providerId: string) => providers.find((provider) => provider.id === providerId)?.label || providerId;
 
   async function saveDiscordConfiguration(overrides: Partial<{ guildId: string; chatChannelId: string; forumChannelId: string; adminRoleId: string }> = {}) {
-    if (!displayName.trim()) return;
     const next = { guildId, chatChannelId, forumChannelId, adminRoleId, ...overrides };
+    setCredentialError("");
     setBusy(true);
     try {
       const result = await api<{ configuration: { botTokenConfigured: boolean; webhookConfigured: boolean; applicationPublicKeyConfigured: boolean } }>("/api/admin/discord/configuration", {
         method: "PUT",
         body: JSON.stringify({
-          displayName: displayName.trim(),
+          displayName: displayName.trim() || "Studio Discord",
           guildId: next.guildId.trim(),
           forumChannelId: next.forumChannelId.trim(),
           chatChannelId: next.chatChannelId.trim(),
@@ -663,7 +664,8 @@ export function IntegrationsAdminPage() {
       await load(true);
       await loadDiscordSetup();
       setStatus("Saved.");
-    } catch (error) { setStatus(formatApiError(error)); }
+      return true;
+    } catch (error) { setStatus(formatApiError(error)); setCredentialError(formatApiError(error)); return false; }
     finally { setBusy(false); }
   }
 
@@ -848,8 +850,10 @@ export function IntegrationsAdminPage() {
                 <label><span>Public key</span><ClusterTextInput {...SECRET_INPUT_PROPS} value={applicationPublicKey} onChange={(event) => setApplicationPublicKey(event.target.value)} placeholder={applicationPublicKeyConfigured ? "Saved · paste to replace" : "Public key"} /></label>
                 <label><span>Bot token</span><ClusterTextInput {...SECRET_INPUT_PROPS} value={botToken} onChange={(event) => setBotToken(event.target.value)} placeholder={botTokenConfigured ? "Saved · paste to replace" : "Bot token"} /></label>
               </div>
-              {discordSetup?.botError ? <p className="dc-error" role="alert">Discord rejected the token: {discordSetup.botError}</p> : null}
-              <div className="dc-actions"><ClusterButton variant="primary" busy={busy} disabled={!/^\d{8,24}$/.test(applicationId) || (!botTokenConfigured && !botToken.trim())} onClick={() => void saveDiscordConfiguration().then(() => setEditingCredentials(false))}>Connect</ClusterButton>{bot ? <ClusterButton variant="quiet" onClick={() => setEditingCredentials(false)}>Cancel</ClusterButton> : null}</div>
+              {credentialError ? <p className="dc-error" role="alert">{credentialError}</p>
+                : discordSetup?.botError ? <p className="dc-error" role="alert">Discord rejected the token: {discordSetup.botError}</p>
+                : botTokenConfigured && discordSetup && !discordSetup.bot ? <p className="dc-error" role="alert">The token was saved but Cluster couldn't read it back. Paste it again and Connect.</p> : null}
+              <div className="dc-actions"><ClusterButton variant="primary" busy={busy} disabled={!/^\d{8,24}$/.test(applicationId) || (!botTokenConfigured && !botToken.trim())} onClick={() => void saveDiscordConfiguration().then((saved) => { if (saved) setEditingCredentials(false); })}>Connect</ClusterButton>{bot ? <ClusterButton variant="quiet" onClick={() => setEditingCredentials(false)}>Cancel</ClusterButton> : null}</div>
             </>)}
           {step(Boolean(primaryServer), 2, primaryServer ? `Server · ${primaryServer.name}` : "Add it to your server", <>
             <div className="dc-actions">{discordSetup?.inviteUrl ? <ClusterLinkButton variant="primary" href={discordSetup.inviteUrl} target="_blank" rel="noopener noreferrer">Add to Discord ↗</ClusterLinkButton> : null}<ClusterButton variant="secondary" size="compact" busy={busy} onClick={() => void loadDiscordSetup()}><ClusterIcon name="refresh" />Refresh</ClusterButton></div>

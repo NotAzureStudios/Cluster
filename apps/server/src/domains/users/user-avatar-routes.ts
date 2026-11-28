@@ -64,6 +64,28 @@ app.post("/api/me/avatar", async (request, reply) => {
   });
   return { user: serializeUserLite(updated), audit };
 });
+// Profile banner: a wide header image stored beside the avatar.
+app.post("/api/me/banner", async (request, reply) => {
+  const user = await getCurrentUser(request);
+  if (!user) return reply.code(401).send({ error: "Authentication required" });
+  const body = z.object({
+    originalName: z.string().min(1).max(160),
+    mimeType: z.enum(["image/png", "image/jpeg", "image/jpg", "image/pjpeg", "image/webp", "image/gif"]),
+    sizeBytes: z.number().int().positive().max(8 * 1024 * 1024),
+    dataUrl: z.string().min(1),
+  }).parse(request.body);
+  const stored = await writeUpload(user.id, "avatar", body.originalName, body.dataUrl, body.mimeType);
+  const preferences = (() => { try { return JSON.parse(user.preferences || "{}"); } catch { return {}; } })();
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { preferences: JSON.stringify({ ...preferences, profileBanner: `/api/users/${user.id}/avatar/${encodeURIComponent(stored.storedName)}` }), profileRevision: { increment: 1 } } });
+  return { user: serializeUserLite(updated) };
+});
+app.delete("/api/me/banner", async (request, reply) => {
+  const user = await getCurrentUser(request);
+  if (!user) return reply.code(401).send({ error: "Authentication required" });
+  const { profileBanner: _banner, ...preferences } = (() => { try { return JSON.parse(user.preferences || "{}"); } catch { return {}; } })();
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { preferences: JSON.stringify(preferences), profileRevision: { increment: 1 } } });
+  return { user: serializeUserLite(updated) };
+});
 app.get("/api/users/:userId/avatar/:fileName", async (request, reply) => {
   const params = z.object({ userId: z.string(), fileName: z.string() }).parse(request.params);
   const safeName = path.basename(params.fileName);

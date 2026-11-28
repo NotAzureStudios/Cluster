@@ -160,6 +160,9 @@ export type UserActivitySummary = {
   profileShowStatus?: boolean;
   profileBio?: string;
   profileWebsite?: string;
+  profileBanner?: string;
+  profileLinks?: Array<{ label: string; url: string }>;
+  joinedAt?: string | null;
   profileDiscordUsername?: string;
   profilePreferredContact?: "cluster" | "discord" | "email" | "phone" | string;
   profilePinnedProjectIds?: string[];

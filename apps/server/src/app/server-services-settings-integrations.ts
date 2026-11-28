@@ -209,9 +209,12 @@ export function createSettingsIntegrationServices(deps: Record<string, any>) {
     return result;
   }
 
+  // Server-managed settings live in the config file, except secrets (bot
+  // token, webhook, mail password): the file refuses them, so they stay in
+  // the encrypted database store. Stripping them here lost them entirely.
   function stripServerManagedSettings<T extends Record<string, unknown>>(payload: T) {
     const copy = { ...payload } as Record<string, unknown>;
-    for (const key of SERVER_MANAGED_SETTING_KEYS) delete copy[key];
+    for (const key of SERVER_MANAGED_SETTING_KEYS) if (!SENSITIVE_SETTING_KEYS.has(key)) delete copy[key];
     return copy as T;
   }
 
@@ -227,7 +230,7 @@ export function createSettingsIntegrationServices(deps: Record<string, any>) {
         create: { key, value: storedValue },
       });
     }
-    const misplacedKeys = [...(SERVER_MANAGED_SETTING_KEYS as Set<string>)];
+    const misplacedKeys = [...(SERVER_MANAGED_SETTING_KEYS as Set<string>)].filter((key) => !SENSITIVE_SETTING_KEYS.has(key));
     if (misplacedKeys.length) await database.appSetting.deleteMany({ where: { key: { in: misplacedKeys } } });
   }
 
