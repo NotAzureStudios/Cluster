@@ -14,12 +14,12 @@
 .portal__brand span { color: var(--muted); font-size: .66rem; }
 .portal__nav { display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .portal__nav::-webkit-scrollbar { display: none; }
-.portal__nav button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: .8rem; white-space: nowrap; cursor: pointer; }
+.portal__nav button { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: .8rem; white-space: nowrap; cursor: pointer; }
 .portal__nav button svg { width: 15px; height: 15px; }
 .portal__nav button:hover { color: var(--text); }
 .portal__nav button[aria-current="page"] { background: color-mix(in srgb, var(--portal-accent) 16%, transparent); color: var(--text); }
 .portal__nav button[aria-current="page"] svg { color: var(--portal-accent); }
-.portal__account { position: relative; }
+.portal__account { position: relative; margin-left: auto; }
 .portal__me { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; overflow: hidden; border: 0; border-radius: 50%; background: var(--accent); color: #04141f; font: inherit; font-weight: 700; cursor: pointer; }
 .portal__me img { width: 100%; height: 100%; object-fit: cover; }
 .portal__menu { position: absolute; right: 0; top: calc(100% + 8px); display: grid; min-width: 200px; padding: 6px; border-radius: 12px; background: var(--cluster-surface-2, var(--panel-2)); box-shadow: 0 16px 40px rgb(0 0 0 / .35); }
@@ -90,12 +90,18 @@
 .portal__notice-actions { display: flex; gap: 8px; margin-top: 6px; }
 .portal__link-button { display: inline-grid; place-items: center; min-height: 36px; padding: 0 16px; border-radius: 10px; background: var(--accent); color: #04141f; font-weight: 700; text-decoration: none; }
 @media (max-width: 760px) {
-  .portal__bar { flex-wrap: wrap; gap: 8px 12px; padding-bottom: 6px; }
-  .portal__nav { order: 3; flex-basis: 100%; }
-  .portal__account { margin-left: auto; }
+  /* Phones: the portal's sections move to a bottom tab bar. The top bar
+     drops its blur so the tab bar can be fixed to the screen, not the bar. */
+  .portal__bar { backdrop-filter: none; background: var(--cluster-surface-1, var(--panel)); }
+  .portal__nav { position: fixed; inset: auto 0 0 0; z-index: 30; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(64px, 1fr); gap: 0; padding: 4px max(6px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); background: color-mix(in srgb, var(--cluster-surface-1, var(--panel)) 92%, transparent); backdrop-filter: saturate(1.5) blur(16px); box-shadow: 0 -1px 0 var(--cluster-border, var(--border)); overflow-x: auto; }
+  .portal .portal__nav button { display: grid; justify-items: center; gap: 2px; min-height: 48px; padding: 4px 2px; font-size: .6rem; }
+  .portal .portal__nav button svg { width: 20px; height: 20px; }
+  .portal .portal__nav button[aria-current="page"] { background: transparent; color: var(--portal-accent); }
+  .portal__main { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
   .portal__grid { grid-template-columns: 1fr; }
   .portal__grid > .portal__panel:first-child { grid-row: auto; }
   .portal__work-meta time { display: none; }
+}
 }
 .portal__chat .chat { grid-template-columns: 1fr; }
 .portal__chat .chat__rail { display: none; }
@@ -157,3 +163,8 @@
 .cp__ticket svg { width: 14px; height: 14px; color: var(--portal-accent); }
 .cp__ticket strong { color: var(--text); }
 .pp__form .portal__seg { justify-self: start; }
+
+/* Fixed-size circles regardless of global touch-target rules. */
+.portal .portal__check.portal__check, .portal .portal__me.portal__me { flex: none; align-self: center; min-width: 0; min-height: 0; aspect-ratio: 1; }
+.portal .portal__check.portal__check { width: 22px; height: 22px; }
+.portal .portal__me.portal__me { width: 34px; height: 34px; }
