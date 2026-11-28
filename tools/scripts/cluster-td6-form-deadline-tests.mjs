@@ -145,7 +145,7 @@ for (const file of scanSources) {
 check(read('apps/server/prisma/schema.prisma').includes('@@unique([formVersionId, userId, stage])'), 'Durable per-recipient claim uses a Prisma composite unique key');
 check(read('apps/server/prisma/migrations/20261017190000_td6_studio_form_reminder_deliveries/migration.sql').includes('CREATE UNIQUE INDEX'), 'Migration declares the unique claim index');
 check(read('apps/server/src/app/server-job-runtime.ts').includes('studio.form-deadline-reminders'), 'Durable maintenance job is registered and scheduled');
-check(read('packages/renderer/src/features/settings/MyFormsPanel.tsx').includes('Late submissions are still accepted.'), 'Respondent sees deadline as advisory');
+check(read('packages/renderer/src/features/settings/MyFormsPanel.tsx').includes('late answers are still accepted'), 'Respondent sees deadline as advisory');
 // The administrative evidence endpoint must use Settings authority and never return answers.
 const loadFormTargetAdmission=()=>{const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../../apps/server/src/domains/studio-systems/studio-form-target-admission.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports,Promise,String});return m.exports;};
 const routeModules = {

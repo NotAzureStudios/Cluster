@@ -7,6 +7,7 @@ import { confirmCluster } from "../../components/cluster-dialog-service";
 import { useUnsavedChangesGuard } from "../../components/useUnsavedChangesGuard";
 import { RequestErrorState } from "../../components/RequestState";
 import { openClusterWorkNavigation } from "../workflow/work-navigation";
+import "./applications-pipeline.css";
 
 type MappingCandidate = { fieldId: string; label: string; profileMappingKey: string; value: unknown; allowed: boolean };
 type AnswerField = { fieldId: string; label: string; type: string; value: unknown };
@@ -230,36 +231,92 @@ export function StudioApplicationsPanel({ targetApplicationId = null }: { target
     } finally { mutationRef.current = false; setBusyAction(""); }
   }
 
+  // Suggest a username from the applicant's name or email once accepted.
+  useEffect(() => {
+    if (!selected || selected.status !== "approved" || selected.convertedUserId || username) return;
+    const source = selected.respondentName || selected.respondentEmail?.split("@")[0] || "";
+    const suggestion = source.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.+|\.+$/g, "").slice(0, 32);
+    if (suggestion) setUsername(suggestion);
+  }, [selected?.id, selected?.status]);
+  // Choosing a stage or form reloads the list right away.
+  const filtersReady = useRef(false);
+  useEffect(() => { if (!filtersReady.current) { filtersReady.current = true; return; } void applyFilters(); }, [statusFilter, formFilter]);
   if (loadError && !applications.length) return <RequestErrorState error={loadError} title="Applications could not be loaded" onRetry={() => void load(true)} />;
-  return <div className="studio-systems-layout-v34f">
-    <aside className="studio-systems-list-v34f">
-      <div className="studio-explanation-v272"><strong>Applications</strong><span>Review first. Conversion creates a member account, copies only approved profile fields, and may assign published onboarding.</span></div>
-      <div className="studio-create-strip-v272 studio-systems-create-v34f">
-        <ClusterInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search applicant or email" />
-        <ClusterNativeSelect value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All statuses</option><option value="submitted">Submitted</option><option value="under_review">Under review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="converted">Converted</option></ClusterNativeSelect>
-        <ClusterNativeSelect value={formFilter} onChange={(event) => setFormFilter(event.target.value)}><option value="">All application forms</option>{formOptions.map((form) => <option key={form.id} value={form.id}>{form.title}</option>)}</ClusterNativeSelect>
-        <ClusterButton type="button" variant="quiet" disabled={Boolean(busyAction) || loading} onClick={() => void applyFilters()}>{loading ? "Loading…" : "Apply filters"}</ClusterButton>
-      </div>
-      <div className="studio-entity-list-v272">{applications.map((item) => <ClusterButton type="button" key={item.id} disabled={Boolean(busyAction) || loading} className={item.id === selectedId ? "active" : ""} onClick={() => void selectApplication(item.id)}><span className="studio-entity-list-copy-v272"><strong>{item.respondentName || item.respondentEmail || "Unnamed applicant"}</strong><small>{item.form?.title || "Application"} · {item.status.replace("_", " ")}</small></span><span className="studio-entity-list-meta-v272">{new Date(item.submittedAt).toLocaleDateString()}</span></ClusterButton>)}</div>
-      <div className="button-row"><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || pageIndex === 0} onClick={() => void previousPage()}>Previous</ClusterButton><span>Page {pageIndex + 1}</span><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || !page.hasMore} onClick={() => void nextPage()}>Next</ClusterButton></div>
-    </aside>
-    <section className="studio-systems-editor-v34f">
-      {Boolean(loadError) && <div role="alert" className="error-box">The application list could not refresh. Previously loaded data is shown. <ClusterButton size="compact" variant="secondary" disabled={loading} onClick={() => void load(true)}>Retry</ClusterButton></div>}
-      {status && <div className="studio-explanation-v272" role="status"><strong>Status</strong><span>{status}</span></div>}
-      {credential && <div className="settings-card-v092" role="group" aria-label="New account temporary credentials"><strong>Temporary credentials for @{credential.username}</strong><p>Copy this password now. It is not available from the application record later.</p><code>{credential.password}</code><span>{credential.onboardingText}</span><span>Account starts with member-only access and must change the temporary password on first sign-in. Review any additional permissions separately in People.</span><div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => void openCreatedPerson()}>Open created Person</ClusterButton><ClusterCopyButton text={credential.id} copiedLabel="Person ID copied">Copy Person ID</ClusterCopyButton><ClusterCopyButton text={credential.password} copiedLabel="Password copied">Copy password</ClusterCopyButton><ClusterButton type="button" variant="quiet" onClick={() => void dismissCredentials()}>Dismiss credentials</ClusterButton></div></div>}
-      {selected ? <>
-        <header className="studio-entity-editor-head-v272"><div><span className="eyebrow">Application review</span><h3>{selected.respondentName || selected.respondentEmail || "Applicant"}</h3><p>{selected.respondentEmail || "No email mapped"} · {selected.status.replace("_", " ")}</p></div></header>
-        <div className="studio-form-field-list-v34f">{(selected.answerFields?.length ? selected.answerFields : Object.entries(selected.answers || {}).map(([fieldId, value]) => ({ fieldId, label: fieldId, type: "unknown", value }))).map((field) => <div className="settings-card-v092" key={field.fieldId}><strong>{field.label}</strong><span>{valueText(field.value)}</span></div>)}</div>
-        <label className="field"><span>Review note</span><ClusterTextarea value={note} disabled={selected.status === "converted" || Boolean(busyAction)} onChange={(event) => setNote(event.target.value)} /></label>
-        {selected.status !== "converted" && <div className="button-row"><ClusterButton type="button" variant="secondary" disabled={Boolean(busyAction)} onClick={() => void review("under_review")}>Mark under review</ClusterButton><ClusterButton type="button" variant="primary" disabled={Boolean(busyAction)} onClick={() => void review("approved")}>Approve</ClusterButton><ClusterButton type="button" variant="secondary" disabled={Boolean(busyAction)} onClick={() => void review("rejected")}>Reject</ClusterButton></div>}
-        {selected.status === "approved" && !selected.convertedUserId && <div className="settings-card-v092"><p className="eyebrow">Application → People</p><h3>Create member account</h3><p className="muted tight">Role is fixed to member. Select each profile field you want to copy; none are preselected. Application fields cannot grant departments, teams, projects, tool permissions, or elevated access. Onboarding obeys the plan audience.</p>
-          <label className="field"><span>Username</span><ClusterInput value={username} disabled={Boolean(busyAction)} onChange={(event) => setUsername(event.target.value)} /></label>
-          <label className="field"><span>Onboarding after conversion</span><ClusterNativeSelect value={onboardingVersionId} disabled={Boolean(busyAction)} onChange={(event) => setOnboardingVersionId(event.target.value)}><option value="">No onboarding assignment</option>{onboardingOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</ClusterNativeSelect></label>
-          {selected.mappingCandidates.map((candidate) => <label className="field" key={candidate.fieldId}><span><ClusterInput type="checkbox" checked={candidate.allowed && selectedFields.includes(candidate.fieldId)} disabled={Boolean(busyAction) || !candidate.allowed} onChange={(event) => setSelectedFields((current) => event.target.checked ? [...new Set([...current, candidate.fieldId])] : current.filter((id) => id !== candidate.fieldId))} /> {candidate.label} → <code>{candidate.profileMappingKey}</code></span><small>{candidate.allowed ? valueText(candidate.value) : "Mapping blocked by the server allowlist."}</small></label>)}
-          <ClusterButton type="button" variant="primary" disabled={Boolean(busyAction) || !username.trim()} onClick={() => void convert()}>Create person</ClusterButton>
+  const answers = selected ? (selected.answerFields?.length ? selected.answerFields : Object.entries(selected.answers || {}).map(([fieldId, value]) => ({ fieldId, label: fieldId, type: "unknown", value }))) : [];
+  // A "name" question stands in when the form doesn't map one to the profile.
+  const name = (item: Application) => item.respondentName
+    || String(item.answerFields?.find((field) => /name/i.test(field.label) && typeof field.value === "string" && field.value.trim())?.value || "")
+    || item.respondentEmail || "Unnamed applicant";
+  return <div className="apl">
+    <nav className="apl-stages" aria-label="Application stages">
+      {APPLICATION_STAGES.map((stage) => <button key={stage.value} type="button" className={statusFilter === stage.value ? "is-active" : ""} aria-pressed={statusFilter === stage.value}
+        disabled={Boolean(busyAction) || loading} onClick={() => setStatusFilter(stage.value)}>{stage.label}</button>)}
+      <span className="apl-stages__end">
+        <ClusterInput type="search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void applyFilters(); }} placeholder="Search applicants" aria-label="Search applicants" />
+        {formOptions.length > 1 ? <ClusterNativeSelect value={formFilter} aria-label="Application form" onChange={(event) => setFormFilter(event.target.value)}><option value="">All forms</option>{formOptions.map((form) => <option key={form.id} value={form.id}>{form.title}</option>)}</ClusterNativeSelect> : null}
+      </span>
+    </nav>
+    <div className="apl-body">
+      <aside className="apl-list" aria-label="Applicants">
+        {applications.map((item) => <button type="button" key={item.id} disabled={Boolean(busyAction) || loading} className={`apl-row ${item.id === selectedId ? "is-active" : ""}`} onClick={() => void selectApplication(item.id)}>
+          <span className="apl-avatar" aria-hidden="true">{name(item).slice(0, 1).toUpperCase()}</span>
+          <span className="apl-row__copy"><strong>{name(item)}</strong><small>{item.form?.title || "Application"} · {new Date(item.submittedAt).toLocaleDateString()}</small></span>
+          <span className="apl-chip" data-status={item.status}>{stageLabel(item.status)}</span>
+        </button>)}
+        {!applications.length ? <p className="apl-empty">{loading ? "Loading…" : "No applicants here."}</p> : null}
+        {pageIndex > 0 || page.hasMore ? <div className="apl-pager"><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || pageIndex === 0} onClick={() => void previousPage()}>Previous</ClusterButton><span>Page {pageIndex + 1}</span><ClusterButton type="button" size="compact" variant="quiet" disabled={loading || Boolean(busyAction) || !page.hasMore} onClick={() => void nextPage()}>Next</ClusterButton></div> : null}
+      </aside>
+      <section className="apl-detail">
+        {Boolean(loadError) && <div role="alert" className="apl-note is-warn">The list couldn't refresh; showing what was loaded. <ClusterButton size="compact" variant="quiet" disabled={loading} onClick={() => void load(true)}>Retry</ClusterButton></div>}
+        {status && <div className="apl-note" role="status">{status}</div>}
+        {credential && <div className="apl-card apl-card--accent" role="group" aria-label="New account temporary credentials">
+          <strong>@{credential.username} can sign in</strong>
+          <p className="apl-muted">Copy the temporary password now; it isn't shown again. They'll change it on first sign-in.</p>
+          <code className="apl-secret">{credential.password}</code>
+          {credential.onboardingText ? <span className="apl-muted">{credential.onboardingText}</span> : null}
+          <div className="button-row"><ClusterCopyButton text={credential.password} copiedLabel="Password copied">Copy password</ClusterCopyButton><ClusterButton type="button" variant="secondary" onClick={() => void openCreatedPerson()}>Open person</ClusterButton><ClusterButton type="button" variant="quiet" onClick={() => void dismissCredentials()}>Done</ClusterButton></div>
         </div>}
-        {selected.status === "converted" && <div className="studio-explanation-v272"><strong>Converted</strong><span>This application has already created a person account. Further review decisions are disabled.</span>{selected.convertedUserId && <div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => openClusterWorkNavigation({ screen: "people", inspectScope: "person", inspectId: selected.convertedUserId! })}>Open Person and access</ClusterButton><ClusterCopyButton text={selected.convertedUserId} copiedLabel="Person ID copied">Copy created Person ID</ClusterCopyButton></div>}</div>}
-      </> : <div className="settings-card-v092"><strong>No applications found</strong><span>Adjust the filters or wait for a new public application submission.</span></div>}
-    </section>
+        {selected ? <>
+          <header className="apl-head">
+            <span className="apl-avatar apl-avatar--lg" aria-hidden="true">{name(selected).slice(0, 1).toUpperCase()}</span>
+            <div><h3>{name(selected)}</h3><p className="apl-muted">{selected.respondentEmail || "No email"} · {selected.form?.title || "Application"} · {new Date(selected.submittedAt).toLocaleString()}</p></div>
+            <span className="apl-chip" data-status={selected.status}>{stageLabel(selected.status)}</span>
+          </header>
+          {selected.status !== "converted" ? <div className="apl-actions">
+            {selected.status === "submitted" ? <ClusterButton type="button" variant="secondary" disabled={Boolean(busyAction)} onClick={() => void review("under_review")}>Start review</ClusterButton> : null}
+            {selected.status !== "approved" ? <ClusterButton type="button" variant="primary" disabled={Boolean(busyAction)} onClick={() => void review("approved")}>Accept</ClusterButton> : null}
+            {selected.status !== "rejected" ? <ClusterButton type="button" variant="quiet" disabled={Boolean(busyAction)} onClick={() => void review("rejected")}>Decline</ClusterButton> : null}
+          </div> : null}
+          <dl className="apl-answers">{answers.map((field) => <div key={field.fieldId}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl>
+          <label className="apl-field"><span>Review note</span><ClusterTextarea value={note} rows={2} placeholder="Only reviewers see this." disabled={selected.status === "converted" || Boolean(busyAction)} onChange={(event) => setNote(event.target.value)} /></label>
+          {selected.status === "approved" && !selected.convertedUserId && <div className="apl-card">
+            <strong>Add to the studio</strong>
+            <p className="apl-muted">Creates a member account. Pick which answers copy to their profile; nothing grants extra access.</p>
+            <div className="apl-grid">
+              <label className="apl-field"><span>Username</span><ClusterInput value={username} disabled={Boolean(busyAction)} onChange={(event) => setUsername(event.target.value)} /></label>
+              <label className="apl-field"><span>Onboarding</span><ClusterNativeSelect value={onboardingVersionId} disabled={Boolean(busyAction)} onChange={(event) => setOnboardingVersionId(event.target.value)}><option value="">None</option>{onboardingOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</ClusterNativeSelect></label>
+            </div>
+            {selected.mappingCandidates.length ? <div className="apl-map">{selected.mappingCandidates.map((candidate) => <label key={candidate.fieldId} className="apl-check" data-blocked={!candidate.allowed || undefined}>
+              <input type="checkbox" checked={candidate.allowed && selectedFields.includes(candidate.fieldId)} disabled={Boolean(busyAction) || !candidate.allowed} onChange={(event) => setSelectedFields((current) => event.target.checked ? [...new Set([...current, candidate.fieldId])] : current.filter((id) => id !== candidate.fieldId))} />
+              <span>{candidate.label} <small>{candidate.allowed ? valueText(candidate.value) : "not allowed"}</small></span>
+            </label>)}</div> : null}
+            <div><ClusterButton type="button" variant="primary" disabled={Boolean(busyAction) || !username.trim()} onClick={() => void convert()}>Create account</ClusterButton></div>
+          </div>}
+          {selected.status === "converted" && selected.convertedUserId ? <div className="apl-card"><strong>Joined the studio</strong><div className="button-row"><ClusterButton type="button" variant="secondary" onClick={() => openClusterWorkNavigation({ screen: "people", inspectScope: "person", inspectId: selected.convertedUserId! })}>Open person</ClusterButton></div></div> : null}
+        </> : <div className="apl-blank">Select an applicant.</div>}
+      </section>
+    </div>
   </div>;
+}
+
+const APPLICATION_STAGES = [
+  { value: "", label: "All" },
+  { value: "submitted", label: "New" },
+  { value: "under_review", label: "Reviewing" },
+  { value: "approved", label: "Accepted" },
+  { value: "converted", label: "Joined" },
+  { value: "rejected", label: "Declined" },
+] as const;
+function stageLabel(status: string) {
+  return APPLICATION_STAGES.find((stage) => stage.value === status)?.label || status.replace("_", " ");
 }

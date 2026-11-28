@@ -31,7 +31,7 @@ const checks = [
   ["form/policy version publication from records", systems.includes('version.status === "published"') && systems.includes("formsWithPublishedVersion") && systems.includes("policiesWithPublishedVersion")],
   ["policy chips", systems.includes("policyTone(")],
   ["personal forms use due states", forms.includes('item.dueState === "overdue"') && forms.includes('item.dueState === "completed"')],
-  ["personal forms retain separate reviewer entitlement", forms.includes("Separate permission") && forms.includes("reviewForms.length")],
+  ["personal forms retain separate reviewer entitlement", forms.includes("Responses to review") && forms.includes("reviewForms.length")],
   ["automation queue sample not total", automation.includes("Loaded queue sample") && automation.includes("jobs.filter((job) => job.status ===")],
   ["automation rule enablement chips", automation.includes("rule.enabled ? \"Enabled\" : \"Disabled\"")],
   ["automation dry-run is explicitly non-executable", automation.includes("Preview only · no actions committed")],

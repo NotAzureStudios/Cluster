@@ -60,7 +60,7 @@ check('Review and convert synchronously coalesce repeated clicks', () => {
   assert.match(ui,/mutationRef\.current = true; setBusyAction\("convert"\)/);
   assert.equal((ui.match(/mutationRef\.current = false; setBusyAction\(""\)/g)||[]).length,2);
 });
-check('Applicant profile mappings must be explicitly selected', () => { assert.match(ui, /setSelectedFields\(\[\]\)/); assert.match(ui, /none are preselected/); });
+check('Applicant profile mappings must be explicitly selected', () => { assert.match(ui, /setSelectedFields\(\[\]\)/); assert.match(ui, /Pick which answers copy/); });
 check('Application page keeps last known list after a failed refresh', () => {
   const failure = ui.slice(ui.indexOf('} catch (error) {'), ui.indexOf('} finally {', ui.indexOf('} catch (error) {')));
   assert.doesNotMatch(failure,/setApplications\(\[\]\)/);
@@ -70,14 +70,14 @@ check('Generated credentials remain out of persistent status messages', () => {
   assert.doesNotMatch(ui,/setStatus\([^\n]*temporaryPassword/);
   assert.match(ui,/setCredential\(\{ id: result\.user\.id, username: result\.user\.username, password: result\.temporaryPassword/);
   // Dismissing a one-time password now asks for confirmation first.
-  assert.match(ui,/onClick=\{\(\) => void dismissCredentials\(\)\}>Dismiss credentials/);
+  assert.match(ui,/onClick=\{\(\) => void dismissCredentials\(\)\}>Done/);
   assert.match(ui,/if \(accepted\) setCredential\(null\);/);
   assert.match(ui, /<ClusterCopyButton text=\{credential\.password\}/);
 });
 check('Conversion is explicitly confirmed and cannot be repeated for converted applications', () => {
   assert.match(ui,/title: "Create member account\?"/);
   assert.match(ui,/selected\.status !== "approved" \|\| selected\.convertedUserId/);
-  assert.match(ui,/selected\.status !== "converted" && <div className="button-row"/);
+  assert.match(ui,/selected\.status !== "converted" \? <div className="apl-actions"/);
 });
 check('Approval list retains known entries on failed refresh', () => {
   const err = admin.slice(admin.indexOf('} catch (loadError) {'), admin.indexOf('} finally {', admin.indexOf('} catch (loadError) {')));

@@ -5,6 +5,7 @@ import { ClusterIcon } from "../../components/ClusterIcon";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
 import { SettingsStateChip, type SettingsStateTone } from "../../components/SettingsStateChip";
 import { StudioFormRunner, type StudioFormDocument } from "../studio-systems/StudioFormRunner";
+import "./my-forms.css";
 import { StudioFormSubmissionsPanel } from "./StudioFormSubmissionsPanel";
 import { formInspectorFromSearch } from "../workflow/delegated-form-navigation";
 
@@ -117,24 +118,38 @@ export function MyFormsPanel() {
   }
   const selected = forms.find((entry) => entry.form.id === selectedId);
 
-  return <section className="settings-section-v092">
-    <div className="settings-panel-head-v092"><div><p className="eyebrow">Studio resources</p><h2><ClusterIcon name="file" aria-hidden="true" /> My forms</h2><p className="muted tight">Forms currently published to your account. Only you can view your response status here.</p></div><ClusterButton type="button" size="compact" onClick={() => void refresh()} disabled={loading}><ClusterIcon name="refresh" aria-hidden="true" /> {loading ? "Refreshing…" : "Refresh"}</ClusterButton></div>
-    {forms.length > 0 || reviewForms.length > 0 ? <div className="st-summary" aria-label="Your forms summary">
-      <span><strong>{forms.length}</strong> available</span>
-      {forms.filter((item) => item.dueState === "overdue" && item.acceptingResponses).length > 0 ? <span data-tone="warning"><strong>{forms.filter((item) => item.dueState === "overdue" && item.acceptingResponses).length}</strong> overdue</span> : null}
-      {reviewForms.length > 0 ? <span title="Separate permission"><strong>{reviewForms.length}</strong> to review</span> : null}
-    </div> : null}
+  const due = (item: AvailableForm) => item.dueAt ? new Date(item.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+  const todo = forms.filter((item) => item.canSubmit && item.dueState !== "completed");
+  const done = forms.filter((item) => !(item.canSubmit && item.dueState !== "completed"));
+  const row = (item: AvailableForm) => <button type="button" key={item.form.id} className={`mf-row ${selectedId === item.form.id ? "is-active" : ""}`} onClick={() => setSelectedId(item.form.id!)}>
+    <span className="mf-icon" data-tone={personalFormState(item).tone}><ClusterIcon name={item.dueState === "completed" || item.lastSubmission ? "check" : "file"} /></span>
+    <span className="mf-copy"><strong>{item.form.title}</strong><small>{item.lastSubmission ? `Sent ${new Date(item.lastSubmission.submittedAt).toLocaleDateString()}` : item.savedDraft ? "Draft saved" : item.dueAt ? `Due ${due(item)}` : item.required ? "Required" : "Optional"}</small></span>
+    <SettingsStateChip tone={personalFormState(item).tone}>{personalFormState(item).label}</SettingsStateChip>
+  </button>;
+
+  return <section className="mf">
     {error && <div className="error-box" role="alert">{error} <ClusterButton type="button" size="compact" onClick={() => void refresh()}>Retry</ClusterButton></div>}
-    {!loading && !forms.length && !error && <ClusterEmptyState compact kind="empty" title="No forms to complete" />}
     {reviewError && <div className="error-box" role="alert">{reviewError}</div>}
     {reviewLinkError && <div className="error-box" role="alert">{reviewLinkError}</div>}
-    {reviewForms.length > 0 && <div className="settings-card-v092"><div className="settings-card-head-v092"><div><h3 title="Private access to selected forms">Review assignments</h3></div></div><div className="button-row">{reviewForms.map((form) => <ClusterButton key={form.id} type="button" variant={reviewFormId === form.id ? "primary" : "secondary"} size="compact" onClick={() => chooseReviewForm(form.id)}>{form.title}</ClusterButton>)}</div>{reviewFormId && <StudioFormSubmissionsPanel key={reviewFormId} formId={reviewFormId} targetSubmissionId={targetInspector?.scope === "form-submission" ? targetInspector.id : null} delegatedReview />}</div>}
-    {forms.length > 0 && <div className="settings-layout">
-      <div className="settings-card-v092"><h3>Available forms</h3><div className="studio-entity-list-v272 studio-form-entity-list-v103">{forms.map((item) => <ClusterButton type="button" key={item.form.id} className={selectedId === item.form.id ? "active" : ""} onClick={() => setSelectedId(item.form.id!)}><span className="studio-entity-list-copy-v272"><strong><ClusterIcon name="file" aria-hidden="true" /> {item.form.title}</strong><small>{item.lastSubmission ? `${item.lastSubmission.status} · ${new Date(item.lastSubmission.submittedAt).toLocaleDateString()}` : item.savedDraft && item.canSubmit ? item.savedDraft.stale ? "Older saved draft · needs review" : `Saved draft · ${new Date(item.savedDraft.updatedAt).toLocaleDateString()}` : item.dueState === "overdue" ? "Overdue · response still accepted" : item.acceptingResponses ? item.assigned ? `${item.required ? "Assigned · required" : "Assigned · optional"}${item.dueAt ? ` · due ${new Date(item.dueAt).toLocaleDateString()}` : ""}` : "Ready to complete" : "Responses closed"}</small></span><SettingsStateChip tone={personalFormState(item).tone}>{personalFormState(item).label}</SettingsStateChip></ClusterButton>)}</div></div>
-      <div>{selected && <>
-        {selected.dueAt && <div className="settings-card-v092" role="status"><SettingsStateChip tone={selected.dueState === "completed" ? "success" : selected.dueState === "overdue" ? "warning" : "info"}>{selected.dueState === "completed" ? "Completed" : selected.dueState === "overdue" ? "Form overdue" : "Upcoming form deadline"}</SettingsStateChip><p className="muted tight">{new Date(selected.dueAt).toLocaleString()}{selected.dueState === "overdue" && selected.acceptingResponses ? " · Late submissions are still accepted." : ""}</p></div>}
-        {selected.canSubmit ? <StudioFormRunner key={`${selected.form.id}:${selected.version.id}`} document={selected} submitLabel="Submit form" submit={(payload) => api(`/api/forms/${selected.form.key}/submissions`, { method: "POST", body: JSON.stringify(payload) })} onSubmitted={() => void refresh()} /> : <div className="settings-card-v092"><h3>{selected.form.title}</h3><p className="muted tight">{selected.form.description}</p><strong>{selected.lastSubmission ? `Latest response: ${selected.lastSubmission.status.replaceAll("_", " ")}` : "Responses are closed"}</strong><p className="muted tight">{selected.lastSubmission ? `Submitted ${new Date(selected.lastSubmission.submittedAt).toLocaleString()}.` : "This form is not accepting responses."}</p></div>}
-      </>}</div>
-    </div>}
+    <div className="mf-body">
+      <aside className="mf-list" aria-label="Your forms">
+        <h3>To do <small>{todo.length}</small></h3>
+        {todo.map(row)}
+        {!loading && !todo.length ? <p className="mf-empty">You're all caught up.</p> : null}
+        {done.length ? <><h3>Done <small>{done.length}</small></h3>{done.map(row)}</> : null}
+        {reviewForms.length ? <><h3>To review <small>{reviewForms.length}</small></h3>{reviewForms.map((form) => <button key={form.id} type="button" className={`mf-row ${reviewFormId === form.id ? "is-active" : ""}`} onClick={() => chooseReviewForm(form.id)}>
+          <span className="mf-icon"><ClusterIcon name="users" /></span><span className="mf-copy"><strong>{form.title}</strong><small>Responses to review</small></span>
+        </button>)}</> : null}
+      </aside>
+      <div className="mf-main">
+        {reviewFormId ? <StudioFormSubmissionsPanel key={reviewFormId} formId={reviewFormId} targetSubmissionId={targetInspector?.scope === "form-submission" ? targetInspector.id : null} delegatedReview />
+        : selected ? <div className="mf-sheet">
+          {selected.dueAt ? <p className="mf-due" data-tone={selected.dueState}>{selected.dueState === "completed" ? "Completed" : selected.dueState === "overdue" ? "Overdue" : "Due"} · {new Date(selected.dueAt).toLocaleString()}{selected.dueState === "overdue" && selected.acceptingResponses ? " · late answers are still accepted" : ""}</p> : null}
+          {selected.canSubmit ? <StudioFormRunner key={`${selected.form.id}:${selected.version.id}`} document={selected} submitLabel="Submit" submit={(payload) => api(`/api/forms/${selected.form.key}/submissions`, { method: "POST", body: JSON.stringify(payload) })} onSubmitted={() => void refresh()} />
+            : <div className="mf-closed"><h3>{selected.form.title}</h3>{selected.form.description ? <p>{selected.form.description}</p> : null}<strong>{selected.lastSubmission ? `Your response: ${selected.lastSubmission.status.replaceAll("_", " ")}` : "Not accepting responses"}</strong>{selected.lastSubmission ? <p>Sent {new Date(selected.lastSubmission.submittedAt).toLocaleString()}.</p> : null}</div>}
+        </div>
+        : <div className="mf-blank"><ClusterIcon name="file" /><p>{forms.length ? "Pick a form to fill in." : loading ? "Loading…" : "No forms for you right now."}</p></div>}
+      </div>
+    </div>
   </section>;
 }

@@ -172,7 +172,7 @@ check(result.value===undefined,'Non-admin cannot decide a review');
 const contracts=['/api/forms/available','/api/studio-systems/forms/:formId/submissions','/versions/:versionId','Serializable','FORM_REVIEW_STALE'];
 for(const x of contracts)check(routeSource.includes(x),`Server contract retains ${x}`);
 for(const x of ['StudioFormSubmissionsPanel','Publish changes','Move up','Move down','Who can fill it'])check(jsx[0].includes(x),`Form authoring UI contains ${x}`);
-for(const x of ['My forms','StudioFormRunner','lastSubmission','canSubmit'])check(jsx[1].includes(x),`Member form UI contains ${x}`);
+for(const x of ['To do','StudioFormRunner','lastSubmission','canSubmit'])check(jsx[1].includes(x),`Member form UI contains ${x}`);
 check(jsx[2].includes('expectedUpdatedAt')&&jsx[2].includes('Record decision'),'Review UI binds reviewed revision and decision');
 check(jsx[3].includes('submissionLock.current'),'Form runner guards repeated intent before state update');
 console.log(`${checked}/${checked} Forms workflow checks passed`);
