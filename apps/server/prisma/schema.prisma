@@ -3208,6 +3208,7 @@ model StudioAnnouncement {
   discordDeliveryRequested Boolean @default(false)
   homeBanner              Boolean  @default(false)
   bannerEndsAt            DateTime?
+  channels                String   @default("studio")
   status                  String   @default("draft")
   createdById             String?
   createIntentId          String?
@@ -4894,4 +4895,45 @@ model StudioManagedDomain {
   @@index([verificationState])
   @@index([bindingServerInstanceId])
   @@index([expiresOn])
+}
+
+/// A conversation started from the external portal: a player's bug report or
+/// help request, an applicant's application, or a client's request. Players
+/// have no account, so they hold a public code plus a secret key.
+model PortalRequest {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  keyHash         String
+  audience        String   @default("player")
+  kind            String
+  title           String
+  body            String   @default("")
+  contactName     String?
+  contactEmail    String?
+  status          String   @default("open")
+  projectId       String?
+  cardId          String?
+  submissionId    String?  @unique
+  requesterUserId String?
+  lastActivityAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  messages PortalRequestMessage[]
+
+  @@index([audience, status, lastActivityAt])
+  @@index([requesterUserId, lastActivityAt])
+}
+
+model PortalRequestMessage {
+  id           String   @id @default(cuid())
+  requestId    String
+  authorKind   String
+  authorUserId String?
+  body         String
+  createdAt    DateTime @default(now())
+
+  request PortalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
 }

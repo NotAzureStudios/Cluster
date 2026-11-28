@@ -107,6 +107,8 @@ export function isPublicRequest(pathname: string, method = "GET") {
   if (path === "/api/setup/status") return normalizedMethod === "GET";
   // Which portal this address serves and who is signed in (or nobody).
   if (path === "/api/portal/context") return normalizedMethod === "GET";
+  // The player portal has no sign-in; codes and secret keys guard each request.
+  if (path.startsWith("/api/portal/public/")) return ["GET", "POST"].includes(normalizedMethod);
   if (path === "/api/setup/complete") return normalizedMethod === "POST";
   if (path === "/api/auth/discord/callback" || path === "/api/auth/discord/link") return normalizedMethod === "GET";
   if (["/api/integrations/discord/interactions", "/api/integrations/discord/gateway-relay"].includes(path)) return normalizedMethod === "POST";

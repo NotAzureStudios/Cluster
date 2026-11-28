@@ -45,6 +45,7 @@ import { registerStudioWorkflowRoutes } from "../domains/studio-systems/studio-w
 import { registerAnnouncementFeedRoutes } from "../domains/studio-systems/announcement-feed-routes.js";
 import { registerChangelogRoutes } from "../domains/changelog/changelog-routes.js";
 import { registerPortalRoutes } from "../domains/portal/portal-routes.js";
+import { createPortalRequest, registerPortalRequestRoutes } from "../domains/portal/portal-requests-routes.js";
 import { registerStudioInventoryVaultRoutes } from "../domains/inventory/studio-inventory-vault-routes.js";
 import { registerDomainManagementRoutes } from "../domains/domains/domain-management-routes.js";
 import { registerDomainConnectionRoutes } from "../domains/domains/domain-connection-routes.js";
@@ -647,10 +648,11 @@ registerMetaDiagnosticsRoutes({
 registerDataRetentionRoutes({ app, prisma, authorization, readSettings, requireConfirmation, logSecurityEvent });
 registerStudioSystemsRoutes({ app, prisma, authorization, getCurrentUser, logActivity });
 registerStudioOnboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, jobQueue });
-registerStudioWorkflowRoutes({ app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent, readSettings, rateLimitKey, hashToken, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, hashPassword, generateTemporaryPassword, normalizeAuthUsername, events: eventRuntime });
+registerStudioWorkflowRoutes({ app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent, readSettings, rateLimitKey, hashToken, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, hashPassword, generateTemporaryPassword, normalizeAuthUsername, events: eventRuntime , trackApplication: async (input: any) => { const created = await createPortalRequest(prisma, { audience: "player", kind: "application", title: input.title, body: "", contactName: input.contactName, contactEmail: input.contactEmail, submissionId: input.submissionId }); return { code: created.request.code, key: created.key }; } });
 registerAnnouncementFeedRoutes({ app, prisma, authorization, getCurrentUser });
 registerChangelogRoutes({ app, getCurrentUser, fetchWithTimeout });
 registerPortalRoutes({ app, prisma, authorization, getCurrentUser, readSettings, saveSettings, settingsForClient, logActivity });
+registerPortalRequestRoutes({ app, prisma, authorization, getCurrentUser, readSettings, logActivity });
 registerStudioOffboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent });
 registerStudioInventoryVaultRoutes({ app, prisma, authorization, requireConfirmation, logSecurityEvent, getCurrentUser, verifyUserPin, auditService });
 registerDomainManagementRoutes({ app, prisma, authorization, getCurrentUser, auditService, readSettings });

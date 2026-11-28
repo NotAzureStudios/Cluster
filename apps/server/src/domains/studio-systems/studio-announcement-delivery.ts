@@ -18,7 +18,8 @@ export function createStudioAnnouncementDelivery(input: { prisma: any; events: a
         ? current.status === "scheduled" && current.scheduledAt && new Date(current.scheduledAt).getTime() <= now.getTime()
         : current.status === "draft";
       if (!eligible) return { outcome: "not_ready" as const };
-      const userIds = await resolveStudioAudienceUserIds(tx, current.audienceJson, { strict: true });
+      // Player-only posts go to the player portal, not to anyone's Inbox.
+      const userIds = String(current.channels || "studio").split(",").includes("studio") ? await resolveStudioAudienceUserIds(tx, current.audienceJson, { strict: true }) : [];
       if (userIds.length > 5_000) throw new Error("ANNOUNCEMENT_AUDIENCE_LIMIT");
       const updated = await tx.studioAnnouncement.updateMany({
         where: { id, status: current.status, revision: current.revision, ...(options.scheduled ? { scheduledAt: { lte: now } } : {}) },

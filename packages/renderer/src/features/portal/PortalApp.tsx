@@ -12,6 +12,7 @@ import { ChatPage } from "../chat/ChatPage";
 import { HomeBanners } from "../chat/HomeBanners";
 import { nativeShell, switchServer } from "../mobile/native-shell";
 import { loadPortalContext, type PortalContext } from "./portal-context";
+import { PlayerPortal } from "./PlayerPortal";
 import "./portal.css";
 
 type Project = { id: string; name: string; color: string | null; status: string; targetDate: string | null; libraryFolderId: string | null; access: string };
@@ -29,17 +30,27 @@ const dayLabel = (value: string) => new Date(value).toLocaleDateString([], { wee
 export default function PortalApp({ initialContext }: { initialContext: PortalContext }) {
   const [context, setContext] = useState(initialContext);
   const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
-  const reload = useCallback(() => loadPortalContext().then(setContext).catch(() => undefined), []);
+  const [signingIn, setSigningIn] = useState(false);
+  const reload = useCallback(() => loadPortalContext().then((next) => { setContext(next); setSigningIn(false); }).catch(() => undefined), []);
   useEffect(() => { document.title = `${context.studioName} · Portal`; }, [context.studioName]);
   useEffect(() => { if (!context.user) void api<AuthConfig>("/api/auth/config").then(setAuthConfig).catch(() => undefined); }, [context.user]);
   const signOut = async () => { await api("/api/auth/logout", { method: "POST" }).catch(() => undefined); await reload(); };
 
-  if (!context.user) {
-    if (context.hostAudiences.length && !context.hostAudiences.some((audience) => audience !== "player")) return <PortalNotice context={context} title={`${context.studioName} community`} body="The community portal is coming soon." />;
-    return <div className="portal portal--signin" data-audience={context.hostAudiences[0] || "contractor"}><LoginScreen config={authConfig} studioName={`${context.studioName} portal`} onLogin={() => void reload()} onRetryConfig={() => void api<AuthConfig>("/api/auth/config").then(setAuthConfig)} /></div>;
+  // A portal address serves its own portals; the main address serves the
+  // ones without an address of their own, under /portal.
+  const onPortalHost = context.hostAudiences.length > 0;
+  const serves = (audience: "contractor" | "client" | "player") => context.portals[audience].enabled && (onPortalHost ? context.hostAudiences.includes(audience) : !context.portals[audience].ownHost);
+  const base = onPortalHost ? "" : "/portal";
+  const accountsHere = serves("contractor") || serves("client");
+  const login = <div className="portal portal--signin" data-audience={context.hostAudiences.find((audience) => audience !== "player") || "contractor"}><LoginScreen config={authConfig} studioName={`${context.studioName} portal`} onLogin={() => void reload()} onRetryConfig={() => void api<AuthConfig>("/api/auth/config").then(setAuthConfig)} /></div>;
+
+  const audience = context.user?.portal || null;
+  if (!context.user || !audience) {
+    if (signingIn && !context.user) return login;
+    if (serves("player")) return <PlayerPortal context={context} base={base} onSignIn={!context.user && accountsHere ? () => setSigningIn(true) : undefined} />;
+    if (!context.user) return accountsHere || !onPortalHost ? login : <PortalNotice context={context} title={context.studioName} body="This portal isn't open yet." />;
+    return <PortalNotice context={context} title="This is the external portal" body="Studio members use Cluster." action={context.mainUrl ? <a className="portal__link-button" href={context.mainUrl}>Open Cluster</a> : null} onSignOut={signOut} />;
   }
-  const audience = context.user.portal;
-  if (!audience) return <PortalNotice context={context} title="This is the external portal" body="Studio members use Cluster." action={context.mainUrl ? <a className="portal__link-button" href={context.mainUrl}>Open Cluster</a> : null} onSignOut={signOut} />;
   if (!context.portals[audience].enabled) return <PortalNotice context={context} title="Your portal is turned off" body="Contact the studio if you need access." onSignOut={signOut} />;
   if (audience !== "contractor") return <PortalNotice context={context} title={`${context.studioName} ${audience} portal`} body="Your portal is coming soon. The studio will reach out in the meantime." onSignOut={signOut} />;
   return <ContractorPortal context={context} onSignOut={signOut} />;

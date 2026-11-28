@@ -45,7 +45,7 @@ export function registerAnnouncementFeedRoutes(deps: { app: any; prisma: any; au
           requiresAcknowledgement: row.requiresAcknowledgement, publishedAt: row.publishedAt,
           author: author ? { id: author.id, name: author.displayName || author.username, avatarUrl: author.avatarUrl || null } : null,
           deliveryId: delivery?.id || null, read: Boolean(delivery?.readAt), acknowledgedAt: delivery?.acknowledgedAt || null,
-          homeBanner: row.homeBanner, bannerActive: bannerActive(row),
+          homeBanner: row.homeBanner, bannerActive: bannerActive(row), channels: String(row.channels || "studio").split(","),
           audience: manager ? parseAudience(row.audienceJson) : null,
           reach: manager ? { delivered: row.deliveryCount, read: counts?.readAt || 0, acknowledged: counts?.acknowledgedAt || 0 } : null,
         };

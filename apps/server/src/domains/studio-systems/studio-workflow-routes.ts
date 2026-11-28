@@ -57,7 +57,7 @@ function serializeAnnouncement(record: any) {
 export function registerStudioWorkflowRoutes(deps: any) {
   const {
     app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent, readSettings, rateLimitKey, hashToken,
-    apiRateLimitWindowMs, hashPassword, generateTemporaryPassword, normalizeAuthUsername, events,
+    apiRateLimitWindowMs, hashPassword, generateTemporaryPassword, normalizeAuthUsername, events, trackApplication,
   } = deps;
 
   const announcementDelivery = createStudioAnnouncementDelivery({ prisma, events });
@@ -115,7 +115,9 @@ export function registerStudioWorkflowRoutes(deps: any) {
     const adminMemberships = notifyAdmins ? await prisma.workspaceMember.findMany({ where: { role: { in: ["owner", "admin"] }, user: { archived: false, accountState: { notIn: ["SUSPENDED", "DISABLED", "PRIVACY_ERASED"] } } }, select: { userId: true } }) : [];
     const adminIds = [...new Set(adminMemberships.map((item: any) => String(item.userId)).filter(Boolean))];
     await logActivity?.({ type: "submitted", entityType: "studio_application", entityId: submission.id, title: "Application submitted", message: form.title, metadata: adminIds.length ? { userIds: adminIds, notifyInbox: true, notificationSignal: "application", notificationPriority: "normal", requiresAction: true, notificationGroupKey: `application:${submission.id}` } : {} });
-    return reply.code(201).send({ ok: true, submitted: true, confirmationMessage: String(settings.confirmationMessage || "Application received.").slice(0, 1000) });
+    // Applicants follow their application, and talk with the studio, by code.
+    const tracking = trackApplication ? await trackApplication({ title: form.title, contactName: respondent.respondentName || null, contactEmail: respondent.respondentEmail || null, submissionId: submission.id }) : null;
+    return reply.code(201).send({ ok: true, submitted: true, confirmationMessage: String(settings.confirmationMessage || "Application received.").slice(0, 1000), ...(tracking ? { code: tracking.code, key: tracking.key } : {}) });
   });
 
   app.get("/api/studio-systems/applications", async (request: any, reply: any) => {
@@ -358,7 +360,7 @@ export function registerStudioWorkflowRoutes(deps: any) {
     if (prior) return prior;
     if (scheduledAt && (scheduledAt.getTime() <= Date.now() + 60_000 || scheduledAt.getTime() > Date.now() + 366 * 86_400_000)) return reply.code(400).send({ ok: false, code: "ANNOUNCEMENT_SCHEDULE_INVALID", error: "Choose a time at least one minute ahead and within one year." });
     try {
-      const saved = await prisma.studioAnnouncement.create({ data: { title: body.title, body: body.body, audienceJson: JSON.stringify(body.audience), priority: body.priority, requiresAcknowledgement: body.requiresAcknowledgement, discordDeliveryRequested: body.discordDeliveryRequested, homeBanner: body.homeBanner, bannerEndsAt: body.homeBanner ? body.bannerEndsAt ?? null : null, status: scheduledAt ? "scheduled" : "draft", scheduledAt, createdById: actor.id, createIntentId: body.createIntentId ?? null, createPayloadSha256: body.createIntentId ? digest : null } });
+      const saved = await prisma.studioAnnouncement.create({ data: { title: body.title, body: body.body, audienceJson: JSON.stringify(body.audience), priority: body.priority, requiresAcknowledgement: body.requiresAcknowledgement, discordDeliveryRequested: body.discordDeliveryRequested, channels: [...new Set(body.channels)].join(","), homeBanner: body.homeBanner, bannerEndsAt: body.homeBanner ? body.bannerEndsAt ?? null : null, status: scheduledAt ? "scheduled" : "draft", scheduledAt, createdById: actor.id, createIntentId: body.createIntentId ?? null, createPayloadSha256: body.createIntentId ? digest : null } });
       reply.header("Cache-Control", "private, no-store");
       return reply.code(201).send(serializeAnnouncement(saved));
     } catch (error) {
