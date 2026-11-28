@@ -18,10 +18,8 @@ const CONTRACTOR_FEATURES: Record<string, RegExp[]> = {
   announcements: [/^\/api\/announcements(\/banners)?$/],
   forms: [/^\/api\/forms\//],
   time: [/^\/api\/time\/(active|start|stop)$/],
-  files: [/^\/api\/library\/[^/]+\/(file|thumbnail|preview|model-thumbnail|viewable-resource|clo)$/],
 };
 const CLIENT = [/^\/api\/announcements(\/banners)?$/];
-const CONTRACTOR_UPLOADS = [/^\/api\/library\/transfers(\/|$)/, /^\/api\/uploads(\/|$)/];
 
 export const isExternalAccount = (user: any) => Boolean(CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(user?.accountType)].portal);
 
@@ -33,16 +31,18 @@ export function requestHost(request: any) {
   return String(request.hostname || request.headers?.host || "").toLowerCase().replace(/:\d+$/, "");
 }
 
-/** Whether an API path is reachable for these portals. `user` narrows the
- *  contractor portal to its enabled features and to read-only for guests. */
+/** Whether an API path is reachable for these portals. */
 export function portalApiAllowed(pathname: string, method: string, portal: ClusterExternalPortalSettings, audiences: ClusterPortalAudience[], user?: any) {
+  // Guests are view-only: no clocking time or changing work.
+  if (user && CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(user.accountType)].readOnly && method !== "GET" && /^\/api\/(time|portal\/work)\//.test(pathname)) return false;
+  // Contractor features the studio turned off are off on the server too.
+  const gated: Array<[RegExp, string]> = [[/^\/api\/portal\/files(\/|$)/, "files"], [/^\/api\/portal\/work(\/|$)/, "work"]];
+  for (const [pattern, feature] of gated) if (pattern.test(pathname)) return audiences.includes("contractor") && portal.contractor.features.includes(feature as any);
   if (ALWAYS.some((pattern) => pattern.test(pathname))) return true;
   if (audiences.includes("client") && CLIENT.some((pattern) => pattern.test(pathname))) return true;
   if (!audiences.includes("contractor")) return false;
   const features = portal.contractor.features;
   for (const feature of features) if (CONTRACTOR_FEATURES[feature]?.some((pattern) => pattern.test(pathname))) return true;
-  const readOnly = user ? CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(user.accountType)].readOnly : false;
-  if (features.includes("files") && !readOnly && CONTRACTOR_UPLOADS.some((pattern) => pattern.test(pathname))) return true;
   return method === "GET" && /^\/api\/time\/active$/.test(pathname) && features.includes("time");
 }
 

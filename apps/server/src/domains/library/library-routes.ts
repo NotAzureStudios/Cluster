@@ -1050,6 +1050,31 @@ export function registerLibraryRoutes({
     });
   });
 
+  // Contractor portal downloads. Portal accounts don't use the studio
+  // Library's sharing rules: they get files inside the project folders of
+  // projects they're on the crew of, and nothing else.
+  app.get("/api/portal/files/:portalFileId", async (request, reply) => {
+    const user = await getCurrentUser(request as any);
+    if (!user) return reply.code(401).send({ ok: false, code: "AUTH_REQUIRED", error: "Sign in first." });
+    const { portalFileId } = z.object({ portalFileId: z.string().min(1) }).parse(request.params);
+    const query = z.object({ download: z.coerce.boolean().optional().default(false) }).parse(request.query || {});
+    const item = await prisma.libraryItem.findUnique({ where: { id: portalFileId } });
+    if (!item || !item.fileName || item.deletedAt || ["trashed", "archived"].includes(String(item.status))) return reply.code(404).send({ ok: false, error: "File not found." });
+    const memberships = await prisma.projectMembership.findMany({ where: { userId: user.id, status: "active", OR: [{ endsAt: null }, { endsAt: { gt: new Date() } }] }, select: { project: { select: { libraryFolderId: true, archived: true } } } });
+    const roots = new Set(memberships.filter((row: any) => row.project && !row.project.archived && row.project.libraryFolderId).map((row: any) => String(row.project.libraryFolderId)));
+    let cursor: string | null = item.parentId;
+    let inside = false;
+    for (let depth = 0; cursor && depth < 30; depth += 1) {
+      if (roots.has(cursor)) { inside = true; break; }
+      const parent: { parentId: string | null } | null = await prisma.libraryItem.findUnique({ where: { id: cursor }, select: { parentId: true } });
+      cursor = parent?.parentId || null;
+    }
+    if (!inside) return reply.code(404).send({ ok: false, error: "File not found." });
+    const resolved = await resolveStoredLibraryFile(item);
+    if (!resolved) return reply.code(404).send({ ok: false, error: "Stored file is missing." });
+    return sendStoredResource(request, reply, { filePath: resolved.fullPath, mimeType: item.mimeType || "application/octet-stream", originalName: item.originalName || item.title, requestedInline: !query.download, checksumSha256: item.checksumSha256 || null, cacheControl: "private, max-age=0, must-revalidate" });
+  });
+
   // .clo export: the item and everything needed to rebuild it.
   app.get("/api/library/:itemId/clo", async (request, reply) => {
     const params = z.object({ itemId: z.string() }).parse(request.params);

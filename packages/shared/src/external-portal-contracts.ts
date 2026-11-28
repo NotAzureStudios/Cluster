@@ -67,7 +67,7 @@ export type ClusterContractorPortalFeature = (typeof CLUSTER_CONTRACTOR_PORTAL_F
 export const CLUSTER_CONTRACTOR_PORTAL_FEATURE_INFO: Readonly<Record<ClusterContractorPortalFeature, { label: string; description: string }>> = {
   work: { label: "Work", description: "Cards and tickets assigned to them, and marking them done." },
   forms: { label: "Forms", description: "Forms sent to them." },
-  files: { label: "Files", description: "Their projects' files, with uploads." },
+  files: { label: "Files", description: "Browse and download their projects' files." },
   time: { label: "Time", description: "Clock in and out, and this week's hours." },
   calendar: { label: "Calendar", description: "Due dates for their work." },
   announcements: { label: "Announcements", description: "Announcements addressed to them." },

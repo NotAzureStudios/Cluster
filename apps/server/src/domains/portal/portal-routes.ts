@@ -167,7 +167,6 @@ export function registerPortalRoutes(deps: Deps) {
     reply.header("Cache-Control", "private, no-store");
     return {
       folder: { id: folder.id, title: folderId === entry.project.libraryFolderId ? entry.project.name : folder.title, parentId: folderId === entry.project.libraryFolderId ? null : folder.parentId, isRoot: folderId === entry.project.libraryFolderId },
-      canUpload: entry.level !== "view" && !CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(user.accountType)].readOnly,
       items: [...items].sort((a: any, b: any) => Number(b.type === "folder") - Number(a.type === "folder")).map((item: any) => ({ id: item.id, title: item.title, type: item.type, hasFile: Boolean(item.fileName), name: item.originalName || item.fileName || null, mimeType: item.mimeType || null, sizeBytes: item.sizeBytes ?? null, extension: item.extension || null, externalUrl: item.type === "link" ? item.externalUrl : null, updatedAt: item.updatedAt })),
     };
   });

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CLUSTER_ACCOUNT_TYPE_INFO, CLUSTER_CONTRACTOR_PORTAL_FEATURE_INFO, type ClusterContractorPortalFeature } from "@cluster/shared";
-import { api, API_URL, uploadApi } from "../../core/api";
+import { api, API_URL } from "../../core/api";
 import { formatRelativeTime } from "../../core/format";
 import { renderMarkdown } from "../../core/markdown";
 import { downloadAuthenticatedClusterFile } from "../../core/browser-download-transfers";
@@ -219,7 +219,7 @@ function CalendarView({ home }: { home: Home | null }) {
 }
 
 type FileRow = { id: string; title: string; type: string; hasFile: boolean; name: string | null; sizeBytes: number | null; extension: string | null; externalUrl: string | null; updatedAt: string };
-type Folder = { folder: { id: string; title: string; parentId: string | null; isRoot: boolean }; canUpload: boolean; items: FileRow[] };
+type Folder = { folder: { id: string; title: string; parentId: string | null; isRoot: boolean }; items: FileRow[] };
 const size = (bytes: number | null) => bytes == null ? "" : bytes > 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : bytes > 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} KB`;
 
 function FilesView({ projects }: { projects: Project[] }) {
@@ -228,7 +228,6 @@ function FilesView({ projects }: { projects: Project[] }) {
   const [folderId, setFolderId] = useState<string | null>(null);
   const [data, setData] = useState<Folder | null>(null);
   const [status, setStatus] = useState("");
-  const input = useRef<HTMLInputElement | null>(null);
   useEffect(() => { if (!projectId && withFiles[0]) setProjectId(withFiles[0].id); }, [withFiles.length]);
   const load = useCallback(() => {
     if (!projectId) return;
@@ -236,25 +235,10 @@ function FilesView({ projects }: { projects: Project[] }) {
     void api<Folder>(`/api/portal/files?${new URLSearchParams({ projectId, ...(folderId ? { folderId } : {}) })}`).then(setData).catch((reason) => setStatus(reason instanceof Error ? reason.message : "Files couldn't load."));
   }, [projectId, folderId]);
   useEffect(load, [load]);
-  async function upload(files: File[]) {
-    if (!data) return;
-    let done = 0;
-    try {
-      for (const file of files) {
-        setStatus(`Uploading ${file.name} (${done + 1}/${files.length})…`);
-        await uploadApi("/api/library/transfers/finalize", { file, label: `Transfer ${file.name}`, body: { parentId: data.folder.id, projectId, originalName: file.name, relativePath: file.name, mimeType: file.type || "application/octet-stream", conflictPolicy: "rename", classification: "internal", tags: [], metadata: {} }, invalidate: [], persistBeforeTransfer: false });
-        done += 1;
-      }
-      setStatus(`${done} file${done === 1 ? "" : "s"} uploaded.`);
-      window.setTimeout(load, 1500);
-    } catch (reason) { setStatus(reason instanceof Error ? reason.message : "Upload failed."); }
-  }
   if (!withFiles.length) return <section className="portal__page"><header className="portal__page-head"><h1>Files</h1></header><p className="portal__empty">Your projects don't have files yet.</p></section>;
   return <section className="portal__page">
     <header className="portal__page-head"><h1>Files</h1>
       {withFiles.length > 1 ? <div className="portal__seg">{withFiles.map((project) => <button key={project.id} type="button" aria-selected={projectId === project.id} onClick={() => { setProjectId(project.id); setFolderId(null); }}>{project.name}</button>)}</div> : null}
-      {data?.canUpload ? <><ClusterButton size="compact" variant="primary" onClick={() => input.current?.click()}><ClusterIcon name="upload" />Upload</ClusterButton>
-        <input ref={input} type="file" multiple hidden onChange={(event) => { const files = Array.from(event.target.files || []); event.target.value = ""; if (files.length) void upload(files); }} /></> : null}
     </header>
     {status ? <p className="portal__muted" role="status">{status}</p> : null}
     <section className="portal__panel">
@@ -263,7 +247,7 @@ function FilesView({ projects }: { projects: Project[] }) {
         <button type="button" onClick={() => {
           if (item.type === "folder") setFolderId(item.id);
           else if (item.externalUrl) window.open(item.externalUrl, "_blank", "noopener");
-          else if (item.hasFile) void downloadAuthenticatedClusterFile({ url: `${API_URL}/api/library/${item.id}/file?download=1`, fileName: item.name || item.title, sizeBytes: item.sizeBytes });
+          else if (item.hasFile) void downloadAuthenticatedClusterFile({ url: `${API_URL}/api/portal/files/${item.id}?download=1`, fileName: item.name || item.title, sizeBytes: item.sizeBytes });
         }}>
           <ClusterIcon name={item.type === "folder" ? "folder" : item.externalUrl ? "link" : "file"} />
           <span><strong>{item.title}</strong><small>{item.type === "folder" ? "Folder" : [item.extension?.toUpperCase(), size(item.sizeBytes)].filter(Boolean).join(" · ")}</small></span>
