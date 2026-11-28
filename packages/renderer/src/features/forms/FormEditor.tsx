@@ -8,6 +8,11 @@ import { StudioAudiencePicker } from "../studio-systems/StudioAudiencePicker";
 import { StudioFormSubmissionsPanel } from "../settings/StudioFormSubmissionsPanel";
 import { StudioApplicationsPanel } from "../settings/StudioApplicationsPanel";
 import { confirmCluster } from "../../components/cluster-dialog-service";
+import { ClusterModal } from "../../components/ClusterModal";
+import { ClusterIconButton } from "../../components/ClusterButton";
+import "../application/admin-control-center.css";
+import "../settings/settings-workspace.css";
+import "./forms-page.css";
 
 type FieldType = "short_text" | "long_text" | "number" | "date" | "email" | "url" | "select" | "multi_select" | "checkbox" | "radio" | "acknowledgement" | "initials" | "signature";
 type Field = { id: string; label: string; description: string; type: FieldType; required: boolean; options: string[]; profileMappingKey?: string | null; visibleWhen?: { fieldId: string; equals: string | boolean } | null };
@@ -18,63 +23,25 @@ const EVERYONE: StudioAudience = { mode: "all", targets: [] };
 const TYPES: Array<[FieldType, string]> = [["short_text", "Short answer"], ["long_text", "Paragraph"], ["radio", "Multiple choice"], ["multi_select", "Checkboxes"], ["select", "Dropdown"], ["number", "Number"], ["date", "Date"], ["email", "Email"], ["url", "Link"], ["checkbox", "Yes / no"], ["acknowledgement", "Acknowledgement"], ["initials", "Initials"], ["signature", "Signature"]];
 const CHOICE = new Set<FieldType>(["radio", "multi_select", "select"]);
 const keyOf = (label: string, index: number) => label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || `q_${index + 1}`;
-const slug = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "form";
 const published = (form: Form) => (form.versions || []).some((version) => version.status === "published");
 
-/** Forms for managers: list on the left; the open form edits like a document
- *  (questions as cards), with Responses and Settings beside it. */
-export function FormsStudio({ applications = false, targetFormId = null, targetSubmissionId = null, targetApplicationId = null }: { applications?: boolean; targetFormId?: string | null; targetSubmissionId?: string | null; targetApplicationId?: string | null }) {
-  const [forms, setForms] = useState<Form[]>([]);
-  const [selectedId, setSelectedId] = useState<string>(targetFormId || "");
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
-
+/** A form opened from the Library: Questions, Responses and Settings. */
+export function FormItemModal({ formId, onClose, targetSubmissionId = null }: { formId: string; onClose: () => void; targetSubmissionId?: string | null }) {
+  const [form, setForm] = useState<Form | null>(null);
+  const [error, setError] = useState("");
   async function load(force = false) {
-    const result = await queryApi<{ forms: Form[] }>("/api/studio-systems/forms", { staleMs: 10_000, force, tags: ["studio-systems", "forms"] });
-    setForms(result.forms || []);
-  }
-  useEffect(() => { void load().catch((error) => setStatus(error instanceof Error ? error.message : "Forms are unavailable.")); }, []);
-  useEffect(() => { if (targetFormId) setSelectedId(targetFormId); }, [targetFormId]);
-  useEffect(() => {
-    if (!targetSubmissionId) return;
-    void api<{ formId: string }>(`/api/studio-systems/submissions/${encodeURIComponent(targetSubmissionId)}/target`).then((result) => setSelectedId(result.formId)).catch(() => undefined);
-  }, [targetSubmissionId]);
-
-  const scoped = forms.filter((form) => form.status !== "archived" && (applications ? form.purpose === "application" : form.purpose !== "application"));
-  const visible = scoped.filter((form) => !query.trim() || form.title.toLowerCase().includes(query.trim().toLowerCase()));
-  const selected = scoped.find((form) => form.id === selectedId) || null;
-
-  async function createForm() {
-    const title = applications ? "New application" : "Untitled form";
     try {
-      const created = await api<Form>("/api/studio-systems/forms", { method: "POST", body: JSON.stringify({ title, key: `${slug(title)}-${Date.now().toString(36)}`, purpose: applications ? "application" : "general", description: "", audience: EVERYONE }) });
-      await load(true); setSelectedId(created.id);
-    } catch (error) { setStatus(error instanceof Error ? error.message : "The form wasn't created."); }
+      const result = await queryApi<{ forms: Form[] }>("/api/studio-systems/forms", { staleMs: 5_000, force, tags: ["studio-systems", "forms"] });
+      const found = (result.forms || []).find((item) => item.id === formId);
+      if (found) setForm(found); else setError("This form is no longer available.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The form couldn't be loaded."); }
   }
-
-  return <div className="fs">
-    <aside className="fs-list">
-      <div className="fs-list__bar">
-        <input className="fs-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={applications ? "Search applications" : "Search forms"} aria-label="Search forms" />
-        <ClusterButton size="compact" variant="primary" onClick={() => void createForm()}><ClusterIcon name="plus" /> New</ClusterButton>
-      </div>
-      {applications ? <ClusterButton unstyled type="button" className={`fs-item ${!selected ? "is-active" : ""}`} onClick={() => setSelectedId("")}>
-        <span className="fs-item__icon"><ClusterIcon name="users" /></span><span><strong>All applicants</strong><small>Review pipeline</small></span>
-      </ClusterButton> : null}
-      {visible.map((form) => <ClusterButton unstyled type="button" key={form.id} className={`fs-item ${form.id === selectedId ? "is-active" : ""}`} onClick={() => setSelectedId(form.id)}>
-        <span className="fs-item__icon"><ClusterIcon name="file" /></span>
-        <span><strong>{form.title}</strong><small>{published(form) ? "Published" : "Draft"} · v{form.versions?.[0]?.version || 0}</small></span>
-        <i data-live={published(form) || undefined} />
-      </ClusterButton>)}
-      {!visible.length ? <p className="fs-empty">{query ? "No matches." : applications ? "No application forms yet." : "No forms yet."}</p> : null}
-      {status ? <p className="fs-empty" role="alert">{status}</p> : null}
-    </aside>
-    <section className="fs-main">
-      {selected ? <FormEditor key={selected.id} form={selected} onChanged={() => load(true)} onDeleted={() => { setSelectedId(""); void load(true); }} targetSubmissionId={targetSubmissionId} />
-        : applications ? <StudioApplicationsPanel targetApplicationId={targetApplicationId} />
-        : <div className="fs-blank"><ClusterIcon name="file" /><p>Pick a form or start a new one.</p><ClusterButton variant="primary" onClick={() => void createForm()}>New form</ClusterButton></div>}
-    </section>
-  </div>;
+  useEffect(() => { void load(); }, [formId]);
+  return <ClusterModal open onClose={onClose} className="modal panel form-item-modal" ariaLabel={form?.title || "Form"}>
+    <div className="form-item-modal__bar"><strong>{form?.title || "Form"}</strong><ClusterIconButton label="Close form" onClick={onClose}><ClusterIcon name="close" /></ClusterIconButton></div>
+    {form ? <FormEditor key={form.id + (form.updatedAt || "")} form={form} onChanged={() => load(true)} onDeleted={onClose} targetSubmissionId={targetSubmissionId} />
+      : <p className="fs-empty">{error || "Loading…"}</p>}
+  </ClusterModal>;
 }
 
 function FormEditor({ form, onChanged, onDeleted, targetSubmissionId }: { form: Form; onChanged: () => Promise<void>; onDeleted: () => void; targetSubmissionId: string | null }) {

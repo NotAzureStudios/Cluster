@@ -59,3 +59,6 @@
 .fe-muted { margin: 0; color: var(--muted); font-size: .7rem; }
 .fe-panel { min-width: 0; }
 @media (max-width: 860px) { .fs { grid-template-columns: 1fr; } .fe-q { grid-template-columns: 1fr; } }
+.form-item-modal.form-item-modal { width: min(980px, calc(100dvw - 32px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 12px; }
+.form-item-modal__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 4px 10px; }
+.form-item-modal__bar strong { font-size: .95rem; }

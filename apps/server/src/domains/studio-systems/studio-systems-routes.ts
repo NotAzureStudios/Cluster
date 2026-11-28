@@ -234,6 +234,15 @@ export function registerStudioSystemsRoutes(deps: any) {
     });
     const actor = await getCurrentUser(request);
     await logActivity?.({ userId: actor?.id, type: body.publish ? "published" : "created", entityType: "studio_form_version", entityId: created.id, title: body.publish ? "Form version published" : "Form version created", message: `${form.title} v${version}` });
+    // First publish of a member form: everyone in its audience gets it in
+    // their Inbox (and My Work lists it); applications are public intake.
+    if (body.publish && form.status !== "active" && form.purpose !== "application") {
+      const people = await prisma.user.findMany({ where: { archived: false }, select: { id: true, username: true } });
+      const userIds: string[] = [];
+      for (const person of people) if (person.id !== actor?.id && await assignmentAudienceAuthorized(form, person)) userIds.push(person.id);
+      if (userIds.length) await logActivity?.({ userId: actor?.id, type: "assigned", entityType: "studio_form", entityId: formId, title: "New form to fill in", message: form.title,
+        metadata: { userIds, notifyInbox: true, notificationSignal: "assigned", notificationPriority: "normal", requiresAction: false, formId } });
+    }
     return reply.code(201).send(serializeFormVersion(created));
   });
 

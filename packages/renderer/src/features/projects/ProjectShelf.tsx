@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { openLinkedLibraryItem } from "../library/library-linked-items";
+import { FormItemModal } from "../forms/FormEditor";
 import { api, API_URL } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
@@ -23,6 +25,10 @@ function iconFor(item: LibraryItem): ClusterIconName {
   if (item.previewKind === "audio") return "audio";
   if (item.previewKind === "pdf" || item.previewKind === "document" || item.previewKind === "text") return "file";
   if (item.externalUrl) return "link";
+  if (item.type === "board") return "grid";
+  if (item.type === "whiteboard") return "palette";
+  if (item.type === "form") return "list";
+  if (item.type === "note") return "note";
   return "file";
 }
 
@@ -36,6 +42,7 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
   const [folderId, setFolderId] = useState<string | null>(null);
   const [items, setItems] = useState<LibraryItem[] | null>(null);
   const [error, setError] = useState("");
+  const [formOpenId, setFormOpenId] = useState<string | null>(null);
   const [link, setLink] = useState<{ url: string; title: string } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const uploadRef = useRef<((files: File[]) => void) | null>(null);
@@ -81,7 +88,7 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
   if (!project.libraryFolderId) return <p className="pv-empty">This project has no Library folder.</p>;
   const count = items?.length || 0;
 
-  return <ProjectFileDropZone project={project} enabled={canContribute} label={shelf.title} resolveFolder={ensureFolder} uploadRef={uploadRef} onUploaded={load}>
+  return <>{formOpenId ? <FormItemModal formId={formOpenId} onClose={() => { setFormOpenId(null); void load(); }} /> : null}<ProjectFileDropZone project={project} enabled={canContribute} label={shelf.title} resolveFolder={ensureFolder} uploadRef={uploadRef} onUploaded={load}>
     <section className="pj-shelf" data-kind={kind}>
       <header className="pj-shelf__head">
         <h2>{shelf.title}{count ? <small>{count}</small> : null}</h2>
@@ -110,7 +117,7 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
           : item.previewKind === "model" ? <img src={`${API_URL}/api/library/${item.id}/model-thumbnail`} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />
           : <span className="pj-shelf__glyph"><ClusterIcon name={iconFor(item)} /></span>;
         return <li key={item.id} data-preview={item.previewKind}>
-          <button type="button" className="pj-shelf__tile" onClick={() => item.type === "link" && item.externalUrl ? window.open(item.externalUrl, "_blank", "noopener") : onOpenLibrary?.(item.id)}>
+          <button type="button" className="pj-shelf__tile" onClick={() => item.type === "link" && item.externalUrl ? window.open(item.externalUrl, "_blank", "noopener") : openLinkedLibraryItem(item, setFormOpenId) || onOpenLibrary?.(item.id)}>
             <span className="pj-shelf__thumb">{thumb}{item.previewKind === "video" ? <i className="pj-shelf__badge"><ClusterIcon name="play" /></i> : null}</span>
             <span className="pj-shelf__caption"><strong>{item.title}</strong><small>{item.externalUrl ? host(item.externalUrl) : item.snippet && kind === "references" ? item.snippet : (item.extension || item.previewKind || "").toString().toUpperCase()}</small></span>
           </button>
@@ -121,5 +128,5 @@ export function ProjectShelf({ project, kind, canContribute, onOpenLibrary }: { 
         {canContribute ? <ClusterButton size="compact" variant="secondary" onClick={() => fileInput.current?.click()}>Choose files</ClusterButton> : null}
       </div>}
     </section>
-  </ProjectFileDropZone>;
+  </ProjectFileDropZone></>;
 }

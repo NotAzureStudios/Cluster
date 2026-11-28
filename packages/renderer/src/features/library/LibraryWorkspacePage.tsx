@@ -8,6 +8,8 @@ import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useSt
 import { filesFromDrop } from "../../core/drop-files";
 import { canUseTool } from "../../core/permissions";
 import { NoteDocument } from "../notes/NoteDocument";
+import { FormItemModal } from "../forms/FormEditor";
+import { openLinkedLibraryItem } from "./library-linked-items";
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
@@ -700,7 +702,16 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeItem, setActiveItem] = useState<LibraryItem | null>(null);
   const [noteOpenId, setNoteOpenId] = useState<string | null>(null);
+  const [formOpenId, setFormOpenId] = useState<string | null>(null);
+  const [formSubmissionTarget, setFormSubmissionTarget] = useState<string | null>(null);
   const canEditLibrary = canUseTool(currentUser, "library", "edit");
+  // Links to a form or one of its responses open that form here.
+  useEffect(() => {
+    const inspect = new URLSearchParams(window.location.search).get("inspect") || "";
+    const [scope, id] = [inspect.slice(0, inspect.indexOf(":")), inspect.slice(inspect.indexOf(":") + 1)];
+    if (scope === "studio-form" && id) setFormOpenId(id);
+    if (scope === "form-submission" && id) void api<{ formId: string }>(`/api/studio-systems/submissions/${encodeURIComponent(id)}/target`).then((target) => { setFormSubmissionTarget(id); setFormOpenId(target.formId); }).catch(() => undefined);
+  }, []);
   const [viewerItem, setViewerItem] = useState<LibraryItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -1070,6 +1081,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     if (item.type === "folder") { libraryDetailHistory.closeDetail(); setFolderId(item.id); setActiveId(null); setActiveItem(null); setSelectedIds(new Set()); return; }
     if (isWebLink(item)) { window.open(String(item.externalUrl), "_blank", "noopener,noreferrer"); return; }
     if (item.type === "note") { setNoteOpenId(item.id); return; }
+    if (openLinkedLibraryItem(item, setFormOpenId)) return;
     void openItemViewer(item);
   }
   async function renameLibraryItem(item: LibraryItem) {
@@ -1962,6 +1974,14 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       void loadWorkspace(true, true);
     } catch (reason) { setError(reason instanceof Error ? reason : new Error("The note was not created.")); }
   }
+  async function createForm() {
+    try {
+      const parentId = librarySection === "folder" ? folderId : null;
+      const item = await api<LibraryItem>("/api/library", { method: "POST", body: JSON.stringify({ title: "Untitled form", type: "form", parentId }) });
+      if (item.originRef) setFormOpenId(item.originRef);
+      void loadWorkspace(true, true);
+    } catch (reason) { setError(reason instanceof Error ? reason : new Error("The form was not created.")); }
+  }
   function beginCreateFolder(parentId: string | null = folderId) {
     setCreateDraft({ kind: "folder", title: "", body: "", externalUrl: "", folderColor: FOLDER_COLORS[0], folderIcon: "folder", parentId });
   }
@@ -2188,6 +2208,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   // The one New menu: sidebar, empty-space menu and the folder menu all use it.
   const newItems: ClusterActionMenuItem[] = [
     { id: "new-note", label: "New note", icon: "note", onSelect: () => void createNote() },
+    ...(currentUser.isAdmin ? [{ id: "new-form", label: "New form", icon: "list" as const, onSelect: () => void createForm() }] : []),
     { id: "upload", label: "Upload files", icon: "upload", onSelect: () => fileInput.current?.click() },
     { id: "upload-model-bundle", label: "Upload model bundle", description: "A model with its companion files.", icon: "model", onSelect: () => modelBundleInput.current?.click() },
     { id: "new-folder", label: currentFolder ? "New subfolder" : "New folder", icon: "folder", separatorBefore: true, onSelect: () => beginCreateFolder(folderId) },
@@ -2479,6 +2500,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
         <ClusterButton type="button" variant="primary" disabled={renameBusy || !renamePreview || !renamePreview.changedCount} onClick={() => void applyBulkRename()}>Apply reviewed names</ClusterButton>
       </div>
     </ClusterModal>}
+    {formOpenId ? <FormItemModal formId={formOpenId} targetSubmissionId={formSubmissionTarget} onClose={() => { setFormOpenId(null); setFormSubmissionTarget(null); void loadWorkspace(true, true); }} /> : null}
     {noteOpenId ? <ClusterModal open onClose={() => { setNoteOpenId(null); void loadWorkspace(true, true); }} className="modal panel library-note-modal" ariaLabel="Note">
       <NoteDocument key={noteOpenId} id={noteOpenId} canEdit={canEditLibrary} autoFocusTitle closeIcon="close" closeLabel="Close note"
         onClose={() => { setNoteOpenId(null); void loadWorkspace(true, true); }}

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { StudioApplicationsPanel } from "../settings/StudioApplicationsPanel";
+import "../settings/settings-workspace.css";
 import type { User } from "../application/application-models";
 import { ClusterButton, ClusterIconButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
@@ -20,7 +22,7 @@ import "./admin-users.css";
    actions live. "Add person" opens the provisioning wizard beside the
    list. Account creation itself lives in useAccountProvisioning. */
 
-type StatusView = "all" | "setup" | "restricted" | "expiring" | "expired" | "archived";
+type StatusView = "all" | "setup" | "restricted" | "expiring" | "expired" | "archived" | "applicants";
 type TypeFilter = "all" | "employee" | "contractor" | "client" | "guest";
 type Account = {
   id: string;
@@ -49,6 +51,7 @@ const VIEWS: Array<{ id: StatusView; label: string }> = [
   { id: "expiring", label: "Expiring soon" },
   { id: "expired", label: "Expired" },
   { id: "archived", label: "Archived" },
+  { id: "applicants", label: "Applicants" },
 ];
 
 function stateOf(account: Account): { label: string; tone: "good" | "warning" | "danger" | "neutral" } {
@@ -66,7 +69,7 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
   onOpenPerson: (id: string) => void;
   startCreating?: boolean;
 }) {
-  const [view, setView] = useState<StatusView>("all");
+  const [view, setView] = useState<StatusView>(() => new URLSearchParams(window.location.search).get("inspect")?.startsWith("studio-application:") ? "applicants" : "all");
   const [search, setSearch] = useState("");
   const [settledSearch, setSettledSearch] = useState("");
   const [accountType, setAccountType] = useState<TypeFilter>("all");
@@ -183,12 +186,13 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
     navLabel="User views"
     activeId={view}
     onChange={(id) => setView(id as StatusView)}
-    items={VIEWS.map((item) => ({ id: item.id, label: item.label, icon: item.id === "all" ? "users" : item.id === "setup" ? "spark" : item.id === "restricted" ? "lock" : item.id === "archived" ? "archive" : "clock" }))}
+    items={VIEWS.map((item) => ({ id: item.id, label: item.label, icon: item.id === "all" ? "users" : item.id === "setup" ? "spark" : item.id === "restricted" ? "lock" : item.id === "archived" ? "archive" : item.id === "applicants" ? "plus" : "clock" }))}
     status={status}
     actions={<>
       <ClusterIconButton size="compact" label="Refresh" onClick={() => setReloadKey((value) => value + 1)}><ClusterIcon name="refresh" /></ClusterIconButton>
       <ClusterButton variant="primary" size="compact" onClick={() => void provisioning.setOpen(true)}><ClusterIcon name="plus" /> Add person</ClusterButton>
     </>}>
+    {view === "applicants" ? <StudioApplicationsPanel targetApplicationId={(() => { const inspect = new URLSearchParams(window.location.search).get("inspect") || ""; return inspect.startsWith("studio-application:") ? inspect.slice("studio-application:".length) : null; })()} /> : <>
     <div className="au-bar">
       <label className="au-search">
         <ClusterIcon name="search" />
@@ -253,5 +257,6 @@ export function AdminUsersPage({ currentUser, onOpenPerson, startCreating = fals
         onCancel={() => void provisioning.setOpen(false)}
       />
     </ClusterOverlayDrawer>
+  </>}
   </SettingsWorkspaceShell>;
 }

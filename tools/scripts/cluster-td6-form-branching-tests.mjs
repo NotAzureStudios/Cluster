@@ -71,5 +71,5 @@ check(read('packages/shared/src/studio-systems-contracts.ts').includes('"Visibil
 check(read('apps/server/src/domains/studio-systems/studio-systems-routes.ts').includes('answersJson: JSON.stringify(effectiveAnswers)'),'Authenticated submissions persist projected answers');
 check(read('apps/server/src/domains/studio-systems/studio-workflow-routes.ts').includes('answersJson: JSON.stringify(effectiveAnswers)'),'Anonymous applications persist projected answers');
 check(read('packages/renderer/src/features/studio-systems/StudioFormRunner.tsx').includes('activeFields.map('),'Renderer hides conditional fields');
-check(read('packages/renderer/src/features/forms/FormsStudio.tsx').includes('studioFormSchemaDefinitionSchema.safeParse'),'Form author gets validation feedback for invalid branches');
+check(read('packages/renderer/src/features/forms/FormEditor.tsx').includes('studioFormSchemaDefinitionSchema.safeParse'),'Form author gets validation feedback for invalid branches');
 console.log(`${checks}/${checks} conditional form source checks passed`);

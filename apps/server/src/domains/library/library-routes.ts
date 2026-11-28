@@ -59,6 +59,7 @@ import { inspectLibraryHierarchyGovernance, libraryHierarchyGovernanceSchema } f
 import { createLibraryItemSerializer, parseJsonArray, parseModelBundle, parseYouTubeLink } from "./library-item-serialization.js";
 import { registerMountedLibraryRoutes } from "./mounted-library-routes.js";
 import { scheduleCommittedLibraryStorageRepair } from "./library-storage-scheduling.js";
+import { syncLinkedLibraryItems } from "./library-linked-items.js";
 import {
   createLibraryVersionSnapshot,
   libraryRetentionDecision,
@@ -71,7 +72,7 @@ const metadataSchema = z.record(metadataValueSchema).optional().default({});
 const lifecycleStatusSchema = z.enum(["draft", "active", "in-review", "approved", "needs-update", "deprecated", "archived", "trashed"]);
 const libraryClassificationSchema = z.enum(["public", "internal", "confidential", "restricted"]);
 const libraryLifecycleSchema = z.enum(["active", "in-review", "approved", "deprecated", "trashed"]);
-const libraryCreateTypeSchema = z.enum(["folder", "note", "link", "youtube-video", "youtube-playlist"]);
+const libraryCreateTypeSchema = z.enum(["folder", "note", "link", "youtube-video", "youtube-playlist", "form"]);
 
 function pathInsideRoot(root: string, candidate: string) {
   const resolvedRoot = path.resolve(root);
@@ -890,6 +891,7 @@ export function registerLibraryRoutes({
 
   app.get("/api/library/workspace", async (request, reply) => {
     const query = libraryWorkspaceQuerySchema.parse(request.query || {});
+    await syncLinkedLibraryItems(prisma);
 
     const context = await accessContext(request);
     if (context.user && (await readSettings()).packetsEnabled !== false) await ensurePacketsRoot();
@@ -1353,6 +1355,14 @@ export function registerLibraryRoutes({
       if (!destination) return;
     }
     const requestedType = libraryCreateTypeSchema.parse(body.type || "link");
+    // A form is a Studio form with a Library item pointing at it.
+    let formRef: string | null = null;
+    if (requestedType === "form") {
+      const decorated = await decorateUserForClient(user);
+      if (!decorated?.isAdmin && !hasToolPermission(user, decorated?.workspaceRole, "settings", "edit")) return reply.code(403).send({ ok: false, error: "Only studio admins can create forms." });
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "form";
+      formRef = (await prisma.studioForm.create({ data: { key: `${slug}-${Date.now().toString(36)}`, title, purpose: body.metadata?.purpose === "application" ? "application" : "general" } })).id;
+    }
     const settings = await readSettings();
     if (requestedType === "link" && settings.libraryAllowExternalLinks === false) return reply.code(403).send({ ok: false, error: "External Library links are disabled." });
     if (["youtube-video", "youtube-playlist"].includes(requestedType) && settings.libraryAllowYoutube === false) return reply.code(403).send({ ok: false, error: "YouTube Library entries are disabled." });
@@ -1395,8 +1405,8 @@ export function registerLibraryRoutes({
         lifecycleNotes: body.lifecycleNotes || null,
         metadata: JSON.stringify(createMetadata),
         source: body.source || (requestedType.startsWith("youtube-") ? "youtube" : requestedType === "link" ? "link" : "manual"),
-        originKind: body.originKind || (requestedType.startsWith("youtube-") ? "youtube" : requestedType === "link" ? "link" : "manual"),
-        originRef: body.originRef || null,
+        originKind: formRef ? "studio-form" : body.originKind || (requestedType.startsWith("youtube-") ? "youtube" : requestedType === "link" ? "link" : "manual"),
+        originRef: formRef || body.originRef || null,
         generatedForUserId: body.generatedForUserId || null,
         generatedByKind: body.generatedByKind || null,
         generatedById: body.generatedById || null,
@@ -1975,6 +1985,13 @@ export function registerLibraryRoutes({
     if (!accessible) return;
     const body = itemWriteSchema(true).extend({ expectedRevision: z.number().int().positive().optional() }).parse(request.body);
     const existing = accessible.item;
+    // Renaming a board, whiteboard or form item renames the thing itself.
+    const nextTitle = typeof body.title === "string" ? body.title.trim() : "";
+    if (nextTitle && nextTitle !== existing.title && existing.originRef) {
+      if (existing.originKind === "board") await prisma.board.update({ where: { id: existing.originRef }, data: { name: nextTitle } }).catch(() => undefined);
+      if (existing.originKind === "whiteboard") await prisma.whiteboard.update({ where: { id: existing.originRef }, data: { name: nextTitle } }).catch(() => undefined);
+      if (existing.originKind === "studio-form") await prisma.studioForm.update({ where: { id: existing.originRef }, data: { title: nextTitle } }).catch(() => undefined);
+    }
     const metadataPolicyDenial = libraryMetadataMutationDenial(existing, body);
     if (metadataPolicyDenial) return reply.code(409).send({ ok: false, ...metadataPolicyDenial, error: metadataPolicyDenial.message });
     if (body.expectedRevision !== undefined && body.expectedRevision !== existing.revision) {

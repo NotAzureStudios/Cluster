@@ -27,7 +27,7 @@ export function clusterResourceNavigation(resource?: ClusterResourceAddress | nu
   if (kind === "source_repository") return projectId ? { screen: "project", projectId, projectTab: "source", inspectScope: "source-repository", inspectId: id } : null;
   if (kind === "source_review") return projectId ? { screen: "project", projectId, projectTab: "source", inspectScope: "source-review", inspectId: id } : null;
   if (kind === "source_commit") return projectId ? { screen: "project", projectId, projectTab: "source", inspectScope: "source-commit", inspectId: id } : null;
-  if (kind === "studio_form") return { screen: "studioSettings", inspectScope: "studio-form", inspectId: id };
+  if (kind === "studio_form") return { screen: "mywork", inspectScope: "studio-form", inspectId: id };
   if (kind === "form_submission") return { screen: "studioSettings", inspectScope: "form-submission", inspectId: id };
   if (kind === "approval") return { screen: "admin", inspectScope: "approval", inspectId: id };
   if (kind === "project") return { screen: "project", projectId: id };

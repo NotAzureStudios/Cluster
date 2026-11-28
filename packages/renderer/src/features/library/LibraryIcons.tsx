@@ -104,6 +104,9 @@ export function itemIconName(item: LibraryItem): IconName {
   if (item.mimeGroup === "model") return "model";
   if (item.type === "reference" || item.type === "link") return "link";
   if (item.type === "note" || item.type === "spec" || item.type === "decision") return "note";
+  if (item.type === "board") return "grid";
+  if (item.type === "whiteboard") return "palette";
+  if (item.type === "form") return "list";
   return "file";
 }
 

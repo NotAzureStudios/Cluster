@@ -5,7 +5,7 @@ import ts from 'typescript';
 import crypto from 'node:crypto';
 
 const routeSource = fs.readFileSync('apps/server/src/domains/studio-systems/studio-systems-routes.ts', 'utf8');
-const jsx = ['packages/renderer/src/features/forms/FormsStudio.tsx', 'packages/renderer/src/features/settings/MyFormsPanel.tsx', 'packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx', 'packages/renderer/src/features/studio-systems/StudioFormRunner.tsx'].map(p => fs.readFileSync(p,'utf8'));
+const jsx = ['packages/renderer/src/features/forms/FormEditor.tsx', 'packages/renderer/src/features/settings/MyFormsPanel.tsx', 'packages/renderer/src/features/settings/StudioFormSubmissionsPanel.tsx', 'packages/renderer/src/features/studio-systems/StudioFormRunner.tsx'].map(p => fs.readFileSync(p,'utf8'));
 const chain={trim(){return this},min(){return this},max(){return this},int(){return this},default(){return this},optional(){return this},nullable(){return this},datetime(){return this},omit(){return this},extend(){return this},parse(v){return v}};
 const z={record(){return Object.create(chain)},unknown(){return Object.create(chain)},object(fields){const row=Object.create(chain);row.parse=(v)=>fields?.page?{page:1,limit:25,...v}:v;return row},string(){return Object.create(chain)},boolean(){return Object.create(chain)},number(){return Object.create(chain)},enum(){return Object.create(chain)},coerce:{number(){return Object.create(chain)}}};
 const parser = value => typeof value === 'string' ? JSON.parse(value) : value;

@@ -1,4 +1,5 @@
 import { ClusterTextInput } from "../../components/ClusterTextInput";
+import { MyFormsPanel } from "../settings/MyFormsPanel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CLUSTER_WORK_ASSIGNMENT_CHANGED_EVENT, type ClusterAssignmentChange } from "@cluster/shared";
 import { api, queryApi } from "../../core/api";
@@ -91,7 +92,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [attentionLoadIssues, setAttentionLoadIssues] = useState<string[]>([]);
-  const [view, setView] = useState<"today" | "attention" | "assigned" | "projects" | "activity">("today");
+  const [view, setView] = useState<"today" | "attention" | "assigned" | "forms" | "projects" | "activity">(() => new URLSearchParams(window.location.search).get("inspect")?.startsWith("studio-form:") ? "forms" : "today");
   const [query, setQuery] = useState("");
   const myWorkRequestSequence = useRef(0);
   const revalidateTimerRef = useRef<number | null>(null);
@@ -361,8 +362,8 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
         ]}
         actions={<>
           {refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}
-          <ClusterSegmentedControl value={view} onChange={(next) => setView(next as typeof view)} label="My Work views" options={(["today", "attention", "assigned", "projects", "activity"] as const).map((item) => {
-            const count = item === "today" ? dueMine.length : item === "attention" ? attentionItems.length : item === "assigned" ? assignedCount : item === "projects" ? myProjects.length : relevantActivity.length;
+          <ClusterSegmentedControl value={view} onChange={(next) => setView(next as typeof view)} label="My Work views" options={(["today", "attention", "assigned", "forms", "projects", "activity"] as const).map((item) => {
+            const count = item === "today" ? dueMine.length : item === "attention" ? attentionItems.length : item === "assigned" ? assignedCount : item === "forms" ? 0 : item === "projects" ? myProjects.length : relevantActivity.length;
             return { value: item, label: `${levelLabel(item)}${count ? ` ${count}` : ""}` };
           })} />
           <ClusterActionMenu iconOnly label="More My Work actions" items={[
@@ -550,6 +551,7 @@ export function MyWorkPage({ user, projects, onOpenBoard, onOpenTime, onOpenTime
         </section>
       )}
 
+      {view === "forms" && <MyFormsPanel />}
       {view === "projects" && (
         <section className="mywork-project-grid-v253">
           {myProjects.length ? (
