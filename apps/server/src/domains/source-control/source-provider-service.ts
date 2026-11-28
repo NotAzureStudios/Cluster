@@ -322,7 +322,14 @@ export function createSourceProviderService(input: ProviderServiceInput) {
       allowHttpPrivateNetwork: Boolean(config.allowPrivateNetwork),
       maxResponseBytes: 32 * 1024 * 1024,
     });
-    if (!response.ok) throw createHttpError("SOURCE_PROVIDER_REQUEST_FAILED", `Source Control provider returned HTTP ${response.status}.`, response.status >= 500 ? 502 : 409);
+    if (!response.ok) {
+      const name = connection.displayName ? `"${connection.displayName}"` : "This connection";
+      const reason = response.status === 401 ? `${name} was rejected. Its token is invalid or expired.`
+        : response.status === 403 ? `${name} isn't allowed to read this repository, or the provider is rate limiting it.`
+        : response.status === 404 ? `${name} can't see this repository. Give its token or app access to the repo, or link it with a connection that has access.`
+        : `The provider returned HTTP ${response.status}.`;
+      throw createHttpError("SOURCE_PROVIDER_REQUEST_FAILED", reason, response.status >= 500 ? 502 : 409);
+    }
     if (response.status === 204) return null;
     const text = await response.text();
     if (!text) return null;

@@ -9,8 +9,7 @@ import { ProjectFileDropZone, ProjectOverviewWorkbench } from "./ProjectOverview
 import { ProjectPinnedLinks } from "./ProjectPinnedLinks";
 import { ProjectWorkList } from "./ProjectWorkList";
 import { useProjectFocus } from "./project-focus";
-import { ProjectShelf } from "./ProjectShelf";
-import { ProjectNotes } from "./ProjectNotes";
+import { ProjectMedia } from "./ProjectMedia";
 import { LazyLibraryWorkspacePage } from "../application/application-entrypoints";
 import { api } from "../../core/api";
 import { canUseTool } from "../../core/permissions";
@@ -54,8 +53,8 @@ const PROJECT_SETTINGS_SECTION_IDS: readonly string[] = ["plan", "people", "link
 // Parked: the planning console, intelligence, production entities, assets,
 // closeout and whiteboards stay built but leave the tab bar for now. QA is
 // reached from Builds rather than its own tab.
-// Notes, Media and References are every project's Library subfolders, not opt-in tools.
-const PROJECT_SHELF_TABS: readonly string[] = ["notes", "media", "references"];
+// Media (with its Notes and References folders) is every project's, not an opt-in tool.
+const PROJECT_SHELF_TABS: readonly string[] = ["media"];
 const PARKED_PROJECT_TABS: readonly string[] = ["intelligence", "control", "production", "assets", "closeout", "whiteboards"];
 const SECONDARY_PROJECT_TABS: readonly string[] = ["qa"];
 import { ProjectIntelligencePanel } from "./ProjectIntelligencePanel";
@@ -390,9 +389,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
     boards: visibleBoards.length + visibleWhiteboards.length ? `${visibleBoards.length + visibleWhiteboards.length}` : "",
     whiteboards: visibleWhiteboards.length ? `${visibleWhiteboards.length}` : "",
     library: project.libraryFolderId ? "linked" : "",
-    notes: "",
     media: "",
-    references: "",
     assets: visibleFiles.length ? `${visibleFiles.length}` : "",
     production: type.workspaceEntities?.length ? `${type.workspaceEntities.length} types` : "",
     viewer: videoEnabled && visibleVideos.length ? `${visibleVideos.length}` : "",
@@ -445,8 +442,8 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
                 await loadProjectDashboard();
               };
   const primaryTabCandidates: ProjectWorkspaceTabId[] = isVideoType
-    ? ["overview", "viewer", "tickets", "boards", "notes", "media", "references", "library", "settings"]
-    : ["overview", "tickets", "boards", ...(supportsBuilds ? ["builds" as const] : []), ...(supportsQa && tab === "qa" ? ["qa" as const] : []), ...(supportsSource ? ["source" as const] : []), "notes", "media", "references", "library", "settings"];
+    ? ["overview", "viewer", "tickets", "boards", "media", "library", "settings"]
+    : ["overview", "tickets", "boards", ...(supportsBuilds ? ["builds" as const] : []), ...(supportsQa && tab === "qa" ? ["qa" as const] : []), ...(supportsSource ? ["source" as const] : []), "media", "library", "settings"];
   const primaryTabIds = primaryTabCandidates.filter((id, index) => primaryTabCandidates.indexOf(id) === index && tabs.some((item: ProjectDetailTab) => item.id === id));
   return (
     <section className="page cluster-specialist-workspace cluster-project-detail-workspace project-page-v312" style={runtimeStyle({ "--project-accent": project.color || "#60a5fa" })}>
@@ -611,9 +608,7 @@ export function ProjectDetailPage({ project, projects, whiteboards, currentUser,
             ? <Suspense fallback={<ClusterStatus state="loading">Loading files…</ClusterStatus>}><LazyLibraryWorkspacePage key={project.id} projects={projects} currentUser={currentUser} initialFolderId={project.libraryFolderId} embedded /></Suspense>
             : <ProjectResourceHubPanel kind="library" project={project} onOpenLibrary={onOpenLibrary} />)}
 
-          {activeTab === "notes" && <ProjectNotes key={project.id} project={project} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} />}
-
-          {(activeTab === "media" || activeTab === "references") && <ProjectShelf key={`${project.id}:${activeTab}`} project={project} kind={activeTab} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} onOpenLibrary={onOpenLibrary} />}
+          {activeTab === "media" && <ProjectMedia key={project.id} project={project} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} canCreateForms={Boolean(currentUser.isAdmin)} onOpenLibrary={onOpenLibrary} />}
 
           {activeTab === "assets" && canUseTool(currentUser, "library", "view") && (
             <ProjectAssetWorkspace project={project} currentUser={currentUser} canContribute={capabilities.canContribute && canUseTool(currentUser, "library", "edit")} canManage={capabilities.canManage && canUseTool(currentUser, "library", "edit")} bytesToSize={bytesToSize} onReloadMedia={loadMedia} />

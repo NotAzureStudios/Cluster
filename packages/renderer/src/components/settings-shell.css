@@ -244,3 +244,4 @@
 @media (max-width: 640px) {
   .st-main .project-form-layout-v312, .st-main .server-config-groups-v238 { grid-template-columns: minmax(0, 1fr); }
 }
+.st-main .pc-health-why { margin: -4px 0 0; color: var(--muted); font-size: .72rem; line-height: 1.4; }
