@@ -295,9 +295,9 @@ export function clusterProjectToolDefinition(id: ClusterProjectToolId) {
 
 
 export type ClusterAppRouteGroup = "home" | "work" | "projects" | "planning" | "library" | "people" | "control" | "system" | "hidden";
-export type ClusterAppSidebarSection = "work" | "planning" | "library" | "people" | "administration" | "system";
+export type ClusterAppSidebarSection = "work" | "create" | "planning" | "library" | "people" | "administration" | "system";
 export type ClusterAppRouteFeatureFlag = "ticketsEnabled" | "timelineEnabled" | "calendarEnabled" | "schedulerEnabled" | "libraryEnabled" | "packetsEnabled";
-export type ClusterAppNavigationIcon = "activity" | "bell" | "grid" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette" | "file";
+export type ClusterAppNavigationIcon = "activity" | "bell" | "grid" | "calendar" | "clock" | "cloud" | "library" | "lock" | "operations" | "packet" | "settings" | "game" | "inventory" | "ticket" | "timeline" | "tools" | "users" | "work" | "palette" | "file" | "note";
 export type ClusterApplicationActionGroup = "navigation" | "desktop";
 
 export type ClusterApplicationActionDescriptor = Readonly<{
@@ -332,6 +332,7 @@ export type ClusterAppRouteDefinition = Readonly<{
 /** Canonical top-level application destinations and command-discovery metadata. */
 export const CLUSTER_APP_SIDEBAR_SECTIONS = Object.freeze([
   { id: "work", label: "Work", order: 10 },
+  { id: "create", label: "Create", order: 15 },
   { id: "planning", label: "Plan", order: 20 },
   { id: "library", label: PRODUCT_TERMS.library, order: 30 },
   { id: "administration", label: PRODUCT_TERMS.administration, order: 40 },
@@ -344,12 +345,13 @@ export const CLUSTER_APP_ROUTE_MANIFEST = {
   people: { label: PRODUCT_TERMS.people, group: "people", tool: "people", action: { id: "navigation.people", group: "navigation", description: "Directory, profiles, and contact information.", aliases: ["people", "team", "users"], keywords: ["users", "team"], paletteKey: "page-people" } },
   mywork: { label: PRODUCT_TERMS.myWork, group: "work", tool: "mywork", startEligible: true, action: { id: "navigation.my-work", group: "navigation", description: "Personal assignments and due items.", aliases: ["mw", "mine", "assignments"], paletteKey: "page-mywork" } },
   chat: { label: "Chat", group: "work", tool: "inbox", startEligible: true, action: { id: "navigation.chat", group: "navigation", description: "Channels, announcements and messages.", aliases: ["announcements", "messages"], paletteKey: "page-chat" } },
-  forms: { label: "Forms", group: "work", tool: "inbox", startEligible: true, sidebar: { section: "work", order: 30, icon: "file" }, action: { id: "navigation.forms", group: "navigation", description: "Fill, build and review forms and applications.", aliases: ["applications", "surveys"], paletteKey: "page-forms" } },
+  forms: { label: "Forms", group: "work", tool: "inbox", startEligible: true, sidebar: { section: "create", order: 30, icon: "file" }, action: { id: "navigation.forms", group: "navigation", description: "Fill, build and review forms and applications.", aliases: ["applications", "surveys"], paletteKey: "page-forms" } },
+  docs: { label: "Docs", group: "library", tool: "library", startEligible: true, sidebar: { section: "create", order: 10, icon: "note" }, action: { id: "navigation.docs", group: "navigation", description: "Write and edit documents.", aliases: ["documents", "notes", "writing"], paletteKey: "page-docs" } },
   inbox: { label: PRODUCT_TERMS.inbox, group: "work", tool: "inbox", startEligible: true, action: { id: "navigation.inbox", group: "navigation", description: "Assignments, mentions, approvals, reminders, and attention items.", aliases: ["in", "mentions", "notifications"], paletteKey: "page-inbox" } },
   projects: { label: PRODUCT_TERMS.projects, group: "projects", tool: "projects", startEligible: true, action: { id: "navigation.projects", group: "navigation", description: "Project directory.", aliases: ["p", "proj", "projects"], paletteKey: "page-projects" } },
   project: { label: "Project", group: "projects", tool: "projects", parent: "projects", projectContext: true },
   board: { label: "Boards", group: "projects", tool: "boards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "work", order: 10, icon: "grid" }, action: { id: "navigation.boards", group: "navigation", description: "Boards and cards.", aliases: ["board", "kanban"], paletteKey: "page-boards" } },
-  whiteboard: { label: "Whiteboards", group: "projects", tool: "whiteboards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "work", order: 20, icon: "palette" }, action: { id: "navigation.whiteboards", group: "navigation", description: "Visual canvases and diagrams.", aliases: ["whiteboard", "canvas"], paletteKey: "page-whiteboards" } },
+  whiteboard: { label: "Whiteboards", group: "projects", tool: "whiteboards", parent: "project", projectContext: true, startEligible: true, sidebar: { section: "create", order: 20, icon: "palette" }, action: { id: "navigation.whiteboards", group: "navigation", description: "Visual canvases and diagrams.", aliases: ["whiteboard", "canvas"], paletteKey: "page-whiteboards" } },
   calendar: { label: "Calendar", group: "planning", tool: "calendar", sidebar: { section: "planning", order: 10, icon: "calendar", featureFlag: "calendarEnabled" }, action: { id: "navigation.calendar", group: "navigation", description: "Schedule and recurring commitments.", aliases: ["cal", "schedule"], paletteKey: "page-calendar" } },
   timeline: { label: PRODUCT_TERMS.timeline, group: "planning", tool: "timeline", startEligible: true, sidebar: { section: "planning", order: 20, icon: "timeline", featureFlag: "timelineEnabled" }, action: { id: "navigation.timeline", group: "navigation", description: "Roadmap and milestones.", aliases: ["tl", "roadmap"], paletteKey: "page-timeline" } },
   builds: { label: PRODUCT_TERMS.builds, group: "projects", tool: "builds", startEligible: true, projectContext: true },

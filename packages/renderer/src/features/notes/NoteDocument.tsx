@@ -44,7 +44,7 @@ export function NoteDocument({ id, canEdit, autoFocusTitle = false, onChange, on
     try {
       const item = await api<LibraryItem & { body?: string | null }>(`/api/library/${id}`);
       setDoc(toDoc(item)); setSave("saved"); setError("");
-      if (autoFocusTitle) window.setTimeout(() => document.querySelector<HTMLInputElement>(`[data-note-id="${id}"] .pj-notes__title input`)?.select(), 0);
+      if (autoFocusTitle) window.setTimeout(() => document.querySelector<HTMLInputElement>(`[data-note-id="${id}"] .pj-notes__title input`)?.select(), 60);
     } catch (reason) { setSave("error"); setError(reason instanceof Error ? reason.message : "That note could not be opened."); }
   }
   useEffect(() => { void load(); }, [id]);
@@ -148,7 +148,8 @@ export function NoteDocument({ id, canEdit, autoFocusTitle = false, onChange, on
     </header>
     {error ? <p className="pj-work__error" role="alert">{error}</p> : null}
     {!doc ? <p className="pv-empty">{save === "error" ? "" : "Opening…"}</p> : <>
-      <div className="pj-notes__title"><ClusterTextInput value={doc.title} readOnly={!canEdit} onChange={(event) => edit({ title: event.target.value })} placeholder="Untitled" aria-label="Note title" /></div>
+      <div className="pj-notes__title"><ClusterTextInput value={doc.title} readOnly={!canEdit} onChange={(event) => edit({ title: event.target.value })} placeholder="Untitled" aria-label="Note title"
+        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); document.querySelector<HTMLTextAreaElement>(`[data-note-id="${id}"] textarea`)?.focus(); } }} /></div>
       {mode === "write" && canEdit
         ? <textarea ref={editor} className="pj-notes__editor" value={doc.body} spellCheck onChange={(event) => edit({ body: event.target.value })} placeholder="Start writing… Markdown works: # heading, **bold**, - [ ] task" aria-label="Note text"
             onKeyDown={(event) => {

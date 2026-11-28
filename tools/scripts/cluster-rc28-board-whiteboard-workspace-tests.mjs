@@ -14,7 +14,8 @@ const whiteboard=read('packages/renderer/src/features/whiteboards/WhiteboardWork
 const directory=read('packages/renderer/src/features/workspaces/WorkspaceDirectory.tsx');
 const boardCss=read('packages/renderer/src/features/boards/board-workspace.css');
 const whiteboardCss=read('packages/renderer/src/features/whiteboards/whiteboard-workspace.css');
-for(const name of ['board','whiteboard']) assert.match(manifest,new RegExp(`${name}: \\{[^\\n]+sidebar: \\{ section: "work"`));
+assert.match(manifest,/board: \{[^\n]+sidebar: \{ section: "work"/);
+assert.match(manifest,/whiteboard: \{[^\n]+sidebar: \{ section: "create"/, 'Whiteboards live in the Create suite');
 assert.match(manifest,/"users" \| "work" \| "palette"/);
 assert.match(app,/if \(!boardId\) return; \/\/ Board library/);
 assert.match(app,/!whiteboardsLoaded \|\| !whiteboardId/);

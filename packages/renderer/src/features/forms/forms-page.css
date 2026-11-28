@@ -3,7 +3,7 @@
 .fs-list { display: flex; flex-direction: column; gap: 2px; align-self: start; padding: 10px; border-radius: 14px; background: var(--cluster-surface-1); }
 .fs-list__bar { display: flex; gap: 6px; margin-bottom: 6px; }
 .fs-list .fs-search.fs-search { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 0 !important; border-radius: 8px; background: var(--cluster-surface-2) !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: .76rem; }
-.fs-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 9px; text-align: left; }
+.fs-item { display: grid; grid-template-columns: 28px minmax(0, 1fr) 8px; align-items: center; gap: 8px; padding: 6px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .fs-item:hover { background: var(--surface-hover); }
 .fs-item.is-active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .fs-item__icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }

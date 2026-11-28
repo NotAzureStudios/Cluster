@@ -75,7 +75,7 @@ import { canUseProject, getProjectPermission } from "../projects/project-access-
 import { MAX_PROJECT_TABS, THEME_STORAGE_KEY, applyCustomization, applyTheme, getStoredTheme, userPreferencesFromUser } from "./modules/application-shell-runtime";
 import { openSharedCreate } from "../create/shared-create-handoff";
 import { clearIncompatibleRouteContext, clearProjectSwitchRouteContext, nextOpenProjectTabs } from "./modules/project-tab-workspace";
-import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyChatPage, LazyFormsPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazySourceControlAdminPage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
+import { LazyAccountSettingsPage, LazyActivityPage, LazyAdminPage, LazyBoardPage, LazyBuildsFoldedIntoProjectsPage, LazyCommandPalette, LazyClusterHelpDialog, LazyDesktopPresencePublisher, LazyDesktopWorkspacePage, LazyDashboard, LazyLibraryPage, LazyMyWorkPage, LazyChatPage, LazyFormsPage, LazyDocsPage, LazyNotificationCenterPage, LazyPacketsPage, LazyProfilesPage, LazyAdminUsersPage, LazyProjectDetailRoute, LazyProjectTabsBar, LazyProjectsRoute, LazyQAFoldedIntoProjectsPage, LazyQuickCreateDrawer, LazyServerConfigPage, LazySetupWizard, LazySignedOutKioskPage, LazyStudioSettingsPage, LazyTicketSystemPage, LazyTimePage, LazyTimelinePage, LazyToolInfrastructurePage, LazySourceControlAdminPage, LazyWhiteboardPage } from "./modules/application-lazy-workspaces";
 import { toolConfigSettingsPatch } from "./modules/tool-config-settings";
 import { Sidebar } from "./modules/ApplicationSidebar";
 
@@ -1411,6 +1411,7 @@ export default function App() {
           />
         )}
         {screen === "chat" && <LazyFeatureBoundary label="Chat"><LazyChatPage /></LazyFeatureBoundary>}
+        {screen === "docs" && <LazyFeatureBoundary label="Docs"><LazyDocsPage /></LazyFeatureBoundary>}
         {screen === "forms" && <LazyFeatureBoundary label="Forms"><LazyFormsPage manager={Boolean(activeUser.isAdmin)} /></LazyFeatureBoundary>}
         {screen === "mywork" && (
           <LazyFeatureBoundary label="My Work"><LazyMyWorkPage
