@@ -60,6 +60,7 @@ import { createLibraryItemSerializer, parseJsonArray, parseModelBundle, parseYou
 import { registerMountedLibraryRoutes } from "./mounted-library-routes.js";
 import { scheduleCommittedLibraryStorageRepair } from "./library-storage-scheduling.js";
 import { syncLinkedLibraryItems } from "./library-linked-items.js";
+import { CLO_FORMAT, CLO_VERSION, createCloService } from "./library-clo.js";
 import {
   createLibraryVersionSnapshot,
   libraryRetentionDecision,
@@ -187,6 +188,7 @@ export function registerLibraryRoutes({
   }
 
   const serializeLibraryItem = createLibraryItemSerializer(serializeUserLite);
+  const clo = createCloService({ prisma, resolveStoredLibraryFile: (item: any) => resolveStoredLibraryFile(item) });
   const PROJECT_FOLDER_SOURCE = "project-folder";
   const libraryContextSelect = {
     id: true, projectId: true, ownerId: true, reviewerId: true, parentId: true, creatorId: true, uploaderId: true, lastEditorId: true, generatedForUserId: true,
@@ -968,8 +970,9 @@ export function registerLibraryRoutes({
         include: itemInclude
       });
       clearLibraryContextCache();
-    } else if (root.title !== rootName) {
-      root = await prisma.libraryItem.update({ where: { id: root.id }, data: { title: rootName }, include: itemInclude });
+    } else if (root.title !== rootName || root.parentId) {
+      // Packets have their own Library section, so the root stays top-level.
+      root = await prisma.libraryItem.update({ where: { id: root.id }, data: { title: rootName, parentId: null }, include: itemInclude });
       clearLibraryContextCache();
     }
     return root;
@@ -1045,6 +1048,44 @@ export function registerLibraryRoutes({
       checksumSha256: item.checksumSha256 || null,
       cacheControl: "private, max-age=0, must-revalidate",
     });
+  });
+
+  // .clo export: the item and everything needed to rebuild it.
+  app.get("/api/library/:itemId/clo", async (request, reply) => {
+    const params = z.object({ itemId: z.string() }).parse(request.params);
+    const result = await findAccessibleItem(request, reply, params.itemId);
+    if (!result) return;
+    try {
+      const document = await clo.exportItem(result.item);
+      const name = (result.item.title || "item").replace(/[\\/:*?"<>|]+/g, "-").slice(0, 120) || "item";
+      reply.header("Content-Type", "application/json; charset=utf-8");
+      reply.header("Content-Disposition", `attachment; filename="${name.replace(/"/g, "")}.clo"; filename*=UTF-8''${encodeURIComponent(name)}.clo`);
+      reply.header("Cache-Control", "private, no-store");
+      return reply.send(JSON.stringify(document));
+    } catch (error: any) { return reply.code(error?.statusCode || 500).send({ ok: false, error: error?.message || "Export failed." }); }
+  });
+
+  // .clo import: rebuilds the object under parentId. Embedded files come
+  // back as paths for the client to upload through the normal upload flow.
+  app.post("/api/library/import-clo", { bodyLimit: 96 * 1024 * 1024 }, async (request, reply) => {
+    const access = await requireLibraryTool(request as any, reply as any, "edit");
+    if (!access) return;
+    const user = access.user;
+    const body = z.object({ parentId: z.string().nullable().optional(), document: z.object({ format: z.string(), version: z.number(), item: z.any() }) }).parse(request.body || {});
+    if (body.document.format !== CLO_FORMAT || body.document.version > CLO_VERSION) return reply.code(400).send({ ok: false, error: "This isn't a .clo file Cluster can read." });
+    let projectId: string | null = null;
+    if (body.parentId) {
+      const destination = await findAccessibleItem(request, reply, body.parentId, "contribute");
+      if (!destination) return;
+      projectId = destination.item.projectId || null;
+    }
+    const pendingFiles: Array<{ parentId: string | null; path: number[] }> = [];
+    try {
+      const createdId = await clo.importNode(body.document.item, { userId: user.id, parentId: body.parentId || null, projectId }, pendingFiles);
+      clearLibraryContextCache();
+      await logActivity({ userId: user.id, projectId, type: "created", entityType: "library", entityId: createdId || body.parentId || "library", title: "Imported .clo", message: String(body.document.item?.title || "") });
+      return { ok: true, createdId, files: pendingFiles };
+    } catch (error: any) { return reply.code(error?.statusCode || 400).send({ ok: false, error: error?.message || "Import failed." }); }
   });
 
   app.get("/api/library/:itemId/viewable-resource", async (request, reply) => {

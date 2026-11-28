@@ -10,6 +10,7 @@ import { canUseTool } from "../../core/permissions";
 import { NoteDocument } from "../notes/NoteDocument";
 import { FormItemModal } from "../forms/FormEditor";
 import { openLinkedLibraryItem } from "./library-linked-items";
+import { downloadNative, exportClo, importClo } from "./library-clo-client";
 import { ApiError, api, mutateApi, queryApi, setApiQueryData, uploadApi } from "../../core/api";
 import { useServerState } from "../../core/server-state";
 import { useResourceChangeRefresh } from "../../core/use-resource-change-refresh";
@@ -1105,7 +1106,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       setItemMenu({ x: event.clientX, y: event.clientY, item });
     },
     dragIds: (item) => actionTargets(item),
-    uploadInto: (folder, files) => { if (files.length) void uploadSelection(files, false, folder.id); },
+    uploadInto: (folder, files) => { if (files.length) void ingestFiles(files, folder.id); },
     dropInto: (folder, ids) => {
       const folderProject = folder.projectId || folder.project?.id || null;
       const crossing = items.filter((entry) => ids.includes(entry.id)).some((entry) => (entry.projectId || entry.project?.id || null) !== folderProject);
@@ -1128,7 +1129,8 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       ...(!many ? [
         { id: "open", label: item.type === "folder" ? "Open" : "Open preview", icon: item.type === "folder" ? "folder" : "fullscreen", onSelect: () => openLibraryItem(item) } as ClusterActionMenuItem,
         { id: "info", label: "Show details", icon: "panel-open", onSelect: () => void selectItem(item) } as ClusterActionMenuItem,
-        ...(item.type === "file" && item.hasFile ? [{ id: "download", label: "Download", icon: "download", onSelect: () => downloadLibraryItem(item) } as ClusterActionMenuItem] : []),
+        { id: "download", label: "Download", icon: "download", onSelect: () => void downloadNative(item, downloadLibraryItem).catch((reason) => setError(reason instanceof Error ? reason.message : "Download failed.")) } as ClusterActionMenuItem,
+        ...((item.type === "file" && item.hasFile) || item.type === "note" ? [{ id: "export-clo", label: "Export as .clo", icon: "archive", onSelect: () => void exportClo(item).catch((reason) => setError(reason instanceof Error ? reason.message : "Export failed.")) } as ClusterActionMenuItem] : []),
         ...(isWebLink(item) ? [
           { id: "open-link", label: "Open link", icon: "globe", onSelect: () => { window.open(String(item.externalUrl), "_blank", "noopener,noreferrer"); } } as ClusterActionMenuItem,
           { id: "copy-link", label: "Copy link", icon: "link", onSelect: () => { void navigator.clipboard?.writeText(String(item.externalUrl)); setStatus("Link copied."); } } as ClusterActionMenuItem,
@@ -1344,13 +1346,27 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
     setDropActive(false);
     if (uploading.active) { setStatus("Finish the current transfer before starting another batch."); return; }
     const target = folderId;
-    void filesFromDrop(event.dataTransfer).then((files) => { if (files.length) void uploadSelection(files, false, target); });
+    void filesFromDrop(event.dataTransfer).then((files) => { if (files.length) void ingestFiles(files, target); });
   }
 
   async function uploadFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
-    await uploadSelection(files, false);
+    await ingestFiles(files, folderId);
+  }
+
+  // .clo files rebuild their object; everything else uploads as itself.
+  async function ingestFiles(files: File[], targetFolderId: string | null) {
+    const objects = files.filter((file) => file.name.toLowerCase().endsWith(".clo"));
+    const plain = files.filter((file) => !objects.includes(file));
+    for (const file of objects) {
+      try {
+        await importClo(file, targetFolderId, (embedded, parentId) => uploadSelection(embedded, false, parentId));
+        setStatus(`Imported ${file.name.replace(/\.clo$/i, "")}.`);
+      } catch (reason) { setError(reason instanceof Error ? reason.message : `Couldn't import ${file.name}.`); }
+    }
+    if (objects.length) scheduleWorkspaceRevalidation();
+    if (plain.length) await uploadSelection(plain, false, targetFolderId);
   }
 
   async function uploadModelBundle(event: ChangeEvent<HTMLInputElement>) {
@@ -2177,7 +2193,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   }
 
   function clearFilters() { setFilters({ projectId: "", ownerId: "", type: "all", status: "active", mimeGroup: "all", visibility: "all", modified: "any", tag: "", pinned: "all", sort: "updated-desc" }); setQuery(""); }
-  function openLibrarySection(section: LibrarySection) { setLibrarySection(section); if (section !== "collection") setActiveCollection(null); if (section !== "folder") setFolderId(null); setActiveItem(null); setActiveId(null); setSelectedIds(new Set()); }
+  function openLibrarySection(section: LibrarySection) { setLibrarySection(section); if (section !== "collection") setActiveCollection(null); setFolderId(null); setActiveItem(null); setActiveId(null); setSelectedIds(new Set()); }
 
   const currentFolder = folderById.get(folderId || "") || null;
   const parentFolderId = currentFolder?.parentId || null;
@@ -2218,7 +2234,11 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
   // Project folders have their own section; keep them out of the root tree.
   const inProjectTree = folderById.get(path[0]?.id || currentFolder?.id || "")?.source === "project-folder";
   const projectFolderCount = folders.filter((folder) => !folder.parentId && folder.source === "project-folder").length;
-  const treeFolders = folders.filter((folder) => folder.parentId || folder.source !== "project-folder");
+  // Packets get their own section too; their root stays out of the tree.
+  const packetsRoot = folders.find((folder) => folder.source === "packets-root") || null;
+  const inPacketsTree = Boolean(packetsRoot && (currentFolder?.id === packetsRoot.id || path.some((entry) => entry.id === packetsRoot.id)));
+  const openPackets = () => { if (!packetsRoot) return; setLibrarySection("folder"); setFolderId(packetsRoot.id); setActiveItem(null); setActiveId(null); };
+  const treeFolders = folders.filter((folder) => (folder.parentId || folder.source !== "project-folder") && folder.source !== "packets-root");
   return <section className={`page cluster-library-workspace lib-page${embedded ? " lib-page--embedded" : ""}`}>
     <ClusterInput ref={fileInput} type="file" multiple hidden onChange={uploadFiles} />
     <ClusterInput ref={modelBundleInput} type="file" multiple hidden onChange={uploadModelBundle} {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
@@ -2230,6 +2250,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
       </div>
       {viewsOpen ? <nav className="lib-nav" aria-label="Library views">
         <ClusterButton unstyled type="button" className={atRoot ? "active" : ""} onClick={() => openLibrarySection("folder")}><ClusterIcon name="library" /><span>Library</span></ClusterButton>
+        {packetsRoot ? <ClusterButton unstyled type="button" className={librarySection === "folder" && inPacketsTree ? "active" : ""} onClick={openPackets}><ClusterIcon name="note" /><span>Packets</span></ClusterButton> : null}
         {([["projects", "Projects", "project"], ["recent", "Recent", "clock"], ["favorites", "Favorites", "star"], ["shared", "Shared with me", "users"], ["created", "Created by me", "user"], ["generated", "Generated", "spark"], ["archived", "Archived", "archive"], ["trash", "Trash", "trash"]] as Array<[LibrarySection, string, ClusterIconName]>).map(([section, label, icon]) => <ClusterButton unstyled type="button" key={section} className={librarySection === section ? "active" : ""} onClick={() => openLibrarySection(section)}><ClusterIcon name={icon} /><span>{label}</span></ClusterButton>)}
       </nav> : null}
       <PinnedShelf items={pinnedItems} onOpen={(item) => item.type === "folder" ? void selectItem(item) : void openItemViewer(item)} />
@@ -2264,7 +2285,7 @@ export default function LibraryWorkspacePage({ projects, currentUser, initialFol
             {librarySection === "folder" && currentFolder ? <ClusterIconButton label="Up one folder" size="compact" variant="quiet" onClick={() => { if (!parentFolderId && inProjectTree) { openLibrarySection("projects"); return; } setFolderId(parentFolderId); setActiveItem(null); setActiveId(null); }}><LibraryIcon name="previous" size={15} /></ClusterIconButton> : null}
             <ClusterButton unstyled type="button" onClick={() => openLibrarySection("folder")}>Library</ClusterButton>
             {librarySection === "folder" && inProjectTree ? <span><i>/</i><ClusterButton unstyled type="button" onClick={() => openLibrarySection("projects")}>Projects</ClusterButton></span> : null}
-            {librarySection === "folder" ? <>{path.map((entry) => <span key={entry.id}><i>/</i><ClusterButton unstyled type="button" onClick={() => { setLibrarySection("folder"); setFolderId(entry.id); setActiveItem(null); setActiveId(null); }}>{entry.title}</ClusterButton></span>)}{currentFolder && !path.some((entry) => entry.id === currentFolder.id) ? <span><i>/</i><strong>{currentFolder.title}</strong></span> : null}</> : <span><i>/</i><strong>{sectionLabel}</strong></span>}
+            {librarySection === "folder" ? <>{(inPacketsTree ? path.slice(Math.max(0, path.findIndex((entry) => entry.id === packetsRoot?.id))) : path).map((entry) => <span key={entry.id}><i>/</i><ClusterButton unstyled type="button" onClick={() => { setLibrarySection("folder"); setFolderId(entry.id); setActiveItem(null); setActiveId(null); }}>{entry.title}</ClusterButton></span>)}{currentFolder && !path.some((entry) => entry.id === currentFolder.id) ? <span><i>/</i><strong>{currentFolder.title}</strong></span> : null}</> : <span><i>/</i><strong>{sectionLabel}</strong></span>}
             {refreshing ? <ClusterStatus state="loading" compact>Refreshing</ClusterStatus> : null}
             {librarySection === "folder" ? <ClusterActionMenu label={currentFolder ? `${currentFolder.title} folder actions` : "Library root actions"} iconOnly className="library-breadcrumb-actions-v14" items={[
               ...newItems,

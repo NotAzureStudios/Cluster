@@ -73,6 +73,6 @@ export function ProjectNotes({ project, canContribute }: { project: Project; can
       onChange={(doc) => setList((items) => items?.map((item) => item.id === doc.id ? { ...item, title: doc.title, snippet: doc.body.slice(0, 280), updatedAt: doc.updatedAt || item.updatedAt } : item) || items)}
       onDelete={() => { setOpenId(null); void loadList(); }}
       onClose={() => setOpenId(null)} closeLabel="All notes" />
-      : <div className="pj-notes__empty"><ClusterIcon name="note" /><p>{list?.length ? "Pick a note." : "Write specs, meeting notes and docs here."}</p></div>}
+      : <div className="pj-notes__empty"><ClusterIcon name="note" /><p>{list?.length ? "Pick a note." : "Write specs and meeting notes here."}</p></div>}
   </section>;
 }

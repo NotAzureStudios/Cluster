@@ -218,7 +218,7 @@ export const ATTACHMENT_ENTITY_OPTIONS: Array<{ kind: EntityKind; label: string 
   { kind: "ticket", label: "Ticket" },
   { kind: "build", label: "Build" },
   { kind: "timeline", label: "Timeline" },
-  { kind: "library", label: "Library doc" },
+  { kind: "library", label: "Library note" },
   { kind: "whiteboard", label: "Whiteboard" },
   { kind: "comment", label: "Comment" },
 ];

@@ -230,11 +230,11 @@ export function LibraryModelThumbnail({ item }: { item: LibraryItem }) {
 function YouTubePreview({ item, expanded }: { item: LibraryItem; expanded: boolean }) {
   // Previews used to be withheld behind an external-content consent choice.
   // On a studio's own server there is no visitor to ask and no banner left to
-  // ask with, so the embed loads directly; referrerPolicy keeps the request
-  // from carrying where it came from.
+  // ask with, so the embed loads directly. YouTube refuses embeds with no
+  // Referer (error 153), so send the origin only — never the path.
   if (!item.youtubeEmbedUrl) return <div className="library-preview-empty-v217"><LibraryIcon name={item.type === "youtube-playlist" ? "playlist" : "youtube"} size={44} /><strong>YouTube preview unavailable</strong><p>Check that the saved URL points to a public YouTube {item.type === "youtube-playlist" ? "playlist" : "video"}.</p>{item.externalUrl && <ClusterLinkButton className="" href={item.externalUrl} target="_blank" rel="noreferrer" variant="primary">Open on YouTube</ClusterLinkButton>}</div>;
   return <div className={`library-youtube-preview-v229${expanded ? " expanded" : ""}`}>
-    <iframe src={item.youtubeEmbedUrl} title={`${item.title} YouTube preview`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
+    <iframe src={item.youtubeEmbedUrl} title={`${item.title} YouTube preview`} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen loading="lazy" referrerPolicy="strict-origin-when-cross-origin" />
     <div><LibraryIcon name={item.type === "youtube-playlist" ? "playlist" : "youtube"} size={17} /><strong>{item.type === "youtube-playlist" ? "YouTube playlist" : "YouTube video"}</strong>{item.externalUrl && <a href={item.externalUrl} target="_blank" rel="noreferrer">Open on YouTube</a>}</div>
   </div>;
 }

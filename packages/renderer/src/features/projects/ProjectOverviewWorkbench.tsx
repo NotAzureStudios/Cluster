@@ -1,3 +1,4 @@
+import { importClo } from "../library/library-clo-client";
 import { Fragment, useCallback, useEffect, useRef, useState, type DragEvent, type MutableRefObject, type ReactNode } from "react";
 import { filesFromDrop } from "../../core/drop-files";
 import { api, queryApi, uploadApi } from "../../core/api";
@@ -204,7 +205,7 @@ function ProjectNotes({ project, canEdit, onSaved }: { project: Project; canEdit
   const checks = lines.filter((line) => CHECK_LINE.test(line));
   const checked = checks.filter((line) => /\[(x|X)\]/.test(line)).length;
 
-  return <section className="pv-card pj-notes">
+  return <section className="pv-card pj-ovnotes">
     <header>
       <h3>Notes</h3>
       {checks.length ? <span className="pv-count">{checked}/{checks.length}</span> : null}
@@ -216,19 +217,19 @@ function ProjectNotes({ project, canEdit, onSaved }: { project: Project; canEdit
           onChange={(event) => change(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Escape") (event.target as HTMLTextAreaElement).blur(); }}
           onBlur={() => { setEditing(false); void save(); }} />
-      : <div className="pj-notes__view" role={canEdit ? "button" : undefined} tabIndex={canEdit ? 0 : undefined} aria-label={canEdit ? "Edit project notes" : undefined}
+      : <div className="pj-ovnotes__view" role={canEdit ? "button" : undefined} tabIndex={canEdit ? 0 : undefined} aria-label={canEdit ? "Edit project notes" : undefined}
           onClick={(event) => { if (canEdit && !(event.target as HTMLElement).closest("a, input, label")) setEditing(true); }}
           onKeyDown={(event) => { if (canEdit && event.key === "Enter" && event.target === event.currentTarget) setEditing(true); }}>
           {notes.trim() ? lines.map((line, index) => {
             const check = CHECK_LINE.exec(line);
-            if (check) return <label key={index} className="pj-notes__check" data-done={check[2] !== " " || undefined} style={{ paddingInlineStart: `${Math.min(check[1].length, 8) * 6}px` }}>
+            if (check) return <label key={index} className="pj-ovnotes__check" data-done={check[2] !== " " || undefined} style={{ paddingInlineStart: `${Math.min(check[1].length, 8) * 6}px` }}>
               <input type="checkbox" checked={check[2] !== " "} disabled={!canEdit} onChange={() => toggleLine(index)} /><span>{linkify(check[3])}</span>
             </label>;
             const heading = HEADING_LINE.exec(line);
-            if (heading) return <strong key={index} className="pj-notes__heading">{linkify(heading[1])}</strong>;
+            if (heading) return <strong key={index} className="pj-ovnotes__heading">{linkify(heading[1])}</strong>;
             const bullet = BULLET_LINE.exec(line);
-            if (bullet) return <p key={index} className="pj-notes__bullet">{linkify(bullet[1])}</p>;
-            return line.trim() ? <p key={index}>{linkify(line)}</p> : <span key={index} className="pj-notes__gap" />;
+            if (bullet) return <p key={index} className="pj-ovnotes__bullet">{linkify(bullet[1])}</p>;
+            return line.trim() ? <p key={index}>{linkify(line)}</p> : <span key={index} className="pj-ovnotes__gap" />;
           }) : <p className="pv-empty">{canEdit ? "Add notes. Start a line with - [ ] for a checkbox." : "No notes yet."}</p>}
         </div>}
   </section>;
@@ -252,20 +253,26 @@ export function ProjectFileDropZone({ project, enabled, onUploaded, children, la
   const active = enabled && Boolean(project.libraryFolderId);
   const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types || []).includes("Files");
 
+  async function send(file: File, parentId: string) {
+    await uploadApi("/api/library/transfers/finalize", {
+      file,
+      label: `Transfer ${file.name}`,
+      body: { parentId, projectId: project.id, originalName: file.name, relativePath: file.name, mimeType: file.type || "application/octet-stream", conflictPolicy: "rename", classification: "internal", tags: [], metadata: { browserLastModified: file.lastModified } },
+      invalidate: ["/api/library"],
+      persistBeforeTransfer: false,
+    });
+  }
+
   async function upload(files: File[]) {
     let done = 0;
     try {
       const parentId = resolveFolder ? await resolveFolder() : project.libraryFolderId;
       if (!parentId) throw new Error("This project has no Library folder.");
       for (const file of files) {
-        setStatus(`Uploading ${file.name} (${done + 1}/${files.length})…`);
-        await uploadApi("/api/library/transfers/finalize", {
-          file,
-          label: `Transfer ${file.name}`,
-          body: { parentId, projectId: project.id, originalName: file.name, relativePath: file.name, mimeType: file.type || "application/octet-stream", conflictPolicy: "rename", classification: "internal", tags: [], metadata: { browserLastModified: file.lastModified } },
-          invalidate: ["/api/library"],
-          persistBeforeTransfer: false,
-        });
+        setStatus(`${file.name.toLowerCase().endsWith(".clo") ? "Importing" : "Uploading"} ${file.name} (${done + 1}/${files.length})…`);
+        // A .clo rebuilds its object here; its embedded files upload as themselves.
+        if (file.name.toLowerCase().endsWith(".clo")) await importClo(file, parentId, async (embedded, target) => { for (const entry of embedded) await send(entry, target || parentId); });
+        else await send(file, parentId);
         done += 1;
       }
       setStatus(`${done} file${done === 1 ? "" : "s"} added to ${label || "the project folder"}.`);
