@@ -222,8 +222,9 @@ export const studioAnnouncementCreateSchema = z.object({
   discordDeliveryRequested: z.boolean().default(false),
   /** Also shown as a banner on Home until bannerEndsAt (or until ended). */
   homeBanner: z.boolean().default(false),
-  /** Where it's posted: the studio (Inbox and Chat) and/or the player portal. */
-  channels: z.array(z.enum(["studio", "player"])).min(1).max(2).default(["studio"]),
+  /** Where it's posted: the studio (Inbox and Chat), the player portal,
+   *  and/or every client account (their portal and Inbox). */
+  channels: z.array(z.enum(["studio", "player", "client"])).min(1).max(3).default(["studio"]),
   bannerEndsAt: z.coerce.date().nullable().optional(),
   scheduledAt: z.coerce.date().nullable().optional(),
 });

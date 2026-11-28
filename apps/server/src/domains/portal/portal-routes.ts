@@ -55,7 +55,7 @@ export function registerPortalRoutes(deps: Deps) {
       hostAudiences: audiences,
       portals: Object.fromEntries((["contractor", "client", "player"] as const).map((key) => [key, { enabled: portal[key].enabled, url: siteUrl(key), ownHost: Boolean(portal[key].host) }])),
       contractorFeatures: portal.contractor.features,
-      user: user ? { id: user.id, name: user.preferredName || user.displayName || user.username, username: user.username, avatarUrl: user.avatarUrl || null, accountType, portal: info?.portal || null, readOnly: Boolean(info?.readOnly), accessExpiresAt: user.accessExpiresAt || null } : null,
+      user: user ? { id: user.id, name: user.preferredName || user.displayName || user.username, username: user.username, avatarUrl: user.avatarUrl || null, accountType, portal: info?.portal || null, readOnly: Boolean(info?.readOnly), accessExpiresAt: user.accessExpiresAt || null, setupRequired: ["PASSWORD_CHANGE_REQUIRED", "PASSWORD_RESET_REQUIRED", "DISCORD_LINK_REQUIRED"].includes(String(user.accountState || "")) } : null,
     };
   });
 

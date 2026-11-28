@@ -63,7 +63,7 @@ import { RequestErrorState } from "../../components/RequestState";
 import { SECURITY_PIN_CONFIGURED_EVENT } from "../../core/security-pin";
 import { PublicClusterCover } from "../auth/PublicClusterCover";
 import type { AuthConfig } from "../auth/AuthScreens";
-import { authenticatedEntryScreen } from "../auth/AuthenticatedEntryGate";
+import { authenticatedEntryScreen, entryStepFor } from "../auth/AuthenticatedEntryGate";
 import { StudioPolicyGate } from "../legal/StudioPolicyGate";
 import { type ToolKey } from "../admin/AdminToolControls";
 import { isStandaloneToolRoute, StandaloneToolRoute } from "./modules/application-standalone-tool-registry";
@@ -91,7 +91,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   // Contractors, clients and guests belong in the external portal: once one
   // signs in here, reload so the app opens their portal instead.
-  useEffect(() => { if (user && clusterAccountPortal(user.accountType)) window.location.reload(); }, [user?.id, user?.accountType]);
+  useEffect(() => { if (user && clusterAccountPortal(user.accountType) && !entryStepFor(user as any)) window.location.reload(); }, [user]);
   useEffect(() => {
     if (user?.id) initializeOfflineRuntime();
     setOfflineRuntimeAuthenticated(Boolean(user?.id));

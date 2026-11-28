@@ -84,7 +84,7 @@ export function ChatPage() {
           : messages.map((item) => <article key={item.id} className="chat__msg" data-priority={item.priority}>
             <PresenceAvatar userId={item.author?.id} imageUrl={item.author?.avatarUrl} label={item.author?.name || "Cluster"} fallback={(item.author?.name || "C").slice(0, 1).toUpperCase()} />
             <div className="chat__msg-body">
-              <header><strong>{item.author?.name || "Cluster"}</strong><time dateTime={item.publishedAt} title={new Date(item.publishedAt).toLocaleString()}>{formatRelativeTime(item.publishedAt)}</time>{PRIORITY_LABEL[item.priority] ? <span className="chat__tag" data-priority={item.priority}>{PRIORITY_LABEL[item.priority]}</span> : null}{item.bannerActive ? <span className="chat__tag" data-banner>On Home</span> : null}{item.channels?.includes("player") ? <span className="chat__tag" data-players>{item.channels.includes("studio") ? "Also players" : "Players"}</span> : null}{item.audience ? <span className="chat__to-note">to {describeAudience(item.audience, catalog)}</span> : null}</header>
+              <header><strong>{item.author?.name || "Cluster"}</strong><time dateTime={item.publishedAt} title={new Date(item.publishedAt).toLocaleString()}>{formatRelativeTime(item.publishedAt)}</time>{PRIORITY_LABEL[item.priority] ? <span className="chat__tag" data-priority={item.priority}>{PRIORITY_LABEL[item.priority]}</span> : null}{item.bannerActive ? <span className="chat__tag" data-banner>On Home</span> : null}{item.channels?.includes("player") ? <span className="chat__tag" data-players>Players</span> : null}{item.channels?.includes("client") ? <span className="chat__tag" data-clients>Clients</span> : null}{item.audience ? <span className="chat__to-note">to {describeAudience(item.audience, catalog)}</span> : null}</header>
               <h3>{item.title}</h3>
               <div className="chat__md">{renderMarkdown(item.body)}</div>
               {(item.requiresAcknowledgement && item.deliveryId) || item.reach || (feed?.manager && item.bannerActive) ? <footer>
@@ -106,7 +106,7 @@ function AnnouncementComposer({ onPosted, catalog }: { onPosted: () => Promise<v
   const [audience, setAudience] = useState<StudioAudience>({ mode: "all", targets: [] });
   const [banner, setBanner] = useState(false);
   const [bannerUntil, setBannerUntil] = useState("");
-  const [where, setWhere] = useState<"studio" | "player" | "both">("studio");
+  const [where, setWhere] = useState<Array<"studio" | "player" | "client">>(["studio"]);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<"normal" | "high" | "urgent">("normal");
@@ -123,18 +123,18 @@ function AnnouncementComposer({ onPosted, catalog }: { onPosted: () => Promise<v
       const created = await api<{ id: string }>("/api/studio-systems/announcements", { method: "POST", body: JSON.stringify({
         createIntentId: crypto.randomUUID(), title: title.trim(), body: body.trim(), priority,
         requiresAcknowledgement: ack, discordDeliveryRequested: discord, audience,
-        channels: where === "both" ? ["studio", "player"] : [where],
+        channels: where,
         homeBanner: banner, bannerEndsAt: banner && bannerUntil ? new Date(bannerUntil).toISOString() : null,
       }) });
       await api(`/api/studio-systems/announcements/${created.id}/publish`, { method: "POST", body: "{}" });
-      setTitle(""); setBody(""); setPriority("normal"); setAck(false); setDiscord(false); setAudience({ mode: "all", targets: [] }); setBanner(false); setBannerUntil(""); setWhere("studio");
+      setTitle(""); setBody(""); setPriority("normal"); setAck(false); setDiscord(false); setAudience({ mode: "all", targets: [] }); setBanner(false); setBannerUntil(""); setWhere(["studio"]);
       await onPosted();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The announcement wasn't posted."); }
     finally { setBusy(false); }
   }
 
   return <form className="chat__composer" onSubmit={(event) => { event.preventDefault(); void post(); }}>
-    {where !== "player" ? <AudienceField value={audience} onChange={setAudience} catalog={catalog} /> : <p className="chat__to"><span className="chat__to-label">To</span><span className="chat__chip chat__chip--all">Player portal</span></p>}
+    {where.includes("studio") ? <AudienceField value={audience} onChange={setAudience} catalog={catalog} /> : <p className="chat__to"><span className="chat__to-label">To</span><span className="chat__chip chat__chip--all">{where.map((value) => value === "player" ? "Player portal" : "Clients").join(" and ")}</span></p>}
     <input className="chat__composer-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" maxLength={200} aria-label="Announcement title" />
     <textarea className="chat__composer-body" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write an announcement…" rows={3} aria-label="Announcement message"
       onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void post(); } }} />
@@ -143,8 +143,8 @@ function AnnouncementComposer({ onPosted, catalog }: { onPosted: () => Promise<v
         {(["normal", "high", "urgent"] as const).map((value) => <button key={value} type="button" role="radio" aria-checked={priority === value} data-priority={value} onClick={() => setPriority(value)}>{value === "normal" ? "Normal" : PRIORITY_LABEL[value]}</button>)}
       </div>
       <label className="chat__opt"><input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} /> Require acknowledgement</label>
-      <div className="chat__seg" role="radiogroup" aria-label="Post to">
-        {([["studio", "Studio"], ["player", "Players"], ["both", "Both"]] as const).map(([value, label]) => <button key={value} type="button" role="radio" aria-checked={where === value} onClick={() => setWhere(value)}>{label}</button>)}
+      <div className="chat__seg" role="group" aria-label="Post to">
+        {([["studio", "Studio"], ["client", "Clients"], ["player", "Players"]] as const).map(([value, label]) => <button key={value} type="button" aria-pressed={where.includes(value)} aria-checked={where.includes(value)} onClick={() => setWhere((current) => current.includes(value) ? (current.length > 1 ? current.filter((entry) => entry !== value) : current) : [...current, value])}>{label}</button>)}
       </div>
       <label className="chat__opt" title="Show this as a banner on Home"><input type="checkbox" checked={banner} onChange={(event) => setBanner(event.target.checked)} /> Home banner</label>
       {banner ? <label className="chat__opt">until <input className="chat__until" type="datetime-local" value={bannerUntil} onChange={(event) => setBannerUntil(event.target.value)} aria-label="Banner ends" /></label> : null}

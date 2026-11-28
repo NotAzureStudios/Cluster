@@ -125,6 +125,66 @@ export function registerPortalRequestRoutes(deps: Deps) {
     return { ok: true };
   });
 
+  // ---- Client portal (signed-in client accounts) ----------------------------
+
+  async function clientUser(request: any, reply: any) {
+    const user = await getCurrentUser(request);
+    if (!user) { reply.code(401).send({ ok: false, code: "AUTH_REQUIRED", error: "Sign in first." }); return null; }
+    if (String(user.accountType) !== "client" || !readPortalSettings(await readSettings()).client.enabled) { notFound(reply); return null; }
+    return user;
+  }
+  async function ticketState(cardId: string | null) {
+    if (!cardId) return null;
+    const card = await prisma.card.findUnique({ where: { id: cardId }, select: { title: true, archived: true, completedAt: true, list: { select: { title: true, isDone: true } } } });
+    if (!card) return null;
+    return { title: card.title, stage: card.list?.title || "", done: Boolean(card.list?.isDone), archived: Boolean(card.archived) };
+  }
+
+  app.get("/api/portal/client/requests", async (request: any, reply: any) => {
+    const user = await clientUser(request, reply);
+    if (!user) return;
+    const rows = await prisma.portalRequest.findMany({ where: { requesterUserId: user.id }, orderBy: { lastActivityAt: "desc" }, take: 200, include: { messages: { orderBy: { createdAt: "desc" }, take: 1, select: { authorKind: true } } } });
+    const tickets = await Promise.all(rows.map((row: any) => ticketState(row.cardId)));
+    reply.header("Cache-Control", "private, no-store");
+    return { requests: rows.map((row: any, index: number) => ({ code: row.code, kind: row.kind, title: row.title, status: row.status, lastActivityAt: row.lastActivityAt, studioReplied: row.messages[0]?.authorKind === "studio", ticket: tickets[index] })) };
+  });
+
+  app.post("/api/portal/client/requests", async (request: any, reply: any) => {
+    const user = await clientUser(request, reply);
+    if (!user) return;
+    const body = z.object({ kind: z.enum(["request", "bug", "help", "feedback"]), title: z.string().trim().min(3).max(160), body: z.string().trim().min(1).max(8000) }).parse(request.body || {});
+    const { request: row } = await createPortalRequest(prisma, { audience: "client", kind: body.kind, title: body.title, body: body.body, contactName: user.preferredName || user.displayName || user.username, contactEmail: user.email || null, requesterUserId: user.id });
+    await notifyStudio(`Client ${body.kind === "bug" ? "bug report" : body.kind}`, `${user.displayName || user.username}: ${body.title}`, row.id);
+    return reply.code(201).send({ ok: true, code: row.code });
+  });
+
+  app.get("/api/portal/client/requests/:code", async (request: any, reply: any) => {
+    const user = await clientUser(request, reply);
+    if (!user) return;
+    const { code } = z.object({ code: z.string().trim().toUpperCase().max(20) }).parse(request.params);
+    const row = await prisma.portalRequest.findUnique({ where: { code } });
+    if (!row || row.requesterUserId !== user.id) return notFound(reply);
+    const messages = await prisma.portalRequestMessage.findMany({ where: { requestId: row.id }, orderBy: { createdAt: "asc" }, take: 500 });
+    reply.header("Cache-Control", "private, no-store");
+    return { ...publicView(row, messages), stage: null, ticket: await ticketState(row.cardId) };
+  });
+
+  app.post("/api/portal/client/requests/:code/messages", async (request: any, reply: any) => {
+    const user = await clientUser(request, reply);
+    if (!user) return;
+    const { code } = z.object({ code: z.string().trim().toUpperCase().max(20) }).parse(request.params);
+    const body = z.object({ body: z.string().trim().min(1).max(8000) }).parse(request.body || {});
+    const row = await prisma.portalRequest.findUnique({ where: { code } });
+    if (!row || row.requesterUserId !== user.id) return notFound(reply);
+    if (row.status === "closed") return reply.code(409).send({ ok: false, error: "This conversation is closed. Start a new request." });
+    await prisma.$transaction([
+      prisma.portalRequestMessage.create({ data: { requestId: row.id, authorKind: "requester", authorUserId: user.id, body: body.body } }),
+      prisma.portalRequest.update({ where: { id: row.id }, data: { lastActivityAt: new Date(), status: row.status === "resolved" || row.status === "waiting" ? "open" : row.status } }),
+    ]);
+    await notifyStudio("New reply from a client", `${row.code} · ${row.title}`, row.id);
+    return { ok: true };
+  });
+
   // ---- Studio side: Chat › Requests ----------------------------------------
 
   async function requireManager(request: any, reply: any) {

@@ -7,12 +7,14 @@ import { downloadAuthenticatedClusterFile } from "../../core/browser-download-tr
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon, type ClusterIconName } from "../../components/ClusterIcon";
 import { LoginScreen, type AuthConfig } from "../auth/AuthScreens";
+import { authenticatedEntryScreen } from "../auth/AuthenticatedEntryGate";
 import { MyFormsPanel } from "../settings/MyFormsPanel";
 import { ChatPage } from "../chat/ChatPage";
 import { HomeBanners } from "../chat/HomeBanners";
 import { nativeShell, switchServer } from "../mobile/native-shell";
 import { loadPortalContext, type PortalContext } from "./portal-context";
 import { PlayerPortal } from "./PlayerPortal";
+import { ClientPortal } from "./ClientPortal";
 import "./portal.css";
 
 type Project = { id: string; name: string; color: string | null; status: string; targetDate: string | null; libraryFolderId: string | null; access: string };
@@ -44,6 +46,7 @@ export default function PortalApp({ initialContext }: { initialContext: PortalCo
   const accountsHere = serves("contractor") || serves("client");
   const login = <div className="portal portal--signin" data-audience={context.hostAudiences.find((audience) => audience !== "player") || "contractor"}><LoginScreen config={authConfig} studioName={`${context.studioName} portal`} onLogin={() => void reload()} onRetryConfig={() => void api<AuthConfig>("/api/auth/config").then(setAuthConfig)} /></div>;
 
+  if (context.user?.setupRequired) return <PortalAccountSetup onDone={() => void reload()} onSignOut={signOut} />;
   const audience = context.user?.portal || null;
   if (!context.user || !audience) {
     if (signingIn && !context.user) return login;
@@ -52,8 +55,16 @@ export default function PortalApp({ initialContext }: { initialContext: PortalCo
     return <PortalNotice context={context} title="This is the external portal" body="Studio members use Cluster." action={context.mainUrl ? <a className="portal__link-button" href={context.mainUrl}>Open Cluster</a> : null} onSignOut={signOut} />;
   }
   if (!context.portals[audience].enabled) return <PortalNotice context={context} title="Your portal is turned off" body="Contact the studio if you need access." onSignOut={signOut} />;
-  if (audience !== "contractor") return <PortalNotice context={context} title={`${context.studioName} ${audience} portal`} body="Your portal is coming soon. The studio will reach out in the meantime." onSignOut={signOut} />;
+  if (audience === "client") return <ClientPortal context={context} onSignOut={signOut} />;
   return <ContractorPortal context={context} onSignOut={signOut} />;
+}
+
+/** A new or reset account sets its password (or links Discord) first. */
+function PortalAccountSetup({ onDone, onSignOut }: { onDone: () => void; onSignOut: () => void }) {
+  const [me, setMe] = useState<any>(null);
+  useEffect(() => { void api<any>("/api/me").then((value) => setMe(value?.user || value)).catch(() => undefined); }, []);
+  if (!me) return null;
+  return <div className="portal portal--signin" data-audience="contractor">{authenticatedEntryScreen({ user: me, onUserUpdated: onDone, onRefresh: onDone, onLogout: onSignOut })}</div>;
 }
 
 function PortalNotice({ context, title, body, action, onSignOut }: { context: PortalContext; title: string; body: string; action?: React.ReactNode; onSignOut?: () => void }) {

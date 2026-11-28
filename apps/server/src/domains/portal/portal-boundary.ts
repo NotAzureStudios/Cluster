@@ -20,6 +20,7 @@ const CONTRACTOR_FEATURES: Record<string, RegExp[]> = {
   time: [/^\/api\/time\/(active|start|stop)$/],
   files: [/^\/api\/library\/[^/]+\/(file|thumbnail|preview|model-thumbnail|viewable-resource|clo)$/],
 };
+const CLIENT = [/^\/api\/announcements(\/banners)?$/];
 const CONTRACTOR_UPLOADS = [/^\/api\/library\/transfers(\/|$)/, /^\/api\/uploads(\/|$)/];
 
 export const isExternalAccount = (user: any) => Boolean(CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(user?.accountType)].portal);
@@ -36,6 +37,7 @@ export function requestHost(request: any) {
  *  contractor portal to its enabled features and to read-only for guests. */
 export function portalApiAllowed(pathname: string, method: string, portal: ClusterExternalPortalSettings, audiences: ClusterPortalAudience[], user?: any) {
   if (ALWAYS.some((pattern) => pattern.test(pathname))) return true;
+  if (audiences.includes("client") && CLIENT.some((pattern) => pattern.test(pathname))) return true;
   if (!audiences.includes("contractor")) return false;
   const features = portal.contractor.features;
   for (const feature of features) if (CONTRACTOR_FEATURES[feature]?.some((pattern) => pattern.test(pathname))) return true;

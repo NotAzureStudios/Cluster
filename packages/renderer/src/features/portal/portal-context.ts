@@ -7,7 +7,7 @@ export type PortalContext = {
   hostAudiences: ClusterPortalAudience[];
   portals: Record<ClusterPortalAudience, { enabled: boolean; url: string; ownHost: boolean }>;
   contractorFeatures: ClusterContractorPortalFeature[];
-  user: { id: string; name: string; username: string; avatarUrl: string | null; accountType: ClusterAccountType; portal: ClusterPortalAudience | null; readOnly: boolean; accessExpiresAt: string | null } | null;
+  user: { id: string; name: string; username: string; avatarUrl: string | null; accountType: ClusterAccountType; portal: ClusterPortalAudience | null; readOnly: boolean; accessExpiresAt: string | null; setupRequired: boolean } | null;
 };
 
 export const loadPortalContext = () => api<PortalContext>("/api/portal/context");

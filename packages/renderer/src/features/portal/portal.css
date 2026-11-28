@@ -146,3 +146,14 @@
 .pp__msg time { color: var(--muted); font-size: .66rem; }
 .pp__reply { gap: 8px; }
 @media (max-width: 560px) { .pp__row { grid-template-columns: 1fr; } .pp__hero h1 { font-size: 1.5rem; } }
+
+/* Client portal */
+.cp__list button { grid-template-columns: auto minmax(0, 1fr) auto; }
+.cp__list span { display: grid; min-width: 0; }
+.cp__list strong { overflow: hidden; font-size: .84rem; text-overflow: ellipsis; white-space: nowrap; }
+.cp__list small { overflow: hidden; color: var(--muted); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+.cp__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--portal-accent); }
+.cp__ticket { display: flex; align-items: center; gap: 6px; margin: -4px 0 12px; color: var(--muted); font-size: .78rem; }
+.cp__ticket svg { width: 14px; height: 14px; color: var(--portal-accent); }
+.cp__ticket strong { color: var(--text); }
+.pp__form .portal__seg { justify-self: start; }
