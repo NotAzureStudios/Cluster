@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { nativeShell, switchServer } from "../../mobile/native-shell";
 import { isClosedTicketStage } from "@cluster/shared";
 import { ClusterNativeSelect } from "../../../components/ClusterNativeControls";
 import { ClusterTextInput } from "../../../components/ClusterTextInput";
@@ -739,6 +740,10 @@ export function ProjectTabsBar({ projects, openProjectIds, pinnedProjectIds, act
         </section>
 
         <div className="taskbar-account-signout-v546">
+          {nativeShell ? <ClusterButton unstyled type="button" onClick={() => { setUserMenuOpen(false); switchServer(); }}>
+            <span className="taskbar-account-action-icon-v546"><ClusterIcon name="sync" /></span>
+            <span><strong>Switch server</strong></span>
+          </ClusterButton> : null}
           <ClusterButton unstyled type="button" className="danger" onClick={() => { setUserMenuOpen(false); onLogout(); }}>
             <span className="taskbar-account-action-icon-v546"><ClusterIcon name="forward" /></span>
             <span><strong>Sign out</strong></span>

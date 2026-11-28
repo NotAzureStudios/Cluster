@@ -10,3 +10,8 @@
 .home-banner__text strong { font-size: .82rem; white-space: nowrap; }
 .home-banner__text span { min-width: 0; overflow: hidden; color: var(--soft-text, var(--text)); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
 .home-banner__text small { margin-left: auto; color: var(--muted); font-size: .68rem; white-space: nowrap; }
+@media (max-width: 640px) {
+  .home-banner__text { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .home-banner__text span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .home-banner__text small { margin-left: 0; }
+}

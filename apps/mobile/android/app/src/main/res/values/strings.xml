@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cluster</string>
+    <string name="title_activity_main">Cluster</string>
+    <string name="package_name">dev.azurestudios.cluster</string>
+    <string name="custom_url_scheme">dev.azurestudios.cluster</string>
+</resources>

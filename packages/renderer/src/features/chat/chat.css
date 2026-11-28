@@ -66,3 +66,7 @@
 .chat__to-note { color: var(--muted); font-size: .66rem; }
 .chat__tag[data-banner] { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .chat__composer.chat__composer input.chat__until.chat__until { min-height: 22px; padding: 0 6px; border: 0 !important; border-radius: 6px; background: var(--cluster-surface-1) !important; color: var(--text); font: inherit; font-size: .7rem; color-scheme: dark; }
+@media (max-width: 767px) {
+  .chat { height: calc(var(--cluster-mobile-viewport-height, 100dvh) - 72px - 62px - env(safe-area-inset-bottom)); padding: 8px; }
+  .chat__composer-bar { gap: 8px; }
+}

@@ -1,0 +1,3 @@
+/* Inside the Cluster mobile app the WebView owns the whole screen. */
+:root[data-native-shell="mobile"] { -webkit-touch-callout: none; overscroll-behavior: none; }
+:root[data-native-shell="mobile"] body { padding-top: env(safe-area-inset-top); }

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Cluster</title>
+<style>
+  :root { --accent: #57c1ff; --text: #eef3f6; --muted: #8a97a3; --surface: #161c21; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #0d1114; color: var(--text); font: 15px/1.4 "Comfortaa", -apple-system, system-ui, sans-serif; -webkit-text-size-adjust: 100%; }
+  main { min-height: 100%; display: grid; align-content: center; justify-items: center; gap: 22px; padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom)); }
+  img { width: 72px; height: 72px; border-radius: 18px; }
+  h1 { margin: 0; font-size: 1.4rem; }
+  p { margin: -12px 0 0; color: var(--muted); font-size: .9rem; text-align: center; }
+  form { display: grid; gap: 10px; width: min(380px, 100%); }
+  input { width: 100%; height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; outline: none; }
+  input:focus { box-shadow: 0 0 0 2px var(--accent); }
+  button { height: 48px; border: 0; border-radius: 12px; background: var(--accent); color: #04141f; font: inherit; font-weight: 700; }
+  button:disabled { opacity: .5; }
+  .error { min-height: 1.2em; margin: 0; color: #ff7a85; font-size: .82rem; text-align: center; }
+  .recent { display: grid; gap: 6px; width: min(380px, 100%); }
+  .recent button { background: var(--surface); color: var(--text); font-weight: 500; text-align: left; padding: 0 14px; }
+</style>
+</head>
+<body>
+<main>
+  <img src="icon.png" alt="" />
+  <h1>Cluster</h1>
+  <p>Connect to your studio's server.</p>
+  <form id="connect">
+    <input id="url" type="url" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="cluster.yourstudio.com" required />
+    <button id="go" type="submit">Connect</button>
+    <p class="error" id="error" role="alert"></p>
+  </form>
+  <div class="recent" id="recent"></div>
+</main>
+<script>
+  // Remembers the server and opens it. The Cluster web app then runs inside
+  // this native shell; "Switch server" in the app returns here with ?change.
+  const KEY = "cluster.server";
+  const RECENT = "cluster.recent";
+  const params = new URLSearchParams(location.search);
+  const saved = localStorage.getItem(KEY);
+  // The web app reads these once: it's inside the shell, and where to come back to.
+  const open = (url) => location.replace(`${url}/?shell=mobile&shellOrigin=${encodeURIComponent(location.origin)}`);
+  if (saved && !params.has("change")) open(saved);
+
+  const normalize = (value) => {
+    const raw = value.trim().replace(/\/+$/, "");
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  };
+  const recent = JSON.parse(localStorage.getItem(RECENT) || "[]");
+  const list = document.getElementById("recent");
+  for (const url of recent) {
+    const button = Object.assign(document.createElement("button"), { type: "button", textContent: url.replace(/^https?:\/\//, "") });
+    button.onclick = () => connect(url);
+    list.append(button);
+  }
+  document.getElementById("url").value = (saved || "").replace(/^https?:\/\//, "");
+
+  async function connect(url) {
+    const go = document.getElementById("go");
+    const error = document.getElementById("error");
+    error.textContent = ""; go.disabled = true; go.textContent = "Connecting…";
+    try {
+      const response = await fetch(`${url}/health/live`, { headers: { Accept: "application/json" } });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body || body.live !== true) throw new Error("That address isn't a Cluster server.");
+      localStorage.setItem(KEY, url);
+      localStorage.setItem(RECENT, JSON.stringify([url, ...recent.filter((entry) => entry !== url)].slice(0, 4)));
+      open(url);
+    } catch (cause) {
+      error.textContent = cause instanceof Error && cause.message.includes("Cluster") ? cause.message : "Couldn't reach that server. Check the address and your connection.";
+      go.disabled = false; go.textContent = "Connect";
+    }
+  }
+  document.getElementById("connect").addEventListener("submit", (event) => { event.preventDefault(); connect(normalize(document.getElementById("url").value)); });
+</script>
+</body>
+</html>
