@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CLUSTER_ACCOUNT_TYPES, CLUSTER_ACCOUNT_TYPE_INFO, clusterAccountType } from "@cluster/shared";
 import { api, queryApi } from "../../core/api";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterInput, ClusterNativeSelect } from "../../components/ClusterNativeControls";
@@ -176,12 +177,11 @@ export function PeopleAccountProvisioningWizard({
         {validation.email && <small className="people-account-wizard-field-error-v11">{validation.email}</small>}</label>
       <label className="field"><span>Account type</span>
         <ClusterNativeSelect value={draft.accountType} onChange={(event) => onPatch({ accountType: event.target.value })}>
-          <option value="employee">Employee</option><option value="contractor">Contractor</option>
-          <option value="client">Client</option><option value="guest">Guest</option>
+          {CLUSTER_ACCOUNT_TYPES.map((type) => <option key={type} value={type}>{CLUSTER_ACCOUNT_TYPE_INFO[type].label}</option>)}
         </ClusterNativeSelect>
-        <small>Account type describes the person's identity. Role permissions are separate.</small></label>
+        <small>{CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(draft.accountType)].description}</small></label>
       <label className="field"><span>Access expiration</span><ClusterInput type="date" value={draft.accessExpiresAt} onChange={(event) => onPatch({ accessExpiresAt: event.target.value })} />
-        <small>{draft.accountType === "employee" ? "Optional for employees." : "Required for temporary and external accounts."}</small>
+        <small>{CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(draft.accountType)].requiresExpiry ? "Required: access ends on this date." : "Optional."}</small>
         {validation.accessExpiresAt && <small className="people-account-wizard-field-error-v11">{validation.accessExpiresAt}</small>}</label>
     </div>}
 

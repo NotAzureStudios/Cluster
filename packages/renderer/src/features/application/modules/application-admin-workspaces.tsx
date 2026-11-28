@@ -1,4 +1,5 @@
 import "../admin-control-center.css";
+import { CLUSTER_ACCOUNT_TYPES, CLUSTER_ACCOUNT_TYPE_INFO } from "@cluster/shared";
 import "../styles/tool-infrastructure.css";
 import "../styles/template-management.css";
 import { CLUSTER_ADMIN_CONFIGURABLE_TOOL_IDS, CLUSTER_TOOL_PERMISSION_MANIFEST, type ClusterToolPermissionKey } from "@cluster/shared";
@@ -205,10 +206,7 @@ export function UserEditorForm({ form, setForm, settings, departmentOptions, use
           <div className="field">
             <label>Account type</label>
             <ClusterNativeSelect value={form.accountType || "employee"} onChange={(e) => patch("accountType", e.target.value)}>
-              <option value="employee">Employee</option>
-              <option value="contractor">Contractor</option>
-              <option value="client">Client</option>
-              <option value="guest">Guest</option>
+              {CLUSTER_ACCOUNT_TYPES.map((type) => <option key={type} value={type}>{CLUSTER_ACCOUNT_TYPE_INFO[type].label}</option>)}
             </ClusterNativeSelect>
           </div>
           <div className="field">

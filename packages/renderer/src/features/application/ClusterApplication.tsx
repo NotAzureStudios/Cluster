@@ -1,5 +1,6 @@
 import type { ClusterWorkNavigationTarget } from "../workflow/work-navigation-types";
 
+import { clusterAccountPortal } from "@cluster/shared";
 import { writePreferenceStorage } from "../../core/preference-storage";
 import { configureClusterSounds, installClusterUiSoundInteractions } from "../../core/cluster-sounds";
 import { setToastPosition } from "../../core/toasts";
@@ -88,6 +89,9 @@ function screenNeedsWhiteboards(screen: AppScreen) { return WHITEBOARD_IMMEDIATE
 export default function App() {
   const shareToken = publicShareToken();
   const [user, setUser] = useState<User | null>(null);
+  // Contractors, clients and guests belong in the external portal: once one
+  // signs in here, reload so the app opens their portal instead.
+  useEffect(() => { if (user && clusterAccountPortal(user.accountType)) window.location.reload(); }, [user?.id, user?.accountType]);
   useEffect(() => {
     if (user?.id) initializeOfflineRuntime();
     setOfflineRuntimeAuthenticated(Boolean(user?.id));

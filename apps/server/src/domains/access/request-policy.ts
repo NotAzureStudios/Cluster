@@ -105,6 +105,8 @@ export function isPublicRequest(pathname: string, method = "GET") {
   // body is the credential, and the route rate-limits and validates it.
   if (path === "/api/auth/account-invitations/activate") return normalizedMethod === "POST";
   if (path === "/api/setup/status") return normalizedMethod === "GET";
+  // Which portal this address serves and who is signed in (or nobody).
+  if (path === "/api/portal/context") return normalizedMethod === "GET";
   if (path === "/api/setup/complete") return normalizedMethod === "POST";
   if (path === "/api/auth/discord/callback" || path === "/api/auth/discord/link") return normalizedMethod === "GET";
   if (["/api/integrations/discord/interactions", "/api/integrations/discord/gateway-relay"].includes(path)) return normalizedMethod === "POST";

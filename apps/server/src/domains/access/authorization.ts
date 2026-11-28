@@ -20,8 +20,11 @@ export const DEFAULT_VIEWER_TOOL_PERMISSIONS: Record<ClusterToolPermissionKey, s
   mywork: "view", inbox: "view", projects: "view", boards: "view", whiteboards: "view", viewer: "view", timeline: "view", builds: "view", qa: "view", tickets: "view", calendar: "view", scheduler: "view", library: "view", packets: "view", inventory: "view", vault: "none", sourceControl: "view", integrations: "none", people: "view", activity: "view", settings: "view", serverConfig: "none",
 };
 
+// External accounts are held to the portal API boundary (domains/portal);
+// these levels apply inside it: their own time, uploads to folders they can
+// reach, and their tickets.
 const EXTERNAL_COLLABORATOR_TOOL_PERMISSIONS: Record<ClusterToolPermissionKey, string> = {
-  mywork: "view", inbox: "view", projects: "view", boards: "view", whiteboards: "view", viewer: "view", timeline: "view", builds: "view", qa: "edit", tickets: "edit", calendar: "view", scheduler: "none", library: "view", packets: "view", inventory: "view", vault: "none", sourceControl: "view", integrations: "none", people: "none", activity: "none", settings: "view", serverConfig: "none",
+  mywork: "view", inbox: "view", projects: "view", boards: "view", whiteboards: "view", viewer: "view", timeline: "view", builds: "view", qa: "edit", tickets: "edit", calendar: "view", scheduler: "edit", library: "edit", packets: "none", inventory: "none", vault: "none", sourceControl: "none", integrations: "none", people: "none", activity: "none", settings: "view", serverConfig: "none",
 };
 
 const TARGET_TOOL: Record<string, ClusterToolPermissionKey> = {
@@ -314,8 +317,9 @@ export function createAuthorizationService(deps: AuthorizationDependencies) {
       const permissions = parseObject(user?.projectPermissions);
       const explicit = permissions[project.id];
       if (explicit) return String(explicit);
-      if (isExternalCollaboratorRole(user, role)) return String(project?.source || "").toLowerCase() === "external" ? "view" : "none";
       const membership = projectMembershipForUser(project, user?.id);
+      // External people reach a project only through its crew, and never manage it.
+      if (isExternalCollaboratorRole(user, role)) return membership ? (String(membership.accessLevel) === "view" ? "view" : "contribute") : "none";
       if (membershipIsLead(membership)) return "manage";
       if (membership) return ["view", "contribute", "manage"].includes(String(membership.accessLevel)) ? String(membership.accessLevel) : "none";
       return "view";
@@ -334,8 +338,8 @@ export function createAuthorizationService(deps: AuthorizationDependencies) {
     const explicit = parseObject(user?.projectPermissions)[project?.id];
     if (explicit) return { projectId: project?.id, level: getProjectPermissionLevel(user, role, project), source: inheritedCap ? "project-bundle-ceiling" : "user-project-override", reasons: [`A user-specific project override sets access to ${String(explicit)}.`, ...(inheritedCap ? [`Project bundle ceiling limits Projects to ${inheritedCap}.`] : [])] };
     if (isExternalCollaboratorRole(user, role)) {
-      const level = String(project?.source || "").toLowerCase() === "external" ? "view" : "none";
-      return { projectId: project?.id, level: getProjectPermissionLevel(user, role, project), source: inheritedCap ? "project-bundle-ceiling" : "external-collaborator-policy", reasons: [level === "view" ? "External collaborators may view externally sourced projects." : "External collaborators are denied implicit access to internal projects.", ...(inheritedCap ? [`Project bundle ceiling limits Projects to ${inheritedCap}.`] : [])] };
+      const crew = projectMembershipForUser(project, user?.id);
+      return { projectId: project?.id, level: getProjectPermissionLevel(user, role, project), source: inheritedCap ? "project-bundle-ceiling" : "external-collaborator-policy", reasons: [crew ? "External people reach a project through its crew, up to contribute." : "External people see only projects they're on the crew of."] };
     }
     const membership = projectMembershipForUser(project, user?.id);
     if (membershipIsLead(membership)) return { projectId: project?.id, level: getProjectPermissionLevel(user, role, project), source: inheritedCap ? "project-bundle-ceiling" : "project-membership-lead", reasons: ["Normalized Project Membership marks this user as a project lead.", ...(inheritedCap ? [`Project bundle ceiling limits Projects to ${inheritedCap}.`] : [])] };

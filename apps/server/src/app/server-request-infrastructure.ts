@@ -24,6 +24,8 @@ import { requestContextFor, setRequestActorContext } from "../domains/access/req
 import { isConfigurableToolCapability } from "../domains/access/configurable-tool-availability.js";
 import { setRequestDeviceProof, verifyDeviceProofForRequest } from "../domains/sessions/device-proof.js";
 import { serverUpdateMaintenanceHeld } from "../core/server-update-maintenance.js";
+import { clusterAccountPortal } from "@cluster/shared";
+import { audiencesForRequest, isExternalAccount, portalApiAllowed, readPortalSettings } from "../domains/portal/portal-boundary.js";
 
 type ServerRequestInfrastructureDeps = {
   app: FastifyInstance;
@@ -170,6 +172,18 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
     const governorMode = resourceGovernor.currentMode();
     reply.header("X-Cluster-Saturation", saturation.state);
     reply.header("X-Cluster-Governor", governorMode);
+
+    // Portal addresses serve the portal and nothing else: studio APIs don't
+    // exist there.
+    if (context.policy.isApi) {
+      const portal = readPortalSettings(await readSettings());
+      const audiences = audiencesForRequest(request, portal);
+      if (audiences.length && !portalApiAllowed(pathname, request.method, portal, audiences)) {
+        reply.header("Cache-Control", "no-store");
+        reply.code(404).send({ ok: false, code: "NOT_FOUND", error: "Not found." });
+        return;
+      }
+    }
 
     const workPolicy = requestWorkPolicy({ pathname, method: request.method, globalBodyLimitBytes: runtimeConfig.bodyLimit, uploadLimitBytes, avatarUploadLimitBytes });
     requestWorkPolicies.set(request, workPolicy);
@@ -392,6 +406,18 @@ export async function registerServerRequestInfrastructure(deps: ServerRequestInf
       }
     }
 
+    // Contractors, clients and guests use their portal; studio APIs are
+    // refused for them on every address.
+    if (session && isExternalAccount(session.user)) {
+      const portal = readPortalSettings(await readSettings());
+      const audience = clusterAccountPortal(session.user.accountType);
+      const audiences = audience && portal[audience].enabled ? [audience] : [];
+      if (!portalApiAllowed(policy.pathname, policy.method, portal, audiences, session.user)) {
+        reply.header("Cache-Control", "no-store");
+        reply.code(403).send({ ok: false, code: "PORTAL_ONLY", error: audiences.length ? "That isn't available in the portal." : "Your portal is turned off. Contact the studio." });
+        return;
+      }
+    }
     if (policy.access.kind === "public" || !authRequired) return;
     if (!session) {
       clearSessionCookies(reply);

@@ -1,4 +1,5 @@
 import { ClusterVisualComposition, ClusterVisualMeter, ClusterVisualRankedBars } from "../../components/ClusterVisualMetrics";
+import { CLUSTER_ACCOUNT_TYPES, CLUSTER_ACCOUNT_TYPE_INFO, clusterAccountType } from "@cluster/shared";
 import { ClusterNativeSelect, ClusterInput } from "../../components/ClusterNativeControls";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import "./people.css";
@@ -1196,7 +1197,7 @@ export function ProfilesPage({ currentUser, projects, onOpenProject, onEditProfi
                       <header><h3>Account</h3><span className={`pp-state ${profile.archived ? "archived" : state.toLowerCase()}`}>{profile.archived ? "Archived" : levelLabel(state.replaceAll("_", " ").toLowerCase())}</span></header>
                       <dl className="pp-rows">
                         <div><dt>Role</dt><dd>{levelLabel(profile.workspaceRole || (profile.isAdmin ? "admin" : "member"))}</dd></div>
-                        <div><dt>Type</dt><dd>{effectiveAdminMode ? <ClusterSelect ariaLabel="Account type" value={profile.accountType || "employee"} disabled={busy} onChange={(value) => void changeProfileAccountType(value)} options={[{ value: "employee", label: "Employee" }, { value: "contractor", label: "Contractor" }, { value: "client", label: "Client" }, { value: "guest", label: "Guest" }]} /> : levelLabel(profile.accountType || "employee")}</dd></div>
+                        <div><dt>Type</dt><dd>{effectiveAdminMode ? <ClusterSelect ariaLabel="Account type" value={profile.accountType || "employee"} disabled={busy} onChange={(value) => void changeProfileAccountType(value)} options={CLUSTER_ACCOUNT_TYPES.map((type) => ({ value: type, label: CLUSTER_ACCOUNT_TYPE_INFO[type].label, description: CLUSTER_ACCOUNT_TYPE_INFO[type].description }))} /> : CLUSTER_ACCOUNT_TYPE_INFO[clusterAccountType(profile.accountType)].label}</dd></div>
                         <div><dt>Password</dt><dd>{profile.passwordConfigured === false ? "Setup required" : "Set"}</dd></div>
                         <div><dt>PIN</dt><dd>{profile.pinConfigured ? "Set" : "Not set"}</dd></div>
                         <div><dt>Access expires</dt><dd title={profile.accountType && profile.accountType !== "employee" ? "Clients, contractors and guests need an expiry. Extensions are approved in Studio Settings → Access renewals." : undefined}>{profile.accessExpiresAt ? new Date(profile.accessExpiresAt).toLocaleDateString() : "Never"}</dd></div>

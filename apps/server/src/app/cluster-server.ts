@@ -44,6 +44,7 @@ import { runStudioFormReminderTick } from "../domains/studio-systems/studio-form
 import { registerStudioWorkflowRoutes } from "../domains/studio-systems/studio-workflow-routes.js";
 import { registerAnnouncementFeedRoutes } from "../domains/studio-systems/announcement-feed-routes.js";
 import { registerChangelogRoutes } from "../domains/changelog/changelog-routes.js";
+import { registerPortalRoutes } from "../domains/portal/portal-routes.js";
 import { registerStudioInventoryVaultRoutes } from "../domains/inventory/studio-inventory-vault-routes.js";
 import { registerDomainManagementRoutes } from "../domains/domains/domain-management-routes.js";
 import { registerDomainConnectionRoutes } from "../domains/domains/domain-connection-routes.js";
@@ -649,6 +650,7 @@ registerStudioOnboardingRoutes({ app, prisma, authorization, getCurrentUser, log
 registerStudioWorkflowRoutes({ app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent, readSettings, rateLimitKey, hashToken, apiRateLimitWindowMs: API_RATE_LIMIT_WINDOW_MS, hashPassword, generateTemporaryPassword, normalizeAuthUsername, events: eventRuntime });
 registerAnnouncementFeedRoutes({ app, prisma, authorization, getCurrentUser });
 registerChangelogRoutes({ app, getCurrentUser, fetchWithTimeout });
+registerPortalRoutes({ app, prisma, authorization, getCurrentUser, readSettings, saveSettings, settingsForClient, logActivity });
 registerStudioOffboardingRoutes({ app, prisma, authorization, getCurrentUser, logActivity, logSecurityEvent });
 registerStudioInventoryVaultRoutes({ app, prisma, authorization, requireConfirmation, logSecurityEvent, getCurrentUser, verifyUserPin, auditService });
 registerDomainManagementRoutes({ app, prisma, authorization, getCurrentUser, auditService, readSettings });

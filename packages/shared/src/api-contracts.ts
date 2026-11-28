@@ -1,3 +1,4 @@
+import type { ClusterAccountType } from "./external-portal-contracts.js";
 import type { ClusterRemoteSearchScope, ClusterSearchResultKind } from "./cluster-manifest.js";
 import type { ClusterResourceAddress } from "./resource-address.js";
 import type { NotificationCategory, NotificationPriority, NotificationDeliveryMode, NotificationProjectMode, NotificationPriorityFloor, NotificationEscalationMode, NotificationTool, NotificationSignal } from "./notification-contracts.js";
@@ -330,7 +331,6 @@ export type CursorPage<T> = {
 };
 
 export type ClusterPresenceStatus = "available" | "busy" | "focus" | "away" | "offline";
-export type ClusterAccountType = "employee" | "contractor" | "client" | "guest";
 export type ClusterWorkspaceRole = "owner" | "admin" | "member" | "viewer" | "external" | string;
 
 export type UserDirectoryQuery = {

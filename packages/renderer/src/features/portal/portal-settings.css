@@ -1,0 +1,26 @@
+.psp { display: grid; gap: 12px; max-width: 860px; }
+.psp__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.psp__head h2 { margin: 0; font-size: 1.05rem; }
+.psp__head p { margin: 4px 0 0; color: var(--muted); font-size: .78rem; }
+.psp__muted { margin: 0; color: var(--muted); font-size: .76rem; line-height: 1.45; }
+.psp code { padding: 1px 5px; border-radius: 5px; background: var(--cluster-surface-2, var(--panel-2)); font-size: .74rem; }
+.psp__site { display: grid; gap: 10px; padding: 14px 16px; border-radius: 14px; background: var(--cluster-surface-1, var(--panel)); }
+.psp__site[data-off] { opacity: .75; }
+.psp__toggle, .psp__features label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.psp__toggle input, .psp__features input { margin-top: 3px; accent-color: var(--accent); }
+.psp__toggle span, .psp__features span { display: grid; gap: 1px; }
+.psp__toggle strong { font-size: .9rem; }
+.psp__toggle small, .psp__features small { color: var(--muted); font-size: .72rem; }
+.psp__body { display: grid; gap: 8px; padding-left: 26px; }
+.psp__field { display: grid; gap: 4px; max-width: 420px; }
+.psp__field span { color: var(--muted); font-size: .7rem; }
+.psp.psp .psp__field input { min-height: 34px; padding: 0 10px; border: 0 !important; border-radius: 8px; background: var(--cluster-surface-2, var(--panel-2)) !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: .84rem; }
+.psp__features { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 16px; margin: 4px 0 0; padding: 0; border: 0; }
+.psp__features legend { margin-bottom: 6px; color: var(--muted); font-size: .7rem; }
+.psp__features strong { font-size: .8rem; }
+.psp__types { padding: 4px 2px; }
+.psp__types h3 { margin: 0 0 6px; font-size: .86rem; }
+.psp__types dl { display: grid; gap: 4px; margin: 0; }
+.psp__types dl div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: .78rem; }
+.psp__types dt { font-weight: 700; }
+.psp__types dd { margin: 0; color: var(--muted); }

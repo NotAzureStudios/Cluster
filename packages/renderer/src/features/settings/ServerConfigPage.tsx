@@ -19,6 +19,7 @@ import { ClusterCopyButton } from "../../components/ClusterCopyButton";
 import { ServerDomainsPanel } from "../domains/DomainManagementPanel";
 import { ServerConnectionGuide } from "./ServerConnectionGuide";
 import { ServerUpdateControls } from "./ServerUpdateControls";
+import { PortalSettingsPanel } from "../portal/PortalSettingsPanel";
 import { StorageLocationsPanel } from "./StorageLocationsPanel";
 import { ServerNetworkTopology } from "./ServerNetworkTopology";
 import { ClusterEmptyState } from "../../components/ClusterEmptyState";
@@ -807,7 +808,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
   const [section, setSection] = useState<ServerConfigSection>(() => {
     const requested = initialSection || window.sessionStorage.getItem("cluster-server-config-section");
     window.sessionStorage.removeItem("cluster-server-config-section");
-    return (["overview", "performance", "network", "domains", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"] as ServerConfigSection[]).includes(requested as ServerConfigSection) ? (requested as ServerConfigSection) : "overview";
+    return (["overview", "performance", "network", "domains", "portal", "security", "storage", "backups", "maintenance", "integrations", "sessions", "advanced"] as ServerConfigSection[]).includes(requested as ServerConfigSection) ? (requested as ServerConfigSection) : "overview";
   });
   useEffect(() => {
     if (section === "performance") void refreshGovernorRuntime();
@@ -1464,6 +1465,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "maintenance", label: "Updates", group: "Runtime", icon: "clock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "maintenance").length },
     { id: "network", label: "Network", group: "Runtime", icon: "cloud", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "network").length },
     { id: "domains", label: "Domains & gateways", group: "Runtime", icon: "link" },
+    { id: "portal", label: "External portal", group: "Runtime", icon: "globe" },
     { id: "advanced", label: "All settings", group: "Runtime", icon: "settings", count: serverManagedKeys.length },
     { id: "security", label: "Security", group: "Security & Access", icon: "lock", count: SERVER_CONFIG_FIELDS.filter((field) => field.section === "security").length },
     { id: "sessions", label: "Sessions", group: "Security & Access", icon: "users", count: serverSessions.length },
@@ -1478,7 +1480,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
     { id: "storage" as const, label: "Data & Recovery" },
     { id: "integrations" as const, label: "Extensions" },
   ];
-  const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
+  const serverGroupForSection = (target: ServerConfigSection) => target === "network" || target === "domains" || target === "portal" ? "network" : target === "security" || target === "sessions" ? "security" : target === "storage" || target === "backups" ? "storage" : target === "integrations" ? "integrations" : "overview";
   return (
     <SettingsWorkspaceShell
       className="settings-workspace-v298 server-config-page-v094 server-config-console-v238"
@@ -1873,6 +1875,7 @@ export function ServerConfigPage({ onSettingsSaved, initialSection, onSectionCha
         </>
       )}
       {section === "domains" && <ServerDomainsPanel />}
+      {section === "portal" && <PortalSettingsPanel />}
       {section === "maintenance" && (
         <>
           <ServerUpdateControls owner={currentUser.workspaceRole === "owner"} pinConfigured={currentUser.pinConfigured === true} />

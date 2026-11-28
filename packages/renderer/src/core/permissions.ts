@@ -40,7 +40,7 @@ export const DEFAULT_VIEWER_TOOL_PERMISSIONS: ToolPermissions = {
 };
 
 export const EXTERNAL_COLLABORATOR_TOOL_PERMISSIONS: ToolPermissions = {
-  mywork: "view", inbox: "view", projects: "view", boards: "view", whiteboards: "view", viewer: "view", timeline: "view", builds: "view", qa: "edit", tickets: "edit", calendar: "view", scheduler: "none", library: "view", packets: "view", inventory: "none", vault: "none", sourceControl: "none", integrations: "none", people: "none", activity: "none", settings: "view", serverConfig: "none",
+  mywork: "view", inbox: "view", projects: "view", boards: "view", whiteboards: "view", viewer: "view", timeline: "view", builds: "view", qa: "edit", tickets: "edit", calendar: "view", scheduler: "edit", library: "edit", packets: "none", inventory: "none", vault: "none", sourceControl: "none", integrations: "none", people: "none", activity: "none", settings: "view", serverConfig: "none",
 };
 
 export const ROLE_PERMISSION_TEMPLATES: Array<{ key: string; label: string; description: string; tools: ToolPermissions }> = [

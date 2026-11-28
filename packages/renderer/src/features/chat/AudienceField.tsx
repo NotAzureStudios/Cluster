@@ -8,9 +8,9 @@ type Option = { id: string; label: string; detail?: string };
 export type AudienceCatalog = Record<"teams" | "departments" | "projects" | "roles" | "users", Option[]>;
 const KINDS: Array<[Kind, keyof AudienceCatalog, string]> = [["team", "teams", "Team"], ["department", "departments", "Department"], ["project", "projects", "Project"], ["role", "roles", "Role"], ["user", "users", "Person"]];
 
-export function useAudienceCatalog() {
+export function useAudienceCatalog(enabled = true) {
   const [catalog, setCatalog] = useState<AudienceCatalog | null>(null);
-  useEffect(() => { let live = true; void queryApi<AudienceCatalog>("/api/studio-audience/options", { staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["people", "studio-audience"] }).then((value) => { if (live) setCatalog(value); }).catch(() => undefined); return () => { live = false; }; }, []);
+  useEffect(() => { if (!enabled) return; let live = true; void queryApi<AudienceCatalog>("/api/studio-audience/options", { staleMs: 30_000, maxAgeMs: 5 * 60_000, tags: ["people", "studio-audience"] }).then((value) => { if (live) setCatalog(value); }).catch(() => undefined); return () => { live = false; }; }, [enabled]);
   return catalog;
 }
 

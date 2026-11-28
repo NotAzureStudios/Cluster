@@ -26,7 +26,7 @@ const PRIORITY_LABEL: Record<string, string> = { high: "Important", urgent: "Urg
 export function ChatPage() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState("");
-  const catalog = useAudienceCatalog();
+  const catalog = useAudienceCatalog(Boolean(feed?.manager));
   const scroller = useRef<HTMLDivElement | null>(null);
 
   async function load() {
