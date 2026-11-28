@@ -417,7 +417,7 @@ function AssertServerStopped([string]$root) {
     # install (or LaunchClusterServer) starts it again.
     Say 'Stopping the ClusterStudioServer service for the update.'
     try { Stop-Service -Name 'ClusterStudioServer' -ErrorAction Stop }
-    catch { Fail 'Cluster is running as a Windows Service. Run the installer as administrator so it can stop and restart the service, or stop Cluster in the panel first.' }
+    catch { Fail ("Cluster is running as a Windows Service and could not be stopped (" + $_.Exception.Message + "). Run the installer from an Administrator PowerShell, or stop Cluster in the panel first.") }
     $deadline = (Get-Date).AddSeconds(90)
     while ((Get-Service -Name 'ClusterStudioServer').Status -ne 'Stopped') {
       if ((Get-Date) -gt $deadline) { Fail 'The ClusterStudioServer service did not stop within 90 seconds.' }
