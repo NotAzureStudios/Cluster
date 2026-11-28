@@ -336,6 +336,17 @@ function LaunchClusterServer([string]$root) {
   # 54321 and may attach to the global ClusterStudioServer service.
   # Do not launch a test build into an already-running production instance.
   $service = Get-CimInstance Win32_Service -Filter "Name='ClusterStudioServer'" -ErrorAction Stop
+  $escapedRoot = [regex]::Escape($root.TrimEnd('\'))
+  if ($service -and $service.PathName -match $escapedRoot) {
+    # This install runs as a Windows Service: start it and open the panel.
+    if ($service.State -eq 'Stopped') {
+      Say 'Starting the ClusterStudioServer service.'
+      Start-Service -Name 'ClusterStudioServer' -ErrorAction Stop
+    }
+    $panel = Join-Path $root 'bin/ClusterServer.exe'
+    if (Test-Path -LiteralPath $panel -PathType Leaf) { Start-Process -FilePath $panel -ArgumentList @('--root',('"' + $root + '"'),'--interface') -WorkingDirectory $root }
+    return
+  }
   if ($service -and $service.State -ne 'Stopped') {
     Fail 'ClusterStudioServer service is already running. Existing server was not interrupted; stop it before starting the new installation.'
   }
@@ -402,7 +413,16 @@ function AssertServerStopped([string]$root) {
   $escaped = [regex]::Escape($root.TrimEnd('\'))
   $runningService = Get-CimInstance Win32_Service -Filter "Name='ClusterStudioServer'" -ErrorAction Stop
   if ($runningService -and $runningService.State -ne 'Stopped' -and $runningService.PathName -match $escaped) {
-    Fail 'The managed ClusterStudioServer service is running. Stop it through the Windows Server Manager before updating.'
+    # A manual install over a running service stops it; the end of the
+    # install (or LaunchClusterServer) starts it again.
+    Say 'Stopping the ClusterStudioServer service for the update.'
+    try { Stop-Service -Name 'ClusterStudioServer' -ErrorAction Stop }
+    catch { Fail 'Cluster is running as a Windows Service. Run the installer as administrator so it can stop and restart the service, or stop Cluster in the panel first.' }
+    $deadline = (Get-Date).AddSeconds(90)
+    while ((Get-Service -Name 'ClusterStudioServer').Status -ne 'Stopped') {
+      if ((Get-Date) -gt $deadline) { Fail 'The ClusterStudioServer service did not stop within 90 seconds.' }
+      Start-Sleep -Milliseconds 500
+    }
   }
   $processes = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
     if (TestExternalClusterUpdateOwner $_ $root) { return $false }
