@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { HomeBanners } from "../../chat/HomeBanners";
 import { api, queryApi, setApiQueryData } from "../../../core/api";
 import { useVisibleTicker } from "../../../core/visible-ticker";
 import { useProjectWorkflowList } from "../../../core/project-workflow-storage";
@@ -689,6 +690,7 @@ export function Dashboard({ projects, onOpenBoard, onOpenProjects, onOpenProject
         )}
       />
 
+      {!editing ? <HomeBanners /> : null}
       {clockStatus && <p className="home-clock-status">{clockStatus}</p>}
       <ClockIntentModal open={clockModalOpen} mode={homeActiveEntry ? "out" : "in"} active={homeActiveEntry} projects={projects} title={clockTitle} onTitleChange={setClockTitle} projectIds={clockProjectIds} onProjectIdsChange={setClockProjectIds} busy={clockBusy} onCancel={() => setClockModalOpen(false)} onConfirm={confirmHomeClock} />
       <HomeWidgetOptions

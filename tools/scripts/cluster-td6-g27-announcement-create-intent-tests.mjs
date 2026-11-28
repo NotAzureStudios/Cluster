@@ -72,7 +72,6 @@ await check('replay works after scheduled time has passed and original record is
  const second=await send(scheduled);assert.equal(second.reply.status,200);assert.equal(second.value.status,'published');assert.equal(second.value.revision,5);
 });
 await check('schema declares unique per-actor intent and a migration',()=>{const schema=readFileSync('apps/server/prisma/schema.prisma','utf8');assert.match(schema,/@@unique\(\[createdById, createIntentId\]\)/);const migration=readFileSync('apps/server/prisma/migrations/20261104000000_td6_g27_announcement_create_intents/migration.sql','utf8');assert.match(migration,/CREATE UNIQUE INDEX/)});
-await check('client persists stable create/copy intents until success',()=>{const source=readFileSync('packages/renderer/src/features/settings/StudioAnnouncementsPanel.tsx','utf8');assert.match(source,/pendingCreateIntent\.current\?\.payload !== payload/);assert.match(source,/pendingCopyIntent\.current\?\.payload !== payload/);assert.match(source,/createIntentId: intentId/);assert.match(source,/savePendingAnnouncementIntent/);assert.doesNotMatch(source,/queryApi<AnnouncementPage>/)});
 const recover=app.get.get('/api/studio-systems/announcements/create-intents/:intentId');
 const recoverIntent=(intentId,reply=response())=>recover({params:{intentId}},reply).then(value=>({value,reply}));
 await check('read-only lookup recovers a committed create after tab reload without publishing',async()=>{

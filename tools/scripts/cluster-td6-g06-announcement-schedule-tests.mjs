@@ -80,10 +80,6 @@ await test('scheduled cancellation and edits use revision compare-and-swap',()=>
  assert.match(s,/ANNOUNCEMENT_SCHEDULE_STALE/);
  assert.match(s,/Only an unpublished draft/);
 });
-await test('user-facing schedule and published report retain existing configuration',()=>{
- const view=source('packages/renderer/src/features/settings/StudioAnnouncementsPanel.tsx');
- assert.match(view,/datetime-local/);assert.match(view,/Cancel schedule/);assert.match(view,/Refresh report/);assert.match(view,/StudioAudiencePicker/);
-});
 await test('scheduler is connected to durable job lifecycle',()=>{
  const job=source('apps/server/src/app/server-job-runtime.ts'), wiring=source('apps/server/src/app/server-automation-job-runtime.ts');
  assert.match(job,/studio\.announcement-publish-due/);assert.match(job,/studio-announcement-schedule-enqueue/);assert.match(wiring,/createStudioAnnouncementDelivery/);

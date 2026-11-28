@@ -119,10 +119,6 @@ await check('old schedule and publication flows remain present', () => {
   assert.ok(handlers.has('PUT /api/studio-systems/announcements/:announcementId/schedule'));
   assert.ok(handlers.has('POST /api/studio-systems/announcements/:announcementId/publish'));
 });
-await check('admin UI exposes create, edit, preview, schedule and reporting', () => {
-  const ui = text('packages/renderer/src/features/settings/StudioAnnouncementsPanel.tsx');
-  for (const phrase of ['Edit content & audience', 'Save changes', 'Preview eligible audience', 'Duplicate as draft', 'Cancel schedule', 'Refresh report', 'Schedule announcement']) assert.ok(ui.includes(phrase), phrase);
-});
 await check('shared Search and workspace action registry offer canonical Copy ID', () => {
   assert.ok(text('packages/shared/src/workflow-contracts.ts').includes('"copy_id"'));
   assert.ok(text('packages/renderer/src/features/workflow/WorkActionMenu.tsx').includes('copyWorkId(context)'));

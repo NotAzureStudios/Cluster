@@ -220,6 +220,9 @@ export const studioAnnouncementCreateSchema = z.object({
   priority: z.enum(STUDIO_ANNOUNCEMENT_PRIORITIES).default("normal"),
   requiresAcknowledgement: z.boolean().default(false),
   discordDeliveryRequested: z.boolean().default(false),
+  /** Also shown as a banner on Home until bannerEndsAt (or until ended). */
+  homeBanner: z.boolean().default(false),
+  bannerEndsAt: z.coerce.date().nullable().optional(),
   scheduledAt: z.coerce.date().nullable().optional(),
 });
 /** Editable content is independent from scheduling; the revision is the

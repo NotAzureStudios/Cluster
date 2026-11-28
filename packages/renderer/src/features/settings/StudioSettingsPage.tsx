@@ -1120,9 +1120,6 @@ export function StudioSettingsPage({ onSettingsSaved, currentUser, initialSectio
             targetFormId={studioResource?.scope === "studio-form" ? studioResource.id : null}
             targetSubmissionId={studioResource?.scope === "form-submission" ? studioResource.id : null}
             targetApplicationId={studioResource?.scope === "studio-application" ? studioResource.id : null}
-            targetAnnouncementId={studioResource?.scope === "studio-announcement" ? studioResource.id : null}
-            composeAnnouncement={studioResource?.scope === "studio-announcement-new"}
-            showAnnouncements={studioResource?.scope === "studio-announcement-list"}
           />}
 
           {section === "departments" && (

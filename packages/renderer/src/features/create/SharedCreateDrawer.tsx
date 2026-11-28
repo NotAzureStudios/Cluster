@@ -1460,7 +1460,7 @@ ${bugActual}`,
             onClearQuery={() => setCreateTypeQuery("")}
             onActivateMode={setActiveCreateMode}
             onChooseMode={changeCreateMode}
-            onCreateAnnouncement={currentUser.isAdmin ? () => { onClose(); openClusterWorkNavigation({ screen: "studioSettings", inspectScope: "studio-announcement-new", inspectId: "new" }); } : undefined}
+            onCreateAnnouncement={currentUser.isAdmin ? () => { onClose(); window.location.hash = "chat"; } : undefined}
             onClose={() => void requestClose()}
             onKeyDown={handleCreatePickerKeyDown}
           />

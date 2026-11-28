@@ -3206,6 +3206,8 @@ model StudioAnnouncement {
   priority                String   @default("normal")
   requiresAcknowledgement Boolean  @default(false)
   discordDeliveryRequested Boolean @default(false)
+  homeBanner              Boolean  @default(false)
+  bannerEndsAt            DateTime?
   status                  String   @default("draft")
   createdById             String?
   createIntentId          String?

@@ -957,7 +957,7 @@ export default function App() {
         return;
       }
       if (target.screen === "studioSettings" && (target.inspectScope === "studio-announcement" || target.inspectScope === "studio-announcement-new" || target.inspectScope === "studio-announcement-list")) {
-        void setScreen("studioSettings", { section: "studioSystems" });
+        void setScreen("chat");
         return;
       }
       void setScreen(target.screen);

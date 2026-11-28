@@ -29,7 +29,7 @@ type VerificationLogger = {
   warn?: (payload: unknown, message?: string) => void;
 };
 
-const REQUIRED_LATEST_MIGRATION = "20261127010000_inventory_asset_details";
+const REQUIRED_LATEST_MIGRATION = "20261128000000_announcement_home_banner";
 
 const REQUIRED_TABLES = [
   "User", "AvatarAudit", "Session", "DiscordLinkChallenge", "DiscordRoleProjection", "SecurityAuditEvent",

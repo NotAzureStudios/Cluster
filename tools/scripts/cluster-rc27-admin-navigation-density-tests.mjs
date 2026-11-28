@@ -22,7 +22,7 @@ assert.match(shared, /ClusterAppNavigationIcon[^\n]*"inventory"/);
 // The sidebar has one Admin entry; Studio Settings owns its section list.
 assert.match(sidebar, /section\.id === "administration"[\s\S]*?navigate\("admin"\)/);
 for (const section of ['customFields','projectTypes','domains','automations','studioSystems']) assert.match(state, new RegExp(`key: "${section}"`));
-for (const tab of ['policies','announcements']) assert.match(systems, new RegExp(`initialTab === "${tab}"`));
+for (const tab of ['policies']) assert.match(systems, new RegExp(`initialTab === "${tab}"`));
 assert.match(application, /initialSubsection=\{routeSubsection\}/);
 assert.match(application, /current !== next \|\| \(next === "studioSettings"/);
 assert.match(systems, /initialTab/);

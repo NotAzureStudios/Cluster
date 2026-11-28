@@ -1,0 +1,12 @@
+/* Home banners: announcements flagged for Home. */
+.home-banners { display: grid; gap: 6px; margin-bottom: 10px; }
+.home-banner { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 13%, var(--cluster-surface-1)); color: var(--text); }
+.home-banner > svg { width: 16px; height: 16px; flex: none; color: var(--accent); }
+.home-banner[data-priority="high"] { background: color-mix(in srgb, var(--warning, #f5a524) 14%, var(--cluster-surface-1)); }
+.home-banner[data-priority="high"] > svg { color: var(--warning, #f5a524); }
+.home-banner[data-priority="urgent"] { background: color-mix(in srgb, var(--danger, #e35d6a) 15%, var(--cluster-surface-1)); }
+.home-banner[data-priority="urgent"] > svg { color: var(--danger, #e35d6a); }
+.home-banner__text { display: flex; flex: 1; min-width: 0; align-items: baseline; gap: 10px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.home-banner__text strong { font-size: .82rem; white-space: nowrap; }
+.home-banner__text span { min-width: 0; overflow: hidden; color: var(--soft-text, var(--text)); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.home-banner__text small { margin-left: auto; color: var(--muted); font-size: .68rem; white-space: nowrap; }

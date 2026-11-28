@@ -51,3 +51,18 @@
 .chat__soon svg { width: 15px; height: 15px; flex: none; opacity: .6; }
 .chat__soon span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat__soon em { padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-size: .58rem; font-style: normal; font-weight: 700; white-space: nowrap; }
+.chat__to { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-bottom: 6px; box-shadow: inset 0 -1px 0 var(--cluster-border); }
+.chat__to-label { color: var(--muted); font-size: .7rem; margin-right: 2px; }
+.chat__to .chat__chip.chat__chip { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--text); font: inherit; font-size: .7rem; cursor: pointer; }
+.chat__to .chat__chip svg { width: 11px; height: 11px; opacity: .6; }
+.chat__chip:hover svg { opacity: 1; }
+.chat__to .chat__chip.chat__chip--all { background: var(--cluster-surface-1); color: var(--soft-text, var(--text)); cursor: default; }
+.chat__composer.chat__composer .chat__to.chat__to input:not([type]) { flex: 1; min-width: 160px; min-height: 22px; padding: 0 4px; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--text); font: inherit; font-size: .74rem; outline: none; }
+.chat__to-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 20; max-height: 260px; margin: 0; padding: 4px; overflow: auto; list-style: none; border-radius: 10px; background: var(--cluster-surface-2); box-shadow: 0 12px 32px rgb(0 0 0 / .35); }
+.chat__to-menu li { display: flex; align-items: baseline; gap: 8px; min-height: 30px; padding: 6px 8px; border-radius: 7px; font-size: .76rem; cursor: pointer; }
+.chat__to-menu li[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.chat__to-menu small { color: var(--muted); font-size: .66rem; }
+.chat__to-menu em { margin-left: auto; color: var(--muted); font-size: .62rem; font-style: normal; }
+.chat__to-note { color: var(--muted); font-size: .66rem; }
+.chat__tag[data-banner] { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.chat__composer.chat__composer input.chat__until.chat__until { min-height: 22px; padding: 0 6px; border: 0 !important; border-radius: 6px; background: var(--cluster-surface-1) !important; color: var(--text); font: inherit; font-size: .7rem; color-scheme: dark; }

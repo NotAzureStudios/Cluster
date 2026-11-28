@@ -5,7 +5,8 @@ import { formatRelativeTime } from "../../core/format";
 import { ClusterButton } from "../../components/ClusterButton";
 import { ClusterIcon } from "../../components/ClusterIcon";
 import { PresenceAvatar } from "../../components/PresenceAvatar";
-import { openClusterWorkNavigation } from "../workflow/work-navigation";
+import type { StudioAudience } from "@cluster/shared";
+import { AudienceField, describeAudience, useAudienceCatalog, type AudienceCatalog } from "./AudienceField";
 import "./chat.css";
 
 type Announcement = {
@@ -14,6 +15,7 @@ type Announcement = {
   author: { id: string; name: string; avatarUrl: string | null } | null;
   deliveryId: string | null; read: boolean; acknowledgedAt: string | null;
   reach: { delivered: number; read: number; acknowledged: number } | null;
+  homeBanner: boolean; bannerActive: boolean; audience: StudioAudience | null;
 };
 type Feed = { manager: boolean; announcements: Announcement[] };
 
@@ -24,6 +26,7 @@ const PRIORITY_LABEL: Record<string, string> = { high: "Important", urgent: "Urg
 export function ChatPage() {
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState("");
+  const catalog = useAudienceCatalog();
   const scroller = useRef<HTMLDivElement | null>(null);
 
   async function load() {
@@ -47,6 +50,11 @@ export function ChatPage() {
     await load();
   }
 
+  async function endBanner(item: Announcement) {
+    await api(`/api/announcements/${item.id}/end-banner`, { method: "POST", body: "{}" });
+    await load();
+  }
+
   return <main className="chat" aria-label="Chat">
     <nav className="chat__rail" aria-label="Channels">
       <h1>Chat</h1>
@@ -59,9 +67,7 @@ export function ChatPage() {
     </nav>
     <section className="chat__room">
       <header className="chat__head">
-        <div><h2>Announcements</h2><span>Studio-wide updates</span></div>
-        {feed?.manager ? <ClusterButton size="compact" variant="quiet" title="Audience, scheduling and drafts"
-          onClick={() => openClusterWorkNavigation({ screen: "studioSettings", inspectScope: "studio-announcement-list", inspectId: "list" })}>Manage</ClusterButton> : null}
+        <div><h2>Announcements</h2><span>Studio updates</span></div>
       </header>
       <div className="chat__stream" ref={scroller}>
         {error ? <p className="chat__empty" role="alert">{error}</p> : !feed ? <p className="chat__empty">Loading…</p>
@@ -69,24 +75,28 @@ export function ChatPage() {
           : messages.map((item) => <article key={item.id} className="chat__msg" data-priority={item.priority}>
             <PresenceAvatar userId={item.author?.id} imageUrl={item.author?.avatarUrl} label={item.author?.name || "Cluster"} fallback={(item.author?.name || "C").slice(0, 1).toUpperCase()} />
             <div className="chat__msg-body">
-              <header><strong>{item.author?.name || "Cluster"}</strong><time dateTime={item.publishedAt} title={new Date(item.publishedAt).toLocaleString()}>{formatRelativeTime(item.publishedAt)}</time>{PRIORITY_LABEL[item.priority] ? <span className="chat__tag" data-priority={item.priority}>{PRIORITY_LABEL[item.priority]}</span> : null}</header>
+              <header><strong>{item.author?.name || "Cluster"}</strong><time dateTime={item.publishedAt} title={new Date(item.publishedAt).toLocaleString()}>{formatRelativeTime(item.publishedAt)}</time>{PRIORITY_LABEL[item.priority] ? <span className="chat__tag" data-priority={item.priority}>{PRIORITY_LABEL[item.priority]}</span> : null}{item.bannerActive ? <span className="chat__tag" data-banner>On Home</span> : null}{item.audience ? <span className="chat__to-note">to {describeAudience(item.audience, catalog)}</span> : null}</header>
               <h3>{item.title}</h3>
               <div className="chat__md">{renderMarkdown(item.body)}</div>
-              {(item.requiresAcknowledgement && item.deliveryId) || item.reach ? <footer>
+              {(item.requiresAcknowledgement && item.deliveryId) || item.reach || (feed?.manager && item.bannerActive) ? <footer>
                 {item.requiresAcknowledgement && item.deliveryId ? item.acknowledgedAt
                   ? <span className="chat__ack"><ClusterIcon name="check" /> Acknowledged</span>
                   : <ClusterButton size="compact" variant="primary" onClick={() => void acknowledge(item)}>Acknowledge</ClusterButton> : null}
+                {feed?.manager && item.bannerActive ? <ClusterButton size="compact" variant="quiet" onClick={() => void endBanner(item)}>End banner</ClusterButton> : null}
                 {item.reach ? <span className="chat__reach">Seen by {item.reach.read}/{item.reach.delivered}{item.requiresAcknowledgement ? ` · ${item.reach.acknowledged} acknowledged` : ""}</span> : null}
               </footer> : null}
             </div>
           </article>)}
       </div>
-      {feed?.manager ? <AnnouncementComposer onPosted={load} /> : null}
+      {feed?.manager ? <AnnouncementComposer onPosted={load} catalog={catalog} /> : null}
     </section>
   </main>;
 }
 
-function AnnouncementComposer({ onPosted }: { onPosted: () => Promise<void> }) {
+function AnnouncementComposer({ onPosted, catalog }: { onPosted: () => Promise<void>; catalog: AudienceCatalog | null }) {
+  const [audience, setAudience] = useState<StudioAudience>({ mode: "all", targets: [] });
+  const [banner, setBanner] = useState(false);
+  const [bannerUntil, setBannerUntil] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [priority, setPriority] = useState<"normal" | "high" | "urgent">("normal");
@@ -102,24 +112,28 @@ function AnnouncementComposer({ onPosted }: { onPosted: () => Promise<void> }) {
     try {
       const created = await api<{ id: string }>("/api/studio-systems/announcements", { method: "POST", body: JSON.stringify({
         createIntentId: crypto.randomUUID(), title: title.trim(), body: body.trim(), priority,
-        requiresAcknowledgement: ack, discordDeliveryRequested: discord, audience: { mode: "all", targets: [] },
+        requiresAcknowledgement: ack, discordDeliveryRequested: discord, audience,
+        homeBanner: banner, bannerEndsAt: banner && bannerUntil ? new Date(bannerUntil).toISOString() : null,
       }) });
       await api(`/api/studio-systems/announcements/${created.id}/publish`, { method: "POST", body: "{}" });
-      setTitle(""); setBody(""); setPriority("normal"); setAck(false); setDiscord(false);
+      setTitle(""); setBody(""); setPriority("normal"); setAck(false); setDiscord(false); setAudience({ mode: "all", targets: [] }); setBanner(false); setBannerUntil("");
       await onPosted();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The announcement wasn't posted."); }
     finally { setBusy(false); }
   }
 
   return <form className="chat__composer" onSubmit={(event) => { event.preventDefault(); void post(); }}>
+    <AudienceField value={audience} onChange={setAudience} catalog={catalog} />
     <input className="chat__composer-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title" maxLength={200} aria-label="Announcement title" />
-    <textarea className="chat__composer-body" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write an announcement to everyone…" rows={3} aria-label="Announcement message"
+    <textarea className="chat__composer-body" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write an announcement…" rows={3} aria-label="Announcement message"
       onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void post(); } }} />
     <div className="chat__composer-bar">
       <div className="chat__seg" role="radiogroup" aria-label="Priority">
         {(["normal", "high", "urgent"] as const).map((value) => <button key={value} type="button" role="radio" aria-checked={priority === value} data-priority={value} onClick={() => setPriority(value)}>{value === "normal" ? "Normal" : PRIORITY_LABEL[value]}</button>)}
       </div>
       <label className="chat__opt"><input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} /> Require acknowledgement</label>
+      <label className="chat__opt" title="Show this as a banner on Home"><input type="checkbox" checked={banner} onChange={(event) => setBanner(event.target.checked)} /> Home banner</label>
+      {banner ? <label className="chat__opt">until <input className="chat__until" type="datetime-local" value={bannerUntil} onChange={(event) => setBannerUntil(event.target.value)} aria-label="Banner ends" /></label> : null}
       <label className="chat__opt"><input type="checkbox" checked={discord} onChange={(event) => setDiscord(event.target.checked)} /> Discord</label>
       {error ? <span className="chat__error" role="alert">{error}</span> : null}
       <ClusterButton type="submit" variant="primary" size="compact" busy={busy} disabled={!ready} title="Post · Ctrl/Cmd+Enter"><ClusterIcon name="forward" /> Post</ClusterButton>
